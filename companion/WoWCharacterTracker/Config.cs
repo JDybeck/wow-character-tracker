@@ -32,6 +32,9 @@ class FlavorSettings
     public Dictionary<string, bool> Screenshot { get; set; } = [];
     public Dictionary<string, bool> PostScreenshot { get; set; } = [];
 
+    // Characters removed in the app: guid -> when. A character played after that shows up again.
+    public Dictionary<string, long> Removed { get; set; } = [];
+
     public bool Shoots(string kind) => Screenshot.GetValueOrDefault(kind);
     public bool PostsShot(string kind) => Shoots(kind) && PostScreenshot.GetValueOrDefault(kind);
 

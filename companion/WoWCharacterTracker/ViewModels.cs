@@ -247,11 +247,19 @@ sealed class CharacterRow : Observable
     static string Pick(string? a, string? b) => a is { Length: > 0 } ? a : b ?? "";
 }
 
-sealed class WebhookRow(WebhookInfo info, bool isActive)
+sealed class WebhookRow(WebhookInfo info, bool isActive) : Observable
 {
     public WebhookInfo Info { get; } = info;
     public string Name => Info.Name;
     public bool IsActive { get; } = isActive;
+
+    bool isEditing;
+    public bool IsEditing { get => isEditing; set => Set(ref isEditing, value); }
+
+    string editName = info.Name;
+    public string EditName { get => editName; set => Set(ref editName, value); }
+
+    public void NameChanged() => Raise(nameof(Name));
 
     // https://discord.com/.../1234/AbCdE...WxYz
     public string Masked
@@ -506,11 +514,16 @@ sealed class FlavorViewModel : Observable
         if (name is null) Log.Warn($"[{Name}] {problem}");
     }
 
+    TrackerData lastData = TrackerData.Empty;
+
     void ShowData(TrackerData data)
     {
+        lastData = data;
         var keep = SelectedCharacter?.Guid;
         Characters.Clear();
-        foreach (var r in CharacterRow.Build(data))
+        var removed = Settings.Removed;
+        foreach (var r in CharacterRow.Build(data)
+                     .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at)))
         {
             Characters.Add(r);
             _ = r.LoadPictureAsync();
@@ -518,6 +531,21 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         Raise(nameof(HasCharacters));
         UpdateStatus();
+    }
+
+    // Hides the character in the app. The game's own data isn't touched (the game would just write
+    // it back), and playing the character again brings it back.
+    public void RemoveCharacter(CharacterRow row)
+    {
+        var answer = MessageBox.Show(
+            $"Remove {row.Name} from the list?\n\nIf you play {row.Name} again, it shows up again.",
+            "Character Tracker", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes) return;
+
+        Settings.Removed[row.Guid] = Math.Max(row.LastSeen, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        main.Config.Save();
+        Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");
+        ShowData(lastData);
     }
 
     void UpdateStatus()
@@ -569,10 +597,20 @@ sealed class MainViewModel : Observable
             _ => SelectedFlavor?.Tracker is not null);
         ShowPageCommand = new RelayCommand(p => Page = (string)p!);
         ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
+        RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
         ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
         SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
         SelectWebhookCommand = new RelayCommand(p => SelectWebhook((WebhookRow)p!));
         RemoveWebhookCommand = new RelayCommand(p => RemoveWebhook((WebhookRow)p!));
+        RenameWebhookCommand = new RelayCommand(p =>
+        {
+            foreach (var w in Webhooks) w.IsEditing = false;
+            var row = (WebhookRow)p!;
+            row.EditName = row.Name;
+            row.IsEditing = true;
+        });
+        SaveRenameCommand = new RelayCommand(p => SaveRename((WebhookRow)p!));
+        CancelRenameCommand = new RelayCommand(p => ((WebhookRow)p!).IsEditing = false);
         TestWebhookCommand = new RelayCommand(_ => SendTestAsync(),
             _ => SelectedFlavor is not null && Config.ActiveWebhook(SelectedFlavor.Flavor) is not null);
     }
@@ -614,10 +652,14 @@ sealed class MainViewModel : Observable
     public ICommand SyncCommand { get; }
     public ICommand ShowPageCommand { get; }
     public ICommand ResetPostingCommand { get; }
+    public ICommand RemoveCharacterCommand { get; }
     public ICommand ToggleAddWebhookCommand { get; }
     public ICommand SaveWebhookCommand { get; }
     public ICommand SelectWebhookCommand { get; }
     public ICommand RemoveWebhookCommand { get; }
+    public ICommand RenameWebhookCommand { get; }
+    public ICommand SaveRenameCommand { get; }
+    public ICommand CancelRenameCommand { get; }
     public ICommand TestWebhookCommand { get; }
 
     public async Task StartAsync()
@@ -689,6 +731,19 @@ sealed class MainViewModel : Observable
         RefreshWebhooks();
         Log.Info($"[{SelectedFlavor.Name}] Now posting to \"{row.Name}\".");
         _ = SelectedFlavor.CheckDiscordAsync();
+    }
+
+    void SaveRename(WebhookRow row)
+    {
+        var name = row.EditName.Trim();
+        row.IsEditing = false;
+        if (name.Length == 0 || name == row.Info.Name) return;
+        var old = row.Info.Name;
+        row.Info.Name = name;
+        Config.Save();
+        row.NameChanged();
+        Log.Info($"Renamed webhook \"{old}\" to \"{name}\".");
+        foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync(); // the Discord check shows the name
     }
 
     void RemoveWebhook(WebhookRow row)

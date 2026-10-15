@@ -363,6 +363,15 @@
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
+                          <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,14,0,0" Padding="12,5"
+                                  ToolTip="Hide this character. Playing it again brings it back."
+                                  Command="{Binding DataContext.RemoveCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal">
+                              <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="12" Foreground="{StaticResource Red}" Margin="0,0,7,0"/>
+                              <TextBlock Text="Remove from list" FontSize="12" Foreground="{StaticResource Red}"/>
+                            </StackPanel>
+                          </Button>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
@@ -589,7 +598,7 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate DataType="{x:Type local:WebhookRow}">
                 <Border x:Name="Row" Margin="0,0,0,8" Padding="14,10" CornerRadius="8" BorderThickness="1"
-                        Background="#4D1E293B" BorderBrush="#80334155" Cursor="Hand">
+                        Background="#4D1E293B" BorderBrush="#80334155" Cursor="Hand" ToolTip="{Binding Masked}">
                   <Border.InputBindings>
                     <MouseBinding MouseAction="LeftClick"
                                   Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -600,24 +609,47 @@
                       <ColumnDefinition Width="*"/>
                       <ColumnDefinition Width="Auto"/>
                       <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel>
-                      <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13"/>
-                        <Border x:Name="ActiveTag" Visibility="Collapsed" Margin="8,0,0,0" Padding="7,1" CornerRadius="9"
-                                Background="{StaticResource IndigoSoft}" BorderBrush="#4D6366F1" BorderThickness="1">
-                          <TextBlock Text="ACTIVE" FontSize="9" FontWeight="SemiBold" Foreground="#A5B4FC"/>
-                        </Border>
-                      </StackPanel>
-                      <TextBlock Text="{Binding Masked}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,3,0,0"
-                                 TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
-                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
+
+                    <!-- Name, or the rename box while editing -->
+                    <DockPanel VerticalAlignment="Center" LastChildFill="True"
+                               Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}">
+                      <Border x:Name="ActiveTag" DockPanel.Dock="Right" Visibility="Collapsed" Margin="8,0,4,0" Padding="7,1" CornerRadius="9"
+                              Background="{StaticResource IndigoSoft}" BorderBrush="#4D6366F1" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock Text="ACTIVE" FontSize="9" FontWeight="SemiBold" Foreground="#A5B4FC"/>
+                      </Border>
+                      <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+                    </DockPanel>
+                    <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" Margin="0,0,8,0"
+                             local:FocusWhenVisible.Enabled="True"
+                             Visibility="{Binding IsEditing, Converter={StaticResource Visible}}">
+                      <TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"/>
+                        <KeyBinding Key="Escape" Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"/>
+                      </TextBox.InputBindings>
+                    </TextBox>
+
+                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename"
+                            Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}"
+                            Command="{Binding DataContext.RenameWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="13" Foreground="{StaticResource Dim}"/>
+                    </Button>
+                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Save name (Enter)"
+                            Visibility="{Binding IsEditing, Converter={StaticResource Visible}}"
+                            Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="13" Foreground="{StaticResource Green}"/>
+                    </Button>
+                    <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
                             Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             CommandParameter="{Binding}">
                       <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="13" Foreground="{StaticResource Dim}"/>
                     </Button>
-                    <Border x:Name="Radio" Grid.Column="2" Width="20" Height="20" CornerRadius="10" BorderThickness="1" BorderBrush="#475569"
+                    <Border x:Name="Radio" Grid.Column="3" Width="20" Height="20" CornerRadius="10" BorderThickness="1" BorderBrush="#475569"
                             VerticalAlignment="Center">
                       <TextBlock x:Name="RadioCheck" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource Indigo}"
                                  HorizontalAlignment="Center" Visibility="Collapsed"/>
@@ -662,7 +694,7 @@
               </Grid>
               <Grid>
                 <TextBox Text="{Binding NewWebhookName, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBlock Text="Name (optional, e.g. Leveling)" Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
+                <TextBlock Text="Name, e.g. #leveling / My Guild (optional)" Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
                            VerticalAlignment="Center" IsHitTestVisible="False"
                            Visibility="{Binding NewWebhookName, Converter={StaticResource HiddenIfSet}}"/>
               </Grid>

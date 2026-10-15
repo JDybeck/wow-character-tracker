@@ -42,8 +42,8 @@ Each of these has **Screenshot** (the addon takes one in game a moment after it 
 
 ### The app
 
-- **Characters**: every character you've logged in with the addon, with class, spec, level, item level and when you last played. Hardcore characters are marked. Click one for total played, professions, talents, last zone, highlights (bosses, loot, mounts, death) and level history.
-- **Discord**: add as many webhooks as you like. Click one to make it the active one for the game tab you're on, so Retail and Forever can post to different channels.
+- **Characters**: every character you've logged in with the addon, with class, spec, level, item level and when you last played. Hardcore characters are marked. Click one for total played, professions, talents, last zone, highlights (bosses, loot, mounts, death) and level history. **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
+- **Discord**: add as many webhooks as you like. Click one to make it the active one for the game tab you're on, so Retail and Forever can post to different channels. A new webhook is named after the name you gave it in Discord; click the pencil to rename it, like "#leveling / My Guild" (Discord doesn't tell webhooks their channel or server name). Hover a webhook to see its masked link.
 - **Console**: what the app is doing, like posts sent and anything that needs your attention.
 - **Sync now**: reads the game's data again and posts anything new.
 
