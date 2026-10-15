@@ -53,6 +53,16 @@ sealed class BoolToVisibility : IValueConverter
         throw new NotSupportedException();
 }
 
+// Visible when the bound value equals the ConverterParameter, e.g. the page name.
+sealed class EqualsToVisibility : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object parameter, CultureInfo culture) =>
+        Equals(value?.ToString(), parameter?.ToString()) ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 sealed class NullToVisibility : IValueConverter
 {
     public bool Invert { get; set; }

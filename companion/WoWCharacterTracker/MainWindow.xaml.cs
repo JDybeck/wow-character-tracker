@@ -21,7 +21,11 @@ public partial class MainWindow : Window
             Loaded += async (_, _) =>
             {
                 await Task.Delay(4000);
-                vm.SelectedCharacter = vm.Characters.FirstOrDefault(); // show the details panel too
+                // CHARACTERTRACKER_SCREENSHOT_VIEW="forever:posting" picks the tab and page.
+                var view = (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_VIEW") ?? "").Split(':');
+                if (vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Key == view[0]) is { } tab) vm.SelectedFlavor = tab;
+                if (view.Length > 1) vm.Page = view[1];
+                if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(); // show the details panel too
                 await Task.Delay(2500);
                 SaveScreenshot(shot);
                 Close();

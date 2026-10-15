@@ -66,6 +66,8 @@ static class ClassColors
         b.Freeze();
         return b;
     }
+
+    public static SolidColorBrush Hex(int rgb) => Brush(Color.FromRgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
 }
 
 // One of the three setup checks at the top of the window.
@@ -85,7 +87,44 @@ sealed class SetupItem(string title) : Observable
     public ICommand? ActionCommand { get; init; }
 }
 
+// The two screenshot checkboxes for one kind of event.
+sealed class ShotOption(FlavorSettings settings, string kind, Action saved) : Observable
+{
+    public bool Take
+    {
+        get => settings.Shoots(kind);
+        set
+        {
+            settings.Screenshot[kind] = value;
+            if (value && !settings.PostScreenshot.ContainsKey(kind)) settings.PostScreenshot[kind] = true;
+            saved();
+            Raise(nameof(Take));
+            Raise(nameof(Post));
+        }
+    }
+
+    public bool Post
+    {
+        get => settings.PostsShot(kind);
+        set
+        {
+            settings.PostScreenshot[kind] = value;
+            saved();
+            Raise(nameof(Post));
+        }
+    }
+
+    public void Refresh()
+    {
+        Raise(nameof(Take));
+        Raise(nameof(Post));
+    }
+}
+
 sealed record LevelRow(string LevelText, string Took, string Zone, string When);
+
+// A boss kill, rare loot, new mount or death, shown in the character details.
+sealed record HighlightRow(string Glyph, SolidColorBrush Brush, string Text, string When);
 
 sealed class CharacterRow : Observable
 {
@@ -108,7 +147,10 @@ sealed class CharacterRow : Observable
     public required string Professions { get; init; }
     public required string Talents { get; init; }
     public required long LastSeen { get; init; }
+    public required bool Hardcore { get; init; }
+    public required bool Dead { get; init; }
     public required IReadOnlyList<LevelRow> Levels { get; init; }
+    public required IReadOnlyList<HighlightRow> Highlights { get; init; }
 
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
@@ -119,6 +161,8 @@ sealed class CharacterRow : Observable
     public string ZoneText => Zone.Length > 0 ? Zone : "-";
     public string Description => string.Join(" ", new[] { Race, Spec, ClassName }.Where(s => s.Length > 0));
     public bool HasLevels => Levels.Count > 0;
+    public bool HasHighlights => Highlights.Count > 0;
+    public string? Tag => Dead ? "DEAD" : Hardcore ? "HARDCORE" : null;
 
     public SolidColorBrush ClassBrush => ClassColors.Brush(ClassColors.For(ClassFile));
     public SolidColorBrush ClassSoftBrush => ClassColors.Brush(ClassColors.For(ClassFile), 0x26);
@@ -127,9 +171,9 @@ sealed class CharacterRow : Observable
     public string RoleGlyph => Role switch { "TANK" => "", "HEALER" => "", "DAMAGER" => "", _ => "" };
     public SolidColorBrush RoleBrush => Role switch
     {
-        "TANK" => ClassColors.Brush(Color.FromRgb(0x94, 0xA3, 0xB8)),
-        "HEALER" => ClassColors.Brush(Color.FromRgb(0x4A, 0xDE, 0x80)),
-        _ => ClassColors.Brush(Color.FromRgb(0xF8, 0x71, 0x71)),
+        "TANK" => ClassColors.Hex(0x94A3B8),
+        "HEALER" => ClassColors.Hex(0x4ADE80),
+        _ => ClassColors.Hex(0xF87171),
     };
 
     public string? PictureUrl { get => pictureUrl; set => Set(ref pictureUrl, value); }
@@ -140,18 +184,19 @@ sealed class CharacterRow : Observable
         if (await Discord.PictureUrlAsync(RaceFile, Sex, ClassFile) is { } url) PictureUrl = url;
     }
 
-    // One row per character: the latest snapshot, filled in from level-ups when there isn't one yet.
+    // One row per character: the latest snapshot, filled in from events when there isn't one yet.
     public static List<CharacterRow> Build(TrackerData data)
     {
-        var events = data.Events.GroupBy(e => e.Guid).ToDictionary(g => g.Key, g => g.OrderBy(e => e.Level).ToList());
+        var events = data.Events.GroupBy(e => e.Guid).ToDictionary(g => g.Key, g => g.OrderBy(e => e.At).ToList());
         var snaps = data.Characters.GroupBy(c => c.Guid).ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!);
 
         var rows = new List<CharacterRow>();
         foreach (var guid in snaps.Keys.Union(events.Keys))
         {
             snaps.TryGetValue(guid, out var s);
-            var levels = events.GetValueOrDefault(guid) ?? [];
-            var last = levels.LastOrDefault();
+            var all = events.GetValueOrDefault(guid) ?? [];
+            var levels = all.Where(e => e.Kind == "level").ToList();
+            var last = all.LastOrDefault();
             if (s is null && last is null) continue;
 
             rows.Add(new CharacterRow
@@ -159,7 +204,7 @@ sealed class CharacterRow : Observable
                 Guid = guid,
                 Name = s?.Char is { Length: > 0 } n ? n : last?.Char ?? "?",
                 Realm = s?.Realm ?? last!.Realm,
-                Level = Math.Max(s?.Level ?? 0, last?.Level ?? 0),
+                Level = Math.Max(s?.Level ?? 0, all.Count > 0 ? all.Max(e => e.Level) : 0),
                 ClassName = Pick(s?.Class, last?.Class),
                 ClassFile = Pick(s?.ClassFile, last?.ClassFile),
                 Race = Pick(s?.Race, last?.Race),
@@ -168,15 +213,21 @@ sealed class CharacterRow : Observable
                 Spec = Pick(s?.Spec, last?.Spec),
                 Role = s?.Role ?? "",
                 ItemLevel = s?.ItemLevel is > 0 ? s.ItemLevel : last?.ItemLevel ?? 0,
-                Played = Math.Max(s?.Played ?? 0, last?.Played ?? 0),
+                Played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0),
                 Zone = Pick(s?.Zone, last?.Zone),
                 Professions = Pick(s?.Professions, last?.Professions),
                 Talents = Pick(s?.Talents, last?.Talents),
                 LastSeen = Math.Max(s?.LastSeen ?? 0, last?.At ?? 0),
+                Hardcore = (s?.Hardcore ?? false) || all.Any(e => e.Hardcore),
+                Dead = all.Any(e => e.Kind == "death"),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
-                    .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone,
-                        DateTimeOffset.FromUnixTimeSeconds(e.At).LocalDateTime.ToString("MMM d, HH:mm")))
+                    .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone, When(e.At)))
+                    .ToList(),
+                Highlights = all
+                    .Where(e => e.Kind is "boss" or "loot" or "mount" or "death")
+                    .OrderByDescending(e => e.At)
+                    .Select(Highlight)
                     .ToList(),
             });
         }
@@ -184,6 +235,15 @@ sealed class CharacterRow : Observable
         return rows.OrderByDescending(r => r.LastSeen).ToList();
     }
 
+    static HighlightRow Highlight(Entry e) => e.Kind switch
+    {
+        "boss" => new("", ClassColors.Hex(0xFBBF24), $"Killed {e.Boss}" + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
+        "loot" => new("", ClassColors.Hex(e.Quality >= 5 ? 0xFF8000 : e.Quality == 4 ? 0xA335EE : 0x3B82F6), $"Looted {e.Item}", When(e.At)),
+        "mount" => new("", ClassColors.Hex(0x4ADE80), (e.Bought ? "Bought " : "Got ") + e.Mount, When(e.At)),
+        _ => new("", ClassColors.Hex(0xF87171), $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : ""), When(e.At)),
+    };
+
+    static string When(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");
     static string Pick(string? a, string? b) => a is { Length: > 0 } ? a : b ?? "";
 }
 
@@ -213,171 +273,212 @@ sealed class WebhookRow(WebhookInfo info, bool isActive)
     }
 }
 
-sealed class MainViewModel : Observable
+// Everything for one game version tab: its folder, addon, characters and what it posts.
+sealed class FlavorViewModel : Observable
 {
-    readonly bool backfill;
-    Config config = new();
+    readonly MainViewModel main;
     Tracker? tracker;
-    string? wowPath;
+    string? flavorDir;
     Entry? lastPost;
 
-    public MainViewModel(bool backfill)
+    public FlavorViewModel(MainViewModel main, Flavor flavor)
     {
-        this.backfill = backfill;
-        Log.Written += line => OnUi(() =>
-        {
-            Logs.Insert(0, line);
-            while (Logs.Count > 300) Logs.RemoveAt(Logs.Count - 1);
-        });
-
-        SyncCommand = new RelayCommand(_ => tracker?.SyncAsync() ?? Task.CompletedTask, _ => tracker is not null);
-        WowStep = new SetupItem("World of Warcraft")
+        this.main = main;
+        Flavor = flavor;
+        FolderStep = new SetupItem("Game folder")
         {
             Detail = "Looking for the game...",
             ActionText = "Browse",
-            ActionCommand = new RelayCommand(_ => BrowseWowAsync()),
+            ActionCommand = new RelayCommand(_ => Browse()),
         };
         AddonStep = new SetupItem("Addon")
         {
             Detail = "Waiting for the game folder",
             ActionCommand = new RelayCommand(_ => SetUpAddon(force: true)),
         };
-        DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook below" };
-        ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
-        SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
-        SelectWebhookCommand = new RelayCommand(p => SelectWebhook((WebhookRow)p!));
-        RemoveWebhookCommand = new RelayCommand(p => RemoveWebhook((WebhookRow)p!));
-        TestWebhookCommand = new RelayCommand(_ => SendTestAsync(), _ => config.ActiveWebhook is not null);
+        DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
+        Shots = Flavors.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, ShotsChanged));
     }
 
-    // --- bindable state ---
+    // Screenshot options per kind of event, bound as Shots[level].Take and so on.
+    public Dictionary<string, ShotOption> Shots { get; }
 
-    public ObservableCollection<LogLine> Logs { get; } = [];
+    void ShotsChanged()
+    {
+        main.Config.Save();
+        WriteAddonSettings();
+        if (flavorDir is not null && Wow.IsRunning(flavorDir))
+            Log.Info($"[{Name}] Screenshot settings reach the game on your next /reload or login.");
+    }
+
+    void WriteAddonSettings()
+    {
+        if (flavorDir is null) return;
+        try { AddonInstaller.WriteSettings(flavorDir, Settings); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"[{Name}] Couldn't save the screenshot settings for the addon: {ex.Message}");
+        }
+    }
+
+    public Flavor Flavor { get; }
+    public string Name => Flavor.Name;
+    FlavorSettings Settings => main.Config.For(Flavor);
+    public Tracker? Tracker => tracker;
+
+    public SetupItem FolderStep { get; }
+    public SetupItem AddonStep { get; }
+    public SetupItem DiscordStep { get; }
+    public IReadOnlyList<SetupItem> Steps => [FolderStep, AddonStep, DiscordStep];
+
     public ObservableCollection<CharacterRow> Characters { get; } = [];
-    public ObservableCollection<WebhookRow> Webhooks { get; } = [];
-
     CharacterRow? selectedCharacter;
     public CharacterRow? SelectedCharacter { get => selectedCharacter; set => Set(ref selectedCharacter, value); }
     public bool HasCharacters => Characters.Count > 0;
 
-    bool isSyncing;
-    public bool IsSyncing { get => isSyncing; set => Set(ref isSyncing, value); }
-
     string statusText = "Starting up...";
     public string StatusText { get => statusText; set => Set(ref statusText, value); }
 
-    public SetupItem WowStep { get; }
-    public SetupItem AddonStep { get; }
-    public SetupItem DiscordStep { get; }
-    public IReadOnlyList<SetupItem> Steps => [WowStep, AddonStep, DiscordStep];
+    // --- what gets posted (bound two-way from the settings page) ---
 
-    bool showAddWebhook;
-    public bool ShowAddWebhook { get => showAddWebhook; set => Set(ref showAddWebhook, value); }
-    public bool HasWebhooks => Webhooks.Count > 0;
-    string newWebhookName = "";
-    public string NewWebhookName { get => newWebhookName; set => Set(ref newWebhookName, value); }
-    string newWebhookUrl = "";
-    public string NewWebhookUrl { get => newWebhookUrl; set => Set(ref newWebhookUrl, value); }
-    string addWebhookError = "";
-    public string AddWebhookError { get => addWebhookError; set => Set(ref addWebhookError, value); }
+    public bool PostLevels { get => Settings.PostLevels; set { Settings.PostLevels = value; Changed(); } }
+    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); Changed(); } }
+    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); Changed(); } }
+    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); Changed(); } }
+    public bool PostRare { get => Settings.PostRare; set { Settings.PostRare = value; Changed(); } }
+    public bool PostEpic { get => Settings.PostEpic; set { Settings.PostEpic = value; Changed(); } }
+    public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; Changed(); } }
+    public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
+    public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
 
-    public ICommand SyncCommand { get; }
-    public ICommand ToggleAddWebhookCommand { get; }
-    public ICommand SaveWebhookCommand { get; }
-    public ICommand SelectWebhookCommand { get; }
-    public ICommand RemoveWebhookCommand { get; }
-    public ICommand TestWebhookCommand { get; }
-
-    // --- startup ---
-
-    public async Task StartAsync()
+    // "Posts at levels 5, 10, 15, 20, 25, 30, 31, 32, 33 and so on."
+    public string LevelPreview
     {
-        config = Config.Load();
-        RefreshWebhooks();
-        ShowAddWebhook = config.Webhooks.Count == 0;
-        Log.Info("Character Tracker started.");
-
-        var path = Wow.IsValid(config.WowPath) ? config.WowPath : Wow.Detect();
-        if (path is null)
+        get
         {
-            WowStep.Ok = false;
-            WowStep.Detail = $"Not found. Click Browse and pick the folder with {Wow.Flavor} in it.";
-            Log.Warn("Couldn't find World of Warcraft. In Battle.net, click the gear next to Play, then Show in Explorer, and pick that folder with Browse.");
+            if (!Settings.PostLevels) return "Level-ups aren't posted.";
+            var levels = Enumerable.Range(2, 99).Where(Settings.LevelWanted).Take(12).ToList();
+            return levels.Count == 0 ? "No levels match." : $"Posts at levels {string.Join(", ", levels)} and so on.";
         }
-        else
-        {
-            UseWowPath(path);
-        }
-
-        await CheckDiscordAsync();
     }
 
-    void UseWowPath(string path)
+    void Changed([CallerMemberName] string? name = null)
     {
-        wowPath = path;
-        WowStep.Ok = true;
-        WowStep.Detail = path;
-        WowStep.ActionText = "Change";
-        if (config.WowPath != path)
+        main.Config.Save();
+        Raise(name!);
+        Raise(nameof(LevelPreview));
+    }
+
+    public void ResetPosting()
+    {
+        var d = Flavor.Defaults();
+        var s = Settings;
+        (s.PostLevels, s.LevelSplit, s.LevelEveryBefore, s.LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
+        (s.PostRare, s.PostEpic, s.PostMounts, s.PostBosses, s.PostDeaths) = (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
+        s.Screenshot = new(d.Screenshot);
+        s.PostScreenshot = new(d.PostScreenshot);
+        main.Config.Save();
+        WriteAddonSettings();
+        foreach (var o in Shots.Values) o.Refresh();
+        foreach (var p in new[] { nameof(PostLevels), nameof(LevelSplit), nameof(LevelEveryBefore), nameof(LevelEveryAfter),
+                     nameof(PostRare), nameof(PostEpic), nameof(PostMounts), nameof(PostBosses), nameof(PostDeaths), nameof(LevelPreview) })
+            Raise(p);
+        Log.Info($"[{Name}] Posting settings reset to the defaults.");
+    }
+
+    // --- startup and folder ---
+
+    public void Start()
+    {
+        var path = Wow.IsFlavorDir(Settings.Path) ? Settings.Path : Wow.Detect(Flavor);
+        if (path is null)
         {
-            config.WowPath = path;
-            config.Save();
+            FolderStep.Ok = false;
+            FolderStep.Detail = Flavor == Flavors.Forever
+                ? "Not found. Click Browse and pick the Forever folder (for the beta that's _classic_beta_)."
+                : $"Not found. Click Browse and pick the {Flavor.Folders[0]} folder in your WoW folder.";
+            StatusText = "Waiting for the game folder";
+            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse next to Game folder to pick it.");
+            return;
         }
-        Log.Success($"World of Warcraft found: {path}");
+        UseFolder(path);
+    }
+
+    void Browse()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = $"Pick the {Name} folder (inside your World of Warcraft folder)",
+            InitialDirectory = flavorDir is not null ? Path.GetDirectoryName(flavorDir) : null,
+        };
+        if (dialog.ShowDialog() != true) return;
+        var path = Wow.Normalize(dialog.FolderName, Flavor);
+        if (path is null)
+        {
+            Log.Warn($"[{Name}] That isn't a game folder. Pick the one that starts with an underscore, like {Flavor.Folders[^1]}.");
+            return;
+        }
+        UseFolder(path);
+    }
+
+    void UseFolder(string path)
+    {
+        flavorDir = path;
+        if (Settings.Path != path)
+        {
+            Settings.Path = path;
+            main.Config.Save();
+        }
+
+        var version = Wow.ClientVersion(path);
+        var product = Wow.Product(path);
+        FolderStep.Ok = true;
+        FolderStep.ActionText = "Change";
+        FolderStep.Detail = version is null ? path : $"{version} ({product}) in {Path.GetFileName(path)}";
+        Log.Success($"[{Name}] Game folder: {path}" + (version is null ? "" : $", version {version} ({product})."));
 
         SetUpAddon(force: false);
 
         tracker?.Dispose();
-        tracker = new Tracker(path, () => config.ActiveWebhook is { } w ? new Discord(w.Url) : null, backfill);
-        tracker.DataChanged += data => OnUi(() => ShowData(data));
-        tracker.Posted += e => OnUi(() => { lastPost = e; UpdateStatus(); });
+        tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhook(Flavor) is { } w ? new Discord(w.Url, Flavor) : null,
+            () => Settings, main.Backfill);
+        tracker.DataChanged += data => MainViewModel.OnUi(() => ShowData(data));
+        tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
+        tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
         tracker.Start();
         UpdateStatus();
         CommandManager.InvalidateRequerySuggested();
-    }
-
-    async Task BrowseWowAsync()
-    {
-        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Pick your World of Warcraft folder" };
-        if (dialog.ShowDialog() != true) return;
-        var path = Wow.Normalize(dialog.FolderName);
-        if (path is null)
-        {
-            Log.Warn($"That folder doesn't have a {Wow.Flavor} folder inside it. Pick the main World of Warcraft folder.");
-            return;
-        }
-        UseWowPath(path);
-        await Task.CompletedTask;
     }
 
     // Installs or updates the bundled addon automatically. It's the whole point of the app,
     // so there's nothing to ask. Also keeps the interface number in step with game patches.
     void SetUpAddon(bool force)
     {
-        if (wowPath is null) return;
-        var installed = AddonInstaller.InstalledVersion(wowPath);
+        if (flavorDir is null) return;
+        var installed = AddonInstaller.InstalledVersion(flavorDir);
         var bundled = AddonInstaller.BundledVersion;
-        var interfaceVersion = Wow.InterfaceVersion(wowPath);
+        var interfaceVersion = Wow.InterfaceVersion(flavorDir);
 
         try
         {
             if (installed is null || installed != bundled || force)
             {
-                AddonInstaller.Install(wowPath, interfaceVersion);
-                Log.Success(installed is null ? $"Installed the addon (v{bundled})." : $"Updated the addon to v{bundled}.");
-                if (Wow.IsRunning())
+                AddonInstaller.Install(flavorDir, interfaceVersion);
+                Log.Success($"[{Name}] " + (installed is null ? $"Installed the addon (v{bundled})." : $"Updated the addon to v{bundled}."));
+                if (Wow.IsRunning(flavorDir))
                     Log.Warn(installed is null
-                        ? "WoW is running: exit the game fully and start it again so it finds the new addon."
-                        : "WoW is running: type /reload in game to load the new addon version.");
+                        ? $"[{Name}] The game is running: exit it fully and start it again so it finds the new addon."
+                        : $"[{Name}] The game is running: type /reload in game to load the new addon version.");
             }
-            else if (interfaceVersion is int v && AddonInstaller.InstalledInterface(wowPath) != v.ToString())
+            else if (interfaceVersion is int v && AddonInstaller.InstalledInterface(flavorDir) != v.ToString())
             {
-                AddonInstaller.SetInterface(wowPath, v);
-                Log.Info($"Updated the addon for game version {v}.");
+                AddonInstaller.SetInterface(flavorDir, v);
+                Log.Info($"[{Name}] Updated the addon for game version {v}.");
             }
 
+            WriteAddonSettings(); // installing puts the default Settings.lua back
             AddonStep.Ok = true;
-            AddonStep.Detail = $"v{bundled} installed";
+            AddonStep.Detail = $"v{bundled} installed. Type /ct test in game to check instant posting";
             AddonStep.ActionText = null;
         }
         catch (UnauthorizedAccessException)
@@ -385,36 +486,31 @@ sealed class MainViewModel : Observable
             AddonStep.Ok = false;
             AddonStep.Detail = "Windows blocked writing to the AddOns folder";
             AddonStep.ActionText = "Retry";
-            Log.Error($"Couldn't write to {Wow.AddOnsDir(wowPath)}. Right-click the app and pick Run as administrator once, then it works normally.");
+            Log.Error($"[{Name}] Couldn't write to {Wow.AddOnsDir(flavorDir)}. Right-click the app and pick Run as administrator once, then it works normally.");
         }
     }
 
-    async Task CheckDiscordAsync()
+    public async Task CheckDiscordAsync()
     {
-        var active = config.ActiveWebhook;
+        var active = main.Config.ActiveWebhook(Flavor);
         if (active is null)
         {
             DiscordStep.Ok = false;
-            DiscordStep.Detail = "Add a webhook below";
-            Log.Warn("No Discord webhook yet. Add one in the Discord panel so level-ups get posted.");
+            DiscordStep.Detail = main.Config.Webhooks.Count == 0 ? "Add a webhook" : "Pick a webhook for this tab";
             return;
         }
 
         var (name, problem) = await Discord.CheckAsync(active.Url);
         DiscordStep.Ok = name is not null || problem!.StartsWith("Couldn't reach") || problem.Contains("too long");
         DiscordStep.Detail = name is not null ? $"Posting to \"{active.Name}\"" : problem!;
-        if (name is not null) Log.Success($"Discord webhook \"{active.Name}\" works.");
-        else Log.Warn(problem!);
+        if (name is null) Log.Warn($"[{Name}] {problem}");
     }
-
-    // --- data ---
 
     void ShowData(TrackerData data)
     {
         var keep = SelectedCharacter?.Guid;
-        var rows = CharacterRow.Build(data);
         Characters.Clear();
-        foreach (var r in rows)
+        foreach (var r in CharacterRow.Build(data))
         {
             Characters.Add(r);
             _ = r.LoadPictureAsync();
@@ -430,16 +526,120 @@ sealed class MainViewModel : Observable
         var count = Characters.Count;
         var chars = count == 0 ? "no characters yet" : $"{count} character{(count == 1 ? "" : "s")}";
         StatusText = lastPost is null
-            ? $"Watching for level-ups, {chars}"
-            : $"Watching for level-ups, {chars}, last post: {lastPost.Char} hit {lastPost.Level}";
+            ? $"Watching {Name}, {chars}"
+            : $"Watching {Name}, {chars}, last post: {Tracker.Describe(lastPost)}";
     }
 
-    // --- webhooks ---
+    // Uses the most recently played character for the test post so it looks familiar.
+    public Entry SampleEntry()
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var c = Characters.FirstOrDefault();
+        if (c is null)
+            return new Entry
+            {
+                Id = "test", Char = "Testy", Level = 12, Seconds = 18 * 60 + 4, At = now, Zone = "Elwynn Forest",
+                Professions = "Mining 75, Herbalism 60", Talents = "Arms 5 / Fury 2 / Protection 0", Class = "Warrior",
+                ClassFile = "WARRIOR", Race = "Human", RaceFile = "Human", Played = 4 * 3600 + 12 * 60,
+            };
+
+        return new Entry
+        {
+            Id = "test", Char = c.Name, Realm = c.Realm, Level = Math.Max(c.Level, 2), Seconds = 18 * 60 + 4, At = now,
+            Zone = c.Zone, Professions = c.Professions, Talents = c.Talents, Spec = c.Spec, Class = c.ClassName,
+            ClassFile = c.ClassFile, Race = c.Race, RaceFile = c.RaceFile, Sex = c.Sex, Played = c.Played,
+        };
+    }
+
+    public void Shutdown() => tracker?.Dispose();
+}
+
+sealed class MainViewModel : Observable
+{
+    public MainViewModel(bool backfill)
+    {
+        Backfill = backfill;
+        Log.Written += line => OnUi(() =>
+        {
+            Logs.Insert(0, line);
+            while (Logs.Count > 300) Logs.RemoveAt(Logs.Count - 1);
+        });
+
+        SyncCommand = new RelayCommand(_ => SelectedFlavor?.Tracker?.SyncAsync() ?? Task.CompletedTask,
+            _ => SelectedFlavor?.Tracker is not null);
+        ShowPageCommand = new RelayCommand(p => Page = (string)p!);
+        ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
+        ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
+        SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
+        SelectWebhookCommand = new RelayCommand(p => SelectWebhook((WebhookRow)p!));
+        RemoveWebhookCommand = new RelayCommand(p => RemoveWebhook((WebhookRow)p!));
+        TestWebhookCommand = new RelayCommand(_ => SendTestAsync(),
+            _ => SelectedFlavor is not null && Config.ActiveWebhook(SelectedFlavor.Flavor) is not null);
+    }
+
+    public bool Backfill { get; }
+    public Config Config { get; private set; } = new();
+
+    public ObservableCollection<LogLine> Logs { get; } = [];
+    public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
+    public ObservableCollection<WebhookRow> Webhooks { get; } = [];
+
+    FlavorViewModel? selectedFlavor;
+    public FlavorViewModel? SelectedFlavor
+    {
+        get => selectedFlavor;
+        set
+        {
+            if (!Set(ref selectedFlavor, value) || value is null) return;
+            Config.SelectedFlavor = value.Flavor.Key;
+            Config.Save();
+            RefreshWebhooks();
+        }
+    }
+
+    // "characters" or "posting".
+    string page = "characters";
+    public string Page { get => page; set => Set(ref page, value); }
+
+    bool showAddWebhook;
+    public bool ShowAddWebhook { get => showAddWebhook; set => Set(ref showAddWebhook, value); }
+    public bool HasWebhooks => Webhooks.Count > 0;
+    string newWebhookName = "";
+    public string NewWebhookName { get => newWebhookName; set => Set(ref newWebhookName, value); }
+    string newWebhookUrl = "";
+    public string NewWebhookUrl { get => newWebhookUrl; set => Set(ref newWebhookUrl, value); }
+    string addWebhookError = "";
+    public string AddWebhookError { get => addWebhookError; set => Set(ref addWebhookError, value); }
+
+    public ICommand SyncCommand { get; }
+    public ICommand ShowPageCommand { get; }
+    public ICommand ResetPostingCommand { get; }
+    public ICommand ToggleAddWebhookCommand { get; }
+    public ICommand SaveWebhookCommand { get; }
+    public ICommand SelectWebhookCommand { get; }
+    public ICommand RemoveWebhookCommand { get; }
+    public ICommand TestWebhookCommand { get; }
+
+    public async Task StartAsync()
+    {
+        Config = Config.Load();
+        Log.Info("Character Tracker started.");
+        ShowAddWebhook = Config.Webhooks.Count == 0;
+
+        foreach (var f in Flavors.All) FlavorTabs.Add(new FlavorViewModel(this, f));
+        SelectedFlavor = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
+
+        foreach (var tab in FlavorTabs) tab.Start();
+        if (Config.Webhooks.Count == 0)
+            Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
+        await Task.WhenAll(FlavorTabs.Select(t => t.CheckDiscordAsync()));
+    }
 
     void RefreshWebhooks()
     {
         Webhooks.Clear();
-        foreach (var w in config.Webhooks) Webhooks.Add(new WebhookRow(w, w.Id == config.ActiveWebhookId));
+        var active = SelectedFlavor is null ? null : Config.For(SelectedFlavor.Flavor).ActiveWebhookId;
+        foreach (var w in Config.Webhooks) Webhooks.Add(new WebhookRow(w, w.Id == active));
         Raise(nameof(HasWebhooks));
         CommandManager.InvalidateRequerySuggested();
     }
@@ -462,27 +662,33 @@ sealed class MainViewModel : Observable
         }
 
         var info = new WebhookInfo { Name = NewWebhookName.Trim() is { Length: > 0 } n ? n : discordName, Url = url };
-        config.Webhooks.Add(info);
-        config.ActiveWebhookId = info.Id;
-        config.Save();
+        Config.Webhooks.Add(info);
+        // Active for this tab, and for any tab that has nothing to post to yet.
+        foreach (var tab in FlavorTabs)
+            if (tab == SelectedFlavor || Config.ActiveWebhook(tab.Flavor) is null)
+                Config.For(tab.Flavor).ActiveWebhookId = info.Id;
+        Config.Save();
         RefreshWebhooks();
 
         NewWebhookName = "";
         NewWebhookUrl = "";
         ShowAddWebhook = false;
-        Log.Success($"Added webhook \"{info.Name}\" and made it active. Use Send test to see a post.");
-        await CheckDiscordAsync();
-        if (tracker is not null) await tracker.SyncAsync(); // post anything that was waiting
+        Log.Success($"Added webhook \"{info.Name}\". Use Send test to see a post.");
+        await Task.WhenAll(FlavorTabs.Select(t => t.CheckDiscordAsync()));
+        foreach (var tab in FlavorTabs)
+            if (tab.Tracker is not null) await tab.Tracker.SyncAsync(); // post anything that was waiting
     }
 
     void SelectWebhook(WebhookRow row)
     {
-        if (config.ActiveWebhookId == row.Info.Id) return;
-        config.ActiveWebhookId = row.Info.Id;
-        config.Save();
+        if (SelectedFlavor is null) return;
+        var s = Config.For(SelectedFlavor.Flavor);
+        if (s.ActiveWebhookId == row.Info.Id) return;
+        s.ActiveWebhookId = row.Info.Id;
+        Config.Save();
         RefreshWebhooks();
-        Log.Info($"Now posting to \"{row.Name}\".");
-        _ = CheckDiscordAsync();
+        Log.Info($"[{SelectedFlavor.Name}] Now posting to \"{row.Name}\".");
+        _ = SelectedFlavor.CheckDiscordAsync();
     }
 
     void RemoveWebhook(WebhookRow row)
@@ -491,42 +697,34 @@ sealed class MainViewModel : Observable
             MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer != MessageBoxResult.Yes) return;
 
-        config.Webhooks.Remove(row.Info);
-        if (config.ActiveWebhookId == row.Info.Id) config.ActiveWebhookId = config.Webhooks.FirstOrDefault()?.Id;
-        config.Save();
+        Config.Webhooks.Remove(row.Info);
+        foreach (var tab in FlavorTabs)
+        {
+            var s = Config.For(tab.Flavor);
+            if (s.ActiveWebhookId == row.Info.Id) s.ActiveWebhookId = Config.Webhooks.FirstOrDefault()?.Id;
+        }
+        Config.Save();
         RefreshWebhooks();
         Log.Info($"Removed webhook \"{row.Name}\".");
-        _ = CheckDiscordAsync();
+        foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync();
     }
 
     async Task SendTestAsync()
     {
-        if (config.ActiveWebhook is not { } active) return;
-        var sample = SampleEntry();
-        if (await new Discord(active.Url).PostAsync(sample, isTest: true))
-            Log.Success($"Test post sent to \"{active.Name}\". Check your Discord channel.");
+        if (SelectedFlavor is not { } tab || Config.ActiveWebhook(tab.Flavor) is not { } active) return;
+        if (await new Discord(active.Url, tab.Flavor).PostAsync(tab.SampleEntry(), isTest: true))
+            Log.Success($"[{tab.Name}] Test post sent to \"{active.Name}\". Check your Discord channel.");
     }
 
-    // Uses your most recently played character for the test post so you see something familiar.
-    Entry SampleEntry()
-    {
-        var c = Characters.FirstOrDefault();
-        if (c is null)
-            return new Entry("test", "Testy", "", 12, 18 * 60 + 4, DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                "Elwynn Forest", "Mining 75, Herbalism 60", "Class 4 / Arms 2",
-                "Arms", "Warrior", "WARRIOR", "Human", "Human", "male", 4 * 3600 + 12 * 60);
-
-        return new Entry("test", c.Name, c.Realm, Math.Max(c.Level, 2), 18 * 60 + 4,
-            DateTimeOffset.UtcNow.ToUnixTimeSeconds(), c.Zone, c.Professions, c.Talents,
-            c.Spec, c.ClassName, c.ClassFile, c.Race, c.RaceFile, c.Sex, c.Played);
-    }
-
-    static void OnUi(Action a)
+    public static void OnUi(Action a)
     {
         var d = Application.Current?.Dispatcher;
         if (d is null) return;
         if (d.CheckAccess()) a(); else d.BeginInvoke(a);
     }
 
-    public void Shutdown() => tracker?.Dispose();
+    public void Shutdown()
+    {
+        foreach (var tab in FlavorTabs) tab.Shutdown();
+    }
 }

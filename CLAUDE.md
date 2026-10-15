@@ -1,31 +1,34 @@
 # wow-character-tracker
 
-Posts a Discord message every time a WoW character levels up. Owner: Jesper (JDybeck).
-Current focus: retail. WoW Forever (Classic+, launches 2026-11-04) comes later and uses the same addon API.
+Posts WoW moments to Discord as they happen: level-ups, end boss kills, rare/epic loot, new mounts, hardcore deaths, optionally with an in-game screenshot. Owner: Jesper (JDybeck).
+Main target: WoW Forever (Classic+, launches 2026-11-04; beta lives in `_classic_beta_`, product `wow_classic_beta`, client 1.60.1, exe `WowB.exe`). Retail is supported too, with quieter defaults. Each has its own tab in the app.
 
 ## Layout
 
-- `addon/WoWCharacterTracker/`: Lua addon (`WoWCharacterTracker.lua`, `WoWCharacterTracker.toc`). No build step, `/reload` in game.
+- `addon/WoWCharacterTracker/`: Lua addon. `WoWCharacterTracker.lua` (everything), `Settings.lua` (written by the app: which events get a screenshot; the bundled one has all off), `.toc` loads Settings first. No build step, `/reload` in game.
 - `companion/WoWCharacterTracker/`: .NET 10 WPF app (C#), builds to `WoWCharacterTracker.exe`. Look based on the owner's React mockup (dark slate, setup checks, character table, webhook list, console).
-  - `MainWindow.xaml` + `App.xaml` (styles, palette, converters). `ViewModels.cs`: `MainViewModel` (startup checks, webhooks), `CharacterRow` (merges snapshots and level-ups), `SetupItem`.
-  - `Tracker.cs`: watches the SavedVariables files, raises `DataChanged`, posts new level-ups to the active webhook.
-  - `Wow.cs`: finds the install, reads the client version from `.build.info`.
-  - `AddonInstaller.cs`: the addon is embedded in the exe (see the .csproj) and installed/updated automatically on startup.
-  - `Discord.cs`: webhook check, the embed, portrait/class icon URLs. `SavedVariables.cs`: parses events and character snapshots with MoonSharp.
-  - `Log.cs`: messages for the console panel. `Config.cs`: settings and the webhook list in `%LOCALAPPDATA%\WoWCharacterTracker\config.json` (migrates the old single `WebhookUrl`).
-- `build.cmd`: `dotnet publish` to `dist\WoWCharacterTracker.exe` (self-contained single file).
-
-WoW addons cannot make network calls, which is why the companion exists. The game only writes SavedVariables on `/reload` or logout, so the addon shows a "Post now" popup (ReloadUI) after a ding, deferred until combat ends.
+  - `MainWindow.xaml` + `App.xaml` (styles, palette, converters, dark CheckBox and chip styles). Header has the game tabs (Retail/Forever); the left side has page tabs (Characters / What gets posted).
+  - `ViewModels.cs`: `MainViewModel` (webhooks, console, selected tab/page), `FlavorViewModel` (one per game: folder, addon, tracker, characters, posting settings, `ShotOption`s), `CharacterRow` (merges snapshots and events, highlights), `SetupItem`.
+  - `Tracker.cs`: one per game. Reads SavedVariables (file watcher + 1 min safety net) and live events from `ChatLog`, filters by the tab's settings, finds screenshots, posts. State per game in `posted-<key>.json`.
+  - `ChatLog.cs`: tails `<game>\Logs\WoWChatLog.txt`, reassembles `#CT1#<msgid>#<part>/<total>#<k=v;...>` whispers (each appears twice, sent and received).
+  - `Wow.cs`: `Flavor`/`Flavors` (folders, defaults per game), install detection, product from `.flavor.info`, client version from the root `.build.info`, interface number (1.60.1 -> 16001).
+  - `AddonInstaller.cs`: addon embedded in the exe, installed/updated per game folder, writes `Settings.lua`.
+  - `Discord.cs`: webhook check, embeds per kind, multipart upload when there's a screenshot. `SavedVariables.cs`: `Entry` (all kinds), `Snapshot`, MoonSharp parsing, `Format`.
+  - `Log.cs`: console messages. `Config.cs`: webhooks, per-game `FlavorSettings` (path, active webhook, level rule, toggles, screenshot dicts). Migrates v0.2/v0.3 configs.
+- `build.cmd`: `dotnet publish` to `dist\WoWCharacterTracker.exe` (self-contained single file). `.github/workflows/release.yml` does the same on a `v*` tag and attaches it to a release.
 
 ## How it works
 
-- Addon calls `RequestTimePlayed()` on login and on `PLAYER_LEVEL_UP`. It stores `total - thisLevel` per character GUID (`WoWCharacterTrackerDB.start[guid]`), and on level-up the finished level's time is the new value minus the stored one.
-- Each level-up appends to `WoWCharacterTrackerDB.events`: id (`guid:level`), char, realm, level, seconds, played (total), at, zone, professions (`""` when none), talents, spec, role, ilvl, class, classFile, race, raceFile, sex.
-- `WoWCharacterTrackerDB.chars[guid]` holds the latest snapshot of each character (same fields plus lastSeen), saved after every `/played` and on `PLAYER_LOGOUT` (which also fires on reload). This is what the app's character table shows.
-- Companion watches every account's `WTF\Account\*\SavedVariables\WoWCharacterTracker.lua`, dedupes by `id` (`posted.json` next to config), and posts to the active webhook. First run marks existing entries as posted unless `--backfill`.
-- Webhooks: added in the app, checked against Discord before saving, several allowed, one active. Never commit them.
-- Embed: class color, author "Race Spec Class" with the class icon, thumbnail `race_<raceFile>_<sex>.jpg` from wow.zamimg.com (HEAD-checked, falls back to the class icon).
-- Testing: `CHARACTERTRACKER_DATA_DIR` moves config/state, `CHARACTERTRACKER_SCREENSHOT=<png>` renders the window (first character selected) to a PNG after ~6s and quits. Point config `WowPath` at a fake folder so the real game folder isn't touched.
+- Addon: `RequestTimePlayed()` on login and level-up; stores `total - thisLevel` per GUID (`WoWCharacterTrackerDB.start`), level time is the difference.
+- Events go to `WoWCharacterTrackerDB.events` with `kind` = level | boss | loot | mount | death (+ "test" from `/ct test`, live only). Common fields: id, guid, char, realm, level, at, zone, professions, talents, spec, role, ilvl, class(File), race(File), sex, hardcore, shot. Kind fields: seconds/played; boss/instance; item/itemId/quality; mount/itemId/bought; killer/gold/played.
+  - Boss: `ENCOUNTER_END` success or combat log `UNIT_DIED` in party/raid, only names in `END_BOSSES` (Classic dungeon/raid last bosses), 10 min dedupe.
+  - Loot: `CHAT_MSG_LOOT` matched with patterns built from `LOOT_ITEM_SELF(_MULTIPLE)`, quality >= 3. Mounts: item class 15/5 from `LOOT_ITEM_PUSHED_SELF` or looted, or `NEW_MOUNT_ADDED`; 2 min dedupe; `bought` if a merchant was open.
+  - Death: `PLAYER_DEAD` only when `C_GameRules.IsHardcoreActive()`; killer from the last damage event to the player.
+- Live channel: on login the addon calls `LoggingChat(true)`; `addEvent` whispers the event to the player in 200-char chunks (pipes escaped), chat filters hide them. Screenshot: `Screenshot()` after a short delay when `Settings.lua` asks for that kind; the app matches the file in `<game>\Screenshots` by write time (event time -2s to +20s).
+- `WoWCharacterTrackerDB.chars[guid]`: latest snapshot per character, saved after `/played`, on death and on `PLAYER_LOGOUT`.
+- App posts only what the tab's settings want; unwanted events are marked handled so toggling later doesn't flood. First run marks existing events as posted unless `--backfill`.
+- Webhooks: shared list, active one per game tab. Never commit them.
+- Testing: `CHARACTERTRACKER_DATA_DIR` moves config/state; `CHARACTERTRACKER_SCREENSHOT=<png>` renders the window and quits, `CHARACTERTRACKER_SCREENSHOT_VIEW=forever:posting` picks tab and page. Put both game paths in the test config, otherwise detection finds the real game folders and installs the addon there.
 
 ## Message format (requested by the owner)
 
@@ -38,20 +41,14 @@ Professions: Mining 150, Herbalism 75
 Talents: Class 15 / Fury 12 / Slayer 3
 ```
 
-Faction and guild were deliberately left out. No professions means no professions line.
+Faction and guild were deliberately left out. No professions means no professions line. Other kinds: "{Char} killed {Boss}!", "{Char} looted [{Item}]", "{Char} bought a mount!" / "got a new mount!", "{Char} has died." (killer, played, gold lost).
 
 ## Status
 
-- WPF app tested against a fake WoW folder and a mock webhook (screenshots via the hook above): auto addon install, character table and details, webhook list, first-run state, posting with total played and no empty professions line.
-- Addon tested in MoonSharp with a stubbed WoW API (timing, snapshots and played at logout, ilvl/role, empty professions, retail talent split and fallbacks, popup and combat deferral).
-- Next planned: post without a reload. Idea is `LoggingChat(true)` plus a hidden self-whisper data line that the app tails from `Logs\WoWChatLog.txt`. Needs an in-game check first (is self-whisper allowed on retail, how fast does the chat log flush). The reload popup stays until then.
-- Not yet tested in the real game or with a real webhook. The retail talent split assumes `C_Traits.GetTreeCurrencyInfo` lists the class currency before the spec currency; if posts show them swapped, flip them in `getRetailTalentSplit`.
-- Retail interface is 120105 (client 12.1.5, confirmed from `.build.info`). The companion rewrites `## Interface:` to match the installed client.
-
-## Known limits
-
-- Profession names are matched in English on Classic-style clients.
-- If the addon is installed mid-level, that first level has no baseline and is skipped.
+- App tested end to end against fake `_retail_` + `_classic_beta_` folders and a mock webhook: live chat log events (posted with the level rule applied, boss with screenshot attached), SavedVariables events, per-game addon install with interface 16001/120105, Settings.lua, config migration, all screens via screenshots.
+- Addon tested in MoonSharp with a stubbed WoW API: timing, snapshots, boss/loot/mount/death detection and dedupe, live whisper format, screenshot calls, `/ct test`.
+- Not yet tested in the real game. Unknowns: can you whisper yourself on each client, how quickly the chat log is flushed, whether `ENCOUNTER_END` fires for Forever dungeons, whether Forever mount items are class 15/5, whether `C_GameRules.IsHardcoreActive` exists on Forever. `/ct test` is the quick check for the live channel; the reload popup (`/ct popup`, off by default) is the fallback.
+- Retail talent split assumes `C_Traits.GetTreeCurrencyInfo` lists class before spec currency; flip in `getRetailTalentSplit` if swapped.
 
 ## Conventions
 

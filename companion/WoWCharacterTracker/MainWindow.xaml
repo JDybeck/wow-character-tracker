@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:WoWCharacterTracker"
-        Title="Character Tracker" Width="1280" Height="860" MinWidth="960" MinHeight="640"
+        Title="Character Tracker" Width="1320" Height="900" MinWidth="1000" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Bg}" FontFamily="Segoe UI Variable Text, Segoe UI"
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
@@ -36,6 +36,53 @@
       </Setter>
     </Style>
 
+    <!-- Game version tabs (Retail / Forever) as pills in the header. -->
+    <Style x:Key="FlavorTab" TargetType="ListBoxItem">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="Bd" Padding="18,7" CornerRadius="7" Margin="3" Background="Transparent">
+              <TextBlock x:Name="Txt" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Muted}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource Text}"/>
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Blue}"/>
+                <Setter TargetName="Txt" Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Page tabs (Characters / What gets posted) with an underline. -->
+    <Style x:Key="PageTab" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="4,8" Margin="0,0,22,0">
+              <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="14" TextElement.FontWeight="SemiBold"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource Text}"/>
+              </Trigger>
+              <Trigger Property="Tag" Value="active">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BlueHover}"/>
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <Style x:Key="FactLabel" TargetType="TextBlock">
       <Setter Property="Foreground" Value="{StaticResource Dim}"/>
       <Setter Property="FontSize" Value="11"/>
@@ -47,24 +94,42 @@
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
+
+    <Style x:Key="SectionTitle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style x:Key="Hint" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style x:Key="NumberBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+      <Setter Property="Width" Value="56"/>
+      <Setter Property="Padding" Value="6,4"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+      <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
+      <Setter Property="Margin" Value="6,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
   </Window.Resources>
 
-  <Grid Margin="28,24">
+  <Grid Margin="28,22">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <!-- Header -->
-    <DockPanel Margin="0,0,0,20">
-      <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Command="{Binding SyncCommand}" VerticalAlignment="Center"
-              ToolTip="Read the game's data again and post anything new">
-        <StackPanel Orientation="Horizontal">
-          <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" Foreground="White" FontSize="15" Margin="0,0,8,0"/>
-          <TextBlock Text="Sync now" Foreground="White"/>
-        </StackPanel>
-      </Button>
+    <!-- Header: title, game tabs, sync -->
+    <Grid Margin="0,0,0,18">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
       <StackPanel Orientation="Horizontal">
         <Border Width="44" Height="44" CornerRadius="10" Margin="0,0,14,0">
           <Border.Background>
@@ -79,14 +144,34 @@
           <TextBlock Text="Character Tracker" FontSize="26" FontWeight="Bold" Foreground="White"/>
           <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
             <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,6,0"/>
-            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Muted}" FontSize="13"/>
+            <TextBlock Text="{Binding SelectedFlavor.StatusText}" Foreground="{StaticResource Muted}" FontSize="13"/>
           </StackPanel>
         </StackPanel>
       </StackPanel>
-    </DockPanel>
 
-    <!-- Setup checks -->
-    <ItemsControl Grid.Row="1" ItemsSource="{Binding Steps}" Margin="0,0,0,20">
+      <Border Grid.Column="1" Background="{StaticResource CardHeader}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+              CornerRadius="10" VerticalAlignment="Center">
+        <ListBox ItemsSource="{Binding FlavorTabs}" SelectedItem="{Binding SelectedFlavor}" ItemContainerStyle="{StaticResource FlavorTab}"
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+        </ListBox>
+      </Border>
+
+      <Button Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource PrimaryButton}" Command="{Binding SyncCommand}"
+              VerticalAlignment="Center" ToolTip="Read the game's data again and post anything new">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" Foreground="White" FontSize="15" Margin="0,0,8,0"/>
+          <TextBlock Text="Sync now" Foreground="White"/>
+        </StackPanel>
+      </Button>
+    </Grid>
+
+    <!-- Setup checks for the selected game -->
+    <ItemsControl Grid.Row="1" ItemsSource="{Binding SelectedFlavor.Steps}" Margin="0,0,0,18">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
           <UniformGrid Rows="1"/>
@@ -138,161 +223,342 @@
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
 
-      <!-- Characters -->
-      <Border Grid.RowSpan="3" Style="{StaticResource CardBorder}" ClipToBounds="True">
-        <Grid>
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-          </Grid.RowDefinitions>
-          <Border Background="{StaticResource CardHeader}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
-            <Grid Margin="24,14">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="{StaticResource ColClass}"/>
-                <ColumnDefinition Width="{StaticResource ColLevel}"/>
-                <ColumnDefinition Width="{StaticResource ColIlvl}"/>
-                <ColumnDefinition Width="{StaticResource ColSeen}"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Style="{StaticResource ColumnHeader}" Text="CHARACTER"/>
-              <TextBlock Grid.Column="1" Style="{StaticResource ColumnHeader}" Text="CLASS"/>
-              <TextBlock Grid.Column="2" Style="{StaticResource ColumnHeader}" Text="LEVEL"/>
-              <TextBlock Grid.Column="3" Style="{StaticResource ColumnHeader}" Text="ITEM LEVEL"/>
-              <TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="LAST SEEN"/>
-            </Grid>
-          </Border>
+      <!-- Left: page tabs and the page -->
+      <Grid Grid.RowSpan="3">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-          <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
-                   Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}"
-                   ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
-            <ListBox.ItemTemplate>
-              <DataTemplate DataType="{x:Type local:CharacterRow}">
-                <StackPanel>
-                  <Grid Margin="24,12">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*"/>
-                      <ColumnDefinition Width="{StaticResource ColClass}"/>
-                      <ColumnDefinition Width="{StaticResource ColLevel}"/>
-                      <ColumnDefinition Width="{StaticResource ColIlvl}"/>
-                      <ColumnDefinition Width="{StaticResource ColSeen}"/>
-                    </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" Margin="2,0,0,10">
+          <Button Content="Characters" Command="{Binding ShowPageCommand}" CommandParameter="characters">
+            <Button.Style>
+              <Style TargetType="Button" BasedOn="{StaticResource PageTab}">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding Page}" Value="characters">
+                    <Setter Property="Tag" Value="active"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Button.Style>
+          </Button>
+          <Button Content="What gets posted" Command="{Binding ShowPageCommand}" CommandParameter="posting">
+            <Button.Style>
+              <Style TargetType="Button" BasedOn="{StaticResource PageTab}">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding Page}" Value="posting">
+                    <Setter Property="Tag" Value="active"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Button.Style>
+          </Button>
+        </StackPanel>
 
-                    <StackPanel Orientation="Horizontal">
-                      <Grid Width="42" Height="42" Margin="0,0,12,0">
-                        <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
-                        <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="17" FontWeight="Bold"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <Image Source="{Binding PictureUrl}" Stretch="UniformToFill">
-                          <Image.Clip>
-                            <EllipseGeometry Center="21,21" RadiusX="21" RadiusY="21"/>
-                          </Image.Clip>
-                        </Image>
-                        <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5" Opacity="0.7"/>
-                      </Grid>
-                      <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Name}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                          <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
-                          <TextBlock Text="{Binding Realm}" Foreground="{StaticResource Dim}" FontSize="12"/>
-                        </StackPanel>
-                      </StackPanel>
-                    </StackPanel>
+        <!-- Characters page -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}" ClipToBounds="True" DataContext="{Binding SelectedFlavor}"
+                Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=characters}">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border Background="{StaticResource CardHeader}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
+              <Grid Margin="24,14">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="{StaticResource ColClass}"/>
+                  <ColumnDefinition Width="{StaticResource ColLevel}"/>
+                  <ColumnDefinition Width="{StaticResource ColIlvl}"/>
+                  <ColumnDefinition Width="{StaticResource ColSeen}"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource ColumnHeader}" Text="CHARACTER"/>
+                <TextBlock Grid.Column="1" Style="{StaticResource ColumnHeader}" Text="CLASS"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource ColumnHeader}" Text="LEVEL"/>
+                <TextBlock Grid.Column="3" Style="{StaticResource ColumnHeader}" Text="ITEM LEVEL"/>
+                <TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="LAST SEEN"/>
+              </Grid>
+            </Border>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                      <TextBlock Style="{StaticResource Icon}" Text="{Binding RoleGlyph}" Foreground="{Binding RoleBrush}" FontSize="13" Margin="0,0,8,0"/>
-                      <StackPanel>
-                        <TextBlock Text="{Binding ClassName}" Foreground="{Binding ClassBrush}" FontWeight="Medium" FontSize="13"/>
-                        <TextBlock Text="{Binding Spec}" Foreground="{StaticResource Dim}" FontSize="11"
-                                   Visibility="{Binding Spec, Converter={StaticResource VisibleIfSet}}"/>
-                      </StackPanel>
-                    </StackPanel>
-
-                    <Border Grid.Column="2" Style="{StaticResource Pill}">
-                      <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
-                    </Border>
-
-                    <Border Grid.Column="3" Style="{StaticResource Pill}" Background="#4D1E3A8A" BorderBrush="#801D4ED8">
-                      <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="#93C5FD"/>
-                    </Border>
-
-                    <TextBlock Grid.Column="4" Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center"/>
-                  </Grid>
-
-                  <!-- Details, shown for the selected character -->
-                  <Border Margin="24,0,24,16" Padding="18,6,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{StaticResource Line}" BorderThickness="1"
-                          Visibility="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource BoolVis}}">
-                    <Grid>
+            <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
+                     Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:CharacterRow}">
+                  <StackPanel>
+                    <Grid Margin="24,12">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="28"/>
-                        <ColumnDefinition Width="1.3*"/>
+                        <ColumnDefinition Width="{StaticResource ColClass}"/>
+                        <ColumnDefinition Width="{StaticResource ColLevel}"/>
+                        <ColumnDefinition Width="{StaticResource ColIlvl}"/>
+                        <ColumnDefinition Width="{StaticResource ColSeen}"/>
                       </Grid.ColumnDefinitions>
 
-                      <StackPanel>
-                        <TextBlock Style="{StaticResource FactLabel}" Text="CHARACTER"/>
-                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Description}"/>
-                        <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL PLAYED"/>
-                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding PlayedText}"/>
-                        <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
-                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding ProfessionsText}"/>
-                        <TextBlock Style="{StaticResource FactLabel}" Text="TALENTS"/>
-                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
-                        <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
-                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
+                      <StackPanel Orientation="Horizontal">
+                        <Grid Width="42" Height="42" Margin="0,0,12,0">
+                          <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
+                          <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="17" FontWeight="Bold"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          <Image Source="{Binding PictureUrl}" Stretch="UniformToFill">
+                            <Image.Clip>
+                              <EllipseGeometry Center="21,21" RadiusX="21" RadiusY="21"/>
+                            </Image.Clip>
+                          </Image>
+                          <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5" Opacity="0.7"/>
+                        </Grid>
+                        <StackPanel VerticalAlignment="Center">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Name}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
+                            <Border x:Name="TagBox" Margin="8,0,0,0" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
+                                    Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
+                              <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
+                            </Border>
+                          </StackPanel>
+                          <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
+                            <TextBlock Text="{Binding Realm}" Foreground="{StaticResource Dim}" FontSize="12"/>
+                          </StackPanel>
+                        </StackPanel>
                       </StackPanel>
 
-                      <StackPanel Grid.Column="2">
-                        <TextBlock Style="{StaticResource FactLabel}" Text="LEVEL HISTORY"/>
-                        <TextBlock Text="No level-ups recorded yet. Ding once and it shows up here." Foreground="{StaticResource Dim}" FontSize="13"
-                                   Visibility="{Binding HasLevels, Converter={StaticResource Hidden}}" TextWrapping="Wrap"/>
-                        <ItemsControl ItemsSource="{Binding Levels}" MaxHeight="230">
-                          <ItemsControl.Template>
-                            <ControlTemplate TargetType="ItemsControl">
-                              <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <ItemsPresenter/>
-                              </ScrollViewer>
-                            </ControlTemplate>
-                          </ItemsControl.Template>
-                          <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type local:LevelRow}">
-                              <Grid Margin="0,3,8,3">
-                                <Grid.ColumnDefinitions>
-                                  <ColumnDefinition Width="72"/>
-                                  <ColumnDefinition Width="80"/>
-                                  <ColumnDefinition Width="*"/>
-                                  <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding LevelText}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource TextSoft}"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Took}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Green}"/>
-                                <TextBlock Grid.Column="2" Text="{Binding Zone}" FontSize="12" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Grid.Column="3" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>
-                              </Grid>
-                            </DataTemplate>
-                          </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource Icon}" Text="{Binding RoleGlyph}" Foreground="{Binding RoleBrush}" FontSize="13" Margin="0,0,8,0"/>
+                        <StackPanel>
+                          <TextBlock Text="{Binding ClassName}" Foreground="{Binding ClassBrush}" FontWeight="Medium" FontSize="13"/>
+                          <TextBlock Text="{Binding Spec}" Foreground="{StaticResource Dim}" FontSize="11"
+                                     Visibility="{Binding Spec, Converter={StaticResource VisibleIfSet}}"/>
+                        </StackPanel>
                       </StackPanel>
+
+                      <Border Grid.Column="2" Style="{StaticResource Pill}">
+                        <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+                      </Border>
+
+                      <Border Grid.Column="3" Style="{StaticResource Pill}" Background="#4D1E3A8A" BorderBrush="#801D4ED8">
+                        <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="#93C5FD"/>
+                      </Border>
+
+                      <TextBlock Grid.Column="4" Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center"/>
                     </Grid>
-                  </Border>
-                </StackPanel>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
 
-          <!-- Empty state -->
-          <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420"
-                      Visibility="{Binding HasCharacters, Converter={StaticResource Hidden}}">
-            <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="34" Foreground="{StaticResource Faint}" HorizontalAlignment="Center"/>
-            <TextBlock Text="No characters yet" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,10,0,4"/>
-            <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"
-                       Text="Log in to a character in WoW and type /reload (or log out). The game saves the addon's data then, and your characters show up here."/>
-          </StackPanel>
-        </Grid>
-      </Border>
+                    <!-- Details, shown for the selected character -->
+                    <Border Margin="24,0,24,16" Padding="18,6,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                            Visibility="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource BoolVis}}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*"/>
+                          <ColumnDefinition Width="28"/>
+                          <ColumnDefinition Width="1.3*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                          <TextBlock Style="{StaticResource FactLabel}" Text="CHARACTER"/>
+                          <TextBlock Style="{StaticResource FactValue}" Text="{Binding Description}"/>
+                          <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL PLAYED"/>
+                          <TextBlock Style="{StaticResource FactValue}" Text="{Binding PlayedText}"/>
+                          <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
+                          <TextBlock Style="{StaticResource FactValue}" Text="{Binding ProfessionsText}"/>
+                          <TextBlock Style="{StaticResource FactLabel}" Text="TALENTS"/>
+                          <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
+                          <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
+                          <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                          <StackPanel Visibility="{Binding HasHighlights, Converter={StaticResource Visible}}">
+                            <TextBlock Style="{StaticResource FactLabel}" Text="HIGHLIGHTS"/>
+                            <ItemsControl ItemsSource="{Binding Highlights}" MaxHeight="150">
+                              <ItemsControl.Template>
+                                <ControlTemplate TargetType="ItemsControl">
+                                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsPresenter/>
+                                  </ScrollViewer>
+                                </ControlTemplate>
+                              </ItemsControl.Template>
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:HighlightRow}">
+                                  <Grid Margin="0,3,8,3">
+                                    <Grid.ColumnDefinitions>
+                                      <ColumnDefinition Width="22"/>
+                                      <ColumnDefinition Width="*"/>
+                                      <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="12"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="12" Foreground="{StaticResource TextSoft}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>
+                                  </Grid>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+
+                          <TextBlock Style="{StaticResource FactLabel}" Text="LEVEL HISTORY"/>
+                          <TextBlock Text="No level-ups recorded yet. Ding once and it shows up here." Foreground="{StaticResource Dim}" FontSize="13"
+                                     Visibility="{Binding HasLevels, Converter={StaticResource Hidden}}" TextWrapping="Wrap"/>
+                          <ItemsControl ItemsSource="{Binding Levels}" MaxHeight="230">
+                            <ItemsControl.Template>
+                              <ControlTemplate TargetType="ItemsControl">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                  <ItemsPresenter/>
+                                </ScrollViewer>
+                              </ControlTemplate>
+                            </ItemsControl.Template>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate DataType="{x:Type local:LevelRow}">
+                                <Grid Margin="0,3,8,3">
+                                  <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                  </Grid.ColumnDefinitions>
+                                  <TextBlock Text="{Binding LevelText}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource TextSoft}"/>
+                                  <TextBlock Grid.Column="1" Text="{Binding Took}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Green}"/>
+                                  <TextBlock Grid.Column="2" Text="{Binding Zone}" FontSize="12" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+                                  <TextBlock Grid.Column="3" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>
+                                </Grid>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- Empty state -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420"
+                        Visibility="{Binding HasCharacters, Converter={StaticResource Hidden}}">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="34" Foreground="{StaticResource Faint}" HorizontalAlignment="Center"/>
+              <TextBlock Text="No characters yet" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,10,0,4"/>
+              <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"
+                         Text="Log in to a character in this game version and type /reload (or log out). Your characters show up here after that."/>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <!-- What gets posted page -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}" DataContext="{Binding SelectedFlavor}"
+                Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=posting}">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="26,22">
+              <DockPanel Margin="0,0,0,4">
+                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Reset to defaults"
+                        Command="{Binding DataContext.ResetPostingCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="White">
+                  <Run Text="What gets posted for"/>
+                  <Run Text="{Binding Name, Mode=OneWay}"/>
+                </TextBlock>
+              </DockPanel>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,18"
+                         Text="Changes apply right away. Things that are switched off are skipped, and they won't be posted later if you switch them on. Screenshot means the addon takes one in game a moment after it happens (saved in your Screenshots folder). Screenshot settings reach the game on your next /reload or login."/>
+
+              <!-- Level-ups -->
+              <Border Padding="18,16" CornerRadius="10" Background="#4D1E293B" BorderBrush="#80334155" BorderThickness="1" Margin="0,0,0,14">
+                <StackPanel>
+                  <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[level].Take}"/>
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[level].Post}" IsEnabled="{Binding Shots[level].Take}"/>
+                    </StackPanel>
+                    <CheckBox IsChecked="{Binding PostLevels}">
+                      <TextBlock Style="{StaticResource SectionTitle}" Text="Level-ups"/>
+                    </CheckBox>
+                  </DockPanel>
+                  <StackPanel Margin="30,10,0,0" IsEnabled="{Binding PostLevels}">
+                    <WrapPanel>
+                      <TextBlock Text="Up to level" VerticalAlignment="Center" Foreground="{StaticResource TextSoft}"/>
+                      <TextBox Style="{StaticResource NumberBox}" Text="{Binding LevelSplit, UpdateSourceTrigger=PropertyChanged}"/>
+                      <TextBlock Text=", post every" VerticalAlignment="Center" Foreground="{StaticResource TextSoft}"/>
+                      <TextBox Style="{StaticResource NumberBox}" Text="{Binding LevelEveryBefore, UpdateSourceTrigger=PropertyChanged}"/>
+                      <TextBlock Text="levels. After that, every" VerticalAlignment="Center" Foreground="{StaticResource TextSoft}"/>
+                      <TextBox Style="{StaticResource NumberBox}" Text="{Binding LevelEveryAfter, UpdateSourceTrigger=PropertyChanged}"/>
+                      <TextBlock Text="level(s)." VerticalAlignment="Center" Foreground="{StaticResource TextSoft}"/>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding LevelPreview}" Foreground="{StaticResource Green}" FontSize="12" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Loot -->
+              <Border Padding="18,16" CornerRadius="10" Background="#4D1E293B" BorderBrush="#80334155" BorderThickness="1" Margin="0,0,0,14">
+                <StackPanel>
+                  <DockPanel Margin="0,0,0,10">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[loot].Take}"/>
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[loot].Post}" IsEnabled="{Binding Shots[loot].Take}"/>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="Loot"/>
+                  </DockPanel>
+                  <CheckBox IsChecked="{Binding PostRare}" Margin="0,0,0,8">
+                    <StackPanel>
+                      <TextBlock Text="Rare items" Foreground="#60A5FA" FontWeight="SemiBold" FontSize="13"/>
+                      <TextBlock Style="{StaticResource Hint}" Text="Blue items you loot. Plenty of these while leveling."/>
+                    </StackPanel>
+                  </CheckBox>
+                  <CheckBox IsChecked="{Binding PostEpic}">
+                    <StackPanel>
+                      <TextBlock Text="Epic and legendary items" Foreground="#C084FC" FontWeight="SemiBold" FontSize="13"/>
+                      <TextBlock Style="{StaticResource Hint}" Text="Purple and orange items you loot."/>
+                    </StackPanel>
+                  </CheckBox>
+                </StackPanel>
+              </Border>
+
+              <!-- Milestones -->
+              <Border Padding="18,16" CornerRadius="10" Background="#4D1E293B" BorderBrush="#80334155" BorderThickness="1">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource SectionTitle}" Text="Milestones" Margin="0,0,0,10"/>
+                  <DockPanel Margin="0,0,0,10">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[mount].Take}"/>
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[mount].Post}" IsEnabled="{Binding Shots[mount].Take}"/>
+                    </StackPanel>
+                    <CheckBox IsChecked="{Binding PostMounts}">
+                      <StackPanel>
+                        <TextBlock Text="New mounts" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                        <TextBlock Style="{StaticResource Hint}" Text="Bought from a vendor or learned. Says &quot;bought&quot; when a vendor was open."/>
+                      </StackPanel>
+                    </CheckBox>
+                  </DockPanel>
+                  <DockPanel Margin="0,0,0,10">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[boss].Take}"/>
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[boss].Post}" IsEnabled="{Binding Shots[boss].Take}"/>
+                    </StackPanel>
+                    <CheckBox IsChecked="{Binding PostBosses}">
+                      <StackPanel>
+                        <TextBlock Text="End boss kills" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                        <TextBlock Style="{StaticResource Hint}" Text="The last boss of a dungeon or raid, like Edwin VanCleef or Ragnaros."/>
+                      </StackPanel>
+                    </CheckBox>
+                  </DockPanel>
+                  <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[death].Take}"/>
+                      <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[death].Post}" IsEnabled="{Binding Shots[death].Take}"/>
+                    </StackPanel>
+                    <CheckBox IsChecked="{Binding PostDeaths}">
+                      <StackPanel>
+                        <TextBlock Text="Hardcore deaths" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                        <TextBlock Style="{StaticResource Hint}" Text="Only hardcore characters. Shows what killed them, total played and the gold they had on them."/>
+                      </StackPanel>
+                    </CheckBox>
+                  </DockPanel>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
 
       <!-- Discord webhooks -->
       <Border Grid.Column="2" Style="{StaticResource CardBorder}" Padding="18,16">
         <StackPanel>
-          <DockPanel Margin="0,0,0,12">
+          <DockPanel Margin="0,0,0,4">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
               <Button Style="{StaticResource ButtonBase}" Command="{Binding TestWebhookCommand}" Margin="0,0,8,0"
                       Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}">
@@ -313,6 +579,11 @@
               <TextBlock Text="Discord" FontSize="17" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
             </StackPanel>
           </DockPanel>
+          <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}">
+            <Run Text="Click a webhook to post"/>
+            <Run Text="{Binding SelectedFlavor.Name, Mode=OneWay}"/>
+            <Run Text="there."/>
+          </TextBlock>
 
           <ItemsControl ItemsSource="{Binding Webhooks}">
             <ItemsControl.ItemTemplate>
@@ -368,7 +639,7 @@
           </ItemsControl>
 
           <!-- How to get a webhook, shown until there is one -->
-          <StackPanel Visibility="{Binding HasWebhooks, Converter={StaticResource Hidden}}" Margin="0,0,0,4">
+          <StackPanel Visibility="{Binding HasWebhooks, Converter={StaticResource Hidden}}" Margin="0,8,0,4">
             <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"
                        Text="A webhook is the link the app posts through. To make one:"/>
             <TextBlock Foreground="{StaticResource TextSoft}" FontSize="13" TextWrapping="Wrap" LineHeight="21">

@@ -5,9 +5,9 @@ using System.Text.RegularExpressions;
 
 namespace WoWCharacterTracker;
 
-partial class Discord(string webhookUrl)
+partial class Discord(string webhookUrl, Flavor flavor)
 {
-    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) }; // screenshots take a moment to upload
 
     // Class colors as the game uses them (RAID_CLASS_COLORS).
     public static readonly Dictionary<string, int> ClassColors = new()
@@ -50,21 +50,49 @@ partial class Discord(string webhookUrl)
         }
     }
 
-    public async Task<bool> PostAsync(Entry e, bool isTest = false)
+    // Discord's upload limit for webhooks without a boosted server.
+    const long MaxUpload = 9_500_000;
+
+    // Posts the event. With a screenshot, it's uploaded with the message and shown as the embed's image.
+    public async Task<bool> PostAsync(Entry e, bool isTest = false, string? screenshot = null)
     {
-        var embed = await BuildEmbedAsync(e, isTest);
+        var embed = (Dictionary<string, object>)await BuildEmbedAsync(e, isTest);
+        byte[]? image = null;
+        var imageName = "";
+        if (screenshot is not null && new FileInfo(screenshot) is { Exists: true } fi && fi.Length <= MaxUpload)
+        {
+            image = await File.ReadAllBytesAsync(screenshot);
+            imageName = "screenshot" + fi.Extension.ToLowerInvariant();
+            embed["image"] = new { url = "attachment://" + imageName };
+        }
+
         var body = new Dictionary<string, object>
         {
             ["embeds"] = new[] { embed },
             ["allowed_mentions"] = new { parse = Array.Empty<string>() },
         };
+        var json = JsonSerializer.Serialize(body);
 
         for (var attempt = 0; attempt < 3; attempt++)
         {
             HttpResponseMessage res;
             try
             {
-                res = await Http.PostAsJsonAsync(webhookUrl, body);
+                if (image is null)
+                {
+                    res = await Http.PostAsync(webhookUrl, new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+                }
+                else
+                {
+                    // A fresh form each attempt, since sending disposes it.
+                    using var form = new MultipartFormDataContent();
+                    form.Add(new StringContent(json, System.Text.Encoding.UTF8, "application/json"), "payload_json");
+                    var file = new ByteArrayContent(image);
+                    file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                        imageName.EndsWith(".png") ? "image/png" : "image/jpeg");
+                    form.Add(file, "files[0]", imageName);
+                    res = await Http.PostAsync(webhookUrl, form);
+                }
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
@@ -90,27 +118,38 @@ partial class Discord(string webhookUrl)
         return false;
     }
 
+    static readonly Dictionary<int, int> QualityColors = new()
+    {
+        [3] = 0x0070DD, [4] = 0xA335EE, [5] = 0xFF8000, [6] = 0xE6CC80,
+    };
+
     async Task<object> BuildEmbedAsync(Entry e, bool isTest)
     {
-        var lines = new List<string> { $"{e.Level - 1} to {e.Level} took **{Format.Duration(e.Seconds)}**." };
-        if (e.Played > 0) lines.Add($"Total played: **{Format.Played(e.Played)}**.");
-        if (e.Zone.Length > 0) lines.Add($"They dinged in **{e.Zone}**.");
-
-        // Older addon versions wrote "None" when there were no professions.
-        var professions = e.Professions == "None" ? "" : e.Professions;
-        if (professions.Length > 0 || e.Talents.Length > 0) lines.Add("");
-        if (professions.Length > 0) lines.Add($"**Professions:** {professions}");
-        if (e.Talents.Length > 0) lines.Add($"**Talents:** {e.Talents}");
+        var (title, lines) = e.Kind switch
+        {
+            "boss" => BossText(e),
+            "loot" => LootText(e),
+            "mount" => MountText(e),
+            "death" => DeathText(e),
+            _ => LevelText(e),
+        };
 
         var embed = new Dictionary<string, object>
         {
-            ["title"] = $"{e.Char} just dinged level {e.Level}.",
+            ["title"] = title,
             ["description"] = string.Join("\n", lines),
             ["timestamp"] = DateTimeOffset.FromUnixTimeSeconds(e.At).ToString("o"),
         };
 
-        if (ClassColors.TryGetValue(e.ClassFile.ToUpperInvariant(), out var color))
+        if (e.Kind == "loot" && QualityColors.TryGetValue(e.Quality, out var qc))
+            embed["color"] = qc;
+        else if (e.Kind == "death")
+            embed["color"] = 0x8B0000;
+        else if (ClassColors.TryGetValue(e.ClassFile.ToUpperInvariant(), out var color))
             embed["color"] = color;
+
+        if (e.Kind is "loot" or "mount" && e.ItemId > 0)
+            embed["url"] = $"https://www.wowhead.com/{flavor.WowheadPath}item={e.ItemId}";
 
         var classIcon = ClassIconUrl(e.ClassFile);
 
@@ -130,6 +169,54 @@ partial class Discord(string webhookUrl)
         if (footer.Length > 0) embed["footer"] = new { text = footer };
 
         return embed;
+    }
+
+    // The owner's format: who dinged, how long it took, played, where, professions, talents.
+    static (string, List<string>) LevelText(Entry e)
+    {
+        var lines = new List<string> { $"{e.Level - 1} to {e.Level} took **{Format.Duration(e.Seconds)}**." };
+        if (e.Played > 0) lines.Add($"Total played: **{Format.Played(e.Played)}**.");
+        if (e.Zone.Length > 0) lines.Add($"They dinged in **{e.Zone}**.");
+        if (e.Professions.Length > 0 || e.Talents.Length > 0) lines.Add("");
+        if (e.Professions.Length > 0) lines.Add($"**Professions:** {e.Professions}");
+        if (e.Talents.Length > 0) lines.Add($"**Talents:** {e.Talents}");
+        return ($"{e.Char} just dinged level {e.Level}.", lines);
+    }
+
+    static (string, List<string>) BossText(Entry e)
+    {
+        var lines = new List<string>();
+        if (e.Instance.Length > 0) lines.Add($"Final boss of **{e.Instance}** is down.");
+        if (e.Level > 0) lines.Add($"They're level {e.Level}.");
+        return ($"{e.Char} killed {e.Boss}!", lines);
+    }
+
+    static (string, List<string>) LootText(Entry e)
+    {
+        var lines = new List<string>();
+        var quality = Format.Quality(e.Quality);
+        lines.Add(e.Zone.Length > 0 ? $"{quality} item, looted in **{e.Zone}**." : $"{quality} item.");
+        return ($"{e.Char} looted [{e.Item}]", lines);
+    }
+
+    static (string, List<string>) MountText(Entry e)
+    {
+        var lines = new List<string> { $"**{e.Mount}**" };
+        if (e.Level > 0) lines.Add($"At level {e.Level}.");
+        return (e.Bought ? $"{e.Char} bought a mount!" : $"{e.Char} got a new mount!", lines);
+    }
+
+    // Hardcore deaths: who, what killed them, and what they lose.
+    static (string, List<string>) DeathText(Entry e)
+    {
+        var lines = new List<string>();
+        var where = e.Zone.Length > 0 ? $" in **{e.Zone}**" : "";
+        lines.Add(e.Killer.Length > 0
+            ? $"Killed by **{e.Killer}**{where} at level {e.Level}."
+            : $"Died{where} at level {e.Level}.");
+        if (e.Played > 0) lines.Add($"Total played: **{Format.Played(e.Played)}**.");
+        lines.Add($"Gold lost: **{Format.Money(e.Gold)}**.");
+        return ($"\U0001F480 {e.Char} has died.", lines);
     }
 
     public static string? ClassIconUrl(string classFile) =>

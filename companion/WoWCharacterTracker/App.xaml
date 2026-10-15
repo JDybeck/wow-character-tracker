@@ -37,6 +37,74 @@
     <local:BoolToVisibility x:Key="Hidden" Invert="True"/>
     <local:NullToVisibility x:Key="VisibleIfSet"/>
     <local:NullToVisibility x:Key="HiddenIfSet" Invert="True"/>
+    <local:EqualsToVisibility x:Key="PageIs"/>
+
+    <!-- Dark checkbox: rounded box with a check glyph, content to the right. -->
+    <Style TargetType="CheckBox">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Grid Background="Transparent">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Border x:Name="Box" Width="18" Height="18" CornerRadius="4" BorderThickness="1" BorderBrush="#475569"
+                      Background="#0F172A" VerticalAlignment="Top" Margin="0,2,12,0">
+                <TextBlock x:Name="Check" Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+              </Border>
+              <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Box" Property="Background" Value="#2563EB"/>
+                <Setter TargetName="Box" Property="BorderBrush" Value="#3B82F6"/>
+                <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="#64748B"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.45"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Small pill checkbox for the screenshot options. -->
+    <Style x:Key="ChipCheck" TargetType="CheckBox">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Border x:Name="Bd" CornerRadius="12" Padding="10,3" Margin="0,0,6,0" BorderThickness="1"
+                    BorderBrush="#334155" Background="Transparent">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="Ico" Text="&#xE722;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                           Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ContentPresenter x:Name="Txt" TextElement.Foreground="#94A3B8" TextElement.FontSize="11" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#332563EB"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                <Setter TargetName="Ico" Property="Foreground" Value="#93C5FD"/>
+                <Setter TargetName="Txt" Property="TextElement.Foreground" Value="#DBEAFE"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.4"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <BooleanToVisibilityConverter x:Key="BoolVis"/>
 
     <Style TargetType="TextBlock">

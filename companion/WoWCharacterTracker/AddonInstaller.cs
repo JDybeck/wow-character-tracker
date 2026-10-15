@@ -8,19 +8,19 @@ static partial class AddonInstaller
 {
     const string Prefix = "Addon/";
 
-    public static string TargetDir(string wowPath) => Path.Combine(Wow.AddOnsDir(wowPath), "WoWCharacterTracker");
+    public static string TargetDir(string flavorDir) => Path.Combine(Wow.AddOnsDir(flavorDir), "WoWCharacterTracker");
 
     public static string BundledVersion => ReadVersion(ReadBundled("WoWCharacterTracker.toc")) ?? "?";
 
-    public static string? InstalledVersion(string wowPath)
+    public static string? InstalledVersion(string flavorDir)
     {
-        var toc = Path.Combine(TargetDir(wowPath), "WoWCharacterTracker.toc");
+        var toc = Path.Combine(TargetDir(flavorDir), "WoWCharacterTracker.toc");
         return File.Exists(toc) ? ReadVersion(File.ReadAllText(toc)) ?? "?" : null;
     }
 
-    public static string? InstalledInterface(string wowPath)
+    public static string? InstalledInterface(string flavorDir)
     {
-        var toc = Path.Combine(TargetDir(wowPath), "WoWCharacterTracker.toc");
+        var toc = Path.Combine(TargetDir(flavorDir), "WoWCharacterTracker.toc");
         if (!File.Exists(toc)) return null;
         var m = InterfaceLine().Match(File.ReadAllText(toc));
         return m.Success ? m.Groups[1].Value.Trim() : null;
@@ -28,9 +28,9 @@ static partial class AddonInstaller
 
     // Copies the bundled addon into the AddOns folder. The interface number is set to the
     // installed client's so the game doesn't flag the addon as out of date.
-    public static void Install(string wowPath, int? interfaceVersion)
+    public static void Install(string flavorDir, int? interfaceVersion)
     {
-        var target = TargetDir(wowPath);
+        var target = TargetDir(flavorDir);
         Directory.CreateDirectory(target);
 
         var asm = Assembly.GetExecutingAssembly();
@@ -44,9 +44,23 @@ static partial class AddonInstaller
         }
     }
 
-    public static void SetInterface(string wowPath, int interfaceVersion)
+    // Settings.lua tells the addon which events get a screenshot. The game reads it on /reload or login.
+    public static void WriteSettings(string flavorDir, FlavorSettings s)
     {
-        var toc = Path.Combine(TargetDir(wowPath), "WoWCharacterTracker.toc");
+        var target = TargetDir(flavorDir);
+        if (!Directory.Exists(target)) return;
+        var shots = string.Join(", ", Flavors.ShotKinds.Select(k => $"{k} = {(s.Shoots(k) ? "true" : "false")}"));
+        var lua = "-- Written by the Character Tracker app from its \"What gets posted\" page. Changes apply on /reload.\n"
+                  + "WoWCharacterTrackerSettings = {\n"
+                  + $"  screenshot = {{ {shots} }},\n"
+                  + "}\n";
+        var file = Path.Combine(target, "Settings.lua");
+        if (!File.Exists(file) || File.ReadAllText(file) != lua) File.WriteAllText(file, lua);
+    }
+
+    public static void SetInterface(string flavorDir, int interfaceVersion)
+    {
+        var toc = Path.Combine(TargetDir(flavorDir), "WoWCharacterTracker.toc");
         var text = File.ReadAllText(toc);
         File.WriteAllText(toc, InterfaceLine().Replace(text, $"## Interface: {interfaceVersion}", 1));
     }
