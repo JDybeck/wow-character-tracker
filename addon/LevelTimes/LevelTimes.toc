@@ -1,0 +1,8 @@
+## Interface: 120000
+## Title: LevelTimes
+## Notes: Records how long each character level takes, for the companion app to post to Discord.
+## Author: JDybeck
+## Version: 0.1.0
+## SavedVariables: LevelTimesDB
+
+LevelTimes.lua
