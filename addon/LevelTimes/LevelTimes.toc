@@ -1,4 +1,4 @@
-## Interface: 120000
+## Interface: 120105
 ## Title: LevelTimes
 ## Notes: Records how long each character level takes, for the companion app to post to Discord.
 ## Author: JDybeck
