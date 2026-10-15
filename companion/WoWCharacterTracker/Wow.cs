@@ -91,8 +91,10 @@ static class Wow
             .Where(n => n is not null && n != "SavedVariables")!;
     }
 
+    public const string SavedVarsName = "WoWCharacterTracker.lua";
+
     public static string SavedVarsFile(string wowPath, string account) =>
-        Path.Combine(AccountsDir(wowPath), account, "SavedVariables", "WoWCharacterTracker.lua");
+        Path.Combine(AccountsDir(wowPath), account, "SavedVariables", SavedVarsName);
 
     public static bool IsRunning() =>
         System.Diagnostics.Process.GetProcessesByName("Wow").Length > 0;

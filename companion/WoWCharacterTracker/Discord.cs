@@ -10,7 +10,7 @@ partial class Discord(string webhookUrl)
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
     // Class colors as the game uses them (RAID_CLASS_COLORS).
-    static readonly Dictionary<string, int> ClassColors = new()
+    public static readonly Dictionary<string, int> ClassColors = new()
     {
         ["WARRIOR"] = 0xC69B6D, ["PALADIN"] = 0xF48CBA, ["HUNTER"] = 0xAAD372, ["ROGUE"] = 0xFFF468,
         ["PRIEST"] = 0xFFFFFF, ["DEATHKNIGHT"] = 0xC41E3A, ["SHAMAN"] = 0x0070DD, ["MAGE"] = 0x3FC7EB,
@@ -21,7 +21,7 @@ partial class Discord(string webhookUrl)
     const string IconBase = "https://wow.zamimg.com/images/wow/icons/large/";
 
     // Remembers which portrait URLs exist so a new race we don't know falls back to the class icon.
-    static readonly Dictionary<string, bool> UrlExists = new();
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> UrlExists = new();
 
     public static bool LooksLikeWebhook(string url) => WebhookPattern().IsMatch(url.Trim());
 
@@ -68,7 +68,7 @@ partial class Discord(string webhookUrl)
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
-                Ui.Warn("Couldn't reach Discord. Will try again on the next change.");
+                Log.Warn("Couldn't reach Discord. Will try again on the next sync.");
                 return false;
             }
 
@@ -81,9 +81,9 @@ partial class Discord(string webhookUrl)
             }
 
             if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
-                Ui.Error("The Discord webhook no longer works (was it deleted?). Restart with --setup to enter a new one.");
+                Log.Error("The Discord webhook no longer works (was it deleted?). Add a new one in the Discord panel.");
             else
-                Ui.Warn($"Discord returned {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
+                Log.Warn($"Discord returned {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
             return false;
         }
 
@@ -93,9 +93,13 @@ partial class Discord(string webhookUrl)
     async Task<object> BuildEmbedAsync(Entry e, bool isTest)
     {
         var lines = new List<string> { $"{e.Level - 1} to {e.Level} took **{Format.Duration(e.Seconds)}**." };
+        if (e.Played > 0) lines.Add($"Total played: **{Format.Played(e.Played)}**.");
         if (e.Zone.Length > 0) lines.Add($"They dinged in **{e.Zone}**.");
-        if (e.Professions.Length > 0 || e.Talents.Length > 0) lines.Add("");
-        if (e.Professions.Length > 0) lines.Add($"**Professions:** {e.Professions}");
+
+        // Older addon versions wrote "None" when there were no professions.
+        var professions = e.Professions == "None" ? "" : e.Professions;
+        if (professions.Length > 0 || e.Talents.Length > 0) lines.Add("");
+        if (professions.Length > 0) lines.Add($"**Professions:** {professions}");
         if (e.Talents.Length > 0) lines.Add($"**Talents:** {e.Talents}");
 
         var embed = new Dictionary<string, object>
@@ -108,7 +112,7 @@ partial class Discord(string webhookUrl)
         if (ClassColors.TryGetValue(e.ClassFile.ToUpperInvariant(), out var color))
             embed["color"] = color;
 
-        var classIcon = e.ClassFile.Length > 0 ? $"{IconBase}classicon_{e.ClassFile.ToLowerInvariant()}.jpg" : null;
+        var classIcon = ClassIconUrl(e.ClassFile);
 
         // "Human Fury Warrior", leaving out whatever we don't know.
         var who = string.Join(" ", new[] { e.Race, e.Spec, e.Class }.Where(s => s.Length > 0));
@@ -119,20 +123,27 @@ partial class Discord(string webhookUrl)
             embed["author"] = author;
         }
 
-        // The race portrait matches the character best; the class icon is the fallback.
-        string? picture = null;
-        if (e.RaceFile.Length > 0)
-        {
-            var portrait = $"{IconBase}race_{e.RaceFile.ToLowerInvariant()}_{e.Sex}.jpg";
-            if (await ExistsAsync(portrait)) picture = portrait;
-        }
-        picture ??= classIcon;
+        var picture = await PictureUrlAsync(e.RaceFile, e.Sex, e.ClassFile);
         if (picture is not null) embed["thumbnail"] = new { url = picture };
 
         var footer = isTest ? "Test message from Character Tracker" : e.Realm;
         if (footer.Length > 0) embed["footer"] = new { text = footer };
 
         return embed;
+    }
+
+    public static string? ClassIconUrl(string classFile) =>
+        classFile.Length > 0 ? $"{IconBase}classicon_{classFile.ToLowerInvariant()}.jpg" : null;
+
+    // The race portrait matches the character best; the class icon is the fallback.
+    public static async Task<string?> PictureUrlAsync(string raceFile, string sex, string classFile)
+    {
+        if (raceFile.Length > 0)
+        {
+            var portrait = $"{IconBase}race_{raceFile.ToLowerInvariant()}_{sex}.jpg";
+            if (await ExistsAsync(portrait)) return portrait;
+        }
+        return ClassIconUrl(classFile);
     }
 
     static async Task<bool> ExistsAsync(string url)

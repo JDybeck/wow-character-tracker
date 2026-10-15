@@ -1,0 +1,461 @@
+<Window x:Class="WoWCharacterTracker.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WoWCharacterTracker"
+        Title="Character Tracker" Width="1280" Height="860" MinWidth="960" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Bg}" FontFamily="Segoe UI Variable Text, Segoe UI"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+
+  <Window.Resources>
+    <!-- Same column widths for the header row and every character row. -->
+    <GridLength x:Key="ColClass">180</GridLength>
+    <GridLength x:Key="ColLevel">90</GridLength>
+    <GridLength x:Key="ColIlvl">100</GridLength>
+    <GridLength x:Key="ColSeen">120</GridLength>
+
+    <Style x:Key="CharacterItem" TargetType="ListBoxItem">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="Bd" Background="Transparent" BorderBrush="{StaticResource LineSoft}" BorderThickness="0,0,0,1">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Hover}"/>
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Selected}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="FactLabel" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Margin" Value="0,10,0,2"/>
+    </Style>
+    <Style x:Key="FactValue" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource TextSoft}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+  </Window.Resources>
+
+  <Grid Margin="28,24">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- Header -->
+    <DockPanel Margin="0,0,0,20">
+      <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Command="{Binding SyncCommand}" VerticalAlignment="Center"
+              ToolTip="Read the game's data again and post anything new">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" Foreground="White" FontSize="15" Margin="0,0,8,0"/>
+          <TextBlock Text="Sync now" Foreground="White"/>
+        </StackPanel>
+      </Button>
+      <StackPanel Orientation="Horizontal">
+        <Border Width="44" Height="44" CornerRadius="10" Margin="0,0,14,0">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+              <GradientStop Color="#2563EB" Offset="0"/>
+              <GradientStop Color="#9333EA" Offset="1"/>
+            </LinearGradientBrush>
+          </Border.Background>
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE895;" Foreground="White" FontSize="22" HorizontalAlignment="Center"/>
+        </Border>
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Text="Character Tracker" FontSize="26" FontWeight="Bold" Foreground="White"/>
+          <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,6,0"/>
+            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Muted}" FontSize="13"/>
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+    </DockPanel>
+
+    <!-- Setup checks -->
+    <ItemsControl Grid.Row="1" ItemsSource="{Binding Steps}" Margin="0,0,0,20">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <UniformGrid Rows="1"/>
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate DataType="{x:Type local:SetupItem}">
+          <Border Style="{StaticResource CardBorder}" Padding="14,12" Margin="0,0,12,0">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Border x:Name="Dot" Width="30" Height="30" CornerRadius="15" Background="{StaticResource GreenSoft}" Margin="0,0,12,0">
+                <TextBlock x:Name="DotIcon" Style="{StaticResource Icon}" Text="&#xE73E;" Foreground="{StaticResource Green}"
+                           FontSize="14" HorizontalAlignment="Center"/>
+              </Border>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"/>
+                <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding Detail}"/>
+              </StackPanel>
+              <Button Grid.Column="2" Style="{StaticResource ButtonBase}" Content="{Binding ActionText}" Command="{Binding ActionCommand}"
+                      Visibility="{Binding ActionText, Converter={StaticResource VisibleIfSet}}" Margin="10,0,0,0" Padding="10,4"/>
+            </Grid>
+          </Border>
+          <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding Ok}" Value="False">
+              <Setter TargetName="Dot" Property="Background" Value="{StaticResource AmberSoft}"/>
+              <Setter TargetName="DotIcon" Property="Text" Value="&#xE7BA;"/>
+              <Setter TargetName="DotIcon" Property="Foreground" Value="{StaticResource Amber}"/>
+            </DataTrigger>
+          </DataTemplate.Triggers>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <!-- Main area -->
+    <Grid Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="2.2*"/>
+        <ColumnDefinition Width="20"/>
+        <ColumnDefinition Width="*" MinWidth="360"/>
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="20"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <!-- Characters -->
+      <Border Grid.RowSpan="3" Style="{StaticResource CardBorder}" ClipToBounds="True">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <Border Background="{StaticResource CardHeader}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
+            <Grid Margin="24,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="{StaticResource ColClass}"/>
+                <ColumnDefinition Width="{StaticResource ColLevel}"/>
+                <ColumnDefinition Width="{StaticResource ColIlvl}"/>
+                <ColumnDefinition Width="{StaticResource ColSeen}"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource ColumnHeader}" Text="CHARACTER"/>
+              <TextBlock Grid.Column="1" Style="{StaticResource ColumnHeader}" Text="CLASS"/>
+              <TextBlock Grid.Column="2" Style="{StaticResource ColumnHeader}" Text="LEVEL"/>
+              <TextBlock Grid.Column="3" Style="{StaticResource ColumnHeader}" Text="ITEM LEVEL"/>
+              <TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="LAST SEEN"/>
+            </Grid>
+          </Border>
+
+          <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
+                   Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="{x:Type local:CharacterRow}">
+                <StackPanel>
+                  <Grid Margin="24,12">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="{StaticResource ColClass}"/>
+                      <ColumnDefinition Width="{StaticResource ColLevel}"/>
+                      <ColumnDefinition Width="{StaticResource ColIlvl}"/>
+                      <ColumnDefinition Width="{StaticResource ColSeen}"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                      <Grid Width="42" Height="42" Margin="0,0,12,0">
+                        <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
+                        <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="17" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Image Source="{Binding PictureUrl}" Stretch="UniformToFill">
+                          <Image.Clip>
+                            <EllipseGeometry Center="21,21" RadiusX="21" RadiusY="21"/>
+                          </Image.Clip>
+                        </Image>
+                        <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5" Opacity="0.7"/>
+                      </Grid>
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                          <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
+                          <TextBlock Text="{Binding Realm}" Foreground="{StaticResource Dim}" FontSize="12"/>
+                        </StackPanel>
+                      </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBlock Style="{StaticResource Icon}" Text="{Binding RoleGlyph}" Foreground="{Binding RoleBrush}" FontSize="13" Margin="0,0,8,0"/>
+                      <StackPanel>
+                        <TextBlock Text="{Binding ClassName}" Foreground="{Binding ClassBrush}" FontWeight="Medium" FontSize="13"/>
+                        <TextBlock Text="{Binding Spec}" Foreground="{StaticResource Dim}" FontSize="11"
+                                   Visibility="{Binding Spec, Converter={StaticResource VisibleIfSet}}"/>
+                      </StackPanel>
+                    </StackPanel>
+
+                    <Border Grid.Column="2" Style="{StaticResource Pill}">
+                      <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+                    </Border>
+
+                    <Border Grid.Column="3" Style="{StaticResource Pill}" Background="#4D1E3A8A" BorderBrush="#801D4ED8">
+                      <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="#93C5FD"/>
+                    </Border>
+
+                    <TextBlock Grid.Column="4" Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center"/>
+                  </Grid>
+
+                  <!-- Details, shown for the selected character -->
+                  <Border Margin="24,0,24,16" Padding="18,6,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                          Visibility="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource BoolVis}}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="28"/>
+                        <ColumnDefinition Width="1.3*"/>
+                      </Grid.ColumnDefinitions>
+
+                      <StackPanel>
+                        <TextBlock Style="{StaticResource FactLabel}" Text="CHARACTER"/>
+                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Description}"/>
+                        <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL PLAYED"/>
+                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding PlayedText}"/>
+                        <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
+                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding ProfessionsText}"/>
+                        <TextBlock Style="{StaticResource FactLabel}" Text="TALENTS"/>
+                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
+                        <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
+                        <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
+                      </StackPanel>
+
+                      <StackPanel Grid.Column="2">
+                        <TextBlock Style="{StaticResource FactLabel}" Text="LEVEL HISTORY"/>
+                        <TextBlock Text="No level-ups recorded yet. Ding once and it shows up here." Foreground="{StaticResource Dim}" FontSize="13"
+                                   Visibility="{Binding HasLevels, Converter={StaticResource Hidden}}" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding Levels}" MaxHeight="230">
+                          <ItemsControl.Template>
+                            <ControlTemplate TargetType="ItemsControl">
+                              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsPresenter/>
+                              </ScrollViewer>
+                            </ControlTemplate>
+                          </ItemsControl.Template>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type local:LevelRow}">
+                              <Grid Margin="0,3,8,3">
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="72"/>
+                                  <ColumnDefinition Width="80"/>
+                                  <ColumnDefinition Width="*"/>
+                                  <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding LevelText}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource TextSoft}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Took}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Green}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Zone}" FontSize="12" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="3" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+          <!-- Empty state -->
+          <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420"
+                      Visibility="{Binding HasCharacters, Converter={StaticResource Hidden}}">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="34" Foreground="{StaticResource Faint}" HorizontalAlignment="Center"/>
+            <TextBlock Text="No characters yet" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,10,0,4"/>
+            <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"
+                       Text="Log in to a character in WoW and type /reload (or log out). The game saves the addon's data then, and your characters show up here."/>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Discord webhooks -->
+      <Border Grid.Column="2" Style="{StaticResource CardBorder}" Padding="18,16">
+        <StackPanel>
+          <DockPanel Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <Button Style="{StaticResource ButtonBase}" Command="{Binding TestWebhookCommand}" Margin="0,0,8,0"
+                      Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Margin="0,0,6,0" Foreground="{StaticResource TextSoft}"/>
+                  <TextBlock Text="Send test" Foreground="{StaticResource TextSoft}"/>
+                </StackPanel>
+              </Button>
+              <Button Style="{StaticResource ButtonBase}" Command="{Binding ToggleAddWebhookCommand}">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,6,0" Foreground="{StaticResource TextSoft}"/>
+                  <TextBlock Text="Add" Foreground="{StaticResource TextSoft}"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE71B;" Foreground="{StaticResource Indigo}" FontSize="17" Margin="0,0,10,0"/>
+              <TextBlock Text="Discord" FontSize="17" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+            </StackPanel>
+          </DockPanel>
+
+          <ItemsControl ItemsSource="{Binding Webhooks}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type local:WebhookRow}">
+                <Border x:Name="Row" Margin="0,0,0,8" Padding="14,10" CornerRadius="8" BorderThickness="1"
+                        Background="#4D1E293B" BorderBrush="#80334155" Cursor="Hand">
+                  <Border.InputBindings>
+                    <MouseBinding MouseAction="LeftClick"
+                                  Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                  </Border.InputBindings>
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13"/>
+                        <Border x:Name="ActiveTag" Visibility="Collapsed" Margin="8,0,0,0" Padding="7,1" CornerRadius="9"
+                                Background="{StaticResource IndigoSoft}" BorderBrush="#4D6366F1" BorderThickness="1">
+                          <TextBlock Text="ACTIVE" FontSize="9" FontWeight="SemiBold" Foreground="#A5B4FC"/>
+                        </Border>
+                      </StackPanel>
+                      <TextBlock Text="{Binding Masked}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,3,0,0"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
+                            Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="13" Foreground="{StaticResource Dim}"/>
+                    </Button>
+                    <Border x:Name="Radio" Grid.Column="2" Width="20" Height="20" CornerRadius="10" BorderThickness="1" BorderBrush="#475569"
+                            VerticalAlignment="Center">
+                      <TextBlock x:Name="RadioCheck" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource Indigo}"
+                                 HorizontalAlignment="Center" Visibility="Collapsed"/>
+                    </Border>
+                  </Grid>
+                </Border>
+                <DataTemplate.Triggers>
+                  <DataTrigger Binding="{Binding IsActive}" Value="True">
+                    <Setter TargetName="Row" Property="Background" Value="{StaticResource IndigoSoft}"/>
+                    <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource IndigoLine}"/>
+                    <Setter TargetName="ActiveTag" Property="Visibility" Value="Visible"/>
+                    <Setter TargetName="Radio" Property="BorderBrush" Value="{StaticResource Indigo}"/>
+                    <Setter TargetName="Radio" Property="Background" Value="{StaticResource IndigoSoft}"/>
+                    <Setter TargetName="RadioCheck" Property="Visibility" Value="Visible"/>
+                  </DataTrigger>
+                </DataTemplate.Triggers>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- How to get a webhook, shown until there is one -->
+          <StackPanel Visibility="{Binding HasWebhooks, Converter={StaticResource Hidden}}" Margin="0,0,0,4">
+            <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"
+                       Text="A webhook is the link the app posts through. To make one:"/>
+            <TextBlock Foreground="{StaticResource TextSoft}" FontSize="13" TextWrapping="Wrap" LineHeight="21">
+              1. In Discord, hover the channel you want posts in and click the gear (Edit Channel).<LineBreak/>
+              2. Go to Integrations, then Webhooks, then New Webhook. Give it a name and picture if you like.<LineBreak/>
+              3. Click Copy Webhook URL and paste it below. You need the Manage Webhooks permission on that server.
+            </TextBlock>
+          </StackPanel>
+
+          <!-- Add form -->
+          <Border Visibility="{Binding ShowAddWebhook, Converter={StaticResource Visible}}" Margin="0,8,0,0" Padding="16"
+                  CornerRadius="8" Background="#801E293B" BorderBrush="#80334155" BorderThickness="1">
+            <StackPanel>
+              <TextBlock Text="Add New Webhook" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextSoft}" Margin="0,0,0,10"/>
+              <Grid Margin="0,0,0,8">
+                <TextBox Text="{Binding NewWebhookUrl, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="https://discord.com/api/webhooks/..." Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False"
+                           Visibility="{Binding NewWebhookUrl, Converter={StaticResource HiddenIfSet}}"/>
+              </Grid>
+              <Grid>
+                <TextBox Text="{Binding NewWebhookName, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="Name (optional, e.g. Leveling)" Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False"
+                           Visibility="{Binding NewWebhookName, Converter={StaticResource HiddenIfSet}}"/>
+              </Grid>
+              <TextBlock Text="{Binding AddWebhookError}" Foreground="{StaticResource Red}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
+                         Visibility="{Binding AddWebhookError, Converter={StaticResource VisibleIfSet}}"/>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Style="{StaticResource GhostButton}" Content="Cancel" Command="{Binding ToggleAddWebhookCommand}" Margin="0,0,8,0"
+                        Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}"/>
+                <Button Style="{StaticResource IndigoButton}" Content="Save Webhook" Command="{Binding SaveWebhookCommand}" IsDefault="True"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- Console -->
+      <Border Grid.Column="2" Grid.Row="2" Style="{StaticResource CardBorder}" ClipToBounds="True">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <Border Background="{StaticResource CardHeader}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1"
+                  CornerRadius="12,12,0,0" Padding="16,12">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE756;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,8,0"/>
+              <TextBlock Style="{StaticResource ColumnHeader}" Text="CONSOLE"/>
+            </StackPanel>
+          </Border>
+          <ItemsControl Grid.Row="1" ItemsSource="{Binding Logs}" Margin="0,8,0,8">
+            <ItemsControl.Template>
+              <ControlTemplate TargetType="ItemsControl">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,0">
+                  <ItemsPresenter/>
+                </ScrollViewer>
+              </ControlTemplate>
+            </ItemsControl.Template>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type local:LogLine}">
+                <Grid Margin="0,3">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding TimeText}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Faint}" Margin="0,0,8,0"/>
+                  <TextBlock x:Name="Msg" Grid.Column="1" Text="{Binding Text}" FontFamily="{StaticResource Mono}" FontSize="11"
+                             Foreground="{StaticResource InfoText}" TextWrapping="Wrap"/>
+                </Grid>
+                <DataTemplate.Triggers>
+                  <DataTrigger Binding="{Binding Level}" Value="Success">
+                    <Setter TargetName="Msg" Property="Foreground" Value="{StaticResource Green}"/>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding Level}" Value="Warn">
+                    <Setter TargetName="Msg" Property="Foreground" Value="{StaticResource Amber}"/>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding Level}" Value="Error">
+                    <Setter TargetName="Msg" Property="Foreground" Value="{StaticResource Red}"/>
+                  </DataTrigger>
+                </DataTemplate.Triggers>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>
