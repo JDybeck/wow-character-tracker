@@ -26,6 +26,7 @@ public partial class MainWindow : Window
                 if (vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Key == view[0]) is { } tab) vm.SelectedFlavor = tab;
                 if (view.Length > 1) vm.Page = view[1];
                 if (view.Length > 2 && view[2] == "rename" && vm.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
+                if (view.Length > 2 && view[2] == "options" && vm.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
                 if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(); // show the details panel too
                 await Task.Delay(2500);
                 SaveScreenshot(shot);

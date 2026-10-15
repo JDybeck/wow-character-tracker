@@ -18,6 +18,10 @@ sealed class ChatLog(string flavorDir) : IDisposable
 
     public event Action<Entry>? EntryReceived;
 
+    // The first time the file grows while the app runs. Tells the user the game is writing it live.
+    public event Action? FirstWrite;
+    bool sawWrite;
+
     public void Start() => timer = new Timer(_ => Poll(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
 
     readonly object pollLock = new();
@@ -34,6 +38,11 @@ sealed class ChatLog(string flavorDir) : IDisposable
             if (offset < 0) { offset = fs.Length; return; }
             if (fs.Length < offset) offset = 0; // the file was cleared or replaced
             if (fs.Length == offset) return;
+            if (!sawWrite)
+            {
+                sawWrite = true;
+                FirstWrite?.Invoke();
+            }
 
             fs.Seek(offset, SeekOrigin.Begin);
             using var sr = new StreamReader(fs, Encoding.UTF8);

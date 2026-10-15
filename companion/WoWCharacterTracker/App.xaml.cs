@@ -25,6 +25,8 @@ public partial class App : Application
 
         var window = new MainWindow(new MainViewModel(backfill: e.Args.Contains("--backfill")));
         MainWindow = window;
+        // Started with Windows: stay out of the way in the taskbar.
+        if (e.Args.Contains("--minimized")) window.WindowState = WindowState.Minimized;
         window.Show();
     }
 

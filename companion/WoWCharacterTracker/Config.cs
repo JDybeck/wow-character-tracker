@@ -8,12 +8,32 @@ class WebhookInfo
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "";
     public string Url { get; set; } = "";
+
+    // Forever rulesets this webhook gets posts for. Null means all of them.
+    public List<string>? ForeverRulesets { get; set; }
+
+    public static readonly string[] AllRulesets = ["Normal", "Hardcore", "Self-found"];
+
+    // A character can be both hardcore and self-found ("Hardcore, Self-found"); either one counts.
+    public bool AcceptsRuleset(Entry e)
+    {
+        if (ForeverRulesets is null) return true;
+        var ruleset = e.Ruleset.Length > 0 ? e.Ruleset : e.Hardcore ? "Hardcore" : "Normal";
+        return ruleset.Split(", ").Any(ForeverRulesets.Contains);
+    }
 }
 
-// Per tab: which folder, which webhook and what to post.
+// Per tab: which folder, which webhooks and what to post.
 class FlavorSettings
 {
     public string? Path { get; set; }
+
+    // Webhooks this tab posts to. Null means never chosen: the first webhook is used.
+    // An empty list means the user turned them all off.
+    public List<string>? ActiveWebhookIds { get; set; }
+
+    // From before several webhooks could be active. Moved into ActiveWebhookIds on load.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ActiveWebhookId { get; set; }
 
     // Level-ups: up to LevelSplit, post every LevelEveryBefore levels; after that every LevelEveryAfter.
@@ -55,6 +75,9 @@ class Config
     public Dictionary<string, FlavorSettings> Flavors { get; set; } = [];
     public string? SelectedFlavor { get; set; }
 
+    // Null until the app has run once; it then turns this on so the app starts with Windows.
+    public bool? StartWithWindows { get; set; }
+
     // Older versions: one WoW folder (retail only) and one webhook. Moved on load.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WowPath { get; set; }
@@ -70,11 +93,28 @@ class Config
         return s;
     }
 
-    public WebhookInfo? ActiveWebhook(Flavor f) => Webhooks.FirstOrDefault(w => w.Id == For(f).ActiveWebhookId);
+    public List<WebhookInfo> ActiveWebhooks(Flavor f)
+    {
+        var ids = For(f).ActiveWebhookIds;
+        if (ids is null) return Webhooks.Take(1).ToList();
+        return Webhooks.Where(w => ids.Contains(w.Id)).ToList();
+    }
+
+    public bool IsActive(Flavor f, WebhookInfo w) => ActiveWebhooks(f).Contains(w);
+
+    public void SetActive(Flavor f, WebhookInfo w, bool active)
+    {
+        var s = For(f);
+        s.ActiveWebhookIds ??= ActiveWebhooks(f).Select(x => x.Id).ToList();
+        s.ActiveWebhookIds.Remove(w.Id);
+        if (active) s.ActiveWebhookIds.Add(w.Id);
+    }
 
     // CHARACTERTRACKER_DATA_DIR lets tests run without touching the real settings.
-    public static string Dir { get; } = Environment.GetEnvironmentVariable("CHARACTERTRACKER_DATA_DIR") is { Length: > 0 } d
-        ? d
+    public static bool IsTest { get; } = Environment.GetEnvironmentVariable("CHARACTERTRACKER_DATA_DIR") is { Length: > 0 };
+
+    public static string Dir { get; } = IsTest
+        ? Environment.GetEnvironmentVariable("CHARACTERTRACKER_DATA_DIR")!
         : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WoWCharacterTracker");
 
     static string FilePath => System.IO.Path.Combine(Dir, "config.json");
@@ -117,16 +157,11 @@ class Config
             config.WowPath = null;
             changed = true;
         }
-
-        // New tabs start out posting to the first webhook, so adding one webhook is enough.
-        foreach (var f in WoWCharacterTracker.Flavors.All)
+        foreach (var s in config.Flavors.Values.Where(s => s.ActiveWebhookId is not null))
         {
-            var s = config.For(f);
-            if (config.ActiveWebhook(f) is null && config.Webhooks.Count > 0)
-            {
-                s.ActiveWebhookId = config.Webhooks[0].Id;
-                changed = true;
-            }
+            s.ActiveWebhookIds ??= [s.ActiveWebhookId!];
+            s.ActiveWebhookId = null;
+            changed = true;
         }
 
         if (changed) config.Save();

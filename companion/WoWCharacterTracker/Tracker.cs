@@ -9,7 +9,7 @@ sealed class Tracker : IDisposable
 {
     readonly Flavor flavor;
     readonly string flavorDir;
-    readonly Func<Discord?> discord;
+    readonly Func<List<WebhookInfo>> webhooks;
     readonly Func<FlavorSettings> settings;
     readonly bool backfill;
     readonly string statePath;
@@ -28,11 +28,11 @@ sealed class Tracker : IDisposable
     public event Action<Entry>? Posted;
     public event Action<Entry>? LiveTest;
 
-    public Tracker(Flavor flavor, string flavorDir, Func<Discord?> discord, Func<FlavorSettings> settings, bool backfill)
+    public Tracker(Flavor flavor, string flavorDir, Func<List<WebhookInfo>> webhooks, Func<FlavorSettings> settings, bool backfill)
     {
         this.flavor = flavor;
         this.flavorDir = flavorDir;
-        this.discord = discord;
+        this.webhooks = webhooks;
         this.settings = settings;
         this.backfill = backfill;
 
@@ -43,6 +43,7 @@ sealed class Tracker : IDisposable
 
         chatLog = new ChatLog(flavorDir);
         chatLog.EntryReceived += OnLiveEntry;
+        chatLog.FirstWrite += () => Log.Info($"{Tag}The game just wrote to its chat log, so live events can get through.");
     }
 
     string Tag => $"[{flavor.Name}] ";
@@ -130,19 +131,34 @@ sealed class Tracker : IDisposable
                 foreach (var e in pending.Where(e => !Wanted(e, s))) posted.Add(e.Id);
                 var toPost = pending.Where(e => Wanted(e, s)).ToList();
 
-                var d = toPost.Count > 0 ? discord() : null;
-                if (toPost.Count > 0 && d is null)
+                var hooks = toPost.Count > 0 ? webhooks() : [];
+                if (toPost.Count > 0 && hooks.Count == 0)
                 {
-                    Log.Warn($"{Tag}{toPost.Count} post{(toPost.Count == 1 ? " is" : "s are")} waiting. Pick a Discord webhook for this tab to send {(toPost.Count == 1 ? "it" : "them")}.");
+                    Log.Warn($"{Tag}{toPost.Count} post{(toPost.Count == 1 ? " is" : "s are")} waiting. Turn on a Discord webhook for this tab to send {(toPost.Count == 1 ? "it" : "them")}.");
                 }
-                else if (d is not null)
+                else
                 {
+                    // Each webhook is tracked on its own ("<id>@<webhook>"), so one that fails gets
+                    // the post later without the others getting it twice.
                     foreach (var e in toPost)
                     {
-                        var shot = e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
-                        if (!await d.PostAsync(e, screenshot: shot)) break; // keep order, retry the rest on the next sync
+                        // On Forever, each webhook can be limited to some rulesets.
+                        var forThis = hooks.Where(w => flavor != Flavors.Forever || w.AcceptsRuleset(e)).ToList();
+                        var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
+                        var allSent = true;
+                        foreach (var w in forThis)
+                        {
+                            var key = $"{e.Id}@{w.Id}";
+                            if (posted.Contains(key)) continue;
+                            if (await new Discord(w.Url, flavor).PostAsync(e, screenshot: shot))
+                            {
+                                posted.Add(key);
+                                Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.");
+                            }
+                            else allSent = false;
+                        }
+                        if (!allSent) break; // keep order, retry the rest on the next sync
                         posted.Add(e.Id);
-                        Log.Success($"{Tag}Posted: {Describe(e)}.");
                         Posted?.Invoke(e);
                     }
                 }

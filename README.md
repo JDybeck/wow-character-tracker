@@ -25,7 +25,7 @@ Made with WoW Forever (Classic+) in mind, and works for Retail too. Each has its
    - **Game folder**: found automatically, with the game version it found so you can see it picked the right one. Click **Change** to pick another folder. While Forever is in beta, its folder is `_classic_beta_`.
    - **Addon**: installed and kept up to date for you, including the interface number after patches.
    - **Discord**: paste a webhook link in the Discord panel (it explains how to get one). It's checked with Discord before saving. **Send test** shows you a sample post.
-3. Leave the window open while you play.
+3. Leave it running while you play. It starts with Windows (minimized) so it's always tracking; untick **Start with Windows** at the top if you don't want that.
 4. In game, type `/ct test`. The console in the app should say instant posting works within a few seconds.
 
 ### What gets posted
@@ -43,7 +43,8 @@ Each of these has **Screenshot** (the addon takes one in game a moment after it 
 ### The app
 
 - **Characters**: every character you've logged in with the addon, with class, spec, level, item level and when you last played. Hardcore characters are marked. Click one for total played, professions, talents, last zone, highlights (bosses, loot, mounts, death) and level history. **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
-- **Discord**: add as many webhooks as you like. Click one to make it the active one for the game tab you're on, so Retail and Forever can post to different channels. A new webhook is named after the name you gave it in Discord; click the pencil to rename it, like "#leveling / My Guild" (Discord doesn't tell webhooks their channel or server name). Hover a webhook to see its masked link.
+- **Filter**: chips above the list filter by realm on Retail and by ruleset (Hardcore, Self-found, Normal) on Forever.
+- **Discord**: add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, and on Forever which rulesets, so a hardcore channel only gets hardcore characters. A new webhook is named after the name you gave it in Discord; click the pencil to rename it, like "#leveling / My Guild" (Discord doesn't tell webhooks their channel or server name). Hover a webhook to see its masked link.
 - **Console**: what the app is doing, like posts sent and anything that needs your attention.
 - **Sync now**: reads the game's data again and posts anything new.
 

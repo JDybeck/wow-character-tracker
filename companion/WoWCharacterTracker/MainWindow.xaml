@@ -59,6 +59,30 @@
       </Setter>
     </Style>
 
+    <!-- Realm / ruleset filter chips. -->
+    <Style x:Key="GroupChipItem" TargetType="ListBoxItem">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="Bd" Padding="10,3" CornerRadius="12" Margin="0,0,6,0" BorderThickness="1" BorderBrush="#334155" Background="Transparent">
+              <TextBlock x:Name="Txt" Text="{Binding Label}" FontSize="12" Foreground="{StaticResource Muted}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource Text}"/>
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#332563EB"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                <Setter TargetName="Txt" Property="Foreground" Value="#DBEAFE"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <!-- Page tabs (Characters / What gets posted) with an underline. -->
     <Style x:Key="PageTab" TargetType="Button">
       <Setter Property="Cursor" Value="Hand"/>
@@ -161,13 +185,19 @@
         </ListBox>
       </Border>
 
-      <Button Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource PrimaryButton}" Command="{Binding SyncCommand}"
-              VerticalAlignment="Center" ToolTip="Read the game's data again and post anything new">
-        <StackPanel Orientation="Horizontal">
-          <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" Foreground="White" FontSize="15" Margin="0,0,8,0"/>
-          <TextBlock Text="Sync now" Foreground="White"/>
-        </StackPanel>
-      </Button>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <CheckBox IsChecked="{Binding StartWithWindows}" VerticalAlignment="Center" Margin="0,0,18,0"
+                  ToolTip="Start the app minimized when you log in to Windows, so it's always tracking">
+          <TextBlock Text="Start with Windows" FontSize="12" Foreground="{StaticResource Muted}"/>
+        </CheckBox>
+        <Button Style="{StaticResource PrimaryButton}" Command="{Binding SyncCommand}"
+                ToolTip="Read the game's data again and post anything new">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" Foreground="White" FontSize="15" Margin="0,0,8,0"/>
+            <TextBlock Text="Sync now" Foreground="White"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
     </Grid>
 
     <!-- Setup checks for the selected game -->
@@ -230,7 +260,21 @@
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal" Margin="2,0,0,10">
+        <DockPanel Margin="2,0,0,10">
+          <!-- Filter by realm (Retail) or ruleset (Forever), on the Characters page -->
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" DataContext="{Binding SelectedFlavor}"
+                      Visibility="{Binding HasGroups, Converter={StaticResource Visible}}">
+            <TextBlock Text="{Binding GroupLabel}" Foreground="{StaticResource Dim}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" ItemContainerStyle="{StaticResource GroupChipItem}"
+                     Background="Transparent" BorderThickness="0">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+            </ListBox>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal">
           <Button Content="Characters" Command="{Binding ShowPageCommand}" CommandParameter="characters">
             <Button.Style>
               <Style TargetType="Button" BasedOn="{StaticResource PageTab}">
@@ -253,7 +297,8 @@
               </Style>
             </Button.Style>
           </Button>
-        </StackPanel>
+          </StackPanel>
+        </DockPanel>
 
         <!-- Characters page -->
         <Border Grid.Row="1" Style="{StaticResource CardBorder}" ClipToBounds="True" DataContext="{Binding SelectedFlavor}"
@@ -589,72 +634,113 @@
             </StackPanel>
           </DockPanel>
           <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}">
-            <Run Text="Click a webhook to post"/>
-            <Run Text="{Binding SelectedFlavor.Name, Mode=OneWay}"/>
-            <Run Text="there."/>
+            <Run Text="Click a webhook to turn it on or off for"/>
+            <Run Text="{Binding SelectedFlavor.Name, Mode=OneWay}"/><Run Text=". Posts go to every one that's on."/>
           </TextBlock>
 
           <ItemsControl ItemsSource="{Binding Webhooks}">
             <ItemsControl.ItemTemplate>
               <DataTemplate DataType="{x:Type local:WebhookRow}">
                 <Border x:Name="Row" Margin="0,0,0,8" Padding="14,10" CornerRadius="8" BorderThickness="1"
-                        Background="#4D1E293B" BorderBrush="#80334155" Cursor="Hand" ToolTip="{Binding Masked}">
-                  <Border.InputBindings>
-                    <MouseBinding MouseAction="LeftClick"
-                                  Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                  CommandParameter="{Binding}"/>
-                  </Border.InputBindings>
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*"/>
-                      <ColumnDefinition Width="Auto"/>
-                      <ColumnDefinition Width="Auto"/>
-                      <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                        Background="#4D1E293B" BorderBrush="#80334155" ToolTip="{Binding Masked}">
+                  <StackPanel>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
 
-                    <!-- Name, or the rename box while editing -->
-                    <DockPanel VerticalAlignment="Center" LastChildFill="True"
-                               Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}">
-                      <Border x:Name="ActiveTag" DockPanel.Dock="Right" Visibility="Collapsed" Margin="8,0,4,0" Padding="7,1" CornerRadius="9"
-                              Background="{StaticResource IndigoSoft}" BorderBrush="#4D6366F1" BorderThickness="1" VerticalAlignment="Center">
-                        <TextBlock Text="ACTIVE" FontSize="9" FontWeight="SemiBold" Foreground="#A5B4FC"/>
+                      <!-- Name and summary (click to turn on/off for this tab), or the rename box -->
+                      <StackPanel Background="Transparent" Cursor="Hand" VerticalAlignment="Center"
+                                  Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}">
+                        <StackPanel.InputBindings>
+                          <MouseBinding MouseAction="LeftClick"
+                                        Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"/>
+                        </StackPanel.InputBindings>
+                        <DockPanel LastChildFill="True">
+                          <Border x:Name="ActiveTag" DockPanel.Dock="Right" Visibility="Collapsed" Margin="8,0,4,0" Padding="7,1" CornerRadius="9"
+                                  Background="{StaticResource IndigoSoft}" BorderBrush="#4D6366F1" BorderThickness="1" VerticalAlignment="Center">
+                            <TextBlock Text="ON" FontSize="9" FontWeight="SemiBold" Foreground="#A5B4FC"/>
+                          </Border>
+                          <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                        <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                      </StackPanel>
+                      <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" Margin="0,0,8,0"
+                               local:FocusWhenVisible.Enabled="True"
+                               Visibility="{Binding IsEditing, Converter={StaticResource Visible}}">
+                        <TextBox.InputBindings>
+                          <KeyBinding Key="Enter" Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      CommandParameter="{Binding}"/>
+                          <KeyBinding Key="Escape" Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      CommandParameter="{Binding}"/>
+                        </TextBox.InputBindings>
+                      </TextBox>
+
+                      <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Options: which games and rulesets"
+                              Command="{Binding DataContext.ToggleWebhookOptionsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}">
+                        <TextBlock x:Name="Gear" Style="{StaticResource Icon}" Text="&#xE713;" FontSize="13" Foreground="{StaticResource Dim}"/>
+                      </Button>
+                      <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename"
+                              Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}"
+                              Command="{Binding DataContext.RenameWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="13" Foreground="{StaticResource Dim}"/>
+                      </Button>
+                      <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Save name (Enter)"
+                              Visibility="{Binding IsEditing, Converter={StaticResource Visible}}"
+                              Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="13" Foreground="{StaticResource Green}"/>
+                      </Button>
+                      <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
+                              Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="13" Foreground="{StaticResource Dim}"/>
+                      </Button>
+                      <Border x:Name="Radio" Grid.Column="4" Width="20" Height="20" CornerRadius="5" BorderThickness="1" BorderBrush="#475569"
+                              Background="Transparent" Cursor="Hand" VerticalAlignment="Center" ToolTip="On or off for this tab">
+                        <Border.InputBindings>
+                          <MouseBinding MouseAction="LeftClick"
+                                        Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"/>
+                        </Border.InputBindings>
+                        <TextBlock x:Name="RadioCheck" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource Indigo}"
+                                   HorizontalAlignment="Center" Visibility="Collapsed"/>
                       </Border>
-                      <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
-                    </DockPanel>
-                    <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" Margin="0,0,8,0"
-                             local:FocusWhenVisible.Enabled="True"
-                             Visibility="{Binding IsEditing, Converter={StaticResource Visible}}">
-                      <TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"/>
-                        <KeyBinding Key="Escape" Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"/>
-                      </TextBox.InputBindings>
-                    </TextBox>
+                    </Grid>
 
-                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename"
-                            Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}"
-                            Command="{Binding DataContext.RenameWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            CommandParameter="{Binding}">
-                      <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="13" Foreground="{StaticResource Dim}"/>
-                    </Button>
-                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Save name (Enter)"
-                            Visibility="{Binding IsEditing, Converter={StaticResource Visible}}"
-                            Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            CommandParameter="{Binding}">
-                      <TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="13" Foreground="{StaticResource Green}"/>
-                    </Button>
-                    <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
-                            Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            CommandParameter="{Binding}">
-                      <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="13" Foreground="{StaticResource Dim}"/>
-                    </Button>
-                    <Border x:Name="Radio" Grid.Column="3" Width="20" Height="20" CornerRadius="10" BorderThickness="1" BorderBrush="#475569"
-                            VerticalAlignment="Center">
-                      <TextBlock x:Name="RadioCheck" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource Indigo}"
-                                 HorizontalAlignment="Center" Visibility="Collapsed"/>
-                    </Border>
-                  </Grid>
+                    <!-- Options: games and Forever rulesets, changed by clicking the chips -->
+                    <StackPanel Margin="0,10,0,2" Visibility="{Binding IsExpanded, Converter={StaticResource Visible}}">
+                      <TextBlock Text="POSTS FOR" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,0,0,5"/>
+                      <ItemsControl ItemsSource="{Binding Games}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate DataType="{x:Type local:ToggleOption}">
+                            <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <TextBlock Text="FOREVER RULESETS" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
+                      <ItemsControl ItemsSource="{Binding Rulesets}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate DataType="{x:Type local:ToggleOption}">
+                            <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </StackPanel>
                 </Border>
                 <DataTemplate.Triggers>
                   <DataTrigger Binding="{Binding IsActive}" Value="True">
@@ -664,6 +750,9 @@
                     <Setter TargetName="Radio" Property="BorderBrush" Value="{StaticResource Indigo}"/>
                     <Setter TargetName="Radio" Property="Background" Value="{StaticResource IndigoSoft}"/>
                     <Setter TargetName="RadioCheck" Property="Visibility" Value="Visible"/>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                    <Setter TargetName="Gear" Property="Foreground" Value="{StaticResource Indigo}"/>
                   </DataTrigger>
                 </DataTemplate.Triggers>
               </DataTemplate>

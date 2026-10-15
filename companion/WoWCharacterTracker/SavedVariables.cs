@@ -24,6 +24,7 @@ record Entry
     public string Sex { get; init; } = "male";
     public double ItemLevel { get; init; }
     public bool Hardcore { get; init; }
+    public string Ruleset { get; init; } = ""; // "Hardcore", "Self-found", "Normal"...
 
     public long Seconds { get; init; }   // level: time the level took
     public long Played { get; init; }    // total /played
@@ -63,6 +64,7 @@ record Entry
             Sex = s("sex") == "female" ? "female" : "male",
             ItemLevel = n("ilvl"),
             Hardcore = s("hardcore") is "true" or "1",
+            Ruleset = s("ruleset"),
             Seconds = (long)n("seconds"),
             Played = (long)n("played"),
             Boss = s("boss"),
@@ -85,7 +87,7 @@ record Entry
 // The latest state of a character, saved by the addon on every /played, /reload and logout.
 record Snapshot(string Guid, string Char, string Realm, int Level, string Class, string ClassFile,
     string Race, string RaceFile, string Sex, string Spec, string Role, double ItemLevel, long Played,
-    string Zone, string Professions, string Talents, long LastSeen, bool Hardcore);
+    string Zone, string Professions, string Talents, long LastSeen, bool Hardcore, string Ruleset);
 
 record TrackerData(List<Entry> Events, List<Snapshot> Characters)
 {
@@ -143,7 +145,7 @@ static class SavedVariables
                 S(t, "sex") == "female" ? "female" : "male",
                 S(t, "spec"), S(t, "role"), N(t, "ilvl"), (long)N(t, "played"),
                 S(t, "zone"), S(t, "professions"), S(t, "talents"), (long)N(t, "lastSeen"),
-                S(t, "hardcore") == "true"));
+                S(t, "hardcore") == "true", S(t, "ruleset")));
         }
 
         return list;

@@ -76,6 +76,33 @@
       </Setter>
     </Style>
 
+    <!-- Small on/off pill for a webhook's games and rulesets. -->
+    <Style x:Key="OptionChip" TargetType="CheckBox">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Border x:Name="Bd" CornerRadius="12" Padding="9,3" BorderThickness="1" BorderBrush="#334155" Background="Transparent">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="Ico" Text="&#xE711;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="9"
+                           Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ContentPresenter x:Name="Txt" TextElement.Foreground="#94A3B8" TextElement.FontSize="11" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#336366F1"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="#818CF8"/>
+                <Setter TargetName="Ico" Property="Text" Value="&#xE73E;"/>
+                <Setter TargetName="Ico" Property="Foreground" Value="#A5B4FC"/>
+                <Setter TargetName="Txt" Property="TextElement.Foreground" Value="#E0E7FF"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <!-- Small pill checkbox for the screenshot options. -->
     <Style x:Key="ChipCheck" TargetType="CheckBox">
       <Setter Property="Cursor" Value="Hand"/>

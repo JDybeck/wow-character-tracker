@@ -123,6 +123,9 @@ sealed class ShotOption(FlavorSettings settings, string kind, Action saved) : Ob
 
 sealed record LevelRow(string LevelText, string Took, string Zone, string When);
 
+// A filter chip above the character list: a realm (Retail) or ruleset (Forever), or "All".
+sealed record GroupChip(string Key, string Label);
+
 // A boss kill, rare loot, new mount or death, shown in the character details.
 sealed record HighlightRow(string Glyph, SolidColorBrush Brush, string Text, string When);
 
@@ -148,6 +151,7 @@ sealed class CharacterRow : Observable
     public required string Talents { get; init; }
     public required long LastSeen { get; init; }
     public required bool Hardcore { get; init; }
+    public required string Ruleset { get; init; }
     public required bool Dead { get; init; }
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
@@ -219,6 +223,8 @@ sealed class CharacterRow : Observable
                 Talents = Pick(s?.Talents, last?.Talents),
                 LastSeen = Math.Max(s?.LastSeen ?? 0, last?.At ?? 0),
                 Hardcore = (s?.Hardcore ?? false) || all.Any(e => e.Hardcore),
+                Ruleset = Pick(s?.Ruleset, last?.Ruleset) is { Length: > 0 } rs ? rs
+                    : (s?.Hardcore ?? false) || all.Any(e => e.Hardcore) ? "Hardcore" : "Normal",
                 Dead = all.Any(e => e.Kind == "death"),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
@@ -247,11 +253,50 @@ sealed class CharacterRow : Observable
     static string Pick(string? a, string? b) => a is { Length: > 0 } ? a : b ?? "";
 }
 
-sealed class WebhookRow(WebhookInfo info, bool isActive) : Observable
+// A clickable on/off chip, used for a webhook's games and rulesets.
+sealed class ToggleOption(string name, bool on, Action<bool> changed) : Observable
+{
+    bool isOn = on;
+    public string Name { get; } = name;
+    public bool IsOn
+    {
+        get => isOn;
+        set
+        {
+            if (!Set(ref isOn, value)) return;
+            changed(value);
+        }
+    }
+}
+
+sealed class WebhookRow(WebhookInfo info, bool isActive, bool isExpanded,
+    IReadOnlyList<ToggleOption> games, IReadOnlyList<ToggleOption> rulesets) : Observable
 {
     public WebhookInfo Info { get; } = info;
     public string Name => Info.Name;
     public bool IsActive { get; } = isActive;
+
+    // The options panel: which games this webhook posts for, and which Forever rulesets.
+    public IReadOnlyList<ToggleOption> Games { get; } = games;
+    public IReadOnlyList<ToggleOption> Rulesets { get; } = rulesets;
+
+    bool isExpanded = isExpanded;
+    public bool IsExpanded { get => isExpanded; set => Set(ref isExpanded, value); }
+
+    // "Retail, Forever (Hardcore)" when collapsed, so the options show without opening them.
+    public string Summary
+    {
+        get
+        {
+            var on = Games.Where(g => g.IsOn).Select(g => g.Name).ToList();
+            if (on.Count == 0) return "Not posting anywhere";
+            var rules = Rulesets.Where(r => r.IsOn).Select(r => r.Name).ToList();
+            var forever = Flavors.Forever.Name;
+            if (on.Contains(forever) && rules.Count < Rulesets.Count)
+                on[on.IndexOf(forever)] = $"{forever} ({(rules.Count == 0 ? "no rulesets" : string.Join(", ", rules))})";
+            return "Posts for " + string.Join(", ", on);
+        }
+    }
 
     bool isEditing;
     public bool IsEditing { get => isEditing; set => Set(ref isEditing, value); }
@@ -448,8 +493,7 @@ sealed class FlavorViewModel : Observable
         SetUpAddon(force: false);
 
         tracker?.Dispose();
-        tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhook(Flavor) is { } w ? new Discord(w.Url, Flavor) : null,
-            () => Settings, main.Backfill);
+        tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings, main.Backfill);
         tracker.DataChanged += data => MainViewModel.OnUi(() => ShowData(data));
         tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
@@ -500,30 +544,73 @@ sealed class FlavorViewModel : Observable
 
     public async Task CheckDiscordAsync()
     {
-        var active = main.Config.ActiveWebhook(Flavor);
-        if (active is null)
+        var active = main.Config.ActiveWebhooks(Flavor);
+        if (active.Count == 0)
         {
             DiscordStep.Ok = false;
-            DiscordStep.Detail = main.Config.Webhooks.Count == 0 ? "Add a webhook" : "Pick a webhook for this tab";
+            DiscordStep.Detail = main.Config.Webhooks.Count == 0 ? "Add a webhook" : "Turn on a webhook for this tab";
             return;
         }
 
-        var (name, problem) = await Discord.CheckAsync(active.Url);
-        DiscordStep.Ok = name is not null || problem!.StartsWith("Couldn't reach") || problem.Contains("too long");
-        DiscordStep.Detail = name is not null ? $"Posting to \"{active.Name}\"" : problem!;
-        if (name is null) Log.Warn($"[{Name}] {problem}");
+        var problems = new List<string>();
+        foreach (var w in active)
+        {
+            var (name, problem) = await Discord.CheckAsync(w.Url);
+            if (name is null && !problem!.StartsWith("Couldn't reach") && !problem.Contains("too long"))
+            {
+                problems.Add(w.Name);
+                Log.Warn($"[{Name}] \"{w.Name}\": {problem}");
+            }
+        }
+
+        DiscordStep.Ok = problems.Count == 0;
+        DiscordStep.Detail = problems.Count > 0 ? $"\"{problems[0]}\" doesn't work, see the console"
+            : active.Count == 1 ? $"Posting to \"{active[0].Name}\""
+            : $"Posting to {active.Count} webhooks";
     }
 
     TrackerData lastData = TrackerData.Empty;
+
+    // Retail characters are grouped by realm, Forever ones by ruleset (hardcore, self-found...).
+    public string GroupLabel => Flavor == Flavors.Forever ? "Ruleset" : "Realm";
+    string GroupOf(CharacterRow r) => Flavor == Flavors.Forever ? r.Ruleset : r.Realm;
+
+    public ObservableCollection<GroupChip> Groups { get; } = [];
+    public bool HasGroups => Groups.Count > 2; // "All" plus at least two groups
+
+    GroupChip? selectedGroup;
+    public GroupChip? SelectedGroup
+    {
+        get => selectedGroup;
+        set
+        {
+            if (value is null || !Set(ref selectedGroup, value)) return;
+            ShowData(lastData);
+        }
+    }
 
     void ShowData(TrackerData data)
     {
         lastData = data;
         var keep = SelectedCharacter?.Guid;
-        Characters.Clear();
         var removed = Settings.Removed;
-        foreach (var r in CharacterRow.Build(data)
-                     .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at)))
+        var rows = CharacterRow.Build(data)
+            .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
+            .ToList();
+
+        // Rebuild the chips, keeping the chosen one if it still exists.
+        var chosen = selectedGroup?.Key ?? "";
+        var chips = new List<GroupChip> { new("", $"All ({rows.Count})") };
+        chips.AddRange(rows.GroupBy(GroupOf).OrderBy(g => g.Key)
+            .Select(g => new GroupChip(g.Key, $"{(g.Key.Length > 0 ? g.Key : "Unknown")} ({g.Count()})")));
+        Groups.Clear();
+        foreach (var c in chips) Groups.Add(c);
+        selectedGroup = Groups.FirstOrDefault(c => c.Key == chosen) ?? Groups[0];
+        Raise(nameof(SelectedGroup));
+        Raise(nameof(HasGroups));
+
+        Characters.Clear();
+        foreach (var r in rows.Where(r => selectedGroup.Key.Length == 0 || GroupOf(r) == selectedGroup.Key))
         {
             Characters.Add(r);
             _ = r.LoadPictureAsync();
@@ -610,9 +697,24 @@ sealed class MainViewModel : Observable
             row.IsEditing = true;
         });
         SaveRenameCommand = new RelayCommand(p => SaveRename((WebhookRow)p!));
+        ToggleWebhookOptionsCommand = new RelayCommand(p => ((WebhookRow)p!).IsExpanded = !((WebhookRow)p!).IsExpanded);
         CancelRenameCommand = new RelayCommand(p => ((WebhookRow)p!).IsEditing = false);
         TestWebhookCommand = new RelayCommand(_ => SendTestAsync(),
-            _ => SelectedFlavor is not null && Config.ActiveWebhook(SelectedFlavor.Flavor) is not null);
+            _ => SelectedFlavor is not null && Config.ActiveWebhooks(SelectedFlavor.Flavor).Count > 0);
+    }
+
+    // Starts the app minimized when you log in to Windows.
+    public bool StartWithWindows
+    {
+        get => Config.StartWithWindows ?? false;
+        set
+        {
+            Config.StartWithWindows = value;
+            Config.Save();
+            Autostart.Apply(value);
+            Raise(nameof(StartWithWindows));
+            Log.Info(value ? "The app now starts with Windows (minimized)." : "The app no longer starts with Windows.");
+        }
     }
 
     public bool Backfill { get; }
@@ -659,6 +761,7 @@ sealed class MainViewModel : Observable
     public ICommand RemoveWebhookCommand { get; }
     public ICommand RenameWebhookCommand { get; }
     public ICommand SaveRenameCommand { get; }
+    public ICommand ToggleWebhookOptionsCommand { get; }
     public ICommand CancelRenameCommand { get; }
     public ICommand TestWebhookCommand { get; }
 
@@ -667,6 +770,16 @@ sealed class MainViewModel : Observable
         Config = Config.Load();
         Log.Info("Character Tracker started.");
         ShowAddWebhook = Config.Webhooks.Count == 0;
+
+        // On by default, so tracking is running before you start the game. Re-applied every start
+        // so the startup entry follows the exe if it was moved.
+        if (Config.StartWithWindows is null)
+        {
+            Config.StartWithWindows = true;
+            Config.Save();
+        }
+        Autostart.Apply(Config.StartWithWindows.Value);
+        Raise(nameof(StartWithWindows));
 
         foreach (var f in Flavors.All) FlavorTabs.Add(new FlavorViewModel(this, f));
         SelectedFlavor = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
@@ -679,11 +792,39 @@ sealed class MainViewModel : Observable
 
     void RefreshWebhooks()
     {
+        var expanded = Webhooks.Where(w => w.IsExpanded).Select(w => w.Info.Id).ToHashSet();
         Webhooks.Clear();
-        var active = SelectedFlavor is null ? null : Config.For(SelectedFlavor.Flavor).ActiveWebhookId;
-        foreach (var w in Config.Webhooks) Webhooks.Add(new WebhookRow(w, w.Id == active));
+        foreach (var w in Config.Webhooks)
+        {
+            var games = FlavorTabs.Select(t => new ToggleOption(t.Name, Config.IsActive(t.Flavor, w), on =>
+            {
+                Config.SetActive(t.Flavor, w, on);
+                WebhookOptionsChanged();
+            })).ToList();
+            var rulesets = WebhookInfo.AllRulesets.Select(r => new ToggleOption(r, w.ForeverRulesets?.Contains(r) ?? true, on =>
+            {
+                w.ForeverRulesets ??= [.. WebhookInfo.AllRulesets];
+                w.ForeverRulesets.Remove(r);
+                if (on) w.ForeverRulesets.Add(r);
+                if (w.ForeverRulesets.Count == WebhookInfo.AllRulesets.Length) w.ForeverRulesets = null; // all again
+                WebhookOptionsChanged();
+            })).ToList();
+            var active = SelectedFlavor is not null && Config.IsActive(SelectedFlavor.Flavor, w);
+            Webhooks.Add(new WebhookRow(w, active, expanded.Contains(w.Id), games, rulesets));
+        }
         Raise(nameof(HasWebhooks));
         CommandManager.InvalidateRequerySuggested();
+    }
+
+    void WebhookOptionsChanged()
+    {
+        Config.Save();
+        // Rebuild after the click has finished, so the chip being clicked isn't replaced mid-click.
+        Application.Current.Dispatcher.BeginInvoke(() =>
+        {
+            RefreshWebhooks();
+            foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync();
+        });
     }
 
     async Task SaveWebhookAsync()
@@ -705,10 +846,10 @@ sealed class MainViewModel : Observable
 
         var info = new WebhookInfo { Name = NewWebhookName.Trim() is { Length: > 0 } n ? n : discordName, Url = url };
         Config.Webhooks.Add(info);
-        // Active for this tab, and for any tab that has nothing to post to yet.
+        // On for this tab, and for any tab that has nothing to post to yet.
         foreach (var tab in FlavorTabs)
-            if (tab == SelectedFlavor || Config.ActiveWebhook(tab.Flavor) is null)
-                Config.For(tab.Flavor).ActiveWebhookId = info.Id;
+            if (tab == SelectedFlavor || Config.ActiveWebhooks(tab.Flavor).Count == 0)
+                Config.SetActive(tab.Flavor, info, true);
         Config.Save();
         RefreshWebhooks();
 
@@ -721,15 +862,15 @@ sealed class MainViewModel : Observable
             if (tab.Tracker is not null) await tab.Tracker.SyncAsync(); // post anything that was waiting
     }
 
+    // Clicking a webhook turns it on or off for the tab you're on.
     void SelectWebhook(WebhookRow row)
     {
-        if (SelectedFlavor is null) return;
-        var s = Config.For(SelectedFlavor.Flavor);
-        if (s.ActiveWebhookId == row.Info.Id) return;
-        s.ActiveWebhookId = row.Info.Id;
+        if (SelectedFlavor is null || row.IsEditing) return;
+        var on = !row.IsActive;
+        Config.SetActive(SelectedFlavor.Flavor, row.Info, on);
         Config.Save();
         RefreshWebhooks();
-        Log.Info($"[{SelectedFlavor.Name}] Now posting to \"{row.Name}\".");
+        Log.Info($"[{SelectedFlavor.Name}] " + (on ? $"Now also posting to \"{row.Name}\"." : $"Stopped posting to \"{row.Name}\"."));
         _ = SelectedFlavor.CheckDiscordAsync();
     }
 
@@ -753,11 +894,7 @@ sealed class MainViewModel : Observable
         if (answer != MessageBoxResult.Yes) return;
 
         Config.Webhooks.Remove(row.Info);
-        foreach (var tab in FlavorTabs)
-        {
-            var s = Config.For(tab.Flavor);
-            if (s.ActiveWebhookId == row.Info.Id) s.ActiveWebhookId = Config.Webhooks.FirstOrDefault()?.Id;
-        }
+        foreach (var tab in FlavorTabs) Config.For(tab.Flavor).ActiveWebhookIds?.Remove(row.Info.Id);
         Config.Save();
         RefreshWebhooks();
         Log.Info($"Removed webhook \"{row.Name}\".");
@@ -766,9 +903,10 @@ sealed class MainViewModel : Observable
 
     async Task SendTestAsync()
     {
-        if (SelectedFlavor is not { } tab || Config.ActiveWebhook(tab.Flavor) is not { } active) return;
-        if (await new Discord(active.Url, tab.Flavor).PostAsync(tab.SampleEntry(), isTest: true))
-            Log.Success($"[{tab.Name}] Test post sent to \"{active.Name}\". Check your Discord channel.");
+        if (SelectedFlavor is not { } tab) return;
+        foreach (var w in Config.ActiveWebhooks(tab.Flavor))
+            if (await new Discord(w.Url, tab.Flavor).PostAsync(tab.SampleEntry(), isTest: true))
+                Log.Success($"[{tab.Name}] Test post sent to \"{w.Name}\". Check your Discord channel.");
     }
 
     public static void OnUi(Action a)
