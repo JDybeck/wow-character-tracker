@@ -1,7 +1,7 @@
--- LevelTimes: records how long each character level takes.
--- Data lives in LevelTimesDB (SavedVariables), which the companion app reads.
+-- Character Tracker: records how long each character level takes.
+-- Data lives in WoWCharacterTrackerDB (SavedVariables), which the companion app reads.
 
-local ADDON = "LevelTimes"
+local ADDON = "WoWCharacterTracker"
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
@@ -15,7 +15,7 @@ local popupLevel    -- a level waiting for the "post now" popup until combat end
 local suppressChat = false
 
 local function say(msg)
-  print("|cff00ccff[LevelTimes]|r " .. msg)
+  print("|cff00ccff[Character Tracker]|r " .. msg)
 end
 
 local function formatDuration(s)
@@ -156,7 +156,7 @@ end
 
 -- The game only writes SavedVariables on reload or logout, so offer a reload
 -- right after a ding. That is what makes the Discord post show up.
-StaticPopupDialogs["LEVELTIMES_POST"] = {
+StaticPopupDialogs["CHARACTERTRACKER_POST"] = {
   text = "Ding! Level %d.\n\nReload your UI now to post it to Discord?",
   button1 = "Post now",
   button2 = "Later",
@@ -168,12 +168,12 @@ StaticPopupDialogs["LEVELTIMES_POST"] = {
 }
 
 local function offerPost(level)
-  if not LevelTimesDB.popup then return end
+  if not WoWCharacterTrackerDB.popup then return end
   if InCombatLockdown() then
     popupLevel = level -- show it when combat ends
     return
   end
-  StaticPopup_Show("LEVELTIMES_POST", level)
+  StaticPopup_Show("CHARACTERTRACKER_POST", level)
 end
 
 local function recordLevel(guid, level, seconds)
@@ -182,7 +182,7 @@ local function recordLevel(guid, level, seconds)
   local sex = UnitSex("player") -- 2 = male, 3 = female
   local talents, spec = getTalents()
 
-  table.insert(LevelTimesDB.events, {
+  table.insert(WoWCharacterTrackerDB.events, {
     id = guid .. ":" .. level,
     char = UnitName("player"),
     realm = GetRealmName(),
@@ -204,10 +204,10 @@ end
 frame:SetScript("OnEvent", function(_, event, ...)
   if event == "ADDON_LOADED" then
     if (...) ~= ADDON then return end
-    LevelTimesDB = LevelTimesDB or {}
-    LevelTimesDB.start = LevelTimesDB.start or {}   -- [guid] = total played at the start of the current level
-    LevelTimesDB.events = LevelTimesDB.events or {} -- one entry per finished level
-    if LevelTimesDB.popup == nil then LevelTimesDB.popup = true end
+    WoWCharacterTrackerDB = WoWCharacterTrackerDB or {}
+    WoWCharacterTrackerDB.start = WoWCharacterTrackerDB.start or {}   -- [guid] = total played at the start of the current level
+    WoWCharacterTrackerDB.events = WoWCharacterTrackerDB.events or {} -- one entry per finished level
+    if WoWCharacterTrackerDB.popup == nil then WoWCharacterTrackerDB.popup = true end
 
   elseif event == "PLAYER_LOGIN" then
     requestPlayed() -- sets the baseline for the current level
@@ -227,7 +227,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     local total, thisLevel = ...
     local guid = UnitGUID("player")
     local newStart = total - thisLevel
-    local oldStart = LevelTimesDB.start[guid]
+    local oldStart = WoWCharacterTrackerDB.start[guid]
 
     if pendingLevel then
       if oldStart and newStart >= oldStart then
@@ -241,7 +241,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
       pendingLevel = nil
     end
 
-    LevelTimesDB.start[guid] = newStart
+    WoWCharacterTrackerDB.start[guid] = newStart
     suppressChat = false
   end
 end)
@@ -249,8 +249,8 @@ end)
 local function showHistory()
   local guid = UnitGUID("player")
   local shown = 0
-  for i = #LevelTimesDB.events, 1, -1 do
-    local e = LevelTimesDB.events[i]
+  for i = #WoWCharacterTrackerDB.events, 1, -1 do
+    local e = WoWCharacterTrackerDB.events[i]
     if e.id == guid .. ":" .. e.level then
       say(string.format("Level %d took %s", e.level - 1, formatDuration(e.seconds)))
       shown = shown + 1
@@ -260,16 +260,16 @@ local function showHistory()
   if shown == 0 then say("No level times recorded yet for this character.") end
 end
 
-SLASH_LEVELTIMES1 = "/leveltimes"
-SLASH_LEVELTIMES2 = "/lt"
-SlashCmdList["LEVELTIMES"] = function(msg)
+SLASH_CHARACTERTRACKER1 = "/charactertracker"
+SLASH_CHARACTERTRACKER2 = "/ct"
+SlashCmdList["CHARACTERTRACKER"] = function(msg)
   msg = strtrim(msg or ""):lower()
   if msg == "popup" then
-    LevelTimesDB.popup = not LevelTimesDB.popup
-    say("Post popup after a ding is now " .. (LevelTimesDB.popup and "on." or "off. Your dings post on your next /reload or logout."))
+    WoWCharacterTrackerDB.popup = not WoWCharacterTrackerDB.popup
+    say("Post popup after a ding is now " .. (WoWCharacterTrackerDB.popup and "on." or "off. Your dings post on your next /reload or logout."))
   elseif msg == "help" then
-    say("/lt shows your last 10 level times.")
-    say("/lt popup turns the \"post now\" popup after a ding on or off.")
+    say("/ct shows your last 10 level times.")
+    say("/ct popup turns the \"post now\" popup after a ding on or off.")
   else
     showHistory()
   end

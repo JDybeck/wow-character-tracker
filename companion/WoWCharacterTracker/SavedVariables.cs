@@ -1,6 +1,6 @@
 using MoonSharp.Interpreter;
 
-namespace LevelTimesCompanion;
+namespace WoWCharacterTracker;
 
 record Entry(string Id, string Char, string Realm, int Level, long Seconds, long At,
     string Zone, string Professions, string Talents,
@@ -24,7 +24,7 @@ static class SavedVariables
         script.DoString(text);
 
         var list = new List<Entry>();
-        var db = script.Globals.Get("LevelTimesDB");
+        var db = script.Globals.Get("WoWCharacterTrackerDB");
         if (db.Type != DataType.Table) return list;
 
         var events = db.Table.Get("events");

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace LevelTimesCompanion;
+namespace WoWCharacterTracker;
 
 partial class Discord(string webhookUrl)
 {
@@ -129,7 +129,7 @@ partial class Discord(string webhookUrl)
         picture ??= classIcon;
         if (picture is not null) embed["thumbnail"] = new { url = picture };
 
-        var footer = isTest ? "Test message from LevelTimes" : e.Realm;
+        var footer = isTest ? "Test message from Character Tracker" : e.Realm;
         if (footer.Length > 0) embed["footer"] = new { text = footer };
 
         return embed;

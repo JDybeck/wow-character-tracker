@@ -1,8 +1,8 @@
 ## Interface: 120105
-## Title: LevelTimes
+## Title: Character Tracker
 ## Notes: Records how long each character level takes, for the companion app to post to Discord.
 ## Author: JDybeck
 ## Version: 0.2.0
-## SavedVariables: LevelTimesDB
+## SavedVariables: WoWCharacterTrackerDB
 
-LevelTimes.lua
+WoWCharacterTracker.lua

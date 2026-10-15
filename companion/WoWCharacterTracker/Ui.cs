@@ -1,4 +1,4 @@
-namespace LevelTimesCompanion;
+namespace WoWCharacterTracker;
 
 // Small console helpers so every step reads the same way: [ OK ], [ !! ], [ ?? ].
 static class Ui

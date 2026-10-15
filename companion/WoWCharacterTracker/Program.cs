@@ -1,34 +1,34 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using LevelTimesCompanion;
+using WoWCharacterTracker;
 
-// LevelTimes companion: checks that everything is set up, then watches the addon's
+// Character Tracker companion: checks that everything is set up, then watches the addon's
 // SavedVariables and posts every new level-up to Discord.
 //
-//   LevelTimes.exe              normal start, asks for anything that's missing
-//   LevelTimes.exe --setup      ask for the webhook and WoW folder again
-//   LevelTimes.exe --test       send a test post and quit
-//   LevelTimes.exe --backfill   on the first run, post old level-ups instead of skipping them
+//   WoWCharacterTracker.exe              normal start, asks for anything that's missing
+//   WoWCharacterTracker.exe --setup      ask for the webhook and WoW folder again
+//   WoWCharacterTracker.exe --test       send a test post and quit
+//   WoWCharacterTracker.exe --backfill   on the first run, post old level-ups instead of skipping them
 //
 // DISCORD_WEBHOOK_URL in the environment overrides the saved webhook.
 
 Console.OutputEncoding = Encoding.UTF8;
-Console.Title = "LevelTimes";
+Console.Title = "Character Tracker";
 
 if (args.Contains("--help") || args.Contains("-h") || args.Contains("/?"))
 {
-    Console.WriteLine("LevelTimes.exe [--setup] [--test] [--backfill]");
+    Console.WriteLine("WoWCharacterTracker.exe [--setup] [--test] [--backfill]");
     Console.WriteLine("  --setup     ask for the Discord webhook and WoW folder again");
     Console.WriteLine("  --test      send a test post to Discord and quit");
     Console.WriteLine("  --backfill  on the first run, post old level-ups instead of skipping them");
     return 0;
 }
 
-using var singleInstance = new Mutex(true, @"Local\LevelTimesCompanion", out var isFirstInstance);
+using var singleInstance = new Mutex(true, @"Local\WoWCharacterTracker", out var isFirstInstance);
 if (!isFirstInstance)
 {
-    Ui.Warn("LevelTimes is already running in another window. You only need one.");
+    Ui.Warn("Character Tracker is already running in another window. You only need one.");
     Ui.PressAnyKeyToExit();
     return 1;
 }
@@ -56,7 +56,7 @@ static class App
         var backfill = args.Contains("--backfill");
 
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
-        Ui.Title($"LevelTimes v{version}  -  posts your WoW level-ups to Discord");
+        Ui.Title($"Character Tracker v{version}  -  posts your WoW level-ups to Discord");
 
         var config = Config.Load();
 
@@ -135,10 +135,10 @@ static class App
         {
             if (installed is null)
             {
-                Ui.Warn("The LevelTimes addon isn't installed yet.");
+                Ui.Warn("The Character Tracker addon isn't installed yet.");
                 if (!Ui.Confirm("Install it now?"))
                 {
-                    Ui.Hint($"Without it nothing gets recorded. Copy addon\\LevelTimes into {Wow.AddOnsDir(wowPath)} yourself.");
+                    Ui.Hint($"Without it nothing gets recorded. Copy addon\\WoWCharacterTracker into {Wow.AddOnsDir(wowPath)} yourself.");
                     return;
                 }
                 AddonInstaller.Install(wowPath, interfaceVersion);
@@ -177,8 +177,8 @@ static class App
         catch (UnauthorizedAccessException)
         {
             Ui.Error("Windows didn't let me write to the AddOns folder.");
-            Ui.Hint("Right-click LevelTimes.exe and pick \"Run as administrator\" once, or copy the");
-            Ui.Hint($"addon\\LevelTimes folder into {Wow.AddOnsDir(wowPath)} yourself.");
+            Ui.Hint("Right-click WoWCharacterTracker.exe and pick \"Run as administrator\" once, or copy the");
+            Ui.Hint($"addon\\WoWCharacterTracker folder into {Wow.AddOnsDir(wowPath)} yourself.");
         }
     }
 
@@ -209,11 +209,11 @@ static class App
         }
         else
         {
-            Ui.Warn("No Discord webhook set up yet. That's the link LevelTimes posts through.");
+            Ui.Warn("No Discord webhook set up yet. That's the link Character Tracker posts through.");
         }
 
         Ui.Hint("1. In Discord, hover the channel you want the posts in and click the gear (Edit Channel).");
-        Ui.Hint("2. Go to Integrations > Webhooks > New Webhook. Name it, e.g. \"LevelTimes\".");
+        Ui.Hint("2. Go to Integrations > Webhooks > New Webhook. Name it, e.g. \"Character Tracker\".");
         Ui.Hint("3. Click \"Copy Webhook URL\" and paste it below (right-click pastes in this window).");
         Ui.Hint("You need the Manage Webhooks permission on that server. Ask an admin if you don't see it.");
 
@@ -261,7 +261,7 @@ static class App
         var withData = accounts.Where(a => File.Exists(Wow.SavedVarsFile(wowPath, a))).ToList();
         if (withData.Count == 0)
         {
-            Ui.Warn("No LevelTimes data from the game yet.");
+            Ui.Warn("No Character Tracker data from the game yet.");
             Ui.Hint("Log in to a character and type /reload once. After that every ding gets posted.");
             return;
         }
@@ -353,7 +353,7 @@ static class App
         // Watch the whole WTF folder so accounts (and the file itself) that appear later are picked up.
         var watchDir = Path.Combine(Wow.FlavorDir(wowPath), "WTF");
         if (!Directory.Exists(watchDir)) watchDir = Wow.FlavorDir(wowPath);
-        using var watcher = new FileSystemWatcher(watchDir, "LevelTimes.lua")
+        using var watcher = new FileSystemWatcher(watchDir, "WoWCharacterTracker.lua")
         {
             IncludeSubdirectories = true,
             NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,

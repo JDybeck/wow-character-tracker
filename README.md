@@ -1,4 +1,4 @@
-# wow-level-tracker
+# wow-character-tracker
 
 Posts to a Discord channel every time one of your World of Warcraft characters levels up: how long the level took, where you dinged, your professions and your talents, with a portrait of your character's race and class.
 
@@ -16,10 +16,10 @@ Retail for now. WoW Forever (Classic+) uses the same addon API and comes later.
 
 ## Getting started
 
-1. Download `LevelTimes.exe` from the [Releases page](https://github.com/JDybeck/wow-level-tracker/releases/latest). Nothing else to install. Windows might show a SmartScreen warning since the exe isn't signed, click **More info** and then **Run anyway**.
+1. Download `WoWCharacterTracker.exe` from the [Releases page](https://github.com/JDybeck/wow-character-tracker/releases/latest). Nothing else to install. Windows might show a SmartScreen warning since the exe isn't signed, click **More info** and then **Run anyway**.
 
    Developers can build it themselves instead: run `build.cmd` (needs the [.NET 10 SDK](https://dotnet.microsoft.com/download)), it lands in `dist\`.
-2. Double-click `LevelTimes.exe`. It walks you through everything:
+2. Double-click `WoWCharacterTracker.exe`. It walks you through everything:
    - finds your WoW folder,
    - installs the addon (and keeps it updated, including the interface number after patches),
    - asks for a Discord webhook link and tells you how to make one, then checks it works and can send a test post.
@@ -31,19 +31,19 @@ When you ding, the game pops up **"Post now"**. Click it (it reloads your UI) an
 
 In Discord, hover the channel, click the gear (Edit Channel), then Integrations, Webhooks, New Webhook, and Copy Webhook URL. You need the Manage Webhooks permission on the server. The name and picture you give the webhook are what the posts show as the sender.
 
-The link is saved in `%LOCALAPPDATA%\LevelTimesCompanion\config.json`. Treat it like a password: anyone with it can post in that channel.
+The link is saved in `%LOCALAPPDATA%\WoWCharacterTracker\config.json`. Treat it like a password: anyone with it can post in that channel.
 
 ### In game
 
-- `/lt` shows your last 10 level times for the character you're on.
-- `/lt popup` turns the "Post now" popup on or off.
+- `/ct` shows your last 10 level times for the character you're on.
+- `/ct popup` turns the "Post now" popup on or off.
 
 ### Companion options
 
 ```
-LevelTimes.exe --setup      ask for the webhook and WoW folder again
-LevelTimes.exe --test       send a test post and quit
-LevelTimes.exe --backfill   on the first run, post old level-ups instead of skipping them
+WoWCharacterTracker.exe --setup      ask for the webhook and WoW folder again
+WoWCharacterTracker.exe --test       send a test post and quit
+WoWCharacterTracker.exe --backfill   on the first run, post old level-ups instead of skipping them
 ```
 
 ## How the timing works

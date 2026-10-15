@@ -1,26 +1,26 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-namespace LevelTimesCompanion;
+namespace WoWCharacterTracker;
 
 // The addon files are embedded in the exe (see the .csproj), so we can install and update them.
 static partial class AddonInstaller
 {
     const string Prefix = "Addon/";
 
-    public static string TargetDir(string wowPath) => Path.Combine(Wow.AddOnsDir(wowPath), "LevelTimes");
+    public static string TargetDir(string wowPath) => Path.Combine(Wow.AddOnsDir(wowPath), "WoWCharacterTracker");
 
-    public static string BundledVersion => ReadVersion(ReadBundled("LevelTimes.toc")) ?? "?";
+    public static string BundledVersion => ReadVersion(ReadBundled("WoWCharacterTracker.toc")) ?? "?";
 
     public static string? InstalledVersion(string wowPath)
     {
-        var toc = Path.Combine(TargetDir(wowPath), "LevelTimes.toc");
+        var toc = Path.Combine(TargetDir(wowPath), "WoWCharacterTracker.toc");
         return File.Exists(toc) ? ReadVersion(File.ReadAllText(toc)) ?? "?" : null;
     }
 
     public static string? InstalledInterface(string wowPath)
     {
-        var toc = Path.Combine(TargetDir(wowPath), "LevelTimes.toc");
+        var toc = Path.Combine(TargetDir(wowPath), "WoWCharacterTracker.toc");
         if (!File.Exists(toc)) return null;
         var m = InterfaceLine().Match(File.ReadAllText(toc));
         return m.Success ? m.Groups[1].Value.Trim() : null;
@@ -46,7 +46,7 @@ static partial class AddonInstaller
 
     public static void SetInterface(string wowPath, int interfaceVersion)
     {
-        var toc = Path.Combine(TargetDir(wowPath), "LevelTimes.toc");
+        var toc = Path.Combine(TargetDir(wowPath), "WoWCharacterTracker.toc");
         var text = File.ReadAllText(toc);
         File.WriteAllText(toc, InterfaceLine().Replace(text, $"## Interface: {interfaceVersion}", 1));
     }

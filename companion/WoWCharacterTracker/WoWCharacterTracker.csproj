@@ -5,10 +5,10 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>LevelTimes</AssemblyName>
-    <RootNamespace>LevelTimesCompanion</RootNamespace>
+    <AssemblyName>WoWCharacterTracker</AssemblyName>
+    <RootNamespace>WoWCharacterTracker</RootNamespace>
     <Version>0.2.0</Version>
-    <!-- dotnet publish -c Release gives one LevelTimes.exe that runs without .NET installed. -->
+    <!-- dotnet publish -c Release gives one WoWCharacterTracker.exe that runs without .NET installed. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -24,7 +24,7 @@
 
   <!-- The addon ships inside the exe so the companion can install and update it. -->
   <ItemGroup>
-    <EmbeddedResource Include="..\..\addon\LevelTimes\*.*" LogicalName="Addon/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\addon\WoWCharacterTracker\*.*" LogicalName="Addon/%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-namespace LevelTimesCompanion;
+namespace WoWCharacterTracker;
 
 // Finds the WoW install and the files we care about inside it.
 static class Wow
@@ -92,7 +92,7 @@ static class Wow
     }
 
     public static string SavedVarsFile(string wowPath, string account) =>
-        Path.Combine(AccountsDir(wowPath), account, "SavedVariables", "LevelTimes.lua");
+        Path.Combine(AccountsDir(wowPath), account, "SavedVariables", "WoWCharacterTracker.lua");
 
     public static bool IsRunning() =>
         System.Diagnostics.Process.GetProcessesByName("Wow").Length > 0;
