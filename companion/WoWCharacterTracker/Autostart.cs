@@ -2,7 +2,8 @@ using Microsoft.Win32;
 
 namespace WoWCharacterTracker;
 
-// Starts the app when you log in to Windows, through the current user's Run key (no admin needed).
+// Starts the app in the tray (no window) when you log in to Windows, through the current user's
+// Run key (no admin needed). The window opens when World of Warcraft starts.
 static class Autostart
 {
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -16,7 +17,7 @@ static class Autostart
             using var key = Registry.CurrentUser.CreateSubKey(RunKey);
             if (enabled && Environment.ProcessPath is { } exe)
             {
-                var command = $"\"{exe}\" --minimized";
+                var command = $"\"{exe}\" --background";
                 if (key.GetValue(ValueName) as string != command) key.SetValue(ValueName, command);
             }
             else if (!enabled && key.GetValue(ValueName) is not null)

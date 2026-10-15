@@ -178,9 +178,9 @@
       </Border>
 
       <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-        <CheckBox IsChecked="{Binding StartWithWindows}" VerticalAlignment="Center" Margin="0,0,18,0"
-                  ToolTip="Start the app minimized when you log in to Windows, so it's always tracking">
-          <TextBlock Text="Start with Windows" FontSize="12" Foreground="{StaticResource Muted}"/>
+        <CheckBox IsChecked="{Binding OpenWithWow}" VerticalAlignment="Center" Margin="0,0,18,0"
+                  ToolTip="Waits in the tray and opens when you start World of Warcraft, like Archon. Closing the window keeps it tracking in the tray.">
+          <TextBlock Text="Open with World of Warcraft" FontSize="12" Foreground="{StaticResource Muted}"/>
         </CheckBox>
         <Button Style="{StaticResource PrimaryButton}" Command="{Binding SyncCommand}"
                 ToolTip="Read the game's data again and post anything new">

@@ -14,6 +14,7 @@ Main target: WoW Forever (Classic+, launches 2026-11-04; beta lives in `_classic
   - `Wow.cs`: `Flavor`/`Flavors` (folders, defaults per game), install detection, product from `.flavor.info`, client version from the root `.build.info`, interface number (1.60.1 -> 16001).
   - `AddonInstaller.cs`: addon embedded in the exe, installed/updated per game folder, writes `Settings.lua`.
   - `Discord.cs`: webhook check, embeds per kind, multipart upload when there's a screenshot. `SavedVariables.cs`: `Entry` (all kinds), `Snapshot`, MoonSharp parsing, `Format`.
+  - `App.xaml.cs`: single instance (a second launch signals the first to show its window), tray mode, `GameWatcher` (opens the window when a WoW process starts, hides it to the tray when the last one closes). `TrayIcon.cs`: WinForms NotifyIcon (WinForms only for this). `Autostart.cs`: HKCU Run entry with `--background` when Open with World of Warcraft is on.
   - `Log.cs`: console messages. `Config.cs`: webhooks, per-game `FlavorSettings` (path, active webhook, level rule, toggles, screenshot dicts). Migrates v0.2/v0.3 configs.
 - `build.cmd`: `dotnet publish` to `dist\WoWCharacterTracker.exe` (self-contained single file). `.github/workflows/release.yml` does the same on a `v*` tag and attaches it to a release.
 
@@ -28,7 +29,7 @@ Main target: WoW Forever (Classic+, launches 2026-11-04; beta lives in `_classic
 - `WoWCharacterTrackerDB.chars[guid]`: latest snapshot per character, saved after `/played`, on death and on `PLAYER_LOGOUT`.
 - App posts only what the tab's settings want; unwanted events are marked handled so toggling later doesn't flood. First run marks existing events as posted unless `--backfill`.
 - Webhooks: shared list, active one per game tab. Never commit them.
-- Testing: `CHARACTERTRACKER_DATA_DIR` moves config/state; `CHARACTERTRACKER_SCREENSHOT=<png>` renders the window and quits, `CHARACTERTRACKER_SCREENSHOT_VIEW=forever:posting` picks tab and page. Put both game paths in the test config, otherwise detection finds the real game folders and installs the addon there.
+- Testing: `CHARACTERTRACKER_DATA_DIR` moves config/state and gives test runs their own single-instance name (so they never touch the copy Jesper is running; don't stop processes by name, only ones started from the test build); `CHARACTERTRACKER_SCREENSHOT=<png>` renders the window and quits, `CHARACTERTRACKER_SCREENSHOT_VIEW=forever:posting` picks tab and page. Put both game paths in the test config, otherwise detection finds the real game folders and installs the addon there.
 
 ## Message format (requested by the owner)
 

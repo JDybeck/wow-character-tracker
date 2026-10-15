@@ -25,7 +25,7 @@ Made with WoW Forever (Classic+) in mind, and works for Retail too. Each has its
    - **Game folder**: found automatically, with the game version it found so you can see it picked the right one. Click **Change** to pick another folder. While Forever is in beta, its folder is `_classic_beta_`.
    - **Addon**: installed and kept up to date for you, including the interface number after patches.
    - **Discord**: paste a webhook link in the Discord panel (it explains how to get one). It's checked with Discord before saving. **Send test** shows you a sample post.
-3. Leave it running while you play. It starts with Windows (minimized) so it's always tracking; untick **Start with Windows** at the top if you don't want that.
+3. That's it. With **Open with World of Warcraft** on (the default), the app waits in the system tray and opens when you start WoW, like Archon. When you close WoW it goes back to the tray, and it keeps tracking the whole time. Closing the window also sends it to the tray; right-click the tray icon to quit. Untick the option at the top to use it as a normal app instead.
 4. In game, type `/ct test`. The console in the app should say instant posting works within a few seconds.
 
 ### What gets posted

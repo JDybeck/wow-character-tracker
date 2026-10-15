@@ -703,17 +703,20 @@ sealed class MainViewModel : Observable
             _ => SelectedFlavor is not null && Config.ActiveWebhooks(SelectedFlavor.Flavor).Count > 0);
     }
 
-    // Starts the app minimized when you log in to Windows.
-    public bool StartWithWindows
+    // Like Archon: a tray icon starts at login, the window opens when WoW starts and goes back to the
+    // tray when WoW closes. Off means a normal app you open and close yourself.
+    public bool OpenWithWow
     {
-        get => Config.StartWithWindows ?? false;
+        get => Config.OpenWithWow ?? false;
         set
         {
-            Config.StartWithWindows = value;
+            Config.OpenWithWow = value;
             Config.Save();
             Autostart.Apply(value);
-            Raise(nameof(StartWithWindows));
-            Log.Info(value ? "The app now starts with Windows (minimized)." : "The app no longer starts with Windows.");
+            Raise(nameof(OpenWithWow));
+            Log.Info(value
+                ? "The app now opens when World of Warcraft starts (it waits in the tray)."
+                : "The app no longer opens with World of Warcraft. Closing the window quits it.");
         }
     }
 
@@ -773,13 +776,13 @@ sealed class MainViewModel : Observable
 
         // On by default, so tracking is running before you start the game. Re-applied every start
         // so the startup entry follows the exe if it was moved.
-        if (Config.StartWithWindows is null)
+        if (Config.OpenWithWow is null)
         {
-            Config.StartWithWindows = true;
+            Config.OpenWithWow = true;
             Config.Save();
         }
-        Autostart.Apply(Config.StartWithWindows.Value);
-        Raise(nameof(StartWithWindows));
+        Autostart.Apply(Config.OpenWithWow.Value);
+        Raise(nameof(OpenWithWow));
 
         foreach (var f in Flavors.All) FlavorTabs.Add(new FlavorViewModel(this, f));
         SelectedFlavor = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];

@@ -7,15 +7,24 @@ namespace WoWCharacterTracker;
 
 public partial class App : Application
 {
+    // Test runs get their own names, so they never talk to (or give way to) the copy you use.
+    static readonly string InstanceName = @"Local\WoWCharacterTracker" + (Config.IsTest ? ".Test" : "");
+    static readonly string ShowSignalName = InstanceName + ".Show";
+
     Mutex? singleInstance;
+    EventWaitHandle? showSignal;
+    MainViewModel? vm;
+    TrayIcon? tray;
+    GameWatcher? watcher;
+    bool quitting;
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        singleInstance = new Mutex(true, @"Local\WoWCharacterTracker", out var isFirstInstance);
+        singleInstance = new Mutex(true, InstanceName, out var isFirstInstance);
         if (!isFirstInstance)
         {
-            MessageBox.Show("Character Tracker is already running. Look for it in your taskbar.",
-                "Character Tracker", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Already running (maybe in the tray): bring that window up instead.
+            if (EventWaitHandle.TryOpenExisting(ShowSignalName, out var signal)) signal.Set();
             Shutdown();
             return;
         }
@@ -23,11 +32,58 @@ public partial class App : Application
         DispatcherUnhandledException += OnCrash;
         base.OnStartup(e);
 
-        var window = new MainWindow(new MainViewModel(backfill: e.Args.Contains("--backfill")));
+        vm = new MainViewModel(backfill: e.Args.Contains("--backfill"));
+        var window = new MainWindow(vm);
         MainWindow = window;
-        // Started with Windows: stay out of the way in the taskbar.
-        if (e.Args.Contains("--minimized")) window.WindowState = WindowState.Minimized;
-        window.Show();
+        window.Closing += (_, args) =>
+        {
+            // With "Open with World of Warcraft" on, closing hides to the tray and tracking keeps going.
+            if (!quitting && vm.OpenWithWow && !Config.IsTest)
+            {
+                args.Cancel = true;
+                window.Hide();
+                tray?.ShowHint();
+            }
+        };
+        window.Closed += (_, _) => Quit();
+
+        tray = new TrayIcon(ShowWindow, Quit);
+
+        // Another launch of the exe asks this one to show its window.
+        showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSignalName);
+        new Thread(() =>
+        {
+            while (showSignal.WaitOne()) Dispatcher.BeginInvoke(ShowWindow);
+        }) { IsBackground = true }.Start();
+
+        // Started at login: only the tray icon until a game starts.
+        // ("--minimized" is what older versions put in the startup entry; the app rewrites it on start.)
+        if (!e.Args.Contains("--background") && !e.Args.Contains("--minimized")) window.Show();
+        _ = vm.StartAsync();
+
+        // Open the window when WoW starts, put it back in the tray when the last WoW closes.
+        watcher = new GameWatcher(
+            started: () => Dispatcher.BeginInvoke(() => { if (vm.OpenWithWow) ShowWindow(); }),
+            stopped: () => Dispatcher.BeginInvoke(() => { if (vm.OpenWithWow && window.IsVisible) window.Hide(); }));
+    }
+
+    void ShowWindow()
+    {
+        if (MainWindow is not { } w) return;
+        w.Show();
+        if (w.WindowState == WindowState.Minimized) w.WindowState = WindowState.Normal;
+        w.Activate();
+    }
+
+    void Quit()
+    {
+        if (quitting) return;
+        quitting = true;
+        watcher?.Dispose();
+        tray?.Dispose();
+        vm?.Shutdown();
+        MainWindow?.Close();
+        Shutdown();
     }
 
     // Keep running if something unexpected goes wrong, and say what happened in the console.
@@ -39,9 +95,35 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        tray?.Dispose();
         singleInstance?.Dispose();
         base.OnExit(e);
     }
+}
+
+// Notices when any WoW client starts or stops (Retail, Classic, betas and PTRs all use these names).
+sealed class GameWatcher : IDisposable
+{
+    static readonly string[] ProcessNames = ["Wow", "WowB", "WowT", "WowClassic", "WowClassicB", "WowClassicT"];
+    readonly Timer timer;
+    bool running;
+
+    public GameWatcher(Action started, Action stopped)
+    {
+        running = IsAnyRunning(); // a game that's already open when the app starts doesn't count as a start
+        timer = new Timer(_ =>
+        {
+            var now = IsAnyRunning();
+            if (now == running) return;
+            running = now;
+            if (now) started(); else stopped();
+        }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    static bool IsAnyRunning() =>
+        ProcessNames.Any(n => System.Diagnostics.Process.GetProcessesByName(n).Length > 0);
+
+    public void Dispose() => timer.Dispose();
 }
 
 sealed class BoolToVisibility : IValueConverter

@@ -75,7 +75,12 @@ class Config
     public Dictionary<string, FlavorSettings> Flavors { get; set; } = [];
     public string? SelectedFlavor { get; set; }
 
-    // Null until the app has run once; it then turns this on so the app starts with Windows.
+    // Open with World of Warcraft: a tray icon starts at login and opens the window when WoW starts.
+    // Null until the app has run once; it then turns this on.
+    public bool? OpenWithWow { get; set; }
+
+    // Older name, from when the window itself started with Windows. Moved on load.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? StartWithWindows { get; set; }
 
     // Older versions: one WoW folder (retail only) and one webhook. Moved on load.
@@ -155,6 +160,12 @@ class Config
         {
             config.For(WoWCharacterTracker.Flavors.Retail).Path ??= System.IO.Path.Combine(config.WowPath, "_retail_");
             config.WowPath = null;
+            changed = true;
+        }
+        if (config.StartWithWindows is not null)
+        {
+            config.OpenWithWow ??= config.StartWithWindows;
+            config.StartWithWindows = null;
             changed = true;
         }
         foreach (var s in config.Flavors.Values.Where(s => s.ActiveWebhookId is not null))

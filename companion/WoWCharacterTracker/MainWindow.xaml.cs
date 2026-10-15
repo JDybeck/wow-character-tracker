@@ -13,8 +13,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this.vm = vm;
         SourceInitialized += (_, _) => UseDarkTitleBar();
-        Loaded += async (_, _) => await vm.StartAsync();
-        Closed += (_, _) => vm.Shutdown();
+        // Startup, closing to the tray and quitting are handled in App.
 
         // For testing: render the window to a PNG and quit, so the layout can be checked without clicking around.
         if (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT") is { Length: > 0 } shot)
