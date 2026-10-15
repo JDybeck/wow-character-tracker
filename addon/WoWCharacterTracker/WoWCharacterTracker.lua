@@ -1,5 +1,6 @@
--- Character Tracker: records how long each character level takes.
--- Data lives in WoWCharacterTrackerDB (SavedVariables), which the companion app reads.
+-- Character Tracker: records how long each character level takes, plus a snapshot of
+-- every character you play. Data lives in WoWCharacterTrackerDB (SavedVariables),
+-- which the companion app reads.
 
 local ADDON = "WoWCharacterTracker"
 
@@ -9,10 +10,12 @@ frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_LEVEL_UP")
 frame:RegisterEvent("TIME_PLAYED_MSG")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+frame:RegisterEvent("PLAYER_LOGOUT")
 
 local pendingLevel  -- set on level up, cleared when /played data arrives
 local popupLevel    -- a level waiting for the "post now" popup until combat ends
 local suppressChat = false
+local lastPlayed, lastPlayedAt -- latest /played total and when it came, to estimate played at logout
 
 local function say(msg)
   print("|cff00ccff[Character Tracker]|r " .. msg)
@@ -34,7 +37,7 @@ local CLASSIC_PROFESSIONS = {
   Herbalism = true, Leatherworking = true, Mining = true, Skinning = true, Tailoring = true,
 }
 
--- Returns e.g. "Mining 150, Herbalism 75", or "None".
+-- Returns e.g. "Mining 150, Herbalism 75", or "" when there are none (the post then skips the line).
 local function getProfessions()
   local found = {}
 
@@ -57,7 +60,6 @@ local function getProfessions()
     end
   end
 
-  if #found == 0 then return "None" end
   return table.concat(found, ", ")
 end
 
@@ -176,29 +178,64 @@ local function offerPost(level)
   StaticPopup_Show("CHARACTERTRACKER_POST", level)
 end
 
-local function recordLevel(guid, level, seconds)
+local function getItemLevel()
+  if type(GetAverageItemLevel) ~= "function" then return nil end
+  local overall, equipped = GetAverageItemLevel()
+  local v = equipped or overall
+  if v and v > 0 then return math.floor(v * 10 + 0.5) / 10 end
+  return nil
+end
+
+-- "TANK", "HEALER" or "DAMAGER" on retail, nil where there are no specs.
+local function getRole()
+  if type(GetSpecialization) ~= "function" or type(GetSpecializationRole) ~= "function" then return nil end
+  local spec = GetSpecialization()
+  if spec then return GetSpecializationRole(spec) end
+  return nil
+end
+
+-- Everything we show about the character, both in posts and in the companion app.
+local function characterInfo()
   local className, classFile = UnitClass("player")
   local raceName, raceFile = UnitRace("player")
   local sex = UnitSex("player") -- 2 = male, 3 = female
   local talents, spec = getTalents()
-
-  table.insert(WoWCharacterTrackerDB.events, {
-    id = guid .. ":" .. level,
+  return {
     char = UnitName("player"),
     realm = GetRealmName(),
-    level = level,
-    seconds = seconds,
-    at = time(),
+    level = UnitLevel("player"),
     zone = getZone(),
     professions = getProfessions(),
     talents = talents,
     spec = spec,
+    role = getRole(),
+    ilvl = getItemLevel(),
     class = className,
     classFile = classFile,
     race = raceName,
     raceFile = raceFile,
     sex = (sex == 3) and "female" or "male",
-  })
+  }
+end
+
+-- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
+local function saveSnapshot()
+  local guid = UnitGUID("player")
+  if not guid then return end
+  local info = characterInfo()
+  if lastPlayed then info.played = lastPlayed + (time() - lastPlayedAt) end
+  info.lastSeen = time()
+  WoWCharacterTrackerDB.chars[guid] = info
+end
+
+local function recordLevel(guid, level, seconds, played)
+  local e = characterInfo()
+  e.id = guid .. ":" .. level
+  e.level = level -- UnitLevel can lag right after the ding
+  e.seconds = seconds
+  e.played = played -- total /played at the ding
+  e.at = time()
+  table.insert(WoWCharacterTrackerDB.events, e)
 end
 
 frame:SetScript("OnEvent", function(_, event, ...)
@@ -207,7 +244,11 @@ frame:SetScript("OnEvent", function(_, event, ...)
     WoWCharacterTrackerDB = WoWCharacterTrackerDB or {}
     WoWCharacterTrackerDB.start = WoWCharacterTrackerDB.start or {}   -- [guid] = total played at the start of the current level
     WoWCharacterTrackerDB.events = WoWCharacterTrackerDB.events or {} -- one entry per finished level
+    WoWCharacterTrackerDB.chars = WoWCharacterTrackerDB.chars or {}   -- [guid] = latest snapshot of that character
     if WoWCharacterTrackerDB.popup == nil then WoWCharacterTrackerDB.popup = true end
+
+  elseif event == "PLAYER_LOGOUT" then
+    saveSnapshot() -- also fires on /reload, right before the game writes the file
 
   elseif event == "PLAYER_LOGIN" then
     requestPlayed() -- sets the baseline for the current level
@@ -228,11 +269,12 @@ frame:SetScript("OnEvent", function(_, event, ...)
     local guid = UnitGUID("player")
     local newStart = total - thisLevel
     local oldStart = WoWCharacterTrackerDB.start[guid]
+    lastPlayed, lastPlayedAt = total, time()
 
     if pendingLevel then
       if oldStart and newStart >= oldStart then
         local seconds = newStart - oldStart
-        recordLevel(guid, pendingLevel, seconds)
+        recordLevel(guid, pendingLevel, seconds, total)
         say(string.format("Level %d took %s.", pendingLevel - 1, formatDuration(seconds)))
         offerPost(pendingLevel)
       else
@@ -242,6 +284,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     end
 
     WoWCharacterTrackerDB.start[guid] = newStart
+    saveSnapshot()
     suppressChat = false
   end
 end)
