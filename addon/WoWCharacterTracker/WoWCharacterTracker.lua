@@ -223,6 +223,23 @@ local function isHardcore()
   return C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive() or false
 end
 
+-- Self-found shows as an aura on the player (spell 431567 in Classic Era).
+local function isSelfFound()
+  if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+    return C_UnitAuras.GetPlayerAuraBySpellID(431567) ~= nil
+  end
+  return false
+end
+
+-- "Hardcore", "Self-found", "Hardcore, Self-found" or "Normal", for grouping characters in the app.
+local function getRuleset()
+  local parts = {}
+  if isHardcore() then table.insert(parts, "Hardcore") end
+  if isSelfFound() then table.insert(parts, "Self-found") end
+  if #parts == 0 then return "Normal" end
+  return table.concat(parts, ", ")
+end
+
 -- Best guess of total /played right now.
 local function playedNow()
   if not lastPlayed then return nil end
@@ -252,6 +269,7 @@ local function characterInfo()
     raceFile = raceFile,
     sex = (sex == 3) and "female" or "male",
     hardcore = isHardcore() or nil,
+    ruleset = getRuleset(),
   }
 end
 
@@ -268,6 +286,9 @@ local function saveSnapshot()
   info.lastSeen = time()
   local old = WoWCharacterTrackerDB.chars[guid]
   if old then
+    -- No spec right now usually means the game isn't ready, not that the spec is gone,
+    -- so the talent text that goes with it is kept too.
+    if info.spec == nil and old.spec then info.talents = old.talents end
     for _, k in ipairs(KEEP_IF_EMPTY) do
       local v = info[k]
       if v == nil or v == "" or v == 0 or v == "an unknown place" or v == "Unknown" then info[k] = old[k] end
@@ -299,10 +320,12 @@ local liveCounter = 0
 -- buffered. Done a moment after sending, once the whispers have come back from the server,
 -- and once more a bit later in case the server was slow.
 local flushPending = false
+-- The game applies the change a frame later, so off and on in the same frame does nothing.
+-- Turn it off, give it a moment to close the file, then turn it back on.
 local function flushChatLog()
   if type(LoggingChat) == "function" and LoggingChat() then
     LoggingChat(false)
-    LoggingChat(true)
+    C_Timer.After(0.2, function() LoggingChat(true) end)
   end
 end
 local function flushSoon()
@@ -367,14 +390,35 @@ end
 
 -- Events ---------------------------------------------------------------------
 
-local function requestPlayed()
-  suppressChat = true
-  RequestTimePlayed()
-  -- Safety net so we never swallow the player's own /played forever.
-  C_Timer.After(5, function() suppressChat = false end)
+-- Our own /played requests would print "Total time played" in chat. While one is out, the chat
+-- windows stop listening for the answer; they listen again once it has arrived.
+local mutedFrames = {}
+
+local function unmutePlayed()
+  for _, f in ipairs(mutedFrames) do f:RegisterEvent("TIME_PLAYED_MSG") end
+  mutedFrames = {}
+  suppressChat = false
 end
 
--- Hide the /played chat spam that our own requests would cause.
+local function mutePlayed()
+  for i = 1, (NUM_CHAT_WINDOWS or 10) do
+    local f = _G["ChatFrame" .. i]
+    if f and f.IsEventRegistered and f:IsEventRegistered("TIME_PLAYED_MSG") then
+      f:UnregisterEvent("TIME_PLAYED_MSG")
+      table.insert(mutedFrames, f)
+    end
+  end
+end
+
+local function requestPlayed()
+  suppressChat = true
+  mutePlayed()
+  RequestTimePlayed()
+  -- Safety net so the player's own /played is never muted for long.
+  C_Timer.After(5, unmutePlayed)
+end
+
+-- Older clients print it from this function instead.
 if type(ChatFrame_DisplayTimePlayed) == "function" then
   local original = ChatFrame_DisplayTimePlayed
   ChatFrame_DisplayTimePlayed = function(...)
@@ -643,7 +687,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
 
     WoWCharacterTrackerDB.start[guid] = newStart
     saveSnapshot()
-    suppressChat = false
+    -- Not right away: frames registered during this event could still get this same message.
+    C_Timer.After(0.5, unmutePlayed)
   end
 end)
 
@@ -677,7 +722,9 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     e.at = time()
     e.id = string.format("%s:test:%d", e.guid, e.at)
     sendLive(e)
-    say("Sent a test event. The companion app should show it within a few seconds.")
+    local logging = type(LoggingChat) == "function" and LoggingChat()
+    say("Sent a test event. The companion app should show it within a few seconds."
+      .. (logging and "" or " Chat logging is off, so it can't arrive until /reload. Type /chatlog to turn it on."))
   elseif msg == "help" then
     say("/ct shows your last 10 level times.")
     say("/ct test checks that instant posting reaches the companion app.")
