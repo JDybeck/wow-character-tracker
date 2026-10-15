@@ -52,4 +52,5 @@ Faction and guild were deliberately left out.
 ## Conventions
 
 - Jesper prefers casual, direct writing and does not like em dashes (use commas).
+- Use [Conventional Commits](https://www.conventionalcommits.org/) for every commit: `type(scope): summary`, with types like `feat`, `fix`, `docs`, `refactor`, `chore`, `ci`, `build`, `test`. Scopes in use: `addon`, `companion`, `ci`. Imperative, lowercase summary, no trailing period. Breaking changes get `!` and a `BREAKING CHANGE:` footer.
 - Commit messages end with the Co-Authored-By and Claude-Session trailers.
