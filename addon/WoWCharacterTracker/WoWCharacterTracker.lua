@@ -26,6 +26,12 @@ frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 frame:RegisterEvent("MERCHANT_SHOW")
 frame:RegisterEvent("MERCHANT_CLOSED")
 pcall(frame.RegisterEvent, frame, "NEW_MOUNT_ADDED") -- clients with a mount journal
+-- Refresh the character snapshot when gear or spec changes, while the game has the data.
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+pcall(frame.RegisterEvent, frame, "PLAYER_SPECIALIZATION_CHANGED")
+pcall(frame.RegisterEvent, frame, "TRAIT_CONFIG_UPDATED")
+pcall(frame.RegisterEvent, frame, "CHARACTER_POINTS_CHANGED")
 
 local pendingLevel  -- set on level up, cleared when /played data arrives
 local popupLevel    -- a level waiting for the "post now" popup until combat ends
@@ -34,6 +40,7 @@ local lastPlayed, lastPlayedAt -- latest /played total and when it came, to esti
 local lastAttacker  -- who last hurt us, for hardcore death posts
 local recentBosses = {} -- [name] = time, so ENCOUNTER_END and the combat log don't both record a kill
 local merchantOpen = false -- a mount that shows up while a vendor is open was bought
+local snapshotTicker  -- refreshes the character snapshot every few minutes
 
 local function say(msg)
   print("|cff00ccff[Character Tracker]|r " .. msg)
@@ -249,12 +256,23 @@ local function characterInfo()
 end
 
 -- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
+-- Right after login and during logout the game can report no gear, spec or professions yet.
+-- Values that come back empty keep what was saved before instead of wiping it.
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "professions", "zone", "played" }
+
 local function saveSnapshot()
   local guid = UnitGUID("player")
   if not guid then return end
   local info = characterInfo()
   info.played = playedNow()
   info.lastSeen = time()
+  local old = WoWCharacterTrackerDB.chars[guid]
+  if old then
+    for _, k in ipairs(KEEP_IF_EMPTY) do
+      local v = info[k]
+      if v == nil or v == "" or v == 0 or v == "an unknown place" or v == "Unknown" then info[k] = old[k] end
+    end
+  end
   WoWCharacterTrackerDB.chars[guid] = info
 end
 
@@ -276,6 +294,29 @@ end
 
 local liveCounter = 0
 
+-- The game buffers the chat log and only writes it to disk when the file is closed (on exit).
+-- Turning logging off and on again closes and reopens the file, which writes out what's
+-- buffered. Done a moment after sending, once the whispers have come back from the server,
+-- and once more a bit later in case the server was slow.
+local flushPending = false
+local function flushChatLog()
+  if type(LoggingChat) == "function" and LoggingChat() then
+    LoggingChat(false)
+    LoggingChat(true)
+  end
+end
+local function flushSoon()
+  if flushPending then return end
+  flushPending = true
+  C_Timer.After(1.5, function()
+    flushChatLog()
+    C_Timer.After(3, function()
+      flushChatLog()
+      flushPending = false
+    end)
+  end)
+end
+
 -- Whispers the event to ourselves in chunks: #CT1#<msgid>#<part>/<total>#<data>.
 -- Chat messages max out at 255 characters, so long events take a few whispers.
 local function sendLive(e)
@@ -292,6 +333,7 @@ local function sendLive(e)
     local chunk = data:sub((i - 1) * size + 1, i * size)
     SendChatMessage(string.format("%s%s#%d/%d#%s", LIVE_PREFIX, msgid, i, total, chunk), "WHISPER", nil, me)
   end
+  flushSoon()
 end
 
 -- Keep our data whispers out of the chat window. The chat log still records them.
@@ -537,6 +579,15 @@ frame:SetScript("OnEvent", function(_, event, ...)
 
   elseif event == "PLAYER_LOGOUT" then
     saveSnapshot() -- also fires on /reload, right before the game writes the file
+
+  elseif event == "PLAYER_ENTERING_WORLD" then
+    -- Gear and spec info can take a few seconds after login. Snapshot then, and every 5 minutes.
+    C_Timer.After(10, saveSnapshot)
+    if not snapshotTicker and C_Timer.NewTicker then snapshotTicker = C_Timer.NewTicker(300, saveSnapshot) end
+
+  elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"
+      or event == "TRAIT_CONFIG_UPDATED" or event == "CHARACTER_POINTS_CHANGED" then
+    C_Timer.After(1, saveSnapshot)
 
   elseif event == "PLAYER_LEVEL_UP" then
     pendingLevel = (...) -- the level just reached
