@@ -16,7 +16,9 @@ Retail for now. WoW Forever (Classic+) uses the same addon API and comes later.
 
 ## Getting started
 
-1. Get `LevelTimes.exe`: run `build.cmd` (needs the [.NET 10 SDK](https://dotnet.microsoft.com/download)), it lands in `dist\`.
+1. Download `LevelTimes.exe` from the [Releases page](https://github.com/JDybeck/wow-level-tracker/releases/latest). Nothing else to install. Windows might show a SmartScreen warning since the exe isn't signed, click **More info** and then **Run anyway**.
+
+   Developers can build it themselves instead: run `build.cmd` (needs the [.NET 10 SDK](https://dotnet.microsoft.com/download)), it lands in `dist\`.
 2. Double-click `LevelTimes.exe`. It walks you through everything:
    - finds your WoW folder,
    - installs the addon (and keeps it updated, including the interface number after patches),
