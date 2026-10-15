@@ -2,7 +2,7 @@
 ## Title: LevelTimes
 ## Notes: Records how long each character level takes, for the companion app to post to Discord.
 ## Author: JDybeck
-## Version: 0.1.0
+## Version: 0.2.0
 ## SavedVariables: LevelTimesDB
 
 LevelTimes.lua

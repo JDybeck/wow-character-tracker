@@ -8,8 +8,10 @@ frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_LEVEL_UP")
 frame:RegisterEvent("TIME_PLAYED_MSG")
+frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 local pendingLevel  -- set on level up, cleared when /played data arrives
+local popupLevel    -- a level waiting for the "post now" popup until combat ends
 local suppressChat = false
 
 local function say(msg)
@@ -59,9 +61,49 @@ local function getProfessions()
   return table.concat(found, ", ")
 end
 
+-- Retail point split, e.g. "Class 15 / Fury 12 / Slayer 3".
+-- The class and spec trees share one trait tree with one currency each (class first),
+-- and the hero tree has its own currency. Returns nil if anything is missing.
+local function getRetailTalentSplit(specName)
+  if not (C_ClassTalents and C_Traits) then return nil end
+  local configID = C_ClassTalents.GetActiveConfigID()
+  if not configID then return nil end
+  local config = C_Traits.GetConfigInfo(configID)
+  local treeID = config and config.treeIDs and config.treeIDs[1]
+  if not treeID then return nil end
+
+  local currencies = C_Traits.GetTreeCurrencyInfo(configID, treeID, false) or {}
+  if not currencies[1] then return nil end
+
+  local heroName, heroCurrency
+  local heroID = C_ClassTalents.GetActiveHeroTalentSpec and C_ClassTalents.GetActiveHeroTalentSpec()
+  if heroID then
+    local sub = C_Traits.GetSubTreeInfo(configID, heroID)
+    if sub then heroName, heroCurrency = sub.name, sub.traitCurrencyID end
+  end
+
+  local classSpent, specSpent, heroSpent = 0, 0, 0
+  local regular = 0
+  for _, c in ipairs(currencies) do
+    if heroCurrency and c.traitCurrencyID == heroCurrency then
+      heroSpent = c.spent or 0
+    else
+      regular = regular + 1
+      if regular == 1 then classSpent = c.spent or 0
+      elseif regular == 2 then specSpent = c.spent or 0 end
+    end
+  end
+
+  if classSpent + specSpent + heroSpent == 0 then return "No talent points spent yet" end
+  local text = string.format("Class %d / %s %d", classSpent, specName, specSpent)
+  if heroName then text = text .. string.format(" / %s %d", heroName, heroSpent) end
+  return text
+end
+
 -- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or a note if nothing is spent.
+-- Also returns the spec name on retail (nil on Classic).
 local function getTalents()
-  if type(GetNumTalentTabs) == "function" then
+  if type(GetNumTalentTabs) == "function" and GetNumTalentTabs() > 0 then
     -- Classic: one entry per talent tree with points spent.
     local parts, total = {}, 0
     for i = 1, GetNumTalentTabs() do
@@ -79,13 +121,13 @@ local function getTalents()
     if total == 0 then return "No talent points spent yet" end
     return table.concat(parts, " / ")
   elseif type(GetSpecialization) == "function" then
-    -- Retail: there are no talent trees to split points over, so report the specialization.
+    -- Retail: class, spec and hero trees.
     local spec = GetSpecialization()
-    if spec then
-      local _, name = GetSpecializationInfo(spec)
-      if name then return name end
-    end
-    return "No specialization yet"
+    local specName = spec and select(2, GetSpecializationInfo(spec))
+    if not specName then return "No specialization yet" end
+    local ok, split = pcall(getRetailTalentSplit, specName)
+    if ok and split then return split, specName end
+    return specName, specName
   end
   return "Unknown"
 end
@@ -112,12 +154,60 @@ if type(ChatFrame_DisplayTimePlayed) == "function" then
   end
 end
 
+-- The game only writes SavedVariables on reload or logout, so offer a reload
+-- right after a ding. That is what makes the Discord post show up.
+StaticPopupDialogs["LEVELTIMES_POST"] = {
+  text = "Ding! Level %d.\n\nReload your UI now to post it to Discord?",
+  button1 = "Post now",
+  button2 = "Later",
+  OnAccept = function() ReloadUI() end,
+  timeout = 0,
+  whileDead = true,
+  hideOnEscape = true,
+  preferredIndex = 3,
+}
+
+local function offerPost(level)
+  if not LevelTimesDB.popup then return end
+  if InCombatLockdown() then
+    popupLevel = level -- show it when combat ends
+    return
+  end
+  StaticPopup_Show("LEVELTIMES_POST", level)
+end
+
+local function recordLevel(guid, level, seconds)
+  local className, classFile = UnitClass("player")
+  local raceName, raceFile = UnitRace("player")
+  local sex = UnitSex("player") -- 2 = male, 3 = female
+  local talents, spec = getTalents()
+
+  table.insert(LevelTimesDB.events, {
+    id = guid .. ":" .. level,
+    char = UnitName("player"),
+    realm = GetRealmName(),
+    level = level,
+    seconds = seconds,
+    at = time(),
+    zone = getZone(),
+    professions = getProfessions(),
+    talents = talents,
+    spec = spec,
+    class = className,
+    classFile = classFile,
+    race = raceName,
+    raceFile = raceFile,
+    sex = (sex == 3) and "female" or "male",
+  })
+end
+
 frame:SetScript("OnEvent", function(_, event, ...)
   if event == "ADDON_LOADED" then
     if (...) ~= ADDON then return end
     LevelTimesDB = LevelTimesDB or {}
     LevelTimesDB.start = LevelTimesDB.start or {}   -- [guid] = total played at the start of the current level
     LevelTimesDB.events = LevelTimesDB.events or {} -- one entry per finished level
+    if LevelTimesDB.popup == nil then LevelTimesDB.popup = true end
 
   elseif event == "PLAYER_LOGIN" then
     requestPlayed() -- sets the baseline for the current level
@@ -125,6 +215,13 @@ frame:SetScript("OnEvent", function(_, event, ...)
   elseif event == "PLAYER_LEVEL_UP" then
     pendingLevel = (...) -- the level just reached
     requestPlayed()
+
+  elseif event == "PLAYER_REGEN_ENABLED" then
+    if popupLevel then
+      local level = popupLevel
+      popupLevel = nil
+      offerPost(level)
+    end
 
   elseif event == "TIME_PLAYED_MSG" then
     local total, thisLevel = ...
@@ -135,18 +232,9 @@ frame:SetScript("OnEvent", function(_, event, ...)
     if pendingLevel then
       if oldStart and newStart >= oldStart then
         local seconds = newStart - oldStart
-        table.insert(LevelTimesDB.events, {
-          id = guid .. ":" .. pendingLevel,
-          char = UnitName("player"),
-          realm = GetRealmName(),
-          level = pendingLevel,
-          seconds = seconds,
-          at = time(),
-          zone = getZone(),
-          professions = getProfessions(),
-          talents = getTalents(),
-        })
+        recordLevel(guid, pendingLevel, seconds)
         say(string.format("Level %d took %s.", pendingLevel - 1, formatDuration(seconds)))
+        offerPost(pendingLevel)
       else
         say("No baseline for the previous level (addon was installed mid-level), skipping.")
       end
@@ -158,8 +246,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
   end
 end)
 
-SLASH_LEVELTIMES1 = "/leveltimes"
-SlashCmdList["LEVELTIMES"] = function()
+local function showHistory()
   local guid = UnitGUID("player")
   local shown = 0
   for i = #LevelTimesDB.events, 1, -1 do
@@ -171,4 +258,19 @@ SlashCmdList["LEVELTIMES"] = function()
     end
   end
   if shown == 0 then say("No level times recorded yet for this character.") end
+end
+
+SLASH_LEVELTIMES1 = "/leveltimes"
+SLASH_LEVELTIMES2 = "/lt"
+SlashCmdList["LEVELTIMES"] = function(msg)
+  msg = strtrim(msg or ""):lower()
+  if msg == "popup" then
+    LevelTimesDB.popup = not LevelTimesDB.popup
+    say("Post popup after a ding is now " .. (LevelTimesDB.popup and "on." or "off. Your dings post on your next /reload or logout."))
+  elseif msg == "help" then
+    say("/lt shows your last 10 level times.")
+    say("/lt popup turns the \"post now\" popup after a ding on or off.")
+  else
+    showHistory()
+  end
 end

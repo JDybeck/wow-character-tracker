@@ -1,45 +1,52 @@
 # wow-level-tracker
 
 Posts a Discord message every time a WoW character levels up. Owner: Jesper (JDybeck).
-Target game: World of Warcraft Forever (Classic+, launches 2026-11-04, beta until 2026-10-21).
-Being tested on retail first because the APIs used are the same.
+Current focus: retail. WoW Forever (Classic+, launches 2026-11-04) comes later and uses the same addon API.
 
 ## Layout
 
 - `addon/LevelTimes/`: Lua addon (`LevelTimes.lua`, `LevelTimes.toc`). No build step, `/reload` in game.
-- `companion/LevelTimesCompanion/`: .NET 8 console app (C#). Watches the addon's SavedVariables file, posts new entries to a Discord webhook.
+- `companion/LevelTimesCompanion/`: .NET 10 console app (C#), builds to `LevelTimes.exe`.
+  - `Program.cs`: the guided startup (WoW folder, addon, webhook, data) and the file watcher.
+  - `Wow.cs`: finds the install, reads the client version from `.build.info`.
+  - `AddonInstaller.cs`: the addon is embedded in the exe (see the .csproj) and installed/updated from there.
+  - `Discord.cs`: webhook check and the embed. `SavedVariables.cs`: parses the Lua file with MoonSharp.
+  - `Ui.cs`, `Config.cs`: console helpers, settings in `%LOCALAPPDATA%\LevelTimesCompanion\config.json`.
+- `build.cmd`: `dotnet publish` to `dist\LevelTimes.exe` (self-contained single file).
 
-WoW addons cannot make network calls, which is why the companion exists. The game only writes SavedVariables on `/reload` or logout, so posts arrive then, not at the exact ding.
+WoW addons cannot make network calls, which is why the companion exists. The game only writes SavedVariables on `/reload` or logout, so the addon shows a "Post now" popup (ReloadUI) after a ding, deferred until combat ends.
 
 ## How it works
 
 - Addon calls `RequestTimePlayed()` on login and on `PLAYER_LEVEL_UP`. It stores `total - thisLevel` per character GUID (`LevelTimesDB.start[guid]`), and on level-up the finished level's time is the new value minus the stored one.
-- Each level-up appends an entry to `LevelTimesDB.events`: id (`guid:level`), char, realm, level, seconds, at, zone, professions, talents.
-- Companion parses the Lua file with MoonSharp, dedupes by `id` (kept in `%LOCALAPPDATA%\LevelTimesCompanion\posted.json`), and posts. First run marks existing entries as posted unless `--backfill`.
-- Webhook URL comes from the `DISCORD_WEBHOOK_URL` environment variable. Never commit it.
+- Each level-up appends to `LevelTimesDB.events`: id (`guid:level`), char, realm, level, seconds, at, zone, professions, talents, spec, class, classFile, race, raceFile, sex.
+- Companion watches every account's `WTF\Account\*\SavedVariables\LevelTimes.lua`, dedupes by `id` (`posted.json` next to config), and posts. First run marks existing entries as posted unless `--backfill`.
+- Webhook: asked for on first run and saved in config. `DISCORD_WEBHOOK_URL` overrides it. Never commit it.
+- Embed: class color, author "Race Spec Class" with the class icon, thumbnail `race_<raceFile>_<sex>.jpg` from wow.zamimg.com (HEAD-checked, falls back to the class icon).
+- `LEVELTIMES_DATA_DIR` moves config/state, for testing without touching real settings.
 
 ## Message format (requested by the owner)
 
 ```
-**{Char}** just dinged level {Level}.
+{Char} just dinged level {Level}.
 {Level-1} to {Level} took {time}.
 They dinged in {Zone}.
 Professions: Mining 150, Herbalism 75
-Talents: Arms 31 / Fury 20 / Protection 0
+Talents: Class 15 / Fury 12 / Slayer 3
 ```
 
 Faction and guild were deliberately left out.
 
 ## Status
 
-- Addon logic tested against a simulated WoW API (Lua via `lupa`), including Classic and Retail variants of the profession and talent calls.
-- C# companion has NOT been compiled or run. The cloud sandbox had no .NET SDK and no route to download one. First job: `dotnet build` in `companion/LevelTimesCompanion` and fix whatever it reports.
-- `## Interface: 120105` in the TOC is the retail number from the Warcraft wiki, which warns it may be outdated. Confirm in game with `/dump (select(4, GetBuildInfo()))`. No Forever number is known yet.
+- Companion builds and was tested end to end against a fake WoW folder and a mock webhook: addon install, interface number fix, webhook prompt (real Discord rejects a fake link), backfill, live file watching, embed JSON.
+- Addon tested in MoonSharp with a stubbed WoW API (timing, retail talent split and fallbacks, popup and combat deferral, `/lt popup`).
+- Not yet tested in the real game or with a real webhook. The retail talent split assumes `C_Traits.GetTreeCurrencyInfo` lists the class currency before the spec currency; if posts show them swapped, flip them in `getRetailTalentSplit`.
+- Retail interface is 120105 (client 12.1.5, confirmed from `.build.info`). The companion rewrites `## Interface:` to match the installed client.
 
 ## Known limits
 
-- Profession names are matched in English on Classic-style clients (non-English clients show `None`).
-- Retail has no talent trees, so talents shows the specialization name there.
+- Profession names are matched in English on Classic-style clients.
 - If the addon is installed mid-level, that first level has no baseline and is skipped.
 
 ## Conventions

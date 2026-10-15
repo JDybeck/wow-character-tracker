@@ -1,68 +1,58 @@
 # wow-level-tracker
 
-Tracks how long each character level takes in World of Warcraft and posts it to a Discord channel when you level up.
+Posts to a Discord channel every time one of your World of Warcraft characters levels up: how long the level took, where you dinged, your professions and your talents, with a portrait of your character's race and class.
 
-Two parts:
+```
+[Undead portrait]   Undead Frost Mage
+                    Zebby just dinged level 12.
+                    11 to 12 took 18m 4s.
+                    They dinged in Tirisfal Glades.
 
-- `addon/LevelTimes`: the WoW addon. Records the time for every finished level into its SavedVariables file.
-- `companion/LevelTimesCompanion`: a small .NET console app. Watches that file and posts new entries to a Discord webhook.
+                    Professions: Tailoring 75, Enchanting 60
+                    Talents: Class 4 / Frost 2
+```
 
-WoW addons can't make network requests, which is why the companion exists.
+Retail for now. WoW Forever (Classic+) uses the same addon API and comes later.
+
+## Getting started
+
+1. Get `LevelTimes.exe`: run `build.cmd` (needs the [.NET 10 SDK](https://dotnet.microsoft.com/download)), it lands in `dist\`.
+2. Double-click `LevelTimes.exe`. It walks you through everything:
+   - finds your WoW folder,
+   - installs the addon (and keeps it updated, including the interface number after patches),
+   - asks for a Discord webhook link and tells you how to make one, then checks it works and can send a test post.
+3. Leave the window open while you play.
+
+When you ding, the game pops up **"Post now"**. Click it (it reloads your UI) and the post shows up in Discord. Click **Later** and it posts on your next `/reload` or logout instead. WoW only saves addon data on reload or logout, which is why that step exists.
+
+### Making a Discord webhook
+
+In Discord, hover the channel, click the gear (Edit Channel), then Integrations, Webhooks, New Webhook, and Copy Webhook URL. You need the Manage Webhooks permission on the server. The name and picture you give the webhook are what the posts show as the sender.
+
+The link is saved in `%LOCALAPPDATA%\LevelTimesCompanion\config.json`. Treat it like a password: anyone with it can post in that channel.
+
+### In game
+
+- `/lt` shows your last 10 level times for the character you're on.
+- `/lt popup` turns the "Post now" popup on or off.
+
+### Companion options
+
+```
+LevelTimes.exe --setup      ask for the webhook and WoW folder again
+LevelTimes.exe --test       send a test post and quit
+LevelTimes.exe --backfill   on the first run, post old level-ups instead of skipping them
+```
 
 ## How the timing works
 
-`RequestTimePlayed()` returns total time played and time played on the current level. Right after a level-up the "current level" part is about zero, so the addon stores `total - thisLevel` (the total at the start of the level) per character. On the next level-up, the finished level's time is the difference between the two stored values. It also re-syncs on every login, so it corrects itself.
+`RequestTimePlayed()` returns total time played and time played on the current level. Right after a level-up the "current level" part is about zero, so the addon stores `total - thisLevel` (the total at the start of the level) per character. On the next level-up, the finished level's time is the difference. It re-syncs on every login, so it corrects itself.
 
 If you install the addon mid-level, that first level has no baseline and is skipped. Everything after that is tracked.
 
-## What gets posted
+## Notes and limits
 
-Each level-up posts a message like this:
-
-```
-**Testy** just dinged level 12.
-11 to 12 took 18m 4s.
-They dinged in Stranglethorn Vale.
-Professions: Mining 150, Herbalism 75
-Talents: Arms 31 / Fury 20 / Protection 0
-```
-
-Notes:
-
-- Professions: on Classic-style clients the addon matches the nine primary profession names in English, so a non-English client shows `None`. On retail it uses the game's own main-profession list.
-- Talents: Classic clients show points per talent tree. Retail has no talent trees, so it shows your specialization name instead.
-- Zone, professions and talents are a snapshot taken a moment after the level-up. Entries recorded by older versions of the addon lack these fields, and the companion just leaves those lines out.
-
-## Install the addon
-
-1. Copy `addon/LevelTimes` into your game's AddOns folder, for example `World of Warcraft\_retail_\Interface\AddOns\LevelTimes`.
-2. Set `## Interface:` in `LevelTimes.toc` to match your client. Check it in game with `/dump (select(4, GetBuildInfo()))`. A wrong number just marks the addon "out of date", which you can allow in the AddOns menu.
-3. Log in. `/leveltimes` prints your last 10 level times for the current character.
-
-For WoW Forever, use the same folder layout for that client and the interface number it reports.
-
-## Run the companion
-
-You need the .NET 8 SDK.
-
-1. Create a webhook in Discord: channel settings, Integrations, Webhooks, New Webhook, copy the URL.
-2. Put the URL in an environment variable (never commit it):
-
-   ```
-   set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-   ```
-
-3. Run it, pointing at the SavedVariables file:
-
-   ```
-   cd companion/LevelTimesCompanion
-   dotnet run -- "C:\...\World of Warcraft\_retail_\WTF\Account\<ACCOUNT>\SavedVariables\LevelTimes.lua"
-   ```
-
-On the first run it marks existing entries as already posted so it doesn't flood the channel. Pass `--backfill` to post them instead. Posted ids are kept in `%LOCALAPPDATA%\LevelTimesCompanion\posted.json`.
-
-## Known limits
-
-- The game only writes SavedVariables on `/reload` or logout, so the Discord post shows up then, not at the exact moment of the level-up.
-- The chat-suppression for the `/played` spam hooks `ChatFrame_DisplayTimePlayed`. If a client doesn't have that function, you'll just see the normal `/played` lines.
-- Only the addon logic has been tested (with a simulated WoW API). The C# app hasn't been compiled or run yet.
+- Talents: retail shows points spent in the class tree, spec tree and hero tree. Classic clients show points per talent tree.
+- Professions: on Classic-style clients the nine primary professions are matched by English name, so a non-English client shows `None`.
+- The portrait comes from Wowhead's icon CDN. A race it doesn't have an icon for yet falls back to the class icon.
+- On the first run, level-ups already in the file are marked as posted so the channel isn't flooded. `--backfill` posts them instead.

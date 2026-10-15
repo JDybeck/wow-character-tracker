@@ -2,13 +2,29 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>LevelTimes</AssemblyName>
+    <RootNamespace>LevelTimesCompanion</RootNamespace>
+    <Version>0.2.0</Version>
+    <!-- dotnet publish -c Release gives one LevelTimes.exe that runs without .NET installed. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="MoonSharp" Version="2.0.0" />
+  </ItemGroup>
+
+  <!-- The addon ships inside the exe so the companion can install and update it. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\addon\LevelTimes\*.*" LogicalName="Addon/%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
