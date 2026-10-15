@@ -9,8 +9,8 @@ Main target: WoW Forever (Classic+, launches 2026-11-04; beta lives in `_classic
 - `companion/WoWCharacterTracker/`: .NET 10 WPF app (C#), builds to `WoWCharacterTracker.exe`. Look based on the owner's React mockup (dark slate, setup checks, character table, webhook list, console).
   - `MainWindow.xaml` + `App.xaml` (styles, palette, converters, dark CheckBox and chip styles). Header has the game tabs (Retail/Forever); the left side has page tabs (Characters / What gets posted).
   - `ViewModels.cs`: `MainViewModel` (webhooks, console, selected tab/page), `FlavorViewModel` (one per game: folder, addon, tracker, characters, posting settings, `ShotOption`s), `CharacterRow` (merges snapshots and events, highlights), `SetupItem`.
-  - `Tracker.cs`: one per game. Reads SavedVariables (file watcher + 1 min safety net) and live events from `ChatLog`, filters by the tab's settings, finds screenshots, posts. State per game in `posted-<key>.json`.
-  - `ChatLog.cs`: tails `<game>\Logs\WoWChatLog.txt`, reassembles `#CT1#<msgid>#<part>/<total>#<k=v;...>` whispers (each appears twice, sent and received).
+  - `Tracker.cs`: one per game. Reads SavedVariables (file watcher + 1 min safety net) and live events from `ScreenshotChannel`, filters by the tab's settings, finds screenshots, posts. State per game in `posted-<key>.json`.
+  - `ScreenshotChannel.cs`: watches `<game>\Screenshots`, `GridDecoder` reads the addon's data grid (clock row/column give the cell size, so scaling and JPEG are fine), `Payload` parses `k=v;...`. Decoded grid shots are deleted.
   - `Wow.cs`: `Flavor`/`Flavors` (folders, defaults per game), install detection, product from `.flavor.info`, client version from the root `.build.info`, interface number (1.60.1 -> 16001).
   - `AddonInstaller.cs`: addon embedded in the exe, installed/updated per game folder, writes `Settings.lua`.
   - `Discord.cs`: webhook check, embeds per kind, multipart upload when there's a screenshot. `SavedVariables.cs`: `Entry` (all kinds), `Snapshot`, MoonSharp parsing, `Format`.
@@ -24,7 +24,7 @@ Main target: WoW Forever (Classic+, launches 2026-11-04; beta lives in `_classic
   - Boss: `ENCOUNTER_END` success or combat log `UNIT_DIED` in party/raid, only names in `END_BOSSES` (Classic dungeon/raid last bosses), 10 min dedupe.
   - Loot: `CHAT_MSG_LOOT` matched with patterns built from `LOOT_ITEM_SELF(_MULTIPLE)`, quality >= 3. Mounts: item class 15/5 from `LOOT_ITEM_PUSHED_SELF` or looted, or `NEW_MOUNT_ADDED`; 2 min dedupe; `bought` if a merchant was open.
   - Death: `PLAYER_DEAD` only when `C_GameRules.IsHardcoreActive()`; killer from the last damage event to the player.
-- Live channel: on login the addon calls `LoggingChat(true)`; `addEvent` whispers the event to the player in 200-char chunks (pipes escaped), chat filters hide them. Screenshot: `Screenshot()` after a short delay when `Settings.lua` asks for that kind; the app matches the file in `<game>\Screenshots` by write time (event time -2s to +20s).
+- Live channel: the chat log can't be used (the game only writes it on exit, and toggling `LoggingChat` doesn't flush it; tested on retail). Instead `addEvent` queues a data screenshot: a parentless frame scaled to 1 unit = 1 pixel shows a 128-column grid of 5 px cells in the top-left corner (row 0 and column 0 alternate white/black as a clock; data = 0xC7, 2-byte length, payload, 2-byte sum), `Screenshot()` on the next frame with `screenshotFormat=jpeg`/`screenshotQuality=10` (restored after) and ActionStatus muted, grid hidden on `SCREENSHOT_SUCCEEDED`. Normal event screenshots (`Settings.lua`) are queued after, and the app matches them by write time (event time -2s to +20s).
 - `WoWCharacterTrackerDB.chars[guid]`: latest snapshot per character, saved after `/played`, on death and on `PLAYER_LOGOUT`.
 - App posts only what the tab's settings want; unwanted events are marked handled so toggling later doesn't flood. First run marks existing events as posted unless `--backfill`.
 - Webhooks: shared list, active one per game tab. Never commit them.
@@ -45,9 +45,9 @@ Faction and guild were deliberately left out. No professions means no profession
 
 ## Status
 
-- App tested end to end against fake `_retail_` + `_classic_beta_` folders and a mock webhook: live chat log events (posted with the level rule applied, boss with screenshot attached), SavedVariables events, per-game addon install with interface 16001/120105, Settings.lua, config migration, all screens via screenshots.
-- Addon tested in MoonSharp with a stubbed WoW API: timing, snapshots, boss/loot/mount/death detection and dedupe, live whisper format, screenshot calls, `/ct test`.
-- Not yet tested in the real game. Unknowns: can you whisper yourself on each client, how quickly the chat log is flushed, whether `ENCOUNTER_END` fires for Forever dungeons, whether Forever mount items are class 15/5, whether `C_GameRules.IsHardcoreActive` exists on Forever. `/ct test` is the quick check for the live channel; the reload popup (`/ct popup`, off by default) is the fallback.
+- App tested end to end against fake `_retail_` + `_classic_beta_` folders and a mock webhook: live data screenshots and earlier live events (posted with the level rule applied, boss with screenshot attached), SavedVariables events, per-game addon install with interface 16001/120105, Settings.lua, config migration, all screens via screenshots.
+- Addon tested in MoonSharp with a stubbed WoW API: timing, snapshots, boss/loot/mount/death detection and dedupe, data grid drawing (rendered to JPEG, also scaled 0.8 at quality 75, and decoded by the app end to end), screenshot calls, `/ct test`.
+- Retail in-game: snapshots, professions, ilvl and spec work. The chat log route failed (only written on exit), replaced by data screenshots, which are not yet tested in game. Other unknowns: whether `ENCOUNTER_END` fires for Forever dungeons, whether Forever mount items are class 15/5, whether `C_GameRules.IsHardcoreActive` exists on Forever. `/ct test` is the quick check for the live channel; `/ct live` turns it off, the reload popup (`/ct popup`) is the fallback.
 - Retail talent split assumes `C_Traits.GetTreeCurrencyInfo` lists class before spec currency; flip in `getRetailTalentSplit` if swapped.
 
 ## Conventions

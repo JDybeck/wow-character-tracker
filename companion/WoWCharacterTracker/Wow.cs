@@ -41,7 +41,6 @@ static class Wow
 
     public static string AddOnsDir(string flavorDir) => Path.Combine(flavorDir, "Interface", "AddOns");
     public static string AccountsDir(string flavorDir) => Path.Combine(flavorDir, "WTF", "Account");
-    public static string ChatLogFile(string flavorDir) => Path.Combine(flavorDir, "Logs", "WoWChatLog.txt");
 
     public const string SavedVarsName = "WoWCharacterTracker.lua";
 

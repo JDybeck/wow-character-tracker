@@ -5,12 +5,12 @@
 --
 -- Data reaches the companion app two ways:
 --  1. WoWCharacterTrackerDB (SavedVariables), written by the game on /reload and logout.
---  2. Live: each event is whispered to yourself as a hidden data line. With chat logging on,
---     the game writes it to Logs\WoWChatLog.txt right away, and the app reads it from there.
---     That's what makes posts show up without a reload.
+--  2. Live: a screenshot is the only file an addon can make the game write right away. For each
+--     event the addon draws the data as a black and white grid in the top-left corner for one
+--     frame, takes a screenshot and hides the grid. The app reads the grid from the picture,
+--     posts the event and deletes that screenshot.
 
 local ADDON = "WoWCharacterTracker"
-local LIVE_PREFIX = "#CT1#" -- marks our hidden whispers, both in chat filters and in the chat log
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
@@ -32,6 +32,8 @@ frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 pcall(frame.RegisterEvent, frame, "PLAYER_SPECIALIZATION_CHANGED")
 pcall(frame.RegisterEvent, frame, "TRAIT_CONFIG_UPDATED")
 pcall(frame.RegisterEvent, frame, "CHARACTER_POINTS_CHANGED")
+frame:RegisterEvent("SCREENSHOT_SUCCEEDED")
+frame:RegisterEvent("SCREENSHOT_FAILED")
 
 local pendingLevel  -- set on level up, cleared when /played data arrives
 local popupLevel    -- a level waiting for the "post now" popup until combat ends
@@ -300,7 +302,6 @@ end
 -- Live channel ---------------------------------------------------------------
 
 -- "key=value;key=value", with the few characters that would break it escaped as %XX.
--- Pipes are escaped too, since the chat system treats them as formatting codes.
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
@@ -309,67 +310,182 @@ local function encode(t)
       table.insert(parts, k .. "=" .. s)
     end
   end
-  table.sort(parts) -- stable order makes the log easier to read
+  table.sort(parts)
   return table.concat(parts, ";")
 end
 
-local liveCounter = 0
+-- The grid: 128 cells across, CELL pixels each. Row 0 and column 0 alternate white/black so
+-- the app can measure the cell size in the picture; the other cells hold the bits (black = 1):
+-- a magic byte (0xC7), the payload length (2 bytes), the payload, and a 2-byte checksum.
+local GRID_COLS = 128
+local CELL = 5
+local MAGIC = 0xC7
 
--- The game buffers the chat log and only writes it to disk when the file is closed (on exit).
--- Turning logging off and on again closes and reopens the file, which writes out what's
--- buffered. Done a moment after sending, once the whispers have come back from the server,
--- and once more a bit later in case the server was slow.
-local flushPending = false
--- The game applies the change a frame later, so off and on in the same frame does nothing.
--- Turn it off, give it a moment to close the file, then turn it back on.
-local function flushChatLog()
-  if type(LoggingChat) == "function" and LoggingChat() then
-    LoggingChat(false)
-    C_Timer.After(0.2, function() LoggingChat(true) end)
+local function toBits(data)
+  local bytes = { MAGIC, math.floor(#data / 256), #data % 256 }
+  local sum = 0
+  for i = 1, #data do
+    local b = data:byte(i)
+    table.insert(bytes, b)
+    sum = (sum + b) % 65536
   end
+  table.insert(bytes, math.floor(sum / 256))
+  table.insert(bytes, sum % 256)
+
+  local bits = {}
+  for _, b in ipairs(bytes) do
+    for i = 7, 0, -1 do bits[#bits + 1] = math.floor(b / 2 ^ i) % 2 end
+  end
+  return bits
 end
-local function flushSoon()
-  if flushPending then return end
-  flushPending = true
-  C_Timer.After(1.5, function()
-    flushChatLog()
-    C_Timer.After(3, function()
-      flushChatLog()
-      flushPending = false
-    end)
+
+local grid, gridWhite
+local gridTextures = {}
+
+-- A frame without a parent stays visible when the UI is hidden (Alt+Z). Its scale is set so one
+-- unit is one screen pixel.
+local function gridFrame()
+  if grid then return grid end
+  grid = CreateFrame("Frame", nil, nil)
+  grid:SetFrameStrata("TOOLTIP")
+  grid:SetFrameLevel(10000)
+  grid:EnableMouse(false)
+  grid:Hide()
+  gridWhite = grid:CreateTexture(nil, "BACKGROUND")
+  gridWhite:SetColorTexture(1, 1, 1, 1)
+  gridWhite:SetAllPoints()
+  return grid
+end
+
+local function pixelScale()
+  local _, height = 0, 0
+  if type(GetPhysicalScreenSize) == "function" then _, height = GetPhysicalScreenSize() end
+  if not height or height <= 0 then height = 1080 end
+  return 768 / height
+end
+
+-- Draws the bits. Black cells in a row are merged into one texture each, and textures are reused.
+local function drawGrid(bits)
+  local f = gridFrame()
+  f:SetScale(pixelScale())
+  local dataCols = GRID_COLS - 1
+  local rows = math.ceil(#bits / dataCols) + 1
+  f:ClearAllPoints()
+  f:SetPoint("TOPLEFT", nil, "TOPLEFT", 0, 0)
+  f:SetSize(GRID_COLS * CELL, rows * CELL)
+
+  local used = 0
+  local function black(x, y, cells)
+    used = used + 1
+    local t = gridTextures[used]
+    if not t then
+      t = f:CreateTexture(nil, "ARTWORK")
+      t:SetColorTexture(0, 0, 0, 1)
+      if t.SetSnapToPixelGrid then t:SetSnapToPixelGrid(false); t:SetTexelSnappingBias(0) end
+      gridTextures[used] = t
+    end
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", f, "TOPLEFT", x * CELL, -y * CELL)
+    t:SetSize(cells * CELL, CELL)
+    t:Show()
+  end
+
+  local function cell(r, c)
+    if r == 0 then return c % 2 end      -- clock row: white, black, white...
+    if c == 0 then return r % 2 end      -- clock column
+    return bits[(r - 1) * dataCols + c] or 0
+  end
+
+  for r = 0, rows - 1 do
+    local c = 0
+    while c < GRID_COLS do
+      if cell(r, c) == 1 then
+        local start = c
+        while c < GRID_COLS and cell(r, c) == 1 do c = c + 1 end
+        black(start, r, c - start)
+      else
+        c = c + 1
+      end
+    end
+  end
+  for i = used + 1, #gridTextures do gridTextures[i]:Hide() end
+end
+
+-- Screenshots are taken one at a time from a queue: a data grid for every event, and a normal
+-- screenshot after it when the app asked for one.
+local shotQueue = {}
+local shotBusy = false
+local shotItem
+local savedCVars
+
+local getCVar = (C_CVar and C_CVar.GetCVar) or GetCVar
+local setCVar = (C_CVar and C_CVar.SetCVar) or SetCVar
+
+-- JPEG at full quality while the grid is captured (TGA can't be read by the app, and low quality
+-- smears the cells). The player's own settings come back right after.
+local function useGridShotSettings()
+  savedCVars = { format = getCVar("screenshotFormat"), quality = getCVar("screenshotQuality") }
+  pcall(setCVar, "screenshotFormat", "jpeg")
+  pcall(setCVar, "screenshotQuality", "10")
+  if ActionStatus and ActionStatus.UnregisterEvent then ActionStatus:UnregisterEvent("SCREENSHOT_SUCCEEDED") end
+end
+
+local function restoreShotSettings()
+  if savedCVars then
+    if savedCVars.format then pcall(setCVar, "screenshotFormat", savedCVars.format) end
+    if savedCVars.quality then pcall(setCVar, "screenshotQuality", savedCVars.quality) end
+    savedCVars = nil
+  end
+  if ActionStatus and ActionStatus.RegisterEvent then ActionStatus:RegisterEvent("SCREENSHOT_SUCCEEDED") end
+end
+
+local nextFrame = CreateFrame("Frame")
+local function onNextFrame(fn)
+  nextFrame:SetScript("OnUpdate", function(self)
+    self:SetScript("OnUpdate", nil)
+    fn()
   end)
 end
 
--- Whispers the event to ourselves in chunks: #CT1#<msgid>#<part>/<total>#<data>.
--- Chat messages max out at 255 characters, so long events take a few whispers.
-local function sendLive(e)
-  if WoWCharacterTrackerDB.live == false then return end
-  local me = UnitName("player")
-  if not me or type(SendChatMessage) ~= "function" then return end
+local processShots
 
-  liveCounter = liveCounter + 1
-  local msgid = string.format("%x%x", time() % 65536, liveCounter)
-  local data = encode(e)
-  local size = 200
-  local total = math.max(1, math.ceil(#data / size))
-  for i = 1, total do
-    local chunk = data:sub((i - 1) * size + 1, i * size)
-    SendChatMessage(string.format("%s%s#%d/%d#%s", LIVE_PREFIX, msgid, i, total, chunk), "WHISPER", nil, me)
+local function shotDone()
+  if not shotBusy then return end
+  if shotItem and shotItem.bits then
+    if grid then grid:Hide() end
+    restoreShotSettings()
   end
-  flushSoon()
+  shotItem = nil
+  shotBusy = false
+  C_Timer.After(0.1, processShots)
 end
 
--- Keep our data whispers out of the chat window. The chat log still records them.
-local function hideLive(_, _, msg)
-  return type(msg) == "string" and msg:sub(1, #LIVE_PREFIX) == LIVE_PREFIX
-end
-if type(ChatFrame_AddMessageEventFilter) == "function" then
-  ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER", hideLive)
-  ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", hideLive)
+processShots = function()
+  if shotBusy or #shotQueue == 0 then return end
+  shotItem = table.remove(shotQueue, 1)
+  shotBusy = true
+  local item = shotItem
+  -- Never wait forever on a screenshot event that doesn't come.
+  C_Timer.After(5, function() if shotItem == item then shotDone() end end)
+
+  if item.bits then
+    drawGrid(item.bits)
+    useGridShotSettings()
+    grid:Show()
+    onNextFrame(function() Screenshot() end) -- let the grid be drawn once first
+  else
+    C_Timer.After(item.delay or 0.5, function() Screenshot() end)
+  end
 end
 
--- How long to wait before the screenshot, so the moment is on screen (the ding glow, the boss
--- corpse, the death screen).
+local function sendLive(e)
+  if WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
+  table.insert(shotQueue, { bits = toBits(encode(e)) })
+  processShots()
+end
+
+-- How long to wait before a normal screenshot, so the moment is on screen (the ding glow, the
+-- boss corpse, the death screen).
 local SHOT_DELAY = { level = 1.0, boss = 1.5, loot = 0.3, mount = 0.5, death = 0.2 }
 
 local function wantsScreenshot(kind)
@@ -380,12 +496,14 @@ end
 -- Stores an event in SavedVariables, sends it live and takes a screenshot if the app asked for
 -- one for this kind of event. The app finds the picture in the Screenshots folder by its time.
 local function addEvent(e)
-  if wantsScreenshot(e.kind) then
-    e.shot = true
-    C_Timer.After(SHOT_DELAY[e.kind] or 0.5, function() Screenshot() end)
-  end
+  local shot = wantsScreenshot(e.kind)
+  if shot then e.shot = true end
   table.insert(WoWCharacterTrackerDB.events, e)
   sendLive(e)
+  if shot then
+    table.insert(shotQueue, { delay = SHOT_DELAY[e.kind] or 0.5 })
+    processShots()
+  end
 end
 
 -- Events ---------------------------------------------------------------------
@@ -615,11 +733,10 @@ frame:SetScript("OnEvent", function(_, event, ...)
     if WoWCharacterTrackerDB.popup == nil then WoWCharacterTrackerDB.popup = false end
 
   elseif event == "PLAYER_LOGIN" then
-    -- The live channel needs the chat log on. It stays on, the file just grows a little.
-    if WoWCharacterTrackerDB.live ~= false and type(LoggingChat) == "function" and not LoggingChat() then
-      LoggingChat(true)
-    end
     requestPlayed() -- sets the baseline for the current level
+
+  elseif event == "SCREENSHOT_SUCCEEDED" or event == "SCREENSHOT_FAILED" then
+    shotDone()
 
   elseif event == "PLAYER_LOGOUT" then
     saveSnapshot() -- also fires on /reload, right before the game writes the file
@@ -721,10 +838,12 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     e.kind = "test"
     e.at = time()
     e.id = string.format("%s:test:%d", e.guid, e.at)
+    if WoWCharacterTrackerDB.live == false then
+      say("Instant posting is off. Type /ct live to turn it on.")
+      return
+    end
     sendLive(e)
-    local logging = type(LoggingChat) == "function" and LoggingChat()
-    say("Sent a test event. The companion app should show it within a few seconds."
-      .. (logging and "" or " Chat logging is off, so it can't arrive until /reload. Type /chatlog to turn it on."))
+    say("Sent a test event. The companion app should show it within a few seconds.")
   elseif msg == "help" then
     say("/ct shows your last 10 level times.")
     say("/ct test checks that instant posting reaches the companion app.")

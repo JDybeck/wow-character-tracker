@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace WoWCharacterTracker;
 
 // One per tab. Reads the addon's data for that game version from two places, the SavedVariables
-// file (written on /reload and logout) and the chat log (live), and posts what's new.
+// file (written on /reload and logout) and data screenshots (live), and posts what's new.
 sealed class Tracker : IDisposable
 {
     readonly Flavor flavor;
@@ -16,7 +16,7 @@ sealed class Tracker : IDisposable
     readonly bool firstRun;
     readonly SemaphoreSlim gate = new(1, 1);
     readonly ConcurrentDictionary<string, Entry> live = new();
-    readonly ChatLog chatLog;
+    readonly ScreenshotChannel shots;
     HashSet<string>? posted;
     FileSystemWatcher? watcher;
     CancellationTokenSource? debounce;
@@ -41,9 +41,9 @@ sealed class Tracker : IDisposable
         if (flavor == Flavors.Retail && !File.Exists(statePath) && File.Exists(oldState)) File.Move(oldState, statePath);
         firstRun = !File.Exists(statePath);
 
-        chatLog = new ChatLog(flavorDir);
-        chatLog.EntryReceived += OnLiveEntry;
-        chatLog.FirstWrite += () => Log.Info($"{Tag}The game just wrote to its chat log, so live events can get through.");
+        shots = new ScreenshotChannel(flavorDir);
+        shots.EntryReceived += OnLiveEntry;
+        shots.Unreadable += file => Log.Warn($"{Tag}A live event screenshot couldn't be read ({Path.GetFileName(file)}). It gets posted on your next /reload or logout instead.");
     }
 
     string Tag => $"[{flavor.Name}] ";
@@ -66,14 +66,14 @@ sealed class Tracker : IDisposable
         // A slow re-check in case a change notification gets lost.
         safetyNet = new Timer(_ => _ = SyncAsync(), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
 
-        _ = SyncAsync().ContinueWith(_ => chatLog.Start()); // live events only after old ones are handled
+        _ = SyncAsync().ContinueWith(_ => shots.Start()); // live events only after old ones are handled
     }
 
     void OnLiveEntry(Entry e)
     {
         if (e.Kind == "test")
         {
-            Log.Success($"{Tag}Instant posting works: a test from {e.Char} arrived through the chat log.");
+            Log.Success($"{Tag}Instant posting works: a test from {e.Char} arrived right away.");
             LiveTest?.Invoke(e);
             return;
         }
@@ -255,6 +255,6 @@ sealed class Tracker : IDisposable
     {
         watcher?.Dispose();
         safetyNet?.Dispose();
-        chatLog.Dispose();
+        shots.Dispose();
     }
 }

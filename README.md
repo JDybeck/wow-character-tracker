@@ -59,11 +59,13 @@ Treat the link like a password: anyone with it can post in that channel. The app
 - `/ct` shows your last 10 level times for the character you're on.
 - `/ct test` checks that instant posting reaches the app.
 - `/ct live` turns instant posting on or off.
-- `/ct popup` turns on a reload popup after a ding, for when instant posting doesn't work on a client.
+- `/ct popup` turns on a reload popup after a ding, if you'd rather not use instant posting (`/ct live`).
 
 ## How it works
 
-WoW addons can't make network calls and only save their data on `/reload` or logout. To post right away anyway, the addon turns on the game's chat log and whispers each event to you as a hidden data line. The game writes that to `Logs\WoWChatLog.txt` straight away, and the app reads it from there. You never see these whispers in chat. The saved data is a backup: anything that didn't come through live gets posted on your next `/reload` or logout, and nothing is posted twice.
+WoW addons can't make network calls and only save their data on `/reload` or logout. The one file an addon can make the game write right away is a screenshot. So for each event, the addon shows a small black and white grid in the top-left corner for a single frame, takes a screenshot and hides the grid again. The app reads the event from the grid within a second, posts it and deletes that screenshot. You might notice a brief flicker in the corner. While that one screenshot is taken, the screenshot format is set to JPEG at full quality (your own settings come right back) and the "Screen captured" message is hidden.
+
+The saved data is the backup: anything that didn't come through live gets posted on your next `/reload` or logout, and nothing is posted twice.
 
 Level times come from `RequestTimePlayed()`, which returns total time played and time played on the current level. Right after a level-up the "current level" part is about zero, so the addon stores the total at the start of each level, and the finished level's time is the difference. If you install the addon mid-level, that first level has no baseline and is skipped.
 
