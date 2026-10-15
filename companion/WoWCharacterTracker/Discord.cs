@@ -65,7 +65,52 @@ partial class Discord(string webhookUrl, Flavor flavor)
             imageName = "screenshot" + fi.Extension.ToLowerInvariant();
             embed["image"] = new { url = "attachment://" + imageName };
         }
+        return await SendAsync(embed, image, imageName);
+    }
 
+    // A character card, sent from the character details in the app.
+    public async Task<bool> PostCharacterAsync(CharacterRow c)
+    {
+        var embed = new Dictionary<string, object>
+        {
+            ["title"] = c.Name + (c.Dead ? " (dead)" : ""),
+            ["description"] = $"Level {c.Level} {c.Description}".Trim(),
+            ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
+            ["footer"] = new { text = $"Character Tracker, {flavor.Name}" },
+        };
+        if (ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
+        if (ClassIconUrl(c.ClassFile) is { } classIcon)
+            embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
+        if (await PictureUrlAsync(c.RaceFile, c.Sex, c.ClassFile) is { } picture) embed["thumbnail"] = new { url = picture };
+
+        var fields = new List<object>();
+        void Field(string name, string value, bool inline = true)
+        {
+            if (value.Length > 0 && value != "-") fields.Add(new { name, value, inline });
+        }
+
+        Field("Level", c.Level.ToString());
+        Field("Item level", c.ItemLevelText);
+        Field("Total played", c.PlayedText);
+        if (flavor == Flavors.Forever) Field("Ruleset", c.Ruleset);
+        Field("Professions", c.Professions is { Length: > 0 } and not "None" ? c.Professions : "", inline: false);
+        Field("Talents", c.TalentsText, inline: false);
+        Field("Last seen", c.ZoneText != "-" ? $"{c.ZoneText}, {c.LastSeenText}" : c.LastSeenText, inline: false);
+
+        if (c.Levels.Count > 0)
+        {
+            var recent = c.Levels.Take(3).Select(l => $"{l.LevelText}: **{l.Took}**");
+            Field("Recent levels", string.Join("\n", recent), inline: false);
+        }
+        if (c.Highlights.Count > 0)
+            Field("Highlights", string.Join("\n", c.Highlights.Take(3).Select(h => h.Text)), inline: false);
+
+        embed["fields"] = fields;
+        return await SendAsync(embed, null, "");
+    }
+
+    async Task<bool> SendAsync(Dictionary<string, object> embed, byte[]? image, string imageName)
+    {
         var body = new Dictionary<string, object>
         {
             ["embeds"] = new[] { embed },

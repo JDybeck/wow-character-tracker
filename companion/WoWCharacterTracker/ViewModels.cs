@@ -696,6 +696,7 @@ sealed class MainViewModel : Observable
         ShowPageCommand = new RelayCommand(p => Page = (string)p!);
         ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
+        PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
         ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
         SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
         SelectWebhookCommand = new RelayCommand(p => SelectWebhook((WebhookRow)p!));
@@ -769,6 +770,7 @@ sealed class MainViewModel : Observable
     public ICommand ShowPageCommand { get; }
     public ICommand ResetPostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
+    public ICommand PostCharacterCommand { get; }
     public ICommand ToggleAddWebhookCommand { get; }
     public ICommand SaveWebhookCommand { get; }
     public ICommand SelectWebhookCommand { get; }
@@ -913,6 +915,25 @@ sealed class MainViewModel : Observable
         RefreshWebhooks();
         Log.Info($"Removed webhook \"{row.Name}\".");
         foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync();
+    }
+
+    // Sends the character's card to this tab's webhooks (on Forever, only those that take its ruleset).
+    async Task PostCharacterAsync(CharacterRow c)
+    {
+        if (SelectedFlavor is not { } tab) return;
+        var asEntry = new Entry { Ruleset = c.Ruleset, Hardcore = c.Hardcore };
+        var hooks = Config.ActiveWebhooks(tab.Flavor)
+            .Where(w => tab.Flavor != Flavors.Forever || w.AcceptsRuleset(asEntry))
+            .ToList();
+        if (hooks.Count == 0)
+        {
+            Log.Warn($"[{tab.Name}] No webhook to post {c.Name} to. Turn one on in the Discord panel" +
+                     (tab.Flavor == Flavors.Forever ? $" (and check it takes {c.Ruleset} characters)." : "."));
+            return;
+        }
+        foreach (var w in hooks)
+            if (await new Discord(w.Url, tab.Flavor).PostCharacterAsync(c))
+                Log.Success($"[{tab.Name}] Posted {c.Name}'s character card to \"{w.Name}\".");
     }
 
     async Task SendTestAsync()

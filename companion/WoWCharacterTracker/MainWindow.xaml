@@ -400,7 +400,16 @@
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
-                          <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,14,0,0" Padding="12,5"
+                          <Button Style="{StaticResource ButtonBase}" HorizontalAlignment="Left" Margin="0,16,0,0" Padding="12,6"
+                                  ToolTip="Send a card with this character's info to Discord"
+                                  Command="{Binding DataContext.PostCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal">
+                              <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Foreground="{StaticResource TextSoft}" Margin="0,0,7,0"/>
+                              <TextBlock Text="Post to Discord" FontSize="12" Foreground="{StaticResource TextSoft}"/>
+                            </StackPanel>
+                          </Button>
+                          <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,6,0,0" Padding="12,5"
                                   ToolTip="Hide this character. Playing it again brings it back."
                                   Command="{Binding DataContext.RemoveCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                   CommandParameter="{Binding}">
