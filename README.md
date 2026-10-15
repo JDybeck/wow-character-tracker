@@ -15,6 +15,24 @@ WoW addons can't make network requests, which is why the companion exists.
 
 If you install the addon mid-level, that first level has no baseline and is skipped. Everything after that is tracked.
 
+## What gets posted
+
+Each level-up posts a message like this:
+
+```
+**Testy** just dinged level 12.
+11 to 12 took 18m 4s.
+They dinged in Stranglethorn Vale.
+Professions: Mining 150, Herbalism 75
+Talents: Arms 31 / Fury 20 / Protection 0
+```
+
+Notes:
+
+- Professions: on Classic-style clients the addon matches the nine primary profession names in English, so a non-English client shows `None`. On retail it uses the game's own main-profession list.
+- Talents: Classic clients show points per talent tree. Retail has no talent trees, so it shows your specialization name instead.
+- Zone, professions and talents are a snapshot taken a moment after the level-up. Entries recorded by older versions of the addon lack these fields, and the companion just leaves those lines out.
+
 ## Install the addon
 
 1. Copy `addon/LevelTimes` into your game's AddOns folder, for example `World of Warcraft\_retail_\Interface\AddOns\LevelTimes`.

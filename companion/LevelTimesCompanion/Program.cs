@@ -67,7 +67,15 @@ async Task ProcessAsync(bool initial)
 
 async Task<bool> PostAsync(Entry e)
 {
-    var msg = $"**{e.Char}** reached level {e.Level} (level {e.Level - 1} took {FormatDuration(e.Seconds)})";
+    var lines = new List<string>
+    {
+        $"**{e.Char}** just dinged level {e.Level}.",
+        $"{e.Level - 1} to {e.Level} took {FormatDuration(e.Seconds)}.",
+    };
+    if (e.Zone.Length > 0) lines.Add($"They dinged in {e.Zone}.");
+    if (e.Professions.Length > 0) lines.Add($"Professions: {e.Professions}");
+    if (e.Talents.Length > 0) lines.Add($"Talents: {e.Talents}");
+    var msg = string.Join("\n", lines);
 
     for (var attempt = 0; attempt < 3; attempt++)
     {
@@ -79,7 +87,7 @@ async Task<bool> PostAsync(Entry e)
 
         if (res.IsSuccessStatusCode)
         {
-            Console.WriteLine($"Posted: {msg}");
+            Console.WriteLine($"Posted level {e.Level} for {e.Char}.");
             return true;
         }
 
@@ -126,7 +134,10 @@ static List<Entry> ReadEntries(string path)
             t.Get("realm").CastToString() ?? "",
             (int)(t.Get("level").CastToNumber() ?? 0),
             (long)(t.Get("seconds").CastToNumber() ?? 0),
-            (long)(t.Get("at").CastToNumber() ?? 0)));
+            (long)(t.Get("at").CastToNumber() ?? 0),
+            t.Get("zone").CastToString() ?? "",
+            t.Get("professions").CastToString() ?? "",
+            t.Get("talents").CastToString() ?? ""));
     }
 
     return list.Where(x => x.Id.Length > 0).ToList();
@@ -176,4 +187,5 @@ Console.WriteLine($"Watching {savedVarsPath}. Press Ctrl+C to stop.");
 await Task.Delay(Timeout.Infinite);
 return 0;
 
-record Entry(string Id, string Char, string Realm, int Level, long Seconds, long At);
+record Entry(string Id, string Char, string Realm, int Level, long Seconds, long At,
+    string Zone, string Professions, string Talents);

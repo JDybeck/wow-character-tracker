@@ -25,6 +25,77 @@ local function formatDuration(s)
   return string.format("%ds", sec)
 end
 
+-- Primary professions in Classic-style clients. Names are matched in English,
+-- so on a non-English client the profession list will come back empty.
+local CLASSIC_PROFESSIONS = {
+  Alchemy = true, Blacksmithing = true, Enchanting = true, Engineering = true,
+  Herbalism = true, Leatherworking = true, Mining = true, Skinning = true, Tailoring = true,
+}
+
+-- Returns e.g. "Mining 150, Herbalism 75", or "None".
+local function getProfessions()
+  local found = {}
+
+  if type(GetProfessions) == "function" then
+    -- Retail: the two main professions are the first two return values.
+    local p1, p2 = GetProfessions()
+    for _, idx in ipairs({ p1 or 0, p2 or 0 }) do
+      if idx > 0 then
+        local name, _, rank = GetProfessionInfo(idx)
+        if name then table.insert(found, string.format("%s %d", name, rank or 0)) end
+      end
+    end
+  elseif type(GetNumSkillLines) == "function" then
+    -- Classic: scan the skill list for primary professions.
+    for i = 1, GetNumSkillLines() do
+      local name, isHeader, _, rank = GetSkillLineInfo(i)
+      if name and not isHeader and CLASSIC_PROFESSIONS[name] then
+        table.insert(found, string.format("%s %d", name, rank or 0))
+      end
+    end
+  end
+
+  if #found == 0 then return "None" end
+  return table.concat(found, ", ")
+end
+
+-- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or a note if nothing is spent.
+local function getTalents()
+  if type(GetNumTalentTabs) == "function" then
+    -- Classic: one entry per talent tree with points spent.
+    local parts, total = {}, 0
+    for i = 1, GetNumTalentTabs() do
+      local a, b, c, _, e = GetTalentTabInfo(i)
+      local name, points
+      if type(a) == "number" then
+        name, points = b, e -- newer return order: id, name, description, icon, pointsSpent
+      else
+        name, points = a, c -- classic era order: name, icon, pointsSpent
+      end
+      points = points or 0
+      total = total + points
+      table.insert(parts, string.format("%s %d", name or "?", points))
+    end
+    if total == 0 then return "No talent points spent yet" end
+    return table.concat(parts, " / ")
+  elseif type(GetSpecialization) == "function" then
+    -- Retail: there are no talent trees to split points over, so report the specialization.
+    local spec = GetSpecialization()
+    if spec then
+      local _, name = GetSpecializationInfo(spec)
+      if name then return name end
+    end
+    return "No specialization yet"
+  end
+  return "Unknown"
+end
+
+local function getZone()
+  local zone = (GetRealZoneText and GetRealZoneText()) or (GetZoneText and GetZoneText())
+  if zone == nil or zone == "" then return "an unknown place" end
+  return zone
+end
+
 local function requestPlayed()
   suppressChat = true
   RequestTimePlayed()
@@ -71,6 +142,9 @@ frame:SetScript("OnEvent", function(_, event, ...)
           level = pendingLevel,
           seconds = seconds,
           at = time(),
+          zone = getZone(),
+          professions = getProfessions(),
+          talents = getTalents(),
         })
         say(string.format("Level %d took %s.", pendingLevel - 1, formatDuration(seconds)))
       else
