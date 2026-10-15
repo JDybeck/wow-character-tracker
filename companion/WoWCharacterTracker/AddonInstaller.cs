@@ -49,10 +49,15 @@ static partial class AddonInstaller
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
-        var shots = string.Join(", ", Flavors.ShotKinds.Select(k => $"{k} = {(s.Shoots(k) ? "true" : "false")}"));
+        static string B(bool v) => v ? "true" : "false";
+        var shots = string.Join(", ", Flavors.ShotKinds.Select(k => $"{k} = {B(s.Shoots(k))}"));
+        // What gets posted, so the addon only sends those events live and screenshots only them.
+        var post = $"level = {{ on = {B(s.PostLevels)}, split = {s.LevelSplit}, before = {s.LevelEveryBefore}, after = {s.LevelEveryAfter} }}, "
+                   + $"rare = {B(s.PostRare)}, epic = {B(s.PostEpic)}, mount = {B(s.PostMounts)}, boss = {B(s.PostBosses)}, death = {B(s.PostDeaths)}";
         var lua = "-- Written by the Character Tracker app from its \"What gets posted\" page. Changes apply on /reload.\n"
                   + "WoWCharacterTrackerSettings = {\n"
                   + $"  screenshot = {{ {shots} }},\n"
+                  + $"  post = {{ {post} }},\n"
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
         if (!File.Exists(file) || File.ReadAllText(file) != lua) File.WriteAllText(file, lua);

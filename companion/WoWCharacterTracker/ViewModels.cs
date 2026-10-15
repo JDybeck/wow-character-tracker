@@ -360,8 +360,17 @@ sealed class FlavorViewModel : Observable
     {
         main.Config.Save();
         WriteAddonSettings();
-        if (flavorDir is not null && Wow.IsRunning(flavorDir))
-            Log.Info($"[{Name}] Screenshot settings reach the game on your next /reload or login.");
+        HintReload();
+    }
+
+    // The addon reads Settings.lua when it loads, so changes made while playing wait for a /reload.
+    // Said once per session.
+    bool hintedReload;
+    void HintReload()
+    {
+        if (hintedReload || flavorDir is null || !Wow.IsRunning(flavorDir)) return;
+        hintedReload = true;
+        Log.Info($"[{Name}] The game picks up these changes on your next /reload or login. Until then it uses the old ones for screenshots and instant posts.");
     }
 
     void WriteAddonSettings()
@@ -418,6 +427,8 @@ sealed class FlavorViewModel : Observable
     void Changed([CallerMemberName] string? name = null)
     {
         main.Config.Save();
+        WriteAddonSettings(); // the addon only sends live (and screenshots) what will be posted
+        HintReload();
         Raise(name!);
         Raise(nameof(LevelPreview));
     }

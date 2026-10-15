@@ -25,6 +25,7 @@ record Entry
     public double ItemLevel { get; init; }
     public bool Hardcore { get; init; }
     public string Ruleset { get; init; } = ""; // "Hardcore", "Self-found", "Normal"...
+    public string Role { get; init; } = "";    // "TANK", "HEALER", "DAMAGER" on retail
 
     public long Seconds { get; init; }   // level: time the level took
     public long Played { get; init; }    // total /played
@@ -65,6 +66,7 @@ record Entry
             ItemLevel = n("ilvl"),
             Hardcore = s("hardcore") is "true" or "1",
             Ruleset = s("ruleset"),
+            Role = s("role"),
             Seconds = (long)n("seconds"),
             Played = (long)n("played"),
             Boss = s("boss"),

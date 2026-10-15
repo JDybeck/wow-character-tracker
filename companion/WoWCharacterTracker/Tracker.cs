@@ -71,15 +71,33 @@ sealed class Tracker : IDisposable
 
     void OnLiveEntry(Entry e)
     {
+        // Every live event carries the character's current state, so the list updates right away.
+        presence[e.Guid] = e;
+
         if (e.Kind == "test")
         {
             Log.Success($"{Tag}Instant posting works: a test from {e.Char} arrived right away.");
             LiveTest?.Invoke(e);
-            return;
         }
-        live[e.Id] = e;
+        else if (e.Kind == "snapshot")
+        {
+            Log.Info($"{Tag}{e.Char} logged in.");
+        }
+        else
+        {
+            live[e.Id] = e;
+        }
         _ = SyncAsync();
     }
+
+    int lastWaiting;
+
+    // Latest live state per character (from check-ins, tests and events), newer than the saved file.
+    readonly ConcurrentDictionary<string, Entry> presence = new();
+
+    static Snapshot ToSnapshot(Entry e) => new(e.Guid, e.Char, e.Realm, e.Level, e.Class, e.ClassFile,
+        e.Race, e.RaceFile, e.Sex, e.Spec, e.Role, e.ItemLevel, e.Played, e.Zone, e.Professions, e.Talents,
+        e.At, e.Hardcore, e.Ruleset);
 
     void Schedule()
     {
@@ -128,13 +146,21 @@ sealed class Tracker : IDisposable
                 var s = settings();
                 // Things this tab isn't set to post are marked as handled, so turning a toggle on
                 // later doesn't dump old events into the channel.
-                foreach (var e in pending.Where(e => !Wanted(e, s))) posted.Add(e.Id);
+                foreach (var e in pending.Where(e => !Wanted(e, s)))
+                {
+                    posted.Add(e.Id);
+                    // Only posted highlights keep their screenshot. (The addon normally doesn't take
+                    // one for these, unless the settings changed since the game last loaded them.)
+                    if (e.Shot && ScreenshotFileFor(e) is { } unwantedShot) TryDelete(unwantedShot);
+                }
                 var toPost = pending.Where(e => Wanted(e, s)).ToList();
 
                 var hooks = toPost.Count > 0 ? webhooks() : [];
                 if (toPost.Count > 0 && hooks.Count == 0)
                 {
-                    Log.Warn($"{Tag}{toPost.Count} post{(toPost.Count == 1 ? " is" : "s are")} waiting. Turn on a Discord webhook for this tab to send {(toPost.Count == 1 ? "it" : "them")}.");
+                    if (toPost.Count != lastWaiting) // say it once per change, not on every sync
+                        Log.Warn($"{Tag}{toPost.Count} post{(toPost.Count == 1 ? " is" : "s are")} waiting. Turn on a Discord webhook for this tab to send {(toPost.Count == 1 ? "it" : "them")}.");
+                    lastWaiting = toPost.Count;
                 }
                 else
                 {
@@ -181,30 +207,40 @@ sealed class Tracker : IDisposable
     // not be there yet, so wait a little.
     async Task<string?> FindScreenshotAsync(Entry e)
     {
-        var dir = Path.Combine(flavorDir, "Screenshots");
         var at = DateTimeOffset.FromUnixTimeSeconds(e.At).LocalDateTime;
         var fresh = DateTime.Now - at < TimeSpan.FromSeconds(30);
 
         for (var i = 0; i < (fresh ? 15 : 1); i++)
         {
-            if (Directory.Exists(dir))
+            if (ScreenshotFileFor(e) is { } match)
             {
-                var match = new DirectoryInfo(dir).EnumerateFiles()
-                    .Where(f => f.Extension is ".jpg" or ".jpeg" or ".png")
-                    .Where(f => f.LastWriteTime >= at.AddSeconds(-2) && f.LastWriteTime <= at.AddSeconds(20))
-                    .OrderBy(f => f.LastWriteTime)
-                    .FirstOrDefault();
-                if (match is not null)
-                {
-                    if (fresh) await Task.Delay(500); // let the game finish writing it
-                    return match.FullName;
-                }
+                if (fresh) await Task.Delay(500); // let the game finish writing it
+                return match;
             }
             await Task.Delay(1000);
         }
 
         Log.Warn($"{Tag}No screenshot found for {Describe(e)}, posting without one.");
         return null;
+    }
+
+    // The first picture written from just before the event to 20 seconds after. (Data grid
+    // screenshots are deleted as soon as they're read, so they don't get picked here.)
+    string? ScreenshotFileFor(Entry e)
+    {
+        var dir = Path.Combine(flavorDir, "Screenshots");
+        if (!Directory.Exists(dir)) return null;
+        var at = DateTimeOffset.FromUnixTimeSeconds(e.At).LocalDateTime;
+        return new DirectoryInfo(dir).EnumerateFiles()
+            .Where(f => f.Extension is ".jpg" or ".jpeg" or ".png")
+            .Where(f => f.LastWriteTime >= at.AddSeconds(-2) && f.LastWriteTime <= at.AddSeconds(20))
+            .OrderBy(f => f.LastWriteTime)
+            .FirstOrDefault()?.FullName;
+    }
+
+    static void TryDelete(string file)
+    {
+        try { File.Delete(file); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
     static bool Wanted(Entry e, FlavorSettings s) => e.Kind switch
@@ -248,6 +284,8 @@ sealed class Tracker : IDisposable
             }
         }
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
+        // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
+        chars.AddRange(presence.Values.Select(ToSnapshot));
         return new TrackerData(events.Values.ToList(), chars);
     }
 

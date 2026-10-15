@@ -488,22 +488,55 @@ end
 -- boss corpse, the death screen).
 local SHOT_DELAY = { level = 1.0, boss = 1.5, loot = 0.3, mount = 0.5, death = 0.2 }
 
+-- Will the app post this event? Settings.lua carries the app's "What gets posted" choices, so
+-- the addon only sends events live (and screenshots them) when they'll actually be posted.
+-- Without those settings (an older app), everything counts as wanted.
+local function wanted(e)
+  local post = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.post
+  if not post then return true end
+  if e.kind == "level" then
+    local l = post.level
+    if not l or not l.on then return false end
+    local every = (e.level <= (l.split or 0)) and (l.before or 1) or (l.after or 1)
+    return e.level % math.max(1, every) == 0
+  elseif e.kind == "loot" then
+    if (e.quality or 0) >= 4 then return post.epic and true or false end
+    return post.rare and true or false
+  end
+  return post[e.kind] and true or false
+end
+
 local function wantsScreenshot(kind)
   local s = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.screenshot
   return s and s[kind] and type(Screenshot) == "function"
 end
 
--- Stores an event in SavedVariables, sends it live and takes a screenshot if the app asked for
--- one for this kind of event. The app finds the picture in the Screenshots folder by its time.
+-- Stores an event in SavedVariables. Events that will be posted also go out live, and get a
+-- screenshot if the app asked for one for that kind. Everything else reaches the app on the
+-- next /reload or logout, without any screenshots.
 local function addEvent(e)
+  table.insert(WoWCharacterTrackerDB.events, e)
+  if not wanted(e) then return end
   local shot = wantsScreenshot(e.kind)
   if shot then e.shot = true end
-  table.insert(WoWCharacterTrackerDB.events, e)
   sendLive(e)
   if shot then
     table.insert(shotQueue, { delay = SHOT_DELAY[e.kind] or 0.5 })
     processShots()
   end
+end
+
+-- One live check-in per login, so the app shows the character (level, gear, zone) right away.
+local checkedIn = false
+local function checkIn()
+  if checkedIn or not WoWCharacterTrackerDB or WoWCharacterTrackerDB.live == false then return end
+  checkedIn = true
+  local e = characterInfo()
+  e.kind = "snapshot"
+  e.played = playedNow()
+  e.at = time()
+  e.id = string.format("%s:snapshot:%d", e.guid, e.at)
+  sendLive(e)
 end
 
 -- Events ---------------------------------------------------------------------
@@ -744,6 +777,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
   elseif event == "PLAYER_ENTERING_WORLD" then
     -- Gear and spec info can take a few seconds after login. Snapshot then, and every 5 minutes.
     C_Timer.After(10, saveSnapshot)
+    C_Timer.After(15, checkIn)
     if not snapshotTicker and C_Timer.NewTicker then snapshotTicker = C_Timer.NewTicker(300, saveSnapshot) end
 
   elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"

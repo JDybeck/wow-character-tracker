@@ -65,6 +65,8 @@ Treat the link like a password: anyone with it can post in that channel. The app
 
 WoW addons can't make network calls and only save their data on `/reload` or logout. The one file an addon can make the game write right away is a screenshot. So for each event, the addon shows a small black and white grid in the top-left corner for a single frame, takes a screenshot and hides the grid again. The app reads the event from the grid within a second, posts it and deletes that screenshot. You might notice a brief flicker in the corner. While that one screenshot is taken, the screenshot format is set to JPEG at full quality (your own settings come right back) and the "Screen captured" message is hidden.
 
+Only events that will actually be posted (by your "What gets posted" settings) go out this way, plus one check-in about 15 seconds after you log in, so your character's row in the app updates right away. Everything else, like a level that isn't posted, reaches the app on your next `/reload` or logout, without any screenshots. In-game screenshots you turned on are only kept for events that get posted.
+
 The saved data is the backup: anything that didn't come through live gets posted on your next `/reload` or logout, and nothing is posted twice.
 
 Level times come from `RequestTimePlayed()`, which returns total time played and time played on the current level. Right after a level-up the "current level" part is about zero, so the addon stores the total at the start of each level, and the finished level's time is the difference. If you install the addon mid-level, that first level has no baseline and is skipped.
