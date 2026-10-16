@@ -35,6 +35,12 @@ pcall(frame.RegisterEvent, frame, "PLAYER_SPECIALIZATION_CHANGED")
 pcall(frame.RegisterEvent, frame, "TRAIT_CONFIG_UPDATED")
 pcall(frame.RegisterEvent, frame, "CHARACTER_POINTS_CHANGED")
 pcall(frame.RegisterEvent, frame, "PLAYER_GUILD_UPDATE")
+pcall(frame.RegisterEvent, frame, "ADDON_ACTION_BLOCKED")
+pcall(frame.RegisterEvent, frame, "ADDON_ACTION_FORBIDDEN")
+
+-- What the addon did last, saved with any "blocked from an action" report.
+local lastDoing = "nothing yet"
+local function doing(what) lastDoing = date("%H:%M:%S") .. " " .. what end
 frame:RegisterEvent("SCREENSHOT_SUCCEEDED")
 frame:RegisterEvent("SCREENSHOT_FAILED")
 
@@ -171,6 +177,23 @@ local function getRetailTalentSplit(specName)
   return text
 end
 
+-- Forever has specs under C_SpecializationInfo instead of the global GetSpecialization.
+local function getSpecIndex()
+  if type(GetSpecialization) == "function" then return GetSpecialization() end
+  if C_SpecializationInfo and C_SpecializationInfo.GetSpecialization then return C_SpecializationInfo.GetSpecialization() end
+  return nil
+end
+
+local function getForeverSpec()
+  local spec = getSpecIndex()
+  if not spec then return nil end
+  local info = (C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfo) or GetSpecializationInfo
+  if not info then return nil end
+  local ok, _, name = pcall(info, spec)
+  if ok and name and name ~= "" then return name end
+  return nil
+end
+
 -- Forever (Classic+) uses the modern trait system without retail's specs. Points are summed per
 -- sub-tree (named, e.g. "Holy 5 / Protection 10 / Retribution 0"); without sub-trees it's the total.
 local function getTraitTalents()
@@ -195,6 +218,7 @@ local function getTraitTalents()
     end
   end
   if total == 0 then return nil end
+  local specName = getForeverSpec()
   if #subs > 1 and C_Traits.GetSubTreeInfo then
     table.sort(subs)
     local parts = {}
@@ -202,8 +226,9 @@ local function getTraitTalents()
       local info = C_Traits.GetSubTreeInfo(configID, sub)
       parts[#parts + 1] = string.format("%s %d", info and info.name or "?", bySub[sub])
     end
-    return table.concat(parts, " / ")
+    return table.concat(parts, " / "), specName
   end
+  if specName then return string.format("%s %d", specName, total), specName end
   return string.format("%d points", total)
 end
 
@@ -236,8 +261,8 @@ local function getTalents()
     if ok and split then return split, specName end
     return nil, specName
   end
-  local ok, traits = pcall(getTraitTalents)
-  if ok then return traits end
+  local ok, traits, specName = pcall(getTraitTalents)
+  if ok then return traits, specName end
   return nil
 end
 
@@ -267,9 +292,12 @@ end
 
 -- "TANK", "HEALER" or "DAMAGER" on retail, nil where there are no specs.
 local function getRole()
-  if type(GetSpecialization) ~= "function" or type(GetSpecializationRole) ~= "function" then return nil end
-  local spec = GetSpecialization()
-  if spec then return GetSpecializationRole(spec) end
+  if type(GetSpecializationRole) ~= "function" then return nil end
+  local spec = getSpecIndex()
+  if spec then
+    local ok, role = pcall(GetSpecializationRole, spec)
+    if ok then return role end
+  end
   return nil
 end
 
@@ -370,6 +398,7 @@ end
 local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "professions", "zone", "played", "crests", "money" }
 
 local function saveSnapshot()
+  doing("snapshot")
   local guid = UnitGUID("player")
   if not guid then return end
   local info = characterInfo()
@@ -639,12 +668,14 @@ processShots = function()
   C_Timer.After(5, function() if shotItem == item then shotDone() end end)
 
   if item.bits then
+    doing("data grid screenshot")
     drawGrid(item.bits)
     useGridShotSettings()
     grid:Show()
     onNextFrame(function() Screenshot() end) -- let the grid be drawn once first
   else
     C_Timer.After(item.delay or 0.5, function()
+      doing("event screenshot")
       hideChat()
       onNextFrame(function() Screenshot() end)
     end)
@@ -736,6 +767,7 @@ local function mutePlayed()
 end
 
 local function requestPlayed()
+  doing("RequestTimePlayed")
   suppressChat = true
   mutePlayed()
   RequestTimePlayed()
@@ -960,6 +992,16 @@ frame:SetScript("OnEvent", function(_, event, ...)
   if event == "COMBAT_LOG_EVENT_UNFILTERED" then
     onCombatLog()
 
+  elseif event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
+    -- The game names the function it blocked. Kept (last 10) so it can be tracked down.
+    local addon, func = ...
+    if addon ~= ADDON or not WoWCharacterTrackerDB then return end
+    local list = WoWCharacterTrackerDB.blocked or {}
+    table.insert(list, string.format("%s %s %s (in combat: %s, last thing we did: %s)", date("%H:%M:%S"), event,
+      tostring(func), tostring(InCombatLockdown()), lastDoing))
+    while #list > 10 do table.remove(list, 1) end
+    WoWCharacterTrackerDB.blocked = list
+
   elseif event == "ADDON_LOADED" then
     if (...) ~= ADDON then return end
     WoWCharacterTrackerDB = WoWCharacterTrackerDB or {}
@@ -1139,6 +1181,16 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
         end
       end
       add("nodes: " .. #nodes .. ", with ranks: " .. ranked)
+      -- Where the nodes sit, in case the classic three trees are side by side in one tree.
+      local pos = {}
+      for _, nodeID in ipairs(nodes) do
+        local n = C_Traits.GetNodeInfo(configID, nodeID)
+        if n then pos[#pos + 1] = string.format("%s,%s:%s", tostring(n.posX), tostring(n.posY), tostring(n.ranksPurchased or 0)) end
+      end
+      add("node pos x,y:ranks: " .. table.concat(pos, " "))
+      if C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfo then
+        add("spec info: " .. dump(pcall(C_SpecializationInfo.GetSpecializationInfo, C_SpecializationInfo.GetSpecialization() or 1)))
+      end
       for s, r in pairs(subs) do
         local info = tonumber(s) and C_Traits.GetSubTreeInfo and C_Traits.GetSubTreeInfo(configID, tonumber(s))
         add("subtree " .. s .. " (" .. tostring(info and info.name) .. "): " .. r .. " ranks")

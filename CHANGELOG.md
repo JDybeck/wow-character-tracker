@@ -5,6 +5,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 ## v0.11.0
 
 - Forever talents: read from Forever's talent trees (it has no classic talent tabs), e.g. "Holy 7 / Protection 3 / Retribution 0". Talents also update again after the first save.
+- Forever talents show the spec, like "Retribution 16".
+- If the game ever blocks the addon ("blocked from an action"), the addon notes which function it was, so it can be fixed.
 - Forever surnames: the full name (Ronnie Raket) is stored and shown. What gets posted has "Name in posts": full name, first name or surname, for posts and character cards. Party members in boss posts get their surname too.
 - The app updates the addon in your game folders on its own when the app is newer. Installing it the first time still waits for your click.
 
