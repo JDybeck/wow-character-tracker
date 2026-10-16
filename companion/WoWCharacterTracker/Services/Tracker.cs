@@ -81,7 +81,10 @@ sealed class Tracker : IDisposable
         _ = SyncAsync().ContinueWith(_ => shots.Start()); // live events only after old ones are handled
     }
 
-    void OnLiveEntry(Entry e)
+    // When each live event's data screenshot was taken, for the timing on its post line.
+    readonly ConcurrentDictionary<string, DateTime> sentAt = new();
+
+    void OnLiveEntry(Entry e, DateTime shotAt)
     {
         // Every live event carries the character's current state, so the list updates right away.
         presence[e.Guid] = e;
@@ -99,10 +102,7 @@ sealed class Tracker : IDisposable
         else
         {
             live[e.Id] = e;
-            // Shows where the time goes between the moment and the post.
-            var lag = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - e.At;
-            Log.Info($"{Tag}Got {Describe(e)}, {lag}s after it happened" +
-                     (lag >= 5 ? " (the addon holds instant posts until you're out of combat)." : "."));
+            sentAt[e.Id] = shotAt;
         }
         _ = SyncAsync();
     }
@@ -205,7 +205,7 @@ sealed class Tracker : IDisposable
                             {
                                 posted.Add(key);
                                 sent++;
-                                Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.");
+                                Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.{Timing(e)}");
                             }
                             else allSent = false;
                         }
@@ -290,6 +290,19 @@ sealed class Tracker : IDisposable
         _ => false,
     };
 
+    // For instant posts: how long from the moment to Discord, and where that time went.
+    // " In Discord 14s after it happened: the game sent it after 11s (instant posts wait until combat ends), then 3s for the screenshot and upload."
+    string Timing(Entry e)
+    {
+        if (!sentAt.TryRemove(e.Id, out var shot)) return ""; // from the saved file, not instant
+        var happened = DateTimeOffset.FromUnixTimeSeconds(e.At).LocalDateTime;
+        var total = Math.Max(0, (int)Math.Round((DateTime.Now - happened).TotalSeconds));
+        var inGame = Math.Clamp((int)Math.Round((shot - happened).TotalSeconds), 0, total);
+        var here = total - inGame;
+        var why = inGame >= 4 ? " (instant posts wait until combat ends)" : "";
+        return $" In Discord {total}s after it happened: the game sent it after {inGame}s{why}, then {here}s for the screenshot and upload.";
+    }
+
     public static string Describe(Entry e) => e.Kind switch
     {
         "boss" => $"{e.Char} killed {e.Boss}",
@@ -300,7 +313,7 @@ sealed class Tracker : IDisposable
         "makgora" => $"{e.Char} won a Mak'gora against {e.Opponent}",
         "mplus" => $"{e.Char} reached {e.Step} Mythic+ rating ({e.Rating})",
         "pvp" => $"{e.Char} reached {e.Step} in {e.Bracket} ({e.Rating})",
-        _ => e.Seconds > 0 ? $"{e.Char} dinged level {e.Level} ({Format.Duration(e.Seconds)})" : $"{e.Char} dinged level {e.Level}",
+        _ => e.Seconds > 0 ? $"{e.Char} dinged level {e.Level} in {Format.Duration(e.Seconds)}" : $"{e.Char} dinged level {e.Level}",
     };
 
     // Merges every account's file plus anything that came in live. A character only lives on one

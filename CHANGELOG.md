@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.12.3
+
+- Clearer console: each instant post's line says how long it took to reach Discord and where the time went, e.g. "In Discord 15s after it happened: the game sent it after 13s (instant posts wait until combat ends), then 2s for the screenshot and upload."
+- Level-ups read "dinged level 12 in 21m 40s" in the console and status line.
+
 ## v0.12.2
 
 - Changing settings while the game runs shows a banner at the top: type /reload in game to use them. It goes away by itself once the game has loaded them (after a /reload, a new login or closing the game).
