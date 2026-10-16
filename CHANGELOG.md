@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.12.5
+
+- The epic loot Test posts Ashkandi, Greatsword of the Brotherhood (Arcanite Reaper is only rare).
+- Items Wowhead's Forever database doesn't have yet (like raid gear) get their tooltip picture from its Classic database instead.
+
 ## v0.12.4
 
 - Fixed level-ups (and other moments) not being recorded at the ding on Forever: the game hides some numbers like your stats from addons at moments like a ding, and reading them made the addon give up on the whole event. Those numbers are now skipped, and one detail that can't be read never stops an event again.

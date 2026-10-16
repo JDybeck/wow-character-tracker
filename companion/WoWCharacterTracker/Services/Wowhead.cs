@@ -40,7 +40,14 @@ static partial class Wowhead
         }
         try
         {
-            var json = await Http.GetStringAsync($"https://nether.wowhead.com/{TooltipPath(key)}");
+            string json;
+            try { json = await Http.GetStringAsync($"https://nether.wowhead.com/{TooltipPath(key)}"); }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound && key.StartsWith("forever/"))
+            {
+                // Wowhead's Forever database only has part of the items so far (no raid gear yet);
+                // Forever's items are mostly Classic's, so Classic's tooltip stands in.
+                json = await Http.GetStringAsync($"https://nether.wowhead.com/{TooltipPath("classic/" + key["forever/".Length..])}");
+            }
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             string Str(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
