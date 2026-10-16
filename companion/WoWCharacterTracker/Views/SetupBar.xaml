@@ -7,27 +7,27 @@
              xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
              xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure">
   <StackPanel>
-  <Border Visibility="{Binding ShowBanner, Converter={StaticResource Visible}}" Margin="0,0,0,14" Padding="16,12" CornerRadius="10"
+  <Border Visibility="{Binding Updates.ShowBanner, Converter={StaticResource Visible}}" Margin="0,0,0,14" Padding="16,12" CornerRadius="10"
           Background="{DynamicResource IndigoPanel}" BorderBrush="{DynamicResource IndigoLine}" BorderThickness="1">
     <StackPanel>
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-          <Button Style="{StaticResource GhostButton}" Content="What's new" Command="{Binding ToggleNotesCommand}" Margin="0,0,6,0" Padding="10,4"
-                  Visibility="{Binding BannerNotes, Converter={StaticResource VisibleIfSet}}"/>
-          <Button Style="{StaticResource IndigoButton}" Content="Update now" Command="{Binding InstallUpdateCommand}" Margin="0,0,6,0" Padding="12,5"
-                  Visibility="{Binding HasUpdate, Converter={StaticResource Visible}}"/>
-          <Button Style="{StaticResource GhostButton}" Padding="8,4" Command="{Binding CloseBannerCommand}" ToolTip="Close">
+          <Button Style="{StaticResource GhostButton}" Content="What's new" Command="{Binding Updates.ToggleNotesCommand}" Margin="0,0,6,0" Padding="10,4"
+                  Visibility="{Binding Updates.BannerNotes, Converter={StaticResource VisibleIfSet}}"/>
+          <Button Style="{StaticResource IndigoButton}" Content="Update now" Command="{Binding Updates.InstallUpdateCommand}" Margin="0,0,6,0" Padding="12,5"
+                  Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Visible}}"/>
+          <Button Style="{StaticResource GhostButton}" Padding="8,4" Command="{Binding Updates.CloseBannerCommand}" ToolTip="Close">
             <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="11" Foreground="{StaticResource Muted}"/>
           </Button>
         </StackPanel>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" Foreground="{DynamicResource Indigo}" FontSize="15" Margin="0,0,10,0"/>
-          <TextBlock Text="{Binding BannerTitle}" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding Updates.BannerTitle}" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
         </StackPanel>
       </DockPanel>
       <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" Margin="25,8,0,0"
-                    Visibility="{Binding ShowNotes, Converter={StaticResource Visible}}">
-        <TextBlock Text="{Binding BannerNotes}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" LineHeight="19"/>
+                    Visibility="{Binding Updates.ShowNotes, Converter={StaticResource Visible}}">
+        <TextBlock Text="{Binding Updates.BannerNotes}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" LineHeight="19"/>
       </ScrollViewer>
     </StackPanel>
   </Border>

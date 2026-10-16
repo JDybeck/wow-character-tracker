@@ -9,9 +9,10 @@ namespace WoWCharacterTracker.ViewModels;
 
 sealed class MainViewModel : Observable
 {
-    public MainViewModel(bool backfill)
+    public MainViewModel(bool backfill, bool justUpdated)
     {
         Backfill = backfill;
+        Updates = new UpdatesViewModel(justUpdated);
         Log.Written += line => OnUi(() =>
         {
             Logs.Insert(0, line);
@@ -26,10 +27,6 @@ sealed class MainViewModel : Observable
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
         TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
-        CheckUpdatesCommand = new RelayCommand(_ => CheckForUpdatesAsync(manual: true));
-        InstallUpdateCommand = new RelayCommand(_ => InstallUpdateAsync(), _ => update is not null);
-        ToggleNotesCommand = new RelayCommand(_ => ShowNotes = !ShowNotes);
-        CloseBannerCommand = new RelayCommand(_ => ShowBanner = false);
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
         ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
         SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
@@ -86,79 +83,8 @@ sealed class MainViewModel : Observable
         }
     }
 
-    // --- updates ---
-
-    public bool JustUpdated { get; init; }
-    public event Action? UpdateStarted;
-    public string VersionText => $"v{Updater.Current}";
-
-    Updater.Release? update;
-    string bannerTitle = "";
-    public string BannerTitle { get => bannerTitle; set => Set(ref bannerTitle, value); }
-    string bannerNotes = "";
-    public string BannerNotes { get => bannerNotes; set => Set(ref bannerNotes, value); }
-    bool showBanner;
-    public bool ShowBanner { get => showBanner; set => Set(ref showBanner, value); }
-    bool showNotes;
-    public bool ShowNotes { get => showNotes; set => Set(ref showNotes, value); }
-    public bool HasUpdate => update is not null;
-
-    // What the update button says: "Check for updates", "Checking...", "Up to date", "v0.11.0 ready".
-    string updateButtonText = "Check for updates";
-    public string UpdateButtonText { get => updateButtonText; set => Set(ref updateButtonText, value); }
-
-    // Quietly on start and every few hours after; the button shows the answer too.
-    async Task CheckForUpdatesAsync(bool manual)
-    {
-        if (manual) UpdateButtonText = "Checking...";
-        var latest = await Updater.LatestAsync();
-        if (latest is null)
-        {
-            if (manual) Log.Warn("Couldn't reach GitHub to check for updates.");
-            UpdateButtonText = manual ? "Couldn't check" : "Check for updates";
-            return;
-        }
-        if (latest.Version <= Updater.Current)
-        {
-            if (manual) Log.Info($"You have the latest version ({VersionText}).");
-            UpdateButtonText = "Up to date";
-            return;
-        }
-        UpdateButtonText = $"v{latest.Version} ready";
-        update = latest;
-        BannerTitle = $"Version {latest.Version} is available (you have {Updater.Current}).";
-        BannerNotes = latest.Notes.Trim();
-        ShowNotes = false;
-        ShowBanner = true;
-        Raise(nameof(HasUpdate));
-        Log.Info($"Update available: {latest.Version}.");
-    }
-
-    async Task InstallUpdateAsync()
-    {
-        if (update is null) return;
-        Log.Info($"Downloading version {update.Version}...");
-        var problem = await Updater.InstallAsync(update);
-        if (problem is null)
-        {
-            UpdateStarted?.Invoke(); // the new version has started and waits for this one to exit
-            return;
-        }
-        Log.Error(problem);
-        if (update.PageUrl.Length > 0)
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(update.PageUrl) { UseShellExecute = true });
-    }
-
-    // After an update: what's new in this version.
-    async Task ShowWhatsNewAsync()
-    {
-        Log.Success($"Updated to {VersionText}.");
-        if (await Updater.ForVersionAsync(Updater.Current) is not { } release) return;
-        BannerTitle = $"Updated to {VersionText}. Here's what's new:";
-        BannerNotes = release.Notes.Trim();
-        ShowNotes = true;
-        ShowBanner = true;
-    }
+    // The update check, banner and install.
+    public UpdatesViewModel Updates { get; }
 
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
@@ -233,10 +159,6 @@ sealed class MainViewModel : Observable
     public ICommand ToggleCardOptionsCommand => new RelayCommand(_ => ShowCardOptions = !ShowCardOptions);
     public ICommand AddTagCommand { get; }
     public ICommand TestKindCommand { get; }
-    public ICommand CheckUpdatesCommand { get; }
-    public ICommand InstallUpdateCommand { get; }
-    public ICommand ToggleNotesCommand { get; }
-    public ICommand CloseBannerCommand { get; }
     public ICommand DeleteTagCommand { get; }
     public ICommand ToggleAddWebhookCommand { get; }
     public ICommand SaveWebhookCommand { get; }
@@ -274,13 +196,7 @@ sealed class MainViewModel : Observable
 
         // Test runs stay off the network for this, unless they fake an old version to test it.
         if (Config.IsTest && Environment.GetEnvironmentVariable("CHARACTERTRACKER_FAKE_VERSION") is null) return;
-        if (JustUpdated) await ShowWhatsNewAsync();
-        else await CheckForUpdatesAsync(manual: false);
-
-        // The app can sit in the tray for days, so look again every 6 hours.
-        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(6) };
-        timer.Tick += async (_, _) => { if (update is null) await CheckForUpdatesAsync(manual: false); };
-        timer.Start();
+        await Updates.StartAsync();
     }
 
     void RefreshWebhooks()

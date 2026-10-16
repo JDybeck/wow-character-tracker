@@ -37,8 +37,8 @@ public partial class App : Application
         base.OnStartup(e);
         Updater.CleanUp();
 
-        vm = new MainViewModel(backfill: e.Args.Contains("--backfill")) { JustUpdated = e.Args.Contains("--updated") };
-        vm.UpdateStarted += QuitForUpdate;
+        vm = new MainViewModel(backfill: e.Args.Contains("--backfill"), justUpdated: e.Args.Contains("--updated"));
+        vm.Updates.UpdateStarted += QuitForUpdate;
         var window = new MainWindow(vm);
         MainWindow = window;
         window.Closing += (_, args) =>

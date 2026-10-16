@@ -466,47 +466,8 @@ sealed class FlavorViewModel : Observable
             : $"Watching {Name}, {chars}, last post: {Tracker.Describe(lastPost)}";
     }
 
-    // A sample of any kind of post, using the selected (or most recently played) character so it
-    // looks familiar. Item and boss details are made up.
-    public Entry SampleEntry(string kind = "level")
-    {
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var c = SelectedCharacter ?? Characters.FirstOrDefault();
-        var e = c is null
-            ? new Entry
-            {
-                Id = "test", Char = "Testy", Level = 12, At = now, Zone = "Elwynn Forest",
-                Professions = "Mining 75, Herbalism 60", Talents = "Arms 5 / Fury 2 / Protection 0", Class = "Warrior",
-                ClassFile = "WARRIOR", Race = "Human", RaceFile = "Human", Played = 4 * 3600 + 12 * 60,
-            }
-            : new Entry
-            {
-                Id = "test", Char = c.Name, Surname = c.Surname, Realm = c.Realm, Level = Math.Max(c.Level, 2), At = now,
-                Zone = c.Zone, Professions = c.Professions, Talents = c.Talents, Spec = c.Spec, Class = c.ClassName,
-                ClassFile = c.ClassFile, Race = c.Race, RaceFile = c.RaceFile, Sex = c.Sex, Played = c.Played,
-                Hardcore = c.Hardcore, Ruleset = c.Ruleset,
-            };
-
-        // Other characters in the list stand in as the group for a boss kill.
-        var group = string.Join(",", Characters.Where(o => o != c).Take(4)
-            .Select(o => $"{o.Name}~{o.Level}~{o.ClassFile}~{o.ClassName}~{o.Race}~"));
-
-        return kind switch
-        {
-            "rare" => e with { Kind = "loot", Item = "Cruel Barb", ItemId = 5191, Quality = 3, Zone = "The Deadmines" },
-            "epic" => e with { Kind = "loot", Item = "Arcanite Reaper", ItemId = 12784, Quality = 4 },
-            "legendary" => e with { Kind = "loot", Item = "Thunderfury, Blessed Blade of the Windseeker", ItemId = 19019, Quality = 5 },
-            "max" => e with { Kind = "level", Level = Flavor == Flavors.Forever ? 60 : 90, Seconds = 2 * 3600 + 14 * 60, MaxLevel = true, Group = group, GroupSize = 5 },
-            "mount" => e with { Kind = "mount", Mount = "Pinto Bridle", ItemId = 2414, Bought = true },
-            "boss" => e with { Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", Group = group, GroupSize = 5 },
-            "death" => e with { Kind = "death", Killer = "Defias Pillager", Gold = 123456, Hardcore = true },
-            "duel" => e with { Kind = "duel", Opponent = "Grimtusk" },
-            "makgora" => e with { Kind = "makgora", Opponent = "Grimtusk", Hardcore = true },
-            "mplus" => e with { Kind = "mplus", Step = 2000, Rating = 2034 },
-            "pvp" => e with { Kind = "pvp", Step = 1800, Rating = 1812, Bracket = "3v3" },
-            _ => e with { Kind = "level", Seconds = 18 * 60 + 4 },
-        };
-    }
+    // A sample of that kind of post for the Test buttons, with the selected (or latest) character.
+    public Entry SampleEntry(string kind = "level") => SampleEvents.For(kind, Flavor, SelectedCharacter ?? Characters.FirstOrDefault(), Characters);
 
     public void Shutdown() => tracker?.Dispose();
 }
