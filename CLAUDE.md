@@ -67,8 +67,9 @@ Faction and guild were deliberately left out. No professions means no profession
 - Hardcore death killer again without the combat log (death recap API or the hardcore death chat message), once hardcore is out on Forever.
 
 - Minimap button for the addon (with the commands and a test button).
-- Smaller data grid: 2 px cells, PNG for the grid shot, one-letter keys, no repeated GUID in the id, new magic byte so the app reads old and new grids.
-- Read boss kills and deaths from the combat log (WoWCombatLog.txt is written live when combat logging is on; it has ENCOUNTER_END and the group's COMBATANT_INFO). Addons can't add their own lines to it, so it can't replace the grid for level-ups, loot or mounts.
+- Character renders as portraits: Retail via Raider.IO's public API (`raider.io/api/v1/characters/profile?region=&realm=&name=` gives `thumbnail_url` on render.worldofwarcraft.com; swap `avatar` for `inset` for a bigger one; needs the region from `GetCurrentRegion()`). Blizzard's own Character Media API needs a client secret, so not in a public app. Forever once it has an armory.
+- Forever talent calculator link with the points filled in (Wowhead's Forever code format isn't the classic one).
+- Reading WoWCombatLog.txt (written live when combat logging is on) for boss kills and deaths, since addons can't read the combat log anymore.
 - Per-character posting rules (overriding the tab's What gets posted).
 - Baganator integration: read its SavedVariables (bags, bank, warband) so the app can show what each character carries. Check its data format and whether it's stable across versions first.
 

@@ -84,6 +84,16 @@ Only events that will actually be posted go out this way, plus one check-in abou
 
 Level times come from `RequestTimePlayed()`: the addon stores total played at the start of each level, and the finished level's time is the difference. Installing the addon mid-level is fine, the first level after installing is timed in full.
 
+## Ideas and plans
+
+Not built yet, roughly in order:
+
+- **Character pictures**: the real character render as the portrait on Retail (like Raider.IO and Warcraft Logs show), and on Forever once it has an armory.
+- **Forever talent link with your build**: the Wowhead link opens the right class, but doesn't fill in your points yet.
+- **Hardcore death killer**: name what killed the character again (newer clients keep the combat log from addons).
+- **Minimap button** for the addon, with the commands and a test button.
+- **Per-character posting rules**, on top of each game's What gets posted.
+- **Bags and bank** through Baganator, so the app shows what each character carries.
 ## Notes and limits
 
 - Talents: Forever shows points in its three trees plus each pick. Retail shows points in the class, spec and hero trees.
