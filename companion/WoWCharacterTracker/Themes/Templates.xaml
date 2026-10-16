@@ -1,4 +1,4 @@
-﻿<!-- Templates and styles shared by the window's pages: coins, icon chips, list rows, tabs, column widths. -->
+<!-- Templates and styles shared by the window's pages: coins, icon chips, list rows, tabs, column widths. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WoWCharacterTracker"
@@ -36,11 +36,11 @@
     </Border>
   </DataTemplate>
   <!-- Same column widths for the header row and every character row. -->
-  <GridLength x:Key="ColClass">180</GridLength>
-  <GridLength x:Key="ColLevel">90</GridLength>
-  <GridLength x:Key="ColIlvl">100</GridLength>
-  <GridLength x:Key="ColGold">110</GridLength>
-  <GridLength x:Key="ColSeen">110</GridLength>
+  <GridLength x:Key="ColClass">130</GridLength>
+  <GridLength x:Key="ColLevel">70</GridLength>
+  <GridLength x:Key="ColIlvl">80</GridLength>
+  <GridLength x:Key="ColGold">95</GridLength>
+  <GridLength x:Key="ColSeen">85</GridLength>
 
   <Style x:Key="CharacterItem" TargetType="ListBoxItem">
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>

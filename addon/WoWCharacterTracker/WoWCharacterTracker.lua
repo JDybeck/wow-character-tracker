@@ -15,6 +15,7 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
     if (...) ~= ADDON then return end
     WoWCharacterTrackerDB = WoWCharacterTrackerDB or {}
     WoWCharacterTrackerDB.start = WoWCharacterTrackerDB.start or {}   -- [guid] = total played at the start of the current level
+    WoWCharacterTrackerDB.startLevel = WoWCharacterTrackerDB.startLevel or {} -- [guid] = the level that start belongs to
     WoWCharacterTrackerDB.events = WoWCharacterTrackerDB.events or {} -- level-ups and notable moments
     WoWCharacterTrackerDB.chars = WoWCharacterTrackerDB.chars or {}   -- [guid] = latest snapshot of that character
     if WoWCharacterTrackerDB.popup == nil then WoWCharacterTrackerDB.popup = false end
@@ -90,19 +91,30 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
     local oldStart = WoWCharacterTrackerDB.start[guid]
     ns.lastPlayed, ns.lastPlayedAt = total, time()
 
-    if ns.pendingLevel then
-      if oldStart and newStart >= oldStart then
-        local seconds = newStart - oldStart
-        ns.recordLevel(guid, ns.pendingLevel, seconds, total)
-        ns.say(string.format("Level %d took %s.", ns.pendingLevel - 1, ns.formatDuration(seconds)))
-        ns.offerPost(ns.pendingLevel)
-      else
-        ns.say("No baseline for the previous level (addon was installed mid-level), skipping.")
-      end
-      ns.pendingLevel = nil
+    -- The saved start belongs to startLevel. If that's the level before this one, a level was just
+    -- finished: right after a ding, but also later (at login) when a /reload or logout came before
+    -- the game answered the ding's /played request, which used to lose that level.
+    local level = ns.pendingLevel or UnitLevel("player")
+    local startLevel = WoWCharacterTrackerDB.startLevel[guid]
+    local finished = oldStart and newStart >= oldStart
+      and (startLevel == level - 1 or (startLevel == nil and ns.pendingLevel ~= nil))
+    local id = guid .. ":" .. level
+    local known = false
+    for _, e in ipairs(WoWCharacterTrackerDB.events) do
+      if e.id == id then known = true; break end
     end
+    if finished and not known then
+      local seconds = newStart - oldStart
+      ns.recordLevel(guid, level, seconds, total)
+      ns.say(string.format("Level %d took %s.", level - 1, ns.formatDuration(seconds)))
+      if ns.pendingLevel then ns.offerPost(level) end
+    elseif ns.pendingLevel and not finished then
+      ns.say("No baseline for the previous level (addon was installed mid-level), skipping.")
+    end
+    ns.pendingLevel = nil
 
     WoWCharacterTrackerDB.start[guid] = newStart
+    WoWCharacterTrackerDB.startLevel[guid] = level
     ns.saveSnapshot()
     -- Not right away: frames registered during this event could still get this same message.
     C_Timer.After(0.5, ns.unmutePlayed)

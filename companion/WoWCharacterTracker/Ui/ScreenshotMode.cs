@@ -9,7 +9,8 @@ namespace WoWCharacterTracker.Ui;
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
 //   extra:  rename | options (a webhook) | testchars | testall (every Test button) | addonupdate
-//   extra2: cardopts (card options open) | post (Post to Discord for the first character)
+//   extra2: cardopts (card options open) | post (Post to Discord for the first character) | remove (its remove question) | sync (Sync now)
+// CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
     public static string? Target => Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT") is { Length: > 0 } s ? s : null;
@@ -18,6 +19,9 @@ static class ScreenshotMode
     {
         window.Loaded += async (_, _) =>
         {
+            var size = (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_SIZE") ?? "").Split('x');
+            if (int.TryParse(size[0], out var width)) window.Width = width;
+            if (size.Length > 1 && int.TryParse(size[1], out var height)) window.Height = height;
             await Task.Delay(4000);
             var view = (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_VIEW") ?? "").Split(':');
             string Part(int i) => view.Length > i ? view[i] : "";
@@ -32,6 +36,8 @@ static class ScreenshotMode
                     vm.TestKindCommand.Execute(kind);
             if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(); // show the details panel too
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
+            if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
+            if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
             if (Part(3) == "posthighlight" && vm.SelectedFlavor?.SelectedCharacter?.Highlights.FirstOrDefault() is { } h)
             {

@@ -16,6 +16,13 @@ sealed class BoolToVisibility : IValueConverter
         throw new NotSupportedException();
 }
 
+// true <-> false. Keeps a menu's button from reopening the menu its own click just closed.
+sealed class Not : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is not true;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is not true;
+}
+
 // Visible when the bound value equals the ConverterParameter, e.g. the page name.
 sealed class EqualsToVisibility : IValueConverter
 {

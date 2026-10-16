@@ -102,6 +102,10 @@ sealed class CharacterRow : Observable
     string newTag = "";
     public string NewTag { get => newTag; set => Set(ref newTag, value); }
 
+    // Remove from list asks first, right there in the details.
+    bool confirmRemove;
+    public bool ConfirmRemove { get => confirmRemove; set => Set(ref confirmRemove, value); }
+
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
     public string PlayedText => Played > 0 ? Format.Played(Played) : "-";

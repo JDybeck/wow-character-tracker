@@ -21,6 +21,9 @@ class Config
     // Null until the app has run once; it then turns this on.
     public bool? OpenWithWow { get; set; }
 
+    // With Open with World of Warcraft on: hide the window again when the game closes.
+    public bool HideWhenGameCloses { get; set; } = true;
+
     // Parts of the character card (Post to Discord) the user turned off. Guild is off unless picked.
     public List<string> CardHidden { get; set; } = ["guild"];
 

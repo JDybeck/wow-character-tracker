@@ -8,6 +8,11 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Post any highlight (loot, boss kill, mount...) to Discord from the character details, with the small button at the end of its row.
 - Looted items link to Wowhead in the post's text too.
 - With the game closed, the app stops its once-a-minute check of the saved files and keeps showing the last known state.
+- Fixed a lost level: a /reload or logout right after a ding (before the game answered with /played) skipped that level in the history. The addon now catches it up at the next login.
+- Sync now shows that it's working (the icon spins) and the console says what it read and posted.
+- A settings menu (the gear at the top) with Open with World of Warcraft, Test characters and a new switch to keep the window open when the game closes.
+- Remove from list asks right in the character details instead of a Windows dialog.
+- Narrow windows: the top bar no longer puts text behind the buttons, and the character list keeps room for names.
 
 ## v0.12.0
 

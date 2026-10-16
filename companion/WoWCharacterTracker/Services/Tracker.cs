@@ -127,9 +127,11 @@ sealed class Tracker : IDisposable
         });
     }
 
-    public async Task SyncAsync()
+    // report: say in the console what was read and posted (Sync now).
+    public async Task SyncAsync(bool report = false)
     {
         await gate.WaitAsync();
+        var sent = 0;
         try
         {
             posted ??= firstRun
@@ -198,6 +200,7 @@ sealed class Tracker : IDisposable
                             if (await new DiscordPoster(w.Url, flavor, s.NameStyle).PostAsync(e, screenshot: shot))
                             {
                                 posted.Add(key);
+                                sent++;
                                 Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.");
                             }
                             else allSent = false;
@@ -210,6 +213,12 @@ sealed class Tracker : IDisposable
             }
 
             File.WriteAllText(statePath, JsonSerializer.Serialize(posted));
+            if (report)
+            {
+                var chars = data.Characters.Select(c => c.Guid).Concat(data.Events.Select(e => e.Guid)).Distinct().Count();
+                Log.Info($"{Tag}Synced: {chars} character{(chars == 1 ? "" : "s")}, {data.Events.Count} event{(data.Events.Count == 1 ? "" : "s")}. " +
+                         (sent > 0 ? $"Posted {sent}." : "Nothing new to post. (The game saves its data on /reload or logout; instant posts arrive by themselves.)"));
+            }
         }
         catch (Exception ex)
         {

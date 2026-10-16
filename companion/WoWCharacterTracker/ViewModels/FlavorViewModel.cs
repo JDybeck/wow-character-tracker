@@ -471,11 +471,6 @@ sealed class FlavorViewModel : Observable
     // it back), and playing the character again brings it back.
     public void RemoveCharacter(CharacterRow row)
     {
-        var answer = MessageBox.Show(
-            $"Remove {row.Name} from the list?\n\nIf you play {row.Name} again, it shows up again.",
-            "Character Tracker", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (answer != MessageBoxResult.Yes) return;
-
         Settings.Removed[row.Guid] = Math.Max(row.LastSeen, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         main.Config.Save();
         Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");

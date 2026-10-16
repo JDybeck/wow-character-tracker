@@ -19,8 +19,7 @@ sealed class MainViewModel : Observable
             while (Logs.Count > 300) Logs.RemoveAt(Logs.Count - 1);
         });
 
-        SyncCommand = new RelayCommand(_ => SelectedFlavor?.Tracker?.SyncAsync() ?? Task.CompletedTask,
-            _ => SelectedFlavor?.Tracker is not null);
+        SyncCommand = new RelayCommand(SyncNowAsync, _ => SelectedFlavor?.Tracker is not null);
         ShowPageCommand = new RelayCommand(p => Page = (string)p!);
         ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
         CopyPostingCommand = new RelayCommand(_ =>
@@ -35,6 +34,8 @@ sealed class MainViewModel : Observable
             tab.ApplyPostingCode(Clipboard.ContainsText() ? Clipboard.GetText() : "");
         });
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
+        AskRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = true);
+        CancelRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = false);
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
         PostHighlightCommand = new RelayCommand(p => PostHighlightAsync((HighlightRow)p!));
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
@@ -75,6 +76,21 @@ sealed class MainViewModel : Observable
         }
     }
 
+    public bool HideWhenGameCloses
+    {
+        get => Config.HideWhenGameCloses;
+        set
+        {
+            Config.HideWhenGameCloses = value;
+            Config.Save();
+            Raise(nameof(HideWhenGameCloses));
+        }
+    }
+
+    // The gear menu in the header.
+    bool showSettings;
+    public bool ShowSettings { get => showSettings; set => Set(ref showSettings, value); }
+
     public bool Backfill { get; }
     public Config Config { get; private set; } = new();
 
@@ -92,6 +108,25 @@ sealed class MainViewModel : Observable
                 if (FlavorTabs.FirstOrDefault(t => t.Flavor == Flavors.Forever) is { } forever) SelectedFlavor = forever;
                 Log.Info("Test characters on (Forever tab). They're never posted on their own, but Test buttons and Post to Discord work with them.");
             }
+        }
+    }
+
+    // Sync now: reads the game's saved data again and posts what's new; the button spins meanwhile.
+    bool isSyncing;
+    public bool IsSyncing { get => isSyncing; set => Set(ref isSyncing, value); }
+    async Task SyncNowAsync(object? _)
+    {
+        if (SelectedFlavor?.Tracker is not { } tracker) return;
+        IsSyncing = true;
+        Log.Info($"[{SelectedFlavor.Name}] Syncing...");
+        var started = DateTime.Now;
+        try { await tracker.SyncAsync(report: true); }
+        finally
+        {
+            // Long enough to see that something happened, even when the sync is instant.
+            var left = TimeSpan.FromMilliseconds(600) - (DateTime.Now - started);
+            if (left > TimeSpan.Zero) await Task.Delay(left);
+            IsSyncing = false;
         }
     }
 
@@ -136,6 +171,8 @@ sealed class MainViewModel : Observable
     public ICommand CopyPostingCommand { get; }
     public ICommand PastePostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
+    public ICommand AskRemoveCommand { get; }
+    public ICommand CancelRemoveCommand { get; }
     public ICommand PostCharacterCommand { get; }
     public ICommand PostHighlightCommand { get; }
 
