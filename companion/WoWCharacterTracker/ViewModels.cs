@@ -127,7 +127,65 @@ sealed record LevelRow(string LevelText, string Took, string Zone, string When);
 sealed record GroupChip(string Key, string Label);
 
 // A boss kill, rare loot, new mount or death, shown in the character details.
-sealed record HighlightRow(string Glyph, SolidColorBrush Brush, string Text, string When);
+// A small icon with text, like a crest and its count or a profession and its skill. The icon and
+// tooltip fill in once Wowhead has answered.
+sealed class IconChip(string text, string? iconUrl = null, string tooltip = "") : Observable
+{
+    public string Text { get; } = text;
+
+    string? iconUrl = iconUrl;
+    public string? IconUrl { get => iconUrl; set => Set(ref iconUrl, value); }
+
+    string tooltip = tooltip;
+    public string Tooltip { get => tooltip; set => Set(ref tooltip, value); }
+
+    // For crests: the currency id to look up.
+    public int Tag { get; init; }
+}
+
+// One part of an amount of money: "73,101" with a gold coin, "77" with a silver one...
+sealed record Coin(string Amount, SolidColorBrush Brush)
+{
+    static readonly SolidColorBrush Gold = ClassColors.Hex(0xF2C14E), Silver = ClassColors.Hex(0xC7CDD3), Copper = ClassColors.Hex(0xC27C4B);
+
+    // Everything: gold, silver and copper (leading zero parts left out).
+    public static IReadOnlyList<Coin> Full(long copper)
+    {
+        long g = copper / 10000, s = copper / 100 % 100, c = copper % 100;
+        var parts = new List<Coin>();
+        if (g > 0) parts.Add(new(g.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), Gold));
+        if (g > 0 || s > 0) parts.Add(new(s.ToString(), Silver));
+        parts.Add(new(c.ToString(), Copper));
+        return parts;
+    }
+
+    // For the list: just gold from 100g up, gold and silver below that, silver and copper under 1g.
+    public static IReadOnlyList<Coin> Short(long copper)
+    {
+        long g = copper / 10000, s = copper / 100 % 100, c = copper % 100;
+        if (g >= 100) return [new(g.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), Gold)];
+        if (g > 0) return [new(g.ToString(), Gold), new(s.ToString(), Silver)];
+        return s > 0 ? [new(s.ToString(), Silver), new(c.ToString(), Copper)] : [new(c.ToString(), Copper)];
+    }
+}
+
+// A boss kill, rare loot, new mount or death, shown in the character details. Loot and mounts
+// get the item's real icon and tooltip from Wowhead.
+sealed class HighlightRow(string glyph, SolidColorBrush brush, string text, string when, int itemId = 0) : Observable
+{
+    public string Glyph { get; } = glyph;
+    public SolidColorBrush Brush { get; } = brush;
+    public string Text { get; } = text;
+    public string When { get; } = when;
+    public int ItemId { get; } = itemId;
+
+    string? iconUrl;
+    public string? IconUrl { get => iconUrl; set { Set(ref iconUrl, value); Raise(nameof(HasIcon)); } }
+    public bool HasIcon => iconUrl is not null;
+
+    string tooltip = "";
+    public string Tooltip { get => tooltip; set => Set(ref tooltip, value); }
+}
 
 sealed class CharacterRow : Observable
 {
@@ -156,9 +214,37 @@ sealed class CharacterRow : Observable
     public required long Money { get; init; }   // copper
     public required string Crests { get; init; }
 
-    public string GoldText => Money > 0 ? $"{(Money / 10000).ToString("N0", System.Globalization.CultureInfo.InvariantCulture)}g" : "-";
     public string MoneyText => Money > 0 ? Format.Money(Money) : "-";
+    public bool HasMoney => Money > 0;
+    public IReadOnlyList<Coin> MoneyCoins => Coin.Full(Money);
+    public IReadOnlyList<Coin> ShortCoins => Coin.Short(Money);
     public bool HasCrests => Crests.Length > 0;
+    public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
+    public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
+    public bool HasProfessions => ProfessionList.Count > 0;
+
+    // Fills in icons and tooltips: crests and items from Wowhead, professions from the built-in list.
+    public async Task LoadIconsAsync(Flavor flavor)
+    {
+        CrestList = CrestChips(Crests);
+        ProfessionList = ProfessionChips(Professions);
+        Raise(nameof(CrestList));
+        Raise(nameof(ProfessionList));
+        Raise(nameof(HasProfessions));
+
+        foreach (var chip in CrestList.Where(c => c.Tag > 0))
+            if (await Wowhead.GetAsync("currency", chip.Tag, flavor) is { } info)
+            {
+                chip.IconUrl = Wowhead.IconUrl(info.Icon, "small");
+                chip.Tooltip = info.Tooltip.Length > 0 ? info.Tooltip : info.Name;
+            }
+        foreach (var h in Highlights.Where(h => h.ItemId > 0))
+            if (await Wowhead.GetAsync("item", h.ItemId, flavor) is { } info)
+            {
+                h.IconUrl = Wowhead.IconUrl(info.Icon, "small");
+                h.Tooltip = info.Tooltip;
+            }
+    }
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
 
@@ -259,10 +345,34 @@ sealed class CharacterRow : Observable
     static HighlightRow Highlight(Entry e) => e.Kind switch
     {
         "boss" => new("", ClassColors.Hex(0xFBBF24), $"Killed {e.Boss}" + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
-        "loot" => new("", ClassColors.Hex(e.Quality >= 5 ? 0xFF8000 : e.Quality == 4 ? 0xA335EE : 0x3B82F6), $"Looted {e.Item}", When(e.At)),
-        "mount" => new("", ClassColors.Hex(0x4ADE80), (e.Bought ? "Bought " : "Got ") + e.Mount, When(e.At)),
+        "loot" => new("", ClassColors.Hex(e.Quality >= 5 ? 0xFF8000 : e.Quality == 4 ? 0xA335EE : 0x3B82F6), $"Looted {e.Item}", When(e.At), e.ItemId),
+        "mount" => new("", ClassColors.Hex(0x4ADE80), (e.Bought ? "Bought " : "Got ") + e.Mount, When(e.At), e.ItemId),
         _ => new("", ClassColors.Hex(0xF87171), $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : ""), When(e.At)),
     };
+
+    // "id~qty~name,..." from newer addons; older ones wrote "Name 45, Name 120" (no icons then).
+    static IReadOnlyList<IconChip> CrestChips(string crests)
+    {
+        if (crests.Length == 0) return [];
+        if (!crests.Contains('~'))
+            return crests.Split(", ").Select(c => new IconChip(c)).ToList();
+        return crests.Split(',').Select(c => c.Split('~')).Where(p => p.Length >= 3)
+            .Select(p => new IconChip(p[1], null, p[2]) { Tag = int.TryParse(p[0], out var id) ? id : 0 })
+            .ToList();
+    }
+
+    // "Mining 104, Blacksmithing 96" with each profession's icon.
+    static IReadOnlyList<IconChip> ProfessionChips(string professions)
+    {
+        if (professions is "" or "None") return [];
+        return professions.Split(", ").Select(p =>
+        {
+            var space = p.LastIndexOf(' ');
+            var name = space > 0 ? p[..space] : p;
+            var icon = Wowhead.ProfessionIcons.TryGetValue(name, out var i) ? Wowhead.IconUrl(i, "small") : null;
+            return new IconChip(p, icon, name);
+        }).ToList();
+    }
 
     static string When(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");
     static string Pick(string? a, string? b) => a is { Length: > 0 } ? a : b ?? "";
@@ -671,24 +781,27 @@ sealed class FlavorViewModel : Observable
             r.TagOptions = main.TagOptionsFor(r.Guid);
             Characters.Add(r);
             _ = r.LoadPictureAsync();
+            _ = r.LoadIconsAsync(Flavor);
         }
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         Raise(nameof(HasCharacters));
         Raise(nameof(TotalGoldText));
+        Raise(nameof(TotalCoins));
         UpdateStatus();
     }
 
-    // "12,345g 67s 89c on Tarren Mill (3 characters)" for whatever the filter chips show.
+    // "Total gold on Tarren Mill (3 characters):" followed by the coins, for what the filter shows.
     public string TotalGoldText
     {
         get
         {
-            var total = Characters.Sum(c => c.Money);
             var where = selectedGroup is { Key.Length: > 0 } g ? $" on {g.Key}" : "";
             var count = Characters.Count;
-            return $"Total gold{where}: {Format.Money(total)} ({count} character{(count == 1 ? "" : "s")})";
+            return $"Total gold{where} ({count} character{(count == 1 ? "" : "s")}):";
         }
     }
+
+    public IReadOnlyList<Coin> TotalCoins => Coin.Full(Characters.Sum(c => c.Money));
 
     // Hides the character in the app. The game's own data isn't touched (the game would just write
     // it back), and playing the character again brings it back.
@@ -775,6 +888,10 @@ sealed class MainViewModel : Observable
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
         TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
+        CheckUpdatesCommand = new RelayCommand(_ => CheckForUpdatesAsync(manual: true));
+        InstallUpdateCommand = new RelayCommand(_ => InstallUpdateAsync(), _ => update is not null);
+        ToggleNotesCommand = new RelayCommand(_ => ShowNotes = !ShowNotes);
+        CloseBannerCommand = new RelayCommand(_ => ShowBanner = false);
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
         ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
         SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
@@ -814,6 +931,72 @@ sealed class MainViewModel : Observable
     public bool Backfill { get; }
     public Config Config { get; private set; } = new();
 
+    // --- updates ---
+
+    public bool JustUpdated { get; init; }
+    public event Action? QuitRequested;
+    public string VersionText => $"v{Updater.Current}";
+
+    Updater.Release? update;
+    string bannerTitle = "";
+    public string BannerTitle { get => bannerTitle; set => Set(ref bannerTitle, value); }
+    string bannerNotes = "";
+    public string BannerNotes { get => bannerNotes; set => Set(ref bannerNotes, value); }
+    bool showBanner;
+    public bool ShowBanner { get => showBanner; set => Set(ref showBanner, value); }
+    bool showNotes;
+    public bool ShowNotes { get => showNotes; set => Set(ref showNotes, value); }
+    public bool HasUpdate => update is not null;
+
+    // Quietly on start; the button says "up to date" too.
+    async Task CheckForUpdatesAsync(bool manual)
+    {
+        var latest = await Updater.LatestAsync();
+        if (latest is null)
+        {
+            if (manual) Log.Warn("Couldn't reach GitHub to check for updates.");
+            return;
+        }
+        if (latest.Version <= Updater.Current)
+        {
+            if (manual) Log.Info($"You have the latest version ({VersionText}).");
+            return;
+        }
+        update = latest;
+        BannerTitle = $"Version {latest.Version} is available (you have {Updater.Current}).";
+        BannerNotes = latest.Notes.Trim();
+        ShowNotes = false;
+        ShowBanner = true;
+        Raise(nameof(HasUpdate));
+        Log.Info($"Update available: {latest.Version}.");
+    }
+
+    async Task InstallUpdateAsync()
+    {
+        if (update is null) return;
+        Log.Info($"Downloading version {update.Version}...");
+        var problem = await Updater.InstallAsync(update);
+        if (problem is null)
+        {
+            QuitRequested?.Invoke(); // the new version has started
+            return;
+        }
+        Log.Error(problem);
+        if (update.PageUrl.Length > 0)
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(update.PageUrl) { UseShellExecute = true });
+    }
+
+    // After an update: what's new in this version.
+    async Task ShowWhatsNewAsync()
+    {
+        Log.Success($"Updated to {VersionText}.");
+        if (await Updater.ForVersionAsync(Updater.Current) is not { } release) return;
+        BannerTitle = $"Updated to {VersionText}. Here's what's new:";
+        BannerNotes = release.Notes.Trim();
+        ShowNotes = true;
+        ShowBanner = true;
+    }
+
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
     public ObservableCollection<WebhookRow> Webhooks { get; } = [];
@@ -852,6 +1035,10 @@ sealed class MainViewModel : Observable
     public ICommand PostCharacterCommand { get; }
     public ICommand AddTagCommand { get; }
     public ICommand TestKindCommand { get; }
+    public ICommand CheckUpdatesCommand { get; }
+    public ICommand InstallUpdateCommand { get; }
+    public ICommand ToggleNotesCommand { get; }
+    public ICommand CloseBannerCommand { get; }
     public ICommand DeleteTagCommand { get; }
     public ICommand ToggleAddWebhookCommand { get; }
     public ICommand SaveWebhookCommand { get; }
@@ -886,6 +1073,11 @@ sealed class MainViewModel : Observable
         if (Config.Webhooks.Count == 0)
             Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
         await Task.WhenAll(FlavorTabs.Select(t => t.CheckDiscordAsync()));
+
+        // Test runs stay off the network for this, unless they fake an old version to test it.
+        if (Config.IsTest && Environment.GetEnvironmentVariable("CHARACTERTRACKER_FAKE_VERSION") is null) return;
+        if (JustUpdated) await ShowWhatsNewAsync();
+        else await CheckForUpdatesAsync(manual: false);
     }
 
     void RefreshWebhooks()

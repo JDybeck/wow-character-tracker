@@ -35,6 +35,17 @@ public partial class MainWindow : Window
             };
     }
 
+    // Clicking the open character's row header closes its details again.
+    void CharacterHeader_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: CharacterRow row } && vm.SelectedFlavor is { } tab
+            && tab.SelectedCharacter == row)
+        {
+            tab.SelectedCharacter = null;
+            e.Handled = true;
+        }
+    }
+
     void SaveScreenshot(string path)
     {
         var content = (FrameworkElement)Content;

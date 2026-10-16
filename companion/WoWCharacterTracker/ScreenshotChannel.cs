@@ -84,8 +84,9 @@ enum GridResult { NotAGrid, Damaged, Ok }
 
 static class GridDecoder
 {
-    const int Cols = 128;
-    const byte Magic = 0xC7;
+    // 0xC8: 160 columns of 2 px, short keys (current). 0xC7: 128 columns of 5 px, long keys (older addon).
+    const int ColsSmall = 160, ColsOld = 128;
+    const int MagicSmall = 0xC8, MagicOld = 0xC7;
 
     // Finds the grid in the top-left corner of the picture and reads its bytes.
     public static GridResult Decode(byte[] image, out string? payload)
@@ -113,16 +114,21 @@ static class GridDecoder
         }
 
         // Cell size from the clock row (white, black, white...) and the clock column.
-        var cellW = ClockPeriod(i => Lum(i, 1), w);
-        var cellH = ClockPeriod(i => Lum(1, i), h);
-        if (cellW is null || cellH is null) return GridResult.NotAGrid;
+        // The grid is wide but only a few cells tall, so the column clock is short; cells are square,
+        // so the row's size stands in when the column has too few cells to measure.
+        var cellW = ClockPeriod(i => Lum(i, 1), w, minRuns: 16);
+        if (cellW is null) return GridResult.NotAGrid;
+        var cellH = ClockPeriod(i => Lum(1, i), h, minRuns: 5) ?? cellW;
 
-        // A cell is black when the average of its middle 3x3 pixels is dark (JPEG smudges edges).
+        // A cell is black when its middle is dark: the middle 3x3 pixels for big cells (JPEG smudges
+        // edges), the center pixel for small ones (PNG, sharp).
+        var small = cellW.Value < 4 || cellH.Value < 4;
         int Bit(int r, int c)
         {
             var cx = (int)((c + 0.5) * cellW.Value);
             var cy = (int)((r + 0.5) * cellH.Value);
             if (cx < 1 || cy < 1 || cx >= w - 1 || cy >= h - 1) return -1;
+            if (small) return Lum(cx, cy) < 128 ? 1 : 0;
             var sum = 0;
             for (var dy = -1; dy <= 1; dy++)
             for (var dx = -1; dx <= 1; dx++) sum += Lum(cx + dx, cy + dy);
@@ -130,7 +136,8 @@ static class GridDecoder
         }
 
         // Bits run left to right, top to bottom, through the cells right of the clock column.
-        var dataCols = Cols - 1;
+        // The magic byte sits in the first 8 cells either way, and says how wide the grid is.
+        var dataCols = 8;
         int ReadByte(int index)
         {
             var b = 0;
@@ -144,7 +151,10 @@ static class GridDecoder
             return b;
         }
 
-        if (ReadByte(0) != Magic) return GridResult.NotAGrid;
+        var magic = ReadByte(0);
+        if (magic == MagicSmall) dataCols = ColsSmall - 1;
+        else if (magic == MagicOld) dataCols = ColsOld - 1;
+        else return GridResult.NotAGrid;
         int hi = ReadByte(1), lo = ReadByte(2);
         if (hi < 0 || lo < 0) return GridResult.Damaged;
         var length = hi * 256 + lo;
@@ -168,7 +178,7 @@ static class GridDecoder
 
     // Measures the alternating pattern along a line from the top-left corner. Returns the
     // average cell size in pixels, or null when the line doesn't look like a clock.
-    static double? ClockPeriod(Func<int, int> lum, int length)
+    static double? ClockPeriod(Func<int, int> lum, int length, int minRuns)
     {
         var runs = new List<int>();
         var dark = lum(0) < 128;
@@ -182,20 +192,32 @@ static class GridDecoder
             dark = d;
             run = 1;
         }
-        if (runs.Count < 16) return null;
+        if (runs.Count < minRuns) return null;
 
-        // Skip the first run (it touches the picture's edge) and check the rest are even.
-        var middle = runs.Skip(1).Take(14).ToList();
-        var avg = middle.Average();
+        // Check the runs are even (leaving out the last one, which may run into the scene).
+        var counted = runs.Take(runs.Count - 1).Take(15).ToList();
+        var avg = counted.Average();
         if (avg < 2 || avg > 60) return null;
-        if (middle.Any(r => Math.Abs(r - avg) > avg * 0.45 + 1)) return null;
-        return (runs.Take(15).Sum()) / 15.0;
+        if (counted.Any(r => Math.Abs(r - avg) > avg * 0.45 + 1)) return null;
+        return avg;
     }
 }
 
-// The addon's "key=value;key=value" format with %XX escapes.
+// The addon's "key=value;key=value" format with %XX escapes. Newer addons use one-letter keys,
+// leave the GUID off the front of the id, and write sex as f/m.
 static class Payload
 {
+    // Same table as SHORT in the addon.
+    static readonly Dictionary<string, string> ShortKeys = new()
+    {
+        ["i"] = "id", ["k"] = "kind", ["g"] = "guid", ["n"] = "char", ["r"] = "realm", ["l"] = "level", ["a"] = "at",
+        ["z"] = "zone", ["p"] = "professions", ["t"] = "talents", ["s"] = "spec", ["o"] = "role", ["v"] = "ilvl",
+        ["c"] = "class", ["C"] = "classFile", ["e"] = "race", ["E"] = "raceFile", ["x"] = "sex", ["h"] = "hardcore",
+        ["u"] = "ruleset", ["d"] = "seconds", ["y"] = "played", ["b"] = "boss", ["I"] = "instance", ["m"] = "item",
+        ["M"] = "itemId", ["q"] = "quality", ["G"] = "gold", ["K"] = "killer", ["w"] = "mount", ["B"] = "bought",
+        ["S"] = "shot", ["P"] = "group", ["Z"] = "groupSize", ["N"] = "money", ["R"] = "crests", ["X"] = "maxLevel",
+    };
+
     public static Entry? Parse(string data)
     {
         var values = new Dictionary<string, string>();
@@ -203,9 +225,13 @@ static class Payload
         {
             var eq = pair.IndexOf('=');
             if (eq <= 0) continue;
-            values[pair[..eq]] = Unescape(pair[(eq + 1)..]);
+            var key = pair[..eq];
+            values[ShortKeys.GetValueOrDefault(key, key)] = Unescape(pair[(eq + 1)..]);
         }
         if (values.Count == 0) return null;
+        if (values.TryGetValue("sex", out var sex) && sex.Length == 1) values["sex"] = sex == "f" ? "female" : "male";
+        if (values.TryGetValue("id", out var id) && id.StartsWith(':') && values.TryGetValue("guid", out var guid))
+            values["id"] = guid + id;
 
         var entry = Entry.From(
             k => values.GetValueOrDefault(k, ""),

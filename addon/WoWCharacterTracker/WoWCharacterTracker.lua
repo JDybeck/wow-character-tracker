@@ -245,28 +245,31 @@ local function getRuleset()
   return table.concat(parts, ", ")
 end
 
--- Best guess of total /played right now.
--- Retail crests as "Gilded Crest 45, Runed Crest 120", or nil. There's no fixed list (they change
--- every season), so this looks up currencies with "Crest" in the name (English client) and keeps
--- the ids it found. Classic clients have none.
-local crestIds
+-- Retail crests as "id~quantity~name,..." (the app shows them with their icons), or nil.
+-- Read from the game's own Crests section of the currency window, so only this season's crests
+-- show up (older ones stay in your currencies but under other sections). A collapsed Crests
+-- section can't be read without changing your window, so then the last known crests are kept.
 local function getCrests()
-  if not (C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo) then return nil end
-  if not crestIds then
-    crestIds = {}
-    for id = 2900, 3600 do
-      local info = C_CurrencyInfo.GetCurrencyInfo(id)
-      if info and info.name and info.name:find("Crest") then table.insert(crestIds, id) end
+  if not (C_CurrencyInfo and C_CurrencyInfo.GetCurrencyListSize and C_CurrencyInfo.GetCurrencyListInfo) then return nil end
+  local parts, inCrests = {}, false
+  for i = 1, C_CurrencyInfo.GetCurrencyListSize() do
+    local info = C_CurrencyInfo.GetCurrencyListInfo(i)
+    if info then
+      if info.isHeader then
+        if inCrests then break end
+        inCrests = info.name ~= nil and info.name:lower():find("crest") ~= nil and info.isHeaderExpanded ~= false
+      elseif inCrests then
+        local link = C_CurrencyInfo.GetCurrencyListLink and C_CurrencyInfo.GetCurrencyListLink(i)
+        local id = link and tonumber(link:match("currency:(%d+)")) or 0
+        table.insert(parts, string.format("%d~%d~%s", id, info.quantity or 0, (info.name or "?"):gsub("[~,]", " ")))
+      end
     end
   end
-  local parts = {}
-  for _, id in ipairs(crestIds) do
-    local info = C_CurrencyInfo.GetCurrencyInfo(id)
-    if info and (info.quantity or 0) > 0 then table.insert(parts, string.format("%s %d", info.name, info.quantity)) end
-  end
   if #parts == 0 then return nil end
-  return table.concat(parts, ", ")
+  return table.concat(parts, ",")
 end
+
+-- Best guess of total /played right now.
 
 local function playedNow()
   if not lastPlayed then return nil end
@@ -305,7 +308,8 @@ end
 -- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "professions", "zone", "played", "crests" }
+-- (Money too: during logout GetMoney() comes back as 0.)
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "professions", "zone", "played", "crests", "money" }
 
 local function saveSnapshot()
   local guid = UnitGUID("player")
@@ -328,25 +332,41 @@ end
 
 -- Live channel ---------------------------------------------------------------
 
--- "key=value;key=value", with the few characters that would break it escaped as %XX.
+-- One-letter keys keep the grid small. The app has the same table (Payload.ShortKeys).
+local SHORT = {
+  id = "i", kind = "k", guid = "g", char = "n", realm = "r", level = "l", at = "a", zone = "z",
+  professions = "p", talents = "t", spec = "s", role = "o", ilvl = "v", class = "c", classFile = "C",
+  race = "e", raceFile = "E", sex = "x", hardcore = "h", ruleset = "u", seconds = "d", played = "y",
+  boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
+  mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
+  maxLevel = "X",
+}
+
+-- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
+-- character's GUID in front (it's in g already). Characters that would break it are %XX.
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
-    if type(v) ~= "table" then
+    if type(v) ~= "table" and v ~= "" and v ~= false then
+      if v == true then v = 1 end
+      if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
+      if k == "sex" then v = (v == "female") and "f" or "m" end
       local s = tostring(v):gsub("[%%;=#|]", function(c) return string.format("%%%02X", c:byte()) end)
-      table.insert(parts, k .. "=" .. s)
+      table.insert(parts, (SHORT[k] or k) .. "=" .. s)
     end
   end
   table.sort(parts)
   return table.concat(parts, ";")
 end
 
--- The grid: 128 cells across, CELL pixels each. Row 0 and column 0 alternate white/black so
--- the app can measure the cell size in the picture; the other cells hold the bits (black = 1):
--- a magic byte (0xC7), the payload length (2 bytes), the payload, and a 2-byte checksum.
-local GRID_COLS = 128
-local CELL = 5
-local MAGIC = 0xC7
+-- The grid: 160 cells across, 2 pixels each, saved as PNG so the small cells stay sharp. Row 0
+-- and column 0 alternate white/black so the app can measure the cell size in the picture; the
+-- other cells hold the bits (black = 1): a magic byte (0xC8: this layout and short keys), the
+-- payload length (2 bytes), the payload, and a 2-byte checksum. (0xC7 was the older 128 x 5 px
+-- layout with long keys; the app still reads it.)
+local GRID_COLS = 160
+local CELL = 2
+local MAGIC = 0xC8
 
 local function toBits(data)
   local bytes = { MAGIC, math.floor(#data / 256), #data % 256 }
@@ -448,11 +468,11 @@ local savedCVars
 local getCVar = (C_CVar and C_CVar.GetCVar) or GetCVar
 local setCVar = (C_CVar and C_CVar.SetCVar) or SetCVar
 
--- JPEG at full quality while the grid is captured (TGA can't be read by the app, and low quality
--- smears the cells). The player's own settings come back right after.
+-- PNG while the grid is captured (lossless, so the 2 px cells stay sharp; TGA can't be read by
+-- the app). The player's own settings come back right after.
 local function useGridShotSettings()
   savedCVars = { format = getCVar("screenshotFormat"), quality = getCVar("screenshotQuality") }
-  pcall(setCVar, "screenshotFormat", "jpeg")
+  pcall(setCVar, "screenshotFormat", "png") -- lossless, so 2 px cells come through clean
   pcall(setCVar, "screenshotQuality", "10")
   if ActionStatus and ActionStatus.UnregisterEvent then ActionStatus:UnregisterEvent("SCREENSHOT_SUCCEEDED") end
 end

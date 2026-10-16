@@ -47,6 +47,7 @@ Every option has a **Test** button that posts a sample, using the selected chara
 - **Discord**: add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, and on Forever which rulesets, so a hardcore channel only gets hardcore characters, and which character tags (none picked means every character). A new webhook is named after the name you gave it in Discord; click the pencil to rename it, like "#leveling / My Guild" (Discord doesn't tell webhooks their channel or server name). Hover a webhook to see its masked link.
 - **Console**: what the app is doing, like posts sent and anything that needs your attention.
 - **Sync now**: reads the game's data again and posts anything new.
+- **Updates**: the app checks for a new version when it starts (the arrow button at the top checks right away). **Update now** downloads it and restarts, and **What's new** shows the notes from [CHANGELOG.md](CHANGELOG.md).
 
 ### Making a Discord webhook
 
@@ -64,7 +65,7 @@ Treat the link like a password: anyone with it can post in that channel. The app
 
 ## How it works
 
-WoW addons can't make network calls and only save their data on `/reload` or logout. The one file an addon can make the game write right away is a screenshot. So for each event, the addon shows a small black and white grid in the top-left corner for a single frame, takes a screenshot and hides the grid again. The app reads the event from the grid within a second, posts it and deletes that screenshot. You might notice a brief flicker in the corner. While that one screenshot is taken, the screenshot format is set to JPEG at full quality (your own settings come right back) and the "Screen captured" message is hidden.
+WoW addons can't make network calls and only save their data on `/reload` or logout. The one file an addon can make the game write right away is a screenshot. So for each event, the addon shows a small black and white grid (about 320 x 28 px) in the top-left corner for a single frame, takes a screenshot and hides the grid again. The app reads the event from the grid within a second, posts it and deletes that screenshot. You might notice a brief flicker in the corner. While that one screenshot is taken, the screenshot format is set to PNG (your own settings come right back) and the "Screen captured" message is hidden.
 
 Only events that will actually be posted (by your "What gets posted" settings) go out this way, plus one check-in about 15 seconds after you log in, so your character's row in the app updates right away. Everything else, like a level that isn't posted, reaches the app on your next `/reload` or logout, without any screenshots. In-game screenshots you turned on are only kept for events that get posted.
 

@@ -31,8 +31,10 @@ public partial class App : Application
 
         DispatcherUnhandledException += OnCrash;
         base.OnStartup(e);
+        Updater.CleanUp();
 
-        vm = new MainViewModel(backfill: e.Args.Contains("--backfill"));
+        vm = new MainViewModel(backfill: e.Args.Contains("--backfill")) { JustUpdated = e.Args.Contains("--updated") };
+        vm.QuitRequested += Quit;
         var window = new MainWindow(vm);
         MainWindow = window;
         window.Closing += (_, args) =>

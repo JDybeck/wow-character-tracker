@@ -8,6 +8,29 @@
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
 
   <Window.Resources>
+    <!-- A coin: a small colored dot (gold, silver, copper) after the amount, like the game. -->
+    <DataTemplate x:Key="CoinTemplate" DataType="{x:Type local:Coin}">
+      <StackPanel Orientation="Horizontal" Margin="0,0,6,0">
+        <TextBlock Text="{Binding Amount}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+        <Ellipse Width="9" Height="9" Fill="{Binding Brush}" Margin="3,1,0,0" VerticalAlignment="Center"/>
+      </StackPanel>
+    </DataTemplate>
+    <ItemsPanelTemplate x:Key="Row">
+      <StackPanel Orientation="Horizontal"/>
+    </ItemsPanelTemplate>
+    <ItemsPanelTemplate x:Key="Wrap">
+      <WrapPanel/>
+    </ItemsPanelTemplate>
+    <!-- An icon with text (crest + count, profession + skill), tooltip from Wowhead. -->
+    <DataTemplate x:Key="IconChipTemplate" DataType="{x:Type local:IconChip}">
+      <Border Background="#4D1E293B" BorderBrush="#80334155" BorderThickness="1" CornerRadius="5" Padding="3,2,8,2" Margin="0,0,6,6"
+              ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="150">
+        <StackPanel Orientation="Horizontal">
+          <Image Source="{Binding IconUrl}" Width="18" Height="18" Margin="0,0,6,0"/>
+          <TextBlock Text="{Binding Text}" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
     <!-- Same column widths for the header row and every character row. -->
     <GridLength x:Key="ColClass">180</GridLength>
     <GridLength x:Key="ColLevel">90</GridLength>
@@ -162,6 +185,7 @@
           <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
             <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,6,0"/>
             <TextBlock Text="{Binding SelectedFlavor.StatusText}" Foreground="{StaticResource Muted}" FontSize="13"/>
+            <TextBlock Text="{Binding VersionText}" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"/>
           </StackPanel>
         </StackPanel>
       </StackPanel>
@@ -179,7 +203,10 @@
       </Border>
 
       <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-        <Border Width="26" Height="26" CornerRadius="13" BorderBrush="#334155" BorderThickness="1" Margin="0,0,16,0" Cursor="Help"
+        <Button Style="{StaticResource GhostButton}" Padding="6,4" Margin="0,0,6,0" Command="{Binding CheckUpdatesCommand}"
+                ToolTip="Check for updates">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="14" Foreground="{StaticResource Muted}"/>
+        </Button>        <Border Width="26" Height="26" CornerRadius="13" BorderBrush="#334155" BorderThickness="1" Margin="0,0,16,0" Cursor="Help"
                 ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
           <TextBlock Style="{StaticResource Icon}" Text="&#xE946;" FontSize="13" Foreground="{StaticResource Muted}" HorizontalAlignment="Center"/>
           <Border.ToolTip>
@@ -210,7 +237,32 @@
     </Grid>
 
     <!-- Setup checks for the selected game -->
-    <ItemsControl Grid.Row="1" ItemsSource="{Binding SelectedFlavor.Steps}" Margin="0,0,0,18">
+    <StackPanel Grid.Row="1">
+    <Border Visibility="{Binding ShowBanner, Converter={StaticResource Visible}}" Margin="0,0,0,14" Padding="16,12" CornerRadius="10"
+            Background="#33312E81" BorderBrush="#806366F1" BorderThickness="1">
+      <StackPanel>
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+            <Button Style="{StaticResource GhostButton}" Content="What's new" Command="{Binding ToggleNotesCommand}" Margin="0,0,6,0" Padding="10,4"
+                    Visibility="{Binding BannerNotes, Converter={StaticResource VisibleIfSet}}"/>
+            <Button Style="{StaticResource IndigoButton}" Content="Update now" Command="{Binding InstallUpdateCommand}" Margin="0,0,6,0" Padding="12,5"
+                    Visibility="{Binding HasUpdate, Converter={StaticResource Visible}}"/>
+            <Button Style="{StaticResource GhostButton}" Padding="8,4" Command="{Binding CloseBannerCommand}" ToolTip="Close">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="11" Foreground="{StaticResource Muted}"/>
+            </Button>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" Foreground="{StaticResource Indigo}" FontSize="15" Margin="0,0,10,0"/>
+            <TextBlock Text="{Binding BannerTitle}" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+          </StackPanel>
+        </DockPanel>
+        <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" Margin="25,8,0,0"
+                      Visibility="{Binding ShowNotes, Converter={StaticResource Visible}}">
+          <TextBlock Text="{Binding BannerNotes}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" LineHeight="19"/>
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
+    <ItemsControl ItemsSource="{Binding SelectedFlavor.Steps}" Margin="0,0,0,18">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
           <UniformGrid Rows="1"/>
@@ -248,6 +300,7 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
+    </StackPanel>
 
     <!-- Main area -->
     <Grid Grid.Row="2">
@@ -322,7 +375,8 @@
                     Padding="24,10" Visibility="{Binding HasCharacters, Converter={StaticResource Visible}}">
               <StackPanel Orientation="Horizontal">
                 <TextBlock Style="{StaticResource Icon}" Text="&#xE8C7;" Foreground="#FBBF24" FontSize="13" Margin="0,0,8,0"/>
-                <TextBlock Text="{Binding TotalGoldText}" Foreground="{StaticResource TextSoft}" FontSize="13"/>
+                <TextBlock Text="{Binding TotalGoldText}" Foreground="{StaticResource TextSoft}" FontSize="13" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <ItemsControl ItemsSource="{Binding TotalCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}" VerticalAlignment="Center"/>
               </StackPanel>
             </Border>
             <Border Background="{StaticResource CardHeader}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
@@ -350,7 +404,7 @@
               <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:CharacterRow}">
                   <StackPanel>
-                    <Grid Margin="24,12">
+                    <Grid Margin="24,12" Background="Transparent" PreviewMouseLeftButtonDown="CharacterHeader_MouseDown">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="{StaticResource ColClass}"/>
@@ -404,8 +458,11 @@
                         <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="#93C5FD"/>
                       </Border>
 
-                      <TextBlock Grid.Column="4" Text="{Binding GoldText}" Foreground="#FBBF24" FontFamily="{StaticResource Mono}" FontSize="13" VerticalAlignment="Center"
-                                 ToolTip="{Binding MoneyText}"/>
+                      <Grid Grid.Column="4" VerticalAlignment="Center" ToolTip="{Binding MoneyText}">
+                        <ItemsControl ItemsSource="{Binding ShortCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}"
+                                      Visibility="{Binding HasMoney, Converter={StaticResource Visible}}"/>
+                        <TextBlock Text="-" Foreground="{StaticResource Dim}" Visibility="{Binding HasMoney, Converter={StaticResource Hidden}}"/>
+                      </Grid>
                       <TextBlock Grid.Column="5" Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -425,13 +482,15 @@
                           <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL PLAYED"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding PlayedText}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="GOLD"/>
-                          <TextBlock Style="{StaticResource FactValue}" Text="{Binding MoneyText}"/>
+                          <ItemsControl ItemsSource="{Binding MoneyCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}"/>
                           <StackPanel Visibility="{Binding HasCrests, Converter={StaticResource Visible}}">
                             <TextBlock Style="{StaticResource FactLabel}" Text="CRESTS"/>
-                            <TextBlock Style="{StaticResource FactValue}" Text="{Binding Crests}"/>
+                            <ItemsControl ItemsSource="{Binding CrestList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
                           </StackPanel>
                           <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
-                          <TextBlock Style="{StaticResource FactValue}" Text="{Binding ProfessionsText}"/>
+                          <ItemsControl ItemsSource="{Binding ProfessionList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
+                                        Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>
+                          <TextBlock Style="{StaticResource FactValue}" Text="None yet" Visibility="{Binding HasProfessions, Converter={StaticResource Hidden}}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="TALENTS"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
@@ -497,8 +556,12 @@
                                       <ColumnDefinition Width="*"/>
                                       <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="12"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="12" Foreground="{StaticResource TextSoft}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="12"
+                                               Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
+                                    <Image Source="{Binding IconUrl}" Width="16" Height="16" HorizontalAlignment="Left"
+                                           Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="12" Foreground="{Binding Brush}" TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Tooltip}"/>
                                     <TextBlock Grid.Column="2" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>
                                   </Grid>
                                 </DataTemplate>

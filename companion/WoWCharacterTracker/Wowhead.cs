@@ -1,0 +1,101 @@
+using System.Collections.Concurrent;
+using System.Net;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+
+namespace WoWCharacterTracker;
+
+// Names, icons and tooltip text for items and currencies, from Wowhead's public tooltip endpoint
+// (the one their site tooltips use). Results are kept in wowhead.json next to the config, so each
+// thing is only looked up once.
+static partial class Wowhead
+{
+    public sealed record Info(string Name, string Icon, int Quality, string Tooltip);
+
+    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
+    static readonly ConcurrentDictionary<string, Task<Info?>> Lookups = new();
+    static readonly object DiskLock = new();
+    static Dictionary<string, Info>? disk;
+    static string CachePath => Path.Combine(Config.Dir, "wowhead.json");
+
+    public static string IconUrl(string icon, string size = "medium") =>
+        $"https://wow.zamimg.com/images/wow/icons/{size}/{icon}.jpg";
+
+    // type is "item" or "currency".
+    public static Task<Info?> GetAsync(string type, int id, Flavor flavor)
+    {
+        if (id <= 0) return Task.FromResult<Info?>(null);
+        var key = $"{flavor.WowheadPath}{type}/{id}";
+        return Lookups.GetOrAdd(key, k => FetchAsync(k));
+    }
+
+    static async Task<Info?> FetchAsync(string key)
+    {
+        lock (DiskLock)
+        {
+            disk ??= LoadDisk();
+            if (disk.TryGetValue(key, out var cached)) return cached;
+        }
+        try
+        {
+            var json = await Http.GetStringAsync($"https://nether.wowhead.com/{TooltipPath(key)}");
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            string Str(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+            var quality = root.TryGetProperty("quality", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : -1;
+            var info = new Info(Str("name"), Str("icon"), quality, ToText(Str("tooltip")));
+            if (info.Name.Length == 0) return null;
+            lock (DiskLock)
+            {
+                disk![key] = info;
+                try { File.WriteAllText(CachePath, JsonSerializer.Serialize(disk)); } catch (IOException) { }
+            }
+            return info;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            Lookups.TryRemove(key, out _); // try again another time
+            return null;
+        }
+    }
+
+    // "classic/item/19019" -> "classic/tooltip/item/19019"
+    static string TooltipPath(string key)
+    {
+        var parts = key.Split('/');
+        return parts.Length == 3 ? $"{parts[0]}/tooltip/{parts[1]}/{parts[2]}" : $"tooltip/{key}";
+    }
+
+    static Dictionary<string, Info> LoadDisk()
+    {
+        try { return File.Exists(CachePath) ? JsonSerializer.Deserialize<Dictionary<string, Info>>(File.ReadAllText(CachePath)) ?? [] : []; }
+        catch (Exception) { return []; }
+    }
+
+    // The tooltip comes as HTML; this keeps the text, one line per row.
+    static string ToText(string html)
+    {
+        if (html.Length == 0) return "";
+        var text = LineBreaks().Replace(html, "\n");
+        text = Tags().Replace(text, "");
+        text = WebUtility.HtmlDecode(text);
+        var lines = text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0);
+        return string.Join("\n", lines);
+    }
+
+    [GeneratedRegex(@"<br\s*/?>|</tr>|</div>|</table>", RegexOptions.IgnoreCase)]
+    private static partial Regex LineBreaks();
+
+    [GeneratedRegex("<[^>]+>")]
+    private static partial Regex Tags();
+
+    // Profession icons by English name.
+    public static readonly Dictionary<string, string> ProfessionIcons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Alchemy"] = "trade_alchemy", ["Blacksmithing"] = "trade_blacksmithing", ["Enchanting"] = "trade_engraving",
+        ["Engineering"] = "trade_engineering", ["Herbalism"] = "trade_herbalism", ["Leatherworking"] = "trade_leatherworking",
+        ["Mining"] = "trade_mining", ["Skinning"] = "inv_misc_pelt_wolf_01", ["Tailoring"] = "trade_tailoring",
+        ["Inscription"] = "inv_inscription_tradeskill01", ["Jewelcrafting"] = "inv_misc_gem_01",
+        ["Cooking"] = "inv_misc_food_15", ["Fishing"] = "trade_fishing", ["First Aid"] = "spell_holy_sealofsacrifice",
+    };
+}
