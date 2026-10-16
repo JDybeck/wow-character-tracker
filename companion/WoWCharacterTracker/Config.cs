@@ -74,6 +74,7 @@ class FlavorSettings
     // Per kind of event: take a screenshot in game, and attach it to the Discord post.
     public Dictionary<string, bool> Screenshot { get; set; } = [];
     public Dictionary<string, bool> PostScreenshot { get; set; } = [];
+    public bool HideChatInShots { get; set; } = true; // chat made see-through while a screenshot is taken
 
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];

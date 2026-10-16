@@ -548,12 +548,19 @@
               </DockPanel>
               <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,18"
                          Text="Changes apply right away. Things that are switched off are skipped, and they won't be posted later if you switch them on. Screenshot means the addon takes one in game a moment after it happens (saved in your Screenshots folder). Screenshot settings reach the game on your next /reload or login."/>
+              <CheckBox IsChecked="{Binding HideChatInShots}" Margin="0,0,0,16">
+                <StackPanel>
+                  <TextBlock Text="Hide chat in screenshots" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                  <TextBlock Style="{StaticResource Hint}" Text="The chat windows are hidden for the moment the screenshot is taken, then come right back."/>
+                </StackPanel>
+              </CheckBox>
 
               <!-- Level-ups -->
               <Border Padding="18,16" CornerRadius="10" Background="#4D1E293B" BorderBrush="#80334155" BorderThickness="1" Margin="0,0,0,14">
                 <StackPanel>
                   <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                      <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="level"/>
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[level].Take}"/>
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[level].Post}" IsEnabled="{Binding Shots[level].Take}"/>
                     </StackPanel>
@@ -586,18 +593,24 @@
                     </StackPanel>
                     <TextBlock Style="{StaticResource SectionTitle}" Text="Loot"/>
                   </DockPanel>
-                  <CheckBox IsChecked="{Binding PostRare}" Margin="0,0,0,8">
+                  <DockPanel Margin="0,0,0,8">
+                  <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" VerticalAlignment="Top" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="rare"/>
+                  <CheckBox IsChecked="{Binding PostRare}">
                     <StackPanel>
                       <TextBlock Text="Rare items" Foreground="#60A5FA" FontWeight="SemiBold" FontSize="13"/>
                       <TextBlock Style="{StaticResource Hint}" Text="Blue items you loot. Plenty of these while leveling."/>
                     </StackPanel>
                   </CheckBox>
+                  </DockPanel>
+                  <DockPanel>
+                  <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" VerticalAlignment="Top" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="epic"/>
                   <CheckBox IsChecked="{Binding PostEpic}">
                     <StackPanel>
                       <TextBlock Text="Epic and legendary items" Foreground="#C084FC" FontWeight="SemiBold" FontSize="13"/>
                       <TextBlock Style="{StaticResource Hint}" Text="Purple and orange items you loot."/>
                     </StackPanel>
                   </CheckBox>
+                  </DockPanel>
                 </StackPanel>
               </Border>
 
@@ -607,6 +620,7 @@
                   <TextBlock Style="{StaticResource SectionTitle}" Text="Milestones" Margin="0,0,0,10"/>
                   <DockPanel Margin="0,0,0,10">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                      <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="mount"/>
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[mount].Take}"/>
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[mount].Post}" IsEnabled="{Binding Shots[mount].Take}"/>
                     </StackPanel>
@@ -619,6 +633,7 @@
                   </DockPanel>
                   <DockPanel Margin="0,0,0,10">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                      <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="boss"/>
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[boss].Take}"/>
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[boss].Post}" IsEnabled="{Binding Shots[boss].Take}"/>
                     </StackPanel>
@@ -644,6 +659,7 @@
                   </StackPanel>
                   <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                      <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="death"/>
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[death].Take}"/>
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[death].Post}" IsEnabled="{Binding Shots[death].Take}"/>
                     </StackPanel>

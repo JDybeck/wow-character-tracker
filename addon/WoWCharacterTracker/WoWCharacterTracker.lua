@@ -161,13 +161,13 @@ local function getRetailTalentSplit(specName)
     end
   end
 
-  if classSpent + specSpent + heroSpent == 0 then return "No talent points spent yet" end
+  if classSpent + specSpent + heroSpent == 0 then return nil end -- nothing to show yet
   local text = string.format("Class %d / %s %d", classSpent, specName, specSpent)
   if heroName then text = text .. string.format(" / %s %d", heroName, heroSpent) end
   return text
 end
 
--- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or a note if nothing is spent.
+-- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or nil when there is nothing to show yet.
 -- Also returns the spec name on retail (nil on Classic).
 local function getTalents()
   if type(GetNumTalentTabs) == "function" and GetNumTalentTabs() > 0 then
@@ -185,18 +185,18 @@ local function getTalents()
       total = total + points
       table.insert(parts, string.format("%s %d", name or "?", points))
     end
-    if total == 0 then return "No talent points spent yet" end
+    if total == 0 then return nil end -- under level 10: nothing to show, so nothing is stored
     return table.concat(parts, " / ")
   elseif type(GetSpecialization) == "function" then
     -- Retail: class, spec and hero trees.
     local spec = GetSpecialization()
     local specName = spec and select(2, GetSpecializationInfo(spec))
-    if not specName then return "No specialization yet" end
+    if not specName then return nil end
     local ok, split = pcall(getRetailTalentSplit, specName)
     if ok and split then return split, specName end
-    return specName, specName
+    return nil, specName
   end
-  return "Unknown"
+  return nil
 end
 
 local function getZone()
@@ -449,22 +449,66 @@ end
 
 local processShots
 
+-- "Hide chat in screenshots": the chat windows, tabs and buttons are made see-through for the
+-- shot and put back after. Only the alpha changes (no Hide/Show on Blizzard frames), which keeps
+-- the default UI untouched.
+local CHAT_EXTRAS = { "GeneralDockManager", "ChatFrameMenuButton", "ChatFrameChannelButton",
+  "ChatFrameToggleVoiceDeafenButton", "ChatFrameToggleVoiceMuteButton", "QuickJoinToastButton",
+  "ChatAlertFrame", "FriendsMicroButton" }
+local hiddenChat
+
+local function hideChat()
+  local s = WoWCharacterTrackerSettings
+  if not (s and s.hideChat) or hiddenChat then return end
+  hiddenChat = {}
+  local function fade(f)
+    if f and f.GetAlpha and f.SetAlpha then
+      hiddenChat[f] = f:GetAlpha()
+      f:SetAlpha(0)
+    end
+  end
+  for i = 1, (NUM_CHAT_WINDOWS or 10) do
+    fade(_G["ChatFrame" .. i]); fade(_G["ChatFrame" .. i .. "Tab"]); fade(_G["ChatFrame" .. i .. "EditBox"])
+    fade(_G["ChatFrame" .. i .. "ButtonFrame"])
+  end
+  for _, name in ipairs(CHAT_EXTRAS) do fade(_G[name]) end
+end
+
+local function showChat()
+  if not hiddenChat then return end
+  for f, alpha in pairs(hiddenChat) do f:SetAlpha(alpha) end
+  hiddenChat = nil
+end
+
 local function shotDone()
   if not shotBusy then return end
   if shotItem and shotItem.bits then
     if grid then grid:Hide() end
     restoreShotSettings()
+  else
+    showChat()
   end
   shotItem = nil
   shotBusy = false
   C_Timer.After(0.1, processShots)
 end
 
+-- In combat only normal screenshots are taken (the moment itself); data grids wait until combat
+-- ends, so screenshot settings are never changed mid-fight.
+local function nextShot()
+  if not InCombatLockdown() then return table.remove(shotQueue, 1) end
+  for i, item in ipairs(shotQueue) do
+    if not item.bits then return table.remove(shotQueue, i) end
+  end
+  return nil
+end
+
 processShots = function()
   if shotBusy or #shotQueue == 0 then return end
-  shotItem = table.remove(shotQueue, 1)
+  local item = nextShot()
+  if not item then return end -- only grids left, PLAYER_REGEN_ENABLED picks them up
+  shotItem = item
   shotBusy = true
-  local item = shotItem
   -- Never wait forever on a screenshot event that doesn't come.
   C_Timer.After(5, function() if shotItem == item then shotDone() end end)
 
@@ -474,7 +518,10 @@ processShots = function()
     grid:Show()
     onNextFrame(function() Screenshot() end) -- let the grid be drawn once first
   else
-    C_Timer.After(item.delay or 0.5, function() Screenshot() end)
+    C_Timer.After(item.delay or 0.5, function()
+      hideChat()
+      onNextFrame(function() Screenshot() end)
+    end)
   end
 end
 
@@ -569,14 +616,9 @@ local function requestPlayed()
   C_Timer.After(5, unmutePlayed)
 end
 
--- Older clients print it from this function instead.
-if type(ChatFrame_DisplayTimePlayed) == "function" then
-  local original = ChatFrame_DisplayTimePlayed
-  ChatFrame_DisplayTimePlayed = function(...)
-    if suppressChat then return end
-    return original(...)
-  end
-end
+-- (Older versions also replaced ChatFrame_DisplayTimePlayed to hide it. Replacing Blizzard
+-- functions taints the default UI, which on Classic clients blocked Esc and showed "blocked from an
+-- action" errors, so that's gone. Muting the chat windows above does the same job safely.)
 
 -- Optional (off by default, /wct popup): offer a reload after a ding, for when the live
 -- channel doesn't work on a client.
@@ -811,6 +853,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     requestPlayed()
 
   elseif event == "PLAYER_REGEN_ENABLED" then
+    processShots() -- data grids held back during combat
     if popupLevel then
       local level = popupLevel
       popupLevel = nil

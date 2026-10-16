@@ -423,6 +423,8 @@ sealed class FlavorViewModel : Observable
     public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
     public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
 
+    public bool HideChatInShots { get => Settings.HideChatInShots; set { Settings.HideChatInShots = value; Changed(); } }
+
     // Regex of group members that make a boss kill not get posted (they post it themselves).
     public string SkipBossGroupRegex
     {
@@ -691,24 +693,39 @@ sealed class FlavorViewModel : Observable
             : $"Watching {Name}, {chars}, last post: {Tracker.Describe(lastPost)}";
     }
 
-    // Uses the most recently played character for the test post so it looks familiar.
-    public Entry SampleEntry()
+    // A sample of any kind of post, using the selected (or most recently played) character so it
+    // looks familiar. Item and boss details are made up.
+    public Entry SampleEntry(string kind = "level")
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var c = Characters.FirstOrDefault();
-        if (c is null)
-            return new Entry
+        var c = SelectedCharacter ?? Characters.FirstOrDefault();
+        var e = c is null
+            ? new Entry
             {
-                Id = "test", Char = "Testy", Level = 12, Seconds = 18 * 60 + 4, At = now, Zone = "Elwynn Forest",
+                Id = "test", Char = "Testy", Level = 12, At = now, Zone = "Elwynn Forest",
                 Professions = "Mining 75, Herbalism 60", Talents = "Arms 5 / Fury 2 / Protection 0", Class = "Warrior",
                 ClassFile = "WARRIOR", Race = "Human", RaceFile = "Human", Played = 4 * 3600 + 12 * 60,
+            }
+            : new Entry
+            {
+                Id = "test", Char = c.Name, Realm = c.Realm, Level = Math.Max(c.Level, 2), At = now,
+                Zone = c.Zone, Professions = c.Professions, Talents = c.Talents, Spec = c.Spec, Class = c.ClassName,
+                ClassFile = c.ClassFile, Race = c.Race, RaceFile = c.RaceFile, Sex = c.Sex, Played = c.Played,
+                Hardcore = c.Hardcore, Ruleset = c.Ruleset,
             };
 
-        return new Entry
+        // Other characters in the list stand in as the group for a boss kill.
+        var group = string.Join(",", Characters.Where(o => o != c).Take(4)
+            .Select(o => $"{o.Name}~{o.Level}~{o.ClassFile}~{o.ClassName}~{o.Race}~"));
+
+        return kind switch
         {
-            Id = "test", Char = c.Name, Realm = c.Realm, Level = Math.Max(c.Level, 2), Seconds = 18 * 60 + 4, At = now,
-            Zone = c.Zone, Professions = c.Professions, Talents = c.Talents, Spec = c.Spec, Class = c.ClassName,
-            ClassFile = c.ClassFile, Race = c.Race, RaceFile = c.RaceFile, Sex = c.Sex, Played = c.Played,
+            "rare" => e with { Kind = "loot", Item = "Cruel Barb", ItemId = 5191, Quality = 3, Zone = "The Deadmines" },
+            "epic" => e with { Kind = "loot", Item = "Arcanite Reaper", ItemId = 12784, Quality = 4 },
+            "mount" => e with { Kind = "mount", Mount = "Pinto Bridle", ItemId = 2414, Bought = true },
+            "boss" => e with { Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", Group = group, GroupSize = 5 },
+            "death" => e with { Kind = "death", Killer = "Defias Pillager", Gold = 123456, Hardcore = true },
+            _ => e with { Kind = "level", Seconds = 18 * 60 + 4 },
         };
     }
 
@@ -733,6 +750,7 @@ sealed class MainViewModel : Observable
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
+        TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
         ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
         SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
@@ -809,6 +827,7 @@ sealed class MainViewModel : Observable
     public ICommand RemoveCharacterCommand { get; }
     public ICommand PostCharacterCommand { get; }
     public ICommand AddTagCommand { get; }
+    public ICommand TestKindCommand { get; }
     public ICommand DeleteTagCommand { get; }
     public ICommand ToggleAddWebhookCommand { get; }
     public ICommand SaveWebhookCommand { get; }
@@ -1038,6 +1057,22 @@ sealed class MainViewModel : Observable
         foreach (var w in Config.ActiveWebhooks(tab.Flavor))
             if (await new Discord(w.Url, tab.Flavor).PostAsync(tab.SampleEntry(), isTest: true))
                 Log.Success($"[{tab.Name}] Test post sent to \"{w.Name}\". Check your Discord channel.");
+    }
+
+    // The Test buttons on the "What gets posted" page: a sample of that kind of post.
+    async Task SendKindTestAsync(string kind)
+    {
+        if (SelectedFlavor is not { } tab) return;
+        var hooks = Config.ActiveWebhooks(tab.Flavor);
+        if (hooks.Count == 0)
+        {
+            Log.Warn($"[{tab.Name}] Turn on a webhook in the Discord panel first.");
+            return;
+        }
+        var sample = tab.SampleEntry(kind);
+        foreach (var w in hooks)
+            if (await new Discord(w.Url, tab.Flavor).PostAsync(sample, isTest: true))
+                Log.Success($"[{tab.Name}] Test {kind} post sent to \"{w.Name}\".");
     }
 
     public static void OnUi(Action a)

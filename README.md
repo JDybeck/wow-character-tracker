@@ -59,6 +59,7 @@ Treat the link like a password: anyone with it can post in that channel. The app
 - `/wct` shows your last 10 level times for the character you're on.
 - `/wct test` checks that instant posting reaches the app.
 - `/wct live` turns instant posting on or off.
+- `/wct help` lists these in game. The addon reminds you of it when you log in.
 - `/wct popup` turns on a reload popup after a ding, if you'd rather not use instant posting (`/wct live`).
 
 ## How it works
@@ -69,7 +70,7 @@ Only events that will actually be posted (by your "What gets posted" settings) g
 
 The saved data is the backup: anything that didn't come through live gets posted on your next `/reload` or logout, and nothing is posted twice.
 
-Level times come from `RequestTimePlayed()`, which returns total time played and time played on the current level. Right after a level-up the "current level" part is about zero, so the addon stores the total at the start of each level, and the finished level's time is the difference. If you install the addon mid-level, that first level has no baseline and is skipped.
+Level times come from `RequestTimePlayed()`, which returns total time played and time played on the current level. Right after a level-up the "current level" part is about zero, so the addon stores the total at the start of each level, and the finished level's time is the difference. Installing the addon mid-level is fine: at login, total played minus time played on the current level gives the start of that level, so the first level after installing is timed in full. Only levels before you installed it can't be filled in.
 
 ## Notes and limits
 
