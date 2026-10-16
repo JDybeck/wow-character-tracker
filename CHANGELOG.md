@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.9.1
+
+- Fixed updating: the new version now waits for the old one to close instead of quitting right away, and the old one no longer shows a .NET error while closing.
+
 ## v0.9.0
 
 - Each game tab has its own look: Retail is Midnight violet, Forever is classic gold.

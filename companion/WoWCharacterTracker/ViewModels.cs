@@ -970,7 +970,7 @@ sealed class MainViewModel : Observable
     // --- updates ---
 
     public bool JustUpdated { get; init; }
-    public event Action? QuitRequested;
+    public event Action? UpdateStarted;
     public string VersionText => $"v{Updater.Current}";
 
     Updater.Release? update;
@@ -1014,7 +1014,7 @@ sealed class MainViewModel : Observable
         var problem = await Updater.InstallAsync(update);
         if (problem is null)
         {
-            QuitRequested?.Invoke(); // the new version has started
+            UpdateStarted?.Invoke(); // the new version has started and waits for this one to exit
             return;
         }
         Log.Error(problem);

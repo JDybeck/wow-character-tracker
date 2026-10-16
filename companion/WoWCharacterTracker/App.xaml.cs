@@ -20,7 +20,11 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        singleInstance = new Mutex(true, InstanceName, out var isFirstInstance);
+        // Right after an update the old version may still be closing, so wait for it a moment.
+        singleInstance = new Mutex(false, InstanceName);
+        bool isFirstInstance;
+        try { isFirstInstance = singleInstance.WaitOne(e.Args.Contains("--updated") ? TimeSpan.FromSeconds(15) : TimeSpan.Zero); }
+        catch (AbandonedMutexException) { isFirstInstance = true; } // the old one exited without letting go
         if (!isFirstInstance)
         {
             // Already running (maybe in the tray): bring that window up instead.
@@ -34,7 +38,7 @@ public partial class App : Application
         Updater.CleanUp();
 
         vm = new MainViewModel(backfill: e.Args.Contains("--backfill")) { JustUpdated = e.Args.Contains("--updated") };
-        vm.QuitRequested += Quit;
+        vm.UpdateStarted += QuitForUpdate;
         var window = new MainWindow(vm);
         MainWindow = window;
         window.Closing += (_, args) =>
@@ -86,6 +90,16 @@ public partial class App : Application
         vm?.Shutdown();
         MainWindow?.Close();
         Shutdown();
+    }
+
+    // The exe this runs from was just renamed to .old, and a single-file app reads parts of itself
+    // from that file as it goes, so a normal shutdown can fail. Save, drop the tray icon, and go.
+    void QuitForUpdate()
+    {
+        quitting = true;
+        tray?.Dispose();
+        vm?.Shutdown();
+        Environment.Exit(0);
     }
 
     // Keep running if something unexpected goes wrong, and say what happened in the console.
