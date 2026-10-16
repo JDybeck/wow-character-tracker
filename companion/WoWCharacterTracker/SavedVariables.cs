@@ -46,6 +46,11 @@ record Entry
     public bool Shot { get; init; }      // the addon took a screenshot right after
     public string Group { get; init; } = ""; // boss kills: the other party members, see Members
     public int GroupSize { get; init; }
+    public string Opponent { get; init; } = ""; // duel / makgora
+    public bool Fled { get; init; }              // duel: the opponent ran away
+    public int Rating { get; init; }             // mplus / pvp: the rating now
+    public int Step { get; init; }               // mplus / pvp: the milestone passed
+    public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
 
     // "Name~level~CLASSFILE~Class~Race~Realm,..." as the addon writes it.
     public IReadOnlyList<GroupMember> Members => Group.Length == 0 ? [] : Group.Split(',')
@@ -100,6 +105,11 @@ record Entry
             Shot = s("shot") is "true" or "1",
             Group = s("group"),
             GroupSize = (int)n("groupSize"),
+            Opponent = s("opponent"),
+            Fled = s("fled") is "true" or "1",
+            Rating = (int)n("rating"),
+            Step = (int)n("step"),
+            Bracket = s("bracket"),
         };
     }
 
@@ -116,7 +126,7 @@ record GroupMember(string Name, int Level, string ClassFile, string Class, strin
 record Snapshot(string Guid, string Char, string Realm, int Level, string Class, string ClassFile,
     string Race, string RaceFile, string Sex, string Spec, string Role, double ItemLevel, long Played,
     string Zone, string Professions, string Talents, long LastSeen, bool Hardcore, string Ruleset,
-    long Money = 0, string Crests = "", string? Guild = null, string Surname = "", string TalentPicks = "");
+    long Money = 0, string Crests = "", string? Guild = null, string Surname = "", string TalentPicks = "", string TalentExport = "", string Stats = "");
 
 record TrackerData(List<Entry> Events, List<Snapshot> Characters)
 {
@@ -175,7 +185,7 @@ static class SavedVariables
                 S(t, "spec"), S(t, "role"), N(t, "ilvl"), (long)N(t, "played"),
                 S(t, "zone"), S(t, "professions"), S(t, "talents"), (long)N(t, "lastSeen"),
                 S(t, "hardcore") == "true", S(t, "ruleset"), (long)N(t, "money"), S(t, "crests"),
-                t.Get("guild").IsNil() ? null : S(t, "guild"), S(t, "surname"), S(t, "talentPicks")));
+                t.Get("guild").IsNil() ? null : S(t, "guild"), S(t, "surname"), S(t, "talentPicks"), S(t, "talentExport"), S(t, "stats")));
         }
 
         return list;

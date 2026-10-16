@@ -260,6 +260,10 @@ sealed class Tracker : IDisposable
         "mount" => s.PostMounts,
         "boss" => s.PostBosses && s.SkipBossBecause(e) is null,
         "death" => s.PostDeaths,
+        "duel" => s.PostDuels,
+        "makgora" => s.PostMakgora,
+        "mplus" => s.PostMPlus,
+        "pvp" => s.PostPvp,
         _ => false,
     };
 
@@ -269,6 +273,10 @@ sealed class Tracker : IDisposable
         "loot" => $"{e.Char} looted {e.Item}",
         "mount" => $"{e.Char} got a new mount, {e.Mount}",
         "death" => $"{e.Char} died at level {e.Level}",
+        "duel" => $"{e.Char} won a duel against {e.Opponent}",
+        "makgora" => $"{e.Char} won a Mak'gora against {e.Opponent}",
+        "mplus" => $"{e.Char} reached {e.Step} Mythic+ rating ({e.Rating})",
+        "pvp" => $"{e.Char} reached {e.Step} in {e.Bracket} ({e.Rating})",
         _ => $"{e.Char} dinged level {e.Level} ({Format.Duration(e.Seconds)})",
     };
 

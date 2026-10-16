@@ -35,6 +35,9 @@ pcall(frame.RegisterEvent, frame, "PLAYER_SPECIALIZATION_CHANGED")
 pcall(frame.RegisterEvent, frame, "TRAIT_CONFIG_UPDATED")
 pcall(frame.RegisterEvent, frame, "CHARACTER_POINTS_CHANGED")
 pcall(frame.RegisterEvent, frame, "PLAYER_GUILD_UPDATE")
+frame:RegisterEvent("CHAT_MSG_SYSTEM") -- duels and Mak'gora results
+pcall(frame.RegisterEvent, frame, "CHALLENGE_MODE_COMPLETED")
+pcall(frame.RegisterEvent, frame, "PVP_RATED_STATS_UPDATE")
 pcall(frame.RegisterEvent, frame, "ADDON_ACTION_BLOCKED")
 pcall(frame.RegisterEvent, frame, "ADDON_ACTION_FORBIDDEN")
 
@@ -343,6 +346,50 @@ local function getRole()
   return nil
 end
 
+-- Character sheet numbers as "Name~value,...": the primary stats, armor, and what the client has
+-- of attack power, spell power, crit, haste, mastery and versatility.
+local function getStats()
+  if type(UnitStat) ~= "function" then return nil end
+  local parts = {}
+  local function add(name, value)
+    if value and value ~= 0 then parts[#parts + 1] = name .. "~" .. value end
+  end
+  local function pct(v) return v and v > 0 and string.format("%.1f%%", v) or nil end
+  for i, name in ipairs({ "Strength", "Agility", "Stamina", "Intellect", "Spirit" }) do
+    local ok, _, effective = pcall(UnitStat, "player", i)
+    if ok and effective then add(name, math.floor(effective)) end
+  end
+  if UnitArmor then local _, armor = UnitArmor("player"); add("Armor", armor and math.floor(armor)) end
+  if UnitAttackPower then
+    local base, pos, neg = UnitAttackPower("player")
+    if base then add("Attack Power", math.floor(base + (pos or 0) + (neg or 0))) end
+  end
+  if GetSpellBonusDamage then
+    local best = 0
+    for school = 2, 7 do best = math.max(best, GetSpellBonusDamage(school) or 0) end
+    add("Spell Power", best)
+  end
+  if GetCritChance then add("Crit", pct(GetCritChance())) end
+  if GetHaste then add("Haste", pct(GetHaste())) end
+  if GetMasteryEffect then add("Mastery", pct((GetMasteryEffect()))) end
+  if GetCombatRatingBonus and CR_VERSATILITY_DAMAGE_DONE then
+    add("Versatility", pct(GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) + (GetVersatilityBonus and GetVersatilityBonus(CR_VERSATILITY_DAMAGE_DONE) or 0)))
+  end
+  if #parts == 0 then return nil end
+  return table.concat(parts, ",")
+end
+
+-- The game's talent loadout string (what "Export" in the talent window gives), for Wowhead's
+-- talent calculator. Retail has it; nil where the client doesn't.
+local function getTalentExport()
+  if not (C_Traits and C_Traits.GenerateImportString and C_ClassTalents and C_ClassTalents.GetActiveConfigID) then return nil end
+  local configID = C_ClassTalents.GetActiveConfigID()
+  if not configID then return nil end
+  local ok, s = pcall(C_Traits.GenerateImportString, configID)
+  if ok and type(s) == "string" and s ~= "" then return s end
+  return nil
+end
+
 local function isHardcore()
   return C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive() or false
 end
@@ -418,6 +465,8 @@ local function characterInfo()
     professions = getProfessions(),
     talents = talents,
     talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)
+    talentExport = getTalentExport(), -- saved file only
+    stats = getStats(), -- saved file only
     spec = spec,
     role = getRole(),
     ilvl = getItemLevel(),
@@ -438,7 +487,7 @@ end
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
 -- (Money too: during logout GetMoney() comes back as 0.)
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "professions", "zone", "played", "crests", "money" }
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "stats", "professions", "zone", "played", "crests", "money" }
 
 local function saveSnapshot()
   doing("snapshot")
@@ -470,15 +519,18 @@ local SHORT = {
   race = "e", raceFile = "E", sex = "x", hardcore = "h", ruleset = "u", seconds = "d", played = "y",
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
-  maxLevel = "X", guild = "U", surname = "L",
+  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D",
 }
+
+-- Too long for the data grid; these only reach the app through the saved file.
+local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true }
 
 -- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
 -- character's GUID in front (it's in g already). Characters that would break it are %XX.
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
-    if type(v) ~= "table" and v ~= "" and v ~= false and k ~= "talentPicks" then
+    if type(v) ~= "table" and v ~= "" and v ~= false and not SAVED_ONLY[k] then
       if v == true then v = 1 end
       if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
       if k == "sex" then v = (v == "female") and "f" or "m" end
@@ -1031,9 +1083,158 @@ local function onCombatLog()
   end
 end
 
+-- Duels ----------------------------------------------------------------------
+
+-- Turns a game string like "%1$s has defeated %2$s in a duel" into a Lua pattern, plus the order
+-- its arguments appear in (so translated strings with swapped arguments still work).
+local function toPattern(fmt)
+  local order, out, i = {}, {}, 1
+  while i <= #fmt do
+    local n = fmt:match("^%%(%d)%$s", i)
+    if n then
+      order[#order + 1] = tonumber(n); out[#out + 1] = "(.-)"; i = i + 4
+    elseif fmt:sub(i, i + 1) == "%s" then
+      order[#order + 1] = #order + 1; out[#out + 1] = "(.-)"; i = i + 2
+    else
+      local c = fmt:sub(i, i)
+      out[#out + 1] = c:match("%W") and ("%" .. c) or c
+      i = i + 1
+    end
+  end
+  return "^" .. table.concat(out) .. "$", order
+end
+
+-- Returns the string's arguments in argument order, or nil when it doesn't match.
+local function matchFormat(text, compiled)
+  local caps = { text:match(compiled[1]) }
+  if #caps == 0 then return nil end
+  local args = {}
+  for k, idx in ipairs(compiled[2]) do args[idx] = caps[k] end
+  return args
+end
+
+local duelPatterns, makgoraPatterns
+local function buildDuelPatterns()
+  duelPatterns, makgoraPatterns = {}, {}
+  -- Argument 1 is the winner in both: "%1$s has defeated %2$s in a duel", "%2$s has fled from %1$s in a duel".
+  for _, name in ipairs({ "DUEL_WINNER_KNOCKOUT", "DUEL_WINNER_RETREAT" }) do
+    local s = _G[name]
+    if type(s) == "string" then
+      local p, order = toPattern(s)
+      duelPatterns[#duelPatterns + 1] = { p, order, fled = name == "DUEL_WINNER_RETREAT" }
+    end
+  end
+  -- Hardcore Mak'gora (duel to the death): the game's own strings, whatever they're called.
+  for k, v in pairs(_G) do
+    if type(k) == "string" and type(v) == "string" and #v < 200 and select(2, v:gsub("%%", "")) >= 2
+        and (v:find("Mak'gora") or v:find("to the death")) and (v:find("defeated") or v:find("slain") or v:find("won")) then
+      local p, order = toPattern(v)
+      makgoraPatterns[#makgoraPatterns + 1] = { p, order }
+    end
+  end
+end
+
+local function isMe(name)
+  if not name then return false end
+  local me, surname = UnitName("player")
+  name = name:gsub("%-.*$", "") -- drop "-Realm"
+  return name == me or (surname and name == me .. " " .. surname)
+end
+
+local function recordDuel(kind, opponent, fled)
+  local e = characterInfo()
+  e.kind = kind -- "duel" or "makgora"
+  e.opponent = opponent
+  e.fled = fled or nil
+  e.at = time()
+  e.id = string.format("%s:%s:%d", e.guid, kind, e.at)
+  addEvent(e)
+end
+
+local function onSystemMessage(text)
+  if not text then return end
+  if not duelPatterns then buildDuelPatterns() end
+  for _, c in ipairs(makgoraPatterns) do
+    local a = matchFormat(text, c)
+    if a and isMe(a[1]) then recordDuel("makgora", a[2]); return end
+  end
+  for _, c in ipairs(duelPatterns) do
+    local a = matchFormat(text, c)
+    if a and isMe(a[1]) then recordDuel("duel", a[2], c.fled); return end
+  end
+end
+
+-- Rating milestones (retail) -------------------------------------------------
+
+local PVP_BRACKETS = { [1] = "2v2", [2] = "3v3", [4] = "Rated Battlegrounds", [7] = "Solo Shuffle", [9] = "Battleground Blitz" }
+local DEFAULT_MPLUS_STEPS = { 1000, 1500, 2000, 2500, 3000, 3500 }
+local DEFAULT_PVP_STEPS = { 1400, 1600, 1800, 2100, 2400 }
+
+-- The highest step passed going from old to new (only upward), or nil.
+local function stepPassed(old, new, steps)
+  local best
+  for _, s in ipairs(steps) do
+    if old < s and new >= s and (not best or s > best) then best = s end
+  end
+  return best
+end
+
+local function recordRating(kind, rating, step, bracket)
+  local e = characterInfo()
+  e.kind = kind -- "mplus" or "pvp"
+  e.rating = rating
+  e.step = step
+  e.bracket = bracket
+  e.at = time()
+  e.id = string.format("%s:%s:%s:%d", e.guid, kind, bracket or "", step)
+  addEvent(e)
+end
+
+-- The first reading per character only sets the baseline, so nothing is posted for ratings that
+-- were already there before the addon.
+local function checkRatings()
+  local guid = UnitGUID("player")
+  if not guid or not WoWCharacterTrackerDB then return end
+  local post = (WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.post) or {}
+  WoWCharacterTrackerDB.ratings = WoWCharacterTrackerDB.ratings or {}
+  local known = WoWCharacterTrackerDB.ratings[guid] or {}
+  WoWCharacterTrackerDB.ratings[guid] = known
+
+  if C_ChallengeMode and C_ChallengeMode.GetOverallDungeonScore then
+    local score = C_ChallengeMode.GetOverallDungeonScore() or 0
+    if known.mplus then
+      local step = stepPassed(known.mplus, score, post.mplusSteps or DEFAULT_MPLUS_STEPS)
+      if step then recordRating("mplus", score, step) end
+    end
+    known.mplus = score
+  end
+  if type(GetPersonalRatedInfo) == "function" then
+    for index, name in pairs(PVP_BRACKETS) do
+      local ok, rating = pcall(GetPersonalRatedInfo, index)
+      if ok and type(rating) == "number" then
+        local key = "pvp" .. index
+        if known[key] then
+          local step = stepPassed(known[key], rating, post.pvpSteps or DEFAULT_PVP_STEPS)
+          if step then recordRating("pvp", rating, step, name) end
+        end
+        known[key] = rating
+      end
+    end
+  end
+end
+
 frame:SetScript("OnEvent", function(_, event, ...)
   if event == "COMBAT_LOG_EVENT_UNFILTERED" then
     onCombatLog()
+
+  elseif event == "CHAT_MSG_SYSTEM" then
+    onSystemMessage((...))
+
+  elseif event == "CHALLENGE_MODE_COMPLETED" then
+    C_Timer.After(5, checkRatings) -- the new score takes a moment
+
+  elseif event == "PVP_RATED_STATS_UPDATE" then
+    checkRatings()
 
   elseif event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
     local addon, func = ...
@@ -1062,6 +1263,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
     -- Gear and spec info can take a few seconds after login. Snapshot then, and every 5 minutes.
     C_Timer.After(10, saveSnapshot)
     C_Timer.After(15, checkIn)
+    if type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
+    C_Timer.After(12, checkRatings)
     if not snapshotTicker and C_Timer.NewTicker then snapshotTicker = C_Timer.NewTicker(300, saveSnapshot) end
 
   elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"

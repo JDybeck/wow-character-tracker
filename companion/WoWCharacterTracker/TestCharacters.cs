@@ -16,7 +16,7 @@ static class TestCharacters
 
         var zeb = new Snapshot($"{GuidPrefix}Zeb", "Zeb", "Forever", 40, "Warrior", "WARRIOR", "Night Elf", "NightElf", "male",
             "", "", 38.4, 3 * 86400 + 5 * 3600, "Scarlet Monastery", "Mining 210, Blacksmithing 205", "Arms 21 / Fury 10 / Protection 0",
-            Ago(0.2), false, "Normal", 87_45_12, Guild: "Bloodhounds", Surname: "Skogsbrand", TalentPicks: "12282~3~3~1,16462~5~5~1,12292~1~1~1,12294~1~1~1,12320~5~5~2");
+            Ago(0.2), false, "Normal", 87_45_12, Guild: "Bloodhounds", Surname: "Skogsbrand", TalentPicks: "12282~3~3~1,16462~5~5~1,12292~1~1~1,12294~1~1~1,12320~5~5~2", Stats: "Strength~152,Agility~89,Stamina~141,Intellect~22,Spirit~48,Armor~2410,Attack Power~398,Crit~9.2%");
         var fagel = new Snapshot($"{GuidPrefix}Fagelmannen", "Fågelmannen", "Forever", 21, "Druid", "DRUID", "Tauren", "Tauren", "male",
             "", "", 18.1, 19 * 3600 + 40 * 60, "The Barrens", "Herbalism 95, Alchemy 80", "Balance 0 / Feral Combat 12 / Restoration 0",
             Ago(5), false, "Normal", 4_12_80, Guild: "Bloodhounds", Surname: "Fjäder");

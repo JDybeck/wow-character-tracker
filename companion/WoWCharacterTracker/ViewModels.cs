@@ -229,6 +229,13 @@ sealed class CharacterRow : Observable
     public string TalentPicks { get; init; } = ""; // Forever: "spellID~rank~maxRank~tree,..."
     public IReadOnlyList<IconChip> TalentPickList { get; private set; } = [];
     public bool HasTalentPicks => TalentPickList.Count > 0;
+    public string TalentExport { get; init; } = ""; // the game's loadout string (retail)
+    public bool HasTalentExport => TalentExport.Length > 0;
+    public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
+    public IReadOnlyList<(string Name, string Value)> StatList => Stats.Split(',', StringSplitOptions.RemoveEmptyEntries)
+        .Select(p => p.Split('~')).Where(p => p.Length == 2).Select(p => (p[0], p[1])).ToList();
+    public IReadOnlyList<IconChip> StatChips => StatList.Select(s => new IconChip($"{s.Name} {s.Value}")).ToList();
+    public bool HasStats => Stats.Length > 0;
     public string FullName => Surname.Length > 0 ? $"{Name} {Surname}" : Name;
 
     public string MoneyText => Money > 0 ? Format.Money(Money) : "-";
@@ -362,12 +369,14 @@ sealed class CharacterRow : Observable
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Surname = Pick(s?.Surname, last?.Surname),
                 TalentPicks = s?.TalentPicks ?? "",
+                TalentExport = s?.TalentExport ?? "",
+                Stats = s?.Stats ?? "",
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone, When(e.At)))
                     .ToList(),
                 Highlights = all
-                    .Where(e => e.Kind is "boss" or "loot" or "mount" or "death")
+                    .Where(e => e.Kind is "boss" or "loot" or "mount" or "death" or "duel" or "makgora" or "mplus" or "pvp")
                     .OrderByDescending(e => e.At)
                     .Select(Highlight)
                     .ToList(),
@@ -381,6 +390,10 @@ sealed class CharacterRow : Observable
     {
         "boss" => new("", ClassColors.Hex(0xFBBF24), "Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
         "loot" => new("", HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD), "Looted ", e.Item, When(e.At), e.ItemId),
+        "duel" => new("", ClassColors.Hex(0x93C5FD), "Won a duel against ", e.Opponent, When(e.At)),
+        "makgora" => new("", ClassColors.Hex(0xF87171), "Won a Mak'gora against ", e.Opponent, When(e.At)),
+        "mplus" => new("", ClassColors.Hex(0xC084FC), "Reached ", $"{e.Step} Mythic+ rating ({e.Rating})", When(e.At)),
+        "pvp" => new("", ClassColors.Hex(0xF87171), "Reached ", $"{e.Step} in {e.Bracket} ({e.Rating})", When(e.At)),
         "mount" => new("", ClassColors.Hex(0x4ADE80), e.Bought ? "Bought " : "Got ", e.Mount, When(e.At), e.ItemId),
         _ => new("", ClassColors.Hex(0xF87171), "", $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : ""), When(e.At)),
     };
@@ -585,6 +598,21 @@ sealed class FlavorViewModel : Observable
     public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; Changed(); } }
     public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
     public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
+    public bool PostDuels { get => Settings.PostDuels; set { Settings.PostDuels = value; Changed(); } }
+    public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; Changed(); } }
+    public bool PostMPlus { get => Settings.PostMPlus; set { Settings.PostMPlus = value; Changed(); } }
+    public bool PostPvp { get => Settings.PostPvp; set { Settings.PostPvp = value; Changed(); } }
+    public bool IsRetail => Flavor == Flavors.Retail;
+
+    // Rating milestones as "1500, 2000, 2500": whole numbers, sorted, typos ignored.
+    public string MPlusStepsText { get => string.Join(", ", Settings.MPlusSteps); set { Settings.MPlusSteps = ParseSteps(value, Settings.MPlusSteps); Changed(); } }
+    public string PvpStepsText { get => string.Join(", ", Settings.PvpSteps); set { Settings.PvpSteps = ParseSteps(value, Settings.PvpSteps); Changed(); } }
+    static List<int> ParseSteps(string text, List<int> fallback)
+    {
+        var steps = text.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => int.TryParse(s, out var n) ? n : 0).Where(n => n > 0 && n < 10000).Distinct().Order().ToList();
+        return steps.Count > 0 ? steps : fallback;
+    }
 
     public bool HideChatInShots { get => Settings.HideChatInShots; set { Settings.HideChatInShots = value; Changed(); } }
 
@@ -954,6 +982,10 @@ sealed class FlavorViewModel : Observable
             "mount" => e with { Kind = "mount", Mount = "Pinto Bridle", ItemId = 2414, Bought = true },
             "boss" => e with { Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", Group = group, GroupSize = 5 },
             "death" => e with { Kind = "death", Killer = "Defias Pillager", Gold = 123456, Hardcore = true },
+            "duel" => e with { Kind = "duel", Opponent = "Grimtusk" },
+            "makgora" => e with { Kind = "makgora", Opponent = "Grimtusk", Hardcore = true },
+            "mplus" => e with { Kind = "mplus", Step = 2000, Rating = 2034 },
+            "pvp" => e with { Kind = "pvp", Step = 1800, Rating = 1812, Bracket = "3v3" },
             _ => e with { Kind = "level", Seconds = 18 * 60 + 4 },
         };
     }
@@ -1152,11 +1184,19 @@ sealed class MainViewModel : Observable
     public ICommand RemoveCharacterCommand { get; }
     public ICommand PostCharacterCommand { get; }
 
+    // Opens the character's build in Wowhead's talent calculator (retail loadout strings).
+    public ICommand OpenTalentsCommand => new RelayCommand(p =>
+    {
+        if (p is not CharacterRow { HasTalentExport: true } c) return;
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+            "https://www.wowhead.com/talent-calc/blizzard/" + Uri.EscapeDataString(c.TalentExport)) { UseShellExecute = true });
+    });
+
     // What the character card includes (the gear next to Post to Discord). Same for every character.
     public static readonly (string Key, string Label)[] CardParts =
     [
         ("ilvl", "Item level"), ("played", "Total played"), ("gold", "Gold"), ("crests", "Crests"),
-        ("professions", "Professions"), ("talents", "Talents"), ("guild", "Guild"), ("zone", "Last seen"),
+        ("professions", "Professions"), ("talents", "Talents"), ("stats", "Stats"), ("guild", "Guild"), ("zone", "Last seen"),
         ("levels", "Recent levels"), ("highlights", "Highlights"),
     ];
 

@@ -54,6 +54,14 @@ class FlavorSettings
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
 
+    // Duels, hardcore Mak'gora, and retail rating milestones (posted when a step is passed).
+    public bool PostDuels { get; set; }
+    public bool PostMakgora { get; set; } = true;
+    public bool PostMPlus { get; set; } = true;
+    public bool PostPvp { get; set; } = true;
+    public List<int> MPlusSteps { get; set; } = [1000, 1500, 2000, 2500, 3000, 3500];
+    public List<int> PvpSteps { get; set; } = [1400, 1600, 1800, 2100, 2400];
+
     // Boss kills aren't posted when someone in the group matches this regex (e.g. friends who run
     // the tracker too, so the same kill isn't posted several times). Empty means never skip.
     public string SkipBossGroupRegex { get; set; } = "";

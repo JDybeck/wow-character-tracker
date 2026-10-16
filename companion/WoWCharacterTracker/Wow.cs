@@ -23,7 +23,7 @@ static class Flavors
     });
 
     // The kinds of events that can get a screenshot, as the addon names them.
-    public static readonly string[] ShotKinds = ["level", "loot", "mount", "boss", "death"];
+    public static readonly string[] ShotKinds = ["level", "loot", "mount", "boss", "death", "duel", "makgora"];
 
     public static readonly IReadOnlyList<Flavor> All = [Retail, Forever];
 }

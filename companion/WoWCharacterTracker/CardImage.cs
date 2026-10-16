@@ -181,6 +181,7 @@ static class CardImage
             body.Children.Add(Txt(c.Talents, 14, text));
             if (c.HasTalentPicks) { body.Children.Add(new Border { Height = 6 }); Chips(null, c.TalentPickList); }
         }
+        if (shows("stats") && c.HasStats) Chips("STATS", c.StatChips);
         if (shows("zone") && c.Zone.Length > 0)
         {
             body.Children.Add(Label("LAST SEEN"));

@@ -4,6 +4,11 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.11.0
 
+- What gets posted is laid out in three columns: General, PvE and PvP.
+- New posts: duels won, Mak'gora won (Forever), Mythic+ rating and PvP rating milestones (Retail, steps you pick). Duels and Mak'gora can have screenshots.
+- Character stats (strength, armor, crit and so on) in the details and on the card.
+- Retail: **Open in Wowhead talent calculator** opens the character's build.
+
 - Forever talents: read from Forever's talent trees (it has no classic talent tabs), e.g. "Holy 7 / Protection 3 / Retribution 0". Talents also update again after the first save.
 - Forever talents are split into the class's three trees, like "Holy 0 / Protection 0 / Retribution 16", and the tree with the most points shows as the spec. Each talent you picked is saved too and shown with its icon and rank in the character details and on the card.
 - If the game ever blocks the addon ("blocked from an action"), the addon says in chat which function the game blocked and notes it, so it can be fixed.

@@ -197,6 +197,10 @@ partial class Discord(string webhookUrl, Flavor flavor, string nameStyle = "full
             "loot" => LootText(e),
             "mount" => MountText(e),
             "death" => DeathText(e),
+            "duel" => DuelText(e),
+            "makgora" => MakgoraText(e),
+            "mplus" => MPlusText(e),
+            "pvp" => PvpText(e),
             _ when e.MaxLevel => MaxLevelText(e),
             _ => LevelText(e),
         };
@@ -213,8 +217,12 @@ partial class Discord(string webhookUrl, Flavor flavor, string nameStyle = "full
             embed["color"] = 0xFFD100; // gold, it's a big one
         else if (e.Kind == "loot" && QualityColors.TryGetValue(e.Quality, out var qc))
             embed["color"] = qc;
-        else if (e.Kind == "death")
+        else if (e.Kind is "death" or "makgora")
             embed["color"] = 0x8B0000;
+        else if (e.Kind == "mplus")
+            embed["color"] = 0xA335EE;
+        else if (e.Kind == "pvp")
+            embed["color"] = 0xC41E3A;
         else if (ClassColors.TryGetValue(e.ClassFile.ToUpperInvariant(), out var color))
             embed["color"] = color;
 
@@ -318,6 +326,35 @@ partial class Discord(string webhookUrl, Flavor flavor, string nameStyle = "full
         var lines = new List<string> { e.ItemId > 0 ? $"**[{e.Mount}]({ItemUrl(e.ItemId)})**" : $"**{e.Mount}**" };
         if (e.Level > 0) lines.Add($"At level {e.Level}.");
         return (e.Bought ? $"{e.Char} bought a mount!" : $"{e.Char} got a new mount!", lines);
+    }
+
+    static (string, List<string>) DuelText(Entry e)
+    {
+        var lines = new List<string> { e.Fled ? $"**{e.Opponent}** ran away mid-duel." : $"Beat **{e.Opponent}** in a duel." };
+        if (e.Zone.Length > 0) lines.Add($"In **{e.Zone}**, at level {e.Level}.");
+        return ($"⚔️ {e.Char} won a duel against {e.Opponent}!", lines);
+    }
+
+    // Mak'gora: the hardcore duel to the death. The loser's character is gone for good.
+    static (string, List<string>) MakgoraText(Entry e)
+    {
+        var lines = new List<string> { $"☠️ **{e.Opponent}** challenged fate and lost. Their character is no more." };
+        if (e.Zone.Length > 0) lines.Add($"Fought in **{e.Zone}**, at level {e.Level}.");
+        return ($"\U0001FA78 {e.Char} won a Mak'gora against {e.Opponent}!", lines);
+    }
+
+    static (string, List<string>) MPlusText(Entry e)
+    {
+        var lines = new List<string> { $"Mythic+ rating is now **{e.Rating}**." };
+        if (e.Spec.Length > 0) lines.Add($"As {e.Spec}.");
+        return ($"\U0001F5DD️ {e.Char} reached {e.Step} Mythic+ rating!", lines);
+    }
+
+    static (string, List<string>) PvpText(Entry e)
+    {
+        var lines = new List<string> { $"{e.Bracket} rating is now **{e.Rating}**." };
+        if (e.Spec.Length > 0) lines.Add($"As {e.Spec}.");
+        return ($"\U0001F3C5 {e.Char} reached {e.Step} in {e.Bracket}!", lines);
     }
 
     // Hardcore deaths: who, what killed them, and what they lose.
