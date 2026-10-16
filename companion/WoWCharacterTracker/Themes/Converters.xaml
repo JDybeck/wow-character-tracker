@@ -1,0 +1,15 @@
+﻿<!-- Value converters used in bindings. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WoWCharacterTracker"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure">
+
+  <ui:BoolToVisibility x:Key="Visible"/>
+  <ui:BoolToVisibility x:Key="Hidden" Invert="True"/>
+  <ui:NullToVisibility x:Key="VisibleIfSet"/>
+  <ui:NullToVisibility x:Key="HiddenIfSet" Invert="True"/>
+  <ui:EqualsToVisibility x:Key="PageIs"/>
+  <BooleanToVisibilityConverter x:Key="BoolVis"/>
+</ResourceDictionary>

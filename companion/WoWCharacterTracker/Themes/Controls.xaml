@@ -1,0 +1,304 @@
+﻿<!-- Looks for the standard controls: checkboxes, chips, buttons, text boxes, tooltips, scrollbars. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WoWCharacterTracker"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure">
+
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="Palette.xaml"/>
+    <ResourceDictionary Source="Converters.xaml"/>
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- Dark checkbox: rounded box with a check glyph, content to the right. -->
+  <Style TargetType="CheckBox">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="CheckBox">
+          <Grid Background="Transparent">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border x:Name="Box" Width="18" Height="18" CornerRadius="4" BorderThickness="1" BorderBrush="#475569"
+                    Background="#0F172A" VerticalAlignment="Top" Margin="0,2,12,0">
+              <TextBlock x:Name="Check" Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                         Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+            </Border>
+            <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Box" Property="Background" Value="{DynamicResource Blue}"/>
+              <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Box" Property="BorderBrush" Value="#64748B"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.45"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Small on/off pill for a webhook's games and rulesets. -->
+  <Style x:Key="OptionChip" TargetType="CheckBox">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="CheckBox">
+          <Border x:Name="Bd" CornerRadius="12" Padding="9,3" BorderThickness="1" BorderBrush="#334155" Background="Transparent">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="Ico" Text="&#xE711;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="9"
+                         Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+              <ContentPresenter x:Name="Txt" TextElement.Foreground="#94A3B8" TextElement.FontSize="11" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoChip}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Indigo}"/>
+              <Setter TargetName="Ico" Property="Text" Value="&#xE73E;"/>
+              <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource IndigoText}"/>
+              <Setter TargetName="Txt" Property="TextElement.Foreground" Value="{DynamicResource IndigoTextBright}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Small pill checkbox for the screenshot options. -->
+  <Style x:Key="ChipCheck" TargetType="CheckBox">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="CheckBox">
+          <Border x:Name="Bd" CornerRadius="12" Padding="10,3" Margin="0,0,6,0" BorderThickness="1"
+                  BorderBrush="#334155" Background="Transparent">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="Ico" Text="&#xE722;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
+                         Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+              <ContentPresenter x:Name="Txt" TextElement.Foreground="#94A3B8" TextElement.FontSize="11" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BlueSoft}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource BlueText}"/>
+              <Setter TargetName="Txt" Property="TextElement.Foreground" Value="{DynamicResource BlueTextBright}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.4"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Text}"/>
+  </Style>
+
+  <!-- Dark tooltips. The default one is light, and the app's light text was unreadable on it. -->
+  <Style TargetType="ToolTip">
+    <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="MaxWidth" Value="360"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToolTip">
+          <Border Background="#1E293B" BorderBrush="#334155" BorderThickness="1" CornerRadius="6" Padding="10,6">
+            <ContentPresenter>
+              <ContentPresenter.Resources>
+                <Style TargetType="TextBlock">
+                  <Setter Property="TextWrapping" Value="Wrap"/>
+                  <Setter Property="Foreground" Value="{StaticResource Text}"/>
+                </Style>
+              </ContentPresenter.Resources>
+            </ContentPresenter>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="Icon" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource Icons}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <Style x:Key="CardBorder" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Card}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="SnapsToDevicePixels" Value="True"/>
+  </Style>
+
+  <Style x:Key="ColumnHeader" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <Style x:Key="Pill" TargetType="Border">
+    <Setter Property="Background" Value="#CC1E293B"/>
+    <Setter Property="BorderBrush" Value="#80334155"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Padding" Value="10,3"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- Buttons -->
+  <Style x:Key="ButtonBase" TargetType="Button">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Padding" Value="12,6"/>
+    <Setter Property="Background" Value="#1E293B"/>
+    <Setter Property="BorderBrush" Value="#334155"/>
+    <Setter Property="Foreground" Value="{StaticResource TextSoft}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="#334155"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+    <Setter Property="Background" Value="{DynamicResource Blue}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Padding" Value="20,10"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BlueHover}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Bd" Property="Background" Value="#1E293B"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="#334155"/>
+              <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="IndigoButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+    <Setter Property="Background" Value="{DynamicResource IndigoStrong}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource IndigoStrong}"/>
+    <Setter Property="Padding" Value="16,8"/>
+  </Style>
+
+  <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+  </Style>
+
+  <!-- Text input -->
+  <Style TargetType="TextBox">
+    <Setter Property="Background" Value="{DynamicResource CardHeader}"/>
+    <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    <Setter Property="CaretBrush" Value="{StaticResource Text}"/>
+    <Setter Property="BorderBrush" Value="#334155"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="10,8"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoMid}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Slim dark scrollbars -->
+  <Style x:Key="ThumbStyle" TargetType="Thumb">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Thumb">
+          <Border Background="#334155" CornerRadius="3"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="ScrollBar">
+    <Setter Property="Width" Value="8"/>
+    <Setter Property="MinWidth" Value="8"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+          <Track x:Name="PART_Track" IsDirectionReversed="True" Margin="1">
+            <Track.Thumb>
+              <Thumb Style="{StaticResource ThumbStyle}"/>
+            </Track.Thumb>
+          </Track>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+      <Trigger Property="Orientation" Value="Horizontal">
+        <Setter Property="Width" Value="Auto"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Height" Value="8"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="ScrollBar">
+              <Track x:Name="PART_Track" IsDirectionReversed="False" Margin="1">
+                <Track.Thumb>
+                  <Thumb Style="{StaticResource ThumbStyle}"/>
+                </Track.Thumb>
+              </Track>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+</ResourceDictionary>

@@ -1,0 +1,222 @@
+﻿<!-- Webhooks: the list, per-tab on/off, options, and adding a new one. -->
+<UserControl x:Class="WoWCharacterTracker.Views.DiscordPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WoWCharacterTracker"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure">
+  <Border Style="{StaticResource CardBorder}" Padding="18,16">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,4">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <Button Style="{StaticResource ButtonBase}" Command="{Binding TestWebhookCommand}" Margin="0,0,8,0"
+                  Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Margin="0,0,6,0" Foreground="{StaticResource TextSoft}"/>
+              <TextBlock Text="Send test" Foreground="{StaticResource TextSoft}"/>
+            </StackPanel>
+          </Button>
+          <Button Style="{StaticResource ButtonBase}" Command="{Binding ToggleAddWebhookCommand}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,6,0" Foreground="{StaticResource TextSoft}"/>
+              <TextBlock Text="Add" Foreground="{StaticResource TextSoft}"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE71B;" Foreground="{DynamicResource Indigo}" FontSize="17" Margin="0,0,10,0"/>
+          <TextBlock Text="Discord" FontSize="17" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+        </StackPanel>
+      </DockPanel>
+      <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}">
+        <Run Text="Click a webhook to turn it on or off for"/>
+        <Run Text="{Binding SelectedFlavor.Name, Mode=OneWay}"/><Run Text=". Posts go to every one that's on."/>
+      </TextBlock>
+
+      <ItemsControl ItemsSource="{Binding Webhooks}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:WebhookRow}">
+            <Border x:Name="Row" Margin="0,0,0,8" Padding="14,10" CornerRadius="8" BorderThickness="1"
+                    Background="#4D1E293B" BorderBrush="#80334155" ToolTip="{Binding Masked}">
+              <StackPanel>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+
+                  <!-- Name and summary (click to turn on/off for this tab), or the rename box -->
+                  <StackPanel Background="Transparent" Cursor="Hand" VerticalAlignment="Center"
+                              Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}">
+                    <StackPanel.InputBindings>
+                      <MouseBinding MouseAction="LeftClick"
+                                    Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"/>
+                    </StackPanel.InputBindings>
+                    <DockPanel LastChildFill="True">
+                      <Border x:Name="ActiveTag" DockPanel.Dock="Right" Visibility="Collapsed" Margin="8,0,4,0" Padding="7,1" CornerRadius="9"
+                              Background="{DynamicResource IndigoSoft}" BorderBrush="{DynamicResource IndigoLineSoft}" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock Text="ON" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource IndigoText}"/>
+                      </Border>
+                      <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+                  <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" Margin="0,0,8,0"
+                           ui:FocusWhenVisible.Enabled="True"
+                           Visibility="{Binding IsEditing, Converter={StaticResource Visible}}">
+                    <TextBox.InputBindings>
+                      <KeyBinding Key="Enter" Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                      <KeyBinding Key="Escape" Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                    </TextBox.InputBindings>
+                  </TextBox>
+
+                  <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Options: which games and rulesets"
+                          Command="{Binding DataContext.ToggleWebhookOptionsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}">
+                    <TextBlock x:Name="Gear" Style="{StaticResource Icon}" Text="&#xE713;" FontSize="13" Foreground="{StaticResource Dim}"/>
+                  </Button>
+                  <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename"
+                          Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}"
+                          Command="{Binding DataContext.RenameWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="13" Foreground="{StaticResource Dim}"/>
+                  </Button>
+                  <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Save name (Enter)"
+                          Visibility="{Binding IsEditing, Converter={StaticResource Visible}}"
+                          Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="13" Foreground="{StaticResource Green}"/>
+                  </Button>
+                  <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
+                          Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="13" Foreground="{StaticResource Dim}"/>
+                  </Button>
+                  <Border x:Name="Radio" Grid.Column="4" Width="20" Height="20" CornerRadius="5" BorderThickness="1" BorderBrush="#475569"
+                          Background="Transparent" Cursor="Hand" VerticalAlignment="Center" ToolTip="On or off for this tab">
+                    <Border.InputBindings>
+                      <MouseBinding MouseAction="LeftClick"
+                                    Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"/>
+                    </Border.InputBindings>
+                    <TextBlock x:Name="RadioCheck" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="11" Foreground="{DynamicResource Indigo}"
+                               HorizontalAlignment="Center" Visibility="Collapsed"/>
+                  </Border>
+                </Grid>
+
+                <!-- Options: games and Forever rulesets, changed by clicking the chips -->
+                <StackPanel Margin="0,10,0,2" Visibility="{Binding IsExpanded, Converter={StaticResource Visible}}">
+                  <TextBlock Text="POSTS FOR" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,0,0,5"/>
+                  <ItemsControl ItemsSource="{Binding Games}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="{x:Type vm:ToggleOption}">
+                        <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <StackPanel Visibility="{Binding HasTags, Converter={StaticResource Visible}}">
+                    <TextBlock Text="CHARACTERS (NONE PICKED = ALL)" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
+                    <ItemsControl ItemsSource="{Binding Tags}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ToggleOption}">
+                          <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"
+                                    ToolTip="Right-click to delete this tag everywhere">
+                            <CheckBox.ContextMenu>
+                              <ContextMenu>
+                                <MenuItem Header="Delete this tag everywhere"
+                                          Command="{Binding PlacementTarget.Tag.DeleteTagCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding Name}"/>
+                              </ContextMenu>
+                            </CheckBox.ContextMenu>
+                            <CheckBox.Tag>
+                              <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                            </CheckBox.Tag>
+                          </CheckBox>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                  <TextBlock Text="FOREVER RULESETS" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
+                  <ItemsControl ItemsSource="{Binding Rulesets}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="{x:Type vm:ToggleOption}">
+                        <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+              <DataTrigger Binding="{Binding IsActive}" Value="True">
+                <Setter TargetName="Row" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+                <Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource IndigoLine}"/>
+                <Setter TargetName="ActiveTag" Property="Visibility" Value="Visible"/>
+                <Setter TargetName="Radio" Property="BorderBrush" Value="{DynamicResource Indigo}"/>
+                <Setter TargetName="Radio" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+                <Setter TargetName="RadioCheck" Property="Visibility" Value="Visible"/>
+              </DataTrigger>
+              <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                <Setter TargetName="Gear" Property="Foreground" Value="{DynamicResource Indigo}"/>
+              </DataTrigger>
+            </DataTemplate.Triggers>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- How to get a webhook, shown until there is one -->
+      <StackPanel Visibility="{Binding HasWebhooks, Converter={StaticResource Hidden}}" Margin="0,8,0,4">
+        <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"
+                   Text="A webhook is the link the app posts through. To make one:"/>
+        <TextBlock Foreground="{StaticResource TextSoft}" FontSize="13" TextWrapping="Wrap" LineHeight="21">
+          1. In Discord, hover the channel you want posts in and click the gear (Edit Channel).<LineBreak/>
+          2. Go to Integrations, then Webhooks, then New Webhook. Give it a name and picture if you like.<LineBreak/>
+          3. Click Copy Webhook URL and paste it below. You need the Manage Webhooks permission on that server.
+        </TextBlock>
+      </StackPanel>
+
+      <!-- Add form -->
+      <Border Visibility="{Binding ShowAddWebhook, Converter={StaticResource Visible}}" Margin="0,8,0,0" Padding="16"
+              CornerRadius="8" Background="#801E293B" BorderBrush="#80334155" BorderThickness="1">
+        <StackPanel>
+          <TextBlock Text="Add New Webhook" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextSoft}" Margin="0,0,0,10"/>
+          <Grid Margin="0,0,0,8">
+            <TextBox Text="{Binding NewWebhookUrl, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Text="https://discord.com/api/webhooks/..." Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
+                       VerticalAlignment="Center" IsHitTestVisible="False"
+                       Visibility="{Binding NewWebhookUrl, Converter={StaticResource HiddenIfSet}}"/>
+          </Grid>
+          <Grid>
+            <TextBox Text="{Binding NewWebhookName, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Text="Name, e.g. #leveling / My Guild (optional)" Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
+                       VerticalAlignment="Center" IsHitTestVisible="False"
+                       Visibility="{Binding NewWebhookName, Converter={StaticResource HiddenIfSet}}"/>
+          </Grid>
+          <TextBlock Text="{Binding AddWebhookError}" Foreground="{StaticResource Red}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
+                     Visibility="{Binding AddWebhookError, Converter={StaticResource VisibleIfSet}}"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Style="{StaticResource GhostButton}" Content="Cancel" Command="{Binding ToggleAddWebhookCommand}" Margin="0,0,8,0"
+                    Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}"/>
+            <Button Style="{StaticResource IndigoButton}" Content="Save Webhook" Command="{Binding SaveWebhookCommand}" IsDefault="True"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </Border>
+</UserControl>

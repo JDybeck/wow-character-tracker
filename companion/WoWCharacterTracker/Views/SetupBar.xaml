@@ -1,0 +1,73 @@
+﻿<!-- Update banner and the three setup checks (game folder, addon, Discord) for the selected game. -->
+<UserControl x:Class="WoWCharacterTracker.Views.SetupBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WoWCharacterTracker"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure">
+  <StackPanel>
+  <Border Visibility="{Binding ShowBanner, Converter={StaticResource Visible}}" Margin="0,0,0,14" Padding="16,12" CornerRadius="10"
+          Background="{DynamicResource IndigoPanel}" BorderBrush="{DynamicResource IndigoLine}" BorderThickness="1">
+    <StackPanel>
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <Button Style="{StaticResource GhostButton}" Content="What's new" Command="{Binding ToggleNotesCommand}" Margin="0,0,6,0" Padding="10,4"
+                  Visibility="{Binding BannerNotes, Converter={StaticResource VisibleIfSet}}"/>
+          <Button Style="{StaticResource IndigoButton}" Content="Update now" Command="{Binding InstallUpdateCommand}" Margin="0,0,6,0" Padding="12,5"
+                  Visibility="{Binding HasUpdate, Converter={StaticResource Visible}}"/>
+          <Button Style="{StaticResource GhostButton}" Padding="8,4" Command="{Binding CloseBannerCommand}" ToolTip="Close">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="11" Foreground="{StaticResource Muted}"/>
+          </Button>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" Foreground="{DynamicResource Indigo}" FontSize="15" Margin="0,0,10,0"/>
+          <TextBlock Text="{Binding BannerTitle}" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+        </StackPanel>
+      </DockPanel>
+      <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" Margin="25,8,0,0"
+                    Visibility="{Binding ShowNotes, Converter={StaticResource Visible}}">
+        <TextBlock Text="{Binding BannerNotes}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" LineHeight="19"/>
+      </ScrollViewer>
+    </StackPanel>
+  </Border>
+  <ItemsControl ItemsSource="{Binding SelectedFlavor.Steps}" Margin="0,0,0,18">
+    <ItemsControl.ItemsPanel>
+      <ItemsPanelTemplate>
+        <UniformGrid Rows="1"/>
+      </ItemsPanelTemplate>
+    </ItemsControl.ItemsPanel>
+    <ItemsControl.ItemTemplate>
+      <DataTemplate DataType="{x:Type vm:SetupItem}">
+        <Border Style="{StaticResource CardBorder}" Padding="14,12" Margin="0,0,12,0">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Border x:Name="Dot" Width="30" Height="30" CornerRadius="15" Background="{StaticResource GreenSoft}" Margin="0,0,12,0">
+              <TextBlock x:Name="DotIcon" Style="{StaticResource Icon}" Text="&#xE73E;" Foreground="{StaticResource Green}"
+                         FontSize="14" HorizontalAlignment="Center"/>
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"/>
+              <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis"
+                         ToolTip="{Binding Detail}"/>
+            </StackPanel>
+            <Button Grid.Column="2" Style="{StaticResource ButtonBase}" Content="{Binding ActionText}" Command="{Binding ActionCommand}"
+                    Visibility="{Binding ActionText, Converter={StaticResource VisibleIfSet}}" Margin="10,0,0,0" Padding="10,4"/>
+          </Grid>
+        </Border>
+        <DataTemplate.Triggers>
+          <DataTrigger Binding="{Binding Ok}" Value="False">
+            <Setter TargetName="Dot" Property="Background" Value="{StaticResource AmberSoft}"/>
+            <Setter TargetName="DotIcon" Property="Text" Value="&#xE7BA;"/>
+            <Setter TargetName="DotIcon" Property="Foreground" Value="{StaticResource Amber}"/>
+          </DataTrigger>
+        </DataTemplate.Triggers>
+      </DataTemplate>
+    </ItemsControl.ItemTemplate>
+  </ItemsControl>
+  </StackPanel>
+</UserControl>
