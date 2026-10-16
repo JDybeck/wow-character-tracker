@@ -66,16 +66,24 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ListBoxItem">
-            <Border x:Name="Bd" Padding="18,7" CornerRadius="7" Margin="3" Background="Transparent">
-              <TextBlock x:Name="Txt" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Muted}"/>
+            <Border x:Name="Bd" Padding="10,2,16,2" CornerRadius="7" Margin="3" Background="Transparent">
+              <StackPanel Orientation="Horizontal">
+                <!-- The game's logo (loaded at runtime), dimmed until the tab is picked. -->
+                <Image x:Name="Logo" Source="{Binding Logo}" Height="40" Margin="0,0,8,0" Opacity="0.55"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       Visibility="{Binding HasLogo, Converter={StaticResource BoolVis}}"/>
+                <TextBlock x:Name="Txt" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+              </StackPanel>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource Text}"/>
+                <Setter TargetName="Logo" Property="Opacity" Value="0.85"/>
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Blue}"/>
                 <Setter TargetName="Txt" Property="Foreground" Value="White"/>
+                <Setter TargetName="Logo" Property="Opacity" Value="1"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>

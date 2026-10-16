@@ -536,6 +536,7 @@ sealed class FlavorViewModel : Observable
             ActionCommand = new RelayCommand(_ => SetUpAddon(force: true)),
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
+        _ = LoadLogoAsync();
         Shots = Flavors.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, ShotsChanged));
     }
 
@@ -571,6 +572,11 @@ sealed class FlavorViewModel : Observable
 
     public Flavor Flavor { get; }
     public string Name => Flavor.Name;
+
+    System.Windows.Media.ImageSource? logo;
+    public System.Windows.Media.ImageSource? Logo { get => logo; private set { Set(ref logo, value); Raise(nameof(HasLogo)); } }
+    public bool HasLogo => logo is not null;
+    async Task LoadLogoAsync() => Logo = await Logos.LoadAsync(Flavor);
     FlavorSettings Settings => main.Config.For(Flavor);
     public Tracker? Tracker => tracker;
 

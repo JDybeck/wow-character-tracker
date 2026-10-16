@@ -4,6 +4,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.11.0
 
+- The game tabs show the game's logo: the current expansion (Midnight) for Retail and Forever's own. They're downloaded from Warcraft Wiki the first time and kept on your PC.
+
 - What gets posted is laid out in three columns: General, PvE and PvP.
 - New posts: duels won, Mak'gora won (Forever), Mythic+ rating and PvP rating milestones (Retail, steps you pick). Duels and Mak'gora can have screenshots.
 - Character stats (strength, armor, crit and so on) in the details and on the card.
