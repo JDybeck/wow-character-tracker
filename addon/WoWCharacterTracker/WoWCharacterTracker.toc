@@ -2,7 +2,7 @@
 ## Title: Character Tracker
 ## Notes: Records how long each character level takes, for the companion app to post to Discord.
 ## Author: JDybeck
-## Version: 0.5.1
+## Version: 0.6.0
 ## SavedVariables: WoWCharacterTrackerDB
 
 Settings.lua

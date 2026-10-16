@@ -178,6 +178,22 @@
       </Border>
 
       <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <Border Width="26" Height="26" CornerRadius="13" BorderBrush="#334155" BorderThickness="1" Margin="0,0,16,0" Cursor="Help"
+                ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE946;" FontSize="13" Foreground="{StaticResource Muted}" HorizontalAlignment="Center"/>
+          <Border.ToolTip>
+            <StackPanel>
+              <TextBlock Text="In-game commands" FontWeight="SemiBold" Margin="0,0,0,6"/>
+              <TextBlock FontFamily="{StaticResource Mono}" FontSize="12" LineHeight="20">
+                /wct          your last 10 level times<LineBreak/>
+                /wct test     check that instant posting works<LineBreak/>
+                /wct live     instant posting on or off<LineBreak/>
+                /wct popup    reload popup after a ding on or off<LineBreak/>
+                /wct help     this list, in game
+              </TextBlock>
+            </StackPanel>
+          </Border.ToolTip>
+        </Border>
         <CheckBox IsChecked="{Binding OpenWithWow}" VerticalAlignment="Center" Margin="0,0,18,0"
                   ToolTip="Waits in the tray and opens when you start World of Warcraft, like Archon. Closing the window keeps it tracking in the tray.">
           <TextBlock Text="Open with World of Warcraft" FontSize="12" Foreground="{StaticResource Muted}"/>
@@ -400,6 +416,28 @@
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
+                          <TextBlock Style="{StaticResource FactLabel}" Text="TAGS"/>
+                          <ItemsControl ItemsSource="{Binding TagOptions}">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate DataType="{x:Type local:ToggleOption}">
+                                <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <Grid Width="220" HorizontalAlignment="Left">
+                            <TextBox Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" FontSize="12">
+                              <TextBox.InputBindings>
+                                <KeyBinding Key="Enter" Command="{Binding DataContext.AddTagCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                              </TextBox.InputBindings>
+                            </TextBox>
+                            <TextBlock Text="New tag, then Enter (e.g. Main)" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0"
+                                       VerticalAlignment="Center" IsHitTestVisible="False"
+                                       Visibility="{Binding NewTag, Converter={StaticResource HiddenIfSet}}"/>
+                          </Grid>
                           <Button Style="{StaticResource ButtonBase}" HorizontalAlignment="Left" Margin="0,16,0,0" Padding="12,6"
                                   ToolTip="Send a card with this character's info to Discord"
                                   Command="{Binding DataContext.PostCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -587,10 +625,23 @@
                     <CheckBox IsChecked="{Binding PostBosses}">
                       <StackPanel>
                         <TextBlock Text="End boss kills" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                        <TextBlock Style="{StaticResource Hint}" Text="The last boss of a dungeon or raid, like Edwin VanCleef or Ragnaros."/>
+                        <TextBlock Style="{StaticResource Hint}" Text="The last boss of a dungeon or raid, like Edwin VanCleef or Ragnaros. The post lists the group."/>
                       </StackPanel>
                     </CheckBox>
                   </DockPanel>
+                  <StackPanel Margin="30,0,0,12" IsEnabled="{Binding PostBosses}">
+                    <TextBlock Text="Don't post when someone in the group matches (regex):" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,4"/>
+                    <Grid Width="320" HorizontalAlignment="Left">
+                      <TextBox Text="{Binding SkipBossGroupRegex, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
+                      <TextBlock Text="e.g. ^(Grimtusk|Pellia)$" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" FontFamily="{StaticResource Mono}"
+                                 VerticalAlignment="Center" IsHitTestVisible="False"
+                                 Visibility="{Binding SkipBossGroupRegex, Converter={StaticResource HiddenIfSet}}"/>
+                    </Grid>
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0"
+                               Text="For friends who run the tracker too, so the same kill isn't posted several times. Matches their name or Name-Realm, not case sensitive."/>
+                    <TextBlock Text="{Binding SkipRegexProblem}" Foreground="{StaticResource Red}" FontSize="12"
+                               Visibility="{Binding SkipRegexProblem, Converter={StaticResource VisibleIfSet}}"/>
+                  </StackPanel>
                   <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
                       <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[death].Take}"/>
@@ -729,6 +780,31 @@
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
+                      <StackPanel Visibility="{Binding HasTags, Converter={StaticResource Visible}}">
+                        <TextBlock Text="CHARACTERS (NONE PICKED = ALL)" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
+                        <ItemsControl ItemsSource="{Binding Tags}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type local:ToggleOption}">
+                              <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"
+                                        ToolTip="Right-click to delete this tag everywhere">
+                                <CheckBox.ContextMenu>
+                                  <ContextMenu>
+                                    <MenuItem Header="Delete this tag everywhere"
+                                              Command="{Binding PlacementTarget.Tag.DeleteTagCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding Name}"/>
+                                  </ContextMenu>
+                                </CheckBox.ContextMenu>
+                                <CheckBox.Tag>
+                                  <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                </CheckBox.Tag>
+                              </CheckBox>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
                       <TextBlock Text="FOREVER RULESETS" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
                       <ItemsControl ItemsSource="{Binding Rulesets}">
                         <ItemsControl.ItemsPanel>

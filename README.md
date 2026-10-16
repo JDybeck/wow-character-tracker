@@ -26,7 +26,7 @@ Made with WoW Forever (Classic+) in mind, and works for Retail too. Each has its
    - **Addon**: installed and kept up to date for you, including the interface number after patches.
    - **Discord**: paste a webhook link in the Discord panel (it explains how to get one). It's checked with Discord before saving. **Send test** shows you a sample post.
 3. That's it. With **Open with World of Warcraft** on (the default), the app waits in the system tray and opens when you start WoW, like Archon. When you close WoW it goes back to the tray, and it keeps tracking the whole time. Closing the window also sends it to the tray; right-click the tray icon to quit. Untick the option at the top to use it as a normal app instead.
-4. In game, type `/ct test`. The console in the app should say instant posting works within a few seconds.
+4. In game, type `/wct test`. The addon also reminds you of `/wct help` when you log in, and the (i) icon at the top of the app lists the commands. The console in the app should say instant posting works within a few seconds.
 
 ### What gets posted
 
@@ -35,16 +35,16 @@ Each game has a **What gets posted** page:
 - **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level.
 - **Loot**: rare (blue) items, and epic and legendary items, separately.
 - **New mounts**: bought from a vendor or learned.
-- **End boss kills**: the last boss of a dungeon or raid.
+- **End boss kills**: the last boss of a dungeon or raid, with the group (name, level, race, class). You can skip the post when someone in the group matches a regex, for friends who run the tracker too, so the same kill isn't posted several times.
 - **Hardcore deaths**: what killed the character, total played and the gold they had on them.
 
 Each of these has **Screenshot** (the addon takes one in game a moment after it happens) and **Post screenshot** (attach it to the Discord post). Screenshot settings reach the game on your next `/reload` or login.
 
 ### The app
 
-- **Characters**: every character you've logged in with the addon, with class, spec, level, item level and when you last played. Hardcore characters are marked. Click one for total played, professions, talents, last zone, highlights (bosses, loot, mounts, death) and level history. **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
+- **Characters**: every character you've logged in with the addon, with class, spec, level, item level and when you last played. Hardcore characters are marked. Click one for total played, professions, talents, last zone, highlights (bosses, loot, mounts, death) and level history. **Tags**: make your own (like Main, Alts, Guild) and put them on characters. **Post to Discord** sends a card with the character's info. **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
 - **Filter**: chips above the list filter by realm on Retail and by ruleset (Hardcore, Self-found, Normal) on Forever.
-- **Discord**: add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, and on Forever which rulesets, so a hardcore channel only gets hardcore characters. A new webhook is named after the name you gave it in Discord; click the pencil to rename it, like "#leveling / My Guild" (Discord doesn't tell webhooks their channel or server name). Hover a webhook to see its masked link.
+- **Discord**: add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, and on Forever which rulesets, so a hardcore channel only gets hardcore characters, and which character tags (none picked means every character). A new webhook is named after the name you gave it in Discord; click the pencil to rename it, like "#leveling / My Guild" (Discord doesn't tell webhooks their channel or server name). Hover a webhook to see its masked link.
 - **Console**: what the app is doing, like posts sent and anything that needs your attention.
 - **Sync now**: reads the game's data again and posts anything new.
 
@@ -56,10 +56,10 @@ Treat the link like a password: anyone with it can post in that channel. The app
 
 ### In game
 
-- `/ct` shows your last 10 level times for the character you're on.
-- `/ct test` checks that instant posting reaches the app.
-- `/ct live` turns instant posting on or off.
-- `/ct popup` turns on a reload popup after a ding, if you'd rather not use instant posting (`/ct live`).
+- `/wct` shows your last 10 level times for the character you're on.
+- `/wct test` checks that instant posting reaches the app.
+- `/wct live` turns instant posting on or off.
+- `/wct popup` turns on a reload popup after a ding, if you'd rather not use instant posting (`/wct live`).
 
 ## How it works
 

@@ -578,7 +578,7 @@ if type(ChatFrame_DisplayTimePlayed) == "function" then
   end
 end
 
--- Optional (off by default, /ct popup): offer a reload after a ding, for when the live
+-- Optional (off by default, /wct popup): offer a reload after a ding, for when the live
 -- channel doesn't work on a client.
 StaticPopupDialogs["CHARACTERTRACKER_POST"] = {
   text = "Ding! Level %d.\n\nReload your UI now to post it to Discord?",
@@ -611,6 +611,26 @@ local function recordLevel(guid, level, seconds, played)
   addEvent(e)
 end
 
+-- The other people in the party: "Name~level~CLASSFILE~Class~Race~Realm" per member, joined by
+-- commas. Raids list only how many there are, since 40 names don't fit a post.
+local function getGroup()
+  if not IsInGroup or not IsInGroup() then return nil, 1 end
+  local size = GetNumGroupMembers and GetNumGroupMembers() or 1
+  if IsInRaid and IsInRaid() then return nil, size end
+  local members = {}
+  for i = 1, 4 do
+    local unit = "party" .. i
+    if UnitExists(unit) then
+      local name, realm = UnitName(unit)
+      local className, classFile = UnitClass(unit)
+      local raceName = UnitRace(unit)
+      table.insert(members, table.concat({ name or "?", UnitLevel(unit) or 0, classFile or "", className or "",
+        raceName or "", (realm and realm ~= "") and realm or "" }, "~"))
+    end
+  end
+  return table.concat(members, ","), size
+end
+
 local function recordBoss(name)
   local instance = END_BOSSES[name]
   if not instance then return end
@@ -622,6 +642,7 @@ local function recordBoss(name)
   e.kind = "boss"
   e.boss = name
   e.instance = (GetInstanceInfo and GetInstanceInfo()) or instance
+  e.group, e.groupSize = getGroup()
   e.at = now
   e.id = string.format("%s:boss:%s:%d", e.guid, name, now)
   addEvent(e)
@@ -767,6 +788,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
 
   elseif event == "PLAYER_LOGIN" then
     requestPlayed() -- sets the baseline for the current level
+    say("Loaded. Type /wct help for the commands.")
 
   elseif event == "SCREENSHOT_SUCCEEDED" or event == "SCREENSHOT_FAILED" then
     shotDone()
@@ -858,7 +880,7 @@ local function showHistory()
 end
 
 SLASH_CHARACTERTRACKER1 = "/charactertracker"
-SLASH_CHARACTERTRACKER2 = "/ct"
+SLASH_CHARACTERTRACKER2 = "/wct"
 SlashCmdList["CHARACTERTRACKER"] = function(msg)
   msg = strtrim(msg or ""):lower()
   if msg == "popup" then
@@ -873,16 +895,16 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     e.at = time()
     e.id = string.format("%s:test:%d", e.guid, e.at)
     if WoWCharacterTrackerDB.live == false then
-      say("Instant posting is off. Type /ct live to turn it on.")
+      say("Instant posting is off. Type /wct live to turn it on.")
       return
     end
     sendLive(e)
     say("Sent a test event. The companion app should show it within a few seconds.")
   elseif msg == "help" then
-    say("/ct shows your last 10 level times.")
-    say("/ct test checks that instant posting reaches the companion app.")
-    say("/ct live turns instant posting on or off.")
-    say("/ct popup turns the reload popup after a ding on or off.")
+    say("/wct shows your last 10 level times.")
+    say("/wct test checks that instant posting reaches the companion app.")
+    say("/wct live turns instant posting on or off.")
+    say("/wct popup turns the reload popup after a ding on or off.")
   else
     showHistory()
   end

@@ -232,7 +232,24 @@ partial class Discord(string webhookUrl, Flavor flavor)
     {
         var lines = new List<string>();
         if (e.Instance.Length > 0) lines.Add($"Final boss of **{e.Instance}** is down.");
-        if (e.Level > 0) lines.Add($"They're level {e.Level}.");
+
+        // The team: this character first, then the rest of the party.
+        var members = e.Members;
+        if (members.Count > 0)
+        {
+            lines.Add("");
+            lines.Add("**Group:**");
+            lines.Add($"{e.Char}, {e.Level} {e.Race} {e.Class}".TrimEnd());
+            lines.AddRange(members.Select(m => $"{m.Name}, {m.Level} {m.Race} {m.Class}".TrimEnd()));
+        }
+        else if (e.GroupSize > 5)
+        {
+            lines.Add($"With a raid of {e.GroupSize}.");
+        }
+        else if (e.Level > 0)
+        {
+            lines.Add($"Solo at level {e.Level}.");
+        }
         return ($"{e.Char} killed {e.Boss}!", lines);
     }
 

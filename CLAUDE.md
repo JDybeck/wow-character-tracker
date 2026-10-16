@@ -21,14 +21,14 @@ Main target: WoW Forever (Classic+, launches 2026-11-04; beta lives in `_classic
 ## How it works
 
 - Addon: `RequestTimePlayed()` on login and level-up; stores `total - thisLevel` per GUID (`WoWCharacterTrackerDB.start`), level time is the difference.
-- Events go to `WoWCharacterTrackerDB.events` with `kind` = level | boss | loot | mount | death (+ "test" from `/ct test`, live only). Common fields: id, guid, char, realm, level, at, zone, professions, talents, spec, role, ilvl, class(File), race(File), sex, hardcore, shot. Kind fields: seconds/played; boss/instance; item/itemId/quality; mount/itemId/bought; killer/gold/played.
+- Events go to `WoWCharacterTrackerDB.events` with `kind` = level | boss | loot | mount | death (+ "test" from `/wct test` and "snapshot" check-ins, live only). Common fields: id, guid, char, realm, level, at, zone, professions, talents, spec, role, ilvl, class(File), race(File), sex, hardcore, shot. Kind fields: seconds/played; boss/instance/group ("Name~level~CLASSFILE~Class~Race~Realm,...")/groupSize; item/itemId/quality; mount/itemId/bought; killer/gold/played.
   - Boss: `ENCOUNTER_END` success or combat log `UNIT_DIED` in party/raid, only names in `END_BOSSES` (Classic dungeon/raid last bosses), 10 min dedupe.
   - Loot: `CHAT_MSG_LOOT` matched with patterns built from `LOOT_ITEM_SELF(_MULTIPLE)`, quality >= 3. Mounts: item class 15/5 from `LOOT_ITEM_PUSHED_SELF` or looted, or `NEW_MOUNT_ADDED`; 2 min dedupe; `bought` if a merchant was open.
   - Death: `PLAYER_DEAD` only when `C_GameRules.IsHardcoreActive()`; killer from the last damage event to the player.
 - Live channel: the chat log can't be used (the game only writes it on exit, and toggling `LoggingChat` doesn't flush it; tested on retail). Instead `addEvent` queues a data screenshot: a parentless frame scaled to 1 unit = 1 pixel shows a 128-column grid of 5 px cells in the top-left corner (row 0 and column 0 alternate white/black as a clock; data = 0xC7, 2-byte length, payload, 2-byte sum), `Screenshot()` on the next frame with `screenshotFormat=jpeg`/`screenshotQuality=10` (restored after) and ActionStatus muted, grid hidden on `SCREENSHOT_SUCCEEDED`. Only events the app will post go live (`Settings.lua` carries `post` rules: level rule, rare/epic, mount, boss, death); plus a `snapshot` check-in 15s after login. Live test/snapshot events update the character row (`Tracker.presence`) but are never posted. Normal event screenshots (`Settings.lua` `screenshot`) are queued after, unposted events get theirs deleted, and the app matches them by write time (event time -2s to +20s).
 - `WoWCharacterTrackerDB.chars[guid]`: latest snapshot per character, saved after `/played`, on death and on `PLAYER_LOGOUT`.
 - App posts only what the tab's settings want; unwanted events are marked handled so toggling later doesn't flood. First run marks existing events as posted unless `--backfill`.
-- Webhooks: shared list, active one per game tab. Never commit them.
+- Webhooks: shared list, on/off per game tab, each with options: games, Forever rulesets, character tags (`Config.Tags`, `Config.CharacterTags` by GUID; none picked = all). Boss kills are skipped when a group member matches the tab's `SkipBossGroupRegex`. Never commit webhooks.
 - Testing: `CHARACTERTRACKER_DATA_DIR` moves config/state and gives test runs their own single-instance name (so they never touch the copy Jesper is running; don't stop processes by name, only ones started from the test build); `CHARACTERTRACKER_SCREENSHOT=<png>` renders the window and quits, `CHARACTERTRACKER_SCREENSHOT_VIEW=forever:posting` picks tab and page. Put both game paths in the test config, otherwise detection finds the real game folders and installs the addon there.
 
 ## Message format (requested by the owner)
@@ -47,9 +47,16 @@ Faction and guild were deliberately left out. No professions means no profession
 ## Status
 
 - App tested end to end against fake `_retail_` + `_classic_beta_` folders and a mock webhook: live data screenshots and earlier live events (posted with the level rule applied, boss with screenshot attached), SavedVariables events, per-game addon install with interface 16001/120105, Settings.lua, config migration, all screens via screenshots.
-- Addon tested in MoonSharp with a stubbed WoW API: timing, snapshots, boss/loot/mount/death detection and dedupe, data grid drawing (rendered to JPEG, also scaled 0.8 at quality 75, and decoded by the app end to end), screenshot calls, `/ct test`.
-- Retail in-game: snapshots, professions, ilvl and spec work. The chat log route failed (only written on exit), replaced by data screenshots, which are not yet tested in game. Other unknowns: whether `ENCOUNTER_END` fires for Forever dungeons, whether Forever mount items are class 15/5, whether `C_GameRules.IsHardcoreActive` exists on Forever. `/ct test` is the quick check for the live channel; `/ct live` turns it off, the reload popup (`/ct popup`) is the fallback.
+- Addon tested in MoonSharp with a stubbed WoW API: timing, snapshots, boss/loot/mount/death detection and dedupe, data grid drawing (rendered to JPEG, also scaled 0.8 at quality 75, and decoded by the app end to end), screenshot calls, `/wct test`.
+- Retail in-game: snapshots, professions, ilvl and spec work. The chat log route failed (only written on exit), replaced by data screenshots, which are not yet tested in game. Other unknowns: whether `ENCOUNTER_END` fires for Forever dungeons, whether Forever mount items are class 15/5, whether `C_GameRules.IsHardcoreActive` exists on Forever. `/wct test` is the quick check for the live channel; `/wct live` turns it off, the reload popup (`/wct popup`) is the fallback.
 - Retail talent split assumes `C_Traits.GetTreeCurrencyInfo` lists class before spec currency; flip in `getRetailTalentSplit` if swapped.
+
+## Later (ideas, not started)
+
+- Minimap button for the addon (with the commands and a test button).
+- Smaller data grid: 2 px cells, PNG for the grid shot, one-letter keys, no repeated GUID in the id, new magic byte so the app reads old and new grids.
+- Read boss kills and deaths from the combat log (WoWCombatLog.txt is written live when combat logging is on; it has ENCOUNTER_END and the group's COMBATANT_INFO). Addons can't add their own lines to it, so it can't replace the grid for level-ups, loot or mounts.
+- Per-character posting rules (overriding the tab's What gets posted).
 
 ## Conventions
 

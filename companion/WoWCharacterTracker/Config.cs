@@ -14,6 +14,12 @@ class WebhookInfo
 
     public static readonly string[] AllRulesets = ["Normal", "Hardcore", "Self-found"];
 
+    // Character tags this webhook posts for. Null or empty means every character ("standard").
+    public List<string>? Tags { get; set; }
+
+    public bool AcceptsTags(IReadOnlyCollection<string> characterTags) =>
+        Tags is not { Count: > 0 } || Tags.Any(characterTags.Contains);
+
     // A character can be both hardcore and self-found ("Hardcore, Self-found"); either one counts.
     public bool AcceptsRuleset(Entry e)
     {
@@ -48,6 +54,23 @@ class FlavorSettings
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
 
+    // Boss kills aren't posted when someone in the group matches this regex (e.g. friends who run
+    // the tracker too, so the same kill isn't posted several times). Empty means never skip.
+    public string SkipBossGroupRegex { get; set; } = "";
+
+    // The member that matches, or null.
+    public GroupMember? SkipBossBecause(Entry e)
+    {
+        if (string.IsNullOrWhiteSpace(SkipBossGroupRegex)) return null;
+        try
+        {
+            var re = new System.Text.RegularExpressions.Regex(SkipBossGroupRegex,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(200));
+            return e.Members.FirstOrDefault(m => re.IsMatch(m.Name) || re.IsMatch(m.FullName));
+        }
+        catch (ArgumentException) { return null; } // invalid regex: the settings page says so
+    }
+
     // Per kind of event: take a screenshot in game, and attach it to the Discord post.
     public Dictionary<string, bool> Screenshot { get; set; } = [];
     public Dictionary<string, bool> PostScreenshot { get; set; } = [];
@@ -74,6 +97,13 @@ class Config
     public List<WebhookInfo> Webhooks { get; set; } = [];
     public Dictionary<string, FlavorSettings> Flavors { get; set; } = [];
     public string? SelectedFlavor { get; set; }
+
+    // Tags the user made ("Main", "Alts", "Guild"...), and which characters (by GUID) have which.
+    public List<string> Tags { get; set; } = [];
+    public Dictionary<string, List<string>> CharacterTags { get; set; } = [];
+
+    public IReadOnlyCollection<string> TagsOf(string guid) =>
+        CharacterTags.TryGetValue(guid, out var t) ? t : [];
 
     // Open with World of Warcraft: a tray icon starts at login and opens the window when WoW starts.
     // Null until the app has run once; it then turns this on.

@@ -39,6 +39,15 @@ record Entry
     public string Mount { get; init; } = "";
     public bool Bought { get; init; }    // the mount showed up while a vendor was open
     public bool Shot { get; init; }      // the addon took a screenshot right after
+    public string Group { get; init; } = ""; // boss kills: the other party members, see Members
+    public int GroupSize { get; init; }
+
+    // "Name~level~CLASSFILE~Class~Race~Realm,..." as the addon writes it.
+    public IReadOnlyList<GroupMember> Members => Group.Length == 0 ? [] : Group.Split(',')
+        .Select(m => m.Split('~'))
+        .Where(p => p.Length >= 5)
+        .Select(p => new GroupMember(p[0], int.TryParse(p[1], out var l) ? l : 0, p[2], p[3], p[4], p.Length > 5 ? p[5] : ""))
+        .ToList();
 
     // Builds an entry from the addon's key/value data, wherever it came from.
     public static Entry From(Func<string, string> s, Func<string, double> n)
@@ -79,11 +88,18 @@ record Entry
             Mount = s("mount"),
             Bought = s("bought") is "true" or "1",
             Shot = s("shot") is "true" or "1",
+            Group = s("group"),
+            GroupSize = (int)n("groupSize"),
         };
     }
 
     // Level-up ids are "<guid>:<level>". Player GUIDs look like "Player-1403-0A1B2C3D".
     static string GuidFromId(string id) => id.IndexOf(':') is var i and > 0 ? id[..i] : id;
+}
+
+record GroupMember(string Name, int Level, string ClassFile, string Class, string Race, string Realm)
+{
+    public string FullName => Realm.Length > 0 ? $"{Name}-{Realm}" : Name;
 }
 
 // The latest state of a character, saved by the addon on every /played, /reload and logout.

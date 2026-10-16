@@ -10,6 +10,7 @@ sealed class Tracker : IDisposable
     readonly Flavor flavor;
     readonly string flavorDir;
     readonly Func<List<WebhookInfo>> webhooks;
+    readonly Func<string, IReadOnlyCollection<string>> tagsFor;
     readonly Func<FlavorSettings> settings;
     readonly bool backfill;
     readonly string statePath;
@@ -28,11 +29,13 @@ sealed class Tracker : IDisposable
     public event Action<Entry>? Posted;
     public event Action<Entry>? LiveTest;
 
-    public Tracker(Flavor flavor, string flavorDir, Func<List<WebhookInfo>> webhooks, Func<FlavorSettings> settings, bool backfill)
+    public Tracker(Flavor flavor, string flavorDir, Func<List<WebhookInfo>> webhooks, Func<FlavorSettings> settings,
+        Func<string, IReadOnlyCollection<string>> tagsFor, bool backfill)
     {
         this.flavor = flavor;
         this.flavorDir = flavorDir;
         this.webhooks = webhooks;
+        this.tagsFor = tagsFor;
         this.settings = settings;
         this.backfill = backfill;
 
@@ -148,6 +151,8 @@ sealed class Tracker : IDisposable
                 // later doesn't dump old events into the channel.
                 foreach (var e in pending.Where(e => !Wanted(e, s)))
                 {
+                    if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
+                        Log.Info($"{Tag}Not posting {e.Boss}: {who.Name} is in the group (they post it).");
                     posted.Add(e.Id);
                     // Only posted highlights keep their screenshot. (The addon normally doesn't take
                     // one for these, unless the settings changed since the game last loaded them.)
@@ -168,8 +173,12 @@ sealed class Tracker : IDisposable
                     // the post later without the others getting it twice.
                     foreach (var e in toPost)
                     {
-                        // On Forever, each webhook can be limited to some rulesets.
-                        var forThis = hooks.Where(w => flavor != Flavors.Forever || w.AcceptsRuleset(e)).ToList();
+                        // Webhooks can be limited to some rulesets (Forever) and to characters with some tags.
+                        var tags = tagsFor(e.Guid);
+                        var forThis = hooks
+                            .Where(w => flavor != Flavors.Forever || w.AcceptsRuleset(e))
+                            .Where(w => w.AcceptsTags(tags))
+                            .ToList();
                         var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
                         var allSent = true;
                         foreach (var w in forThis)
@@ -248,7 +257,7 @@ sealed class Tracker : IDisposable
         "level" => s.LevelWanted(e.Level),
         "loot" => e.Quality >= 4 ? s.PostEpic : e.Quality == 3 && s.PostRare,
         "mount" => s.PostMounts,
-        "boss" => s.PostBosses,
+        "boss" => s.PostBosses && s.SkipBossBecause(e) is null,
         "death" => s.PostDeaths,
         _ => false,
     };

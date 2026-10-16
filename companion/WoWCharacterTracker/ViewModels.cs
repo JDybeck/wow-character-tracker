@@ -156,6 +156,12 @@ sealed class CharacterRow : Observable
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
 
+    // The user's tags as on/off chips for this character, and the box for making a new one.
+    IReadOnlyList<ToggleOption> tagOptions = [];
+    public IReadOnlyList<ToggleOption> TagOptions { get => tagOptions; set { tagOptions = value; Raise(nameof(TagOptions)); } }
+    string newTag = "";
+    public string NewTag { get => newTag; set => Set(ref newTag, value); }
+
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
     public string PlayedText => Played > 0 ? Format.Played(Played) : "-";
@@ -270,15 +276,18 @@ sealed class ToggleOption(string name, bool on, Action<bool> changed) : Observab
 }
 
 sealed class WebhookRow(WebhookInfo info, bool isActive, bool isExpanded,
-    IReadOnlyList<ToggleOption> games, IReadOnlyList<ToggleOption> rulesets) : Observable
+    IReadOnlyList<ToggleOption> games, IReadOnlyList<ToggleOption> rulesets, IReadOnlyList<ToggleOption> tags) : Observable
 {
     public WebhookInfo Info { get; } = info;
     public string Name => Info.Name;
     public bool IsActive { get; } = isActive;
 
-    // The options panel: which games this webhook posts for, and which Forever rulesets.
+    // The options panel: which games this webhook posts for, which Forever rulesets, and which
+    // character tags (none picked = every character).
     public IReadOnlyList<ToggleOption> Games { get; } = games;
     public IReadOnlyList<ToggleOption> Rulesets { get; } = rulesets;
+    public IReadOnlyList<ToggleOption> Tags { get; } = tags;
+    public bool HasTags => Tags.Count > 0;
 
     bool isExpanded = isExpanded;
     public bool IsExpanded { get => isExpanded; set => Set(ref isExpanded, value); }
@@ -294,7 +303,8 @@ sealed class WebhookRow(WebhookInfo info, bool isActive, bool isExpanded,
             var forever = Flavors.Forever.Name;
             if (on.Contains(forever) && rules.Count < Rulesets.Count)
                 on[on.IndexOf(forever)] = $"{forever} ({(rules.Count == 0 ? "no rulesets" : string.Join(", ", rules))})";
-            return "Posts for " + string.Join(", ", on);
+            var tagged = Tags.Where(t => t.IsOn).Select(t => t.Name).ToList();
+            return "Posts for " + string.Join(", ", on) + (tagged.Count > 0 ? $", only {string.Join(", ", tagged)}" : "");
         }
     }
 
@@ -413,6 +423,29 @@ sealed class FlavorViewModel : Observable
     public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
     public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
 
+    // Regex of group members that make a boss kill not get posted (they post it themselves).
+    public string SkipBossGroupRegex
+    {
+        get => Settings.SkipBossGroupRegex;
+        set
+        {
+            Settings.SkipBossGroupRegex = value;
+            main.Config.Save();
+            Raise(nameof(SkipBossGroupRegex));
+            Raise(nameof(SkipRegexProblem));
+        }
+    }
+
+    public string SkipRegexProblem
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Settings.SkipBossGroupRegex)) return "";
+            try { _ = new System.Text.RegularExpressions.Regex(Settings.SkipBossGroupRegex); return ""; }
+            catch (ArgumentException) { return "That isn't a valid pattern, so nothing gets skipped."; }
+        }
+    }
+
     // "Posts at levels 5, 10, 15, 20, 25, 30, 31, 32, 33 and so on."
     public string LevelPreview
     {
@@ -504,7 +537,8 @@ sealed class FlavorViewModel : Observable
         SetUpAddon(force: false);
 
         tracker?.Dispose();
-        tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings, main.Backfill);
+        tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings,
+            guid => main.Config.TagsOf(guid), main.Backfill);
         tracker.DataChanged += data => MainViewModel.OnUi(() => ShowData(data));
         tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
@@ -541,7 +575,7 @@ sealed class FlavorViewModel : Observable
 
             WriteAddonSettings(); // installing puts the default Settings.lua back
             AddonStep.Ok = true;
-            AddonStep.Detail = $"v{bundled} installed. Type /ct test in game to check instant posting";
+            AddonStep.Detail = $"v{bundled} installed. Type /wct test in game to check instant posting";
             AddonStep.ActionText = null;
         }
         catch (UnauthorizedAccessException)
@@ -623,6 +657,7 @@ sealed class FlavorViewModel : Observable
         Characters.Clear();
         foreach (var r in rows.Where(r => selectedGroup.Key.Length == 0 || GroupOf(r) == selectedGroup.Key))
         {
+            r.TagOptions = main.TagOptionsFor(r.Guid);
             Characters.Add(r);
             _ = r.LoadPictureAsync();
         }
@@ -697,6 +732,8 @@ sealed class MainViewModel : Observable
         ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
+        AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
+        DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
         ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
         SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
         SelectWebhookCommand = new RelayCommand(p => SelectWebhook((WebhookRow)p!));
@@ -771,6 +808,8 @@ sealed class MainViewModel : Observable
     public ICommand ResetPostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
     public ICommand PostCharacterCommand { get; }
+    public ICommand AddTagCommand { get; }
+    public ICommand DeleteTagCommand { get; }
     public ICommand ToggleAddWebhookCommand { get; }
     public ICommand SaveWebhookCommand { get; }
     public ICommand SelectWebhookCommand { get; }
@@ -825,8 +864,16 @@ sealed class MainViewModel : Observable
                 if (w.ForeverRulesets.Count == WebhookInfo.AllRulesets.Length) w.ForeverRulesets = null; // all again
                 WebhookOptionsChanged();
             })).ToList();
+            var tags = Config.Tags.Select(tag => new ToggleOption(tag, w.Tags?.Contains(tag) ?? false, on =>
+            {
+                w.Tags ??= [];
+                w.Tags.Remove(tag);
+                if (on) w.Tags.Add(tag);
+                if (w.Tags.Count == 0) w.Tags = null; // back to every character
+                WebhookOptionsChanged();
+            })).ToList();
             var active = SelectedFlavor is not null && Config.IsActive(SelectedFlavor.Flavor, w);
-            Webhooks.Add(new WebhookRow(w, active, expanded.Contains(w.Id), games, rulesets));
+            Webhooks.Add(new WebhookRow(w, active, expanded.Contains(w.Id), games, rulesets, tags));
         }
         Raise(nameof(HasWebhooks));
         CommandManager.InvalidateRequerySuggested();
@@ -917,13 +964,62 @@ sealed class MainViewModel : Observable
         foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync();
     }
 
-    // Sends the character's card to this tab's webhooks (on Forever, only those that take its ruleset).
+    // --- tags ---
+
+    public IReadOnlyList<ToggleOption> TagOptionsFor(string guid) =>
+        Config.Tags.Select(tag => new ToggleOption(tag, Config.TagsOf(guid).Contains(tag), on => SetTag(guid, tag, on))).ToList();
+
+    void SetTag(string guid, string tag, bool on)
+    {
+        if (!Config.CharacterTags.TryGetValue(guid, out var list)) Config.CharacterTags[guid] = list = [];
+        list.Remove(tag);
+        if (on) list.Add(tag);
+        if (list.Count == 0) Config.CharacterTags.Remove(guid);
+        Config.Save();
+    }
+
+    // Makes a new tag (if it's new) and puts it on the character.
+    void AddTag(CharacterRow c)
+    {
+        var tag = c.NewTag.Trim();
+        if (tag.Length == 0) return;
+        if (!Config.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase)) Config.Tags.Add(tag);
+        tag = Config.Tags.First(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase));
+        SetTag(c.Guid, tag, true);
+        c.NewTag = "";
+        RefreshTags();
+        Log.Info($"Tagged {c.Name} as \"{tag}\". Webhooks can be set to post only for tags, under the gear.");
+    }
+
+    // A tag nobody uses anymore can be deleted from the webhook options.
+    void DeleteTag(string tag)
+    {
+        var answer = MessageBox.Show($"Delete the tag \"{tag}\" from all characters and webhooks?", "Character Tracker",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes) return;
+        Config.Tags.Remove(tag);
+        foreach (var list in Config.CharacterTags.Values) list.Remove(tag);
+        foreach (var w in Config.Webhooks) w.Tags?.Remove(tag);
+        Config.Save();
+        RefreshTags();
+    }
+
+    void RefreshTags()
+    {
+        foreach (var tab in FlavorTabs)
+            foreach (var c in tab.Characters) c.TagOptions = TagOptionsFor(c.Guid);
+        RefreshWebhooks();
+    }
+
+    // Sends the character's card to this tab's webhooks (on Forever, only those that take its
+    // ruleset, and only webhooks that post for its tags).
     async Task PostCharacterAsync(CharacterRow c)
     {
         if (SelectedFlavor is not { } tab) return;
         var asEntry = new Entry { Ruleset = c.Ruleset, Hardcore = c.Hardcore };
         var hooks = Config.ActiveWebhooks(tab.Flavor)
             .Where(w => tab.Flavor != Flavors.Forever || w.AcceptsRuleset(asEntry))
+            .Where(w => w.AcceptsTags(Config.TagsOf(c.Guid)))
             .ToList();
         if (hooks.Count == 0)
         {
