@@ -81,7 +81,7 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="CheckBox">
-          <Border x:Name="Bd" CornerRadius="12" Padding="10,3" Margin="0,0,6,0" BorderThickness="1"
+          <Border x:Name="Bd" CornerRadius="12" Padding="10,3" Margin="0,0,6,6" BorderThickness="1"
                   BorderBrush="#334155" Background="Transparent">
             <StackPanel Orientation="Horizontal">
               <TextBlock x:Name="Ico" Text="&#xE722;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"

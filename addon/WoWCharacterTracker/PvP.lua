@@ -85,8 +85,8 @@ end
 -- Rating milestones (retail) -------------------------------------------------
 
 local PVP_BRACKETS = { [1] = "2v2", [2] = "3v3", [4] = "Rated Battlegrounds", [7] = "Solo Shuffle", [9] = "Battleground Blitz" }
-local DEFAULT_MPLUS_STEPS = { 1000, 1500, 2000, 2500, 3000, 3500 }
-local DEFAULT_PVP_STEPS = { 1400, 1600, 1800, 2100, 2400 }
+local DEFAULT_MPLUS_STEPS = { 2000, 2500, 3000, 3500, 4000 }
+local DEFAULT_PVP_STEPS = { 1800, 2100, 2400, 2700 }
 
 -- The highest step passed going from old to new (only upward), or nil.
 local function stepPassed(old, new, steps)
@@ -104,7 +104,10 @@ local function recordRating(kind, rating, step, bracket)
   e.step = step
   e.bracket = bracket
   e.at = time()
-  e.id = string.format("%s:%s:%s:%d", e.guid, kind, bracket or "", step)
+  -- Once per step and season: a new season can post the same step again.
+  local season = (kind == "mplus" and C_MythicPlus and C_MythicPlus.GetCurrentSeason and C_MythicPlus.GetCurrentSeason())
+    or (kind == "pvp" and GetCurrentArenaSeason and GetCurrentArenaSeason()) or 0
+  e.id = string.format("%s:%s:%s:%d:s%s", e.guid, kind, bracket or "", step, tostring(season))
   ns.addEvent(e)
 end
 

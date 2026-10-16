@@ -11,8 +11,24 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="26,22">
         <DockPanel Margin="0,0,0,4">
-          <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Reset to defaults"
-                  Command="{Binding DataContext.ResetPostingCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+            <Button Style="{StaticResource GhostButton}" ToolTip="Copy these settings as a code to share with friends"
+                    Command="{Binding DataContext.CopyPostingCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE8C8;" FontSize="12" Margin="0,0,6,0" Foreground="{StaticResource Muted}"/>
+                <TextBlock Text="Copy settings" Foreground="{StaticResource Muted}"/>
+              </StackPanel>
+            </Button>
+            <Button Style="{StaticResource GhostButton}" ToolTip="Use a settings code someone shared (copy it first)"
+                    Command="{Binding DataContext.PastePostingCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE77F;" FontSize="12" Margin="0,0,6,0" Foreground="{StaticResource Muted}"/>
+                <TextBlock Text="Paste settings" Foreground="{StaticResource Muted}"/>
+              </StackPanel>
+            </Button>
+            <Button Style="{StaticResource GhostButton}" Content="Reset to defaults"
+                    Command="{Binding DataContext.ResetPostingCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+          </StackPanel>
           <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="White">
             <Run Text="What gets posted for"/>
             <Run Text="{Binding Name, Mode=OneWay}"/>
@@ -48,177 +64,196 @@
           <!-- General -->
           <Border Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
             <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="General" Margin="0,0,0,14"/>
-            <StackPanel Margin="0,0,0,16">
-              <CheckBox IsChecked="{Binding PostLevels}">
-                <StackPanel>
-                  <TextBlock Text="Level-ups" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="Dings, with how long the level took." TextWrapping="Wrap"/>
-                </StackPanel>
-              </CheckBox>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="level"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[level].Take}"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[level].Post}" IsEnabled="{Binding Shots[level].Take}"/>
-              </WrapPanel>
-              <StackPanel Margin="30,10,0,0" IsEnabled="{Binding PostLevels}">
-                <WrapPanel>
-                  <TextBlock Text="Up to level" VerticalAlignment="Center" Foreground="{StaticResource TextSoft}"/>
-                  <TextBox Style="{StaticResource NumberBox}" Text="{Binding LevelSplit, UpdateSourceTrigger=PropertyChanged}"/>
-                  <TextBlock Text=", every" VerticalAlignment="Center" Foreground="{StaticResource TextSoft}"/>
-                  <TextBox Style="{StaticResource NumberBox}" Text="{Binding LevelEveryBefore, UpdateSourceTrigger=PropertyChanged}"/>
-                  <TextBlock Text="levels, then every" VerticalAlignment="Center" Foreground="{StaticResource TextSoft}"/>
-                  <TextBox Style="{StaticResource NumberBox}" Text="{Binding LevelEveryAfter, UpdateSourceTrigger=PropertyChanged}"/>
+              <TextBlock Style="{StaticResource SectionTitle}" Text="General" Margin="0,0,0,14"/>
+              <StackPanel Style="{StaticResource PostOption}">
+                <CheckBox IsChecked="{Binding PostLevels}">
+                  <StackPanel>
+                    <TextBlock Text="Level-ups" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="Dings, with how long the level took."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="level"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[level].Take}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[level].Post}" Visibility="{Binding Shots[level].Take, Converter={StaticResource Visible}}"/>
                 </WrapPanel>
-                <TextBlock Text="{Binding LevelPreview}" Foreground="{StaticResource Green}" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"/>
-                <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" TextWrapping="Wrap" Text="&#x1F3C6; Max level is always posted, with extra flair."/>
-                <Button Style="{StaticResource GhostButton}" Content="Test max level" Padding="8,2" FontSize="11" ToolTip="Post a sample max level post to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="max" HorizontalAlignment="Left" Margin="-8,2,0,0"/>
+                <!-- The level rule as a small form: labels left, boxes in one column, units right. -->
+                <Grid Margin="30,10,0,0" IsEnabled="{Binding PostLevels}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                  <TextBlock Text="Up to level" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <TextBox Grid.Column="1" Style="{StaticResource GridNumberBox}" Text="{Binding LevelSplit, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Row="1" Text="post every" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource GridNumberBox}" Text="{Binding LevelEveryBefore, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Row="1" Grid.Column="2" Text="levels" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Row="2" Text="then every" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource GridNumberBox}" Text="{Binding LevelEveryAfter, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Row="2" Grid.Column="2" Text="level(s)" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Text="{Binding LevelPreview}" Foreground="{StaticResource Green}" FontSize="12" Margin="30,8,0,0" TextWrapping="Wrap"/>
+                <Border Margin="30,10,0,0" Padding="0,8,0,0" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+                  <StackPanel>
+                    <CheckBox IsChecked="{Binding PostMaxLevel}">
+                      <StackPanel>
+                        <TextBlock Text="&#x1F3C6; Max level" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                        <TextBlock Style="{StaticResource Hint}" Text="Posted with extra flair, even when the level rule skips that level."/>
+                      </StackPanel>
+                    </CheckBox>
+                    <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="max" HorizontalAlignment="Left" Margin="30,8,0,0"/>
+                  </StackPanel>
+                </Border>
               </StackPanel>
-            </StackPanel>
-            <StackPanel Margin="0,0,0,16">
-              <TextBlock Text="Loot" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}" Margin="0,0,0,6"/>
-              <CheckBox IsChecked="{Binding PostRare}" Margin="0,0,0,4"><TextBlock Text="Rare items" Foreground="#60A5FA" FontWeight="SemiBold" FontSize="13"/></CheckBox>
-              <CheckBox IsChecked="{Binding PostEpic}"><TextBlock Text="Epic items" Foreground="#C084FC" FontWeight="SemiBold" FontSize="13"/></CheckBox>
-              <TextBlock Style="{StaticResource Hint}" Margin="30,6,0,0" Foreground="#FB923C" TextWrapping="Wrap" Text="Legendary items are always posted, with extra flair."/>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test rare" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="rare"/>
-                <Button Style="{StaticResource GhostButton}" Content="Test epic" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="epic"/>
-                <Button Style="{StaticResource GhostButton}" Content="Test legendary" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="legendary"/>
-              </WrapPanel>
-              <WrapPanel Margin="30,4,0,0">
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[loot].Take}"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[loot].Post}" IsEnabled="{Binding Shots[loot].Take}"/>
-              </WrapPanel>
-            </StackPanel>
-            <StackPanel Margin="0,0,0,16">
-              <CheckBox IsChecked="{Binding PostMounts}">
-                <StackPanel>
-                  <TextBlock Text="New mounts" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="Bought or learned. Says &quot;bought&quot; when a vendor was open." TextWrapping="Wrap"/>
-                </StackPanel>
-              </CheckBox>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="mount"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[mount].Take}"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[mount].Post}" IsEnabled="{Binding Shots[mount].Take}"/>
-              </WrapPanel>
 
-            </StackPanel>
+              <StackPanel Style="{StaticResource PostOption}">
+                <TextBlock Text="Loot" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}" Margin="0,0,0,6"/>
+                <!-- One row per quality: the checkbox, and its Test button lined up on the right. -->
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                  <CheckBox IsChecked="{Binding PostRare}" VerticalAlignment="Center"><TextBlock Text="Rare items" Foreground="#60A5FA" FontWeight="SemiBold" FontSize="13"/></CheckBox>
+                  <Button Grid.Column="1" Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="rare"/>
+                  <CheckBox Grid.Row="1" IsChecked="{Binding PostEpic}" VerticalAlignment="Center"><TextBlock Text="Epic items" Foreground="#C084FC" FontWeight="SemiBold" FontSize="13"/></CheckBox>
+                  <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="epic"/>
+                  <TextBlock Grid.Row="2" Margin="30,0,0,0" VerticalAlignment="Center" Style="{StaticResource Hint}" Foreground="#FB923C" Text="Legendary: always posted"/>
+                  <Button Grid.Row="2" Grid.Column="1" Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="legendary"/>
+                </Grid>
+                <WrapPanel Margin="30,8,0,0">
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[loot].Take}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[loot].Post}" Visibility="{Binding Shots[loot].Take, Converter={StaticResource Visible}}"/>
+                </WrapPanel>
+              </StackPanel>
+              <StackPanel Style="{StaticResource PostOption}">
+                <CheckBox IsChecked="{Binding PostMounts}">
+                  <StackPanel>
+                    <TextBlock Text="New mounts" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="Bought or learned. Says &quot;bought&quot; when a vendor was open."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="mount"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[mount].Take}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[mount].Post}" Visibility="{Binding Shots[mount].Take, Converter={StaticResource Visible}}"/>
+                </WrapPanel>
+              </StackPanel>
             </StackPanel>
           </Border>
 
           <!-- PvE -->
           <Border Grid.Column="2" Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
             <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="PvE" Margin="0,0,0,14"/>
-            <StackPanel Margin="0,0,0,16">
-              <CheckBox IsChecked="{Binding PostBosses}">
-                <StackPanel>
-                  <TextBlock Text="End boss kills" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="The last boss of a dungeon or raid. The post lists the group." TextWrapping="Wrap"/>
+              <TextBlock Style="{StaticResource SectionTitle}" Text="PvE" Margin="0,0,0,14"/>
+              <StackPanel Style="{StaticResource PostOption}">
+                <CheckBox IsChecked="{Binding PostBosses}">
+                  <StackPanel>
+                    <TextBlock Text="End boss kills" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="The last boss of a dungeon or raid. The post lists the group."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="boss"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[boss].Take}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[boss].Post}" Visibility="{Binding Shots[boss].Take, Converter={StaticResource Visible}}"/>
+                </WrapPanel>
+                <StackPanel Margin="30,6,0,0" IsEnabled="{Binding PostBosses}">
+                  <TextBlock Text="Skip when someone in the group matches (regex)" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                  <Grid>
+                    <TextBox Text="{Binding SkipBossGroupRegex, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
+                    <TextBlock Text="e.g. ^(Grimtusk|Pellia)$" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" FontFamily="{StaticResource Mono}"
+                               VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding SkipBossGroupRegex, Converter={StaticResource HiddenIfSet}}"/>
+                  </Grid>
+                  <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="For friends who run the tracker too, so a kill isn't posted twice."/>
+                  <TextBlock Text="{Binding SkipRegexProblem}" Foreground="{StaticResource Red}" FontSize="12" Visibility="{Binding SkipRegexProblem, Converter={StaticResource VisibleIfSet}}"/>
                 </StackPanel>
-              </CheckBox>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="boss"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[boss].Take}"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[boss].Post}" IsEnabled="{Binding Shots[boss].Take}"/>
-              </WrapPanel>
-              <StackPanel Margin="30,8,0,0" IsEnabled="{Binding PostBosses}">
-                <TextBlock Text="Skip when someone in the group matches (regex):" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,4" TextWrapping="Wrap"/>
-                <Grid>
-                  <TextBox Text="{Binding SkipBossGroupRegex, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
-                  <TextBlock Text="e.g. ^(Grimtusk|Pellia)$" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" FontFamily="{StaticResource Mono}"
-                             VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding SkipBossGroupRegex, Converter={StaticResource HiddenIfSet}}"/>
+              </StackPanel>
+
+              <StackPanel Style="{StaticResource PostOption}">
+                <CheckBox IsChecked="{Binding PostDeaths}">
+                  <StackPanel>
+                    <TextBlock Text="Hardcore deaths" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="What killed them, total played and the gold they had."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="death"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[death].Take}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[death].Post}" Visibility="{Binding Shots[death].Take, Converter={StaticResource Visible}}"/>
+                </WrapPanel>
+              </StackPanel>
+
+              <StackPanel Style="{StaticResource PostOption}" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}">
+                <CheckBox IsChecked="{Binding PostMPlus}">
+                  <StackPanel>
+                    <TextBlock Text="Mythic+ rating" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="When your rating passes one of these steps."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="mplus"/>
+                </WrapPanel>
+                <Grid Margin="30,6,0,0" IsEnabled="{Binding PostMPlus}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Steps" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <TextBox Grid.Column="1" Text="{Binding MPlusStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
                 </Grid>
-                <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" TextWrapping="Wrap" Text="For friends who run the tracker too, so a kill isn't posted twice."/>
-                <TextBlock Text="{Binding SkipRegexProblem}" Foreground="{StaticResource Red}" FontSize="12" Visibility="{Binding SkipRegexProblem, Converter={StaticResource VisibleIfSet}}"/>
               </StackPanel>
-            </StackPanel>
-            <StackPanel Margin="0,0,0,16">
-              <CheckBox IsChecked="{Binding PostDeaths}">
-                <StackPanel>
-                  <TextBlock Text="Hardcore deaths" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="What killed them, total played and the gold they had." TextWrapping="Wrap"/>
-                </StackPanel>
-              </CheckBox>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="death"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[death].Take}"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[death].Post}" IsEnabled="{Binding Shots[death].Take}"/>
-              </WrapPanel>
-
-            </StackPanel>
-            <StackPanel Margin="0,0,0,16" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}">
-              <CheckBox IsChecked="{Binding PostMPlus}">
-                <StackPanel>
-                  <TextBlock Text="Mythic+ rating" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="When your rating passes one of these steps." TextWrapping="Wrap"/>
-                </StackPanel>
-              </CheckBox>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="mplus"/>
-
-              </WrapPanel>
-              <StackPanel Margin="30,8,0,0">
-                <TextBlock Text="Steps:" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox Text="{Binding MPlusStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
-              </StackPanel>
-            </StackPanel>
             </StackPanel>
           </Border>
 
           <!-- PvP -->
           <Border Grid.Column="4" Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
             <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="PvP" Margin="0,0,0,14"/>
-            <StackPanel Margin="0,0,0,16">
-              <CheckBox IsChecked="{Binding PostDuels}">
-                <StackPanel>
-                  <TextBlock Text="Duels won" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="Who you beat, or who ran away." TextWrapping="Wrap"/>
-                </StackPanel>
-              </CheckBox>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="duel"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[duel].Take}"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[duel].Post}" IsEnabled="{Binding Shots[duel].Take}"/>
-              </WrapPanel>
+              <TextBlock Style="{StaticResource SectionTitle}" Text="PvP" Margin="0,0,0,14"/>
+              <StackPanel Style="{StaticResource PostOption}">
+                <CheckBox IsChecked="{Binding PostDuels}">
+                  <StackPanel>
+                    <TextBlock Text="Duels won" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="Who you beat, or who ran away."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="duel"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[duel].Take}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[duel].Post}" Visibility="{Binding Shots[duel].Take, Converter={StaticResource Visible}}"/>
+                </WrapPanel>
+              </StackPanel>
 
-            </StackPanel>
-            <StackPanel Margin="0,0,0,16" Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
-              <CheckBox IsChecked="{Binding PostMakgora}">
-                <StackPanel>
-                  <TextBlock Text="Mak&apos;gora won" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="The hardcore duel to the death. The loser&apos;s character is gone for good." TextWrapping="Wrap"/>
-                </StackPanel>
-              </CheckBox>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="makgora"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[makgora].Take}"/>
-                <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[makgora].Post}" IsEnabled="{Binding Shots[makgora].Take}"/>
-              </WrapPanel>
+              <StackPanel Style="{StaticResource PostOption}" Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
+                <CheckBox IsChecked="{Binding PostMakgora}">
+                  <StackPanel>
+                    <TextBlock Text="Mak&apos;gora won" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="The hardcore duel to the death. The loser&apos;s character is gone for good."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="makgora"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" IsChecked="{Binding Shots[makgora].Take}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" IsChecked="{Binding Shots[makgora].Post}" Visibility="{Binding Shots[makgora].Take, Converter={StaticResource Visible}}"/>
+                </WrapPanel>
+              </StackPanel>
 
-            </StackPanel>
-            <StackPanel Margin="0,0,0,16" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}">
-              <CheckBox IsChecked="{Binding PostPvp}">
-                <StackPanel>
-                  <TextBlock Text="PvP rating" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="When a rated bracket passes one of these steps (2v2, 3v3, RBG, Solo Shuffle, Blitz)." TextWrapping="Wrap"/>
-                </StackPanel>
-              </CheckBox>
-              <WrapPanel Margin="30,6,0,0">
-                <Button Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" Margin="0,0,6,0" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="pvp"/>
-
-              </WrapPanel>
-              <StackPanel Margin="30,8,0,0">
-                <TextBlock Text="Steps:" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox Text="{Binding PvpStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
+              <StackPanel Style="{StaticResource PostOption}" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}">
+                <CheckBox IsChecked="{Binding PostPvp}">
+                  <StackPanel>
+                    <TextBlock Text="PvP rating" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="When a rated bracket (2v2, 3v3, RBG, Solo Shuffle, Blitz) passes one of these steps."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="pvp"/>
+                </WrapPanel>
+                <Grid Margin="30,6,0,0" IsEnabled="{Binding PostPvp}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Steps" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <TextBox Grid.Column="1" Text="{Binding PvpStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
+                </Grid>
               </StackPanel>
             </StackPanel>
-            </StackPanel>
           </Border>
-        </Grid>
-      </StackPanel>
+        </Grid>      </StackPanel>
     </ScrollViewer>
   </Border>
 </UserControl>

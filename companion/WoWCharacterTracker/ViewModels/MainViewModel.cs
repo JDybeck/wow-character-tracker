@@ -23,6 +23,17 @@ sealed class MainViewModel : Observable
             _ => SelectedFlavor?.Tracker is not null);
         ShowPageCommand = new RelayCommand(p => Page = (string)p!);
         ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
+        CopyPostingCommand = new RelayCommand(_ =>
+        {
+            if (SelectedFlavor is not { } tab) return;
+            Clipboard.SetText(tab.PostingCodeText);
+            Log.Success($"[{tab.Name}] Posting settings copied. Share the code; others click Paste settings to use it.");
+        });
+        PastePostingCommand = new RelayCommand(_ =>
+        {
+            if (SelectedFlavor is not { } tab) return;
+            tab.ApplyPostingCode(Clipboard.ContainsText() ? Clipboard.GetText() : "");
+        });
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
@@ -121,6 +132,8 @@ sealed class MainViewModel : Observable
     public ICommand SyncCommand { get; }
     public ICommand ShowPageCommand { get; }
     public ICommand ResetPostingCommand { get; }
+    public ICommand CopyPostingCommand { get; }
+    public ICommand PastePostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
     public ICommand PostCharacterCommand { get; }
 

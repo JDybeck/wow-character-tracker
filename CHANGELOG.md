@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.12.0
+
+- What gets posted is laid out more cleanly: the level rule lines up in one column, Test buttons look like the other chips, and Post screenshot only shows once Screenshot is on.
+- Max level has its own switch instead of always being posted.
+- Copy settings / Paste settings: share your What gets posted settings as a code, so friends can use the same ones.
+- New default rating steps: Mythic+ 2000, 2500, 3000, 3500, 4000 and PvP 1800, 2100, 2400, 2700 (old defaults are updated). A step posts once per season, only when you climb past it.
+- The page and the Discord panel start at the same height.
+
 ## v0.11.0
 
 - Screenshots go out at full size first, so boosted servers get the full picture. If Discord says one is too big, a smaller copy is sent instead of none.

@@ -120,6 +120,12 @@ class Config
             changed = true;
         }
 
+        foreach (var s in config.Flavors.Values)
+        {
+            if (s.MPlusSteps.SequenceEqual(FlavorSettings.OldMPlusSteps)) { s.MPlusSteps = [.. FlavorSettings.DefaultMPlusSteps]; changed = true; }
+            if (s.PvpSteps.SequenceEqual(FlavorSettings.OldPvpSteps)) { s.PvpSteps = [.. FlavorSettings.DefaultPvpSteps]; changed = true; }
+        }
+
         if (changed) config.Save();
         return config;
     }

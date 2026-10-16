@@ -285,7 +285,8 @@ local SHOT_DELAY = { level = 1.0, boss = 1.5, loot = 0.3, mount = 0.5, death = 0
 local function wanted(e)
   local post = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.post
   if not post then return true end
-  if e.maxLevel or (e.kind == "loot" and (e.quality or 0) >= 5) then return true end -- always worth a post
+  if e.kind == "loot" and (e.quality or 0) >= 5 then return true end -- legendary: always worth a post
+  if e.maxLevel and post.maxLevel ~= false then return true end -- max level has its own switch
   if e.kind == "level" then
     local l = post.level
     if not l or not l.on then return false end

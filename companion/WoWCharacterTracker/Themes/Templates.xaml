@@ -173,4 +173,44 @@
     <Setter Property="Margin" Value="6,0"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
+
+  <!-- What gets posted: a small number box in the settings grids, lined up in one column. -->
+  <Style x:Key="GridNumberBox" TargetType="TextBox" BasedOn="{StaticResource NumberBox}">
+    <Setter Property="Width" Value="52"/>
+    <Setter Property="Padding" Value="4,3"/>
+    <Setter Property="Margin" Value="0,3,8,3"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+  </Style>
+
+  <!-- A small button shaped like the screenshot chips ("Test", "Test max level"). -->
+  <Style x:Key="ChipButton" TargetType="Button">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="ToolTip" Value="Post a sample of this to Discord now"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" CornerRadius="12" Padding="10,3" Margin="0,0,6,6" BorderThickness="1" BorderBrush="#334155" Background="Transparent">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="Ico" Text="&#xE724;" FontFamily="{StaticResource Icons}" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+              <ContentPresenter x:Name="Txt" TextElement.Foreground="#94A3B8" TextElement.FontSize="11" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Txt" Property="TextElement.Foreground" Value="{StaticResource Text}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.4"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- One option on the What gets posted page: spacing between options. -->
+  <Style x:Key="PostOption" TargetType="StackPanel">
+    <Setter Property="Margin" Value="0,0,0,20"/>
+  </Style>
 </ResourceDictionary>

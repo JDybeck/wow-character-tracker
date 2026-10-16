@@ -257,7 +257,7 @@ sealed class Tracker : IDisposable
     // Max level and legendary items are always posted, with extra flair.
     static bool Wanted(Entry e, FlavorSettings s) => e.Kind switch
     {
-        "level" => e.MaxLevel || s.LevelWanted(e.Level),
+        "level" => (e.MaxLevel && s.PostMaxLevel) || s.LevelWanted(e.Level),
         "loot" => e.Quality >= 5 || (e.Quality == 4 ? s.PostEpic : e.Quality == 3 && s.PostRare),
         "mount" => s.PostMounts,
         "boss" => s.PostBosses && s.SkipBossBecause(e) is null,

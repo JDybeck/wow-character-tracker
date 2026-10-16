@@ -108,6 +108,7 @@ sealed class FlavorViewModel : Observable
     public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; Changed(); } }
     public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
     public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
+    public bool PostMaxLevel { get => Settings.PostMaxLevel; set { Settings.PostMaxLevel = value; Changed(); } }
     public bool PostDuels { get => Settings.PostDuels; set { Settings.PostDuels = value; Changed(); } }
     public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; Changed(); } }
     public bool PostMPlus { get => Settings.PostMPlus; set { Settings.PostMPlus = value; Changed(); } }
@@ -187,15 +188,40 @@ sealed class FlavorViewModel : Observable
         var s = Settings;
         (s.PostLevels, s.LevelSplit, s.LevelEveryBefore, s.LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
         (s.PostRare, s.PostEpic, s.PostMounts, s.PostBosses, s.PostDeaths) = (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
+        (s.PostMaxLevel, s.PostDuels, s.PostMakgora, s.PostMPlus, s.PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostMPlus, d.PostPvp);
+        (s.MPlusSteps, s.PvpSteps) = (d.MPlusSteps, d.PvpSteps);
         s.Screenshot = new(d.Screenshot);
         s.PostScreenshot = new(d.PostScreenshot);
+        PostingReplaced();
+        Log.Info($"[{Name}] Posting settings reset to the defaults.");
+    }
+
+    // The What gets posted settings as a code to share (see PostingCode).
+    public string PostingCodeText => PostingCode.Export(Settings, Flavor);
+
+    // Applies a shared settings code to this tab.
+    public void ApplyPostingCode(string text)
+    {
+        var (game, problem) = PostingCode.Import(text, Settings);
+        if (problem is not null) { Log.Warn($"[{Name}] {problem}"); return; }
+        PostingReplaced();
+        var from = Flavors.All.FirstOrDefault(f => f.Key == game);
+        Log.Success($"[{Name}] Pasted the posting settings" + (from is not null && from != Flavor ? $" (they were made for {from.Name})." : "."));
+    }
+
+    // After all posting settings changed at once: save, tell the addon, refresh the page.
+    void PostingReplaced()
+    {
         main.Config.Save();
         WriteAddonSettings();
+        HintReload();
         foreach (var o in Shots.Values) o.Refresh();
         foreach (var p in new[] { nameof(PostLevels), nameof(LevelSplit), nameof(LevelEveryBefore), nameof(LevelEveryAfter),
-                     nameof(PostRare), nameof(PostEpic), nameof(PostMounts), nameof(PostBosses), nameof(PostDeaths), nameof(LevelPreview) })
+                     nameof(PostRare), nameof(PostEpic), nameof(PostMounts), nameof(PostBosses), nameof(PostDeaths), nameof(LevelPreview),
+                     nameof(PostMaxLevel), nameof(PostDuels), nameof(PostMakgora), nameof(PostMPlus), nameof(PostPvp), nameof(MPlusStepsText),
+                     nameof(PvpStepsText), nameof(HideChatInShots), nameof(SkipBossGroupRegex), nameof(SkipRegexProblem),
+                     nameof(NameFull), nameof(NameFirst), nameof(NameLast) })
             Raise(p);
-        Log.Info($"[{Name}] Posting settings reset to the defaults.");
     }
 
     // --- startup and folder ---

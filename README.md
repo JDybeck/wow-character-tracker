@@ -39,19 +39,21 @@ Each game has a **What gets posted** page, in three columns:
 ![What gets posted, in General, PvE and PvP columns](docs/images/what-gets-posted.png)
 
 - **General**
-  - **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level. Reaching max level is always posted, with extra flair.
+  - **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level. **Max level** has its own switch: on, it's posted with extra flair even when the level rule would skip it.
   - **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair.
   - **New mounts**: bought from a vendor or learned.
 - **PvE**
   - **End boss kills**: the last boss of a dungeon or raid, with the group. You can skip the post when someone in the group matches a regex, for friends who run the tracker too, so the same kill isn't posted twice.
   - **Hardcore deaths**: what killed the character, total played and the gold they had on them.
-  - **Mythic+ rating** (Retail): when your rating passes one of your steps (1000, 1500, 2000... by default).
+  - **Mythic+ rating** (Retail): when your rating climbs past one of your steps (2000, 2500, 3000, 3500 and 4000 by default). Going from 2800 to 3000 posts; going from 3000 to 3200 doesn't. Each step posts once per season.
 - **PvP**
   - **Duels won**: who you beat, or who ran away.
   - **Mak'gora won** (Forever): the hardcore duel to the death.
-  - **PvP rating** (Retail): when a rated bracket (2v2, 3v3, Rated Battlegrounds, Solo Shuffle, Blitz) passes one of your steps.
+  - **PvP rating** (Retail): the same for each rated bracket (2v2, 3v3, Rated Battlegrounds, Solo Shuffle, Blitz), with 1800, 2100, 2400 and 2700 as the default steps.
 
 Every option has a **Test** button that posts a sample, using the selected character. Most have **Screenshot** (the addon takes one in game a moment after it happens) and **Post screenshot** (attach it to the Discord post). Screenshot settings reach the game on your next `/reload` or login. On Forever you can also pick the **Name in posts**: full name (Ronnie Raket), first name or surname.
+
+**Copy settings** puts the whole page on your clipboard as a short code (it starts with `WCT1:`) to share with friends, and **Paste settings** applies a code someone shared to the game tab you're on. Webhooks and folders are never part of it.
 
 Posts show the character's portrait as the sender picture, item and mount names link to Wowhead, and professions get an emoji.
 

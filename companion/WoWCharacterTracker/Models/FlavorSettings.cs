@@ -33,8 +33,17 @@ class FlavorSettings
     public bool PostMakgora { get; set; } = true;
     public bool PostMPlus { get; set; } = true;
     public bool PostPvp { get; set; } = true;
-    public List<int> MPlusSteps { get; set; } = [1000, 1500, 2000, 2500, 3000, 3500];
-    public List<int> PvpSteps { get; set; } = [1400, 1600, 1800, 2100, 2400];
+    public List<int> MPlusSteps { get; set; } = [.. DefaultMPlusSteps];
+    public List<int> PvpSteps { get; set; } = [.. DefaultPvpSteps];
+    public static readonly int[] DefaultMPlusSteps = [2000, 2500, 3000, 3500, 4000];
+    public static readonly int[] DefaultPvpSteps = [1800, 2100, 2400, 2700];
+    // The first defaults, replaced on load by the ones above if they were never changed.
+    public static readonly int[] OldMPlusSteps = [1000, 1500, 2000, 2500, 3000, 3500];
+    public static readonly int[] OldPvpSteps = [1400, 1600, 1800, 2100, 2400];
+
+    // Reaching max level: posted with extra flair even when the level rule skips that level.
+    // Off means max level is just another level for the level rule.
+    public bool PostMaxLevel { get; set; } = true;
 
     // Boss kills aren't posted when someone in the group matches this regex (e.g. friends who run
     // the tracker too, so the same kill isn't posted several times). Empty means never skip.
