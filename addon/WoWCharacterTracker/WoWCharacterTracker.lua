@@ -281,13 +281,27 @@ local function getTraitTalents()
 
   local _, classFile = UnitClass("player")
   local names = CLASSIC_TREES[classFile or ""] or {}
+  -- Wowhead's classic-style calculator code: per tree, every talent in reading order (top row
+  -- first, left to right) as its rank, trailing zeros left out, trees joined by "-".
+  local byTree = {}
+  for i = 1, tree do byTree[i] = {} end
+  for _, node in ipairs(nodes) do table.insert(byTree[treeOfX[node.posX]], node) end
+  local codes = {}
+  for i = 1, tree do
+    table.sort(byTree[i], function(a, b) if a.posY ~= b.posY then return (a.posY or 0) < (b.posY or 0) end return a.posX < b.posX end)
+    local digits = {}
+    for _, node in ipairs(byTree[i]) do digits[#digits + 1] = tostring(math.min(9, node.ranksPurchased or node.currentRank or 0)) end
+    codes[i] = (table.concat(digits):gsub("0+$", ""))
+  end
+  local calc = (table.concat(codes, "-"):gsub("%-+$", ""))
+
   local parts, best, bestPoints = {}, nil, -1
   for i = 1, tree do
     local name = (tree == 3 and names[i]) or ("Tree " .. i)
     parts[#parts + 1] = string.format("%s %d", name, points[i])
     if points[i] > bestPoints then best, bestPoints = name, points[i] end
   end
-  return table.concat(parts, " / "), best, table.concat(picks, ",")
+  return table.concat(parts, " / "), best, table.concat(picks, ","), calc
 end
 -- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or nil when there is nothing to show yet.
 -- Also returns the spec name on retail (nil on Classic).
@@ -318,8 +332,8 @@ local function getTalents()
     if ok and split then return split, specName end
     return nil, specName
   end
-  local ok, traits, specName, picks = pcall(getTraitTalents)
-  if ok then return traits, specName, picks end
+  local ok, traits, specName, picks, calc = pcall(getTraitTalents)
+  if ok then return traits, specName, picks, calc end
   return nil
 end
 
@@ -467,7 +481,7 @@ local function characterInfo()
   local className, classFile = UnitClass("player")
   local raceName, raceFile = UnitRace("player")
   local sex = UnitSex("player") -- 2 = male, 3 = female
-  local talents, spec, picks = getTalents()
+  local talents, spec, picks, calc = getTalents()
   return {
     guid = UnitGUID("player"),
     char = (UnitName("player")),
@@ -479,6 +493,7 @@ local function characterInfo()
     talents = talents,
     talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)
     talentExport = getTalentExport(), -- saved file only
+    talentCalc = calc, -- Forever: Wowhead talent calculator code (short, goes live too)
     stats = getStats(), -- saved file only
     spec = spec,
     role = getRole(),
@@ -500,7 +515,7 @@ end
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
 -- (Money too: during logout GetMoney() comes back as 0.)
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "stats", "professions", "zone", "played", "crests", "money" }
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "zone", "played", "crests", "money" }
 
 local function saveSnapshot()
   doing("snapshot")
@@ -535,7 +550,7 @@ local SHORT = {
   race = "e", raceFile = "E", sex = "x", hardcore = "h", ruleset = "u", seconds = "d", played = "y",
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
-  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J",
+  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q",
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent

@@ -18,7 +18,7 @@ static class Flavors
 
     // Forever is what this is really made for. Its final folder name isn't known yet, so the
     // beta folder is the fallback.
-    public static readonly Flavor Forever = new("forever", "Forever", ["_forever_", "_forever_beta_", "_classic_beta_"], "classic/", () => new FlavorSettings
+    public static readonly Flavor Forever = new("forever", "Forever", ["_forever_", "_forever_beta_", "_classic_beta_"], "forever/", () => new FlavorSettings
     {
         LevelSplit = 30, LevelEveryBefore = 5, LevelEveryAfter = 1,
         PostRare = true, PostEpic = true, PostMounts = true, PostBosses = true, PostDeaths = true,

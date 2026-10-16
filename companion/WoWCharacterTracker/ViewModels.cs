@@ -231,6 +231,8 @@ sealed class CharacterRow : Observable
     public bool HasTalentPicks => TalentPickList.Count > 0;
     public string TalentExport { get; init; } = ""; // the game's loadout string (retail)
     public bool HasTalentExport => TalentExport.Length > 0;
+    public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
+    public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
     public IReadOnlyList<(string Name, string Value)> StatList => Stats.Split(',', StringSplitOptions.RemoveEmptyEntries)
         .Select(p => p.Split('~')).Where(p => p.Length == 2).Select(p => (p[0], p[1])).ToList();
@@ -331,8 +333,10 @@ sealed class CharacterRow : Observable
         var guilds = data.Characters.Where(c => c.Guild is not null).GroupBy(c => c.Guid)
             .ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!.Guild!);
         // A live check-in may carry the talent code before the saved file has it, or the other way round.
-        var snapsAll = data.Characters.Where(c => c.TalentExport.Length > 0).GroupBy(c => c.Guid)
-            .ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!.TalentExport);
+        // Some things only come with the saved file (talent picks, stats) or only with some check-ins
+        // (the talent code), so each is taken from the newest snapshot that has it.
+        string Newest(string guid, Func<Snapshot, string> field) =>
+            data.Characters.Where(c => c.Guid == guid && field(c).Length > 0).MaxBy(c => c.LastSeen) is { } n ? field(n) : "";
 
         var rows = new List<CharacterRow>();
         foreach (var guid in snaps.Keys.Union(events.Keys))
@@ -371,9 +375,10 @@ sealed class CharacterRow : Observable
                 Crests = Pick(s?.Crests, last?.Crests),
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Surname = Pick(s?.Surname, last?.Surname),
-                TalentPicks = s?.TalentPicks ?? "",
-                TalentExport = Pick(s?.TalentExport, snapsAll.GetValueOrDefault(guid)),
-                Stats = s?.Stats ?? "",
+                TalentPicks = Newest(guid, c => c.TalentPicks),
+                TalentExport = Newest(guid, c => c.TalentExport),
+                TalentCalc = Newest(guid, c => c.TalentCalc),
+                Stats = Newest(guid, c => c.Stats),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone, When(e.At)))
@@ -1196,11 +1201,13 @@ sealed class MainViewModel : Observable
     // Opens the character's build in Wowhead's talent calculator (retail loadout strings).
     public ICommand OpenTalentsCommand => new RelayCommand(p =>
     {
-        if (p is not CharacterRow { HasTalentExport: true } c) return;
-        // Forever has its own calculator on Wowhead, under /forever.
-        var site = SelectedFlavor?.Flavor == Flavors.Forever ? "https://www.wowhead.com/forever" : "https://www.wowhead.com";
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-            $"{site}/talent-calc/blizzard/{Uri.EscapeDataString(c.TalentExport)}") { UseShellExecute = true });
+        if (p is not CharacterRow { HasTalentLink: true } c) return;
+        // Forever: wowhead.com/forever/talent-calc/<class>/<points per talent, per tree>, like Wowhead's
+        // classic calculators. Retail: the game's own loadout code.
+        var url = SelectedFlavor?.Flavor == Flavors.Forever
+            ? $"https://www.wowhead.com/forever/talent-calc/{c.ClassFile.ToLowerInvariant()}/{c.TalentCalc}".TrimEnd('/')
+            : $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(c.TalentExport)}";
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
     });
 
     // What the character card includes (the gear next to Post to Discord). Same for every character.
