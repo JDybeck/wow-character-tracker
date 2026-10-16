@@ -15,10 +15,11 @@ Main target: WoW Forever (Classic+, launches 2026-11-04; beta lives in `_classic
   - `AddonInstaller.cs`: addon embedded in the exe, installed/updated per game folder, writes `Settings.lua`.
   - `Discord.cs`: webhook check, embeds per kind, multipart upload when there's a screenshot. `SavedVariables.cs`: `Entry` (all kinds), `Snapshot`, MoonSharp parsing, `Format`.
   - `App.xaml.cs`: single instance (a second launch signals the first to show its window), tray mode, `GameWatcher` (opens the window when a WoW process starts, hides it to the tray when the last one closes). `TrayIcon.cs`: WinForms NotifyIcon (WinForms only for this). `Autostart.cs`: HKCU Run entry with `--background` when Open with World of Warcraft is on.
-  - `Wowhead.cs`: names/icons/tooltips for items and currencies from `nether.wowhead.com/[classic/]tooltip/{item|currency}/{id}`, cached in `wowhead.json`; profession icon names. `Updater.cs`: GitHub latest release check, self-update (download, rename running exe to .old, swap, restart with `--updated`), release notes from `CHANGELOG.md` via the release workflow. Needs the repo to be public.
+  - `Wowhead.cs`: names/icons/tooltips for items and currencies from `nether.wowhead.com/[classic/]tooltip/{item|currency}/{id}`, cached in `wowhead.json`; profession icon names. `Updater.cs`: GitHub latest release check, self-update (download, rename running exe to .old, swap, restart with `--updated`), release notes from the GitHub release (written by release.cmd from `CHANGELOG.md`). Reads `JDybeck/wow-character-tracker-releases`.
 - `TestCharacters.cs`: made-up Forever characters (Zeb, Fågelmannen, Goggo; GUIDs start with `Test-`) shown when the header switch is on. Only merged into the list in `FlavorViewModel.ShowData`, never into the Tracker, so they're never posted on their own.
 - `Log.cs`: console messages. `Config.cs`: webhooks, per-game `FlavorSettings` (path, active webhook, level rule, toggles, screenshot dicts). Migrates v0.2/v0.3 configs.
-- `build.cmd`: `dotnet publish` to `dist\WoWCharacterTracker.exe` (self-contained single file). `.github/workflows/release.yml` does the same on a `v*` tag and attaches it to a release.
+- `build.cmd`: `dotnet publish` to `dist\WoWCharacterTracker.exe` (self-contained single file).
+- Releases: this repo is private. `release.cmd 0.9.0` builds that version, takes the notes from CHANGELOG.md (`## v0.9.0`), tags this repo and creates the release in the public releases-only repo `JDybeck/wow-character-tracker-releases` (README + releases, no code). The app's updater and the README download link point there. Add the CHANGELOG section and commit before releasing.
 
 ## How it works
 
