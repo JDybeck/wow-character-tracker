@@ -31,6 +31,7 @@ public partial class MainWindow : Window
                     foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "death" }) vm.TestKindCommand.Execute(kind);
                 if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(); // show the details panel too
                 if (view.Length > 3 && view[3] == "cardopts") vm.ShowCardOptions = true;
+                if (view.Length > 2 && view[2] == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
                 if (view.Length > 3 && view[3] == "post" && vm.SelectedFlavor?.SelectedCharacter is { } c)
                 {
                     await Task.Delay(3000); // icons
