@@ -528,6 +528,15 @@ sealed class FlavorViewModel : Observable
     string? flavorDir;
     Entry? lastPost;
 
+    // The character that just logged in, picked once its row is in the list.
+    string? pendingSelect;
+    void SelectCheckedIn()
+    {
+        if (pendingSelect is null || Characters.FirstOrDefault(c => c.Guid == pendingSelect) is not { } row) return;
+        SelectedCharacter = row;
+        pendingSelect = null;
+    }
+
     public FlavorViewModel(MainViewModel main, Flavor flavor)
     {
         this.main = main;
@@ -761,6 +770,13 @@ sealed class FlavorViewModel : Observable
         tracker.DataChanged += data => MainViewModel.OnUi(() => ShowData(data));
         tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
+        // Logging in on a game switches the app to that game's tab, with the character picked.
+        tracker.CheckedIn += e => MainViewModel.OnUi(() =>
+        {
+            main.SelectedFlavor = this;
+            pendingSelect = e.Guid;
+            SelectCheckedIn();
+        });
         tracker.Start();
         UpdateStatus();
         CommandManager.InvalidateRequerySuggested();
@@ -918,6 +934,7 @@ sealed class FlavorViewModel : Observable
             _ = r.LoadIconsAsync(Flavor);
         }
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
+        SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
         Raise(nameof(TotalGoldText));
         Raise(nameof(TotalCoins));

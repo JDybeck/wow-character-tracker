@@ -28,6 +28,7 @@ sealed class Tracker : IDisposable
     public event Action<TrackerData>? DataChanged;
     public event Action<Entry>? Posted;
     public event Action<Entry>? LiveTest;
+    public event Action<Entry>? CheckedIn; // a character just logged in (live check-in)
 
     public Tracker(Flavor flavor, string flavorDir, Func<List<WebhookInfo>> webhooks, Func<FlavorSettings> settings,
         Func<string, IReadOnlyCollection<string>> tagsFor, bool backfill)
@@ -85,6 +86,7 @@ sealed class Tracker : IDisposable
         else if (e.Kind == "snapshot")
         {
             Log.Info($"{Tag}{e.Char} logged in.");
+            CheckedIn?.Invoke(e);
         }
         else
         {
