@@ -29,6 +29,7 @@ record Entry
     public bool MaxLevel { get; init; }         // this level-up reached the game's max level
     public long Money { get; init; }            // copper the character had
     public string Crests { get; init; } = "";  // retail: "Gilded Crest 45, Runed Crest 120"
+    public string? Guild { get; init; }         // "" = no guild, null = not known
 
     public long Seconds { get; init; }   // level: time the level took
     public long Played { get; init; }    // total /played
@@ -82,6 +83,7 @@ record Entry
             MaxLevel = s("maxLevel") is "true" or "1",
             Money = (long)n("money"),
             Crests = s("crests"),
+            Guild = s("guild") is { Length: > 0 } g ? g : null,
             Seconds = (long)n("seconds"),
             Played = (long)n("played"),
             Boss = s("boss"),
@@ -112,7 +114,7 @@ record GroupMember(string Name, int Level, string ClassFile, string Class, strin
 record Snapshot(string Guid, string Char, string Realm, int Level, string Class, string ClassFile,
     string Race, string RaceFile, string Sex, string Spec, string Role, double ItemLevel, long Played,
     string Zone, string Professions, string Talents, long LastSeen, bool Hardcore, string Ruleset,
-    long Money = 0, string Crests = "");
+    long Money = 0, string Crests = "", string? Guild = null);
 
 record TrackerData(List<Entry> Events, List<Snapshot> Characters)
 {
@@ -170,7 +172,8 @@ static class SavedVariables
                 S(t, "sex") == "female" ? "female" : "male",
                 S(t, "spec"), S(t, "role"), N(t, "ilvl"), (long)N(t, "played"),
                 S(t, "zone"), S(t, "professions"), S(t, "talents"), (long)N(t, "lastSeen"),
-                S(t, "hardcore") == "true", S(t, "ruleset"), (long)N(t, "money"), S(t, "crests")));
+                S(t, "hardcore") == "true", S(t, "ruleset"), (long)N(t, "money"), S(t, "crests"),
+                t.Get("guild").IsNil() ? null : S(t, "guild")));
         }
 
         return list;
@@ -187,6 +190,33 @@ static class SavedVariables
 
 static class Format
 {
+    // Discord can't show item icons in text, so professions get a plain emoji each.
+    static readonly Dictionary<string, string> ProfessionEmoji = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Alchemy"] = "⚗️", ["Blacksmithing"] = "🔨", ["Enchanting"] = "✨", ["Engineering"] = "⚙️",
+        ["Herbalism"] = "🌿", ["Leatherworking"] = "🧥", ["Mining"] = "⛏️", ["Skinning"] = "🔪",
+        ["Tailoring"] = "🧵", ["Inscription"] = "📜", ["Jewelcrafting"] = "💎", ["Cooking"] = "🍳",
+        ["Fishing"] = "🎣", ["First Aid"] = "🩹", ["Archaeology"] = "🏺",
+    };
+
+    // "Mining 150, Herbalism 75" -> "⛏️ Mining 150, 🌿 Herbalism 75"
+    public static string ProfessionsWithEmoji(string professions)
+    {
+        if (professions is "" or "None") return "";
+        return string.Join(", ", professions.Split(", ").Select(p =>
+        {
+            var name = p.TrimEnd("0123456789 ".ToCharArray());
+            return ProfessionEmoji.TryGetValue(name, out var emoji) ? $"{emoji} {p}" : p;
+        }));
+    }
+
+    // Crests as text: "id~qty~name,..." (or the older "Name 45, Name 120") -> "Name 45, Name 120"
+    public static string Crests(string crests)
+    {
+        if (!crests.Contains('~')) return crests;
+        return string.Join(", ", crests.Split(',').Select(c => c.Split('~')).Where(p => p.Length >= 3).Select(p => $"{p[2]} {p[1]}"));
+    }
+
     public static string Duration(long seconds)
     {
         var ts = TimeSpan.FromSeconds(seconds);

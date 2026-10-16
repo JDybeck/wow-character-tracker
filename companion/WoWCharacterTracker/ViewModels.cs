@@ -222,6 +222,8 @@ sealed class CharacterRow : Observable
     public required bool Dead { get; init; }
     public required long Money { get; init; }   // copper
     public required string Crests { get; init; }
+    public string Guild { get; init; } = "";
+    public bool HasGuild => Guild.Length > 0;
 
     public string MoneyText => Money > 0 ? Format.Money(Money) : "-";
     public bool HasMoney => Money > 0;
@@ -302,6 +304,9 @@ sealed class CharacterRow : Observable
     {
         var events = data.Events.GroupBy(e => e.Guid).ToDictionary(g => g.Key, g => g.OrderBy(e => e.At).ToList());
         var snaps = data.Characters.GroupBy(c => c.Guid).ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!);
+        // Live check-ins leave the guild out when there's none, so take the newest snapshot that knows it.
+        var guilds = data.Characters.Where(c => c.Guild is not null).GroupBy(c => c.Guid)
+            .ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!.Guild!);
 
         var rows = new List<CharacterRow>();
         foreach (var guid in snaps.Keys.Union(events.Keys))
@@ -338,6 +343,7 @@ sealed class CharacterRow : Observable
                 // The newest of the snapshot and the last event says what the character has now.
                 Money = last is not null && last.At > (s?.LastSeen ?? 0) && last.Money > 0 ? last.Money : s?.Money ?? last?.Money ?? 0,
                 Crests = Pick(s?.Crests, last?.Crests),
+                Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone, When(e.At)))
@@ -1070,6 +1076,28 @@ sealed class MainViewModel : Observable
     public ICommand ResetPostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
     public ICommand PostCharacterCommand { get; }
+
+    // What the character card includes (the gear next to Post to Discord). Same for every character.
+    public static readonly (string Key, string Label)[] CardParts =
+    [
+        ("ilvl", "Item level"), ("played", "Total played"), ("gold", "Gold"), ("crests", "Crests"),
+        ("professions", "Professions"), ("talents", "Talents"), ("guild", "Guild"), ("zone", "Last seen"),
+        ("levels", "Recent levels"), ("highlights", "Highlights"),
+    ];
+
+    IReadOnlyList<ToggleOption>? cardOptions;
+    public IReadOnlyList<ToggleOption> CardOptions => cardOptions ??= CardParts
+        .Select(p => new ToggleOption(p.Label, !Config.CardHidden.Contains(p.Key), on =>
+        {
+            Config.CardHidden.Remove(p.Key);
+            if (!on) Config.CardHidden.Add(p.Key);
+            Config.Save();
+        }))
+        .ToList();
+
+    bool showCardOptions;
+    public bool ShowCardOptions { get => showCardOptions; set => Set(ref showCardOptions, value); }
+    public ICommand ToggleCardOptionsCommand => new RelayCommand(_ => ShowCardOptions = !ShowCardOptions);
     public ICommand AddTagCommand { get; }
     public ICommand TestKindCommand { get; }
     public ICommand CheckUpdatesCommand { get; }
@@ -1299,8 +1327,10 @@ sealed class MainViewModel : Observable
                      (tab.Flavor == Flavors.Forever ? $" (and check it takes {c.Ruleset} characters)." : "."));
             return;
         }
+        var hidden = Config.CardHidden.ToList();
+        var card = await CardImage.RenderAsync(c, tab.Flavor, hidden);
         foreach (var w in hooks)
-            if (await new Discord(w.Url, tab.Flavor).PostCharacterAsync(c))
+            if (await new Discord(w.Url, tab.Flavor).PostCharacterAsync(c, hidden, card))
                 Log.Success($"[{tab.Name}] Posted {c.Name}'s character card to \"{w.Name}\".");
     }
 

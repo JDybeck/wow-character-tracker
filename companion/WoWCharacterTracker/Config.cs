@@ -110,6 +110,9 @@ class Config
     // Null until the app has run once; it then turns this on.
     public bool? OpenWithWow { get; set; }
 
+    // Parts of the character card (Post to Discord) the user turned off. Guild is off unless picked.
+    public List<string> CardHidden { get; set; } = ["guild"];
+
     // Older name, from when the window itself started with Windows. Moved on load.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? StartWithWindows { get; set; }

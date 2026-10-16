@@ -19,6 +19,7 @@ partial class Discord(string webhookUrl, Flavor flavor)
     };
 
     const string IconBase = "https://wow.zamimg.com/images/wow/icons/large/";
+    const string AvatarUrl = "https://raw.githubusercontent.com/JDybeck/wow-character-tracker/main/companion/WoWCharacterTracker/Assets/logo.png";
 
     // Remembers which portrait URLs exist so a new race we don't know falls back to the class icon.
     static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> UrlExists = new();
@@ -65,54 +66,73 @@ partial class Discord(string webhookUrl, Flavor flavor)
             imageName = "screenshot" + fi.Extension.ToLowerInvariant();
             embed["image"] = new { url = "attachment://" + imageName };
         }
-        return await SendAsync(embed, image, imageName);
+        return await SendAsync(embed, image, imageName, await PictureUrlAsync(e.RaceFile, e.Sex, e.ClassFile));
     }
 
-    // A character card, sent from the character details in the app.
-    public async Task<bool> PostCharacterAsync(CharacterRow c)
+    // A character card, sent from the character details in the app. With a rendered card image
+    // (icons and all, see CardImage) that's the whole message; without one, the same parts as text.
+    // hidden: the card parts the user turned off (MainViewModel.CardParts).
+    public async Task<bool> PostCharacterAsync(CharacterRow c, IReadOnlyCollection<string> hidden, byte[]? card = null)
     {
+        bool Shows(string part) => !hidden.Contains(part);
+        var subtitle = $"Level {c.Level} {c.Description}".Trim();
+        if (Shows("guild") && c.HasGuild) subtitle += $"\n<{c.Guild}>";
         var embed = new Dictionary<string, object>
         {
             ["title"] = c.Name + (c.Dead ? " (dead)" : ""),
-            ["description"] = $"Level {c.Level} {c.Description}".Trim(),
+            ["description"] = subtitle,
             ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
             ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },
         };
         if (ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
         if (ClassIconUrl(c.ClassFile) is { } classIcon)
             embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
-        if (await PictureUrlAsync(c.RaceFile, c.Sex, c.ClassFile) is { } picture) embed["thumbnail"] = new { url = picture };
 
-        var fields = new List<object>();
-        void Field(string name, string value, bool inline = true)
+        if (card is not null)
         {
-            if (value.Length > 0 && value != "-") fields.Add(new { name, value, inline });
+            embed.Remove("description"); // the card says it already
+            embed["image"] = new { url = "attachment://card.png" };
+            return await SendAsync(embed, card, "card.png", await PictureUrlAsync(c.RaceFile, c.Sex, c.ClassFile));
         }
 
-        Field("Level", c.Level.ToString());
-        Field("Item level", c.ItemLevelText);
-        Field("Total played", c.PlayedText);
-        if (flavor == Flavors.Forever) Field("Ruleset", c.Ruleset);
-        Field("Professions", c.Professions is { Length: > 0 } and not "None" ? c.Professions : "", inline: false);
-        Field("Talents", c.TalentsText, inline: false);
-        Field("Last seen", c.ZoneText != "-" ? $"{c.ZoneText}, {c.LastSeenText}" : c.LastSeenText, inline: false);
+        var picture = await PictureUrlAsync(c.RaceFile, c.Sex, c.ClassFile);
+
+        var fields = new List<object>();
+        void Field(string part, string name, string value, bool inline = true)
+        {
+            if (Shows(part) && value.Length > 0 && value != "-") fields.Add(new { name, value, inline });
+        }
+
+        Field("", "Level", c.Level.ToString());
+        Field("ilvl", "Item level", c.ItemLevelText);
+        Field("played", "Total played", c.PlayedText);
+        if (flavor == Flavors.Forever) Field("", "Ruleset", c.Ruleset);
+        Field("gold", "Gold", c.HasMoney ? Format.Money(c.Money) : "");
+        Field("crests", "Crests", Format.Crests(c.Crests));
+        Field("professions", "Professions", Format.ProfessionsWithEmoji(c.Professions), inline: false);
+        Field("talents", "Talents", c.TalentsText, inline: false);
+        Field("zone", "Last seen", c.ZoneText != "-" ? $"{c.ZoneText}, {c.LastSeenText}" : c.LastSeenText, inline: false);
 
         if (c.Levels.Count > 0)
         {
             var recent = c.Levels.Take(3).Select(l => $"{l.LevelText}: **{l.Took}**");
-            Field("Recent levels", string.Join("\n", recent), inline: false);
+            Field("levels", "Recent levels", string.Join("\n", recent), inline: false);
         }
         if (c.Highlights.Count > 0)
-            Field("Highlights", string.Join("\n", c.Highlights.Take(3).Select(h => h.Text)), inline: false);
+            Field("highlights", "Highlights", string.Join("\n", c.Highlights.Take(3).Select(h =>
+                h.ItemId > 0 ? $"{h.Verb}[{h.Subject}]({ItemUrl(h.ItemId)})" : h.Text)), inline: false);
 
         embed["fields"] = fields;
-        return await SendAsync(embed, null, "");
+        return await SendAsync(embed, null, "", picture);
     }
 
-    async Task<bool> SendAsync(Dictionary<string, object> embed, byte[]? image, string imageName)
+    string ItemUrl(int itemId) => $"https://www.wowhead.com/{flavor.WowheadPath}item={itemId}";
+
+    async Task<bool> SendAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar)
     {
         var body = new Dictionary<string, object>
         {
+            ["avatar_url"] = avatar ?? AvatarUrl, // the character's portrait (or the tracker's logo) instead of the webhook's picture
             ["embeds"] = new[] { embed },
             ["allowed_mentions"] = new { parse = Array.Empty<string>() },
         };
@@ -198,7 +218,7 @@ partial class Discord(string webhookUrl, Flavor flavor)
             embed["color"] = color;
 
         if (e.Kind is "loot" or "mount" && e.ItemId > 0)
-            embed["url"] = $"https://www.wowhead.com/{flavor.WowheadPath}item={e.ItemId}";
+            embed["url"] = ItemUrl(e.ItemId);
 
         var classIcon = ClassIconUrl(e.ClassFile);
 
@@ -230,18 +250,18 @@ partial class Discord(string webhookUrl, Flavor flavor)
         if (e.Members.Count > 0)
             lines.Add("Celebrating with: " + string.Join(", ", e.Members.Select(m => m.Name)) + ".");
         if (e.Professions.Length > 0 || e.Talents.Length > 0) lines.Add("");
-        if (e.Professions.Length > 0) lines.Add($"**Professions:** {e.Professions}");
+        if (e.Professions.Length > 0) lines.Add($"**Professions:** {Format.ProfessionsWithEmoji(e.Professions)}");
         if (e.Talents.Length > 0) lines.Add($"**Talents:** {e.Talents}");
         return ($"\U0001F3C6 {e.Char} hit max level {e.Level}!", lines);
     }
 
-    static (string, List<string>) LegendaryText(Entry e)
+    (string, List<string>) LegendaryText(Entry e)
     {
         var lines = new List<string>
         {
             $"\U0001F525 **{e.Char} just got their hands on a legendary item!** \U0001F525",
             "",
-            $"**[{e.Item}]**",
+            e.ItemId > 0 ? $"**[{e.Item}]({ItemUrl(e.ItemId)})**" : $"**[{e.Item}]**",
         };
         if (e.Zone.Length > 0) lines.Add($"Looted in **{e.Zone}** at level {e.Level}.");
         return ($"\U0001F7E7 LEGENDARY! {e.Char} looted [{e.Item}]", lines);
@@ -254,7 +274,7 @@ partial class Discord(string webhookUrl, Flavor flavor)
         if (e.Played > 0) lines.Add($"Total played: **{Format.Played(e.Played)}**.");
         if (e.Zone.Length > 0) lines.Add($"They dinged in **{e.Zone}**.");
         if (e.Professions.Length > 0 || e.Talents.Length > 0) lines.Add("");
-        if (e.Professions.Length > 0) lines.Add($"**Professions:** {e.Professions}");
+        if (e.Professions.Length > 0) lines.Add($"**Professions:** {Format.ProfessionsWithEmoji(e.Professions)}");
         if (e.Talents.Length > 0) lines.Add($"**Talents:** {e.Talents}");
         return ($"{e.Char} just dinged level {e.Level}.", lines);
     }
@@ -284,7 +304,7 @@ partial class Discord(string webhookUrl, Flavor flavor)
         return ($"{e.Char} killed {e.Boss}!", lines);
     }
 
-    static (string, List<string>) LootText(Entry e)
+    (string, List<string>) LootText(Entry e)
     {
         var lines = new List<string>();
         var quality = Format.Quality(e.Quality);
@@ -292,9 +312,9 @@ partial class Discord(string webhookUrl, Flavor flavor)
         return ($"{e.Char} looted [{e.Item}]", lines);
     }
 
-    static (string, List<string>) MountText(Entry e)
+    (string, List<string>) MountText(Entry e)
     {
-        var lines = new List<string> { $"**{e.Mount}**" };
+        var lines = new List<string> { e.ItemId > 0 ? $"**[{e.Mount}]({ItemUrl(e.ItemId)})**" : $"**{e.Mount}**" };
         if (e.Level > 0) lines.Add($"At level {e.Level}.");
         return (e.Bought ? $"{e.Char} bought a mount!" : $"{e.Char} got a new mount!", lines);
     }

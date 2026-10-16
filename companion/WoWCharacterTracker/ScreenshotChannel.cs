@@ -215,7 +215,7 @@ static class Payload
         ["c"] = "class", ["C"] = "classFile", ["e"] = "race", ["E"] = "raceFile", ["x"] = "sex", ["h"] = "hardcore",
         ["u"] = "ruleset", ["d"] = "seconds", ["y"] = "played", ["b"] = "boss", ["I"] = "instance", ["m"] = "item",
         ["M"] = "itemId", ["q"] = "quality", ["G"] = "gold", ["K"] = "killer", ["w"] = "mount", ["B"] = "bought",
-        ["S"] = "shot", ["P"] = "group", ["Z"] = "groupSize", ["N"] = "money", ["R"] = "crests", ["X"] = "maxLevel",
+        ["S"] = "shot", ["P"] = "group", ["Z"] = "groupSize", ["N"] = "money", ["R"] = "crests", ["X"] = "maxLevel", ["U"] = "guild",
     };
 
     public static Entry? Parse(string data)

@@ -34,6 +34,7 @@ pcall(frame.RegisterEvent, frame, "CURRENCY_DISPLAY_UPDATE")
 pcall(frame.RegisterEvent, frame, "PLAYER_SPECIALIZATION_CHANGED")
 pcall(frame.RegisterEvent, frame, "TRAIT_CONFIG_UPDATED")
 pcall(frame.RegisterEvent, frame, "CHARACTER_POINTS_CHANGED")
+pcall(frame.RegisterEvent, frame, "PLAYER_GUILD_UPDATE")
 frame:RegisterEvent("SCREENSHOT_SUCCEEDED")
 frame:RegisterEvent("SCREENSHOT_FAILED")
 
@@ -276,6 +277,13 @@ local function playedNow()
   return lastPlayed + (time() - lastPlayedAt)
 end
 
+-- Guild name, "" when not in one, nil when the game doesn't know yet (right after login).
+local function getGuild()
+  if not (IsInGuild and IsInGuild()) then return "" end
+  local name = GetGuildInfo and GetGuildInfo("player")
+  return name
+end
+
 -- Everything we show about the character, both in posts and in the companion app.
 local function characterInfo()
   local className, classFile = UnitClass("player")
@@ -302,6 +310,7 @@ local function characterInfo()
     ruleset = getRuleset(),
     money = GetMoney and GetMoney() or nil, -- copper
     crests = getCrests(),
+    guild = getGuild(),
   }
 end
 
@@ -326,6 +335,8 @@ local function saveSnapshot()
       local v = info[k]
       if v == nil or v == "" or v == 0 or v == "an unknown place" or v == "Unknown" then info[k] = old[k] end
     end
+    -- Guild: "" means no guild (keep that), nil means not known yet.
+    if info.guild == nil then info.guild = old.guild end
   end
   WoWCharacterTrackerDB.chars[guid] = info
 end
@@ -339,7 +350,7 @@ local SHORT = {
   race = "e", raceFile = "E", sex = "x", hardcore = "h", ruleset = "u", seconds = "d", played = "y",
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
-  maxLevel = "X",
+  maxLevel = "X", guild = "U",
 }
 
 -- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
@@ -401,6 +412,26 @@ local function gridFrame()
   gridWhite = grid:CreateTexture(nil, "BACKGROUND")
   gridWhite:SetColorTexture(1, 1, 1, 1)
   gridWhite:SetAllPoints()
+
+  -- A label next to the grid so players know what the flicker in the corner is. It sits to the
+  -- right of the 160 columns with a gap, outside the area the app reads.
+  local label = CreateFrame("Frame", nil, grid)
+  label:SetPoint("TOPLEFT", grid, "TOPLEFT", GRID_COLS * CELL + 4, 0)
+  label:SetSize(230, 30)
+  local bg = label:CreateTexture(nil, "BACKGROUND")
+  bg:SetColorTexture(0.05, 0.05, 0.08, 0.85)
+  bg:SetAllPoints()
+  local font = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+  local title = label:CreateFontString(nil, "OVERLAY")
+  title:SetFont(font, 12, "")
+  title:SetTextColor(1, 0.82, 0)
+  title:SetPoint("TOPLEFT", 6, -3)
+  title:SetText("WoW Character Tracker")
+  local sub = label:CreateFontString(nil, "OVERLAY")
+  sub:SetFont(font, 10, "")
+  sub:SetTextColor(0.85, 0.85, 0.85)
+  sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+  sub:SetText("Sending to the app. /wct help")
   return grid
 end
 
@@ -899,7 +930,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     if not snapshotTicker and C_Timer.NewTicker then snapshotTicker = C_Timer.NewTicker(300, saveSnapshot) end
 
   elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"
-      or event == "TRAIT_CONFIG_UPDATED" or event == "CHARACTER_POINTS_CHANGED" then
+      or event == "TRAIT_CONFIG_UPDATED" or event == "CHARACTER_POINTS_CHANGED" or event == "PLAYER_GUILD_UPDATE" then
     C_Timer.After(1, saveSnapshot)
 
   elseif event == "PLAYER_MONEY" or event == "CURRENCY_DISPLAY_UPDATE" then

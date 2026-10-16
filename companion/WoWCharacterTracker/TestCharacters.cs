@@ -16,13 +16,13 @@ static class TestCharacters
 
         var zeb = new Snapshot($"{GuidPrefix}Zeb", "Zeb", "Forever", 40, "Warrior", "WARRIOR", "Night Elf", "NightElf", "male",
             "", "", 38.4, 3 * 86400 + 5 * 3600, "Scarlet Monastery", "Mining 210, Blacksmithing 205", "Arms 21 / Fury 10 / Protection 0",
-            Ago(0.2), false, "Normal", 87_45_12);
+            Ago(0.2), false, "Normal", 87_45_12, Guild: "Bloodhounds");
         var fagel = new Snapshot($"{GuidPrefix}Fagelmannen", "Fågelmannen", "Forever", 21, "Druid", "DRUID", "Tauren", "Tauren", "male",
             "", "", 18.1, 19 * 3600 + 40 * 60, "The Barrens", "Herbalism 95, Alchemy 80", "Balance 0 / Feral Combat 12 / Restoration 0",
-            Ago(5), false, "Normal", 4_12_80);
+            Ago(5), false, "Normal", 4_12_80, Guild: "Bloodhounds");
         var goggo = new Snapshot($"{GuidPrefix}Goggo", "Goggo", "Forever", 60, "Hunter", "HUNTER", "Dwarf", "Dwarf", "male",
             "", "", 61.7, 9 * 86400 + 14 * 3600, "Blackrock Spire", "Leatherworking 300, Skinning 300", "Beast Mastery 31 / Marksmanship 20 / Survival 0",
-            Ago(26), true, "Hardcore", 512_30_10);
+            Ago(26), true, "Hardcore", 512_30_10, Guild: "");
 
         var events = new List<Entry>();
         Entry Base(Snapshot s, string kind, long at, int level) => new()

@@ -2,6 +2,15 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.10.0
+
+- Post to Discord sends the character card as a picture, with crest, profession and item icons and quality colors, in the tab's theme.
+- The gear next to Post to Discord picks what the card shows: item level, played, gold, crests, professions, talents, guild, last seen, levels, highlights.
+- Guilds are stored and shown in the character details (and on the card if you turn it on). Needs the updated addon.
+- Posts use the character's portrait as the webhook picture.
+- Item and mount names in posts link to Wowhead, and professions get an emoji.
+- The small data grid in the corner now has a "WoW Character Tracker" label next to it, so it's clear what it is.
+
 ## v0.9.1
 
 - Fixed updating: the new version now waits for the old one to close instead of quitting right away, and the old one no longer shows a .NET error while closing.
