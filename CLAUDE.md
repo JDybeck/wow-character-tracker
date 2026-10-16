@@ -19,7 +19,7 @@ Main target: WoW Forever (Classic+, launches 2026-11-04; beta lives in `_classic
 - `TestCharacters.cs`: made-up Forever characters (Zeb, Fågelmannen, Goggo; GUIDs start with `Test-`) shown when the header switch is on. Only merged into the list in `FlavorViewModel.ShowData`, never into the Tracker, so they're never posted on their own.
 - `Log.cs`: console messages. `Config.cs`: webhooks, per-game `FlavorSettings` (path, active webhook, level rule, toggles, screenshot dicts). Migrates v0.2/v0.3 configs.
 - `build.cmd`: `dotnet publish` to `dist\WoWCharacterTracker.exe` (self-contained single file).
-- Releases: this repo is private. `release.cmd 0.9.0` builds that version, takes the notes from CHANGELOG.md (`## v0.9.0`), tags this repo and creates the release in the public releases-only repo `JDybeck/wow-character-tracker-releases` (README + releases, no code). The app's updater and the README download link point there. Add the CHANGELOG section and commit before releasing.
+- Releases: this repo is public (history uses the GitHub noreply email, keep it that way; never commit webhooks or tokens). Releases still go to a separate repo, since installed apps look there for updates. `release.cmd 0.9.0` builds that version, takes the notes from CHANGELOG.md (`## v0.9.0`), tags this repo and creates the release in the public releases-only repo `JDybeck/wow-character-tracker-releases` (README + releases, no code). The app's updater and the README download link point there. Add the CHANGELOG section and commit before releasing.
 
 ## How it works
 

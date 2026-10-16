@@ -8,7 +8,7 @@ namespace WoWCharacterTracker;
 // takes its place and is started, and this one quits. The .old file is removed on the next start.
 static class Updater
 {
-    // The public releases-only repo (the code repo is private). release.cmd publishes there.
+    // The releases-only repo (installed apps look here, so it stays). release.cmd publishes there.
     const string Repo = "JDybeck/wow-character-tracker-releases";
     const string AssetName = "WoWCharacterTracker.exe";
 

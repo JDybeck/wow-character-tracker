@@ -206,9 +206,11 @@
         <Button Style="{StaticResource GhostButton}" Padding="6,4" Margin="0,0,6,0" Command="{Binding CheckUpdatesCommand}"
                 ToolTip="Check for updates">
           <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="14" Foreground="{StaticResource Muted}"/>
-        </Button>        <Border Width="26" Height="26" CornerRadius="13" BorderBrush="#334155" BorderThickness="1" Margin="0,0,16,0" Cursor="Help"
+        </Button>
+        <Border Width="26" Height="26" Background="Transparent" Margin="0,0,16,0" Cursor="Help"
                 ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
-          <TextBlock Style="{StaticResource Icon}" Text="&#xE946;" FontSize="13" Foreground="{StaticResource Muted}" HorizontalAlignment="Center"/>
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE946;" FontSize="20" Foreground="{StaticResource Muted}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
           <Border.ToolTip>
             <StackPanel>
               <TextBlock Text="In-game commands" FontWeight="SemiBold" Margin="0,0,0,6"/>

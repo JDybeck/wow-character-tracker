@@ -1,5 +1,5 @@
 # Publishes a release: builds the exe with that version, takes the notes from CHANGELOG.md,
-# tags this (private) repo, and creates the release in the public releases-only repo, which is
+# tags this repo, and creates the release in the releases-only repo, which is
 # where the app looks for updates and where people download it. Uses your gh login.
 #
 #   .\release.cmd 0.8.0
