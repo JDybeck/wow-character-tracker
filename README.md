@@ -40,7 +40,7 @@ Each game has a **What gets posted** page, in three columns:
 
 - **General**
   - **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level. **Max level** has its own switch: on, it's posted with extra flair even when the level rule would skip it.
-  - **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair.
+  - **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair. The post shows the item like its Wowhead tooltip, as a picture: icon, name in its quality color, item level, damage and speed, stats, green Equip lines and the sell price.
   - **New mounts**: bought from a vendor or learned.
 - **PvE**
   - **End boss kills**: the last boss of a dungeon or raid, with the group. You can skip the post when someone in the group matches a regex, for friends who run the tracker too, so the same kill isn't posted twice.
@@ -51,7 +51,12 @@ Each game has a **What gets posted** page, in three columns:
   - **Mak'gora won** (Forever): the hardcore duel to the death.
   - **PvP rating** (Retail): the same for each rated bracket (2v2, 3v3, Rated Battlegrounds, Solo Shuffle, Blitz), with 1800, 2100, 2400 and 2700 as the default steps.
 
-Every option has a **Test** button that posts a sample, using the selected character. Most have **Screenshot** (the addon takes one in game a moment after it happens) and **Post screenshot** (attach it to the Discord post). Screenshot settings reach the game on your next `/reload` or login. On Forever you can also pick the **Name in posts**: full name (Ronnie Raket), first name or surname.
+Every option has a **Test** button that posts a sample, using the selected character. Most have **Screenshot** (the addon takes one in game a moment after it happens) and **Post screenshot** (attach it to the Discord post). Screenshot settings reach the game on your next `/reload` or login; while the game runs, a banner at the top reminds you until it has loaded them. On Forever you can also pick the **Name in posts**: full name (Ronnie Raket), first name or surname.
+
+Above the columns:
+
+- **Hide chat in screenshots** and **Hide the whole interface in screenshots** (like Alt+Z): hidden for the split second of the shot, then right back.
+- **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (the one Warcraft Logs asks for), set by the addon at your next login or `/reload`. Unticking turns it off again.
 
 **Copy settings** puts the whole page on your clipboard as a short code (it starts with `WCT1:`) to share with friends, and **Paste settings** applies a code someone shared to the game tab you're on. Webhooks and folders are never part of it.
 
@@ -74,9 +79,9 @@ The Retail tab has its own Midnight look:
 
   <img src="docs/images/webhook-options.png" alt="Webhooks with their options: games and Forever rulesets" width="340">
 
-- **Console**: what the app is doing, like posts sent and anything that needs your attention.
-- **Sync now**: reads the game's data again and posts anything new.
-- **Test characters**: the switch at the top adds three made-up Forever characters (Zeb, Fågelmannen and Goggo) so you can try everything without playing. They're never posted on their own.
+- **Console**: what the app is doing, like posts sent and anything that needs your attention. Instant posts say how long they took to reach Discord, and where the time went.
+- **Sync now**: reads the game's saved data again and posts anything new. The icon spins while it works, and the console says what it found.
+- **Settings** (the gear at the top): **Open with World of Warcraft** (the app waits in the tray and opens when the game starts), **Hide the window when the game closes**, and **Test characters**, three made-up Forever characters (Zeb, Fågelmannen and Goggo) to try everything without playing. They're never posted on their own.
 - **Updates**: the app checks for a new version when it starts and every few hours. **Check for updates** next to the version number checks right away. **Update now** downloads it and restarts, and **What's new** shows the notes from [CHANGELOG.md](CHANGELOG.md).
 
 ### Making a Discord webhook
@@ -92,7 +97,7 @@ Treat the link like a password: anyone with it can post in that channel. The app
 - `/wct live` turns instant posting on or off.
 - `/wct help` lists these in game.
 - `/wct popup` turns on a reload popup after a ding, if you'd rather not use instant posting.
-- `/wct debug` saves what your client's talent, name and guild functions return (for tracking down problems on new clients).
+- `/wct debug` saves what your client's talent, name and guild functions return, and the addon's recent `/played` requests and answers (for tracking down problems on new clients).
 
 ## How it works
 
@@ -102,9 +107,9 @@ WoW addons can't make network calls and only save their data on `/reload` or log
 
 <sub>The grid enlarged 3x. The top row and left column alternate black and white so the app can measure the cell size, even if the picture is scaled.</sub>
 
-Only events that will actually be posted go out this way, plus one check-in about 15 seconds after you log in, so your character's row in the app updates right away. Everything else reaches the app on your next `/reload` or logout. In-game screenshots you turned on are only kept for events that get posted. Nothing is posted twice.
+Every event goes out this way (so the level history and highlights stay current), except loot that won't be posted, which waits for your next `/reload` or logout to keep the corner flicker down. There's also one check-in about 15 seconds after you log in, so your character's row in the app updates right away. In-game screenshots are only taken for events that get posted. Nothing is posted twice.
 
-Level times come from `RequestTimePlayed()`: the addon stores total played at the start of each level, and the finished level's time is the difference. Installing the addon mid-level is fine, the first level after installing is timed in full.
+Level times: the addon stores your total played at the start of each level, and a finished level's time is the difference. It times the level right at the ding from the played time it already knows (the played time at your last logout, plus the time since you logged in), so it doesn't wait on the game. `RequestTimePlayed()` answers then make the next level's start exact. Level 1 to 2 always counts from 0. If the addon came in mid-level, that level is still logged, with its time shown as "?".
 
 ## Ideas and plans
 

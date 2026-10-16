@@ -11,13 +11,14 @@ sealed class EventEmbeds(Flavor flavor)
 
     public string ItemUrl(int itemId) => $"https://www.wowhead.com/{flavor.WowheadPath}item={itemId}";
 
-    public async Task<Dictionary<string, object>> BuildAsync(Entry e, bool isTest)
+    // itemPicture: the post shows the item's tooltip as a picture, so the text leaves out the item line.
+    public async Task<Dictionary<string, object>> BuildAsync(Entry e, bool isTest, bool itemPicture = false)
     {
         var (title, lines) = e.Kind switch
         {
             "boss" => BossText(e),
             "loot" when e.Quality >= 5 => LegendaryText(e),
-            "loot" => LootText(e),
+            "loot" => LootText(e, itemPicture),
             "mount" => MountText(e),
             "death" => DeathText(e),
             "duel" => DuelText(e),
@@ -125,12 +126,13 @@ sealed class EventEmbeds(Flavor flavor)
         return ($"{e.Char} killed {e.Boss}!", lines);
     }
 
-    // The item links to Wowhead, in the title (the embed's url) and in the text.
-    (string, List<string>) LootText(Entry e)
+    // The item links to Wowhead, in the title (the embed's url) and in the text (unless the item's
+    // picture is there, which shows the name already).
+    (string, List<string>) LootText(Entry e, bool itemPicture)
     {
         var quality = Format.Quality(e.Quality);
         var lines = new List<string>();
-        if (e.ItemId > 0) lines.Add($"**[{e.Item}]({ItemUrl(e.ItemId)})**");
+        if (e.ItemId > 0 && !itemPicture) lines.Add($"**[{e.Item}]({ItemUrl(e.ItemId)})**");
         lines.Add(e.Zone.Length > 0 ? $"{quality} item, looted in **{e.Zone}**." : $"{quality} item.");
         return ($"{e.Char} looted [{e.Item}]", lines);
     }

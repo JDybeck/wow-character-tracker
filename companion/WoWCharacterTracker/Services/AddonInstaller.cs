@@ -68,6 +68,7 @@ static partial class AddonInstaller
                   + $"  post = {{ {post} }},\n"
                   + $"  hideChat = {B(s.HideChatInShots)},\n"
                   + $"  hideUI = {B(s.HideUiInShots)},\n"
+                  + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
         if (!File.Exists(file) || File.ReadAllText(file) != lua) File.WriteAllText(file, lua);

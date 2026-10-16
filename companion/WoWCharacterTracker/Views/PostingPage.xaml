@@ -48,6 +48,12 @@
             <TextBlock Style="{StaticResource Hint}" Text="Just your character and the world in the picture: action bars, minimap, chat and frames are hidden for a split second, then come right back. Nameplates stay."/>
           </StackPanel>
         </CheckBox>
+        <CheckBox IsChecked="{Binding AdvancedCombatLog}" Margin="0,0,0,16">
+          <StackPanel>
+            <TextBlock Text="Advanced combat logging" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+            <TextBlock Style="{StaticResource Hint}" Text="Turns on the game's own Advanced Combat Logging setting (System, Network), the one Warcraft Logs asks for. More detail in the combat log file, for log tools and for features here later. The addon sets it at your next /reload or login, out of combat. Unticking turns it off again."/>
+          </StackPanel>
+        </CheckBox>
         <StackPanel Margin="0,0,0,16" Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
           <TextBlock Text="Name in posts" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
           <TextBlock Style="{StaticResource Hint}" Text="Forever characters have a surname. Pick what posts and character cards call them." Margin="0,2,0,8"/>

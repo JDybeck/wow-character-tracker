@@ -8,6 +8,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Level times no longer depend on the game answering the addon's /played requests: the played time at logout carries over to the next login, and a brand new character starts at 0.
 - The Addon card no longer offers to "update" to an older addon when a newer one is installed.
 - /wct debug also saves the addon's /played requests and answers.
+- Loot posts show the item like its Wowhead tooltip, as a picture: icon, name in its quality color, item level, damage and speed, stats, green Equip lines and the sell price in coins. A screenshot, if any, comes right under it in the same post.
+- New switch on What gets posted: **Advanced combat logging** turns the game's own setting on (or off again) at your next login or /reload.
 
 ## v0.12.3
 

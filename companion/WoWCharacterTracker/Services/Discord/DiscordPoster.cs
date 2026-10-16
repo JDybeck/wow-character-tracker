@@ -7,33 +7,53 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
     readonly DiscordWebhook webhook = new(webhookUrl);
     readonly EventEmbeds embeds = new(flavor);
 
-    // Posts the event. With a screenshot, it's uploaded with the message and shown as the embed's image.
+    // Posts the event. Loot gets a picture of the item's tooltip (like Wowhead's) as the embed's
+    // image. A screenshot is uploaded with the message: the embed's image, or a second embed under
+    // the item picture.
     public async Task<bool> PostAsync(Entry e, bool isTest = false, string? screenshot = null)
     {
         e = e with { Char = Format.Name(e.Char, e.Surname, nameStyle) };
-        var embed = await embeds.BuildAsync(e, isTest);
+        var item = e.Kind == "loot" && e.ItemId > 0 ? await ItemTooltipImage.RenderAsync(e.ItemId, flavor) : null;
+        var embed = await embeds.BuildAsync(e, isTest, itemPicture: item is not null);
         var avatar = await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile);
+
+        var list = new List<Dictionary<string, object>> { embed };
+        var files = new List<(byte[] Data, string Name)>();
+        if (item is not null)
+        {
+            embed["image"] = new { url = "attachment://item.png" };
+            files.Add((item, "item.png"));
+        }
         if (screenshot is null || !File.Exists(screenshot))
-            return await webhook.SendAsync(embed, null, "", avatar);
+            return await webhook.SendAsync(list, files, avatar);
+
+        var shotEmbed = embed;
+        if (item is not null)
+        {
+            shotEmbed = new Dictionary<string, object>();
+            if (embed.TryGetValue("color", out var color)) shotEmbed["color"] = color; // same stripe, so it reads as one post
+            list.Add(shotEmbed);
+        }
 
         // The full screenshot first (boosted servers take big files), then a smaller JPEG if
         // Discord says it's too large, and the post without it as the last resort.
         var image = await File.ReadAllBytesAsync(screenshot);
         var name = "screenshot" + Path.GetExtension(screenshot).ToLowerInvariant();
-        embed["image"] = new { url = "attachment://" + name };
-        var result = await webhook.SendOrReportAsync(embed, image, name, avatar);
+        shotEmbed["image"] = new { url = "attachment://" + name };
+        var result = await webhook.SendOrReportAsync(list, [.. files, (image, name)], avatar);
         if (result != DiscordWebhook.Result.TooLarge) return result == DiscordWebhook.Result.Sent;
 
         if (await Task.Run(() => ImageShrinker.ToJpegUnder(image, DiscordWebhook.FreeUploadLimit)) is { } smaller)
         {
             Log.Info($"The screenshot was too big for this Discord server ({image.Length / 1_000_000.0:0.#} MB), so a smaller copy was sent.");
-            embed["image"] = new { url = "attachment://screenshot.jpg" };
-            if (await webhook.SendOrReportAsync(embed, smaller, "screenshot.jpg", avatar) is var r && r != DiscordWebhook.Result.TooLarge)
+            shotEmbed["image"] = new { url = "attachment://screenshot.jpg" };
+            if (await webhook.SendOrReportAsync(list, [.. files, (smaller, "screenshot.jpg")], avatar) is var r && r != DiscordWebhook.Result.TooLarge)
                 return r == DiscordWebhook.Result.Sent;
         }
-        embed.Remove("image");
+        if (shotEmbed == embed) embed.Remove("image");
+        else list.Remove(shotEmbed);
         Log.Warn("The screenshot was too big for Discord even when shrunk, so the post went out without it.");
-        return await webhook.SendAsync(embed, null, "", avatar);
+        return await webhook.SendAsync(list, files, avatar);
     }
 
     // A character card, sent from the character details in the app. With a rendered card image

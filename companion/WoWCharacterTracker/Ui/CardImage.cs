@@ -61,7 +61,7 @@ static class CardImage
         }
     }
 
-    static async Task<BitmapSource?> LoadAsync(string url)
+    internal static async Task<BitmapSource?> LoadAsync(string url)
     {
         try
         {

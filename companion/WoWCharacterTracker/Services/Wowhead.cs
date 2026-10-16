@@ -10,7 +10,8 @@ namespace WoWCharacterTracker.Services;
 // thing is only looked up once.
 static partial class Wowhead
 {
-    public sealed record Info(string Name, string Icon, int Quality, string Tooltip);
+    // Tooltip is the plain text; Html the tooltip as Wowhead sends it (colors and layout, for the item picture).
+    public sealed record Info(string Name, string Icon, int Quality, string Tooltip, string? Html = null);
 
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
     static readonly ConcurrentDictionary<string, Task<Info?>> Lookups = new();
@@ -34,7 +35,8 @@ static partial class Wowhead
         lock (DiskLock)
         {
             disk ??= LoadDisk();
-            if (disk.TryGetValue(key, out var cached)) return cached;
+            // Entries cached before the HTML was kept are fetched once more.
+            if (disk.TryGetValue(key, out var cached) && cached.Html is not null) return cached;
         }
         try
         {
@@ -43,7 +45,7 @@ static partial class Wowhead
             var root = doc.RootElement;
             string Str(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
             var quality = root.TryGetProperty("quality", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : -1;
-            var info = new Info(Str("name"), Str("icon"), quality, ToText(Str("tooltip")));
+            var info = new Info(Str("name"), Str("icon"), quality, ToText(Str("tooltip")), Str("tooltip"));
             if (info.Name.Length == 0) return null;
             lock (DiskLock)
             {
@@ -55,7 +57,7 @@ static partial class Wowhead
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             Lookups.TryRemove(key, out _); // try again another time
-            return null;
+            lock (DiskLock) return disk!.GetValueOrDefault(key); // an older cached entry still beats nothing
         }
     }
 

@@ -6,8 +6,8 @@ using System.Text.RegularExpressions;
 
 namespace WoWCharacterTracker.Services.Discord;
 
-// Talking to one Discord webhook: checking it exists, and sending a message with one embed and
-// an optional image (multipart upload), with retries when Discord rate limits.
+// Talking to one Discord webhook: checking it exists, and sending a message with embeds and
+// optional images (multipart upload), with retries when Discord rate limits.
 sealed partial class DiscordWebhook(string url)
 {
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) }; // screenshots take a moment to upload
@@ -52,13 +52,21 @@ sealed partial class DiscordWebhook(string url)
     public async Task<bool> SendAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar) =>
         await SendOrReportAsync(embed, image, imageName, avatar) == Result.Sent;
 
+    public async Task<bool> SendAsync(IReadOnlyList<Dictionary<string, object>> embeds, IReadOnlyList<(byte[] Data, string Name)> files, string? avatar) =>
+        await SendOrReportAsync(embeds, files, avatar) == Result.Sent;
+
     // Like SendAsync, but says when Discord turned the image down for its size (HTTP 413).
-    public async Task<Result> SendOrReportAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar)
+    public Task<Result> SendOrReportAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar) =>
+        SendOrReportAsync([embed], image is null ? [] : [(image, imageName)], avatar);
+
+    // Several embeds (a loot post's item picture and screenshot) and the files they show as
+    // attachment://<name>, in one message.
+    public async Task<Result> SendOrReportAsync(IReadOnlyList<Dictionary<string, object>> embeds, IReadOnlyList<(byte[] Data, string Name)> files, string? avatar)
     {
         var body = new Dictionary<string, object>
         {
             ["avatar_url"] = avatar ?? LogoUrl,
-            ["embeds"] = new[] { embed },
+            ["embeds"] = embeds,
             ["allowed_mentions"] = new { parse = Array.Empty<string>() },
         };
         var json = JsonSerializer.Serialize(body);
@@ -68,7 +76,7 @@ sealed partial class DiscordWebhook(string url)
             HttpResponseMessage res;
             try
             {
-                if (image is null)
+                if (files.Count == 0)
                 {
                     res = await Http.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"));
                 }
@@ -77,9 +85,12 @@ sealed partial class DiscordWebhook(string url)
                     // A fresh form each attempt, since sending disposes it.
                     using var form = new MultipartFormDataContent();
                     form.Add(new StringContent(json, Encoding.UTF8, "application/json"), "payload_json");
-                    var file = new ByteArrayContent(image);
-                    file.Headers.ContentType = new MediaTypeHeaderValue(imageName.EndsWith(".png") ? "image/png" : "image/jpeg");
-                    form.Add(file, "files[0]", imageName);
+                    for (var i = 0; i < files.Count; i++)
+                    {
+                        var file = new ByteArrayContent(files[i].Data);
+                        file.Headers.ContentType = new MediaTypeHeaderValue(files[i].Name.EndsWith(".png") ? "image/png" : "image/jpeg");
+                        form.Add(file, $"files[{i}]", files[i].Name);
+                    }
                     res = await Http.PostAsync(url, form);
                 }
             }
@@ -90,7 +101,7 @@ sealed partial class DiscordWebhook(string url)
             }
 
             if (res.IsSuccessStatusCode) return Result.Sent;
-            if (res.StatusCode == HttpStatusCode.RequestEntityTooLarge && image is not null) return Result.TooLarge;
+            if (res.StatusCode == HttpStatusCode.RequestEntityTooLarge && files.Count > 0) return Result.TooLarge;
 
             if (res.StatusCode == HttpStatusCode.TooManyRequests)
             {

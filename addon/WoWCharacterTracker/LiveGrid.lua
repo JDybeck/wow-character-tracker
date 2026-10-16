@@ -181,6 +181,18 @@ local function restoreShotSettings()
   if ActionStatus and ActionStatus.RegisterEvent then ActionStatus:RegisterEvent("SCREENSHOT_SUCCEEDED") end
 end
 
+-- Game settings the app manages (Settings.lua). Only touched when the app set them (nil = leave
+-- the player's own choice alone), and only out of combat.
+function ns.applyGameSettings()
+  local s = WoWCharacterTrackerSettings
+  if not s or s.advancedCombatLog == nil or InCombatLockdown() then return end
+  local want = s.advancedCombatLog and "1" or "0"
+  if getCVar("advancedCombatLogging") ~= want then
+    ns.doing("advancedCombatLogging")
+    pcall(setCVar, "advancedCombatLogging", want)
+  end
+end
+
 local nextFrame = CreateFrame("Frame")
 local function onNextFrame(fn)
   nextFrame:SetScript("OnUpdate", function(self)

@@ -75,6 +75,7 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
   elseif event == "PLAYER_ENTERING_WORLD" then
     -- Gear and spec info can take a few seconds after login. Snapshot then, and every 5 minutes.
     C_Timer.After(10, ns.saveSnapshot)
+    C_Timer.After(2, ns.applyGameSettings)
     C_Timer.After(15, ns.checkIn)
     if type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
     C_Timer.After(12, ns.checkRatings)
