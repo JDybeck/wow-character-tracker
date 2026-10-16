@@ -4,6 +4,10 @@ Posts your World of Warcraft moments to a Discord channel, the moment they happe
 
 Made with WoW Forever (Classic+) in mind, and works for Retail too. Each has its own tab and its own look.
 
+![The app on the Forever tab, with a character's details open](docs/images/characters.png)
+
+A level-up post looks like this:
+
 ```
 [Night Elf portrait]   Night Elf Warrior
                        Zeb Skogsbrand just dinged level 40.
@@ -32,6 +36,8 @@ Made with WoW Forever (Classic+) in mind, and works for Retail too. Each has its
 
 Each game has a **What gets posted** page, in three columns:
 
+![What gets posted, in General, PvE and PvP columns](docs/images/what-gets-posted.png)
+
 - **General**
   - **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level. Reaching max level is always posted, with extra flair.
   - **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair.
@@ -49,13 +55,23 @@ Every option has a **Test** button that posts a sample, using the selected chara
 
 Posts show the character's portrait as the sender picture, item and mount names link to Wowhead, and professions get an emoji.
 
+The Retail tab has its own Midnight look:
+
+![The Retail tab](docs/images/retail-tab.png)
+
 ### The app
 
 - **Characters**: every character you've logged in with the addon, with class, spec, level, item level, gold and when you last played. The bottom of the list shows the total gold for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for guild, total played, gold, crests (Retail), professions, talents, stats, last zone, highlights and level history. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there.
 - **Tags**: make your own (like Main, Alts, Guild) and put them on characters. Webhooks can post only for some tags.
 - **Post to Discord**: sends the character as a card picture, with icons and quality colors. The gear next to it picks what the card shows (item level, played, gold, crests, professions, talents, stats, guild, last seen, levels, highlights). **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
+
+  <img src="docs/images/character-card.png" alt="A character card as posted to Discord" width="480">
+
 - **Filter**: chips above the list filter by realm on Retail and by ruleset (Hardcore, Self-found, Normal) on Forever.
 - **Discord**: add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, on Forever which rulesets (so a hardcore channel only gets hardcore characters), and which character tags (none picked means every character). Click the pencil to rename a webhook, like "#leveling / My Guild". Hover a webhook to see its masked link.
+
+  <img src="docs/images/webhook-options.png" alt="Webhooks with their options: games and Forever rulesets" width="340">
+
 - **Console**: what the app is doing, like posts sent and anything that needs your attention.
 - **Sync now**: reads the game's data again and posts anything new.
 - **Test characters**: the switch at the top adds three made-up Forever characters (Zeb, Fågelmannen and Goggo) so you can try everything without playing. They're never posted on their own.
@@ -80,6 +96,10 @@ Treat the link like a password: anyone with it can post in that channel. The app
 
 WoW addons can't make network calls and only save their data on `/reload` or logout. The one file an addon can make the game write right away is a screenshot. So for each event, the addon shows a small black and white grid (about 320 x 28 px, with a "WoW Character Tracker" label next to it) in the top-left corner for a single frame, takes a screenshot and hides it again. The app reads the event from the grid within a second, posts it and deletes that screenshot. While that one screenshot is taken, the screenshot format is set to PNG (your own settings come right back) and the "Screen captured" message is hidden.
 
+![The data grid, enlarged 3x: a clock row and column, then the event's bytes](docs/images/data-grid.png)
+
+<sub>The grid enlarged 3x. The top row and left column alternate black and white so the app can measure the cell size, even if the picture is scaled.</sub>
+
 Only events that will actually be posted go out this way, plus one check-in about 15 seconds after you log in, so your character's row in the app updates right away. Everything else reaches the app on your next `/reload` or logout. In-game screenshots you turned on are only kept for events that get posted. Nothing is posted twice.
 
 Level times come from `RequestTimePlayed()`: the addon stores total played at the start of each level, and the finished level's time is the difference. Installing the addon mid-level is fine, the first level after installing is timed in full.
@@ -100,6 +120,6 @@ Not built yet, roughly in order:
 - Professions and end bosses are matched by English name, so a non-English client won't show them.
 - Rating milestones start counting from the first time the addon sees your rating, so ratings you already had aren't posted.
 - Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Characters Raider.IO doesn't know, and Forever characters, get their race portrait from Wowhead's icon CDN, or the class icon.
-- Screenshots over Discord's 9.5 MB limit are left off the post.
+- Screenshots go out at full size first (boosted servers allow bigger uploads). If Discord says one is too big, a smaller JPEG copy is sent instead, and only if that's still too big does the post go out without it.
 - On the first run, events already saved are marked as posted so the channel isn't flooded. Start the app with `--backfill` to post them instead.
 - Settings and webhooks are saved in `%LOCALAPPDATA%\WoWCharacterTracker\config.json` and survive updates.

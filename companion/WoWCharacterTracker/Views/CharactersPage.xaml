@@ -57,8 +57,9 @@
                   <ColumnDefinition Width="{StaticResource ColSeen}"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal">
-                  <Grid Width="42" Height="42" Margin="0,0,12,0">
+                <!-- Portrait, then the name (trimmed when long) over realm and tag. -->
+                <DockPanel>
+                  <Grid DockPanel.Dock="Left" Width="42" Height="42" Margin="0,0,12,0">
                     <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
                     <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="17" FontWeight="Bold"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -69,20 +70,19 @@
                     </Image>
                     <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5" Opacity="0.7"/>
                   </Grid>
-                  <StackPanel VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                      <TextBlock Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
+                  <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding FullName}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
+                      <TextBlock Text="{Binding Realm}" Foreground="{StaticResource Dim}" FontSize="12"/>
                       <Border x:Name="TagBox" Margin="8,0,0,0" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
                       </Border>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                      <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
-                      <TextBlock Text="{Binding Realm}" Foreground="{StaticResource Dim}" FontSize="12"/>
-                    </StackPanel>
                   </StackPanel>
-                </StackPanel>
+                </DockPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                   <TextBlock Style="{StaticResource Icon}" Text="{Binding RoleGlyph}" Foreground="{Binding RoleBrush}" FontSize="13" Margin="0,0,8,0"/>

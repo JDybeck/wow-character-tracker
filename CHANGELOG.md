@@ -4,6 +4,10 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.11.0
 
+- Screenshots go out at full size first, so boosted servers get the full picture. If Discord says one is too big, a smaller copy is sent instead of none.
+- Long names no longer run into the Class column; the TEST/HARDCORE tag sits next to the realm.
+- The README has screenshots.
+
 - Retail characters show their actual character render (the one Raider.IO and Warcraft Logs show) in the list, on the card and as the Discord sender picture. Needs one login with the updated addon.
 
 - Under the hood: the app and the addon are reorganized into smaller parts with one job each. Nothing changes in how they work.

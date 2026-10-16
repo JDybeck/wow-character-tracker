@@ -12,15 +12,28 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
     {
         e = e with { Char = Format.Name(e.Char, e.Surname, nameStyle) };
         var embed = await embeds.BuildAsync(e, isTest);
-        byte[]? image = null;
-        var imageName = "";
-        if (screenshot is not null && new FileInfo(screenshot) is { Exists: true } fi && fi.Length <= DiscordWebhook.MaxUpload)
+        var avatar = await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile);
+        if (screenshot is null || !File.Exists(screenshot))
+            return await webhook.SendAsync(embed, null, "", avatar);
+
+        // The full screenshot first (boosted servers take big files), then a smaller JPEG if
+        // Discord says it's too large, and the post without it as the last resort.
+        var image = await File.ReadAllBytesAsync(screenshot);
+        var name = "screenshot" + Path.GetExtension(screenshot).ToLowerInvariant();
+        embed["image"] = new { url = "attachment://" + name };
+        var result = await webhook.SendOrReportAsync(embed, image, name, avatar);
+        if (result != DiscordWebhook.Result.TooLarge) return result == DiscordWebhook.Result.Sent;
+
+        if (await Task.Run(() => ImageShrinker.ToJpegUnder(image, DiscordWebhook.FreeUploadLimit)) is { } smaller)
         {
-            image = await File.ReadAllBytesAsync(screenshot);
-            imageName = "screenshot" + fi.Extension.ToLowerInvariant();
-            embed["image"] = new { url = "attachment://" + imageName };
+            Log.Info($"The screenshot was too big for this Discord server ({image.Length / 1_000_000.0:0.#} MB), so a smaller copy was sent.");
+            embed["image"] = new { url = "attachment://screenshot.jpg" };
+            if (await webhook.SendOrReportAsync(embed, smaller, "screenshot.jpg", avatar) is var r && r != DiscordWebhook.Result.TooLarge)
+                return r == DiscordWebhook.Result.Sent;
         }
-        return await webhook.SendAsync(embed, image, imageName, await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile));
+        embed.Remove("image");
+        Log.Warn("The screenshot was too big for Discord even when shrunk, so the post went out without it.");
+        return await webhook.SendAsync(embed, null, "", avatar);
     }
 
     // A character card, sent from the character details in the app. With a rendered card image

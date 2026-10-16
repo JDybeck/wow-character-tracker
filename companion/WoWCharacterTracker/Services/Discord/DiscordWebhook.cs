@@ -12,8 +12,11 @@ sealed partial class DiscordWebhook(string url)
 {
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) }; // screenshots take a moment to upload
 
-    // Discord's upload limit for webhooks without a boosted server.
-    public const long MaxUpload = 9_500_000;
+    // Discord's upload limit without server boosts (boosted servers allow 50 or 100 MB, and webhooks
+    // get the same, but there's no way to ask which). Bigger files are tried first anyway.
+    public const long FreeUploadLimit = 9_500_000;
+
+    public enum Result { Sent, Failed, TooLarge }
 
     // The sender picture when there's no character portrait.
     const string LogoUrl = "https://raw.githubusercontent.com/JDybeck/wow-character-tracker/main/companion/WoWCharacterTracker/Assets/logo.png";
@@ -46,7 +49,11 @@ sealed partial class DiscordWebhook(string url)
     }
 
     // avatar: the sender picture for this message (the character's portrait), or the logo.
-    public async Task<bool> SendAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar)
+    public async Task<bool> SendAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar) =>
+        await SendOrReportAsync(embed, image, imageName, avatar) == Result.Sent;
+
+    // Like SendAsync, but says when Discord turned the image down for its size (HTTP 413).
+    public async Task<Result> SendOrReportAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar)
     {
         var body = new Dictionary<string, object>
         {
@@ -79,10 +86,11 @@ sealed partial class DiscordWebhook(string url)
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
                 Log.Warn("Couldn't reach Discord. Will try again on the next sync.");
-                return false;
+                return Result.Failed;
             }
 
-            if (res.IsSuccessStatusCode) return true;
+            if (res.IsSuccessStatusCode) return Result.Sent;
+            if (res.StatusCode == HttpStatusCode.RequestEntityTooLarge && image is not null) return Result.TooLarge;
 
             if (res.StatusCode == HttpStatusCode.TooManyRequests)
             {
@@ -94,10 +102,10 @@ sealed partial class DiscordWebhook(string url)
                 Log.Error("The Discord webhook no longer works (was it deleted?). Add a new one in the Discord panel.");
             else
                 Log.Warn($"Discord returned {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
-            return false;
+            return Result.Failed;
         }
 
-        return false;
+        return Result.Failed;
     }
 
     [GeneratedRegex(@"^https://(?:(?:canary|ptb)\.)?discord(?:app)?\.com/api/(?:v\d+/)?webhooks/\d+/[\w-]+/?$")]
