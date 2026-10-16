@@ -8,8 +8,8 @@ namespace WoWCharacterTracker;
 // takes its place and is started, and this one quits. The .old file is removed on the next start.
 static class Updater
 {
-    // The releases-only repo (installed apps look here, so it stays). release.cmd publishes there.
-    const string Repo = "JDybeck/wow-character-tracker-releases";
+    // Releases are built by the GitHub workflow when a v* tag is pushed (release.cmd).
+    const string Repo = "JDybeck/wow-character-tracker";
     const string AssetName = "WoWCharacterTracker.exe";
 
     public sealed record Release(Version Version, string Tag, string Notes, string DownloadUrl, string PageUrl);

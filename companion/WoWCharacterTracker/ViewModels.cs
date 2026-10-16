@@ -171,13 +171,22 @@ sealed record Coin(string Amount, SolidColorBrush Brush)
 
 // A boss kill, rare loot, new mount or death, shown in the character details. Loot and mounts
 // get the item's real icon and tooltip from Wowhead.
-sealed class HighlightRow(string glyph, SolidColorBrush brush, string text, string when, int itemId = 0) : Observable
+// The verb ("Looted ") is plain text, the thing after it gets the color (item quality for loot).
+sealed class HighlightRow(string glyph, SolidColorBrush brush, string verb, string subject, string when, int itemId = 0) : Observable
 {
     public string Glyph { get; } = glyph;
-    public SolidColorBrush Brush { get; } = brush;
-    public string Text { get; } = text;
+    SolidColorBrush brush = brush;
+    public SolidColorBrush Brush { get => brush; set => Set(ref brush, value); }
+    public string Verb { get; } = verb;
+    public string Subject { get; } = subject;
+    public string Text => Verb + Subject;
     public string When { get; } = when;
     public int ItemId { get; } = itemId;
+
+    // WoW's item quality colors: poor, common, uncommon, rare, epic, legendary, artifact, heirloom.
+    static readonly int[] QualityColors = [0x9D9D9D, 0xFFFFFF, 0x1EFF00, 0x0070DD, 0xA335EE, 0xFF8000, 0xE6CC80, 0x00CCFF];
+    public static SolidColorBrush? QualityBrush(int quality) =>
+        quality >= 0 && quality < QualityColors.Length ? ClassColors.Hex(QualityColors[quality]) : null;
 
     string? iconUrl;
     public string? IconUrl { get => iconUrl; set { Set(ref iconUrl, value); Raise(nameof(HasIcon)); } }
@@ -243,6 +252,7 @@ sealed class CharacterRow : Observable
             {
                 h.IconUrl = Wowhead.IconUrl(info.Icon, "small");
                 h.Tooltip = info.Tooltip;
+                if (HighlightRow.QualityBrush(info.Quality) is { } q) h.Brush = q;
             }
     }
     public required IReadOnlyList<LevelRow> Levels { get; init; }
@@ -345,10 +355,10 @@ sealed class CharacterRow : Observable
 
     static HighlightRow Highlight(Entry e) => e.Kind switch
     {
-        "boss" => new("", ClassColors.Hex(0xFBBF24), $"Killed {e.Boss}" + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
-        "loot" => new("", ClassColors.Hex(e.Quality >= 5 ? 0xFF8000 : e.Quality == 4 ? 0xA335EE : 0x3B82F6), $"Looted {e.Item}", When(e.At), e.ItemId),
-        "mount" => new("", ClassColors.Hex(0x4ADE80), (e.Bought ? "Bought " : "Got ") + e.Mount, When(e.At), e.ItemId),
-        _ => new("", ClassColors.Hex(0xF87171), $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : ""), When(e.At)),
+        "boss" => new("", ClassColors.Hex(0xFBBF24), "Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
+        "loot" => new("", HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD), "Looted ", e.Item, When(e.At), e.ItemId),
+        "mount" => new("", ClassColors.Hex(0x4ADE80), e.Bought ? "Bought " : "Got ", e.Mount, When(e.At), e.ItemId),
+        _ => new("", ClassColors.Hex(0xF87171), "", $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : ""), When(e.At)),
     };
 
     // "id~qty~name,..." from newer addons; older ones wrote "Name 45, Name 120" (no icons then).
@@ -1034,6 +1044,7 @@ sealed class MainViewModel : Observable
         set
         {
             if (!Set(ref selectedFlavor, value) || value is null) return;
+            Theme.Apply(value.Flavor);
             Config.SelectedFlavor = value.Flavor.Key;
             Config.Save();
             RefreshWebhooks();

@@ -2,6 +2,13 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.9.0
+
+- Each game tab has its own look: Retail is Midnight violet, Forever is classic gold.
+- Highlights: "Looted" is plain white and the item has its quality color (mounts too, once Wowhead answers).
+- The (i) commands icon is centered.
+- Releases and updates now come from the main repo (github.com/JDybeck/wow-character-tracker).
+
 ## v0.8.0
 
 - Icons: crests and looted items use their real icons from Wowhead, with tooltips. Professions have their icons too.
