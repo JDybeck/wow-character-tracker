@@ -604,7 +604,7 @@
                               </ItemsControl.Template>
                               <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type local:HighlightRow}">
-                                  <Grid Margin="0,3,8,3">
+                                  <Grid Margin="0,3,8,3" Background="Transparent" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
                                     <Grid.ColumnDefinitions>
                                       <ColumnDefinition Width="22"/>
                                       <ColumnDefinition Width="*"/>
@@ -614,7 +614,7 @@
                                                Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
                                     <Image Source="{Binding IconUrl}" Width="16" Height="16" HorizontalAlignment="Left"
                                            Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
-                                    <TextBlock Grid.Column="1" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Tooltip}">
+                                    <TextBlock Grid.Column="1" FontSize="12" TextTrimming="CharacterEllipsis">
                                       <Run Text="{Binding Verb, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run Text="{Binding Subject, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/>
                                     </TextBlock>
                                     <TextBlock Grid.Column="2" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>

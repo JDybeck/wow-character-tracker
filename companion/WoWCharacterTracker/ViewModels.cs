@@ -193,8 +193,8 @@ sealed class HighlightRow(string glyph, SolidColorBrush brush, string verb, stri
     public string? IconUrl { get => iconUrl; set { Set(ref iconUrl, value); Raise(nameof(HasIcon)); } }
     public bool HasIcon => iconUrl is not null;
 
-    string tooltip = "";
-    public string Tooltip { get => tooltip; set => Set(ref tooltip, value); }
+    string? tooltip; // null until Wowhead answers, so rows without one show no empty tooltip
+    public string? Tooltip { get => tooltip; set => Set(ref tooltip, string.IsNullOrEmpty(value) ? null : value); }
 }
 
 sealed class CharacterRow : Observable
