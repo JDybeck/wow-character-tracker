@@ -291,7 +291,7 @@ sealed class Tracker : IDisposable
     };
 
     // For instant posts: how long from the moment to Discord, and where that time went.
-    // " In Discord 14s after it happened: the game sent it after 11s (instant posts wait until combat ends), then 3s for the screenshot and upload."
+    // " In Discord 4s after it happened: the game sent it after 1s, then 3s for the screenshot and upload."
     string Timing(Entry e)
     {
         if (!sentAt.TryRemove(e.Id, out var shot)) return ""; // from the saved file, not instant
@@ -299,8 +299,7 @@ sealed class Tracker : IDisposable
         var total = Math.Max(0, (int)Math.Round((DateTime.Now - happened).TotalSeconds));
         var inGame = Math.Clamp((int)Math.Round((shot - happened).TotalSeconds), 0, total);
         var here = total - inGame;
-        var why = inGame >= 4 ? " (instant posts wait until combat ends)" : "";
-        return $" In Discord {total}s after it happened: the game sent it after {inGame}s{why}, then {here}s for the screenshot and upload.";
+        return $" In Discord {total}s after it happened: the game sent it after {inGame}s, then {here}s for the screenshot and upload.";
     }
 
     public static string Describe(Entry e) => e.Kind switch

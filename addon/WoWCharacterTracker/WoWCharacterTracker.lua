@@ -1,6 +1,33 @@
 -- The game's events, sent to the parts of the addon that handle them. Loaded last.
 local ADDON, ns = ...
 
+local function knownEvent(id)
+  for _, e in ipairs(WoWCharacterTrackerDB.events) do
+    if e.id == id then return true end
+  end
+  return false
+end
+
+-- Times a finished level: newStart is the total played when `level` began, and the saved start
+-- belongs to startLevel. If that's the level before, the level is done (also later, at login, when a
+-- /reload or logout came before the game answered the ding's /played request). Returns true when
+-- the level is accounted for (recorded now or before). live = right at the ding.
+local function finishLevel(guid, level, newStart, total, live)
+  local oldStart = WoWCharacterTrackerDB.start[guid]
+  local startLevel = WoWCharacterTrackerDB.startLevel[guid]
+  -- Level 1 always starts at 0 played, so 1 to 2 never needs a baseline (a brand new character's
+  -- login answer can go missing, and the addon may have been installed after creating it).
+  if level == 2 and startLevel ~= 2 then oldStart, startLevel = 0, 1 end
+  if not (oldStart and newStart >= oldStart and (startLevel == level - 1 or (startLevel == nil and live))) then return false end
+  if not knownEvent(guid .. ":" .. level) then
+    local seconds = newStart - oldStart
+    ns.recordLevel(guid, level, seconds, total)
+    ns.say(string.format("Level %d took %s.", level - 1, ns.formatDuration(seconds)))
+    if live then ns.offerPost(level) end
+  end
+  return true
+end
+
 ns.frame:SetScript("OnEvent", function(_, event, ...)
   if event == "CHAT_MSG_SYSTEM" then
     ns.onSystemMessage((...))
@@ -52,7 +79,15 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
 
   elseif event == "PLAYER_LEVEL_UP" then
     local level = (...) -- the level just reached
+    local guid = UnitGUID("player")
     ns.pendingLevel = level
+    -- Right away from the played time we already know (the login /played plus the time since), so
+    -- the post doesn't wait on the server. The /played answer then makes the new level's start exact.
+    local total = ns.playedNow()
+    if total and finishLevel(guid, level, total, total, true) then
+      WoWCharacterTrackerDB.start[guid] = total
+      WoWCharacterTrackerDB.startLevel[guid] = level
+    end
     ns.requestPlayed()
     -- The answer can get lost (busy server, loading screen). Ask once more if it hasn't come.
     C_Timer.After(15, function() if ns.pendingLevel == level then ns.requestPlayed() end end)
@@ -91,30 +126,11 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
     local total, thisLevel = ...
     local guid = UnitGUID("player")
     local newStart = total - thisLevel
-    local oldStart = WoWCharacterTrackerDB.start[guid]
     ns.lastPlayed, ns.lastPlayedAt = total, time()
 
-    -- The saved start belongs to startLevel. If that's the level before this one, a level was just
-    -- finished: right after a ding, but also later (at login) when a /reload or logout came before
-    -- the game answered the ding's /played request, which used to lose that level.
-    local level = ns.pendingLevel or UnitLevel("player")
-    local startLevel = WoWCharacterTrackerDB.startLevel[guid]
-    -- Level 1 always starts at 0 played, so 1 to 2 never needs a baseline (a brand new character's
-    -- login answer can go missing, and the addon may have been installed after creating it).
-    if level == 2 and startLevel ~= 2 then oldStart, startLevel = 0, 1 end
-    local finished = oldStart and newStart >= oldStart
-      and (startLevel == level - 1 or (startLevel == nil and ns.pendingLevel ~= nil))
-    local id = guid .. ":" .. level
-    local known = false
-    for _, e in ipairs(WoWCharacterTrackerDB.events) do
-      if e.id == id then known = true; break end
-    end
-    if finished and not known then
-      local seconds = newStart - oldStart
-      ns.recordLevel(guid, level, seconds, total)
-      ns.say(string.format("Level %d took %s.", level - 1, ns.formatDuration(seconds)))
-      if ns.pendingLevel then ns.offerPost(level) end
-    elseif ns.pendingLevel and not known then
+    local level = ns.pendingLevel or UnitLevel("player") -- UnitLevel can lag right after a ding
+    local live = ns.pendingLevel ~= nil
+    if not finishLevel(guid, level, newStart, total, live) and live and not knownEvent(guid .. ":" .. level) then
       -- No starting point for the level (the addon came in mid-level): still log the ding, without a time.
       ns.recordLevel(guid, level, nil, total)
       ns.say(string.format("Level %d logged. Its time is unknown (no starting point for level %d yet).", level, level - 1))

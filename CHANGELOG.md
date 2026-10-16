@@ -4,7 +4,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.12.3
 
-- Clearer console: each instant post's line says how long it took to reach Discord and where the time went, e.g. "In Discord 15s after it happened: the game sent it after 13s (instant posts wait until combat ends), then 2s for the screenshot and upload."
+- Level-ups post right at the ding. The addon used to wait for the game's answer to its /played request, and when that answer went missing it asked again 15 seconds later, so some posts (and their screenshots) came late. Now it times the level from the played time it already knows, and the answer only fine-tunes the next level's start.
+- Clearer console: each instant post's line says how long it took to reach Discord and where the time went, e.g. "In Discord 3s after it happened: the game sent it after 1s, then 2s for the screenshot and upload."
 - Level-ups read "dinged level 12 in 21m 40s" in the console and status line.
 
 ## v0.12.2
