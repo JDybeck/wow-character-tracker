@@ -29,6 +29,7 @@ static class CardImage
         var urls = new List<string?> { c.PictureUrl };
         if (Shows("crests")) urls.AddRange(c.CrestList.Select(x => x.IconUrl));
         if (Shows("professions")) urls.AddRange(c.ProfessionList.Select(x => x.IconUrl));
+        if (Shows("talents")) urls.AddRange(c.TalentPickList.Select(x => x.IconUrl));
         urls.AddRange(highlights.Select(h => h.IconUrl));
         var images = new Dictionary<string, BitmapSource>();
         await Task.WhenAll(urls.OfType<string>().Distinct().Select(async url =>
@@ -152,11 +153,11 @@ static class CardImage
         body.Children.Add(stats);
 
         // Icon chips: crests and professions.
-        void Chips(string label, IEnumerable<IconChip> chips)
+        void Chips(string? label, IEnumerable<IconChip> chips)
         {
             var list = chips.ToList();
             if (list.Count == 0) return;
-            body.Children.Add(Label(label));
+            if (label is not null) body.Children.Add(Label(label));
             var wrap = new WrapPanel();
             foreach (var chip in list)
             {
@@ -178,6 +179,7 @@ static class CardImage
         {
             body.Children.Add(Label("TALENTS"));
             body.Children.Add(Txt(c.Talents, 14, text));
+            if (c.HasTalentPicks) { body.Children.Add(new Border { Height = 6 }); Chips(null, c.TalentPickList); }
         }
         if (shows("zone") && c.Zone.Length > 0)
         {

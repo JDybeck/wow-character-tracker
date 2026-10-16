@@ -131,7 +131,8 @@ sealed record GroupChip(string Key, string Label);
 // tooltip fill in once Wowhead has answered.
 sealed class IconChip(string text, string? iconUrl = null, string tooltip = "") : Observable
 {
-    public string Text { get; } = text;
+    string text = text;
+    public string Text { get => text; set => Set(ref text, value); }
 
     string? iconUrl = iconUrl;
     public string? IconUrl { get => iconUrl; set => Set(ref iconUrl, value); }
@@ -225,6 +226,9 @@ sealed class CharacterRow : Observable
     public string Guild { get; init; } = "";
     public bool HasGuild => Guild.Length > 0;
     public string Surname { get; init; } = "";
+    public string TalentPicks { get; init; } = ""; // Forever: "spellID~rank~maxRank~tree,..."
+    public IReadOnlyList<IconChip> TalentPickList { get; private set; } = [];
+    public bool HasTalentPicks => TalentPickList.Count > 0;
     public string FullName => Surname.Length > 0 ? $"{Name} {Surname}" : Name;
 
     public string MoneyText => Money > 0 ? Format.Money(Money) : "-";
@@ -241,6 +245,9 @@ sealed class CharacterRow : Observable
     {
         CrestList = CrestChips(Crests);
         ProfessionList = ProfessionChips(Professions);
+        TalentPickList = TalentChips(TalentPicks);
+        Raise(nameof(TalentPickList));
+        Raise(nameof(HasTalentPicks));
         Raise(nameof(CrestList));
         Raise(nameof(ProfessionList));
         Raise(nameof(HasProfessions));
@@ -249,6 +256,13 @@ sealed class CharacterRow : Observable
             if (await Wowhead.GetAsync("currency", chip.Tag, flavor) is { } info)
             {
                 chip.IconUrl = Wowhead.IconUrl(info.Icon, "small");
+                chip.Tooltip = info.Tooltip.Length > 0 ? info.Tooltip : info.Name;
+            }
+        foreach (var chip in TalentPickList)
+            if (await Wowhead.GetAsync("spell", chip.Tag, flavor) is { } info)
+            {
+                chip.IconUrl = Wowhead.IconUrl(info.Icon, "small");
+                chip.Text = $"{info.Name} {chip.Text}";
                 chip.Tooltip = info.Tooltip.Length > 0 ? info.Tooltip : info.Name;
             }
         foreach (var h in Highlights.Where(h => h.ItemId > 0))
@@ -347,6 +361,7 @@ sealed class CharacterRow : Observable
                 Crests = Pick(s?.Crests, last?.Crests),
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Surname = Pick(s?.Surname, last?.Surname),
+                TalentPicks = s?.TalentPicks ?? "",
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone, When(e.At)))
@@ -369,6 +384,15 @@ sealed class CharacterRow : Observable
         "mount" => new("", ClassColors.Hex(0x4ADE80), e.Bought ? "Bought " : "Got ", e.Mount, When(e.At), e.ItemId),
         _ => new("", ClassColors.Hex(0xF87171), "", $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : ""), When(e.At)),
     };
+
+    // Forever talent picks, "spellID~rank~maxRank~tree,...": a chip per talent ("5/5" until
+    // Wowhead gives the name and icon), ordered by tree.
+    static IReadOnlyList<IconChip> TalentChips(string picks) => picks.Length == 0 ? [] : picks.Split(',')
+        .Select(p => p.Split('~'))
+        .Where(p => p.Length >= 4 && int.TryParse(p[0], out _))
+        .OrderBy(p => int.TryParse(p[3], out var t) ? t : 0)
+        .Select(p => new IconChip($"{p[1]}/{p[2]}") { Tag = int.Parse(p[0]) })
+        .ToList();
 
     // "id~qty~name,..." from newer addons; older ones wrote "Name 45, Name 120" (no icons then).
     static IReadOnlyList<IconChip> CrestChips(string crests)

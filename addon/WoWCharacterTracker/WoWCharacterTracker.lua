@@ -41,6 +41,36 @@ pcall(frame.RegisterEvent, frame, "ADDON_ACTION_FORBIDDEN")
 -- What the addon did last, saved with any "blocked from an action" report.
 local lastDoing = "nothing yet"
 local function doing(what) lastDoing = date("%H:%M:%S") .. " " .. what end
+
+-- "Blocked from an action" reports: said in chat right away (with the function the game names)
+-- and kept (last 10) in WoWCharacterTrackerDB.blocked. Held in memory until the saved data has
+-- loaded, since it can happen early.
+local blockedPending = {}
+local function flushBlocked()
+  if not WoWCharacterTrackerDB or #blockedPending == 0 then return end
+  local list = WoWCharacterTrackerDB.blocked or {}
+  for _, l in ipairs(blockedPending) do table.insert(list, l) end
+  blockedPending = {}
+  while #list > 10 do table.remove(list, 1) end
+  WoWCharacterTrackerDB.blocked = list
+end
+
+local function noteBlocked(what)
+  local line = string.format("%s %s (in combat: %s, last thing we did: %s)", date("%H:%M:%S"), what,
+    tostring(InCombatLockdown()), lastDoing)
+  table.insert(blockedPending, line)
+  if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage("|cffff6060[Character Tracker] Blocked:|r " .. line) end
+  flushBlocked()
+end
+
+-- Backup in case the events don't reach us: the game shows this popup for blocked actions.
+if hooksecurefunc and StaticPopup_Show then
+  hooksecurefunc("StaticPopup_Show", function(which, arg1, arg2)
+    if (which == "ADDON_ACTION_FORBIDDEN" or which == "ADDON_ACTION_BLOCKED") and arg1 == ADDON then
+      noteBlocked("popup " .. which .. " " .. tostring(arg2))
+    end
+  end)
+end
 frame:RegisterEvent("SCREENSHOT_SUCCEEDED")
 frame:RegisterEvent("SCREENSHOT_FAILED")
 
@@ -177,25 +207,20 @@ local function getRetailTalentSplit(specName)
   return text
 end
 
--- Forever has specs under C_SpecializationInfo instead of the global GetSpecialization.
-local function getSpecIndex()
-  if type(GetSpecialization) == "function" then return GetSpecialization() end
-  if C_SpecializationInfo and C_SpecializationInfo.GetSpecialization then return C_SpecializationInfo.GetSpecialization() end
-  return nil
-end
 
-local function getForeverSpec()
-  local spec = getSpecIndex()
-  if not spec then return nil end
-  local info = (C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfo) or GetSpecializationInfo
-  if not info then return nil end
-  local ok, _, name = pcall(info, spec)
-  if ok and name and name ~= "" then return name end
-  return nil
-end
+-- The classic talent trees, left to right as the talent window shows them.
+local CLASSIC_TREES = {
+  WARRIOR = { "Arms", "Fury", "Protection" }, PALADIN = { "Holy", "Protection", "Retribution" },
+  HUNTER = { "Beast Mastery", "Marksmanship", "Survival" }, ROGUE = { "Assassination", "Combat", "Subtlety" },
+  PRIEST = { "Discipline", "Holy", "Shadow" }, SHAMAN = { "Elemental", "Enhancement", "Restoration" },
+  MAGE = { "Arcane", "Fire", "Frost" }, WARLOCK = { "Affliction", "Demonology", "Destruction" },
+  DRUID = { "Balance", "Feral Combat", "Restoration" },
+}
 
--- Forever (Classic+) uses the modern trait system without retail's specs. Points are summed per
--- sub-tree (named, e.g. "Holy 5 / Protection 10 / Retribution 0"); without sub-trees it's the total.
+-- Forever (Classic+) keeps the classic three talent trees, but as one modern trait tree with the
+-- three side by side. Nodes are grouped into trees by their X position (a wide gap between
+-- columns starts the next tree). Returns "Holy 0 / Protection 0 / Retribution 16", the tree with
+-- the most points (shown as the spec), and the picked talents as "spellID~rank~maxRank~tree,...".
 local function getTraitTalents()
   if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetTreeNodes) then return nil end
   local configID = C_ClassTalents.GetActiveConfigID()
@@ -204,34 +229,50 @@ local function getTraitTalents()
   local treeID = config and config.treeIDs and config.treeIDs[1]
   if not treeID then return nil end
 
-  local bySub, subs, total = {}, {}, 0
+  local nodes, xs, seen = {}, {}, {}
   for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
     local node = C_Traits.GetNodeInfo(configID, nodeID)
-    if node then
-      local ranks = node.ranksPurchased or node.currentRank or 0
-      local sub = node.subTreeID
-      if sub and bySub[sub] == nil then bySub[sub] = 0; subs[#subs + 1] = sub end
-      if ranks > 0 then
-        total = total + ranks
-        if sub then bySub[sub] = bySub[sub] + ranks end
-      end
+    if node and node.posX then
+      nodes[#nodes + 1] = node
+      if not seen[node.posX] then seen[node.posX] = true; xs[#xs + 1] = node.posX end
+    end
+  end
+  if #nodes == 0 then return nil end
+  table.sort(xs)
+  -- Columns inside a tree are about 600 apart; trees are 2000+ apart.
+  local treeOfX, tree = {}, 1
+  for i, x in ipairs(xs) do
+    if i > 1 and x - xs[i - 1] > 1200 then tree = tree + 1 end
+    treeOfX[x] = tree
+  end
+
+  local points, picks, total = {}, {}, 0
+  for i = 1, tree do points[i] = 0 end
+  for _, node in ipairs(nodes) do
+    local ranks = node.ranksPurchased or node.currentRank or 0
+    if ranks > 0 then
+      local t = treeOfX[node.posX]
+      points[t] = points[t] + ranks
+      total = total + ranks
+      local entryID = (node.activeEntry and node.activeEntry.entryID) or (node.entryIDs and node.entryIDs[1])
+      local entry = entryID and C_Traits.GetEntryInfo and C_Traits.GetEntryInfo(configID, entryID)
+      local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo and C_Traits.GetDefinitionInfo(entry.definitionID)
+      local spellID = def and (def.spellID or def.overriddenSpellID)
+      if spellID then picks[#picks + 1] = string.format("%d~%d~%d~%d", spellID, ranks, node.maxRanks or ranks, t) end
     end
   end
   if total == 0 then return nil end
-  local specName = getForeverSpec()
-  if #subs > 1 and C_Traits.GetSubTreeInfo then
-    table.sort(subs)
-    local parts = {}
-    for _, sub in ipairs(subs) do
-      local info = C_Traits.GetSubTreeInfo(configID, sub)
-      parts[#parts + 1] = string.format("%s %d", info and info.name or "?", bySub[sub])
-    end
-    return table.concat(parts, " / "), specName
-  end
-  if specName then return string.format("%s %d", specName, total), specName end
-  return string.format("%d points", total)
-end
 
+  local _, classFile = UnitClass("player")
+  local names = CLASSIC_TREES[classFile or ""] or {}
+  local parts, best, bestPoints = {}, nil, -1
+  for i = 1, tree do
+    local name = (tree == 3 and names[i]) or ("Tree " .. i)
+    parts[#parts + 1] = string.format("%s %d", name, points[i])
+    if points[i] > bestPoints then best, bestPoints = name, points[i] end
+  end
+  return table.concat(parts, " / "), best, table.concat(picks, ",")
+end
 -- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or nil when there is nothing to show yet.
 -- Also returns the spec name on retail (nil on Classic).
 local function getTalents()
@@ -261,8 +302,8 @@ local function getTalents()
     if ok and split then return split, specName end
     return nil, specName
   end
-  local ok, traits, specName = pcall(getTraitTalents)
-  if ok then return traits, specName end
+  local ok, traits, specName, picks = pcall(getTraitTalents)
+  if ok then return traits, specName, picks end
   return nil
 end
 
@@ -292,8 +333,9 @@ end
 
 -- "TANK", "HEALER" or "DAMAGER" on retail, nil where there are no specs.
 local function getRole()
-  if type(GetSpecializationRole) ~= "function" then return nil end
-  local spec = getSpecIndex()
+  -- Retail only: Forever's single class "spec" always says DAMAGER.
+  if type(GetSpecializationRole) ~= "function" or type(GetSpecialization) ~= "function" then return nil end
+  local spec = GetSpecialization()
   if spec then
     local ok, role = pcall(GetSpecializationRole, spec)
     if ok then return role end
@@ -365,7 +407,7 @@ local function characterInfo()
   local className, classFile = UnitClass("player")
   local raceName, raceFile = UnitRace("player")
   local sex = UnitSex("player") -- 2 = male, 3 = female
-  local talents, spec = getTalents()
+  local talents, spec, picks = getTalents()
   return {
     guid = UnitGUID("player"),
     char = (UnitName("player")),
@@ -375,6 +417,7 @@ local function characterInfo()
     zone = getZone(),
     professions = getProfessions(),
     talents = talents,
+    talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)
     spec = spec,
     role = getRole(),
     ilvl = getItemLevel(),
@@ -395,7 +438,7 @@ end
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
 -- (Money too: during logout GetMoney() comes back as 0.)
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "professions", "zone", "played", "crests", "money" }
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "professions", "zone", "played", "crests", "money" }
 
 local function saveSnapshot()
   doing("snapshot")
@@ -435,7 +478,7 @@ local SHORT = {
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
-    if type(v) ~= "table" and v ~= "" and v ~= false then
+    if type(v) ~= "table" and v ~= "" and v ~= false and k ~= "talentPicks" then
       if v == true then v = 1 end
       if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
       if k == "sex" then v = (v == "female") and "f" or "m" end
@@ -993,14 +1036,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
     onCombatLog()
 
   elseif event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
-    -- The game names the function it blocked. Kept (last 10) so it can be tracked down.
     local addon, func = ...
-    if addon ~= ADDON or not WoWCharacterTrackerDB then return end
-    local list = WoWCharacterTrackerDB.blocked or {}
-    table.insert(list, string.format("%s %s %s (in combat: %s, last thing we did: %s)", date("%H:%M:%S"), event,
-      tostring(func), tostring(InCombatLockdown()), lastDoing))
-    while #list > 10 do table.remove(list, 1) end
-    WoWCharacterTrackerDB.blocked = list
+    if addon == ADDON then noteBlocked(event .. " " .. tostring(func)) end
 
   elseif event == "ADDON_LOADED" then
     if (...) ~= ADDON then return end
@@ -1009,6 +1046,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     WoWCharacterTrackerDB.events = WoWCharacterTrackerDB.events or {} -- level-ups and notable moments
     WoWCharacterTrackerDB.chars = WoWCharacterTrackerDB.chars or {}   -- [guid] = latest snapshot of that character
     if WoWCharacterTrackerDB.popup == nil then WoWCharacterTrackerDB.popup = false end
+    flushBlocked()
 
   elseif event == "PLAYER_LOGIN" then
     requestPlayed() -- sets the baseline for the current level

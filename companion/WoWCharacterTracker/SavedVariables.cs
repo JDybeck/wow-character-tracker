@@ -116,7 +116,7 @@ record GroupMember(string Name, int Level, string ClassFile, string Class, strin
 record Snapshot(string Guid, string Char, string Realm, int Level, string Class, string ClassFile,
     string Race, string RaceFile, string Sex, string Spec, string Role, double ItemLevel, long Played,
     string Zone, string Professions, string Talents, long LastSeen, bool Hardcore, string Ruleset,
-    long Money = 0, string Crests = "", string? Guild = null, string Surname = "");
+    long Money = 0, string Crests = "", string? Guild = null, string Surname = "", string TalentPicks = "");
 
 record TrackerData(List<Entry> Events, List<Snapshot> Characters)
 {
@@ -175,7 +175,7 @@ static class SavedVariables
                 S(t, "spec"), S(t, "role"), N(t, "ilvl"), (long)N(t, "played"),
                 S(t, "zone"), S(t, "professions"), S(t, "talents"), (long)N(t, "lastSeen"),
                 S(t, "hardcore") == "true", S(t, "ruleset"), (long)N(t, "money"), S(t, "crests"),
-                t.Get("guild").IsNil() ? null : S(t, "guild"), S(t, "surname")));
+                t.Get("guild").IsNil() ? null : S(t, "guild"), S(t, "surname"), S(t, "talentPicks")));
         }
 
         return list;

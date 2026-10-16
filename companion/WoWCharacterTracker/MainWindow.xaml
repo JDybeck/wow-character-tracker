@@ -505,6 +505,8 @@
                           <TextBlock Style="{StaticResource FactValue}" Text="None yet" Visibility="{Binding HasProfessions, Converter={StaticResource Hidden}}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="TALENTS"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
+                          <ItemsControl ItemsSource="{Binding TalentPickList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
+                                        Margin="0,6,0,0" Visibility="{Binding HasTalentPicks, Converter={StaticResource Visible}}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="TAGS"/>
