@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Services;
 
 // One per tab. Reads the addon's data for that game version from two places, the SavedVariables
 // file (written on /reload and logout) and data screenshots (live), and posts what's new.
@@ -187,7 +187,7 @@ sealed class Tracker : IDisposable
                         {
                             var key = $"{e.Id}@{w.Id}";
                             if (posted.Contains(key)) continue;
-                            if (await new Discord(w.Url, flavor, s.NameStyle).PostAsync(e, screenshot: shot))
+                            if (await new DiscordPoster(w.Url, flavor, s.NameStyle).PostAsync(e, screenshot: shot))
                             {
                                 posted.Add(key);
                                 Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.");

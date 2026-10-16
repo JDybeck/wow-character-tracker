@@ -1,7 +1,7 @@
-using System.Windows;
 using Forms = System.Windows.Forms;
+using System.Windows;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Ui;
 
 // The icon in the system tray while the window is hidden. Double-click or "Open" shows the window.
 sealed class TrayIcon : IDisposable

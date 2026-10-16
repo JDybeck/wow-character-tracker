@@ -1,4 +1,4 @@
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Models;
 
 // Made-up Forever characters for trying the app without playing: the list, details, filters,
 // tags, Test buttons and character cards. They only exist in the app (the "Test characters"

@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Services;
 
 // Looks for a newer release on GitHub and installs it: the new exe is downloaded next to the
 // running one, the running one is renamed to .old (Windows allows that while it runs), the new one

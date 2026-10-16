@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Ui;
 
 // Each game tab has its own look: Retail is Midnight (void violet), Forever is classic gold.
 // The palette brushes in App.xaml are recolored in place, so everything using them follows.

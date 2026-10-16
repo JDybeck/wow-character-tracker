@@ -2,6 +2,9 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WoWCharacterTracker"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure"
              ShutdownMode="OnExplicitShutdown">
   <Application.Resources>
 
@@ -45,11 +48,11 @@
     <FontFamily x:Key="Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
     <FontFamily x:Key="Mono">Cascadia Mono, Consolas</FontFamily>
 
-    <local:BoolToVisibility x:Key="Visible"/>
-    <local:BoolToVisibility x:Key="Hidden" Invert="True"/>
-    <local:NullToVisibility x:Key="VisibleIfSet"/>
-    <local:NullToVisibility x:Key="HiddenIfSet" Invert="True"/>
-    <local:EqualsToVisibility x:Key="PageIs"/>
+    <ui:BoolToVisibility x:Key="Visible"/>
+    <ui:BoolToVisibility x:Key="Hidden" Invert="True"/>
+    <ui:NullToVisibility x:Key="VisibleIfSet"/>
+    <ui:NullToVisibility x:Key="HiddenIfSet" Invert="True"/>
+    <ui:EqualsToVisibility x:Key="PageIs"/>
 
     <!-- Dark checkbox: rounded box with a check glyph, content to the right. -->
     <Style TargetType="CheckBox">

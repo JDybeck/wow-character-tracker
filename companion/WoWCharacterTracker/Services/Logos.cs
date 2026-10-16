@@ -1,7 +1,7 @@
 using System.IO;
 using System.Windows.Media.Imaging;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Services;
 
 // The game logos on the tabs (current retail expansion, Forever). They're Blizzard's, so they're
 // not in the repo or the exe: downloaded from Warcraft Wiki the first time and kept next to the

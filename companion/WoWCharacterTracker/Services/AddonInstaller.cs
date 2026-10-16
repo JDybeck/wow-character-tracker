@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Services;
 
 // The addon files are embedded in the exe (see the .csproj), so we can install and update them.
 static partial class AddonInstaller

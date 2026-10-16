@@ -3,7 +3,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Services;
 
 // Names, icons and tooltip text for items and currencies, from Wowhead's public tooltip endpoint
 // (the one their site tooltips use). Results are kept in wowhead.json next to the config, so each

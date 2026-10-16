@@ -1,4 +1,4 @@
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Infrastructure;
 
 enum LogLevel { Info, Success, Warn, Error }
 

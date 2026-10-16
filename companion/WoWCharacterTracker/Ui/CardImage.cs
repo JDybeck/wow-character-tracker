@@ -7,7 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Ui;
 
 // Draws the character card as a PNG for Discord, since embeds can't show icons next to text.
 // Same look as the details panel, in the current tab's theme. Runs on the UI thread.

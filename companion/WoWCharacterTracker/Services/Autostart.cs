@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace WoWCharacterTracker;
+namespace WoWCharacterTracker.Services;
 
 // Starts the app in the tray (no window) when you log in to Windows, through the current user's
 // Run key (no admin needed). The window opens when World of Warcraft starts.

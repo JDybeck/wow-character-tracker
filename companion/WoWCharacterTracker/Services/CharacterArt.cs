@@ -1,0 +1,53 @@
+using System.Collections.Concurrent;
+
+namespace WoWCharacterTracker.Services;
+
+// Class colors and the pictures that stand for a character: the race portrait, with the class
+// icon as the fallback. Both come from Wowhead's icon CDN.
+static class CharacterArt
+{
+    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+
+    // Class colors as the game uses them (RAID_CLASS_COLORS).
+    public static readonly Dictionary<string, int> ClassColors = new()
+    {
+        ["WARRIOR"] = 0xC69B6D, ["PALADIN"] = 0xF48CBA, ["HUNTER"] = 0xAAD372, ["ROGUE"] = 0xFFF468,
+        ["PRIEST"] = 0xFFFFFF, ["DEATHKNIGHT"] = 0xC41E3A, ["SHAMAN"] = 0x0070DD, ["MAGE"] = 0x3FC7EB,
+        ["WARLOCK"] = 0x8788EE, ["MONK"] = 0x00FF98, ["DRUID"] = 0xFF7C0A, ["DEMONHUNTER"] = 0xA330C9,
+        ["EVOKER"] = 0x33937F,
+    };
+
+    const string IconBase = "https://wow.zamimg.com/images/wow/icons/large/";
+
+    // Remembers which portrait URLs exist so a new race we don't know falls back to the class icon.
+    static readonly ConcurrentDictionary<string, bool> UrlExists = new();
+
+    public static string? ClassIconUrl(string classFile) =>
+        classFile.Length > 0 ? $"{IconBase}classicon_{classFile.ToLowerInvariant()}.jpg" : null;
+
+    // The race portrait matches the character best; the class icon is the fallback.
+    public static async Task<string?> PictureUrlAsync(string raceFile, string sex, string classFile)
+    {
+        if (raceFile.Length > 0)
+        {
+            var portrait = $"{IconBase}race_{raceFile.ToLowerInvariant()}_{sex}.jpg";
+            if (await ExistsAsync(portrait)) return portrait;
+        }
+        return ClassIconUrl(classFile);
+    }
+
+    static async Task<bool> ExistsAsync(string url)
+    {
+        if (UrlExists.TryGetValue(url, out var known)) return known;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Head, url);
+            using var res = await Http.SendAsync(req);
+            return UrlExists[url] = res.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return false; // don't cache, it may just be a hiccup
+        }
+    }
+}
