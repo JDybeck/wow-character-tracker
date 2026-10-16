@@ -138,6 +138,29 @@
       <Setter Property="Foreground" Value="{StaticResource Text}"/>
     </Style>
 
+    <!-- Dark tooltips. The default one is light, and the app's light text was unreadable on it. -->
+    <Style TargetType="ToolTip">
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="MaxWidth" Value="360"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToolTip">
+            <Border Background="#1E293B" BorderBrush="#334155" BorderThickness="1" CornerRadius="6" Padding="10,6">
+              <ContentPresenter>
+                <ContentPresenter.Resources>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="TextWrapping" Value="Wrap"/>
+                    <Setter Property="Foreground" Value="{StaticResource Text}"/>
+                  </Style>
+                </ContentPresenter.Resources>
+              </ContentPresenter>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <Style x:Key="Icon" TargetType="TextBlock">
       <Setter Property="FontFamily" Value="{StaticResource Icons}"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
