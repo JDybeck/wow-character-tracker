@@ -55,13 +55,38 @@ sealed class FlavorViewModel : Observable
     }
 
     // The addon reads Settings.lua when it loads, so changes made while playing wait for a /reload.
-    // Said once per session.
-    bool hintedReload;
+    // A banner says so until the game has loaded them: a login check-in, the game writing its saved
+    // file (it does on /reload and logout) or the game closing. (The app has no way to tell the game
+    // to reload itself.)
+    bool reloadNeeded;
+    public bool ReloadNeeded { get => reloadNeeded; set => Set(ref reloadNeeded, value); }
+    DateTime settingsWrittenAt;
+    public ICommand DismissReloadCommand => new RelayCommand(_ => ReloadNeeded = false);
+
     void HintReload()
     {
-        if (hintedReload || flavorDir is null || !Wow.IsRunning(flavorDir)) return;
-        hintedReload = true;
-        Log.Info($"[{Name}] The game picks up these changes on your next /reload or login. Until then it uses the old ones for screenshots and instant posts.");
+        if (flavorDir is null || !Wow.IsRunning(flavorDir)) return;
+        settingsWrittenAt = DateTime.Now;
+        if (!ReloadNeeded) Log.Info($"[{Name}] Type /reload in game to use the new settings. Until then the game keeps the old ones for screenshots and instant posts.");
+        ReloadNeeded = true;
+    }
+
+    void CheckReloaded()
+    {
+        if (!ReloadNeeded || flavorDir is null) return;
+        if (!Wow.IsRunning(flavorDir) || NewestSavedFile() > settingsWrittenAt) ReloadNeeded = false;
+    }
+
+    DateTime NewestSavedFile()
+    {
+        var wtf = Path.Combine(flavorDir!, "WTF");
+        if (!Directory.Exists(wtf)) return DateTime.MinValue;
+        try
+        {
+            return Directory.EnumerateFiles(wtf, Wow.SavedVarsName, SearchOption.AllDirectories)
+                .Select(File.GetLastWriteTime).DefaultIfEmpty(DateTime.MinValue).Max();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return DateTime.MinValue; }
     }
 
     void WriteAddonSettings()
@@ -281,13 +306,14 @@ sealed class FlavorViewModel : Observable
         tracker?.Dispose();
         tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings,
             guid => main.Config.TagsOf(guid), main.Backfill);
-        tracker.DataChanged += data => MainViewModel.OnUi(() => ShowData(data));
+        tracker.DataChanged += data => MainViewModel.OnUi(() => { ShowData(data); CheckReloaded(); });
         tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
         // Logging in on a game switches the app to that game's tab, with the character picked.
         tracker.CheckedIn += e => MainViewModel.OnUi(() =>
         {
             main.SelectedFlavor = this;
+            ReloadNeeded = false; // a fresh login or /reload has read the new Settings.lua
             pendingSelect = e.Guid;
             SelectCheckedIn();
         });

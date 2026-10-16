@@ -2,6 +2,12 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.12.2
+
+- Changing settings while the game runs shows a banner at the top: type /reload in game to use them. It goes away by itself once the game has loaded them (after a /reload, a new login or closing the game).
+- The Game folder, Addon and Discord cards use two lines in narrow windows instead of cutting the text off (the full text is in the tooltip).
+- The console says how long an instant post took to reach the app, to see where the time goes.
+
 ## v0.12.1
 
 - Level-ups that aren't posted still reach the app right away, so the level history stays current without a /reload (same for boss kills, mounts, duels and rating steps). Loot that isn't posted still waits for /reload, to keep the corner flicker down.

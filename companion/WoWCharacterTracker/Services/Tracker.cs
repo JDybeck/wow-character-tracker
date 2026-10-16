@@ -99,6 +99,10 @@ sealed class Tracker : IDisposable
         else
         {
             live[e.Id] = e;
+            // Shows where the time goes between the moment and the post.
+            var lag = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - e.At;
+            Log.Info($"{Tag}Got {Describe(e)}, {lag}s after it happened" +
+                     (lag >= 5 ? " (the addon holds instant posts until you're out of combat)." : "."));
         }
         _ = SyncAsync();
     }

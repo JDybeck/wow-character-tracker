@@ -31,6 +31,20 @@
       </ScrollViewer>
     </StackPanel>
   </Border>
+  <!-- Settings changed while the game runs: the addon only reads them on /reload or login. -->
+  <Border Visibility="{Binding SelectedFlavor.ReloadNeeded, Converter={StaticResource Visible}}" Margin="0,0,0,14" Padding="16,10" CornerRadius="10"
+          Background="{StaticResource AmberSoft}" BorderBrush="{StaticResource Amber}" BorderThickness="1">
+    <DockPanel>
+      <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,4" Command="{Binding SelectedFlavor.DismissReloadCommand}" ToolTip="Hide">
+        <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="11" Foreground="{StaticResource Muted}"/>
+      </Button>
+      <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" Foreground="{StaticResource Amber}" FontSize="15" Margin="0,0,10,0"/>
+      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="13" Foreground="White">
+        <Run Text="Type" /> <Run Text="/reload" FontFamily="{StaticResource Mono}" FontWeight="SemiBold" Foreground="{StaticResource Amber}"/> <Run Text="in game to use your new settings."/>
+        <Run Text="Until then the game keeps the old ones for screenshots and instant posts." Foreground="{StaticResource TextSoft}" FontSize="12"/>
+      </TextBlock>
+    </DockPanel>
+  </Border>
   <ItemsControl ItemsSource="{Binding SelectedFlavor.Steps}" Margin="0,0,0,18">
     <ItemsControl.ItemsPanel>
       <ItemsPanelTemplate>
@@ -52,7 +66,9 @@
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"/>
-              <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis"
+              <!-- Up to two lines, so narrow windows still show most of it; the rest is in the tooltip. -->
+              <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"
+                         TextTrimming="CharacterEllipsis" LineHeight="16" LineStackingStrategy="BlockLineHeight" MaxHeight="32"
                          ToolTip="{Binding Detail}"/>
             </StackPanel>
             <Button Grid.Column="2" Style="{StaticResource ButtonBase}" Content="{Binding ActionText}" Command="{Binding ActionCommand}"

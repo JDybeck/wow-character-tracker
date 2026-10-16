@@ -38,6 +38,7 @@ static class ScreenshotMode
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
+            if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
             if (Part(3) == "posthighlight" && vm.SelectedFlavor?.SelectedCharacter?.Highlights.FirstOrDefault() is { } h)
             {
