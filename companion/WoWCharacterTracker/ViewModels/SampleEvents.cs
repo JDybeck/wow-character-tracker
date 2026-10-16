@@ -29,7 +29,7 @@ static class SampleEvents
         return kind switch
         {
             "rare" => e with { Kind = "loot", Item = "Cruel Barb", ItemId = 5191, Quality = 3, Zone = "The Deadmines" },
-            "epic" => e with { Kind = "loot", Item = "Ashkandi, Greatsword of the Brotherhood", ItemId = 19364, Quality = 4 },
+            "epic" => e with { Kind = "loot", Item = "Sul'thraze the Lasher", ItemId = 9372, Quality = 4 },
             "legendary" => e with { Kind = "loot", Item = "Thunderfury, Blessed Blade of the Windseeker", ItemId = 19019, Quality = 5 },
             "max" => e with { Kind = "level", Level = flavor == Flavors.Forever ? 60 : 90, Seconds = 2 * 3600 + 14 * 60, MaxLevel = true, Group = group, GroupSize = 5 },
             "mount" => e with { Kind = "mount", Mount = "Pinto Bridle", ItemId = 2414, Bought = true },

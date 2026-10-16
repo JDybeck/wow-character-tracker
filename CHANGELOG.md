@@ -4,7 +4,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.12.5
 
-- The epic loot Test posts Ashkandi, Greatsword of the Brotherhood (Arcanite Reaper is only rare).
+- The epic loot Test posts Sul'thraze the Lasher (Arcanite Reaper is only rare).
 - Items Wowhead's Forever database doesn't have yet (like raid gear) get their tooltip picture from its Classic database instead.
 
 ## v0.12.4
