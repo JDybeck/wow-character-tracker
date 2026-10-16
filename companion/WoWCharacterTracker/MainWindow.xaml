@@ -436,7 +436,7 @@
                         </Grid>
                         <StackPanel VerticalAlignment="Center">
                           <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Name}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
                             <Border x:Name="TagBox" Margin="8,0,0,0" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
                                     Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                               <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
@@ -669,6 +669,15 @@
                   <TextBlock Style="{StaticResource Hint}" Text="The chat windows are hidden for the moment the screenshot is taken, then come right back."/>
                 </StackPanel>
               </CheckBox>
+              <StackPanel Margin="0,0,0,16" Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
+                <TextBlock Text="Name in posts" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Forever characters have a surname. Pick what posts and character cards call them." Margin="0,2,0,8"/>
+                <StackPanel Orientation="Horizontal">
+                  <CheckBox Style="{StaticResource OptionChip}" Content="Full name (Ronnie Raket)" IsChecked="{Binding NameFull}" Margin="0,0,6,0"/>
+                  <CheckBox Style="{StaticResource OptionChip}" Content="First name (Ronnie)" IsChecked="{Binding NameFirst}" Margin="0,0,6,0"/>
+                  <CheckBox Style="{StaticResource OptionChip}" Content="Surname (Raket)" IsChecked="{Binding NameLast}"/>
+                </StackPanel>
+              </StackPanel>
 
               <!-- Level-ups -->
               <Border Padding="18,16" CornerRadius="10" Background="#4D1E293B" BorderBrush="#80334155" BorderThickness="1" Margin="0,0,0,14">

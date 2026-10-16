@@ -30,6 +30,7 @@ record Entry
     public long Money { get; init; }            // copper the character had
     public string Crests { get; init; } = "";  // retail: "Gilded Crest 45, Runed Crest 120"
     public string? Guild { get; init; }         // "" = no guild, null = not known
+    public string Surname { get; init; } = ""; // Forever: "Raket" for Ronnie Raket
 
     public long Seconds { get; init; }   // level: time the level took
     public long Played { get; init; }    // total /played
@@ -84,6 +85,7 @@ record Entry
             Money = (long)n("money"),
             Crests = s("crests"),
             Guild = s("guild") is { Length: > 0 } g ? g : null,
+            Surname = s("surname"),
             Seconds = (long)n("seconds"),
             Played = (long)n("played"),
             Boss = s("boss"),
@@ -114,7 +116,7 @@ record GroupMember(string Name, int Level, string ClassFile, string Class, strin
 record Snapshot(string Guid, string Char, string Realm, int Level, string Class, string ClassFile,
     string Race, string RaceFile, string Sex, string Spec, string Role, double ItemLevel, long Played,
     string Zone, string Professions, string Talents, long LastSeen, bool Hardcore, string Ruleset,
-    long Money = 0, string Crests = "", string? Guild = null);
+    long Money = 0, string Crests = "", string? Guild = null, string Surname = "");
 
 record TrackerData(List<Entry> Events, List<Snapshot> Characters)
 {
@@ -173,7 +175,7 @@ static class SavedVariables
                 S(t, "spec"), S(t, "role"), N(t, "ilvl"), (long)N(t, "played"),
                 S(t, "zone"), S(t, "professions"), S(t, "talents"), (long)N(t, "lastSeen"),
                 S(t, "hardcore") == "true", S(t, "ruleset"), (long)N(t, "money"), S(t, "crests"),
-                t.Get("guild").IsNil() ? null : S(t, "guild")));
+                t.Get("guild").IsNil() ? null : S(t, "guild"), S(t, "surname")));
         }
 
         return list;
@@ -190,6 +192,15 @@ static class SavedVariables
 
 static class Format
 {
+    // The name posts use, from the tab's NameStyle: "full", "first" or "last" (surname, if there is one).
+    public static string Name(string first, string surname, string style) => style switch
+    {
+        _ when surname.Length == 0 => first,
+        "first" => first,
+        "last" => surname,
+        _ => $"{first} {surname}",
+    };
+
     // Discord can't show item icons in text, so professions get a plain emoji each.
     static readonly Dictionary<string, string> ProfessionEmoji = new(StringComparer.OrdinalIgnoreCase)
     {

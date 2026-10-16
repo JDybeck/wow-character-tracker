@@ -171,6 +171,42 @@ local function getRetailTalentSplit(specName)
   return text
 end
 
+-- Forever (Classic+) uses the modern trait system without retail's specs. Points are summed per
+-- sub-tree (named, e.g. "Holy 5 / Protection 10 / Retribution 0"); without sub-trees it's the total.
+local function getTraitTalents()
+  if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetTreeNodes) then return nil end
+  local configID = C_ClassTalents.GetActiveConfigID()
+  if not configID then return nil end
+  local config = C_Traits.GetConfigInfo(configID)
+  local treeID = config and config.treeIDs and config.treeIDs[1]
+  if not treeID then return nil end
+
+  local bySub, subs, total = {}, {}, 0
+  for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
+    local node = C_Traits.GetNodeInfo(configID, nodeID)
+    if node then
+      local ranks = node.ranksPurchased or node.currentRank or 0
+      local sub = node.subTreeID
+      if sub and bySub[sub] == nil then bySub[sub] = 0; subs[#subs + 1] = sub end
+      if ranks > 0 then
+        total = total + ranks
+        if sub then bySub[sub] = bySub[sub] + ranks end
+      end
+    end
+  end
+  if total == 0 then return nil end
+  if #subs > 1 and C_Traits.GetSubTreeInfo then
+    table.sort(subs)
+    local parts = {}
+    for _, sub in ipairs(subs) do
+      local info = C_Traits.GetSubTreeInfo(configID, sub)
+      parts[#parts + 1] = string.format("%s %d", info and info.name or "?", bySub[sub])
+    end
+    return table.concat(parts, " / ")
+  end
+  return string.format("%d points", total)
+end
+
 -- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or nil when there is nothing to show yet.
 -- Also returns the spec name on retail (nil on Classic).
 local function getTalents()
@@ -200,6 +236,18 @@ local function getTalents()
     if ok and split then return split, specName end
     return nil, specName
   end
+  local ok, traits = pcall(getTraitTalents)
+  if ok then return traits end
+  return nil
+end
+
+-- Forever has surnames: UnitName gives the surname where other clients give the realm.
+local HAS_SURNAMES = C_PlayerInfo and C_PlayerInfo.ShouldDisplaySurname ~= nil
+
+local function getSurname()
+  if not HAS_SURNAMES then return nil end
+  local _, surname = UnitName("player")
+  if surname and surname ~= "" then return surname end
   return nil
 end
 
@@ -292,7 +340,8 @@ local function characterInfo()
   local talents, spec = getTalents()
   return {
     guid = UnitGUID("player"),
-    char = UnitName("player"),
+    char = (UnitName("player")),
+    surname = getSurname(),
     realm = GetRealmName(),
     level = UnitLevel("player"),
     zone = getZone(),
@@ -328,9 +377,8 @@ local function saveSnapshot()
   info.lastSeen = time()
   local old = WoWCharacterTrackerDB.chars[guid]
   if old then
-    -- No spec right now usually means the game isn't ready, not that the spec is gone,
-    -- so the talent text that goes with it is kept too.
-    if info.spec == nil and old.spec then info.talents = old.talents end
+    -- Talents that can't be read right now (game not ready, logout) keep the old text through
+    -- KEEP_IF_EMPTY below. (This used to follow the spec, but Forever has no specs at all.)
     for _, k in ipairs(KEEP_IF_EMPTY) do
       local v = info[k]
       if v == nil or v == "" or v == 0 or v == "an unknown place" or v == "Unknown" then info[k] = old[k] end
@@ -350,7 +398,7 @@ local SHORT = {
   race = "e", raceFile = "E", sex = "x", hardcore = "h", ruleset = "u", seconds = "d", played = "y",
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
-  maxLevel = "X", guild = "U",
+  maxLevel = "X", guild = "U", surname = "L",
 }
 
 -- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
@@ -752,6 +800,10 @@ local function getGroup()
     local unit = "party" .. i
     if UnitExists(unit) then
       local name, realm = UnitName(unit)
+      if HAS_SURNAMES then -- the second value is their surname here, not a realm
+        if realm and realm ~= "" then name = name .. " " .. realm end
+        realm = nil
+      end
       local className, classFile = UnitClass(unit)
       local raceName = UnitRace(unit)
       table.insert(members, table.concat({ name or "?", UnitLevel(unit) or 0, classFile or "", className or "",
@@ -1061,6 +1113,40 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     add("GetSpecialization: " .. type(GetSpecialization) .. (type(GetSpecialization) == "function" and (" = " .. dump(pcall(GetSpecialization))) or ""))
     add("C_ClassTalents: " .. type(C_ClassTalents) .. ", C_Traits: " .. type(C_Traits) .. ", C_SpecializationInfo: " .. type(C_SpecializationInfo))
     if C_ClassTalents and C_ClassTalents.GetActiveConfigID then add("GetActiveConfigID: " .. dump(pcall(C_ClassTalents.GetActiveConfigID))) end
+    local function keys(t)
+      local k = {}
+      for name in pairs(t or {}) do k[#k + 1] = name end
+      table.sort(k)
+      return table.concat(k, " ")
+    end
+    add("C_SpecializationInfo: " .. keys(C_SpecializationInfo))
+    add("C_ClassTalents: " .. keys(C_ClassTalents))
+    pcall(function()
+      local configID = C_ClassTalents.GetActiveConfigID()
+      local config = C_Traits.GetConfigInfo(configID)
+      add("config: type=" .. tostring(config.type) .. " name=" .. tostring(config.name) .. " trees=" .. table.concat(config.treeIDs or {}, ","))
+      local treeID = config.treeIDs[1]
+      for _, c in ipairs(C_Traits.GetTreeCurrencyInfo(configID, treeID, false) or {}) do
+        add(string.format("currency %s: spent=%s quantity=%s max=%s", tostring(c.traitCurrencyID), tostring(c.spent), tostring(c.quantity), tostring(c.maxQuantity)))
+      end
+      local nodes, ranked, subs = C_Traits.GetTreeNodes(treeID) or {}, 0, {}
+      for _, nodeID in ipairs(nodes) do
+        local n = C_Traits.GetNodeInfo(configID, nodeID)
+        if n then
+          if (n.ranksPurchased or 0) > 0 then ranked = ranked + 1 end
+          local s = tostring(n.subTreeID)
+          subs[s] = (subs[s] or 0) + (n.ranksPurchased or 0)
+        end
+      end
+      add("nodes: " .. #nodes .. ", with ranks: " .. ranked)
+      for s, r in pairs(subs) do
+        local info = tonumber(s) and C_Traits.GetSubTreeInfo and C_Traits.GetSubTreeInfo(configID, tonumber(s))
+        add("subtree " .. s .. " (" .. tostring(info and info.name) .. "): " .. r .. " ranks")
+      end
+      if C_SpecializationInfo and C_SpecializationInfo.GetSpecialization then
+        add("C_SpecializationInfo.GetSpecialization: " .. dump(pcall(C_SpecializationInfo.GetSpecialization)))
+      end
+    end)
     add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
     -- Forever has surnames ("Ronnie Raket"); which function knows them?
     add("UnitName: " .. dump(UnitName("player")))

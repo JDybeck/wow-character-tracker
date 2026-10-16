@@ -20,7 +20,7 @@ static class CardImage
     static readonly FontFamily Ui = new("Segoe UI Variable Text, Segoe UI");
     static readonly FontFamily Mono = new("Cascadia Mono, Consolas");
 
-    public static async Task<byte[]?> RenderAsync(CharacterRow c, Flavor flavor, IReadOnlyCollection<string> hidden)
+    public static async Task<byte[]?> RenderAsync(CharacterRow c, Flavor flavor, IReadOnlyCollection<string> hidden, string nameStyle = "full")
     {
         bool Shows(string part) => !hidden.Contains(part);
         var highlights = Shows("highlights") ? c.Highlights.Take(5).ToList() : [];
@@ -39,7 +39,7 @@ static class CardImage
 
         try
         {
-            var card = Build(c, flavor, Shows, highlights, Img);
+            var card = Build(c, flavor, Format.Name(c.Name, c.Surname, nameStyle), Shows, highlights, Img);
             card.Measure(new Size(Width, double.PositiveInfinity));
             card.Arrange(new Rect(card.DesiredSize));
             card.UpdateLayout();
@@ -81,7 +81,7 @@ static class CardImage
 
     static Brush Res(string key) => Application.Current.TryFindResource(key) as Brush ?? Brushes.Gray;
 
-    static FrameworkElement Build(CharacterRow c, Flavor flavor, Func<string, bool> shows, List<HighlightRow> highlights, Func<string?, BitmapSource?> img)
+    static FrameworkElement Build(CharacterRow c, Flavor flavor, string name, Func<string, bool> shows, List<HighlightRow> highlights, Func<string?, BitmapSource?> img)
     {
         var text = Res("Text");
         var soft = Res("TextSoft");
@@ -115,7 +115,7 @@ static class CardImage
 
         var who = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
-        nameRow.Children.Add(Txt(c.Name, 24, c.ClassBrush, FontWeights.SemiBold));
+        nameRow.Children.Add(Txt(name, 24, c.ClassBrush, FontWeights.SemiBold));
         if (c.Dead) nameRow.Children.Add(Txt("  DEAD", 12, Res("Red"), FontWeights.Bold));
         who.Children.Add(nameRow);
         who.Children.Add(Txt($"Level {c.Level} {c.Description}".Trim(), 14, soft));

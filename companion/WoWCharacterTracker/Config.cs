@@ -58,6 +58,9 @@ class FlavorSettings
     // the tracker too, so the same kill isn't posted several times). Empty means never skip.
     public string SkipBossGroupRegex { get; set; } = "";
 
+    // Forever has surnames. Which name posts use: "full" (Ronnie Raket), "first" or "last".
+    public string NameStyle { get; set; } = "full";
+
     // The member that matches, or null.
     public GroupMember? SkipBossBecause(Entry e)
     {

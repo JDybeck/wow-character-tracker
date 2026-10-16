@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace WoWCharacterTracker;
 
-partial class Discord(string webhookUrl, Flavor flavor)
+partial class Discord(string webhookUrl, Flavor flavor, string nameStyle = "full")
 {
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) }; // screenshots take a moment to upload
 
@@ -57,6 +57,7 @@ partial class Discord(string webhookUrl, Flavor flavor)
     // Posts the event. With a screenshot, it's uploaded with the message and shown as the embed's image.
     public async Task<bool> PostAsync(Entry e, bool isTest = false, string? screenshot = null)
     {
+        e = e with { Char = Format.Name(e.Char, e.Surname, nameStyle) };
         var embed = (Dictionary<string, object>)await BuildEmbedAsync(e, isTest);
         byte[]? image = null;
         var imageName = "";
@@ -79,7 +80,7 @@ partial class Discord(string webhookUrl, Flavor flavor)
         if (Shows("guild") && c.HasGuild) subtitle += $"\n<{c.Guild}>";
         var embed = new Dictionary<string, object>
         {
-            ["title"] = c.Name + (c.Dead ? " (dead)" : ""),
+            ["title"] = Format.Name(c.Name, c.Surname, nameStyle) + (c.Dead ? " (dead)" : ""),
             ["description"] = subtitle,
             ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
             ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },

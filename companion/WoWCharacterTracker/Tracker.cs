@@ -100,7 +100,7 @@ sealed class Tracker : IDisposable
 
     static Snapshot ToSnapshot(Entry e) => new(e.Guid, e.Char, e.Realm, e.Level, e.Class, e.ClassFile,
         e.Race, e.RaceFile, e.Sex, e.Spec, e.Role, e.ItemLevel, e.Played, e.Zone, e.Professions, e.Talents,
-        e.At, e.Hardcore, e.Ruleset, e.Money, e.Crests, e.Guild);
+        e.At, e.Hardcore, e.Ruleset, e.Money, e.Crests, e.Guild, e.Surname);
 
     void Schedule()
     {
@@ -185,7 +185,7 @@ sealed class Tracker : IDisposable
                         {
                             var key = $"{e.Id}@{w.Id}";
                             if (posted.Contains(key)) continue;
-                            if (await new Discord(w.Url, flavor).PostAsync(e, screenshot: shot))
+                            if (await new Discord(w.Url, flavor, s.NameStyle).PostAsync(e, screenshot: shot))
                             {
                                 posted.Add(key);
                                 Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.");

@@ -224,6 +224,8 @@ sealed class CharacterRow : Observable
     public required string Crests { get; init; }
     public string Guild { get; init; } = "";
     public bool HasGuild => Guild.Length > 0;
+    public string Surname { get; init; } = "";
+    public string FullName => Surname.Length > 0 ? $"{Name} {Surname}" : Name;
 
     public string MoneyText => Money > 0 ? Format.Money(Money) : "-";
     public bool HasMoney => Money > 0;
@@ -344,6 +346,7 @@ sealed class CharacterRow : Observable
                 Money = last is not null && last.At > (s?.LastSeen ?? 0) && last.Money > 0 ? last.Money : s?.Money ?? last?.Money ?? 0,
                 Crests = Pick(s?.Crests, last?.Crests),
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
+                Surname = Pick(s?.Surname, last?.Surname),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone, When(e.At)))
@@ -561,6 +564,18 @@ sealed class FlavorViewModel : Observable
 
     public bool HideChatInShots { get => Settings.HideChatInShots; set { Settings.HideChatInShots = value; Changed(); } }
 
+    // Name in posts (Forever has surnames): three chips that act like radio buttons.
+    public bool HasSurnames => Flavor == Flavors.Forever;
+    public bool NameFull { get => Settings.NameStyle is not ("first" or "last"); set { if (value) SetNameStyle("full"); } }
+    public bool NameFirst { get => Settings.NameStyle == "first"; set { if (value) SetNameStyle("first"); } }
+    public bool NameLast { get => Settings.NameStyle == "last"; set { if (value) SetNameStyle("last"); } }
+    void SetNameStyle(string style)
+    {
+        Settings.NameStyle = style;
+        main.Config.Save();
+        Raise(nameof(NameFull)); Raise(nameof(NameFirst)); Raise(nameof(NameLast));
+    }
+
     // Regex of group members that make a boss kill not get posted (they post it themselves).
     public string SkipBossGroupRegex
     {
@@ -685,17 +700,19 @@ sealed class FlavorViewModel : Observable
         CommandManager.InvalidateRequerySuggested();
     }
 
-    // Installs or updates the bundled addon, but only when the user clicks Install/Update on the
-    // Addon card (force): it writes into the game folder. On its own this only keeps the installed
-    // addon's interface number in step with game patches, so the game doesn't call it out of date.
+    // Installs the addon when the user clicks Install on the Addon card (force), since that adds
+    // something to their game folder. An installed addon that's older than the one in this app is
+    // updated right away: the app and the addon have to speak the same version. Also keeps the
+    // interface number in step with game patches, so the game doesn't call it out of date.
     void SetUpAddon(bool force)
     {
         if (flavorDir is null) return;
         var installed = AddonInstaller.InstalledVersion(flavorDir);
         var bundled = AddonInstaller.BundledVersion;
         var interfaceVersion = Wow.InterfaceVersion(flavorDir);
+        var olderInstalled = installed is not null && Version.TryParse(installed, out var iv) && Version.TryParse(bundled, out var bv) && iv < bv;
 
-        if (!force && (installed is null || installed != bundled))
+        if (!force && !olderInstalled && (installed is null || installed != bundled))
         {
             AddonStep.Ok = false;
             AddonStep.ActionText = installed is null ? "Install" : "Update";
@@ -894,7 +911,7 @@ sealed class FlavorViewModel : Observable
             }
             : new Entry
             {
-                Id = "test", Char = c.Name, Realm = c.Realm, Level = Math.Max(c.Level, 2), At = now,
+                Id = "test", Char = c.Name, Surname = c.Surname, Realm = c.Realm, Level = Math.Max(c.Level, 2), At = now,
                 Zone = c.Zone, Professions = c.Professions, Talents = c.Talents, Spec = c.Spec, Class = c.ClassName,
                 ClassFile = c.ClassFile, Race = c.Race, RaceFile = c.RaceFile, Sex = c.Sex, Played = c.Played,
                 Hardcore = c.Hardcore, Ruleset = c.Ruleset,
@@ -1367,9 +1384,9 @@ sealed class MainViewModel : Observable
             return;
         }
         var hidden = Config.CardHidden.ToList();
-        var card = await CardImage.RenderAsync(c, tab.Flavor, hidden);
+        var card = await CardImage.RenderAsync(c, tab.Flavor, hidden, Config.For(tab.Flavor).NameStyle);
         foreach (var w in hooks)
-            if (await new Discord(w.Url, tab.Flavor).PostCharacterAsync(c, hidden, card))
+            if (await new Discord(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostCharacterAsync(c, hidden, card))
                 Log.Success($"[{tab.Name}] Posted {c.Name}'s character card to \"{w.Name}\".");
     }
 
@@ -1377,7 +1394,7 @@ sealed class MainViewModel : Observable
     {
         if (SelectedFlavor is not { } tab) return;
         foreach (var w in Config.ActiveWebhooks(tab.Flavor))
-            if (await new Discord(w.Url, tab.Flavor).PostAsync(tab.SampleEntry(), isTest: true))
+            if (await new Discord(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostAsync(tab.SampleEntry(), isTest: true))
                 Log.Success($"[{tab.Name}] Test post sent to \"{w.Name}\". Check your Discord channel.");
     }
 
@@ -1393,7 +1410,7 @@ sealed class MainViewModel : Observable
         }
         var sample = tab.SampleEntry(kind);
         foreach (var w in hooks)
-            if (await new Discord(w.Url, tab.Flavor).PostAsync(sample, isTest: true))
+            if (await new Discord(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostAsync(sample, isTest: true))
                 Log.Success($"[{tab.Name}] Test {kind} post sent to \"{w.Name}\".");
     }
 
