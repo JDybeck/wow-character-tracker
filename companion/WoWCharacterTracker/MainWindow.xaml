@@ -186,6 +186,13 @@
             <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,6,0"/>
             <TextBlock Text="{Binding SelectedFlavor.StatusText}" Foreground="{StaticResource Muted}" FontSize="13"/>
             <TextBlock Text="{Binding VersionText}" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            <Button Style="{StaticResource GhostButton}" Padding="6,0" Margin="4,0,0,0" Command="{Binding CheckUpdatesCommand}"
+                    ToolTip="Look for a new version on GitHub" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="11" Foreground="{DynamicResource BlueText}" Margin="0,0,5,0"/>
+                <TextBlock Text="{Binding UpdateButtonText}" FontSize="12" Foreground="{DynamicResource BlueText}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
           </StackPanel>
         </StackPanel>
       </StackPanel>
@@ -203,10 +210,6 @@
       </Border>
 
       <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-        <Button Style="{StaticResource GhostButton}" Padding="6,4" Margin="0,0,6,0" Command="{Binding CheckUpdatesCommand}"
-                ToolTip="Check for updates">
-          <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="14" Foreground="{StaticResource Muted}"/>
-        </Button>
         <Border Width="26" Height="26" Background="Transparent" Margin="0,0,16,0" Cursor="Help"
                 ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
           <TextBlock Style="{StaticResource Icon}" Text="&#xE946;" FontSize="20" Foreground="{StaticResource Muted}"

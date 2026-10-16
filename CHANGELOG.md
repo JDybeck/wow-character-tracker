@@ -2,6 +2,12 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.10.1
+
+- "Check for updates" next to the version under the title, and it says what it found (up to date, or the new version). The app also checks again every 6 hours while it runs.
+- /wct debug saves what this client's talent, guild and name functions return, to sort out talents and surnames on Forever.
+- The reload popup is only set up when it's used (less risk of "blocked from an action" errors).
+
 ## v0.10.0
 
 - Post to Discord sends the character card as a picture, with crest, profession and item icons and quality colors, in the tab's theme.

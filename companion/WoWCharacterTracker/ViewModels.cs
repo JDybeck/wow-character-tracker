@@ -1016,20 +1016,28 @@ sealed class MainViewModel : Observable
     public bool ShowNotes { get => showNotes; set => Set(ref showNotes, value); }
     public bool HasUpdate => update is not null;
 
-    // Quietly on start; the button says "up to date" too.
+    // What the update button says: "Check for updates", "Checking...", "Up to date", "v0.11.0 ready".
+    string updateButtonText = "Check for updates";
+    public string UpdateButtonText { get => updateButtonText; set => Set(ref updateButtonText, value); }
+
+    // Quietly on start and every few hours after; the button shows the answer too.
     async Task CheckForUpdatesAsync(bool manual)
     {
+        if (manual) UpdateButtonText = "Checking...";
         var latest = await Updater.LatestAsync();
         if (latest is null)
         {
             if (manual) Log.Warn("Couldn't reach GitHub to check for updates.");
+            UpdateButtonText = manual ? "Couldn't check" : "Check for updates";
             return;
         }
         if (latest.Version <= Updater.Current)
         {
             if (manual) Log.Info($"You have the latest version ({VersionText}).");
+            UpdateButtonText = "Up to date";
             return;
         }
+        UpdateButtonText = $"v{latest.Version} ready";
         update = latest;
         BannerTitle = $"Version {latest.Version} is available (you have {Updater.Current}).";
         BannerNotes = latest.Notes.Trim();
@@ -1169,6 +1177,11 @@ sealed class MainViewModel : Observable
         if (Config.IsTest && Environment.GetEnvironmentVariable("CHARACTERTRACKER_FAKE_VERSION") is null) return;
         if (JustUpdated) await ShowWhatsNewAsync();
         else await CheckForUpdatesAsync(manual: false);
+
+        // The app can sit in the tray for days, so look again every 6 hours.
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(6) };
+        timer.Tick += async (_, _) => { if (update is null) await CheckForUpdatesAsync(manual: false); };
+        timer.Start();
     }
 
     void RefreshWebhooks()
