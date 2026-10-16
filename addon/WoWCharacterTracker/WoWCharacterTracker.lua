@@ -701,22 +701,25 @@ end
 
 -- Optional (off by default, /wct popup): offer a reload after a ding, for when the live
 -- channel doesn't work on a client.
-StaticPopupDialogs["CHARACTERTRACKER_POST"] = {
-  text = "Ding! Level %d.\n\nReload your UI now to post it to Discord?",
-  button1 = "Post now",
-  button2 = "Later",
-  OnAccept = function() ReloadUI() end,
-  timeout = 0,
-  whileDead = true,
-  hideOnEscape = true,
-  preferredIndex = 3,
-}
-
+-- The dialog is only added to Blizzard's StaticPopupDialogs when it's used: anything an addon
+-- puts in Blizzard's tables can spread taint, so it stays out unless the player turned this on.
 local function offerPost(level)
   if not WoWCharacterTrackerDB.popup then return end
   if InCombatLockdown() then
     popupLevel = level -- show it when combat ends
     return
+  end
+  if not StaticPopupDialogs["CHARACTERTRACKER_POST"] then
+    StaticPopupDialogs["CHARACTERTRACKER_POST"] = {
+      text = "Ding! Level %d.\n\nReload your UI now to post it to Discord?",
+      button1 = "Post now",
+      button2 = "Later",
+      OnAccept = function() ReloadUI() end,
+      timeout = 0,
+      whileDead = true,
+      hideOnEscape = true,
+      preferredIndex = 3,
+    }
   end
   StaticPopup_Show("CHARACTERTRACKER_POST", level)
 end
@@ -1035,6 +1038,45 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     end
     sendLive(e)
     say("Sent a test event. The companion app should show it within a few seconds.")
+  elseif msg == "debug" then
+    -- What this client's talent and guild functions return, saved for the app's developer to read
+    -- (WoWCharacterTrackerDB.debug in the SavedVariables file, written on /reload or logout).
+    local out = {}
+    local function add(s) table.insert(out, s) end
+    local function dump(...)
+      local t = {}
+      for i = 1, select("#", ...) do t[#t + 1] = tostring((select(i, ...))) end
+      return table.concat(t, ", ")
+    end
+    add("build: " .. dump(GetBuildInfo()))
+    add("level: " .. tostring(UnitLevel("player")))
+    add("GetNumTalentTabs: " .. type(GetNumTalentTabs) .. (type(GetNumTalentTabs) == "function" and (" = " .. dump(pcall(GetNumTalentTabs))) or ""))
+    if type(GetTalentTabInfo) == "function" then
+      for i = 1, 4 do add("GetTalentTabInfo(" .. i .. "): " .. dump(pcall(GetTalentTabInfo, i))) end
+    end
+    if type(GetNumTalents) == "function" then add("GetNumTalents(1): " .. dump(pcall(GetNumTalents, 1))) end
+    if type(GetTalentInfo) == "function" then add("GetTalentInfo(1,1): " .. dump(pcall(GetTalentInfo, 1, 1))) end
+    if type(GetActiveTalentGroup) == "function" then add("GetActiveTalentGroup: " .. dump(pcall(GetActiveTalentGroup))) end
+    if type(UnitCharacterPoints) == "function" then add("UnitCharacterPoints: " .. dump(pcall(UnitCharacterPoints, "player"))) end
+    add("GetSpecialization: " .. type(GetSpecialization) .. (type(GetSpecialization) == "function" and (" = " .. dump(pcall(GetSpecialization))) or ""))
+    add("C_ClassTalents: " .. type(C_ClassTalents) .. ", C_Traits: " .. type(C_Traits) .. ", C_SpecializationInfo: " .. type(C_SpecializationInfo))
+    if C_ClassTalents and C_ClassTalents.GetActiveConfigID then add("GetActiveConfigID: " .. dump(pcall(C_ClassTalents.GetActiveConfigID))) end
+    add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
+    add("hardcore api: " .. type(C_GameRules and C_GameRules.IsHardcoreActive))
+    add("talents now: " .. dump(getTalents()))
+    -- Every global function or table with Talent or Spec in its name, in case this client has its own.
+    local names = {}
+    for k, v in pairs(_G) do
+      if type(k) == "string" and (type(v) == "function" or (type(v) == "table" and k:sub(1, 2) == "C_"))
+          and (k:find("Talent") or k:find("Spec") or k:find("Trait")) then
+        names[#names + 1] = k
+      end
+    end
+    table.sort(names)
+    add("names: " .. table.concat(names, " "))
+    WoWCharacterTrackerDB.debug = out
+    for _, s in ipairs(out) do if #s < 250 then say(s) end end
+    say("Saved. /reload to write it to the SavedVariables file.")
   elseif msg == "help" then
     say("/wct shows your last 10 level times.")
     say("/wct test checks that instant posting reaches the companion app.")
