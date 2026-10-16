@@ -60,7 +60,7 @@ sealed class EventEmbeds(Flavor flavor)
             embed["author"] = author;
         }
 
-        if (await CharacterArt.PictureUrlAsync(e.RaceFile, e.Sex, e.ClassFile) is { } picture)
+        if (await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile) is { } picture)
             embed["thumbnail"] = new { url = picture };
 
         var footer = isTest ? "Test message from Character Tracker" : e.Realm;

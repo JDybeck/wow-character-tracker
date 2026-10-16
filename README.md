@@ -88,7 +88,7 @@ Level times come from `RequestTimePlayed()`: the addon stores total played at th
 
 Not built yet, roughly in order:
 
-- **Character pictures**: the real character render as the portrait on Retail (like Raider.IO and Warcraft Logs show), and on Forever once it has an armory.
+- **Forever character pictures**: Retail characters already show their real render; Forever will once it has an armory.
 - **Forever talent link with your build**: the Wowhead link opens the right class, but doesn't fill in your points yet.
 - **Hardcore death killer**: name what killed the character again (newer clients keep the combat log from addons).
 - **Minimap button** for the addon, with the commands and a test button.
@@ -99,7 +99,7 @@ Not built yet, roughly in order:
 - Talents: Forever shows points in its three trees plus each pick. Retail shows points in the class, spec and hero trees.
 - Professions and end bosses are matched by English name, so a non-English client won't show them.
 - Rating milestones start counting from the first time the addon sees your rating, so ratings you already had aren't posted.
-- The portrait comes from Wowhead's icon CDN. A race it doesn't have an icon for yet falls back to the class icon.
+- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Characters Raider.IO doesn't know, and Forever characters, get their race portrait from Wowhead's icon CDN, or the class icon.
 - Screenshots over Discord's 9.5 MB limit are left off the post.
 - On the first run, events already saved are marked as posted so the channel isn't flooded. Start the app with `--backfill` to post them instead.
 - Settings and webhooks are saved in `%LOCALAPPDATA%\WoWCharacterTracker\config.json` and survive updates.

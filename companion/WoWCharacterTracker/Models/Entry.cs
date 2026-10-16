@@ -31,6 +31,7 @@ record Entry
     public string Crests { get; init; } = "";  // retail: "Gilded Crest 45, Runed Crest 120"
     public string? Guild { get; init; }         // "" = no guild, null = not known
     public string Surname { get; init; } = ""; // Forever: "Raket" for Ronnie Raket
+    public string Region { get; init; } = "";  // "eu", "us", "kr", "tw", "cn"
 
     public long Seconds { get; init; }   // level: time the level took
     public long Played { get; init; }    // total /played
@@ -93,6 +94,7 @@ record Entry
             Crests = s("crests"),
             Guild = s("guild") is { Length: > 0 } g ? g : null,
             Surname = s("surname"),
+            Region = s("region"),
             Seconds = (long)n("seconds"),
             Played = (long)n("played"),
             Boss = s("boss"),

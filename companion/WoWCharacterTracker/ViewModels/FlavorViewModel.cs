@@ -417,7 +417,7 @@ sealed class FlavorViewModel : Observable
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
             Characters.Add(r);
-            _ = r.LoadPictureAsync();
+            _ = r.LoadPictureAsync(Flavor);
             _ = r.LoadIconsAsync(Flavor);
         }
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);

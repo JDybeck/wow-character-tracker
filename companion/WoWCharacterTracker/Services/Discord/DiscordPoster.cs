@@ -20,7 +20,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             imageName = "screenshot" + fi.Extension.ToLowerInvariant();
             embed["image"] = new { url = "attachment://" + imageName };
         }
-        return await webhook.SendAsync(embed, image, imageName, await CharacterArt.PictureUrlAsync(e.RaceFile, e.Sex, e.ClassFile));
+        return await webhook.SendAsync(embed, image, imageName, await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile));
     }
 
     // A character card, sent from the character details in the app. With a rendered card image
@@ -41,7 +41,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         if (CharacterArt.ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
         if (CharacterArt.ClassIconUrl(c.ClassFile) is { } classIcon)
             embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
-        var picture = await CharacterArt.PictureUrlAsync(c.RaceFile, c.Sex, c.ClassFile);
+        var picture = await CharacterArt.PictureUrlAsync(flavor, c.Region, c.Realm, c.Name, c.RaceFile, c.Sex, c.ClassFile);
 
         if (card is not null)
         {

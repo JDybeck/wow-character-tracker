@@ -41,6 +41,7 @@ sealed class CharacterRow : Observable
     public bool HasTalentPicks => TalentPickList.Count > 0;
     public string TalentExport { get; init; } = ""; // the game's loadout string (retail)
     public bool HasTalentExport => TalentExport.Length > 0;
+    public string Region { get; init; } = ""; // "eu", "us"... for the Retail character render
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
@@ -128,10 +129,10 @@ sealed class CharacterRow : Observable
 
     public string? PictureUrl { get => pictureUrl; set => Set(ref pictureUrl, value); }
 
-    public async Task LoadPictureAsync()
+    public async Task LoadPictureAsync(Flavor flavor)
     {
         PictureUrl = CharacterArt.ClassIconUrl(ClassFile);
-        if (await CharacterArt.PictureUrlAsync(RaceFile, Sex, ClassFile) is { } url) PictureUrl = url;
+        if (await CharacterArt.PictureUrlAsync(flavor, Region, Realm, Name, RaceFile, Sex, ClassFile) is { } url) PictureUrl = url;
     }
 
     // One row per character: the latest snapshot, filled in from events when there isn't one yet.
@@ -188,6 +189,7 @@ sealed class CharacterRow : Observable
                 TalentPicks = Newest(guid, c => c.TalentPicks),
                 TalentExport = Newest(guid, c => c.TalentExport),
                 TalentCalc = Newest(guid, c => c.TalentCalc),
+                Region = Newest(guid, c => c.Region),
                 Stats = Newest(guid, c => c.Stats),
                 Levels = levels
                     .OrderByDescending(e => e.Level)

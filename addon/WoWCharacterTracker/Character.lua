@@ -325,6 +325,13 @@ local function getGuild()
   return name
 end
 
+-- "eu", "us", "kr", "tw" or "cn": the app needs it to find the Retail character render.
+local REGIONS = { "us", "kr", "eu", "tw", "cn" }
+local function getRegion()
+  local id = GetCurrentRegion and GetCurrentRegion()
+  return id and REGIONS[id] or nil
+end
+
 -- Everything we show about the character, both in posts and in the companion app.
 function ns.characterInfo()
   local className, classFile = UnitClass("player")
@@ -336,6 +343,7 @@ function ns.characterInfo()
     char = (UnitName("player")),
     surname = getSurname(),
     realm = GetRealmName(),
+    region = getRegion(),
     level = UnitLevel("player"),
     zone = getZone(),
     professions = getProfessions(),
