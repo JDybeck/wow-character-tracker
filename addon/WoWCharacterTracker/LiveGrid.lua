@@ -304,13 +304,15 @@ local function wantsScreenshot(kind)
   return s and s[kind] and type(Screenshot) == "function"
 end
 
--- Stores an event in SavedVariables. Events that will be posted also go out live, and get a
--- screenshot if the app asked for one for that kind. Everything else reaches the app on the
--- next /reload or logout, without any screenshots.
+-- Stores an event in SavedVariables and sends it live, so the app's level history and highlights
+-- stay current while you play. Only events that will be posted get a screenshot (if the app
+-- asked for one). Loot that won't be posted stays off the live channel, since blue items drop
+-- often and each live event is a flicker in the corner; it reaches the app on /reload or logout.
 function ns.addEvent(e)
   table.insert(WoWCharacterTrackerDB.events, e)
-  if not wanted(e) then return end
-  local shot = wantsScreenshot(e.kind)
+  local posted = wanted(e)
+  if not posted and e.kind == "loot" then return end
+  local shot = posted and wantsScreenshot(e.kind)
   if shot then e.shot = true end
   ns.sendLive(e)
   if shot then

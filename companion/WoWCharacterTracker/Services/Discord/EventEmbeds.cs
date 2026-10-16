@@ -124,10 +124,13 @@ sealed class EventEmbeds(Flavor flavor)
         return ($"{e.Char} killed {e.Boss}!", lines);
     }
 
-    static (string, List<string>) LootText(Entry e)
+    // The item links to Wowhead, in the title (the embed's url) and in the text.
+    (string, List<string>) LootText(Entry e)
     {
         var quality = Format.Quality(e.Quality);
-        var lines = new List<string> { e.Zone.Length > 0 ? $"{quality} item, looted in **{e.Zone}**." : $"{quality} item." };
+        var lines = new List<string>();
+        if (e.ItemId > 0) lines.Add($"**[{e.Item}]({ItemUrl(e.ItemId)})**");
+        lines.Add(e.Zone.Length > 0 ? $"{quality} item, looted in **{e.Zone}**." : $"{quality} item.");
         return ($"{e.Char} looted [{e.Item}]", lines);
     }
 

@@ -2,6 +2,13 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.12.1
+
+- Level-ups that aren't posted still reach the app right away, so the level history stays current without a /reload (same for boss kills, mounts, duels and rating steps). Loot that isn't posted still waits for /reload, to keep the corner flicker down.
+- Post any highlight (loot, boss kill, mount...) to Discord from the character details, with the small button at the end of its row.
+- Looted items link to Wowhead in the post's text too.
+- With the game closed, the app stops its once-a-minute check of the saved files and keeps showing the last known state.
+
 ## v0.12.0
 
 - What gets posted is laid out more cleanly: the level rule lines up in one column, Test buttons look like the other chips, and Post screenshot only shows once Screenshot is on.

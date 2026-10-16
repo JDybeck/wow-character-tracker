@@ -236,6 +236,7 @@
                                 <ColumnDefinition Width="22"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                               </Grid.ColumnDefinitions>
                               <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="12"
                                          Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
@@ -245,6 +246,10 @@
                                 <Run Text="{Binding Verb, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run Text="{Binding Subject, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/>
                               </TextBlock>
                               <TextBlock Grid.Column="2" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>
+                            <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="6,0" Margin="4,0,0,0" ToolTip="Post this to Discord"
+                                    Command="{Binding DataContext.PostHighlightCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                              <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="11" Foreground="{StaticResource Dim}"/>
+                            </Button>
                             </Grid>
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>

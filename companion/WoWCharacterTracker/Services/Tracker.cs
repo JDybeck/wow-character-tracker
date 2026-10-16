@@ -67,8 +67,16 @@ sealed class Tracker : IDisposable
         watcher.Renamed += (_, _) => Schedule();
         watcher.EnableRaisingEvents = true;
 
-        // A slow re-check in case a change notification gets lost.
-        safetyNet = new Timer(_ => _ = SyncAsync(), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+        // A slow re-check in case a change notification gets lost. Only while the game runs (plus once
+        // right after it closes, when it writes the saved file); with the game closed nothing changes,
+        // and the list keeps showing the last known state.
+        var wasRunning = true;
+        safetyNet = new Timer(_ =>
+        {
+            var running = Wow.IsRunning(flavorDir);
+            if (running || wasRunning) _ = SyncAsync();
+            wasRunning = running;
+        }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
 
         _ = SyncAsync().ContinueWith(_ => shots.Start()); // live events only after old ones are handled
     }

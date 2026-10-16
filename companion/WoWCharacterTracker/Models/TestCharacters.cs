@@ -30,7 +30,7 @@ static class TestCharacters
             Id = $"{s.Guid}:{kind}:{at}", Kind = kind, Guid = s.Guid, Char = s.Char, Realm = s.Realm, Level = level, At = at,
             Zone = s.Zone, Professions = s.Professions, Talents = s.Talents, Class = s.Class, ClassFile = s.ClassFile,
             Race = s.Race, RaceFile = s.RaceFile, Sex = s.Sex, Hardcore = s.Hardcore, Ruleset = s.Ruleset, ItemLevel = s.ItemLevel,
-            Money = s.Money,
+            Money = s.Money, Surname = s.Surname,
         };
         void Levels(Snapshot s, int from, int to, double endHoursAgo, int minutesEach)
         {

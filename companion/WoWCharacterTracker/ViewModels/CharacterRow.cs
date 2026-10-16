@@ -206,7 +206,14 @@ sealed class CharacterRow : Observable
         return rows.OrderByDescending(r => r.LastSeen).ToList();
     }
 
-    static HighlightRow Highlight(Entry e) => e.Kind switch
+    static HighlightRow Highlight(Entry e)
+    {
+        var row = MakeHighlight(e);
+        row.Source = e;
+        return row;
+    }
+
+    static HighlightRow MakeHighlight(Entry e) => e.Kind switch
     {
         "boss" => new("", ClassColors.Hex(0xFBBF24), "Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
         "loot" => new("", HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD), "Looted ", e.Item, When(e.At), e.ItemId),

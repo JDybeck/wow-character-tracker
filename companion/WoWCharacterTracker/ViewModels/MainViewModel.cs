@@ -36,6 +36,7 @@ sealed class MainViewModel : Observable
         });
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
+        PostHighlightCommand = new RelayCommand(p => PostHighlightAsync((HighlightRow)p!));
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
         TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
@@ -136,6 +137,7 @@ sealed class MainViewModel : Observable
     public ICommand PastePostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
     public ICommand PostCharacterCommand { get; }
+    public ICommand PostHighlightCommand { get; }
 
     // Opens the character's build in Wowhead's talent calculator (retail loadout strings).
     public ICommand OpenTalentsCommand => new RelayCommand(p =>
@@ -383,22 +385,40 @@ sealed class MainViewModel : Observable
     async Task PostCharacterAsync(CharacterRow c)
     {
         if (SelectedFlavor is not { } tab) return;
+        var hooks = WebhooksFor(tab, c);
+        if (hooks.Count == 0) return;
+        var hidden = Config.CardHidden.ToList();
+        var card = await CardImage.RenderAsync(c, tab.Flavor, hidden, Config.For(tab.Flavor).NameStyle);
+        foreach (var w in hooks)
+            if (await new DiscordPoster(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostCharacterAsync(c, hidden, card))
+                Log.Success($"[{tab.Name}] Posted {c.Name}'s character card to \"{w.Name}\".");
+    }
+
+    // The tab's webhooks that take this character: on Forever only those for its ruleset, and only
+    // webhooks that post for its tags. Says so in the console when there are none.
+    List<WebhookInfo> WebhooksFor(FlavorViewModel tab, CharacterRow c)
+    {
         var asEntry = new Entry { Ruleset = c.Ruleset, Hardcore = c.Hardcore };
         var hooks = Config.ActiveWebhooks(tab.Flavor)
             .Where(w => tab.Flavor != Flavors.Forever || w.AcceptsRuleset(asEntry))
             .Where(w => w.AcceptsTags(Config.TagsOf(c.Guid)))
             .ToList();
         if (hooks.Count == 0)
-        {
             Log.Warn($"[{tab.Name}] No webhook to post {c.Name} to. Turn one on in the Discord panel" +
                      (tab.Flavor == Flavors.Forever ? $" (and check it takes {c.Ruleset} characters)." : "."));
-            return;
-        }
-        var hidden = Config.CardHidden.ToList();
-        var card = await CardImage.RenderAsync(c, tab.Flavor, hidden, Config.For(tab.Flavor).NameStyle);
+        return hooks;
+    }
+
+    // Posts one highlight (a loot, boss kill, mount...) from the character details, to the same
+    // webhooks a character card would go to.
+    async Task PostHighlightAsync(HighlightRow h)
+    {
+        if (SelectedFlavor is not { } tab || h.Source is not { } e || tab.SelectedCharacter is not { } c) return;
+        var hooks = WebhooksFor(tab, c);
+        if (hooks.Count == 0) return;
         foreach (var w in hooks)
-            if (await new DiscordPoster(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostCharacterAsync(c, hidden, card))
-                Log.Success($"[{tab.Name}] Posted {c.Name}'s character card to \"{w.Name}\".");
+            if (await new DiscordPoster(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostAsync(e))
+                Log.Success($"[{tab.Name}] Posted {h.Text.Trim()} to \"{w.Name}\".");
     }
 
     async Task SendTestAsync()

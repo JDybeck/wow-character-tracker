@@ -33,6 +33,12 @@ static class ScreenshotMode
             if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(); // show the details panel too
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
+            if (Part(3) == "posthighlight" && vm.SelectedFlavor?.SelectedCharacter?.Highlights.FirstOrDefault() is { } h)
+            {
+                await Task.Delay(3000);
+                vm.PostHighlightCommand.Execute(h);
+                await Task.Delay(3000);
+            }
             if (Part(3) == "post" && vm.SelectedFlavor?.SelectedCharacter is { } c)
             {
                 await Task.Delay(3000); // icons
