@@ -1062,13 +1062,29 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     add("C_ClassTalents: " .. type(C_ClassTalents) .. ", C_Traits: " .. type(C_Traits) .. ", C_SpecializationInfo: " .. type(C_SpecializationInfo))
     if C_ClassTalents and C_ClassTalents.GetActiveConfigID then add("GetActiveConfigID: " .. dump(pcall(C_ClassTalents.GetActiveConfigID))) end
     add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
+    -- Forever has surnames ("Ronnie Raket"); which function knows them?
+    add("UnitName: " .. dump(UnitName("player")))
+    if UnitFullName then add("UnitFullName: " .. dump(pcall(UnitFullName, "player"))) end
+    if UnitPVPName then add("UnitPVPName: " .. dump(pcall(UnitPVPName, "player"))) end
+    if GetUnitName then add("GetUnitName: " .. dump(pcall(GetUnitName, "player", true))) end
+    if UnitNameUnmodified then add("UnitNameUnmodified: " .. dump(pcall(UnitNameUnmodified, "player"))) end
+    if C_PlayerInfo then
+      local keys = {}
+      for k in pairs(C_PlayerInfo) do keys[#keys + 1] = k end
+      table.sort(keys)
+      add("C_PlayerInfo: " .. table.concat(keys, " "))
+    end
+    if PlayerFrame and PlayerFrame.name and PlayerFrame.name.GetText then add("PlayerFrame name: " .. tostring(PlayerFrame.name:GetText())) end
+    if PlayerName and PlayerName.GetText then add("PlayerName: " .. tostring(PlayerName:GetText())) end
+    if CharacterFrameTitleText and CharacterFrameTitleText.GetText then add("CharacterFrameTitleText: " .. tostring(CharacterFrameTitleText:GetText())) end
     add("hardcore api: " .. type(C_GameRules and C_GameRules.IsHardcoreActive))
     add("talents now: " .. dump(getTalents()))
     -- Every global function or table with Talent or Spec in its name, in case this client has its own.
     local names = {}
     for k, v in pairs(_G) do
       if type(k) == "string" and (type(v) == "function" or (type(v) == "table" and k:sub(1, 2) == "C_"))
-          and (k:find("Talent") or k:find("Spec") or k:find("Trait")) then
+          and (k:find("Talent") or k:find("Spec") or k:find("Trait") or k:find("Surname") or k:find("LastName")
+            or k:find("FamilyName") or k:find("FullName")) then
         names[#names + 1] = k
       end
     end
