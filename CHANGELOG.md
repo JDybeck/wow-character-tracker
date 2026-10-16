@@ -10,6 +10,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Posts use the character's portrait as the webhook picture.
 - Item and mount names in posts link to Wowhead, and professions get an emoji.
 - The small data grid in the corner now has a "WoW Character Tracker" label next to it, so it's clear what it is.
+- The app asks before installing or updating the addon: the Addon card shows Install or Update, and nothing is written to the game folder until you click it.
 
 ## v0.9.1
 

@@ -685,14 +685,33 @@ sealed class FlavorViewModel : Observable
         CommandManager.InvalidateRequerySuggested();
     }
 
-    // Installs or updates the bundled addon automatically. It's the whole point of the app,
-    // so there's nothing to ask. Also keeps the interface number in step with game patches.
+    // Installs or updates the bundled addon, but only when the user clicks Install/Update on the
+    // Addon card (force): it writes into the game folder. On its own this only keeps the installed
+    // addon's interface number in step with game patches, so the game doesn't call it out of date.
     void SetUpAddon(bool force)
     {
         if (flavorDir is null) return;
         var installed = AddonInstaller.InstalledVersion(flavorDir);
         var bundled = AddonInstaller.BundledVersion;
         var interfaceVersion = Wow.InterfaceVersion(flavorDir);
+
+        if (!force && (installed is null || installed != bundled))
+        {
+            AddonStep.Ok = false;
+            AddonStep.ActionText = installed is null ? "Install" : "Update";
+            AddonStep.Detail = installed is null
+                ? "Not installed in this game folder yet"
+                : $"v{installed} installed, v{bundled} is ready";
+            Log.Info($"[{Name}] " + (installed is null
+                ? "The addon isn't installed in this game folder yet. Click Install on the Addon card to add it."
+                : $"Addon update ready (v{installed} to v{bundled}). Click Update on the Addon card when you want it."));
+            if (installed is not null)
+            {
+                KeepInterfaceCurrent(installed, interfaceVersion);
+                WriteAddonSettings(); // the installed version still follows the What gets posted page
+            }
+            return;
+        }
 
         try
         {
@@ -705,11 +724,7 @@ sealed class FlavorViewModel : Observable
                         ? $"[{Name}] The game is running: exit it fully and start it again so it finds the new addon."
                         : $"[{Name}] The game is running: type /reload in game to load the new addon version.");
             }
-            else if (interfaceVersion is int v && AddonInstaller.InstalledInterface(flavorDir) != v.ToString())
-            {
-                AddonInstaller.SetInterface(flavorDir, v);
-                Log.Info($"[{Name}] Updated the addon for game version {v}.");
-            }
+            else KeepInterfaceCurrent(installed, interfaceVersion);
 
             WriteAddonSettings(); // installing puts the default Settings.lua back
             AddonStep.Ok = true;
@@ -723,6 +738,17 @@ sealed class FlavorViewModel : Observable
             AddonStep.ActionText = "Retry";
             Log.Error($"[{Name}] Couldn't write to {Wow.AddOnsDir(flavorDir)}. Right-click the app and pick Run as administrator once, then it works normally.");
         }
+    }
+
+    void KeepInterfaceCurrent(string installed, int? interfaceVersion)
+    {
+        if (flavorDir is null || interfaceVersion is not int v || AddonInstaller.InstalledInterface(flavorDir) == v.ToString()) return;
+        try
+        {
+            AddonInstaller.SetInterface(flavorDir, v);
+            Log.Info($"[{Name}] Marked the addon (v{installed}) as made for game version {v}, so the game loads it.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     public async Task CheckDiscordAsync()
