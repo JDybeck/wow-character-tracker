@@ -100,7 +100,7 @@ sealed class Tracker : IDisposable
 
     static Snapshot ToSnapshot(Entry e) => new(e.Guid, e.Char, e.Realm, e.Level, e.Class, e.ClassFile,
         e.Race, e.RaceFile, e.Sex, e.Spec, e.Role, e.ItemLevel, e.Played, e.Zone, e.Professions, e.Talents,
-        e.At, e.Hardcore, e.Ruleset);
+        e.At, e.Hardcore, e.Ruleset, e.Money, e.Crests);
 
     void Schedule()
     {
@@ -252,10 +252,11 @@ sealed class Tracker : IDisposable
         try { File.Delete(file); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
+    // Max level and legendary items are always posted, with extra flair.
     static bool Wanted(Entry e, FlavorSettings s) => e.Kind switch
     {
-        "level" => s.LevelWanted(e.Level),
-        "loot" => e.Quality >= 4 ? s.PostEpic : e.Quality == 3 && s.PostRare,
+        "level" => e.MaxLevel || s.LevelWanted(e.Level),
+        "loot" => e.Quality >= 5 || (e.Quality == 4 ? s.PostEpic : e.Quality == 3 && s.PostRare),
         "mount" => s.PostMounts,
         "boss" => s.PostBosses && s.SkipBossBecause(e) is null,
         "death" => s.PostDeaths,

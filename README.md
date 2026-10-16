@@ -32,17 +32,17 @@ Made with WoW Forever (Classic+) in mind, and works for Retail too. Each has its
 
 Each game has a **What gets posted** page:
 
-- **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level.
-- **Loot**: rare (blue) items, and epic and legendary items, separately.
+- **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level. Reaching max level is always posted, with extra flair.
+- **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair.
 - **New mounts**: bought from a vendor or learned.
 - **End boss kills**: the last boss of a dungeon or raid, with the group (name, level, race, class). You can skip the post when someone in the group matches a regex, for friends who run the tracker too, so the same kill isn't posted several times.
 - **Hardcore deaths**: what killed the character, total played and the gold they had on them.
 
-Each of these has **Screenshot** (the addon takes one in game a moment after it happens) and **Post screenshot** (attach it to the Discord post). Screenshot settings reach the game on your next `/reload` or login.
+Every option has a **Test** button that posts a sample, using the selected character. Each of these has **Screenshot** (the addon takes one in game a moment after it happens) and **Post screenshot** (attach it to the Discord post). Screenshot settings reach the game on your next `/reload` or login.
 
 ### The app
 
-- **Characters**: every character you've logged in with the addon, with class, spec, level, item level and when you last played. Hardcore characters are marked. Click one for total played, professions, talents, last zone, highlights (bosses, loot, mounts, death) and level history. **Tags**: make your own (like Main, Alts, Guild) and put them on characters. **Post to Discord** sends a card with the character's info. **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
+- **Characters**: every character you've logged in with the addon, with class, spec, level, item level, gold and when you last played. The bottom of the list shows the total gold for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for total played, gold, crests (Retail), professions, talents, last zone, highlights (bosses, loot, mounts, death) and level history. **Tags**: make your own (like Main, Alts, Guild) and put them on characters. **Post to Discord** sends a card with the character's info. **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
 - **Filter**: chips above the list filter by realm on Retail and by ruleset (Hardcore, Self-found, Normal) on Forever.
 - **Discord**: add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, and on Forever which rulesets, so a hardcore channel only gets hardcore characters, and which character tags (none picked means every character). A new webhook is named after the name you gave it in Discord; click the pencil to rename it, like "#leveling / My Guild" (Discord doesn't tell webhooks their channel or server name). Hover a webhook to see its masked link.
 - **Console**: what the app is doing, like posts sent and anything that needs your attention.

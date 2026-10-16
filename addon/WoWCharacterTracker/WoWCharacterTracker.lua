@@ -29,6 +29,8 @@ pcall(frame.RegisterEvent, frame, "NEW_MOUNT_ADDED") -- clients with a mount jou
 -- Refresh the character snapshot when gear or spec changes, while the game has the data.
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+frame:RegisterEvent("PLAYER_MONEY")
+pcall(frame.RegisterEvent, frame, "CURRENCY_DISPLAY_UPDATE")
 pcall(frame.RegisterEvent, frame, "PLAYER_SPECIALIZATION_CHANGED")
 pcall(frame.RegisterEvent, frame, "TRAIT_CONFIG_UPDATED")
 pcall(frame.RegisterEvent, frame, "CHARACTER_POINTS_CHANGED")
@@ -43,6 +45,7 @@ local lastAttacker  -- who last hurt us, for hardcore death posts
 local recentBosses = {} -- [name] = time, so ENCOUNTER_END and the combat log don't both record a kill
 local merchantOpen = false -- a mount that shows up while a vendor is open was bought
 local snapshotTicker  -- refreshes the character snapshot every few minutes
+local moneyPending    -- a snapshot is already scheduled after a money/currency change
 
 local function say(msg)
   print("|cff00ccff[Character Tracker]|r " .. msg)
@@ -243,6 +246,28 @@ local function getRuleset()
 end
 
 -- Best guess of total /played right now.
+-- Retail crests as "Gilded Crest 45, Runed Crest 120", or nil. There's no fixed list (they change
+-- every season), so this looks up currencies with "Crest" in the name (English client) and keeps
+-- the ids it found. Classic clients have none.
+local crestIds
+local function getCrests()
+  if not (C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo) then return nil end
+  if not crestIds then
+    crestIds = {}
+    for id = 2900, 3600 do
+      local info = C_CurrencyInfo.GetCurrencyInfo(id)
+      if info and info.name and info.name:find("Crest") then table.insert(crestIds, id) end
+    end
+  end
+  local parts = {}
+  for _, id in ipairs(crestIds) do
+    local info = C_CurrencyInfo.GetCurrencyInfo(id)
+    if info and (info.quantity or 0) > 0 then table.insert(parts, string.format("%s %d", info.name, info.quantity)) end
+  end
+  if #parts == 0 then return nil end
+  return table.concat(parts, ", ")
+end
+
 local function playedNow()
   if not lastPlayed then return nil end
   return lastPlayed + (time() - lastPlayedAt)
@@ -272,13 +297,15 @@ local function characterInfo()
     sex = (sex == 3) and "female" or "male",
     hardcore = isHardcore() or nil,
     ruleset = getRuleset(),
+    money = GetMoney and GetMoney() or nil, -- copper
+    crests = getCrests(),
   }
 end
 
 -- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "professions", "zone", "played" }
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "professions", "zone", "played", "crests" }
 
 local function saveSnapshot()
   local guid = UnitGUID("player")
@@ -541,6 +568,7 @@ local SHOT_DELAY = { level = 1.0, boss = 1.5, loot = 0.3, mount = 0.5, death = 0
 local function wanted(e)
   local post = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.post
   if not post then return true end
+  if e.maxLevel or (e.kind == "loot" and (e.quality or 0) >= 5) then return true end -- always worth a post
   if e.kind == "level" then
     local l = post.level
     if not l or not l.on then return false end
@@ -648,6 +676,12 @@ local function recordLevel(guid, level, seconds, played)
   e.id = guid .. ":" .. level
   e.level = level -- UnitLevel can lag right after the ding
   e.seconds = seconds
+  -- Max level gets a big post (always, whatever the level rule says).
+  local maxLevel = (GetMaxPlayerLevel and GetMaxPlayerLevel()) or MAX_PLAYER_LEVEL
+  if maxLevel and level >= maxLevel then
+    e.maxLevel = true
+    e.group, e.groupSize = getGroup()
+  end
   e.played = played -- total /played at the ding
   e.at = time()
   addEvent(e)
@@ -847,6 +881,13 @@ frame:SetScript("OnEvent", function(_, event, ...)
   elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"
       or event == "TRAIT_CONFIG_UPDATED" or event == "CHARACTER_POINTS_CHANGED" then
     C_Timer.After(1, saveSnapshot)
+
+  elseif event == "PLAYER_MONEY" or event == "CURRENCY_DISPLAY_UPDATE" then
+    -- Money changes a lot (every loot and vendor), so save at most every few seconds.
+    if not moneyPending then
+      moneyPending = true
+      C_Timer.After(3, function() moneyPending = false; saveSnapshot() end)
+    end
 
   elseif event == "PLAYER_LEVEL_UP" then
     pendingLevel = (...) -- the level just reached

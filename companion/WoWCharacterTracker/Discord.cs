@@ -176,8 +176,10 @@ partial class Discord(string webhookUrl, Flavor flavor)
             "loot" => LootText(e),
             "mount" => MountText(e),
             "death" => DeathText(e),
+            _ when e.MaxLevel => MaxLevelText(e),
             _ => LevelText(e),
         };
+        if (e.Kind == "loot" && e.Quality >= 5) (title, lines) = LegendaryText(e);
 
         var embed = new Dictionary<string, object>
         {
@@ -186,7 +188,9 @@ partial class Discord(string webhookUrl, Flavor flavor)
             ["timestamp"] = DateTimeOffset.FromUnixTimeSeconds(e.At).ToString("o"),
         };
 
-        if (e.Kind == "loot" && QualityColors.TryGetValue(e.Quality, out var qc))
+        if (e.MaxLevel)
+            embed["color"] = 0xFFD100; // gold, it's a big one
+        else if (e.Kind == "loot" && QualityColors.TryGetValue(e.Quality, out var qc))
             embed["color"] = qc;
         else if (e.Kind == "death")
             embed["color"] = 0x8B0000;
@@ -214,6 +218,33 @@ partial class Discord(string webhookUrl, Flavor flavor)
         if (footer.Length > 0) embed["footer"] = new { text = footer };
 
         return embed;
+    }
+
+    // Max level: the big one. Time to max, the last level, where, and who they were with.
+    static (string, List<string>) MaxLevelText(Entry e)
+    {
+        var lines = new List<string> { $"\U0001F389 **{e.Char} has reached level {e.Level}, the max level!** \U0001F389", "" };
+        if (e.Played > 0) lines.Add($"Time to max: **{Format.Played(e.Played)}** played.");
+        if (e.Seconds > 0) lines.Add($"The last level took {Format.Duration(e.Seconds)}.");
+        if (e.Zone.Length > 0) lines.Add($"The final ding happened in **{e.Zone}**.");
+        if (e.Members.Count > 0)
+            lines.Add("Celebrating with: " + string.Join(", ", e.Members.Select(m => m.Name)) + ".");
+        if (e.Professions.Length > 0 || e.Talents.Length > 0) lines.Add("");
+        if (e.Professions.Length > 0) lines.Add($"**Professions:** {e.Professions}");
+        if (e.Talents.Length > 0) lines.Add($"**Talents:** {e.Talents}");
+        return ($"\U0001F3C6 {e.Char} hit max level {e.Level}!", lines);
+    }
+
+    static (string, List<string>) LegendaryText(Entry e)
+    {
+        var lines = new List<string>
+        {
+            $"\U0001F525 **{e.Char} just got their hands on a legendary item!** \U0001F525",
+            "",
+            $"**[{e.Item}]**",
+        };
+        if (e.Zone.Length > 0) lines.Add($"Looted in **{e.Zone}** at level {e.Level}.");
+        return ($"\U0001F7E7 LEGENDARY! {e.Char} looted [{e.Item}]", lines);
     }
 
     // The owner's format: who dinged, how long it took, played, where, professions, talents.

@@ -12,7 +12,8 @@
     <GridLength x:Key="ColClass">180</GridLength>
     <GridLength x:Key="ColLevel">90</GridLength>
     <GridLength x:Key="ColIlvl">100</GridLength>
-    <GridLength x:Key="ColSeen">120</GridLength>
+    <GridLength x:Key="ColGold">110</GridLength>
+    <GridLength x:Key="ColSeen">110</GridLength>
 
     <Style x:Key="CharacterItem" TargetType="ListBoxItem">
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -315,7 +316,15 @@
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
+            <Border Grid.Row="2" Background="{StaticResource CardHeader}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,12"
+                    Padding="24,10" Visibility="{Binding HasCharacters, Converter={StaticResource Visible}}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE8C7;" Foreground="#FBBF24" FontSize="13" Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding TotalGoldText}" Foreground="{StaticResource TextSoft}" FontSize="13"/>
+              </StackPanel>
+            </Border>
             <Border Background="{StaticResource CardHeader}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
               <Grid Margin="24,14">
                 <Grid.ColumnDefinitions>
@@ -323,13 +332,15 @@
                   <ColumnDefinition Width="{StaticResource ColClass}"/>
                   <ColumnDefinition Width="{StaticResource ColLevel}"/>
                   <ColumnDefinition Width="{StaticResource ColIlvl}"/>
+                  <ColumnDefinition Width="{StaticResource ColGold}"/>
                   <ColumnDefinition Width="{StaticResource ColSeen}"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource ColumnHeader}" Text="CHARACTER"/>
                 <TextBlock Grid.Column="1" Style="{StaticResource ColumnHeader}" Text="CLASS"/>
                 <TextBlock Grid.Column="2" Style="{StaticResource ColumnHeader}" Text="LEVEL"/>
                 <TextBlock Grid.Column="3" Style="{StaticResource ColumnHeader}" Text="ITEM LEVEL"/>
-                <TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="LAST SEEN"/>
+                <TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="GOLD"/>
+                <TextBlock Grid.Column="5" Style="{StaticResource ColumnHeader}" Text="LAST SEEN"/>
               </Grid>
             </Border>
 
@@ -345,6 +356,7 @@
                         <ColumnDefinition Width="{StaticResource ColClass}"/>
                         <ColumnDefinition Width="{StaticResource ColLevel}"/>
                         <ColumnDefinition Width="{StaticResource ColIlvl}"/>
+                        <ColumnDefinition Width="{StaticResource ColGold}"/>
                         <ColumnDefinition Width="{StaticResource ColSeen}"/>
                       </Grid.ColumnDefinitions>
 
@@ -392,7 +404,9 @@
                         <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="#93C5FD"/>
                       </Border>
 
-                      <TextBlock Grid.Column="4" Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="4" Text="{Binding GoldText}" Foreground="#FBBF24" FontFamily="{StaticResource Mono}" FontSize="13" VerticalAlignment="Center"
+                                 ToolTip="{Binding MoneyText}"/>
+                      <TextBlock Grid.Column="5" Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Details, shown for the selected character -->
@@ -410,6 +424,12 @@
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding Description}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL PLAYED"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding PlayedText}"/>
+                          <TextBlock Style="{StaticResource FactLabel}" Text="GOLD"/>
+                          <TextBlock Style="{StaticResource FactValue}" Text="{Binding MoneyText}"/>
+                          <StackPanel Visibility="{Binding HasCrests, Converter={StaticResource Visible}}">
+                            <TextBlock Style="{StaticResource FactLabel}" Text="CRESTS"/>
+                            <TextBlock Style="{StaticResource FactValue}" Text="{Binding Crests}"/>
+                          </StackPanel>
                           <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
                           <TextBlock Style="{StaticResource FactValue}" Text="{Binding ProfessionsText}"/>
                           <TextBlock Style="{StaticResource FactLabel}" Text="TALENTS"/>
@@ -579,6 +599,12 @@
                       <TextBlock Text="level(s)." VerticalAlignment="Center" Foreground="{StaticResource TextSoft}"/>
                     </WrapPanel>
                     <TextBlock Text="{Binding LevelPreview}" Foreground="{StaticResource Green}" FontSize="12" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                    <DockPanel Margin="0,6,0,0">
+                      <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Test max level" Padding="8,2" FontSize="11"
+                              ToolTip="Post a sample max level post to Discord now"
+                              Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="max"/>
+                      <TextBlock Style="{StaticResource Hint}" VerticalAlignment="Center" Text="&#x1F3C6; Reaching max level is always posted, with extra flair and the time it took."/>
+                    </DockPanel>
                   </StackPanel>
                 </StackPanel>
               </Border>
@@ -606,10 +632,16 @@
                   <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11" VerticalAlignment="Top" ToolTip="Post a sample of this to Discord now" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="epic"/>
                   <CheckBox IsChecked="{Binding PostEpic}">
                     <StackPanel>
-                      <TextBlock Text="Epic and legendary items" Foreground="#C084FC" FontWeight="SemiBold" FontSize="13"/>
-                      <TextBlock Style="{StaticResource Hint}" Text="Purple and orange items you loot."/>
+                      <TextBlock Text="Epic items" Foreground="#C084FC" FontWeight="SemiBold" FontSize="13"/>
+                      <TextBlock Style="{StaticResource Hint}" Text="Purple items you loot."/>
                     </StackPanel>
                   </CheckBox>
+                  </DockPanel>
+                  <DockPanel Margin="30,8,0,0">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Test" Padding="8,2" FontSize="11"
+                            ToolTip="Post a sample legendary post to Discord now"
+                            Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="legendary"/>
+                    <TextBlock Style="{StaticResource Hint}" VerticalAlignment="Center" Foreground="#FB923C" Text="Legendary (orange) items are always posted, with extra flair."/>
                   </DockPanel>
                 </StackPanel>
               </Border>

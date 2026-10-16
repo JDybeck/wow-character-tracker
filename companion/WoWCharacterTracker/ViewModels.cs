@@ -153,6 +153,12 @@ sealed class CharacterRow : Observable
     public required bool Hardcore { get; init; }
     public required string Ruleset { get; init; }
     public required bool Dead { get; init; }
+    public required long Money { get; init; }   // copper
+    public required string Crests { get; init; }
+
+    public string GoldText => Money > 0 ? $"{(Money / 10000).ToString("N0", System.Globalization.CultureInfo.InvariantCulture)}g" : "-";
+    public string MoneyText => Money > 0 ? Format.Money(Money) : "-";
+    public bool HasCrests => Crests.Length > 0;
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
 
@@ -232,6 +238,9 @@ sealed class CharacterRow : Observable
                 Ruleset = Pick(s?.Ruleset, last?.Ruleset) is { Length: > 0 } rs ? rs
                     : (s?.Hardcore ?? false) || all.Any(e => e.Hardcore) ? "Hardcore" : "Normal",
                 Dead = all.Any(e => e.Kind == "death"),
+                // The newest of the snapshot and the last event says what the character has now.
+                Money = last is not null && last.At > (s?.LastSeen ?? 0) && last.Money > 0 ? last.Money : s?.Money ?? last?.Money ?? 0,
+                Crests = Pick(s?.Crests, last?.Crests),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone, When(e.At)))
@@ -665,7 +674,20 @@ sealed class FlavorViewModel : Observable
         }
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         Raise(nameof(HasCharacters));
+        Raise(nameof(TotalGoldText));
         UpdateStatus();
+    }
+
+    // "12,345g 67s 89c on Tarren Mill (3 characters)" for whatever the filter chips show.
+    public string TotalGoldText
+    {
+        get
+        {
+            var total = Characters.Sum(c => c.Money);
+            var where = selectedGroup is { Key.Length: > 0 } g ? $" on {g.Key}" : "";
+            var count = Characters.Count;
+            return $"Total gold{where}: {Format.Money(total)} ({count} character{(count == 1 ? "" : "s")})";
+        }
     }
 
     // Hides the character in the app. The game's own data isn't touched (the game would just write
@@ -722,6 +744,8 @@ sealed class FlavorViewModel : Observable
         {
             "rare" => e with { Kind = "loot", Item = "Cruel Barb", ItemId = 5191, Quality = 3, Zone = "The Deadmines" },
             "epic" => e with { Kind = "loot", Item = "Arcanite Reaper", ItemId = 12784, Quality = 4 },
+            "legendary" => e with { Kind = "loot", Item = "Thunderfury, Blessed Blade of the Windseeker", ItemId = 19019, Quality = 5 },
+            "max" => e with { Kind = "level", Level = Flavor == Flavors.Forever ? 60 : 90, Seconds = 2 * 3600 + 14 * 60, MaxLevel = true, Group = group, GroupSize = 5 },
             "mount" => e with { Kind = "mount", Mount = "Pinto Bridle", ItemId = 2414, Bought = true },
             "boss" => e with { Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", Group = group, GroupSize = 5 },
             "death" => e with { Kind = "death", Killer = "Defias Pillager", Gold = 123456, Hardcore = true },

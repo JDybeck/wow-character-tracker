@@ -26,6 +26,9 @@ record Entry
     public bool Hardcore { get; init; }
     public string Ruleset { get; init; } = ""; // "Hardcore", "Self-found", "Normal"...
     public string Role { get; init; } = "";    // "TANK", "HEALER", "DAMAGER" on retail
+    public bool MaxLevel { get; init; }         // this level-up reached the game's max level
+    public long Money { get; init; }            // copper the character had
+    public string Crests { get; init; } = "";  // retail: "Gilded Crest 45, Runed Crest 120"
 
     public long Seconds { get; init; }   // level: time the level took
     public long Played { get; init; }    // total /played
@@ -76,6 +79,9 @@ record Entry
             Hardcore = s("hardcore") is "true" or "1",
             Ruleset = s("ruleset"),
             Role = s("role"),
+            MaxLevel = s("maxLevel") is "true" or "1",
+            Money = (long)n("money"),
+            Crests = s("crests"),
             Seconds = (long)n("seconds"),
             Played = (long)n("played"),
             Boss = s("boss"),
@@ -105,7 +111,8 @@ record GroupMember(string Name, int Level, string ClassFile, string Class, strin
 // The latest state of a character, saved by the addon on every /played, /reload and logout.
 record Snapshot(string Guid, string Char, string Realm, int Level, string Class, string ClassFile,
     string Race, string RaceFile, string Sex, string Spec, string Role, double ItemLevel, long Played,
-    string Zone, string Professions, string Talents, long LastSeen, bool Hardcore, string Ruleset);
+    string Zone, string Professions, string Talents, long LastSeen, bool Hardcore, string Ruleset,
+    long Money = 0, string Crests = "");
 
 record TrackerData(List<Entry> Events, List<Snapshot> Characters)
 {
@@ -163,7 +170,7 @@ static class SavedVariables
                 S(t, "sex") == "female" ? "female" : "male",
                 S(t, "spec"), S(t, "role"), N(t, "ilvl"), (long)N(t, "played"),
                 S(t, "zone"), S(t, "professions"), S(t, "talents"), (long)N(t, "lastSeen"),
-                S(t, "hardcore") == "true", S(t, "ruleset")));
+                S(t, "hardcore") == "true", S(t, "ruleset"), (long)N(t, "money"), S(t, "crests")));
         }
 
         return list;
@@ -196,11 +203,11 @@ static class Format
         return Duration(seconds);
     }
 
-    // Copper as "12g 34s 56c", leaving out leading zero parts.
+    // Copper as "12,345g 34s 56c", leaving out leading zero parts.
     public static string Money(long copper)
     {
         long g = copper / 10000, s = copper / 100 % 100, c = copper % 100;
-        if (g > 0) return $"{g}g {s}s {c}c";
+        if (g > 0) return $"{g.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)}g {s}s {c}c";
         if (s > 0) return $"{s}s {c}c";
         return $"{c}c";
     }
