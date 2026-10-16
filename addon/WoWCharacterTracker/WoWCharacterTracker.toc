@@ -2,8 +2,14 @@
 ## Title: WoW Character Tracker
 ## Notes: Records how long each character level takes, for the companion app to post to Discord.
 ## Author: JDybeck
-## Version: 0.11.5
+## Version: 0.12.0
 ## SavedVariables: WoWCharacterTrackerDB
 
 Settings.lua
+Core.lua
+Character.lua
+LiveGrid.lua
+Events.lua
+PvP.lua
+Commands.lua
 WoWCharacterTracker.lua

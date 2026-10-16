@@ -34,14 +34,20 @@ static partial class AddonInstaller
         Directory.CreateDirectory(target);
 
         var asm = Assembly.GetExecutingAssembly();
-        foreach (var name in asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix)))
+        var bundled = asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix)).Select(n => n[Prefix.Length..]).ToList();
+        foreach (var fileName in bundled)
         {
-            var fileName = name[Prefix.Length..];
             var content = ReadBundled(fileName);
             if (fileName.EndsWith(".toc") && interfaceVersion is int v)
                 content = InterfaceLine().Replace(content, $"## Interface: {v}", 1);
             File.WriteAllText(Path.Combine(target, fileName), content);
         }
+
+        // Lua files an older version had but this one doesn't (the game would ignore them anyway,
+        // since the .toc doesn't list them, but they'd only confuse).
+        foreach (var old in Directory.GetFiles(target, "*.lua"))
+            if (!bundled.Contains(Path.GetFileName(old), StringComparer.OrdinalIgnoreCase))
+                File.Delete(old);
     }
 
     // Settings.lua tells the addon which events get a screenshot. The game reads it on /reload or login.
