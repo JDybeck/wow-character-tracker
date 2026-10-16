@@ -1,5 +1,3 @@
-using MoonSharp.Interpreter;
-
 namespace WoWCharacterTracker.Models;
 
 // One thing that happened: a level-up ("level"), an end boss kill ("boss"), rare loot ("loot"),

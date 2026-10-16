@@ -42,7 +42,7 @@ class Config
     public FlavorSettings For(Flavor f)
     {
         if (!Flavors.TryGetValue(f.Key, out var s))
-            Flavors[f.Key] = s = FlavorSettings.DefaultsFor(f);
+            Flavors[f.Key] = s = f.Defaults();
         return s;
     }
 

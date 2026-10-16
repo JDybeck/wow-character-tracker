@@ -2,8 +2,15 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
-## v0.12.5
+## v0.13.0
 
+The app and the addon now share one version number, starting here.
+
+- Under the hood: a cleanup pass through the app and the addon, so they're easier to keep working. Nothing changes in what gets posted.
+- Removing a webhook asks right in its row instead of a Windows dialog, like removing a character. Deleting a tag (right-click it in a webhook's options) no longer asks in a Windows dialog either.
+- A ding the addon can't time (no starting point for the level) is logged right away without a time, instead of waiting for the game to answer /played.
+- /wct no longer stops at a level that was logged without a time.
+- /wct debug is shorter and saves what's useful now: played time, /played requests, errors, talents and names.
 - The epic loot Test posts Sul'thraze the Lasher (Arcanite Reaper is only rare).
 - Items Wowhead's Forever database doesn't have yet (like raid gear) get their tooltip picture from its Classic database instead.
 
@@ -60,7 +67,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Long names no longer run into the Class column; the TEST/HARDCORE tag sits next to the realm.
 - The README has screenshots.
 
-- Retail characters show their actual character render (the one Raider.IO and Warcraft Logs show) in the list, on the card and as the Discord sender picture. Needs one login with the updated addon.
+- Retail characters show their actual character render in the list, on the card and as the Discord sender picture. Needs one login with the updated addon.
 
 - Under the hood: the app and the addon are reorganized into smaller parts with one job each. Nothing changes in how they work.
 

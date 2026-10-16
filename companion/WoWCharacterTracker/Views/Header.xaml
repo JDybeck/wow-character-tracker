@@ -94,7 +94,7 @@
           <StackPanel>
             <TextBlock Text="Settings" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
             <CheckBox IsChecked="{Binding OpenWithWow}"
-                      ToolTip="Waits in the tray and opens when you start World of Warcraft, like Archon. Closing the window keeps it tracking in the tray.">
+                      ToolTip="Waits in the tray and opens when you start World of Warcraft. Closing the window keeps it tracking in the tray.">
               <TextBlock Text="Open with World of Warcraft" FontSize="13" Foreground="{StaticResource TextSoft}"/>
             </CheckBox>
             <CheckBox IsChecked="{Binding HideWhenGameCloses}" Margin="24,10,0,0" IsEnabled="{Binding OpenWithWow}"

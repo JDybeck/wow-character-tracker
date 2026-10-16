@@ -1,16 +1,10 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows;
-using System.Windows.Input;
 using System.Windows.Media;
 
 namespace WoWCharacterTracker.ViewModels;
 
+// One character in the list and its details: the latest snapshot, filled in from its events.
 sealed class CharacterRow : Observable
 {
-    string? pictureUrl;
-
     public required string Guid { get; init; }
     public required string Name { get; init; }
     public required string Realm { get; init; }
@@ -59,6 +53,8 @@ sealed class CharacterRow : Observable
     public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
     public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
     public bool HasProfessions => ProfessionList.Count > 0;
+    public required IReadOnlyList<LevelRow> Levels { get; init; }
+    public required IReadOnlyList<HighlightRow> Highlights { get; init; }
 
     // Fills in icons and tooltips: crests and items from Wowhead, professions from the built-in list.
     public async Task LoadIconsAsync(Flavor flavor)
@@ -93,8 +89,6 @@ sealed class CharacterRow : Observable
                 if (HighlightRow.QualityBrush(info.Quality) is { } q) h.Brush = q;
             }
     }
-    public required IReadOnlyList<LevelRow> Levels { get; init; }
-    public required IReadOnlyList<HighlightRow> Highlights { get; init; }
 
     // The user's tags as on/off chips for this character, and the box for making a new one.
     IReadOnlyList<ToggleOption> tagOptions = [];
@@ -131,6 +125,7 @@ sealed class CharacterRow : Observable
         _ => ClassColors.Hex(0xF87171),
     };
 
+    string? pictureUrl;
     public string? PictureUrl { get => pictureUrl; set => Set(ref pictureUrl, value); }
 
     public async Task LoadPictureAsync(Flavor flavor)
@@ -161,6 +156,7 @@ sealed class CharacterRow : Observable
             var levels = all.Where(e => e.Kind == "level").ToList();
             var last = all.LastOrDefault();
             if (s is null && last is null) continue;
+            var hardcore = (s?.Hardcore ?? false) || all.Any(e => e.Hardcore);
 
             rows.Add(new CharacterRow
             {
@@ -181,9 +177,8 @@ sealed class CharacterRow : Observable
                 Professions = Pick(s?.Professions, last?.Professions),
                 Talents = Pick(s?.Talents, last?.Talents),
                 LastSeen = Math.Max(s?.LastSeen ?? 0, last?.At ?? 0),
-                Hardcore = (s?.Hardcore ?? false) || all.Any(e => e.Hardcore),
-                Ruleset = Pick(s?.Ruleset, last?.Ruleset) is { Length: > 0 } rs ? rs
-                    : (s?.Hardcore ?? false) || all.Any(e => e.Hardcore) ? "Hardcore" : "Normal",
+                Hardcore = hardcore,
+                Ruleset = Pick(s?.Ruleset, last?.Ruleset) is { Length: > 0 } rs ? rs : hardcore ? "Hardcore" : "Normal",
                 Dead = all.Any(e => e.Kind == "death"),
                 // The newest of the snapshot and the last event says what the character has now.
                 Money = last is not null && last.At > (s?.LastSeen ?? 0) && last.Money > 0 ? last.Money : s?.Money ?? last?.Money ?? 0,
@@ -210,14 +205,15 @@ sealed class CharacterRow : Observable
         return rows.OrderByDescending(r => r.LastSeen).ToList();
     }
 
+    // A highlight row, keeping its event so it can be posted from the details.
     static HighlightRow Highlight(Entry e)
     {
-        var row = MakeHighlight(e);
+        var row = Row(e);
         row.Source = e;
         return row;
     }
 
-    static HighlightRow MakeHighlight(Entry e) => e.Kind switch
+    static HighlightRow Row(Entry e) => e.Kind switch
     {
         "boss" => new("", ClassColors.Hex(0xFBBF24), "Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
         "loot" => new("", HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD), "Looted ", e.Item, When(e.At), e.ItemId),

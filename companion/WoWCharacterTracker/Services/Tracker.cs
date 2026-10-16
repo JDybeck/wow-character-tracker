@@ -18,11 +18,16 @@ sealed class Tracker : IDisposable
     readonly SemaphoreSlim gate = new(1, 1);
     readonly ConcurrentDictionary<string, Entry> live = new();
     readonly ScreenshotChannel shots;
-    HashSet<string>? posted;
+    // Latest live state per character (from check-ins, tests and events), newer than the saved file.
+    readonly ConcurrentDictionary<string, Entry> presence = new();
+    // When each live event's data screenshot was taken, for the timing on its post line.
+    readonly ConcurrentDictionary<string, DateTime> sentAt = new();
+    HashSet<string>? posted; // event ids handled, and "<id>@<webhook>" per webhook it went to
     FileSystemWatcher? watcher;
     CancellationTokenSource? debounce;
     Timer? safetyNet;
     bool initialDone;
+    int lastWaiting; // posts waiting for a webhook, said once per change
 
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
@@ -81,9 +86,6 @@ sealed class Tracker : IDisposable
         _ = SyncAsync().ContinueWith(_ => shots.Start()); // live events only after old ones are handled
     }
 
-    // When each live event's data screenshot was taken, for the timing on its post line.
-    readonly ConcurrentDictionary<string, DateTime> sentAt = new();
-
     void OnLiveEntry(Entry e, DateTime shotAt)
     {
         // Every live event carries the character's current state, so the list updates right away.
@@ -106,11 +108,6 @@ sealed class Tracker : IDisposable
         }
         _ = SyncAsync();
     }
-
-    int lastWaiting;
-
-    // Latest live state per character (from check-ins, tests and events), newer than the saved file.
-    readonly ConcurrentDictionary<string, Entry> presence = new();
 
     static Snapshot ToSnapshot(Entry e) => new(e.Guid, e.Char, e.Realm, e.Level, e.Class, e.ClassFile,
         e.Race, e.RaceFile, e.Sex, e.Spec, e.Role, e.ItemLevel, e.Played, e.Zone, e.Professions, e.Talents,
@@ -162,58 +159,7 @@ sealed class Tracker : IDisposable
             }
             else if (pending.Count > 0)
             {
-                var s = settings();
-                // Things this tab isn't set to post are marked as handled, so turning a toggle on
-                // later doesn't dump old events into the channel.
-                foreach (var e in pending.Where(e => !Wanted(e, s)))
-                {
-                    if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
-                        Log.Info($"{Tag}Not posting {e.Boss}: {who.Name} is in the group (they post it).");
-                    posted.Add(e.Id);
-                    // Only posted highlights keep their screenshot. (The addon normally doesn't take
-                    // one for these, unless the settings changed since the game last loaded them.)
-                    if (e.Shot && ScreenshotFileFor(e) is { } unwantedShot) TryDelete(unwantedShot);
-                }
-                var toPost = pending.Where(e => Wanted(e, s)).ToList();
-
-                var hooks = toPost.Count > 0 ? webhooks() : [];
-                if (toPost.Count > 0 && hooks.Count == 0)
-                {
-                    if (toPost.Count != lastWaiting) // say it once per change, not on every sync
-                        Log.Warn($"{Tag}{toPost.Count} post{(toPost.Count == 1 ? " is" : "s are")} waiting. Turn on a Discord webhook for this tab to send {(toPost.Count == 1 ? "it" : "them")}.");
-                    lastWaiting = toPost.Count;
-                }
-                else
-                {
-                    // Each webhook is tracked on its own ("<id>@<webhook>"), so one that fails gets
-                    // the post later without the others getting it twice.
-                    foreach (var e in toPost)
-                    {
-                        // Webhooks can be limited to some rulesets (Forever) and to characters with some tags.
-                        var tags = tagsFor(e.Guid);
-                        var forThis = hooks
-                            .Where(w => flavor != Flavors.Forever || w.AcceptsRuleset(e))
-                            .Where(w => w.AcceptsTags(tags))
-                            .ToList();
-                        var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
-                        var allSent = true;
-                        foreach (var w in forThis)
-                        {
-                            var key = $"{e.Id}@{w.Id}";
-                            if (posted.Contains(key)) continue;
-                            if (await new DiscordPoster(w.Url, flavor, s.NameStyle).PostAsync(e, screenshot: shot))
-                            {
-                                posted.Add(key);
-                                sent++;
-                                Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.{Timing(e)}");
-                            }
-                            else allSent = false;
-                        }
-                        if (!allSent) break; // keep order, retry the rest on the next sync
-                        posted.Add(e.Id);
-                        Posted?.Invoke(e);
-                    }
-                }
+                sent = await PostPendingAsync(pending, settings());
             }
 
             File.WriteAllText(statePath, JsonSerializer.Serialize(posted));
@@ -234,6 +180,67 @@ sealed class Tracker : IDisposable
         }
     }
 
+    // Posts what this tab wants, in order. Things it isn't set to post are marked as handled, so
+    // turning a toggle on later doesn't dump old events into the channel. Returns how many posts went out.
+    async Task<int> PostPendingAsync(List<Entry> pending, FlavorSettings s)
+    {
+        foreach (var e in pending.Where(e => !s.Wants(e)))
+        {
+            if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
+                Log.Info($"{Tag}Not posting {e.Boss}: {who.Name} is in the group (they post it).");
+            posted!.Add(e.Id);
+            // Only posted highlights keep their screenshot. (The addon normally doesn't take one for
+            // these, unless the settings changed since the game last loaded them.)
+            if (e.Shot && ScreenshotFileFor(e) is { } unwantedShot) TryDelete(unwantedShot);
+        }
+
+        var toPost = pending.Where(s.Wants).ToList();
+        if (toPost.Count == 0) return 0;
+        var hooks = webhooks();
+        if (hooks.Count == 0)
+        {
+            if (toPost.Count != lastWaiting)
+                Log.Warn($"{Tag}{toPost.Count} post{(toPost.Count == 1 ? " is" : "s are")} waiting. Turn on a Discord webhook for this tab to send {(toPost.Count == 1 ? "it" : "them")}.");
+            lastWaiting = toPost.Count;
+            return 0;
+        }
+
+        // Each webhook is tracked on its own ("<id>@<webhook>"), so one that fails gets the post
+        // later without the others getting it twice.
+        var sent = 0;
+        foreach (var e in toPost)
+        {
+            var forThis = WebhooksFor(e, hooks);
+            var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
+            var allSent = true;
+            foreach (var w in forThis)
+            {
+                var key = $"{e.Id}@{w.Id}";
+                if (posted!.Contains(key)) continue;
+                if (await new DiscordPoster(w.Url, flavor, s.NameStyle).PostAsync(e, screenshot: shot))
+                {
+                    posted.Add(key);
+                    sent++;
+                    Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.{Timing(e)}");
+                }
+                else allSent = false;
+            }
+            if (!allSent) break; // keep order, retry the rest on the next sync
+            posted!.Add(e.Id);
+            Posted?.Invoke(e);
+        }
+        return sent;
+    }
+
+    // Webhooks can be limited to some rulesets (Forever) and to characters with some tags.
+    List<WebhookInfo> WebhooksFor(Entry e, List<WebhookInfo> hooks)
+    {
+        var tags = tagsFor(e.Guid);
+        return hooks
+            .Where(w => flavor != Flavors.Forever || w.AcceptsRuleset(e))
+            .Where(w => w.AcceptsTags(tags))
+            .ToList();
+    }
     // The addon takes the screenshot a second or two after the event. The game names it by time,
     // so the newest picture written just after the event is the one. For a live event the file may
     // not be there yet, so wait a little.
@@ -274,21 +281,6 @@ sealed class Tracker : IDisposable
     {
         try { File.Delete(file); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
-
-    // Max level and legendary items are always posted, with extra flair.
-    static bool Wanted(Entry e, FlavorSettings s) => e.Kind switch
-    {
-        "level" => (e.MaxLevel && s.PostMaxLevel) || s.LevelWanted(e.Level),
-        "loot" => e.Quality >= 5 || (e.Quality == 4 ? s.PostEpic : e.Quality == 3 && s.PostRare),
-        "mount" => s.PostMounts,
-        "boss" => s.PostBosses && s.SkipBossBecause(e) is null,
-        "death" => s.PostDeaths,
-        "duel" => s.PostDuels,
-        "makgora" => s.PostMakgora,
-        "mplus" => s.PostMPlus,
-        "pvp" => s.PostPvp,
-        _ => false,
-    };
 
     // For instant posts: how long from the moment to Discord, and where that time went.
     // " In Discord 4s after it happened: the game sent it after 1s, then 3s for the screenshot and upload."

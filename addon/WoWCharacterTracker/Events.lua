@@ -48,7 +48,6 @@ local mutedFrames = {}
 function ns.unmutePlayed()
   for _, f in ipairs(mutedFrames) do f:RegisterEvent("TIME_PLAYED_MSG") end
   mutedFrames = {}
-  ns.suppressChat = false
 end
 
 local function mutePlayed()
@@ -73,7 +72,6 @@ end
 function ns.requestPlayed(reason)
   ns.notePlayed("request: " .. (reason or "?"))
   ns.doing("RequestTimePlayed")
-  ns.suppressChat = true
   mutePlayed()
   RequestTimePlayed()
   -- Safety net so the player's own /played is never muted for long.
@@ -111,6 +109,104 @@ end
 
 local getGroup -- below, with the boss kills
 
+-- Level times ----------------------------------------------------------------
+-- WoWCharacterTrackerDB.start[guid] is the total played when the current level began, and
+-- startLevel[guid] the level it belongs to; a finished level's time is the difference. The ding is
+-- timed right away from the played time already known (ns.playedNow), so posts don't wait on the
+-- server; /played answers, when the game sends them, make the next level's start exact.
+
+local function knownEvent(id)
+  for _, e in ipairs(WoWCharacterTrackerDB.events) do
+    if e.id == id then return true end
+  end
+  return false
+end
+
+-- Times a finished level: newStart is the total played when `level` began. If the saved start
+-- belongs to the level before, the level is done (also later, at login, when a /reload or logout
+-- came before the game answered the ding's /played request). Returns true when the level is
+-- accounted for (recorded now or before). live = right at the ding.
+local function finishLevel(guid, level, newStart, total, live)
+  local oldStart = WoWCharacterTrackerDB.start[guid]
+  local startLevel = WoWCharacterTrackerDB.startLevel[guid]
+  -- Level 1 always starts at 0 played, so 1 to 2 never needs a baseline (a brand new character's
+  -- login answer can go missing, and the addon may have been installed after creating it).
+  if level == 2 and startLevel ~= 2 then oldStart, startLevel = 0, 1 end
+  if not (oldStart and newStart >= oldStart and (startLevel == level - 1 or (startLevel == nil and live))) then return false end
+  if not knownEvent(guid .. ":" .. level) then
+    local seconds = newStart - oldStart
+    ns.recordLevel(guid, level, seconds, total)
+    ns.say(string.format("Level %d took %s.", level - 1, ns.formatDuration(seconds)))
+    if live then ns.offerPost(level) end
+  end
+  return true
+end
+
+-- A ding without a starting point for its level (the addon came in mid-level) is still logged,
+-- without a time.
+local function logUntimed(guid, level, total)
+  if knownEvent(guid .. ":" .. level) then return end
+  ns.recordLevel(guid, level, nil, total)
+  ns.say(string.format("Level %d logged. Its time is unknown (no starting point for level %d yet).", level, level - 1))
+  ns.offerPost(level)
+end
+
+local function setStart(guid, level, start)
+  WoWCharacterTrackerDB.start[guid] = start
+  WoWCharacterTrackerDB.startLevel[guid] = level
+end
+
+-- Played time doesn't move while logged out, so where it was at logout is where this session
+-- starts. Level times then don't depend on the game answering /played requests, which some clients
+-- (Forever) seem to ignore unless the player typed it.
+function ns.onLogin()
+  local guid = UnitGUID("player")
+  local atLogout = WoWCharacterTrackerDB.logoutPlayed[guid]
+  WoWCharacterTrackerDB.logoutPlayed[guid] = nil -- only good for the login right after it
+  if atLogout then
+    ns.lastPlayed, ns.lastPlayedAt = atLogout, time()
+  elseif UnitLevel("player") == 1 and not WoWCharacterTrackerDB.chars[guid] then
+    ns.lastPlayed, ns.lastPlayedAt = 0, time() -- a brand new character
+  end
+  C_Timer.After(3, function() ns.requestPlayed("login") end) -- once the world has loaded
+end
+
+function ns.onLogout() -- also on /reload, right before the game writes the saved file
+  local played = ns.playedNow()
+  if played then WoWCharacterTrackerDB.logoutPlayed[UnitGUID("player")] = played end
+  ns.saveSnapshot()
+end
+
+function ns.onLevelUp(level)
+  local guid = UnitGUID("player")
+  ns.pendingLevel = level
+  local total = ns.playedNow()
+  if total then
+    if not finishLevel(guid, level, total, total, true) then logUntimed(guid, level, total) end
+    setStart(guid, level, total)
+  end
+  -- Ask the server too, for the exact start of the new level. The answer can be slow or not come at
+  -- all, so ask a moment later and again after a while.
+  for _, delay in ipairs({ 1, 15, 45 }) do
+    C_Timer.After(delay, function() if ns.pendingLevel == level then ns.requestPlayed("level " .. level) end end)
+  end
+end
+
+function ns.onTimePlayed(total, thisLevel)
+  local guid = UnitGUID("player")
+  local newStart = total - thisLevel
+  ns.lastPlayed, ns.lastPlayedAt = total, time()
+  ns.notePlayed(string.format("answer: total %d, this level %d", total, thisLevel))
+
+  local level = ns.pendingLevel or UnitLevel("player") -- UnitLevel can lag right after a ding
+  local live = ns.pendingLevel ~= nil
+  if not finishLevel(guid, level, newStart, total, live) and live then logUntimed(guid, level, total) end
+  ns.pendingLevel = nil
+  setStart(guid, level, newStart)
+  ns.saveSnapshot()
+  -- Not right away: frames registered during this event could still get this same message.
+  C_Timer.After(0.5, ns.unmutePlayed)
+end
 function ns.recordLevel(guid, level, seconds, played)
   local e = ns.characterInfo()
   e.kind = "level"
@@ -172,7 +268,7 @@ end
 
 -- LOOT_ITEM_SELF is "You receive loot: %s." (and a "%sx%d." variant for stacks). Turned into
 -- Lua patterns so this works with the client's own language.
-local function toPattern(fmt)
+local function lootPattern(fmt)
   if type(fmt) ~= "string" then return nil end
   local p = fmt:gsub("[%(%)%.%+%-%*%?%[%]%^%$]", "%%%0")
   p = p:gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
@@ -181,7 +277,7 @@ end
 local function patterns(...)
   local list = {}
   for _, fmt in ipairs({ ... }) do
-    local p = toPattern(fmt)
+    local p = lootPattern(fmt)
     if p then table.insert(list, p) end
   end
   return list

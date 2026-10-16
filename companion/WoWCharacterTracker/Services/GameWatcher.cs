@@ -1,8 +1,3 @@
-using System.Globalization;
-using System.Windows;
-using System.Windows.Data;
-using System.Windows.Threading;
-
 namespace WoWCharacterTracker.Services;
 
 // Notices when any WoW client starts or stops (Retail, Classic, betas and PTRs all use these names).

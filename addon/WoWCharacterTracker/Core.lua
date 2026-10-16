@@ -24,33 +24,23 @@ end)
 pcall(blockedFrame.RegisterEvent, blockedFrame, "ADDON_ACTION_BLOCKED")
 pcall(blockedFrame.RegisterEvent, blockedFrame, "ADDON_ACTION_FORBIDDEN")
 
-ns.frame = CreateFrame("Frame")
-ns.frame:RegisterEvent("ADDON_LOADED")
-ns.frame:RegisterEvent("PLAYER_LOGIN")
-ns.frame:RegisterEvent("PLAYER_LEVEL_UP")
-ns.frame:RegisterEvent("TIME_PLAYED_MSG")
-ns.frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-ns.frame:RegisterEvent("PLAYER_LOGOUT")
-ns.frame:RegisterEvent("ENCOUNTER_END")
-ns.frame:RegisterEvent("CHAT_MSG_LOOT")
-ns.frame:RegisterEvent("PLAYER_DEAD")
+-- The events the addon listens to (handled in WoWCharacterTracker.lua). Some only exist on some
+-- clients, so each is registered protected.
 -- No COMBAT_LOG_EVENT_UNFILTERED: newer clients (Midnight, and Forever built on it) block addons
 -- from the combat log, and registering for it is itself "blocked from an action" at login.
-ns.frame:RegisterEvent("MERCHANT_SHOW")
-ns.frame:RegisterEvent("MERCHANT_CLOSED")
-pcall(ns.frame.RegisterEvent, ns.frame, "NEW_MOUNT_ADDED") -- clients with a mount journal
--- Refresh the character snapshot when gear or spec changes, while the game has the data.
-ns.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-ns.frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-ns.frame:RegisterEvent("PLAYER_MONEY")
-pcall(ns.frame.RegisterEvent, ns.frame, "CURRENCY_DISPLAY_UPDATE")
-pcall(ns.frame.RegisterEvent, ns.frame, "PLAYER_SPECIALIZATION_CHANGED")
-pcall(ns.frame.RegisterEvent, ns.frame, "TRAIT_CONFIG_UPDATED")
-pcall(ns.frame.RegisterEvent, ns.frame, "CHARACTER_POINTS_CHANGED")
-pcall(ns.frame.RegisterEvent, ns.frame, "PLAYER_GUILD_UPDATE")
-ns.frame:RegisterEvent("CHAT_MSG_SYSTEM") -- duels and Mak'gora results
-pcall(ns.frame.RegisterEvent, ns.frame, "CHALLENGE_MODE_COMPLETED")
-pcall(ns.frame.RegisterEvent, ns.frame, "PVP_RATED_STATS_UPDATE")
+local EVENTS = {
+  "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_LOGOUT", "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED",
+  "PLAYER_LEVEL_UP", "TIME_PLAYED_MSG",                                  -- level times
+  "ENCOUNTER_END", "CHAT_MSG_LOOT", "PLAYER_DEAD",                       -- bosses, loot, deaths
+  "MERCHANT_SHOW", "MERCHANT_CLOSED", "NEW_MOUNT_ADDED",                 -- mounts (bought or learned)
+  "CHAT_MSG_SYSTEM", "CHALLENGE_MODE_COMPLETED", "PVP_RATED_STATS_UPDATE", -- duels, Mak'gora, ratings
+  "SCREENSHOT_SUCCEEDED", "SCREENSHOT_FAILED",                           -- the shot queue
+  -- Refresh the character snapshot when these change, while the game has the data.
+  "PLAYER_EQUIPMENT_CHANGED", "PLAYER_MONEY", "CURRENCY_DISPLAY_UPDATE", "PLAYER_SPECIALIZATION_CHANGED",
+  "TRAIT_CONFIG_UPDATED", "CHARACTER_POINTS_CHANGED", "PLAYER_GUILD_UPDATE",
+}
+ns.frame = CreateFrame("Frame")
+for _, event in ipairs(EVENTS) do pcall(ns.frame.RegisterEvent, ns.frame, event) end
 
 -- What the addon did last, saved with any "blocked from an action" report.
 local lastDoing = "nothing yet"
@@ -88,17 +78,15 @@ if hooksecurefunc and StaticPopup_Show then
     end
   end)
 end
-ns.frame:RegisterEvent("SCREENSHOT_SUCCEEDED")
-ns.frame:RegisterEvent("SCREENSHOT_FAILED")
 
--- ns.pendingLevel set on level up, cleared when /played data arrives
+-- State shared between the files:
+-- ns.pendingLevel the level just reached, until the game answers its /played request
 -- ns.popupLevel a level waiting for the "post now" popup until combat ends
-ns.suppressChat = false
--- ns.lastPlayed, ns.lastPlayedAt latest /played total and when it came, to estimate played later
-ns.recentBosses = {} -- [name] = time, so ENCOUNTER_END and the combat log don't both record a kill
-ns.merchantOpen = false -- a mount that shows up while a vendor is open was bought
+-- ns.lastPlayed, ns.lastPlayedAt total played and when it was known, to work out played now
 -- ns.snapshotTicker refreshes the character snapshot every few minutes
 -- ns.moneyPending a snapshot is already scheduled after a money/currency change
+ns.recentBosses = {} -- [name] = time, so one kill isn't recorded twice
+ns.merchantOpen = false -- a mount that shows up while a vendor is open was bought
 
 function ns.say(msg)
   print("|cff00ccff[Character Tracker]|r " .. msg)

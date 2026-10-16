@@ -10,17 +10,28 @@ static partial class AddonInstaller
 
     public static string TargetDir(string flavorDir) => Path.Combine(Wow.AddOnsDir(flavorDir), "WoWCharacterTracker");
 
+    static string TocPath(string flavorDir) => Path.Combine(TargetDir(flavorDir), "WoWCharacterTracker.toc");
+
     public static string BundledVersion => ReadVersion(ReadBundled("WoWCharacterTracker.toc")) ?? "?";
 
     public static string? InstalledVersion(string flavorDir)
     {
-        var toc = Path.Combine(TargetDir(flavorDir), "WoWCharacterTracker.toc");
+        var toc = TocPath(flavorDir);
         return File.Exists(toc) ? ReadVersion(File.ReadAllText(toc)) ?? "?" : null;
+    }
+
+    // The installed addon against this app's: null when not installed, below 0 when older (or a
+    // version that can't be read), 0 when the same, above 0 when newer.
+    public static int? Compare(string? installed, string bundled)
+    {
+        if (installed is null) return null;
+        if (installed == bundled) return 0;
+        return Version.TryParse(installed, out var i) && Version.TryParse(bundled, out var b) ? i.CompareTo(b) : -1;
     }
 
     public static string? InstalledInterface(string flavorDir)
     {
-        var toc = Path.Combine(TargetDir(flavorDir), "WoWCharacterTracker.toc");
+        var toc = TocPath(flavorDir);
         if (!File.Exists(toc)) return null;
         var m = InterfaceLine().Match(File.ReadAllText(toc));
         return m.Success ? m.Groups[1].Value.Trim() : null;
@@ -76,7 +87,7 @@ static partial class AddonInstaller
 
     public static void SetInterface(string flavorDir, int interfaceVersion)
     {
-        var toc = Path.Combine(TargetDir(flavorDir), "WoWCharacterTracker.toc");
+        var toc = TocPath(flavorDir);
         var text = File.ReadAllText(toc);
         File.WriteAllText(toc, InterfaceLine().Replace(text, $"## Interface: {interfaceVersion}", 1));
     }

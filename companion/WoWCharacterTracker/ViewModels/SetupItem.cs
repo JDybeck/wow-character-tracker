@@ -1,9 +1,4 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media;
 
 namespace WoWCharacterTracker.ViewModels;
 
@@ -22,4 +17,6 @@ sealed class SetupItem(string title) : Observable
     public string? ActionText { get => actionText; set => Set(ref actionText, value); }
 
     public ICommand? ActionCommand { get; init; }
+
+    public void Set(bool ok, string detail, string? action = null) => (Ok, Detail, ActionText) = (ok, detail, action);
 }

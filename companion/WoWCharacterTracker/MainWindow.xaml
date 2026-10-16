@@ -83,7 +83,7 @@
           <RowDefinition Height="20"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <views:DiscordPanel/>
+        <views:DiscordPanel DataContext="{Binding Discord}"/>
         <views:ConsolePanel Grid.Row="2"/>
       </Grid>
     </Grid>

@@ -1,7 +1,5 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -41,13 +39,15 @@ sealed class FlavorViewModel : Observable
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
         _ = LoadLogoAsync();
-        Shots = Flavors.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, ShotsChanged));
+        Shots = Flavors.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
 
     // Screenshot options per kind of event, bound as Shots[level].Take and so on.
     public Dictionary<string, ShotOption> Shots { get; }
 
-    void ShotsChanged()
+    // Settings the addon reads (Settings.lua): saved, written for the addon, and the reload banner
+    // shown if the game is running.
+    void AddonSettingsChanged()
     {
         main.Config.Save();
         WriteAddonSettings();
@@ -102,8 +102,8 @@ sealed class FlavorViewModel : Observable
     public Flavor Flavor { get; }
     public string Name => Flavor.Name;
 
-    System.Windows.Media.ImageSource? logo;
-    public System.Windows.Media.ImageSource? Logo { get => logo; private set { Set(ref logo, value); Raise(nameof(HasLogo)); } }
+    ImageSource? logo;
+    public ImageSource? Logo { get => logo; private set { Set(ref logo, value); Raise(nameof(HasLogo)); } }
     public bool HasLogo => logo is not null;
     async Task LoadLogoAsync() => Logo = await Logos.LoadAsync(Flavor);
     FlavorSettings Settings => main.Config.For(Flavor);
@@ -202,9 +202,7 @@ sealed class FlavorViewModel : Observable
 
     void Changed([CallerMemberName] string? name = null)
     {
-        main.Config.Save();
-        WriteAddonSettings(); // the addon only sends live (and screenshots) what will be posted
-        HintReload();
+        AddonSettingsChanged(); // the addon only sends live (and screenshots) what will be posted
         Raise(name!);
         Raise(nameof(LevelPreview));
     }
@@ -236,19 +234,12 @@ sealed class FlavorViewModel : Observable
         Log.Success($"[{Name}] Pasted the posting settings" + (from is not null && from != Flavor ? $" (they were made for {from.Name})." : "."));
     }
 
-    // After all posting settings changed at once: save, tell the addon, refresh the page.
+    // After all posting settings changed at once: save, tell the addon, refresh the whole page.
     void PostingReplaced()
     {
-        main.Config.Save();
-        WriteAddonSettings();
-        HintReload();
+        AddonSettingsChanged();
         foreach (var o in Shots.Values) o.Refresh();
-        foreach (var p in new[] { nameof(PostLevels), nameof(LevelSplit), nameof(LevelEveryBefore), nameof(LevelEveryAfter),
-                     nameof(PostRare), nameof(PostEpic), nameof(PostMounts), nameof(PostBosses), nameof(PostDeaths), nameof(LevelPreview),
-                     nameof(PostMaxLevel), nameof(PostDuels), nameof(PostMakgora), nameof(PostMPlus), nameof(PostPvp), nameof(MPlusStepsText),
-                     nameof(PvpStepsText), nameof(HideChatInShots), nameof(HideUiInShots), nameof(AdvancedCombatLog), nameof(SkipBossGroupRegex), nameof(SkipRegexProblem),
-                     nameof(NameFull), nameof(NameFirst), nameof(NameLast) })
-            Raise(p);
+        Raise(string.Empty); // every property
     }
 
     // --- startup and folder ---
@@ -333,62 +324,41 @@ sealed class FlavorViewModel : Observable
         var installed = AddonInstaller.InstalledVersion(flavorDir);
         var bundled = AddonInstaller.BundledVersion;
         var interfaceVersion = Wow.InterfaceVersion(flavorDir);
-        var olderInstalled = installed is not null && Version.TryParse(installed, out var iv) && Version.TryParse(bundled, out var bv) && iv < bv;
-        var newerInstalled = installed is not null && Version.TryParse(installed, out var nv) && Version.TryParse(bundled, out var bv2) && nv > bv2;
-
-        // A newer addon than this app's (a test build put there by hand): leave it, don't offer to
-        // go back, just keep it loadable and following the settings.
-        if (!force && newerInstalled)
-        {
-            KeepInterfaceCurrent(installed!, interfaceVersion);
-            WriteAddonSettings();
-            AddonStep.Ok = true;
-            AddonStep.Detail = $"v{installed} installed (newer than this app's v{bundled})";
-            AddonStep.ActionText = null;
-            return;
-        }
-
-        if (!force && !olderInstalled && (installed is null || installed != bundled))
-        {
-            AddonStep.Ok = false;
-            AddonStep.ActionText = installed is null ? "Install" : "Update";
-            AddonStep.Detail = installed is null
-                ? "Not installed in this game folder yet"
-                : $"v{installed} installed, v{bundled} is ready";
-            Log.Info($"[{Name}] " + (installed is null
-                ? "The addon isn't installed in this game folder yet. Click Install on the Addon card to add it."
-                : $"Addon update ready (v{installed} to v{bundled}). Click Update on the Addon card when you want it."));
-            if (installed is not null)
-            {
-                KeepInterfaceCurrent(installed, interfaceVersion);
-                WriteAddonSettings(); // the installed version still follows the What gets posted page
-            }
-            return;
-        }
 
         try
         {
-            if (installed is null || installed != bundled || force)
+            switch (force ? -1 : AddonInstaller.Compare(installed, bundled))
             {
-                AddonInstaller.Install(flavorDir, interfaceVersion);
-                Log.Success($"[{Name}] " + (installed is null ? $"Installed the addon (v{bundled})." : $"Updated the addon to v{bundled}."));
-                if (Wow.IsRunning(flavorDir))
-                    Log.Warn(installed is null
-                        ? $"[{Name}] The game is running: exit it fully and start it again so it finds the new addon."
-                        : $"[{Name}] The game is running: type /reload in game to load the new addon version.");
-            }
-            else KeepInterfaceCurrent(installed, interfaceVersion);
+                case null: // not installed: waits for the user's click
+                    AddonStep.Set(ok: false, "Not installed in this game folder yet", action: "Install");
+                    Log.Info($"[{Name}] The addon isn't installed in this game folder yet. Click Install on the Addon card to add it.");
+                    return;
 
+                case > 0: // newer than this app's (a test build put there by hand): left alone
+                    KeepInterfaceCurrent(installed!, interfaceVersion);
+                    AddonStep.Set(ok: true, $"v{installed} installed (newer than this app's v{bundled})");
+                    break;
+
+                case 0:
+                    KeepInterfaceCurrent(installed!, interfaceVersion);
+                    AddonStep.Set(ok: true, $"v{bundled} installed. Type /wct test in game to check instant posting");
+                    break;
+
+                default: // older (the app and the addon have to speak the same version), or the user clicked
+                    AddonInstaller.Install(flavorDir, interfaceVersion);
+                    Log.Success($"[{Name}] " + (installed is null ? $"Installed the addon (v{bundled})." : $"Updated the addon to v{bundled}."));
+                    if (Wow.IsRunning(flavorDir))
+                        Log.Warn(installed is null
+                            ? $"[{Name}] The game is running: exit it fully and start it again so it finds the new addon."
+                            : $"[{Name}] The game is running: type /reload in game to load the new addon version.");
+                    AddonStep.Set(ok: true, $"v{bundled} installed. Type /wct test in game to check instant posting");
+                    break;
+            }
             WriteAddonSettings(); // installing puts the default Settings.lua back
-            AddonStep.Ok = true;
-            AddonStep.Detail = $"v{bundled} installed. Type /wct test in game to check instant posting";
-            AddonStep.ActionText = null;
         }
         catch (UnauthorizedAccessException)
         {
-            AddonStep.Ok = false;
-            AddonStep.Detail = "Windows blocked writing to the AddOns folder";
-            AddonStep.ActionText = "Retry";
+            AddonStep.Set(ok: false, "Windows blocked writing to the AddOns folder", action: "Retry");
             Log.Error($"[{Name}] Couldn't write to {Wow.AddOnsDir(flavorDir)}. Right-click the app and pick Run as administrator once, then it works normally.");
         }
     }

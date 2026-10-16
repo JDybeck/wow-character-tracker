@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace WoWCharacterTracker.Models;
@@ -85,5 +84,19 @@ class FlavorSettings
         return level % every == 0;
     }
 
-    public static FlavorSettings DefaultsFor(Flavor f) => f.Defaults();
+    // Whether this tab posts the event. Legendary loot is always posted, with extra flair.
+    public bool Wants(Entry e) => e.Kind switch
+    {
+        "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),
+        "loot" => e.Quality >= 5 || (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare),
+        "mount" => PostMounts,
+        "boss" => PostBosses && SkipBossBecause(e) is null,
+        "death" => PostDeaths,
+        "duel" => PostDuels,
+        "makgora" => PostMakgora,
+        "mplus" => PostMPlus,
+        "pvp" => PostPvp,
+        _ => false,
+    };
+
 }

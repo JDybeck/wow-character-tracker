@@ -1,4 +1,4 @@
-﻿<!-- Webhooks: the list, per-tab on/off, options, and adding a new one. -->
+<!-- Webhooks: the list, per-tab on/off, options, and adding a new one. -->
 <UserControl x:Class="WoWCharacterTracker.Views.DiscordPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -31,7 +31,7 @@
       </DockPanel>
       <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}">
         <Run Text="Click a webhook to turn it on or off for"/>
-        <Run Text="{Binding SelectedFlavor.Name, Mode=OneWay}"/><Run Text=". Posts go to every one that's on."/>
+        <Run Text="{Binding TabName, Mode=OneWay}"/><Run Text=". Posts go to every one that's on."/>
       </TextBlock>
 
       <ItemsControl ItemsSource="{Binding Webhooks}">
@@ -54,7 +54,7 @@
                               Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}">
                     <StackPanel.InputBindings>
                       <MouseBinding MouseAction="LeftClick"
-                                    Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}"/>
                     </StackPanel.InputBindings>
                     <DockPanel LastChildFill="True">
@@ -70,32 +70,32 @@
                            ui:FocusWhenVisible.Enabled="True"
                            Visibility="{Binding IsEditing, Converter={StaticResource Visible}}">
                     <TextBox.InputBindings>
-                      <KeyBinding Key="Enter" Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                      <KeyBinding Key="Enter" Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                   CommandParameter="{Binding}"/>
-                      <KeyBinding Key="Escape" Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                      <KeyBinding Key="Escape" Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                   CommandParameter="{Binding}"/>
                     </TextBox.InputBindings>
                   </TextBox>
 
                   <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Options: which games and rulesets"
-                          Command="{Binding DataContext.ToggleWebhookOptionsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          Command="{Binding DataContext.ToggleWebhookOptionsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
                     <TextBlock x:Name="Gear" Style="{StaticResource Icon}" Text="&#xE713;" FontSize="13" Foreground="{StaticResource Dim}"/>
                   </Button>
                   <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename"
                           Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}"
-                          Command="{Binding DataContext.RenameWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          Command="{Binding DataContext.RenameWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="13" Foreground="{StaticResource Dim}"/>
                   </Button>
                   <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Save name (Enter)"
                           Visibility="{Binding IsEditing, Converter={StaticResource Visible}}"
-                          Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="13" Foreground="{StaticResource Green}"/>
                   </Button>
                   <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
-                          Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          Command="{Binding DataContext.AskRemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="13" Foreground="{StaticResource Dim}"/>
                   </Button>
@@ -103,13 +103,30 @@
                           Background="Transparent" Cursor="Hand" VerticalAlignment="Center" ToolTip="On or off for this tab">
                     <Border.InputBindings>
                       <MouseBinding MouseAction="LeftClick"
-                                    Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}"/>
                     </Border.InputBindings>
                     <TextBlock x:Name="RadioCheck" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="11" Foreground="{DynamicResource Indigo}"
                                HorizontalAlignment="Center" Visibility="Collapsed"/>
                   </Border>
                 </Grid>
+
+                <!-- Remove asks here instead of a Windows dialog. -->
+                <DockPanel Margin="0,10,0,0" Visibility="{Binding ConfirmRemove, Converter={StaticResource Visible}}">
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource ButtonBase}" Padding="10,4" Background="#7F1D1D" BorderBrush="#B91C1C" Margin="0,0,6,0"
+                            Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}">
+                      <TextBlock Text="Remove" FontSize="12" Foreground="White"/>
+                    </Button>
+                    <Button Style="{StaticResource ButtonBase}" Padding="10,4"
+                            Command="{Binding DataContext.CancelRemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}">
+                      <TextBlock Text="Cancel" FontSize="12"/>
+                    </Button>
+                  </StackPanel>
+                  <TextBlock Text="Remove this webhook?" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+                </DockPanel>
 
                 <!-- Options: games and Forever rulesets, changed by clicking the chips -->
                 <StackPanel Margin="0,10,0,2" Visibility="{Binding IsExpanded, Converter={StaticResource Visible}}">

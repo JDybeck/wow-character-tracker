@@ -1,5 +1,3 @@
-using MoonSharp.Interpreter;
-
 namespace WoWCharacterTracker.Services;
 
 static class Format

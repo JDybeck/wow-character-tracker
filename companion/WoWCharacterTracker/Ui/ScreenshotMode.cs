@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -8,7 +7,7 @@ namespace WoWCharacterTracker.Ui;
 // For testing: CHARACTERTRACKER_SCREENSHOT=<png> renders the window to that file and quits, so
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
-//   extra:  rename | options (a webhook) | testchars | testall (every Test button) | addonupdate
+//   extra:  rename | options (a webhook) | removehook | testchars | testall (every Test button) | addonupdate
 //   extra2: cardopts (card options open) | post (Post to Discord for the first character) | remove (its remove question) | sync (Sync now)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
@@ -28,8 +27,9 @@ static class ScreenshotMode
 
             if (vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Part(0)) is { } tab) vm.SelectedFlavor = tab;
             if (Part(1).Length > 0) vm.Page = Part(1);
-            if (Part(2) == "rename" && vm.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
-            if (Part(2) == "options" && vm.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
+            if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
+            if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
+            if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;
             if (Part(2) == "testchars") { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             if (Part(2) == "testall")
                 foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "death", "duel", "makgora", "mplus", "pvp" })

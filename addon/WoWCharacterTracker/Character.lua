@@ -1,6 +1,14 @@
 -- What the addon knows about the character on screen: professions, talents, stats, guild, and the saved snapshot.
 local ADDON, ns = ...
 
+-- Numbers like stats can be "secret" on Midnight-era clients (retail 12.x, Forever) at times like a ding or a
+-- fight: doing math with them is an error. num() turns those (and anything not a number) into nil,
+-- so they're skipped and the snapshot keeps the last readable ones.
+local function num(v)
+  if type(v) ~= "number" or (issecretvalue and issecretvalue(v)) then return nil end
+  return v
+end
+
 -- Primary professions in Classic-style clients. Names are matched in English,
 -- so on a non-English client the profession list will come back empty.
 local CLASSIC_PROFESSIONS = {
@@ -71,7 +79,6 @@ local function getRetailTalentSplit(specName)
   if heroName then text = text .. string.format(" / %s %d", heroName, heroSpent) end
   return text
 end
-
 
 -- The classic talent trees, left to right as the talent window shows them.
 local CLASSIC_TREES = {
@@ -152,6 +159,7 @@ local function getTraitTalents()
   end
   return table.concat(parts, " / "), best, table.concat(picks, ","), calc
 end
+
 -- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or nil when there is nothing to show yet.
 -- Also returns the spec name on retail (nil on Classic).
 function ns.getTalents()
@@ -205,7 +213,7 @@ end
 local function getItemLevel()
   if type(GetAverageItemLevel) ~= "function" then return nil end
   local overall, equipped = GetAverageItemLevel()
-  local v = equipped or overall
+  local v = num(equipped) or num(overall)
   if v and v > 0 then return math.floor(v * 10 + 0.5) / 10 end
   return nil
 end
@@ -224,14 +232,6 @@ end
 
 -- Character sheet numbers as "Name~value,...": the primary stats, armor, and what the client has
 -- of attack power, spell power, crit, haste, mastery and versatility.
--- Stats can be "secret" on Midnight-era clients (retail 12.x, Forever) at times like a ding or a
--- fight: doing math with them is an error. num() turns those (and anything not a number) into nil,
--- so they're skipped and the snapshot keeps the last readable ones.
-local function num(v)
-  if type(v) ~= "number" or (issecretvalue and issecretvalue(v)) then return nil end
-  return v
-end
-
 local function getStats()
   if type(UnitStat) ~= "function" then return nil end
   local parts = {}
@@ -324,7 +324,6 @@ local function getCrests()
 end
 
 -- Best guess of total /played right now.
-
 function ns.playedNow()
   if not ns.lastPlayed then return nil end
   return ns.lastPlayed + (time() - ns.lastPlayedAt)

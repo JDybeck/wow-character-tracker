@@ -1,5 +1,3 @@
-using MoonSharp.Interpreter;
-
 namespace WoWCharacterTracker.Models;
 
 // The latest state of a character, saved by the addon on every /played, /reload and logout.

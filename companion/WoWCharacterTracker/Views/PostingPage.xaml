@@ -1,4 +1,4 @@
-﻿<!-- What gets posted for the selected game, in General / PvE / PvP columns. -->
+<!-- What gets posted for the selected game, in General / PvE / PvP columns. -->
 <UserControl x:Class="WoWCharacterTracker.Views.PostingPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -51,7 +51,7 @@
         <CheckBox IsChecked="{Binding AdvancedCombatLog}" Margin="0,0,0,16">
           <StackPanel>
             <TextBlock Text="Advanced combat logging" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-            <TextBlock Style="{StaticResource Hint}" Text="Turns on the game's own Advanced Combat Logging setting (System, Network), the one Warcraft Logs asks for. More detail in the combat log file, for log tools and for features here later. The addon sets it at your next /reload or login, out of combat. Unticking turns it off again."/>
+            <TextBlock Style="{StaticResource Hint}" Text="Turns on the game's own Advanced Combat Logging setting (System, Network): more detail in the combat log file, for log tools and for features here later. The addon sets it at your next /reload or login, out of combat. Unticking turns it off again."/>
           </StackPanel>
         </CheckBox>
         <StackPanel Margin="0,0,0,16" Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">

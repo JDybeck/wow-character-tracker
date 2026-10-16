@@ -1,10 +1,3 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows;
-using System.Windows.Input;
-using System.Windows.Media;
-
 namespace WoWCharacterTracker.ViewModels;
 
 sealed class WebhookRow(WebhookInfo info, bool isActive, bool isExpanded,
@@ -47,6 +40,10 @@ sealed class WebhookRow(WebhookInfo info, bool isActive, bool isExpanded,
     public string EditName { get => editName; set => Set(ref editName, value); }
 
     public void NameChanged() => Raise(nameof(Name));
+
+    // The trash button asks first, right in the row.
+    bool confirmRemove;
+    public bool ConfirmRemove { get => confirmRemove; set => Set(ref confirmRemove, value); }
 
     // https://discord.com/.../1234/AbCdE...WxYz
     public string Masked

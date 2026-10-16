@@ -1,10 +1,3 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows;
-using System.Windows.Input;
-using System.Windows.Media;
-
 namespace WoWCharacterTracker.ViewModels;
 
 // The two screenshot checkboxes for one kind of event.

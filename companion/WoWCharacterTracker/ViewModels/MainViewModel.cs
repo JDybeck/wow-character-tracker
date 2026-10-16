@@ -1,18 +1,18 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media;
 
 namespace WoWCharacterTracker.ViewModels;
 
+// The window: game tabs, app settings, the console, tags, and posting from the character details.
+// The Discord panel has its own view model (Discord), and each game tab one of its own.
 sealed class MainViewModel : Observable
 {
     public MainViewModel(bool backfill, bool justUpdated)
     {
         Backfill = backfill;
         Updates = new UpdatesViewModel(justUpdated);
+        Discord = new DiscordViewModel(this);
         Log.Written += line => OnUi(() =>
         {
             Logs.Insert(0, line);
@@ -28,39 +28,109 @@ sealed class MainViewModel : Observable
             Clipboard.SetText(tab.PostingCodeText);
             Log.Success($"[{tab.Name}] Posting settings copied. Share the code; others click Paste settings to use it.");
         });
-        PastePostingCommand = new RelayCommand(_ =>
-        {
-            if (SelectedFlavor is not { } tab) return;
-            tab.ApplyPostingCode(Clipboard.ContainsText() ? Clipboard.GetText() : "");
-        });
+        PastePostingCommand = new RelayCommand(_ => SelectedFlavor?.ApplyPostingCode(Clipboard.ContainsText() ? Clipboard.GetText() : ""));
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
         AskRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = true);
         CancelRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = false);
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
         PostHighlightCommand = new RelayCommand(p => PostHighlightAsync((HighlightRow)p!));
+        OpenTalentsCommand = new RelayCommand(p => OpenTalents(p as CharacterRow));
+        ToggleCardOptionsCommand = new RelayCommand(_ => ShowCardOptions = !ShowCardOptions);
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
-        TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
-        ToggleAddWebhookCommand = new RelayCommand(_ => { ShowAddWebhook = !ShowAddWebhook; AddWebhookError = ""; });
-        SaveWebhookCommand = new RelayCommand(_ => SaveWebhookAsync());
-        SelectWebhookCommand = new RelayCommand(p => SelectWebhook((WebhookRow)p!));
-        RemoveWebhookCommand = new RelayCommand(p => RemoveWebhook((WebhookRow)p!));
-        RenameWebhookCommand = new RelayCommand(p =>
-        {
-            foreach (var w in Webhooks) w.IsEditing = false;
-            var row = (WebhookRow)p!;
-            row.EditName = row.Name;
-            row.IsEditing = true;
-        });
-        SaveRenameCommand = new RelayCommand(p => SaveRename((WebhookRow)p!));
-        ToggleWebhookOptionsCommand = new RelayCommand(p => ((WebhookRow)p!).IsExpanded = !((WebhookRow)p!).IsExpanded);
-        CancelRenameCommand = new RelayCommand(p => ((WebhookRow)p!).IsEditing = false);
-        TestWebhookCommand = new RelayCommand(_ => SendTestAsync(),
-            _ => SelectedFlavor is not null && Config.ActiveWebhooks(SelectedFlavor.Flavor).Count > 0);
+        TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
     }
 
-    // Like Archon: a tray icon starts at login, the window opens when WoW starts and goes back to the
-    // tray when WoW closes. Off means a normal app you open and close yourself.
+    public bool Backfill { get; }
+    public Config Config { get; private set; } = new();
+    public UpdatesViewModel Updates { get; }
+    public DiscordViewModel Discord { get; }
+
+    public ObservableCollection<LogLine> Logs { get; } = [];
+    public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
+
+    FlavorViewModel? selectedFlavor;
+    public FlavorViewModel? SelectedFlavor
+    {
+        get => selectedFlavor;
+        set
+        {
+            if (!Set(ref selectedFlavor, value) || value is null) return;
+            Theme.Apply(value.Flavor);
+            Config.SelectedFlavor = value.Flavor.Key;
+            Config.Save();
+            Discord.Refresh();
+        }
+    }
+
+    // "characters" or "posting".
+    string page = "characters";
+    public string Page { get => page; set => Set(ref page, value); }
+
+    public ICommand SyncCommand { get; }
+    public ICommand ShowPageCommand { get; }
+    public ICommand ResetPostingCommand { get; }
+    public ICommand CopyPostingCommand { get; }
+    public ICommand PastePostingCommand { get; }
+    public ICommand RemoveCharacterCommand { get; }
+    public ICommand AskRemoveCommand { get; }
+    public ICommand CancelRemoveCommand { get; }
+    public ICommand PostCharacterCommand { get; }
+    public ICommand PostHighlightCommand { get; }
+    public ICommand OpenTalentsCommand { get; }
+    public ICommand ToggleCardOptionsCommand { get; }
+    public ICommand AddTagCommand { get; }
+    public ICommand DeleteTagCommand { get; }
+    public ICommand TestKindCommand { get; }
+
+    public async Task StartAsync()
+    {
+        Config = Config.Load();
+        Log.Info("Character Tracker started.");
+        Discord.ShowAddWebhook = Config.Webhooks.Count == 0;
+
+        // On by default, so tracking is running before you start the game. Re-applied every start
+        // so the startup entry follows the exe if it was moved.
+        if (Config.OpenWithWow is null)
+        {
+            Config.OpenWithWow = true;
+            Config.Save();
+        }
+        Autostart.Apply(Config.OpenWithWow.Value);
+        Raise(nameof(OpenWithWow));
+
+        foreach (var f in Flavors.All) FlavorTabs.Add(new FlavorViewModel(this, f));
+        SelectedFlavor = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
+
+        foreach (var tab in FlavorTabs) tab.Start();
+        if (Config.Webhooks.Count == 0)
+            Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
+        await Task.WhenAll(FlavorTabs.Select(t => t.CheckDiscordAsync()));
+
+        // Test runs stay off the network for this, unless they fake an old version to test it.
+        if (Config.IsTest && Environment.GetEnvironmentVariable("CHARACTERTRACKER_FAKE_VERSION") is null) return;
+        await Updates.StartAsync();
+    }
+
+    public void Shutdown()
+    {
+        foreach (var tab in FlavorTabs) tab.Shutdown();
+    }
+
+    public static void OnUi(Action a)
+    {
+        var d = Application.Current?.Dispatcher;
+        if (d is null) return;
+        if (d.CheckAccess()) a(); else d.BeginInvoke(a);
+    }
+
+    // --- app settings (the gear in the header) ---
+
+    bool showSettings;
+    public bool ShowSettings { get => showSettings; set => Set(ref showSettings, value); }
+
+    // A tray icon starts at login, the window opens when WoW starts and goes back to the tray when
+    // WoW closes. Off means a normal app you open and close yourself.
     public bool OpenWithWow
     {
         get => Config.OpenWithWow ?? false;
@@ -87,13 +157,6 @@ sealed class MainViewModel : Observable
         }
     }
 
-    // The gear menu in the header.
-    bool showSettings;
-    public bool ShowSettings { get => showSettings; set => Set(ref showSettings, value); }
-
-    public bool Backfill { get; }
-    public Config Config { get; private set; } = new();
-
     // Shows the made-up Forever characters (Zeb, Fågelmannen, Goggo) for testing. Not saved.
     bool showTestCharacters;
     public bool ShowTestCharacters
@@ -103,17 +166,17 @@ sealed class MainViewModel : Observable
         {
             if (!Set(ref showTestCharacters, value)) return;
             foreach (var tab in FlavorTabs) tab.Refresh();
-            if (value)
-            {
-                if (FlavorTabs.FirstOrDefault(t => t.Flavor == Flavors.Forever) is { } forever) SelectedFlavor = forever;
-                Log.Info("Test characters on (Forever tab). They're never posted on their own, but Test buttons and Post to Discord work with them.");
-            }
+            if (!value) return;
+            if (FlavorTabs.FirstOrDefault(t => t.Flavor == Flavors.Forever) is { } forever) SelectedFlavor = forever;
+            Log.Info("Test characters on (Forever tab). They're never posted on their own, but Test buttons and Post to Discord work with them.");
         }
     }
 
-    // Sync now: reads the game's saved data again and posts what's new; the button spins meanwhile.
+    // --- Sync now: reads the game's saved data again and posts what's new; the button spins meanwhile ---
+
     bool isSyncing;
     public bool IsSyncing { get => isSyncing; set => Set(ref isSyncing, value); }
+
     async Task SyncNowAsync(object? _)
     {
         if (SelectedFlavor?.Tracker is not { } tracker) return;
@@ -130,63 +193,12 @@ sealed class MainViewModel : Observable
         }
     }
 
-    // The update check, banner and install.
-    public UpdatesViewModel Updates { get; }
-
-    public ObservableCollection<LogLine> Logs { get; } = [];
-    public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
-    public ObservableCollection<WebhookRow> Webhooks { get; } = [];
-
-    FlavorViewModel? selectedFlavor;
-    public FlavorViewModel? SelectedFlavor
+    public void CheckDiscordAll()
     {
-        get => selectedFlavor;
-        set
-        {
-            if (!Set(ref selectedFlavor, value) || value is null) return;
-            Theme.Apply(value.Flavor);
-            Config.SelectedFlavor = value.Flavor.Key;
-            Config.Save();
-            RefreshWebhooks();
-        }
+        foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync();
     }
 
-    // "characters" or "posting".
-    string page = "characters";
-    public string Page { get => page; set => Set(ref page, value); }
-
-    bool showAddWebhook;
-    public bool ShowAddWebhook { get => showAddWebhook; set => Set(ref showAddWebhook, value); }
-    public bool HasWebhooks => Webhooks.Count > 0;
-    string newWebhookName = "";
-    public string NewWebhookName { get => newWebhookName; set => Set(ref newWebhookName, value); }
-    string newWebhookUrl = "";
-    public string NewWebhookUrl { get => newWebhookUrl; set => Set(ref newWebhookUrl, value); }
-    string addWebhookError = "";
-    public string AddWebhookError { get => addWebhookError; set => Set(ref addWebhookError, value); }
-
-    public ICommand SyncCommand { get; }
-    public ICommand ShowPageCommand { get; }
-    public ICommand ResetPostingCommand { get; }
-    public ICommand CopyPostingCommand { get; }
-    public ICommand PastePostingCommand { get; }
-    public ICommand RemoveCharacterCommand { get; }
-    public ICommand AskRemoveCommand { get; }
-    public ICommand CancelRemoveCommand { get; }
-    public ICommand PostCharacterCommand { get; }
-    public ICommand PostHighlightCommand { get; }
-
-    // Opens the character's build in Wowhead's talent calculator (retail loadout strings).
-    public ICommand OpenTalentsCommand => new RelayCommand(p =>
-    {
-        if (p is not CharacterRow { HasTalentLink: true } c) return;
-        // Forever: wowhead.com/forever/talent-calc/<class>/<points per talent, per tree>, like Wowhead's
-        // classic calculators. Retail: the game's own loadout code.
-        var url = SelectedFlavor?.Flavor == Flavors.Forever
-            ? $"https://www.wowhead.com/forever/talent-calc/{c.ClassFile.ToLowerInvariant()}/{c.TalentCalc}".TrimEnd('/')
-            : $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(c.TalentExport)}";
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-    });
+    // --- the character card (Post to Discord) ---
 
     // What the character card includes (the gear next to Post to Discord). Same for every character.
     public static readonly (string Key, string Label)[] CardParts =
@@ -208,166 +220,17 @@ sealed class MainViewModel : Observable
 
     bool showCardOptions;
     public bool ShowCardOptions { get => showCardOptions; set => Set(ref showCardOptions, value); }
-    public ICommand ToggleCardOptionsCommand => new RelayCommand(_ => ShowCardOptions = !ShowCardOptions);
-    public ICommand AddTagCommand { get; }
-    public ICommand TestKindCommand { get; }
-    public ICommand DeleteTagCommand { get; }
-    public ICommand ToggleAddWebhookCommand { get; }
-    public ICommand SaveWebhookCommand { get; }
-    public ICommand SelectWebhookCommand { get; }
-    public ICommand RemoveWebhookCommand { get; }
-    public ICommand RenameWebhookCommand { get; }
-    public ICommand SaveRenameCommand { get; }
-    public ICommand ToggleWebhookOptionsCommand { get; }
-    public ICommand CancelRenameCommand { get; }
-    public ICommand TestWebhookCommand { get; }
 
-    public async Task StartAsync()
+    // Opens the character's build in Wowhead's talent calculator.
+    void OpenTalents(CharacterRow? c)
     {
-        Config = Config.Load();
-        Log.Info("Character Tracker started.");
-        ShowAddWebhook = Config.Webhooks.Count == 0;
-
-        // On by default, so tracking is running before you start the game. Re-applied every start
-        // so the startup entry follows the exe if it was moved.
-        if (Config.OpenWithWow is null)
-        {
-            Config.OpenWithWow = true;
-            Config.Save();
-        }
-        Autostart.Apply(Config.OpenWithWow.Value);
-        Raise(nameof(OpenWithWow));
-
-        foreach (var f in Flavors.All) FlavorTabs.Add(new FlavorViewModel(this, f));
-        SelectedFlavor = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
-
-        foreach (var tab in FlavorTabs) tab.Start();
-        if (Config.Webhooks.Count == 0)
-            Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
-        await Task.WhenAll(FlavorTabs.Select(t => t.CheckDiscordAsync()));
-
-        // Test runs stay off the network for this, unless they fake an old version to test it.
-        if (Config.IsTest && Environment.GetEnvironmentVariable("CHARACTERTRACKER_FAKE_VERSION") is null) return;
-        await Updates.StartAsync();
-    }
-
-    void RefreshWebhooks()
-    {
-        var expanded = Webhooks.Where(w => w.IsExpanded).Select(w => w.Info.Id).ToHashSet();
-        Webhooks.Clear();
-        foreach (var w in Config.Webhooks)
-        {
-            var games = FlavorTabs.Select(t => new ToggleOption(t.Name, Config.IsActive(t.Flavor, w), on =>
-            {
-                Config.SetActive(t.Flavor, w, on);
-                WebhookOptionsChanged();
-            })).ToList();
-            var rulesets = WebhookInfo.AllRulesets.Select(r => new ToggleOption(r, w.ForeverRulesets?.Contains(r) ?? true, on =>
-            {
-                w.ForeverRulesets ??= [.. WebhookInfo.AllRulesets];
-                w.ForeverRulesets.Remove(r);
-                if (on) w.ForeverRulesets.Add(r);
-                if (w.ForeverRulesets.Count == WebhookInfo.AllRulesets.Length) w.ForeverRulesets = null; // all again
-                WebhookOptionsChanged();
-            })).ToList();
-            var tags = Config.Tags.Select(tag => new ToggleOption(tag, w.Tags?.Contains(tag) ?? false, on =>
-            {
-                w.Tags ??= [];
-                w.Tags.Remove(tag);
-                if (on) w.Tags.Add(tag);
-                if (w.Tags.Count == 0) w.Tags = null; // back to every character
-                WebhookOptionsChanged();
-            })).ToList();
-            var active = SelectedFlavor is not null && Config.IsActive(SelectedFlavor.Flavor, w);
-            Webhooks.Add(new WebhookRow(w, active, expanded.Contains(w.Id), games, rulesets, tags));
-        }
-        Raise(nameof(HasWebhooks));
-        CommandManager.InvalidateRequerySuggested();
-    }
-
-    void WebhookOptionsChanged()
-    {
-        Config.Save();
-        // Rebuild after the click has finished, so the chip being clicked isn't replaced mid-click.
-        Application.Current.Dispatcher.BeginInvoke(() =>
-        {
-            RefreshWebhooks();
-            foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync();
-        });
-    }
-
-    async Task SaveWebhookAsync()
-    {
-        AddWebhookError = "";
-        var url = NewWebhookUrl.Trim();
-        if (!DiscordWebhook.LooksLikeWebhook(url))
-        {
-            AddWebhookError = "That doesn't look like a webhook link. It starts with https://discord.com/api/webhooks/";
-            return;
-        }
-
-        var (discordName, problem) = await DiscordWebhook.CheckAsync(url);
-        if (discordName is null)
-        {
-            AddWebhookError = problem!;
-            return;
-        }
-
-        var info = new WebhookInfo { Name = NewWebhookName.Trim() is { Length: > 0 } n ? n : discordName, Url = url };
-        Config.Webhooks.Add(info);
-        // On for this tab, and for any tab that has nothing to post to yet.
-        foreach (var tab in FlavorTabs)
-            if (tab == SelectedFlavor || Config.ActiveWebhooks(tab.Flavor).Count == 0)
-                Config.SetActive(tab.Flavor, info, true);
-        Config.Save();
-        RefreshWebhooks();
-
-        NewWebhookName = "";
-        NewWebhookUrl = "";
-        ShowAddWebhook = false;
-        Log.Success($"Added webhook \"{info.Name}\". Use Send test to see a post.");
-        await Task.WhenAll(FlavorTabs.Select(t => t.CheckDiscordAsync()));
-        foreach (var tab in FlavorTabs)
-            if (tab.Tracker is not null) await tab.Tracker.SyncAsync(); // post anything that was waiting
-    }
-
-    // Clicking a webhook turns it on or off for the tab you're on.
-    void SelectWebhook(WebhookRow row)
-    {
-        if (SelectedFlavor is null || row.IsEditing) return;
-        var on = !row.IsActive;
-        Config.SetActive(SelectedFlavor.Flavor, row.Info, on);
-        Config.Save();
-        RefreshWebhooks();
-        Log.Info($"[{SelectedFlavor.Name}] " + (on ? $"Now also posting to \"{row.Name}\"." : $"Stopped posting to \"{row.Name}\"."));
-        _ = SelectedFlavor.CheckDiscordAsync();
-    }
-
-    void SaveRename(WebhookRow row)
-    {
-        var name = row.EditName.Trim();
-        row.IsEditing = false;
-        if (name.Length == 0 || name == row.Info.Name) return;
-        var old = row.Info.Name;
-        row.Info.Name = name;
-        Config.Save();
-        row.NameChanged();
-        Log.Info($"Renamed webhook \"{old}\" to \"{name}\".");
-        foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync(); // the Discord check shows the name
-    }
-
-    void RemoveWebhook(WebhookRow row)
-    {
-        var answer = MessageBox.Show($"Remove the webhook \"{row.Name}\"?", "Character Tracker",
-            MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (answer != MessageBoxResult.Yes) return;
-
-        Config.Webhooks.Remove(row.Info);
-        foreach (var tab in FlavorTabs) Config.For(tab.Flavor).ActiveWebhookIds?.Remove(row.Info.Id);
-        Config.Save();
-        RefreshWebhooks();
-        Log.Info($"Removed webhook \"{row.Name}\".");
-        foreach (var tab in FlavorTabs) _ = tab.CheckDiscordAsync();
+        if (c is not { HasTalentLink: true }) return;
+        // Forever: wowhead.com/forever/talent-calc/<class>/<points per talent, per tree>, like Wowhead's
+        // classic calculators. Retail: the game's own loadout code.
+        var url = SelectedFlavor?.Flavor == Flavors.Forever
+            ? $"https://www.wowhead.com/forever/talent-calc/{c.ClassFile.ToLowerInvariant()}/{c.TalentCalc}".TrimEnd('/')
+            : $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(c.TalentExport)}";
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
     }
 
     // --- tags ---
@@ -397,39 +260,27 @@ sealed class MainViewModel : Observable
         Log.Info($"Tagged {c.Name} as \"{tag}\". Webhooks can be set to post only for tags, under the gear.");
     }
 
-    // A tag nobody uses anymore can be deleted from the webhook options.
+    // "Delete this tag everywhere" in a tag chip's right-click menu (webhook options).
     void DeleteTag(string tag)
     {
-        var answer = MessageBox.Show($"Delete the tag \"{tag}\" from all characters and webhooks?", "Character Tracker",
-            MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (answer != MessageBoxResult.Yes) return;
         Config.Tags.Remove(tag);
         foreach (var list in Config.CharacterTags.Values) list.Remove(tag);
         foreach (var w in Config.Webhooks) w.Tags?.Remove(tag);
         Config.Save();
         RefreshTags();
+        Log.Info($"Deleted the tag \"{tag}\" from all characters and webhooks.");
     }
 
     void RefreshTags()
     {
         foreach (var tab in FlavorTabs)
             foreach (var c in tab.Characters) c.TagOptions = TagOptionsFor(c.Guid);
-        RefreshWebhooks();
+        Discord.Refresh();
     }
 
-    // Sends the character's card to this tab's webhooks (on Forever, only those that take its
-    // ruleset, and only webhooks that post for its tags).
-    async Task PostCharacterAsync(CharacterRow c)
-    {
-        if (SelectedFlavor is not { } tab) return;
-        var hooks = WebhooksFor(tab, c);
-        if (hooks.Count == 0) return;
-        var hidden = Config.CardHidden.ToList();
-        var card = await CardImage.RenderAsync(c, tab.Flavor, hidden, Config.For(tab.Flavor).NameStyle);
-        foreach (var w in hooks)
-            if (await new DiscordPoster(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostCharacterAsync(c, hidden, card))
-                Log.Success($"[{tab.Name}] Posted {c.Name}'s character card to \"{w.Name}\".");
-    }
+    // --- posting from the app ---
+
+    public DiscordPoster PosterFor(FlavorViewModel tab, WebhookInfo w) => new(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle);
 
     // The tab's webhooks that take this character: on Forever only those for its ruleset, and only
     // webhooks that post for its tags. Says so in the console when there are none.
@@ -446,24 +297,27 @@ sealed class MainViewModel : Observable
         return hooks;
     }
 
+    // Sends the character's card to the webhooks that take this character.
+    async Task PostCharacterAsync(CharacterRow c)
+    {
+        if (SelectedFlavor is not { } tab) return;
+        var hooks = WebhooksFor(tab, c);
+        if (hooks.Count == 0) return;
+        var hidden = Config.CardHidden.ToList();
+        var card = await CardImage.RenderAsync(c, tab.Flavor, hidden, Config.For(tab.Flavor).NameStyle);
+        foreach (var w in hooks)
+            if (await PosterFor(tab, w).PostCharacterAsync(c, hidden, card))
+                Log.Success($"[{tab.Name}] Posted {c.Name}'s character card to \"{w.Name}\".");
+    }
+
     // Posts one highlight (a loot, boss kill, mount...) from the character details, to the same
     // webhooks a character card would go to.
     async Task PostHighlightAsync(HighlightRow h)
     {
         if (SelectedFlavor is not { } tab || h.Source is not { } e || tab.SelectedCharacter is not { } c) return;
-        var hooks = WebhooksFor(tab, c);
-        if (hooks.Count == 0) return;
-        foreach (var w in hooks)
-            if (await new DiscordPoster(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostAsync(e))
+        foreach (var w in WebhooksFor(tab, c))
+            if (await PosterFor(tab, w).PostAsync(e))
                 Log.Success($"[{tab.Name}] Posted {h.Text.Trim()} to \"{w.Name}\".");
-    }
-
-    async Task SendTestAsync()
-    {
-        if (SelectedFlavor is not { } tab) return;
-        foreach (var w in Config.ActiveWebhooks(tab.Flavor))
-            if (await new DiscordPoster(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostAsync(tab.SampleEntry(), isTest: true))
-                Log.Success($"[{tab.Name}] Test post sent to \"{w.Name}\". Check your Discord channel.");
     }
 
     // The Test buttons on the "What gets posted" page: a sample of that kind of post.
@@ -478,19 +332,7 @@ sealed class MainViewModel : Observable
         }
         var sample = tab.SampleEntry(kind);
         foreach (var w in hooks)
-            if (await new DiscordPoster(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle).PostAsync(sample, isTest: true))
+            if (await PosterFor(tab, w).PostAsync(sample, isTest: true))
                 Log.Success($"[{tab.Name}] Test {kind} post sent to \"{w.Name}\".");
-    }
-
-    public static void OnUi(Action a)
-    {
-        var d = Application.Current?.Dispatcher;
-        if (d is null) return;
-        if (d.CheckAccess()) a(); else d.BeginInvoke(a);
-    }
-
-    public void Shutdown()
-    {
-        foreach (var tab in FlavorTabs) tab.Shutdown();
     }
 }

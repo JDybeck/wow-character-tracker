@@ -1,9 +1,5 @@
-using System.Collections.Concurrent;
 using System.Globalization;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 namespace WoWCharacterTracker.Services.LiveChannel;
 
