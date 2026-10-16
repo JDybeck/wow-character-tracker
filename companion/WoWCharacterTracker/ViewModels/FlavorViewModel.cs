@@ -126,6 +126,7 @@ sealed class FlavorViewModel : Observable
     }
 
     public bool HideChatInShots { get => Settings.HideChatInShots; set { Settings.HideChatInShots = value; Changed(); } }
+    public bool HideUiInShots { get => Settings.HideUiInShots; set { Settings.HideUiInShots = value; Changed(); } }
 
     // Name in posts (Forever has surnames): three chips that act like radio buttons.
     public bool HasSurnames => Flavor == Flavors.Forever;
@@ -219,7 +220,7 @@ sealed class FlavorViewModel : Observable
         foreach (var p in new[] { nameof(PostLevels), nameof(LevelSplit), nameof(LevelEveryBefore), nameof(LevelEveryAfter),
                      nameof(PostRare), nameof(PostEpic), nameof(PostMounts), nameof(PostBosses), nameof(PostDeaths), nameof(LevelPreview),
                      nameof(PostMaxLevel), nameof(PostDuels), nameof(PostMakgora), nameof(PostMPlus), nameof(PostPvp), nameof(MPlusStepsText),
-                     nameof(PvpStepsText), nameof(HideChatInShots), nameof(SkipBossGroupRegex), nameof(SkipRegexProblem),
+                     nameof(PvpStepsText), nameof(HideChatInShots), nameof(HideUiInShots), nameof(SkipBossGroupRegex), nameof(SkipRegexProblem),
                      nameof(NameFull), nameof(NameFirst), nameof(NameLast) })
             Raise(p);
     }

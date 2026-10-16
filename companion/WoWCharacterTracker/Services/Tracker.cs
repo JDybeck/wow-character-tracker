@@ -296,7 +296,7 @@ sealed class Tracker : IDisposable
         "makgora" => $"{e.Char} won a Mak'gora against {e.Opponent}",
         "mplus" => $"{e.Char} reached {e.Step} Mythic+ rating ({e.Rating})",
         "pvp" => $"{e.Char} reached {e.Step} in {e.Bracket} ({e.Rating})",
-        _ => $"{e.Char} dinged level {e.Level} ({Format.Duration(e.Seconds)})",
+        _ => e.Seconds > 0 ? $"{e.Char} dinged level {e.Level} ({Format.Duration(e.Seconds)})" : $"{e.Char} dinged level {e.Level}",
     };
 
     // Merges every account's file plus anything that came in live. A character only lives on one

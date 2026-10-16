@@ -16,7 +16,7 @@ static class PostingCode
         bool PostRare, bool PostEpic, bool PostMounts, bool PostBosses, bool PostDeaths,
         bool PostDuels, bool PostMakgora, bool PostMPlus, bool PostPvp,
         List<int> MPlusSteps, List<int> PvpSteps, string SkipBossGroupRegex, string NameStyle,
-        bool HideChatInShots, Dictionary<string, bool> Screenshot, Dictionary<string, bool> PostScreenshot);
+        bool HideChatInShots, Dictionary<string, bool> Screenshot, Dictionary<string, bool> PostScreenshot, bool HideUiInShots = false);
 
     public static string Export(FlavorSettings s, Flavor flavor)
     {
@@ -25,7 +25,7 @@ static class PostingCode
             s.PostRare, s.PostEpic, s.PostMounts, s.PostBosses, s.PostDeaths,
             s.PostDuels, s.PostMakgora, s.PostMPlus, s.PostPvp,
             s.MPlusSteps, s.PvpSteps, s.SkipBossGroupRegex, s.NameStyle,
-            s.HideChatInShots, s.Screenshot, s.PostScreenshot);
+            s.HideChatInShots, s.Screenshot, s.PostScreenshot, s.HideUiInShots);
         return Prefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(dto)));
     }
 
@@ -55,6 +55,7 @@ static class PostingCode
         target.SkipBossGroupRegex = d.SkipBossGroupRegex ?? "";
         target.NameStyle = d.NameStyle is "first" or "last" ? d.NameStyle : "full";
         target.HideChatInShots = d.HideChatInShots;
+        target.HideUiInShots = d.HideUiInShots;
         target.Screenshot = new(d.Screenshot ?? []);
         target.PostScreenshot = new(d.PostScreenshot ?? []);
         return (d.Game, null);

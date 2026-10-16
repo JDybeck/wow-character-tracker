@@ -42,6 +42,12 @@
             <TextBlock Style="{StaticResource Hint}" Text="The chat windows are hidden for the moment the screenshot is taken, then come right back."/>
           </StackPanel>
         </CheckBox>
+        <CheckBox IsChecked="{Binding HideUiInShots}" Margin="0,0,0,16">
+          <StackPanel>
+            <TextBlock Text="Hide the whole interface in screenshots (like Alt+Z)" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+            <TextBlock Style="{StaticResource Hint}" Text="Just your character and the world in the picture: action bars, minimap, chat and frames are hidden for a split second, then come right back. Nameplates stay."/>
+          </StackPanel>
+        </CheckBox>
         <StackPanel Margin="0,0,0,16" Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
           <TextBlock Text="Name in posts" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
           <TextBlock Style="{StaticResource Hint}" Text="Forever characters have a surname. Pick what posts and character cards call them." Margin="0,2,0,8"/>

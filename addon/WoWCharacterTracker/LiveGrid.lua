@@ -201,7 +201,7 @@ local hiddenChat
 
 local function hideChat()
   local s = WoWCharacterTrackerSettings
-  if not (s and s.hideChat) or hiddenChat then return end
+  if not (s and (s.hideChat or s.hideUI)) or hiddenChat then return end
   hiddenChat = {}
   local function fade(f)
     if f and f.GetAlpha and f.SetAlpha then
@@ -214,6 +214,9 @@ local function hideChat()
     fade(_G["ChatFrame" .. i .. "ButtonFrame"])
   end
   for _, name in ipairs(CHAT_EXTRAS) do fade(_G[name]) end
+  -- The whole interface, like Alt+Z: everything Blizzard draws hangs off UIParent. Alpha only, so
+  -- this is fine in combat too (nameplates belong to the world and stay).
+  if s.hideUI then fade(UIParent) end
 end
 
 local function showChat()

@@ -99,12 +99,14 @@ function ns.offerPost(level)
   StaticPopup_Show("CHARACTERTRACKER_POST", level)
 end
 
+local getGroup -- below, with the boss kills
+
 function ns.recordLevel(guid, level, seconds, played)
   local e = ns.characterInfo()
   e.kind = "level"
   e.id = guid .. ":" .. level
   e.level = level -- UnitLevel can lag right after the ding
-  e.seconds = seconds
+  e.seconds = seconds -- nil when the level's start isn't known
   -- Max level gets a big post (always, whatever the level rule says).
   local maxLevel = (GetMaxPlayerLevel and GetMaxPlayerLevel()) or MAX_PLAYER_LEVEL
   if maxLevel and level >= maxLevel then
@@ -118,7 +120,7 @@ end
 
 -- The other people in the party: "Name~level~CLASSFILE~Class~Race~Realm" per member, joined by
 -- commas. Raids list only how many there are, since 40 names don't fit a post.
-local function getGroup()
+getGroup = function()
   if not IsInGroup or not IsInGroup() then return nil, 1 end
   local size = GetNumGroupMembers and GetNumGroupMembers() or 1
   if IsInRaid and IsInRaid() then return nil, size end

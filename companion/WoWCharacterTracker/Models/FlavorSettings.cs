@@ -69,6 +69,7 @@ class FlavorSettings
     public Dictionary<string, bool> Screenshot { get; set; } = [];
     public Dictionary<string, bool> PostScreenshot { get; set; } = [];
     public bool HideChatInShots { get; set; } = true; // chat made see-through while a screenshot is taken
+    public bool HideUiInShots { get; set; } // the whole interface hidden for the shot, like Alt+Z
 
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];

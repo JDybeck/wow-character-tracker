@@ -51,8 +51,11 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
     end
 
   elseif event == "PLAYER_LEVEL_UP" then
-    ns.pendingLevel = (...) -- the level just reached
+    local level = (...) -- the level just reached
+    ns.pendingLevel = level
     ns.requestPlayed()
+    -- The answer can get lost (busy server, loading screen). Ask once more if it hasn't come.
+    C_Timer.After(15, function() if ns.pendingLevel == level then ns.requestPlayed() end end)
 
   elseif event == "PLAYER_REGEN_ENABLED" then
     ns.processShots() -- data grids held back during combat
@@ -96,6 +99,9 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
     -- the game answered the ding's /played request, which used to lose that level.
     local level = ns.pendingLevel or UnitLevel("player")
     local startLevel = WoWCharacterTrackerDB.startLevel[guid]
+    -- Level 1 always starts at 0 played, so 1 to 2 never needs a baseline (a brand new character's
+    -- login answer can go missing, and the addon may have been installed after creating it).
+    if level == 2 and startLevel ~= 2 then oldStart, startLevel = 0, 1 end
     local finished = oldStart and newStart >= oldStart
       and (startLevel == level - 1 or (startLevel == nil and ns.pendingLevel ~= nil))
     local id = guid .. ":" .. level
@@ -108,8 +114,11 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
       ns.recordLevel(guid, level, seconds, total)
       ns.say(string.format("Level %d took %s.", level - 1, ns.formatDuration(seconds)))
       if ns.pendingLevel then ns.offerPost(level) end
-    elseif ns.pendingLevel and not finished then
-      ns.say("No baseline for the previous level (addon was installed mid-level), skipping.")
+    elseif ns.pendingLevel and not known then
+      -- No starting point for the level (the addon came in mid-level): still log the ding, without a time.
+      ns.recordLevel(guid, level, nil, total)
+      ns.say(string.format("Level %d logged. Its time is unknown (no starting point for level %d yet).", level, level - 1))
+      ns.offerPost(level)
     end
     ns.pendingLevel = nil
 

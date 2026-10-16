@@ -72,7 +72,8 @@ sealed class EventEmbeds(Flavor flavor)
     // The owner's format: who dinged, how long it took, played, where, professions, talents.
     static (string, List<string>) LevelText(Entry e)
     {
-        var lines = new List<string> { $"{e.Level - 1} to {e.Level} took **{Format.Duration(e.Seconds)}**." };
+        var lines = new List<string>();
+        if (e.Seconds > 0) lines.Add($"{e.Level - 1} to {e.Level} took **{Format.Duration(e.Seconds)}**."); // unknown when the addon came in mid-level
         if (e.Played > 0) lines.Add($"Total played: **{Format.Played(e.Played)}**.");
         if (e.Zone.Length > 0) lines.Add($"They dinged in **{e.Zone}**.");
         AddProfessionsAndTalents(e, lines);

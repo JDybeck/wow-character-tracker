@@ -67,6 +67,7 @@ static partial class AddonInstaller
                   + $"  screenshot = {{ {shots} }},\n"
                   + $"  post = {{ {post} }},\n"
                   + $"  hideChat = {B(s.HideChatInShots)},\n"
+                  + $"  hideUI = {B(s.HideUiInShots)},\n"
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
         if (!File.Exists(file) || File.ReadAllText(file) != lua) File.WriteAllText(file, lua);

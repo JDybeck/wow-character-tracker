@@ -197,7 +197,7 @@ sealed class CharacterRow : Observable
                 Stats = Newest(guid, c => c.Stats),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
-                    .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", Format.Duration(e.Seconds), e.Zone, When(e.At)))
+                    .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", e.Seconds > 0 ? Format.Duration(e.Seconds) : "?", e.Zone, When(e.At)))
                     .ToList(),
                 Highlights = all
                     .Where(e => e.Kind is "boss" or "loot" or "mount" or "death" or "duel" or "makgora" or "mplus" or "pvp")
