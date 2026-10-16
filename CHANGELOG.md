@@ -4,6 +4,10 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.11.0
 
+- Fixed the "blocked from an action" error at login on Forever: the addon no longer listens to the combat log, which newer clients keep from addons. Hardcore death posts don't name the killer anymore because of that.
+- Fixed the class showing twice ("Warrior Warrior") for characters without a spec.
+- The Wowhead talent link shows right after login, and Forever's goes to Wowhead's Forever calculator.
+
 - The game tabs show the game's logo: the current expansion (Midnight) for Retail and Forever's own. They're downloaded from Warcraft Wiki the first time and kept on your PC.
 
 - What gets posted is laid out in three columns: General, PvE and PvP.

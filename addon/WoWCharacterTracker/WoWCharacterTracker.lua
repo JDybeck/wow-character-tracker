@@ -12,6 +12,18 @@
 
 local ADDON = "WoWCharacterTracker"
 
+-- "Blocked from an action" reports first, with their own frame and handler, so even something
+-- that goes wrong while the rest of this file loads gets caught. The game names the function.
+local blockedSeen = {}
+local noteBlockedLater -- set once the full recorder below exists
+local blockedFrame = CreateFrame("Frame")
+blockedFrame:SetScript("OnEvent", function(_, event, addon, func)
+  if addon == ADDON and noteBlockedLater then noteBlockedLater(event .. " " .. tostring(func))
+  elseif addon == ADDON then blockedSeen[#blockedSeen + 1] = event .. " " .. tostring(func) end
+end)
+pcall(blockedFrame.RegisterEvent, blockedFrame, "ADDON_ACTION_BLOCKED")
+pcall(blockedFrame.RegisterEvent, blockedFrame, "ADDON_ACTION_FORBIDDEN")
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
@@ -22,7 +34,8 @@ frame:RegisterEvent("PLAYER_LOGOUT")
 frame:RegisterEvent("ENCOUNTER_END")
 frame:RegisterEvent("CHAT_MSG_LOOT")
 frame:RegisterEvent("PLAYER_DEAD")
-frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+-- No COMBAT_LOG_EVENT_UNFILTERED: newer clients (Midnight, and Forever built on it) block addons
+-- from the combat log, and registering for it is itself "blocked from an action" at login.
 frame:RegisterEvent("MERCHANT_SHOW")
 frame:RegisterEvent("MERCHANT_CLOSED")
 pcall(frame.RegisterEvent, frame, "NEW_MOUNT_ADDED") -- clients with a mount journal
@@ -38,8 +51,6 @@ pcall(frame.RegisterEvent, frame, "PLAYER_GUILD_UPDATE")
 frame:RegisterEvent("CHAT_MSG_SYSTEM") -- duels and Mak'gora results
 pcall(frame.RegisterEvent, frame, "CHALLENGE_MODE_COMPLETED")
 pcall(frame.RegisterEvent, frame, "PVP_RATED_STATS_UPDATE")
-pcall(frame.RegisterEvent, frame, "ADDON_ACTION_BLOCKED")
-pcall(frame.RegisterEvent, frame, "ADDON_ACTION_FORBIDDEN")
 
 -- What the addon did last, saved with any "blocked from an action" report.
 local lastDoing = "nothing yet"
@@ -65,6 +76,9 @@ local function noteBlocked(what)
   if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage("|cffff6060[Character Tracker] Blocked:|r " .. line) end
   flushBlocked()
 end
+noteBlockedLater = noteBlocked
+for _, s in ipairs(blockedSeen) do noteBlocked(s .. " (while loading)") end
+blockedSeen = {}
 
 -- Backup in case the events don't reach us: the game shows this popup for blocked actions.
 if hooksecurefunc and StaticPopup_Show then
@@ -81,7 +95,6 @@ local pendingLevel  -- set on level up, cleared when /played data arrives
 local popupLevel    -- a level waiting for the "post now" popup until combat ends
 local suppressChat = false
 local lastPlayed, lastPlayedAt -- latest /played total and when it came, to estimate played later
-local lastAttacker  -- who last hurt us, for hardcore death posts
 local recentBosses = {} -- [name] = time, so ENCOUNTER_END and the combat log don't both record a kill
 local merchantOpen = false -- a mount that shows up while a vendor is open was bought
 local snapshotTicker  -- refreshes the character snapshot every few minutes
@@ -507,6 +520,9 @@ local function saveSnapshot()
     -- Guild: "" means no guild (keep that), nil means not known yet.
     if info.guild == nil then info.guild = old.guild end
   end
+  -- Older versions stored the class as Forever's "spec" and a role that means nothing there.
+  if info.spec == info.class then info.spec = nil end
+  if type(GetSpecialization) ~= "function" then info.role = nil end
   WoWCharacterTrackerDB.chars[guid] = info
 end
 
@@ -519,10 +535,11 @@ local SHORT = {
   race = "e", raceFile = "E", sex = "x", hardcore = "h", ruleset = "u", seconds = "d", played = "y",
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
-  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D",
+  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J",
 }
 
--- Too long for the data grid; these only reach the app through the saved file.
+-- Too long for the data grid; these only reach the app through the saved file. (The talent
+-- code also rides along with the check-in after login, so the Wowhead link shows right away.)
 local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true }
 
 -- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
@@ -530,7 +547,7 @@ local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true }
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
-    if type(v) ~= "table" and v ~= "" and v ~= false and not SAVED_ONLY[k] then
+    if type(v) ~= "table" and v ~= "" and v ~= false and (not SAVED_ONLY[k] or (k == "talentExport" and t.kind == "snapshot")) then
       if v == true then v = 1 end
       if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
       if k == "sex" then v = (v == "female") and "f" or "m" end
@@ -1056,31 +1073,11 @@ local function recordDeath()
   e.kind = "death"
   e.played = playedNow()
   e.gold = GetMoney and GetMoney() or 0 -- copper
-  e.killer = lastAttacker
+  -- (No killer: that came from the combat log, which newer clients keep from addons.)
   e.at = time()
   e.id = string.format("%s:death:%d", e.guid, e.at)
   addEvent(e)
   saveSnapshot()
-end
-
-local DAMAGE_EVENTS = {
-  SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true,
-  SPELL_PERIODIC_DAMAGE = true, ENVIRONMENTAL_DAMAGE = true,
-}
-
-local function onCombatLog()
-  if not CombatLogGetCurrentEventInfo then return end
-  local _, sub, _, _, sourceName, _, _, destGUID, destName, _, _, envType = CombatLogGetCurrentEventInfo()
-  if DAMAGE_EVENTS[sub] and destGUID == UnitGUID("player") then
-    if sub == "ENVIRONMENTAL_DAMAGE" then
-      lastAttacker = envType and (envType:sub(1, 1) .. envType:sub(2):lower()) or nil -- "Falling", "Lava"...
-    else
-      lastAttacker = sourceName
-    end
-  elseif sub == "UNIT_DIED" and destName and END_BOSSES[destName] then
-    local instanceType = GetInstanceInfo and select(2, GetInstanceInfo())
-    if instanceType == "party" or instanceType == "raid" then recordBoss(destName) end
-  end
 end
 
 -- Duels ----------------------------------------------------------------------
@@ -1224,10 +1221,7 @@ local function checkRatings()
 end
 
 frame:SetScript("OnEvent", function(_, event, ...)
-  if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-    onCombatLog()
-
-  elseif event == "CHAT_MSG_SYSTEM" then
+  if event == "CHAT_MSG_SYSTEM" then
     onSystemMessage((...))
 
   elseif event == "CHALLENGE_MODE_COMPLETED" then
@@ -1236,9 +1230,6 @@ frame:SetScript("OnEvent", function(_, event, ...)
   elseif event == "PVP_RATED_STATS_UPDATE" then
     checkRatings()
 
-  elseif event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
-    local addon, func = ...
-    if addon == ADDON then noteBlocked(event .. " " .. tostring(func)) end
 
   elseif event == "ADDON_LOADED" then
     if (...) ~= ADDON then return end

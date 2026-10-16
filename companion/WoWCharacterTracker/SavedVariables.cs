@@ -51,6 +51,7 @@ record Entry
     public int Rating { get; init; }             // mplus / pvp: the rating now
     public int Step { get; init; }               // mplus / pvp: the milestone passed
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
+    public string TalentExport { get; init; } = ""; // check-ins: the talent loadout code
 
     // "Name~level~CLASSFILE~Class~Race~Realm,..." as the addon writes it.
     public IReadOnlyList<GroupMember> Members => Group.Length == 0 ? [] : Group.Split(',')
@@ -110,6 +111,7 @@ record Entry
             Rating = (int)n("rating"),
             Step = (int)n("step"),
             Bracket = s("bracket"),
+            TalentExport = s("talentExport"),
         };
     }
 

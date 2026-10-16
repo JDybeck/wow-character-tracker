@@ -330,6 +330,9 @@ sealed class CharacterRow : Observable
         // Live check-ins leave the guild out when there's none, so take the newest snapshot that knows it.
         var guilds = data.Characters.Where(c => c.Guild is not null).GroupBy(c => c.Guid)
             .ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!.Guild!);
+        // A live check-in may carry the talent code before the saved file has it, or the other way round.
+        var snapsAll = data.Characters.Where(c => c.TalentExport.Length > 0).GroupBy(c => c.Guid)
+            .ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!.TalentExport);
 
         var rows = new List<CharacterRow>();
         foreach (var guid in snaps.Keys.Union(events.Keys))
@@ -351,7 +354,7 @@ sealed class CharacterRow : Observable
                 Race = Pick(s?.Race, last?.Race),
                 RaceFile = Pick(s?.RaceFile, last?.RaceFile),
                 Sex = Pick(s?.Sex, last?.Sex) is { Length: > 0 } sex ? sex : "male",
-                Spec = Pick(s?.Spec, last?.Spec),
+                Spec = Pick(s?.Spec, last?.Spec) is var spec && spec != Pick(s?.Class, last?.Class) ? spec : "", // old Forever data had the class as spec
                 Role = s?.Role ?? "",
                 ItemLevel = s?.ItemLevel is > 0 ? s.ItemLevel : last?.ItemLevel ?? 0,
                 Played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0),
@@ -369,7 +372,7 @@ sealed class CharacterRow : Observable
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Surname = Pick(s?.Surname, last?.Surname),
                 TalentPicks = s?.TalentPicks ?? "",
-                TalentExport = s?.TalentExport ?? "",
+                TalentExport = Pick(s?.TalentExport, snapsAll.GetValueOrDefault(guid)),
                 Stats = s?.Stats ?? "",
                 Levels = levels
                     .OrderByDescending(e => e.Level)
@@ -1194,8 +1197,10 @@ sealed class MainViewModel : Observable
     public ICommand OpenTalentsCommand => new RelayCommand(p =>
     {
         if (p is not CharacterRow { HasTalentExport: true } c) return;
+        // Forever has its own calculator on Wowhead, under /forever.
+        var site = SelectedFlavor?.Flavor == Flavors.Forever ? "https://www.wowhead.com/forever" : "https://www.wowhead.com";
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-            "https://www.wowhead.com/talent-calc/blizzard/" + Uri.EscapeDataString(c.TalentExport)) { UseShellExecute = true });
+            $"{site}/talent-calc/blizzard/{Uri.EscapeDataString(c.TalentExport)}") { UseShellExecute = true });
     });
 
     // What the character card includes (the gear next to Post to Discord). Same for every character.
