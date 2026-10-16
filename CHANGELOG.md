@@ -2,6 +2,13 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.12.4
+
+- Fixed level-ups (and other moments) not being recorded at the ding on Forever: the game hides some numbers like your stats from addons at moments like a ding, and reading them made the addon give up on the whole event. Those numbers are now skipped, and one detail that can't be read never stops an event again.
+- Level times no longer depend on the game answering the addon's /played requests: the played time at logout carries over to the next login, and a brand new character starts at 0.
+- The Addon card no longer offers to "update" to an older addon when a newer one is installed.
+- /wct debug also saves the addon's /played requests and answers.
+
 ## v0.12.3
 
 - Level-ups post right at the ding. The addon used to wait for the game's answer to its /played request, and when that answer went missing it asked again 15 seconds later, so some posts (and their screenshots) came late. Now it times the level from the played time it already knows, and the answer only fine-tunes the next level's start.

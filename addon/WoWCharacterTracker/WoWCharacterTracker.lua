@@ -45,17 +45,31 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
     WoWCharacterTrackerDB.startLevel = WoWCharacterTrackerDB.startLevel or {} -- [guid] = the level that start belongs to
     WoWCharacterTrackerDB.events = WoWCharacterTrackerDB.events or {} -- level-ups and notable moments
     WoWCharacterTrackerDB.chars = WoWCharacterTrackerDB.chars or {}   -- [guid] = latest snapshot of that character
+    WoWCharacterTrackerDB.logoutPlayed = WoWCharacterTrackerDB.logoutPlayed or {} -- [guid] = total played at logout
     if WoWCharacterTrackerDB.popup == nil then WoWCharacterTrackerDB.popup = false end
     ns.flushBlocked()
 
   elseif event == "PLAYER_LOGIN" then
-    ns.requestPlayed() -- sets the baseline for the current level
+    -- Played time doesn't move while logged out, so where it was at logout is where this session
+    -- starts. Level times then don't depend on the game answering /played requests, which some
+    -- clients (Forever) seem to ignore unless the player typed it.
+    local guid = UnitGUID("player")
+    local atLogout = WoWCharacterTrackerDB.logoutPlayed[guid]
+    WoWCharacterTrackerDB.logoutPlayed[guid] = nil -- only good for the login right after it
+    if atLogout then
+      ns.lastPlayed, ns.lastPlayedAt = atLogout, time()
+    elseif UnitLevel("player") == 1 and not WoWCharacterTrackerDB.chars[guid] then
+      ns.lastPlayed, ns.lastPlayedAt = 0, time() -- a brand new character
+    end
+    C_Timer.After(3, function() ns.requestPlayed("login") end) -- once the world has loaded
     ns.say("Loaded. Type /wct help for the commands.")
 
   elseif event == "SCREENSHOT_SUCCEEDED" or event == "SCREENSHOT_FAILED" then
     ns.shotDone()
 
   elseif event == "PLAYER_LOGOUT" then
+    local played = ns.playedNow()
+    if played then WoWCharacterTrackerDB.logoutPlayed[UnitGUID("player")] = played end
     ns.saveSnapshot() -- also fires on /reload, right before the game writes the file
 
   elseif event == "PLAYER_ENTERING_WORLD" then
@@ -88,9 +102,11 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
       WoWCharacterTrackerDB.start[guid] = total
       WoWCharacterTrackerDB.startLevel[guid] = level
     end
-    ns.requestPlayed()
-    -- The answer can get lost (busy server, loading screen). Ask once more if it hasn't come.
-    C_Timer.After(15, function() if ns.pendingLevel == level then ns.requestPlayed() end end)
+    -- Ask the server too, for the exact start of the new level. The answer can be slow or not come at
+    -- all, so ask a moment later and again after a while.
+    for _, delay in ipairs({ 1, 15, 45 }) do
+      C_Timer.After(delay, function() if ns.pendingLevel == level then ns.requestPlayed("level " .. level) end end)
+    end
 
   elseif event == "PLAYER_REGEN_ENABLED" then
     ns.processShots() -- data grids held back during combat
@@ -127,6 +143,7 @@ ns.frame:SetScript("OnEvent", function(_, event, ...)
     local guid = UnitGUID("player")
     local newStart = total - thisLevel
     ns.lastPlayed, ns.lastPlayedAt = total, time()
+    ns.notePlayed(string.format("answer: total %d, this level %d", total, thisLevel))
 
     local level = ns.pendingLevel or UnitLevel("player") -- UnitLevel can lag right after a ding
     local live = ns.pendingLevel ~= nil

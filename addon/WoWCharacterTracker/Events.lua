@@ -61,7 +61,17 @@ local function mutePlayed()
   end
 end
 
-function ns.requestPlayed()
+-- The last 20 /played requests and answers with times, for /wct debug: shows whether the game
+-- answers the addon's own requests on this client.
+function ns.notePlayed(text)
+  local log = WoWCharacterTrackerDB.playedLog or {}
+  WoWCharacterTrackerDB.playedLog = log
+  table.insert(log, date("%H:%M:%S ") .. text)
+  while #log > 20 do table.remove(log, 1) end
+end
+
+function ns.requestPlayed(reason)
+  ns.notePlayed("request: " .. (reason or "?"))
   ns.doing("RequestTimePlayed")
   ns.suppressChat = true
   mutePlayed()

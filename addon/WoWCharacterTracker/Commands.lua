@@ -48,6 +48,9 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     end
     add("build: " .. dump(GetBuildInfo()))
     add("level: " .. tostring(UnitLevel("player")))
+    add("played now (estimate): " .. tostring(ns.playedNow()))
+    add("last character info error: " .. tostring(ns.lastInfoError))
+    for _, line in ipairs(WoWCharacterTrackerDB.playedLog or {}) do add("played log: " .. line) end
     add("GetNumTalentTabs: " .. type(GetNumTalentTabs) .. (type(GetNumTalentTabs) == "function" and (" = " .. dump(pcall(GetNumTalentTabs))) or ""))
     if type(GetTalentTabInfo) == "function" then
       for i = 1, 4 do add("GetTalentTabInfo(" .. i .. "): " .. dump(pcall(GetTalentTabInfo, i))) end

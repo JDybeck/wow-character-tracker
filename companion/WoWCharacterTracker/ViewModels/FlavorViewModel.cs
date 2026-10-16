@@ -333,6 +333,19 @@ sealed class FlavorViewModel : Observable
         var bundled = AddonInstaller.BundledVersion;
         var interfaceVersion = Wow.InterfaceVersion(flavorDir);
         var olderInstalled = installed is not null && Version.TryParse(installed, out var iv) && Version.TryParse(bundled, out var bv) && iv < bv;
+        var newerInstalled = installed is not null && Version.TryParse(installed, out var nv) && Version.TryParse(bundled, out var bv2) && nv > bv2;
+
+        // A newer addon than this app's (a test build put there by hand): leave it, don't offer to
+        // go back, just keep it loadable and following the settings.
+        if (!force && newerInstalled)
+        {
+            KeepInterfaceCurrent(installed!, interfaceVersion);
+            WriteAddonSettings();
+            AddonStep.Ok = true;
+            AddonStep.Detail = $"v{installed} installed (newer than this app's v{bundled})";
+            AddonStep.ActionText = null;
+            return;
+        }
 
         if (!force && !olderInstalled && (installed is null || installed != bundled))
         {

@@ -224,32 +224,44 @@ end
 
 -- Character sheet numbers as "Name~value,...": the primary stats, armor, and what the client has
 -- of attack power, spell power, crit, haste, mastery and versatility.
+-- Stats can be "secret" on Midnight-era clients (retail 12.x, Forever) at times like a ding or a
+-- fight: doing math with them is an error. num() turns those (and anything not a number) into nil,
+-- so they're skipped and the snapshot keeps the last readable ones.
+local function num(v)
+  if type(v) ~= "number" or (issecretvalue and issecretvalue(v)) then return nil end
+  return v
+end
+
 local function getStats()
   if type(UnitStat) ~= "function" then return nil end
   local parts = {}
   local function add(name, value)
     if value and value ~= 0 then parts[#parts + 1] = name .. "~" .. value end
   end
-  local function pct(v) return v and v > 0 and string.format("%.1f%%", v) or nil end
+  local function pct(v) v = num(v); return v and v > 0 and string.format("%.1f%%", v) or nil end
   for i, name in ipairs({ "Strength", "Agility", "Stamina", "Intellect", "Spirit" }) do
     local ok, _, effective = pcall(UnitStat, "player", i)
-    if ok and effective then add(name, math.floor(effective)) end
+    effective = ok and num(effective)
+    if effective then add(name, math.floor(effective)) end
   end
-  if UnitArmor then local _, armor = UnitArmor("player"); add("Armor", armor and math.floor(armor)) end
+  if UnitArmor then local _, armor = UnitArmor("player"); armor = num(armor); add("Armor", armor and math.floor(armor)) end
   if UnitAttackPower then
     local base, pos, neg = UnitAttackPower("player")
+    base, pos, neg = num(base), num(pos), num(neg)
     if base then add("Attack Power", math.floor(base + (pos or 0) + (neg or 0))) end
   end
   if GetSpellBonusDamage then
     local best = 0
-    for school = 2, 7 do best = math.max(best, GetSpellBonusDamage(school) or 0) end
+    for school = 2, 7 do best = math.max(best, num(GetSpellBonusDamage(school)) or 0) end
     add("Spell Power", best)
   end
   if GetCritChance then add("Crit", pct(GetCritChance())) end
   if GetHaste then add("Haste", pct(GetHaste())) end
   if GetMasteryEffect then add("Mastery", pct((GetMasteryEffect()))) end
   if GetCombatRatingBonus and CR_VERSATILITY_DAMAGE_DONE then
-    add("Versatility", pct(GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) + (GetVersatilityBonus and GetVersatilityBonus(CR_VERSATILITY_DAMAGE_DONE) or 0)))
+    local vers = num(GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE))
+    local bonus = GetVersatilityBonus and num(GetVersatilityBonus(CR_VERSATILITY_DAMAGE_DONE)) or 0
+    if vers then add("Versatility", pct(vers + (bonus or 0))) end
   end
   if #parts == 0 then return nil end
   return table.concat(parts, ",")
@@ -332,40 +344,57 @@ local function getRegion()
   return id and REGIONS[id] or nil
 end
 
+-- Runs one piece of character info protected: if the game refuses something (a secret value, a
+-- function that isn't ready), only that field is left out instead of losing the whole event.
+local function safe(fn, ...)
+  if type(fn) ~= "function" then return nil end
+  local ok, a, b, c, d = pcall(fn, ...)
+  if ok then return a, b, c, d end
+  ns.lastInfoError = a -- for /wct debug
+  return nil
+end
+
 -- Everything we show about the character, both in posts and in the companion app.
 function ns.characterInfo()
-  local className, classFile = UnitClass("player")
-  local raceName, raceFile = UnitRace("player")
-  local sex = UnitSex("player") -- 2 = male, 3 = female
-  local talents, spec, picks, calc = ns.getTalents()
-  return {
+  local className, classFile = safe(UnitClass, "player")
+  local raceName, raceFile = safe(UnitRace, "player")
+  local sex = safe(UnitSex, "player") -- 2 = male, 3 = female
+  local talents, spec, picks, calc = safe(ns.getTalents)
+  local info = {
     guid = UnitGUID("player"),
-    char = (UnitName("player")),
-    surname = getSurname(),
-    realm = GetRealmName(),
-    region = getRegion(),
-    level = UnitLevel("player"),
-    zone = getZone(),
-    professions = getProfessions(),
+    char = safe(UnitName, "player"),
+    surname = safe(getSurname),
+    realm = safe(GetRealmName),
+    region = safe(getRegion),
+    level = safe(UnitLevel, "player"),
+    zone = safe(getZone),
+    professions = safe(getProfessions),
     talents = talents,
     talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)
-    talentExport = getTalentExport(), -- saved file only
+    talentExport = safe(getTalentExport), -- saved file only
     talentCalc = calc, -- Forever: Wowhead talent calculator code (short, goes live too)
-    stats = getStats(), -- saved file only
+    stats = safe(getStats), -- saved file only
     spec = spec,
-    role = getRole(),
-    ilvl = getItemLevel(),
+    role = safe(getRole),
+    ilvl = safe(getItemLevel),
     class = className,
     classFile = classFile,
     race = raceName,
     raceFile = raceFile,
     sex = (sex == 3) and "female" or "male",
-    hardcore = ns.isHardcore() or nil,
-    ruleset = getRuleset(),
-    money = GetMoney and GetMoney() or nil, -- copper
-    crests = getCrests(),
-    guild = getGuild(),
+    hardcore = safe(ns.isHardcore) or nil,
+    ruleset = safe(getRuleset),
+    money = safe(GetMoney), -- copper
+    crests = safe(getCrests),
+    guild = safe(getGuild),
   }
+  -- Secret values can't be saved or sent (and doing anything with them is an error), so none stay.
+  if issecretvalue then
+    for k, v in pairs(info) do
+      if issecretvalue(v) then info[k] = nil end
+    end
+  end
+  return info
 end
 
 -- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
