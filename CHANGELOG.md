@@ -4,6 +4,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.11.0
 
+- Under the hood: the app and the addon are reorganized into smaller parts with one job each. Nothing changes in how they work.
+
 - Logging in on a game switches the app to that game's tab, with the character picked.
 
 - Fixed the "blocked from an action" error at login on Forever: the addon no longer listens to the combat log, which newer clients keep from addons. Hardcore death posts don't name the killer anymore because of that.
