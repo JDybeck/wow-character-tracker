@@ -5,3 +5,6 @@ dist/
 .vs/
 .env
 *.zip
+
+# Claude's project notes stay on this PC
+CLAUDE.md
