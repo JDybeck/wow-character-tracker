@@ -123,3 +123,30 @@ Not built yet, roughly in order:
 - Screenshots go out at full size first (boosted servers allow bigger uploads). If Discord says one is too big, a smaller JPEG copy is sent instead, and only if that's still too big does the post go out without it.
 - On the first run, events already saved are marked as posted so the channel isn't flooded. Start the app with `--backfill` to post them instead.
 - Settings and webhooks are saved in `%LOCALAPPDATA%\WoWCharacterTracker\config.json` and survive updates.
+
+## Questions and ideas
+
+Use [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) for questions, ideas and showing off your posts, and [Issues](https://github.com/JDybeck/wow-character-tracker/issues) for bugs.
+
+## Privacy
+
+The app and addon only send data where you point them, plus a few lookups to show things nicely:
+
+- **Your Discord webhooks**: the posts you've chosen to send, and a check that a webhook works when you add it.
+- **GitHub**: the update check (this repo's latest release).
+- **Wowhead** (icons, item and talent names), **Raider.IO** (Retail character pictures, by realm and name) and **Warcraft Wiki** (the tab logos): public lookups, cached on your PC.
+
+Nothing else leaves your PC. Settings, webhooks and caches stay in `%LOCALAPPDATA%\WoWCharacterTracker`, and the addon only writes to the game's own SavedVariables and Screenshots folders.
+
+## Code signing policy
+
+Releases are built from this repository by [GitHub Actions](.github/workflows/release.yml), nothing is built by hand.
+
+Free code signing is planned through [SignPath.io](https://about.signpath.io), with a certificate by the [SignPath Foundation](https://signpath.org). Until that's set up, the exe is unsigned.
+
+- Committers and reviewers: [JDybeck](https://github.com/JDybeck)
+- Approvers: [JDybeck](https://github.com/JDybeck)
+
+## License
+
+[GPL-3.0](LICENSE). You can use, change and share it; changed versions you share have to stay open under the same license. World of Warcraft and its art belong to Blizzard Entertainment; this project isn't made or endorsed by Blizzard.

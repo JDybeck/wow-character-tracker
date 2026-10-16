@@ -28,6 +28,34 @@ jobs:
           $version = "${{ github.ref_name }}".TrimStart("v")
           dotnet publish companion/WoWCharacterTracker -c Release -o dist -nologo -p:Version=$version
 
+      # Code signing through SignPath (free for open source, certificate by the SignPath Foundation).
+      # These steps only run once the repo variable SIGNPATH_ORGANIZATION_ID and the secret
+      # SIGNPATH_API_TOKEN exist; until then the release goes out unsigned.
+      - name: Upload the unsigned exe for signing
+        id: unsigned
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned
+          path: dist/WoWCharacterTracker.exe
+
+      - name: Sign with SignPath
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: wow-character-tracker
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Use the signed exe
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        shell: pwsh
+        run: Copy-Item signed/WoWCharacterTracker.exe dist/WoWCharacterTracker.exe -Force
+
       # "## v0.8.0" up to the next "## " heading.
       - name: Release notes from CHANGELOG.md
         shell: pwsh

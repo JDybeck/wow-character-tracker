@@ -2,6 +2,8 @@
 ## Title: WoW Character Tracker
 ## Notes: Records how long each character level takes, for the companion app to post to Discord.
 ## Author: JDybeck
+## X-License: GPL-3.0
+## X-Website: https://github.com/JDybeck/wow-character-tracker
 ## Version: 0.12.1
 ## SavedVariables: WoWCharacterTrackerDB
 
