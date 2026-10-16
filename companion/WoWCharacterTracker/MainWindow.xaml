@@ -222,7 +222,10 @@
             </StackPanel>
           </Border.ToolTip>
         </Border>
-        <CheckBox IsChecked="{Binding OpenWithWow}" VerticalAlignment="Center" Margin="0,0,18,0"
+        <CheckBox IsChecked="{Binding ShowTestCharacters}" VerticalAlignment="Center" Margin="0,0,16,0"
+                  ToolTip="Show made-up Forever characters (Zeb, Fågelmannen, Goggo) to try the app without playing. They're never posted on their own.">
+          <TextBlock Text="Test characters" FontSize="12" Foreground="{StaticResource Muted}"/>
+        </CheckBox>        <CheckBox IsChecked="{Binding OpenWithWow}" VerticalAlignment="Center" Margin="0,0,18,0"
                   ToolTip="Waits in the tray and opens when you start World of Warcraft, like Archon. Closing the window keeps it tracking in the tray.">
           <TextBlock Text="Open with World of Warcraft" FontSize="12" Foreground="{StaticResource Muted}"/>
         </CheckBox>

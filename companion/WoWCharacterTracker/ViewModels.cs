@@ -264,7 +264,8 @@ sealed class CharacterRow : Observable
     public string Description => string.Join(" ", new[] { Race, Spec, ClassName }.Where(s => s.Length > 0));
     public bool HasLevels => Levels.Count > 0;
     public bool HasHighlights => Highlights.Count > 0;
-    public string? Tag => Dead ? "DEAD" : Hardcore ? "HARDCORE" : null;
+    public bool IsTest => TestCharacters.IsTest(Guid);
+    public string? Tag => IsTest ? "TEST" : Dead ? "DEAD" : Hardcore ? "HARDCORE" : null;
 
     public SolidColorBrush ClassBrush => ClassColors.Brush(ClassColors.For(ClassFile));
     public SolidColorBrush ClassSoftBrush => ClassColors.Brush(ClassColors.For(ClassFile), 0x26);
@@ -737,6 +738,8 @@ sealed class FlavorViewModel : Observable
 
     TrackerData lastData = TrackerData.Empty;
 
+    public void Refresh() => ShowData(lastData);
+
     // Retail characters are grouped by realm, Forever ones by ruleset (hardcore, self-found...).
     public string GroupLabel => Flavor == Flavors.Forever ? "Ruleset" : "Realm";
     string GroupOf(CharacterRow r) => Flavor == Flavors.Forever ? r.Ruleset : r.Realm;
@@ -760,6 +763,12 @@ sealed class FlavorViewModel : Observable
         lastData = data;
         var keep = SelectedCharacter?.Guid;
         var removed = Settings.Removed;
+        // The made-up characters, when switched on (Forever only). They're only shown, never posted.
+        if (main.ShowTestCharacters && Flavor == Flavors.Forever)
+        {
+            var test = TestCharacters.Build();
+            data = new TrackerData([.. data.Events, .. test.Events], [.. data.Characters, .. test.Characters]);
+        }
         var rows = CharacterRow.Build(data)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
@@ -930,6 +939,23 @@ sealed class MainViewModel : Observable
 
     public bool Backfill { get; }
     public Config Config { get; private set; } = new();
+
+    // Shows the made-up Forever characters (Zeb, Fågelmannen, Goggo) for testing. Not saved.
+    bool showTestCharacters;
+    public bool ShowTestCharacters
+    {
+        get => showTestCharacters;
+        set
+        {
+            if (!Set(ref showTestCharacters, value)) return;
+            foreach (var tab in FlavorTabs) tab.Refresh();
+            if (value)
+            {
+                if (FlavorTabs.FirstOrDefault(t => t.Flavor == Flavors.Forever) is { } forever) SelectedFlavor = forever;
+                Log.Info("Test characters on (Forever tab). They're never posted on their own, but Test buttons and Post to Discord work with them.");
+            }
+        }
+    }
 
     // --- updates ---
 

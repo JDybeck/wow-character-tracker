@@ -47,6 +47,7 @@ Every option has a **Test** button that posts a sample, using the selected chara
 - **Discord**: add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, and on Forever which rulesets, so a hardcore channel only gets hardcore characters, and which character tags (none picked means every character). A new webhook is named after the name you gave it in Discord; click the pencil to rename it, like "#leveling / My Guild" (Discord doesn't tell webhooks their channel or server name). Hover a webhook to see its masked link.
 - **Console**: what the app is doing, like posts sent and anything that needs your attention.
 - **Sync now**: reads the game's data again and posts anything new.
+- **Test characters**: the switch at the top adds three made-up Forever characters (Zeb, Fågelmannen and Goggo) so you can try the list, filters, tags, Test buttons and character cards without playing. They're never posted on their own.
 - **Updates**: the app checks for a new version when it starts (the arrow button at the top checks right away). **Update now** downloads it and restarts, and **What's new** shows the notes from [CHANGELOG.md](CHANGELOG.md).
 
 ### Making a Discord webhook

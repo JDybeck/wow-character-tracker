@@ -10,6 +10,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Gold is kept when logging out (the game reports 0 gold during logout).
 - The live data grid is much smaller (about 320 x 28 px instead of 640 x 120).
 - Clicking the open character's row closes its details.
+- Test characters: a switch at the top adds three made-up Forever characters to try the app without playing.
 - The app checks for updates on start, and there's a button for it. Updating downloads the new version and restarts.
 
 ## v0.7.0

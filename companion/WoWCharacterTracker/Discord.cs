@@ -76,7 +76,7 @@ partial class Discord(string webhookUrl, Flavor flavor)
             ["title"] = c.Name + (c.Dead ? " (dead)" : ""),
             ["description"] = $"Level {c.Level} {c.Description}".Trim(),
             ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
-            ["footer"] = new { text = $"Character Tracker, {flavor.Name}" },
+            ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },
         };
         if (ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
         if (ClassIconUrl(c.ClassFile) is { } classIcon)
