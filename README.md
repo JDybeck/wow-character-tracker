@@ -143,6 +143,7 @@ Not built yet, roughly in order:
 - **Hardcore death killer**: name what killed the character again (newer clients keep the combat log from addons).
 - **Minimap button** for the addon, with the commands and a test button.
 - **Per-character posting rules**, on top of each game's What gets posted.
+- **Streaming overlays**: show your latest levels, level times and highlights on stream (OBS/Streamlabs), with a ding alert.
 - **Warband bank** (Retail), maybe through Baganator's saved data.
 
 ## Notes and limits
