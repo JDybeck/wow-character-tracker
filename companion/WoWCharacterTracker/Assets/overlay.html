@@ -1,24 +1,28 @@
 <!doctype html>
 <!-- Character Tracker stream overlay, served by the app (Services/Streaming/OverlayServer) on localhost.
-     Add it in OBS / Streamlabs as a Browser source. Options in the address:
-       ?only=card   the character card only      ?only=ding   the ding alert only
-       ?scale=1.5   bigger (or smaller)           ?side=right  card on the right
+     Add it in OBS / Streamlabs as a Browser source. What it shows and how see-through it is come from
+     the app's Stream overlay panel. Options in the address:
+       ?only=card        the character card (level times, today, records)
+       ?only=highlights  the highlights box        ?only=ding   the ding alert
+       ?scale=1.5   bigger (or smaller)            ?side=right  boxes on the right
        ?preview=1   a dark backdrop, for looking at it in a normal browser (the app's Preview button)  -->
 <html>
 <head>
 <meta charset="utf-8">
 <title>Character Tracker overlay</title>
 <style>
-  :root { --scale: 1; }
+  :root { --scale: 1; --bg: .78; --edge: #d97706; }
   html, body { margin: 0; background: transparent; overflow: hidden; }
   body.preview { background: radial-gradient(ellipse at 60% 40%, #3a3f4b 0%, #16181d 70%); min-height: 100vh; }
   body { font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif; color: #f1f5f9; }
-  .wrap { transform: scale(var(--scale)); transform-origin: top left; padding: 16px; }
-  .right .wrap { transform-origin: top right; display: flex; justify-content: flex-end; }
+  .wrap { transform: scale(var(--scale)); transform-origin: top left; padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+  .right .wrap { transform-origin: top right; align-items: flex-end; }
 
-  .card { width: 340px; padding: 14px 16px 12px; border-radius: 12px; background: rgba(10, 8, 6, .78);
-          border: 1px solid rgba(217, 119, 6, .55); box-shadow: 0 6px 24px rgba(0, 0, 0, .45); display: none; }
-  .card.on { display: block; }
+  .box { width: 340px; padding: 14px 16px 12px; border-radius: 12px; background: rgba(10, 8, 6, var(--bg));
+         border: 1px solid color-mix(in srgb, var(--edge) 55%, transparent); display: none;
+         text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+  .box.solid { box-shadow: 0 6px 24px rgba(0, 0, 0, .45); }
+  .box.on { display: block; }
   .name { font-size: 22px; font-weight: 700; line-height: 1.15; }
   .sub { font-size: 13px; color: #cbd5e1; margin-top: 2px; }
   .last { margin-top: 10px; font-size: 15px; }
@@ -26,8 +30,12 @@
   .levels { margin-top: 6px; font-size: 13px; color: #cbd5e1; display: grid; grid-template-columns: auto 1fr; gap: 1px 12px; }
   .levels span:nth-child(odd) { color: #94a3b8; }
   .today { margin-top: 8px; font-size: 13px; color: #fcd34d; }
-  .hl { margin-top: 8px; font-size: 13px; color: #e2e8f0; border-top: 1px solid rgba(255, 255, 255, .08); padding-top: 6px; }
-  .hl div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .records { margin-top: 8px; font-size: 13px; color: #e2e8f0; display: flex; gap: 16px; }
+  .records b { font-weight: 700; }
+  .records .won { color: #86efac; } .records .lost { color: #fca5a5; }
+  .since { margin-top: 8px; font-size: 11px; color: #94a3b8; }
+  .hl-title { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
+  .hl div.line { font-size: 13px; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
 
   /* The ding alert: center of the canvas, a burst of light, then fades. */
   .ding { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(var(--scale)); text-align: center;
@@ -36,11 +44,19 @@
   .ding .orb { position: absolute; left: 50%; top: 50%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%;
                background: radial-gradient(circle, rgba(255, 255, 255, .9) 0%, rgba(253, 224, 71, .55) 22%, rgba(245, 158, 11, .18) 48%, transparent 70%); }
   .ding.show .orb { animation: burst 1.6s ease-out forwards; }
-  .ding .big { position: relative; font-size: 74px; font-weight: 900; letter-spacing: 4px; color: #fde68a;
-               text-shadow: 0 0 18px rgba(245, 158, 11, .9), 0 0 42px rgba(245, 158, 11, .6), 0 4px 0 #78350f; }
-  .ding .lvl { position: relative; font-size: 30px; font-weight: 800; color: #fff; text-shadow: 0 2px 8px #000; margin-top: -6px; }
-  .ding .took { position: relative; font-size: 18px; color: #fef3c7; text-shadow: 0 2px 6px #000; margin-top: 4px; }
-  @keyframes ding { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--scale) * .6)); }
+  /* WoW's look: Friz Quadrata when it's installed, else a classic serif; gold with a dark edge. */
+  .ding { font-family: "Friz Quadrata TT", "Friz Quadrata", "Palatino Linotype", "Book Antiqua", Constantia, serif; }
+  .ding .big { position: relative; font-size: 80px; font-weight: 700; letter-spacing: 3px; line-height: 1;
+               background: linear-gradient(180deg, #fffbe6 0%, #ffe680 30%, #f5c518 55%, #c8860b 85%, #8a5a06 100%);
+               -webkit-background-clip: text; background-clip: text; color: transparent;
+               -webkit-text-stroke: 1.5px #3b2205; filter: drop-shadow(0 0 14px rgba(255, 180, 40, .75)) drop-shadow(0 3px 2px rgba(0, 0, 0, .9)); }
+  .ding .ornament { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0 6px; }
+  .ding .ornament i { display: block; width: 110px; height: 2px; background: linear-gradient(90deg, transparent, #f5c518); }
+  .ding .ornament i:last-child { background: linear-gradient(90deg, #f5c518, transparent); }
+  .ding .ornament b { display: block; width: 9px; height: 9px; background: #ffd100; transform: rotate(45deg); box-shadow: 0 0 8px #ffb000; }
+  .ding .lvl { position: relative; font-size: 32px; font-weight: 700; color: #ffd100; letter-spacing: 1px;
+               text-shadow: 0 0 1px #000, 0 2px 3px #000, 0 0 12px rgba(255, 170, 0, .6); }
+  .ding .took { position: relative; font-size: 18px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 6px #000; margin-top: 6px; }  @keyframes ding { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--scale) * .6)); }
                     8% { opacity: 1; transform: translate(-50%, -50%) scale(calc(var(--scale) * 1.08)); }
                     14% { transform: translate(-50%, -50%) scale(var(--scale)); }
                     85% { opacity: 1; } 100% { opacity: 0; } }
@@ -49,24 +65,28 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="card" id="card">
+  <div class="box" id="card">
     <div class="name" id="name"></div>
     <div class="sub" id="sub"></div>
     <div class="last" id="last"></div>
     <div class="levels" id="levels"></div>
     <div class="today" id="today"></div>
-    <div class="hl" id="hl"></div>
+    <div class="records" id="records"></div>
+    <div class="since" id="since"></div>
   </div>
+  <div class="box hl" id="hl"></div>
 </div>
 <div class="ding" id="ding">
   <div class="orb"></div>
   <div class="big">DING!</div>
+  <div class="ornament"><i></i><b></b><i></i></div>
   <div class="lvl" id="dingLevel"></div>
   <div class="took" id="dingTook"></div>
 </div>
 <script>
   const q = new URLSearchParams(location.search);
-  const only = q.get("only");
+  const only = q.get("only"); // card, highlights, ding, or everything
+  const wants = part => !only || only === part;
   if (q.get("scale")) document.documentElement.style.setProperty("--scale", q.get("scale"));
   if (q.get("side") === "right") document.body.classList.add("right");
   if (q.get("preview")) document.body.classList.add("preview");
@@ -74,34 +94,57 @@
   const text = (el, s) => { el.textContent = s || ""; el.style.display = s ? "" : "none"; };
   let seenDing = null, first = true;
 
+  function record(label, r) {
+    const span = document.createElement("span");
+    span.append(label + " ");
+    const w = document.createElement("b"); w.className = "won"; w.textContent = r.won;
+    const l = document.createElement("b"); l.className = "lost"; l.textContent = r.lost;
+    span.append(w, " - ", l);
+    return span;
+  }
+
   function show(s) {
-    const card = $("card");
-    card.classList.toggle("on", !!s.character && only !== "ding");
+    const look = s.look || { cardOpacity: 78, levels: true, today: true, duels: true, makgora: true, highlights: true };
+    document.documentElement.style.setProperty("--bg", look.cardOpacity / 100);
+    document.documentElement.style.setProperty("--edge", s.classColor || "#d97706");
+    const card = $("card"), hl = $("hl");
+    card.classList.toggle("solid", look.cardOpacity >= 50); hl.classList.toggle("solid", look.cardOpacity >= 50);
+
+    card.classList.toggle("on", !!s.character && wants("card"));
     if (s.character) {
       $("name").textContent = s.character;
       $("name").style.color = s.classColor || "#fff";
-      card.style.borderColor = (s.classColor || "#d97706") + "8c";
       text($("sub"), [`Level ${s.level} ${s.className}`.trim(), s.zone].filter(Boolean).join(" · "));
       $("last").innerHTML = "";
-      if (s.lastLevel) { const b = document.createElement("b"); b.textContent = s.lastLevel; $("last").append(b); }
-      $("last").style.display = s.lastLevel ? "" : "none";
+      if (look.levels && s.lastLevel) { const b = document.createElement("b"); b.textContent = s.lastLevel; $("last").append(b); }
+      $("last").style.display = look.levels && s.lastLevel ? "" : "none";
       const lv = $("levels"); lv.innerHTML = "";
-      (s.levels || []).slice(1).forEach(l => { // the newest is the line above
+      if (look.levels) (s.levels || []).slice(1).forEach(l => { // the newest is the line above
         const a = document.createElement("span"); a.textContent = `Level ${l.level}`;
         const b = document.createElement("span"); b.textContent = l.took; lv.append(a, b);
       });
       lv.style.display = lv.childElementCount ? "" : "none";
-      text($("today"), s.today);
-      const hl = $("hl"); hl.innerHTML = "";
-      (s.highlights || []).forEach(h => { const d = document.createElement("div"); d.textContent = h; hl.append(d); });
-      hl.style.display = hl.childElementCount ? "" : "none";
+      text($("today"), look.today ? s.today : "");
+      const rec = $("records"); rec.innerHTML = "";
+      if (look.duels && s.duels) rec.append(record("Duels", s.duels));
+      if (look.makgora && s.makgora) rec.append(record("Mak'gora", s.makgora));
+      rec.style.display = rec.childElementCount ? "" : "none";
+      text($("since"), s.sinceText);
     }
+
+    hl.innerHTML = "";
+    const lines = look.highlights ? (s.highlights || []) : [];
+    if (lines.length) {
+      const t = document.createElement("div"); t.className = "hl-title"; t.textContent = "Highlights"; hl.append(t);
+      lines.forEach(h => { const d = document.createElement("div"); d.className = "line"; d.textContent = h; hl.append(d); });
+    }
+    hl.classList.toggle("on", lines.length > 0 && wants("highlights"));
 
     // A ding that's new and from the last 90 seconds gets the alert (not one from before the page loaded).
     const d = s.ding;
     if (d && d.id !== seenDing) {
       const fresh = s.now - d.at < 90;
-      if ((!first || fresh) && fresh && only !== "card") {
+      if ((!first || fresh) && fresh && wants("ding")) {
         $("dingLevel").textContent = `Level ${d.level}`;
         $("dingTook").textContent = d.took && d.took !== "?" ? `${d.level - 1} to ${d.level} took ${d.took}` : "";
         const el = $("ding"); el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");

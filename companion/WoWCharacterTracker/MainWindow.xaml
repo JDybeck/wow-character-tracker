@@ -103,27 +103,46 @@
       <Grid Grid.Row="1" Grid.Column="2">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
-          <RowDefinition Height="20"/>
-          <RowDefinition Height="*"/>
+          <RowDefinition Height="16"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="16"/>
+          <RowDefinition Height="*" MinHeight="120"/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <views:DiscordPanel DataContext="{Binding Discord}"/>
-        <views:ConsolePanel Grid.Row="2"/>
+        <views:StreamPanel Grid.Row="2" DataContext="{Binding Stream}"/>
+        <views:ConsolePanel Grid.Row="4"/>
         <!-- The maker, quietly in the corner. -->
-        <Button Grid.Row="3" HorizontalAlignment="Right" Margin="0,6,2,-14" Cursor="Hand" ToolTip="twitch.tv/zebdryg"
-                Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
-          <Button.Template>
-            <ControlTemplate TargetType="Button">
-              <TextBlock x:Name="Credit" Text="made by ZebDryg @ twitch" FontSize="10" Foreground="{StaticResource Faint}" Opacity="0.6"/>
-              <ControlTemplate.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                  <Setter TargetName="Credit" Property="Opacity" Value="1"/>
-                  <Setter TargetName="Credit" Property="Foreground" Value="#9146FF"/>
-                </Trigger>
-              </ControlTemplate.Triggers>
-            </ControlTemplate>
-          </Button.Template>
-        </Button>
+        <!-- The maker and a tip link, quietly in the corner. -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,2,-14">
+          <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
+            <Button.Template>
+              <ControlTemplate TargetType="Button">
+                <TextBlock x:Name="Credit" Text="made by ZebDryg @ twitch" FontSize="10" Foreground="{StaticResource Faint}" Opacity="0.6"/>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Credit" Property="Opacity" Value="1"/>
+                    <Setter TargetName="Credit" Property="Foreground" Value="#9146FF"/>
+                  </Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate>
+            </Button.Template>
+          </Button>
+          <TextBlock Text="·" FontSize="10" Foreground="{StaticResource Faint}" Opacity="0.6" Margin="6,0"/>
+          <Button Cursor="Hand" ToolTip="Like the app? Tips are welcome (streamlabs.com/zebdryg/tip)" Command="{Binding OpenUrlCommand}" CommandParameter="https://streamlabs.com/zebdryg/tip">
+            <Button.Template>
+              <ControlTemplate TargetType="Button">
+                <TextBlock x:Name="Tip" Text="tip ♥" FontSize="10" Foreground="{StaticResource Faint}" Opacity="0.6"/>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Tip" Property="Opacity" Value="1"/>
+                    <Setter TargetName="Tip" Property="Foreground" Value="#F87171"/>
+                  </Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate>
+            </Button.Template>
+          </Button>
+        </StackPanel>
       </Grid>
     </Grid>
   </Grid>

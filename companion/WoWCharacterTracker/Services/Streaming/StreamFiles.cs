@@ -22,6 +22,8 @@ static class StreamFiles
         ("zone.txt", s.Zone),
         ("played.txt", s.Played),
         ("item_level.txt", s.ItemLevel),
+        ("duels.txt", s.Duels?.ToString() ?? ""),
+        ("makgora.txt", s.Makgora?.ToString() ?? ""),
     ];
 
     public static void Write(StreamSnapshot s)

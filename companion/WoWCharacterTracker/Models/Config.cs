@@ -38,6 +38,7 @@ class Config
     // Stream overlay (a localhost page for OBS) and stream text files, off until turned on.
     public bool StreamEnabled { get; set; }
     public int StreamPort { get; set; } = 8721;
+    public StreamOptions StreamOptions { get; set; } = new();
 
     // The color theme picked per game tab (flavor key -> Theme option key); missing = the game's default.
     public Dictionary<string, string> Themes { get; set; } = [];
