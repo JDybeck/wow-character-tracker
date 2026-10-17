@@ -16,6 +16,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - The Items page shows its items in as many columns as the window has room for.
 - Updating the app shows each step in the banner: the download with its progress, checking it, putting it in place, restarting.
 - On a flight path, when your bags or gear changed since the last save, a small box in game offers a /reload so the app's items get up to date (you keep flying). Once per flight; switch it off under What gets posted.
+- A reminder in chat to /reload when your bags or gear changed since the last save: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes. Switch it off under What gets posted.
 - The slot under the weapons says Relic for Paladins, Druids and Shamans, Ranged for everyone else.
 - Lost duels and Mak'goras are recorded too, and running away from a duel. They show in the highlights and the duel record ("Duels: 5 won, 2 lost"), but only wins are posted.
 - The realm shows its region when it's known, like "EU · Tarren Mill".

@@ -37,6 +37,7 @@ local EVENTS = {
   "SCREENSHOT_SUCCEEDED", "SCREENSHOT_FAILED",                           -- the shot queue
   "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", -- gear, bags and bank
   "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED", "TAXIMAP_CLOSED",                 -- flight paths (the reload box)
+  "MAIL_CLOSED", "AUCTION_HOUSE_CLOSED",                                          -- moments for the reload reminder
   -- Refresh the character snapshot when these change, while the game has the data.
   "PLAYER_EQUIPMENT_CHANGED", "PLAYER_MONEY", "CURRENCY_DISPLAY_UPDATE", "PLAYER_SPECIALIZATION_CHANGED",
   "TRAIT_CONFIG_UPDATED", "CHARACTER_POINTS_CHANGED", "PLAYER_GUILD_UPDATE",

@@ -80,6 +80,7 @@ static partial class AddonInstaller
                   + $"  hideChat = {B(s.HideChatInShots)},\n"
                   + $"  hideUI = {B(s.HideUiInShots)},\n"
                   + $"  flightReload = {B(s.FlightReloadPrompt)},\n"
+                  + $"  chatReminder = {B(s.ChatReloadReminder)},\n"
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");

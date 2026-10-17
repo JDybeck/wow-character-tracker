@@ -123,6 +123,19 @@ end
 
 function ns.onFlightEnd() askedThisFlight = false end
 
+-- A line in chat when gear or bags changed since the last save: at good moments (moment = true:
+-- after the bank, mailbox, a vendor or the auction house, leaving a dungeon), at most every 10
+-- minutes, and as a reminder every 30 minutes. Only when the app's "Remind me in chat to /reload" is
+-- on (Settings.lua chatReminder).
+local lastReminder = time()
+function ns.remindReload(moment)
+  local s = WoWCharacterTrackerSettings
+  if (s and s.chatReminder == false) or not ns.itemsChanged() then return end
+  if time() - lastReminder < (moment and 600 or 1800) then return end
+  lastReminder = time()
+  ns.say("Your bags changed since the last save. Type /reload to update the app (no logout needed).")
+end
+
 local getGroup -- below, with the boss kills
 
 -- Level times ----------------------------------------------------------------

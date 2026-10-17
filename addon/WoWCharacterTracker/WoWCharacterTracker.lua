@@ -3,6 +3,10 @@ local ADDON, ns = ...
 
 local on = {}
 
+-- A chat reminder to /reload after the bank, mailbox, a vendor or the auction house, or leaving a
+-- dungeon (Events.lua remindReload), once the bag scan that follows has run.
+local function remindSoon() C_Timer.After(4, function() ns.remindReload(true) end) end
+
 function on.ADDON_LOADED(name)
   if name ~= ADDON then return end
   local db = WoWCharacterTrackerDB or {}
@@ -37,6 +41,11 @@ function on.PLAYER_ENTERING_WORLD()
   C_Timer.After(15, ns.checkIn)
   if type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
   if not ns.snapshotTicker and C_Timer.NewTicker then ns.snapshotTicker = C_Timer.NewTicker(300, ns.saveSnapshot) end
+  -- The chat reminder to /reload: every 30 minutes (checked every 5), and when leaving a dungeon.
+  if not ns.reminderTicker and C_Timer.NewTicker then ns.reminderTicker = C_Timer.NewTicker(300, function() ns.remindReload(false) end) end
+  local inInstance = IsInInstance and IsInInstance() or false
+  if ns.wasInInstance and not inInstance then remindSoon() end
+  ns.wasInInstance = inInstance
 end
 
 function on.PLAYER_REGEN_ENABLED()
@@ -66,6 +75,7 @@ function on.PVP_RATED_STATS_UPDATE() ns.checkRatings() end
 function on.MERCHANT_SHOW() ns.merchantOpen = true end
 function on.MERCHANT_CLOSED()
   C_Timer.After(2, function() ns.merchantOpen = false end) -- the item can arrive just after the window closes
+  remindSoon()
 end
 function on.NEW_MOUNT_ADDED(mountID)
   local name = C_MountJournal and C_MountJournal.GetMountInfoByID and C_MountJournal.GetMountInfoByID(mountID)
@@ -83,9 +93,14 @@ function on.BANKFRAME_OPENED()
   ns.bankOpen = true
   C_Timer.After(0.5, ns.scanBank)
 end
-function on.BANKFRAME_CLOSED() ns.bankOpen = false end
+function on.BANKFRAME_CLOSED()
+  ns.bankOpen = false
+  remindSoon()
+end
+on.MAIL_CLOSED = function() remindSoon() end
+on.AUCTION_HOUSE_CLOSED = function() remindSoon() end
 
--- Flight paths: the reload box when gear or bags changed (Inventory.lua). The flight has started a
+-- Flight paths: the reload box when gear or bags changed (Events.lua). The flight has started a
 -- moment after control goes or the flight map closes.
 local function flightMaybe() C_Timer.After(1.5, ns.onFlightStart) end
 on.PLAYER_CONTROL_LOST = flightMaybe

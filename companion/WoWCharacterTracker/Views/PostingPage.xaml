@@ -60,6 +60,12 @@
             <TextBlock Style="{StaticResource Hint}" Text="When you take a flight and your bags or gear changed since the last save, a small box in game offers a /reload, so the app's items get up to date. You keep flying through it."/>
           </StackPanel>
         </CheckBox>
+        <CheckBox IsChecked="{Binding ChatReloadReminder}" Margin="0,0,0,16">
+          <StackPanel>
+            <TextBlock Text="Remind me in chat to /reload" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+            <TextBlock Style="{StaticResource Hint}" Text="One line in chat when your bags or gear changed since the last save: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes."/>
+          </StackPanel>
+        </CheckBox>
         <StackPanel Margin="0,0,0,16" Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
           <TextBlock Text="Name in posts" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
           <TextBlock Style="{StaticResource Hint}" Text="Forever characters have a surname. Pick what posts and character cards call them." Margin="0,2,0,8"/>
