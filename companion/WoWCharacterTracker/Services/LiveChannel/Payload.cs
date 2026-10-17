@@ -30,6 +30,9 @@ static class Payload
         }
         if (values.Count == 0) return null;
         if (values.TryGetValue("sex", out var sex) && sex.Length == 1) values["sex"] = sex == "f" ? "female" : "male";
+        // Since 0.18.0 the addon leaves "Player-" off the GUID ("1403-0A1B2C3D").
+        if (values.TryGetValue("guid", out var g) && g.Length > 0 && !g.Contains("Player-") && char.IsDigit(g[0]))
+            values["guid"] = "Player-" + g;
         if (values.TryGetValue("id", out var id) && id.StartsWith(':') && values.TryGetValue("guid", out var guid))
             values["id"] = guid + id;
 

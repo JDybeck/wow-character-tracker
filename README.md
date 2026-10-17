@@ -61,6 +61,7 @@ The **In game** page has what the addon does in game besides posting:
 
 - **Offer a reload on flight paths**: when you take a flight and your bags or gear changed since the last save, a small box in game offers a `/reload` (you keep flying), so the Items page gets up to date.
 - **Remind me in chat to /reload**: one line in chat when your bags or gear changed since the last save, after the bank, mailbox, a vendor or the auction house, when you leave a dungeon, and every 30 minutes.
+- **Instant posting**: the corner the small data grid is flashed in (top left, top right, bottom left or bottom right), and whether its small label shows.
 - **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
 
 ### The app
@@ -144,7 +145,7 @@ Treat the link like a password: anyone with it can post in that channel. The app
 
 ## How it works
 
-WoW addons can't make network calls and only save their data on `/reload` or logout. The one file an addon can make the game write right away is a screenshot. So for each event, the addon shows a small black and white grid (about 320 x 28 px, with a "WoW Character Tracker" label next to it) in the top-left corner for a single frame, takes a screenshot and hides it again. The app reads the event from the grid within a second, posts it and deletes that screenshot. While that one screenshot is taken, the screenshot format is set to PNG (your own settings come right back) and the "Screen captured" message is hidden.
+WoW addons can't make network calls and only save their data on `/reload` or logout. The one file an addon can make the game write right away is a screenshot. So for each event, the addon shows a small black and white grid (about 320 x 30 px, with a small "Character Tracker /wct" label next to it) in a corner for a single frame (top left unless you pick another on the In game page), takes a screenshot and hides it again. The app reads the event from the grid within a second, posts it and deletes that screenshot. While that one screenshot is taken, the screenshot format is set to JPEG at the best quality, which the game writes quickly (your own settings come right back) and the "Screen captured" message is hidden.
 
 ![The data grid, enlarged 3x: a clock row and column, then the event's bytes](docs/images/data-grid.png)
 

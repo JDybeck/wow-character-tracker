@@ -19,6 +19,12 @@ static class Motion
 {
     public static bool Enabled { get; set; } = true;
 
+    // A list refresh (a sync rebuilds the character rows) shouldn't replay the unfold and fades on
+    // what's already open, so they stay still for a moment after one. Only the user's clicks animate.
+    static DateTime quietUntil;
+    public static void Quiet() => quietUntil = DateTime.UtcNow.AddMilliseconds(400);
+    static bool Animating => Enabled && DateTime.UtcNow >= quietUntil;
+
     static readonly Duration Quick = TimeSpan.FromMilliseconds(220);
     static readonly Duration Unfold = TimeSpan.FromMilliseconds(280);
     static IEasingFunction Ease => new CubicEase { EasingMode = EasingMode.EaseOut };
@@ -33,7 +39,7 @@ static class Motion
     static void RevealOnLoaded(object sender, RoutedEventArgs e)
     {
         var el = (FrameworkElement)sender;
-        if (!Enabled || el.ActualHeight <= 0) return;
+        if (!Animating || el.ActualHeight <= 0) return;
         var full = el.ActualHeight;
         el.ClipToBounds = true;
         var grow = new DoubleAnimation(0, full, Unfold) { EasingFunction = Ease, FillBehavior = FillBehavior.Stop };
@@ -53,7 +59,7 @@ static class Motion
 
     static void FadeOnLoaded(object sender, RoutedEventArgs e)
     {
-        if (!Enabled) return;
+        if (!Animating) return;
         var el = (FrameworkElement)sender;
         var move = Translate(el);
         move.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-6, 0, Quick) { EasingFunction = Ease });
