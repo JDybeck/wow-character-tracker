@@ -59,12 +59,49 @@ local function isMe(name)
   return name == me or (surname and name == me .. " " .. surname)
 end
 
+-- The opponent's "level~CLASSFILE~Class~Race", from a unit the game has for them right now
+-- (target, focus, mouseover, party, nameplates), else from when they challenged us. Other players'
+-- spec would need an inspect, so it isn't here.
+local seenOpponents = {}
+local function plain(v)
+  if v == nil or (issecretvalue and issecretvalue(v)) then return nil end
+  return v
+end
+local function opponentInfo(name)
+  if not name then return nil end
+  name = name:gsub("%-.*$", "")
+  local units = { "target", "focus", "mouseover", "targettarget" }
+  for i = 1, 4 do units[#units + 1] = "party" .. i end
+  for i = 1, 40 do units[#units + 1] = "nameplate" .. i end
+  for _, u in ipairs(units) do
+    local ok, info = pcall(function()
+      if not (UnitExists(u) and UnitIsPlayer(u)) then return nil end
+      local n, second = UnitName(u) -- second: the realm, or the surname on Forever
+      n, second = plain(n), plain(second)
+      if not n or (n ~= name and not (second and second ~= "" and n .. " " .. second == name)) then return nil end
+      local level = plain(UnitLevel(u))
+      local class, classFile = UnitClass(u)
+      local race = UnitRace(u)
+      return string.format("%s~%s~%s~%s", (level and level > 0) and level or "??",
+        plain(classFile) or "", plain(class) or "", plain(race) or "")
+    end)
+    if ok and info then return info end
+  end
+  return seenOpponents[name]
+end
+
+-- DUEL_REQUESTED: someone challenged us; they're usually close and visible now, maybe not at the end.
+function ns.onDuelRequested(name)
+  if name then seenOpponents[name:gsub("%-.*$", "")] = opponentInfo(name) end
+end
+
 -- lost: this character lost (to opponent). fled: the loser ran away (the opponent, or this
 -- character when lost is set).
 local function recordDuel(kind, opponent, fled, lost)
   local e = ns.characterInfo()
   e.kind = kind -- "duel" or "makgora"
   e.opponent = opponent
+  e.opponentInfo = opponentInfo(opponent)
   e.fled = fled or nil
   e.lost = lost or nil
   e.at = time()

@@ -61,12 +61,20 @@ sealed class ItemsViewModel : Observable
     GroupChip? selectedPlace;
     public GroupChip SelectedPlace { get => selectedPlace ?? PlaceChips[0]; set { if (value is not null && Set(ref selectedPlace, value)) Rebuild(); } }
 
+    // What kind of item: gear, consumables, trade goods and reagents, quest items, the rest
+    // (ItemInfo.Kind, from the game's item class).
+    public IReadOnlyList<GroupChip> KindChips { get; } =
+        [new("", "All types"), new("gear", "Gear"), new("consumable", "Consumables"), new("trade", "Trade goods"), new("quest", "Quest"), new("other", "Other")];
+    GroupChip? selectedKind;
+    public GroupChip SelectedKind { get => selectedKind ?? KindChips[0]; set { if (value is not null && Set(ref selectedKind, value)) Rebuild(); } }
+
     void Rebuild()
     {
         Groups.Clear();
         var shown = characters.Where(c => c.Inventory is not null && (selectedRealm is not { Key.Length: > 0 } r || c.Realm == r.Key));
         var query = Search.Trim();
         var place = SelectedPlace.Key;
+        var kind = SelectedKind.Key;
         foreach (var realm in shown.GroupBy(c => c.Realm).OrderBy(g => g.Key))
         {
             var rows = realm
@@ -74,6 +82,7 @@ sealed class ItemsViewModel : Observable
                 .GroupBy(x => x.Slot.ItemId)
                 .Select(g => new ItemRow(item(g.Key), g.Sum(x => x.Slot.Count), Places(g)))
                 .Where(i => query.Length == 0 || i.Info.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .Where(i => kind.Length == 0 || i.Info.Kind == kind)
                 .OrderBy(i => i.Info.Name.Length == 0) // still loading: last
                 .ThenBy(i => i.Info.Name)
                 .ToList();
@@ -85,6 +94,7 @@ sealed class ItemsViewModel : Observable
         EmptyText = characters.All(c => c.Inventory is null)
             ? "Nothing yet. Log in with the updated addon and type /reload (or log out): gear and bags show up here, and the bank once you've opened it."
             : query.Length > 0 ? $"Nothing matches \"{query}\"."
+            : kind.Length > 0 ? $"No {SelectedKind.Label.ToLowerInvariant()} here. Types come from the addon: after the update, /reload once so it can tell what each item is."
             : place == "bank" ? "Nothing in the bank yet. Open your bank in game once and it shows up here."
             : "Nothing here.";
         Raise(nameof(IsEmpty));

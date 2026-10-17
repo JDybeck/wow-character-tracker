@@ -1,4 +1,4 @@
-﻿<!-- Looks for the standard controls: checkboxes, chips, buttons, text boxes, tooltips, scrollbars. -->
+<!-- Looks for the standard controls: checkboxes, chips, buttons, text boxes, tooltips, scrollbars. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WoWCharacterTracker"
@@ -124,6 +124,17 @@
                   <Setter Property="TextWrapping" Value="Wrap"/>
                   <Setter Property="Foreground" Value="{StaticResource Text}"/>
                 </Style>
+
+  <!-- A tooltip that draws its own box (WowTooltip, the item tooltips in Wowhead's look). -->
+  <Style x:Key="BareToolTip" TargetType="ToolTip">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToolTip">
+          <ContentPresenter/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
               </ContentPresenter.Resources>
             </ContentPresenter>
           </Border>

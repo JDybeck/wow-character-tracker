@@ -48,6 +48,20 @@ record Entry
     public string Opponent { get; init; } = ""; // duel / makgora
     public bool Fled { get; init; }              // duel: the loser ran away (the opponent, or this character when Lost)
     public bool Lost { get; init; }              // duel / makgora: this character lost
+    public string OpponentInfo { get; init; } = ""; // duel / makgora: "level~CLASSFILE~Class~Race" (from 0.16.0)
+
+    // "level 21 Human Warrior", or "" when the addon couldn't see the opponent.
+    public string OpponentText
+    {
+        get
+        {
+            var p = OpponentInfo.Split('~');
+            if (p.Length < 4) return "";
+            var who = $"{p[3]} {p[2]}".Trim();
+            return p[0].Length > 0 ? $"level {p[0]} {who}".TrimEnd() : who;
+        }
+    }
+    public string OpponentClassFile => OpponentInfo.Split('~') is { Length: >= 2 } p ? p[1] : "";
     public int Rating { get; init; }             // mplus / pvp: the rating now
     public int Step { get; init; }               // mplus / pvp: the milestone passed
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
@@ -111,6 +125,7 @@ record Entry
             Opponent = s("opponent"),
             Fled = s("fled") is "true" or "1",
             Lost = s("lost") is "true" or "1",
+            OpponentInfo = s("opponentInfo"),
             Rating = (int)n("rating"),
             Step = (int)n("step"),
             Bracket = s("bracket"),

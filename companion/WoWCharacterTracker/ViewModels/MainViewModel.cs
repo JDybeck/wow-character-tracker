@@ -239,10 +239,9 @@ sealed class MainViewModel : Observable
     void OpenTalents(CharacterRow? c)
     {
         if (c is not { HasTalentLink: true }) return;
-        // Forever: wowhead.com/forever/talent-calc/<class>/<points per talent, per tree>, like Wowhead's
-        // classic calculators. Retail: the game's own loadout code.
+        // Forever: Wowhead's classic-style calculator code. Retail: the game's own loadout code.
         var url = SelectedFlavor?.Flavor == Flavors.Forever
-            ? $"https://www.wowhead.com/forever/talent-calc/{c.ClassFile.ToLowerInvariant()}/{c.TalentCalc}".TrimEnd('/')
+            ? Wowhead.ForeverTalentUrl(c.ClassFile, c.TalentCalc)
             : $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(c.TalentExport)}";
         Browser.Open(url);
     }

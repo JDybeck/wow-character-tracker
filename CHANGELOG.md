@@ -2,6 +2,16 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.16.0
+
+- **Item tooltips look like the game's and Wowhead's**: dark box, quality colors, yellow item level, green effects, class colors, the slot and type on one line ("Two-Hand ... Mace"), and coins in their colors.
+- **Items by type**: the Items page has type chips next to the place chips: Gear, Consumables, Trade goods (reagents, trade goods, gems, recipes), Quest and Other. The addon tells the app each item's type, so /reload once after updating.
+- Retail's fifth bag shows as **Reagent bag**.
+- **Duel opponents**: duel and Mak'gora posts and highlights say who you fought, like "level 21 Orc Warrior" (when the game could see them: target, party, nameplates, or when they challenged you). Their spec isn't available to addons.
+- **Wowhead talent link fixed** for Forever: it now opens with your points filled in (Wowhead's link format needed a "v2").
+- A **Feedback** button at the top opens the Discussions page.
+- README: pictures of where to make a webhook in Discord, and that you can share a channel with friends or make your own.
+
 ## v0.15.2
 
 - Switching between Retail and Forever is much lighter: each game keeps its Characters and Items pages instead of building them again, so a switch takes a few hundredths of a second instead of up to 3 seconds of heavy CPU (Retail was the worst). Memory no longer grows with every switch.

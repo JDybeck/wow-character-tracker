@@ -269,6 +269,7 @@ sealed class CharacterRow : Observable
         {
             "boss" when e.Members.Count > 0 => "With " + string.Join(", ", e.Members.Select(m => $"{m.Name} ({m.Level} {m.Class})".Replace(" ()", ""))),
             "boss" when e.GroupSize > 5 => $"With a raid of {e.GroupSize}",
+            "duel" or "makgora" when e.OpponentText.Length > 0 => char.ToUpperInvariant(e.OpponentText[0]) + e.OpponentText[1..],
             "death" => string.Join(", ", new[] { e.Played > 0 ? $"{Format.Played(e.Played)} played" : "", $"lost {Format.Money(e.Gold)}", e.Zone }.Where(p => p.Length > 0)),
             _ => "",
         };

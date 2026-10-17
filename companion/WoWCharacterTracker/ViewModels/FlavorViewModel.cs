@@ -414,10 +414,12 @@ sealed class FlavorViewModel : Observable
 
     // Item names, icons and tooltips, one per item id for the whole tab (characters and the Items page).
     readonly Dictionary<int, ItemInfo> items = [];
+    Dictionary<int, int> itemClasses = [];
     ItemInfo ItemFor(int id)
     {
         if (items.TryGetValue(id, out var info)) return info;
         items[id] = info = new ItemInfo(id, $"https://www.wowhead.com/{Flavor.WowheadPath}item={id}");
+        if (itemClasses.TryGetValue(id, out var c)) info.ClassId = c;
         _ = LoadItemAsync(info);
         return info;
     }
@@ -463,8 +465,11 @@ sealed class FlavorViewModel : Observable
             {
                 Inventories = [.. data.Inventories, .. test.Inventories],
                 XpTable = data.XpTable.Count > 0 ? data.XpTable : test.XpTable,
+                ItemClasses = data.ItemClasses,
             };
         }
+        itemClasses = data.ItemClasses;
+        foreach (var (id, c) in itemClasses) if (items.TryGetValue(id, out var known)) known.ClassId = c;
         var keepTab = SelectedCharacter?.DetailTab;
         var rows = CharacterRow.Build(data, Flavor, ItemFor)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))

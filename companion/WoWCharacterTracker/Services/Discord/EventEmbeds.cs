@@ -173,6 +173,7 @@ sealed class EventEmbeds(Flavor flavor)
     {
         if (e.Lost) return ($"{e.Char} lost a duel to {e.Opponent}", [e.Fled ? "Ran away mid-duel." : $"Beaten by **{e.Opponent}**."]);
         var lines = new List<string> { e.Fled ? $"**{e.Opponent}** ran away mid-duel." : $"Beat **{e.Opponent}** in a duel." };
+        if (e.OpponentText.Length > 0) lines.Add($"Opponent: {e.OpponentText}.");
         if (e.Zone.Length > 0) lines.Add($"In **{e.Zone}**, at level {e.Level}.");
         return ($"⚔️ {e.Char} won a duel against {e.Opponent}!", lines);
     }
@@ -182,6 +183,7 @@ sealed class EventEmbeds(Flavor flavor)
     {
         if (e.Lost) return ($"{e.Char} lost a Mak'gora to {e.Opponent}", [$"The duel to the death went to **{e.Opponent}**."]);
         var lines = new List<string> { $"☠️ **{e.Opponent}** challenged fate and lost. Their character is no more." };
+        if (e.OpponentText.Length > 0) lines.Add($"Opponent: {e.OpponentText}.");
         if (e.Zone.Length > 0) lines.Add($"Fought in **{e.Zone}**, at level {e.Level}.");
         return ($"\U0001FA78 {e.Char} won a Mak'gora against {e.Opponent}!", lines);
     }
