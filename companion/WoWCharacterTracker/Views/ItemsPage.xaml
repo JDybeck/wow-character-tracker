@@ -7,10 +7,25 @@
   <UserControl.Resources>
     <!-- A server header between the items. -->
     <DataTemplate DataType="{x:Type vm:ItemHeader}">
-      <StackPanel Orientation="Horizontal" Margin="24,14,24,6">
-        <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,0,7,0"/>
-        <TextBlock Text="{Binding Realm}" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
-        <TextBlock Text="{Binding Summary}" FontSize="12" Foreground="{StaticResource Dim}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+      <StackPanel Margin="24,14,24,6">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,0,7,0"/>
+          <TextBlock Text="{Binding Realm}" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding Summary}" FontSize="12" Foreground="{StaticResource Dim}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
+        <!-- When each character's bags were last saved, and where. -->
+        <ItemsControl ItemsSource="{Binding Saved}" Margin="19,3,0,0">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:ItemPlace}">
+              <TextBlock FontSize="11" Margin="0,0,14,0">
+                <Run Text="{Binding Character, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/><Run Text=": " Foreground="{StaticResource Dim}"/><Run Text="{Binding Where, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
+              </TextBlock>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
       </StackPanel>
     </DataTemplate>
     <!-- An item: icon in its quality color, name, total, and who has it where. -->
@@ -49,6 +64,7 @@
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
       <Border Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0" Padding="24,12">
@@ -68,8 +84,21 @@
           </Grid>
         </DockPanel>
       </Border>
+      <!-- Where to look, and when this list changes. -->
+      <Border Grid.Row="1" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="24,8">
+        <DockPanel>
+          <ListBox DockPanel.Dock="Left" ItemsSource="{Binding PlaceChips}" SelectedItem="{Binding SelectedPlace}" ItemContainerStyle="{StaticResource GroupChipItem}"
+                   Background="Transparent" BorderThickness="0" VerticalAlignment="Center">
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+          </ListBox>
+          <TextBlock Text="Items may not be up to date: they update when you /reload or log out (the game only saves then), and the bank when you open it. Each server shows when every character was last saved."
+                     Foreground="{StaticResource Dim}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Right" Margin="16,0,0,0"/>
+        </DockPanel>
+      </Border>
 
-      <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" Background="Transparent" BorderThickness="0" Focusable="False"
+      <ListBox Grid.Row="2" ItemsSource="{Binding Rows}" Background="Transparent" BorderThickness="0" Focusable="False"
                ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.ScrollUnit="Pixel" Padding="0,0,0,12">
         <ListBox.ItemContainerStyle>
           <Style TargetType="ListBoxItem">
@@ -85,7 +114,7 @@
         </ListBox.ItemContainerStyle>
       </ListBox>
 
-      <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440"
+      <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440"
                   Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource Icon}" Text="&#xE7B8;" FontSize="34" Foreground="{StaticResource Faint}" HorizontalAlignment="Center"/>
         <TextBlock Text="{Binding EmptyText}" Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/>

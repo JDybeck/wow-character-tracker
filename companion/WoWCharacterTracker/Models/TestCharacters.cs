@@ -114,6 +114,6 @@ static class TestCharacters
         var equipped = gear.Split(',').Select(p => p.Split('~')).Select(p => new ItemSlot(Inventory.Equipped, int.Parse(p[0]), int.Parse(p[1]), 1)).ToList();
         return new Inventory(s.Guid, equipped, Fill(bags, 0, 16), new Dictionary<int, int> { [0] = 16, [1] = 14, [2] = 12, [3] = 10 },
             bankAt > 0 ? Fill(bank, -1, 24) : [], bankAt > 0 ? new Dictionary<int, int> { [-1] = 24, [5] = 12 } : new Dictionary<int, int>(),
-            s.LastSeen, bankAt);
+            s.LastSeen, bankAt, s.LastSeen, s.Zone);
     }
 }

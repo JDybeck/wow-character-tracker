@@ -56,15 +56,22 @@ sealed class ItemsViewModel : Observable
         refresh.Start();
     }
 
+    // Where to look: everything, or only what's equipped, in bags or in the bank.
+    public IReadOnlyList<GroupChip> PlaceChips { get; } =
+        [new("", "All"), new("equipped", "Equipped"), new("bags", "Bags"), new("bank", "Bank")];
+    GroupChip? selectedPlace;
+    public GroupChip SelectedPlace { get => selectedPlace ?? PlaceChips[0]; set { if (value is not null && Set(ref selectedPlace, value)) Rebuild(); } }
+
     void Rebuild()
     {
         Rows.Clear();
         var shown = characters.Where(c => c.Inventory is not null && (selectedRealm is not { Key.Length: > 0 } r || c.Realm == r.Key));
         var query = Search.Trim();
+        var place = SelectedPlace.Key;
         foreach (var realm in shown.GroupBy(c => c.Realm).OrderBy(g => g.Key))
         {
             var rows = realm
-                .SelectMany(c => c.Inventory!.All.Select(slot => (Character: c, Slot: slot)))
+                .SelectMany(c => c.Inventory!.Placed.Where(p => place.Length == 0 || p.Place == place).Select(p => (Character: c, p.Slot, p.Place)))
                 .GroupBy(x => x.Slot.ItemId)
                 .Select(g => new ItemRow(item(g.Key), g.Sum(x => x.Slot.Count), Places(g)))
                 .Where(i => query.Length == 0 || i.Info.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
@@ -72,35 +79,36 @@ sealed class ItemsViewModel : Observable
                 .ThenBy(i => i.Info.Name)
                 .ToList();
             if (rows.Count == 0) continue;
-            Rows.Add(new ItemHeader($"{realm.Key}", $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}"));
+            // When each character's bags were last saved (and where), so it's clear how fresh this is.
+            var saved = realm.Where(c => c.Gear.HasSavedText).Select(c => new ItemPlace(c.FullName, c.ClassBrush, c.Gear.SavedText)).ToList();
+            Rows.Add(new ItemHeader($"{realm.Key}", $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}", saved));
             foreach (var row in rows) Rows.Add(row);
         }
         EmptyText = characters.All(c => c.Inventory is null)
             ? "Nothing yet. Log in with the updated addon and type /reload (or log out): gear and bags show up here, and the bank once you've opened it."
-            : $"Nothing matches \"{query}\".";
+            : query.Length > 0 ? $"Nothing matches \"{query}\"."
+            : place == "bank" ? "Nothing in the bank yet. Open your bank in game once and it shows up here."
+            : "Nothing here.";
         Raise(nameof(IsEmpty));
     }
 
     // "Zeb: equipped" / "Goggo: bags 12, bank 120", one per character that has the item.
-    static List<ItemPlace> Places(IEnumerable<(CharacterRow Character, ItemSlot Slot)> where) => where
+    static List<ItemPlace> Places(IEnumerable<(CharacterRow Character, ItemSlot Slot, string Place)> where) => where
         .GroupBy(x => x.Character)
         .Select(c =>
         {
-            int Count(Func<ItemSlot, bool> place) => c.Where(x => place(x.Slot)).Sum(x => x.Slot.Count);
-            var equipped = c.Count(x => x.Slot.Bag == Inventory.Equipped);
-            var bank = Count(s => c.Key.Inventory!.Bank.Contains(s));
-            var bags = Count(s => s.Bag != Inventory.Equipped) - bank;
+            int Count(string place) => c.Where(x => x.Place == place).Sum(x => x.Slot.Count);
             var parts = new List<string>();
-            if (equipped > 0) parts.Add("equipped");
-            if (bags > 0) parts.Add($"bags {bags}");
-            if (bank > 0) parts.Add($"bank {bank}");
+            if (Count("equipped") > 0) parts.Add("equipped");
+            if (Count("bags") is var bags and > 0) parts.Add($"bags {bags}");
+            if (Count("bank") is var bank and > 0) parts.Add($"bank {bank}");
             return new ItemPlace(c.Key.FullName, c.Key.ClassBrush, string.Join(", ", parts));
         })
         .ToList();
 }
 
-// A server header in the Items list.
-sealed record ItemHeader(string Realm, string Summary);
+// A server header in the Items list, with when each character's bags were last saved.
+sealed record ItemHeader(string Realm, string Summary, IReadOnlyList<ItemPlace> Saved);
 
 // One item in the Items list: how many in total, and where (per character).
 sealed record ItemRow(ItemInfo Info, int Total, IReadOnlyList<ItemPlace> Places)

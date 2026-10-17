@@ -4,6 +4,7 @@
 --   gear     "slot~itemId,..."            (inventory slots 1-19)
 --   bags     "bag~slot~itemId~count,..."  bagSizes "bag~size,..."
 --   bank     the same for the bank        bankSizes, bankAt (when the bank was last open)
+--   savedAt, savedZone: when and where the saved file was last written (/reload or logout)
 local ADDON, ns = ...
 
 -- Looked up when used, since some clients only have the older global functions.
@@ -109,6 +110,15 @@ function ns.scanBank()
   local bank, sizes = scanBags(bankBags())
   if sizes == "" then return end -- the bank isn't readable right now
   e.bank, e.bankSizes, e.bankAt = bank, sizes, time()
+end
+
+-- When and where the game last wrote the saved file (on /reload and logout), so the app can say
+-- how fresh the bags it shows are. Bags can't be read by then, but the zone can.
+function ns.noteSaved()
+  local e = entry()
+  if not e then return end
+  e.savedAt = time()
+  e.savedZone = (GetRealZoneText and GetRealZoneText()) or nil
 end
 
 -- Bags change a lot while looting, so the scan waits for a quiet moment.

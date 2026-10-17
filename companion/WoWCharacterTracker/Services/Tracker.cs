@@ -143,6 +143,7 @@ sealed class Tracker : IDisposable
                 : JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(statePath)) ?? [];
 
             var data = ReadAll();
+            NoteSaves(data);
             DataChanged?.Invoke(data);
 
             // On the very first run, mark old entries as posted instead of flooding the channel.
@@ -181,6 +182,24 @@ sealed class Tracker : IDisposable
         {
             gate.Release();
         }
+    }
+
+    // The addon notes when and where each character's saved file was written (/reload or logout; the
+    // game doesn't say which). A newer note than last time goes in the console. The first read only
+    // learns what's there.
+    readonly Dictionary<string, long> savedAt = [];
+    bool savesKnown;
+    void NoteSaves(TrackerData data)
+    {
+        foreach (var inv in data.Inventories.Where(i => i.SavedAt > 0))
+        {
+            var before = savedAt.GetValueOrDefault(inv.Guid);
+            savedAt[inv.Guid] = Math.Max(before, inv.SavedAt);
+            if (!savesKnown || inv.SavedAt <= before) continue;
+            var name = data.Characters.Where(c => c.Guid == inv.Guid).MaxBy(c => c.LastSeen)?.Char ?? "A character";
+            Log.Info($"{Tag}{name} logged out or reloaded" + (inv.SavedZone.Length > 0 ? $" in {inv.SavedZone}" : "") + ". Gear and bags are up to date as of now.");
+        }
+        savesKnown = true;
     }
 
     // Posts what this tab wants, in order. Things it isn't set to post are marked as handled, so

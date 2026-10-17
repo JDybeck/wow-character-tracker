@@ -4,7 +4,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.14.0
 
-- **Items**: a new page with everything your characters carry (worn, in bags and in the bank), with icons, in one list per server. Search by name to see who has what, and where.
+- **Items**: a new page with everything your characters carry (worn, in bags and in the bank), with icons, in one list per server. Search by name to see who has what, and where, or show only what's equipped, in bags or in the bank.
+- Items update when you /reload or log out (the game only saves then). The app says so, shows when and where each character was last saved, and the console notes each logout or /reload.
 - The character details are in tabs now: **Overview**, **Gear and bags** and **Leveling**.
 - **Gear and bags**: what the character wears, laid out like the character window, its bags slot by slot, and its bank as of the last time you opened it. With icons, quality colors and Wowhead tooltips. Needs the updated addon and a /reload (or logout).
 - **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew while leveling, and your duel and Mak'gora record.

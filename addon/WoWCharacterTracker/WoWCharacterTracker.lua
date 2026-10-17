@@ -23,7 +23,10 @@ function on.PLAYER_LOGIN()
   ns.say("Loaded. Type /wct help for the commands.")
 end
 
-function on.PLAYER_LOGOUT() ns.onLogout() end -- (no inventory scan: the game has emptied it by now)
+function on.PLAYER_LOGOUT() -- also on /reload, right before the game writes the saved file
+  ns.noteSaved() -- (no inventory scan: the game has emptied the bags by now)
+  ns.onLogout()
+end
 
 function on.PLAYER_ENTERING_WORLD()
   -- Gear and spec info can take a few seconds after login. Snapshot then, and every 5 minutes.

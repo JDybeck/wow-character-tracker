@@ -15,6 +15,9 @@ sealed class CharacterGear
     public IReadOnlyList<BagView> Bags { get; init; } = [];
     public IReadOnlyList<BagView> Bank { get; init; } = [];
     public string BankText { get; init; } = "";
+    // "Saved 12m ago, in Stormwind City": when the game last wrote the file this comes from.
+    public string SavedText { get; init; } = "";
+    public bool HasSavedText => SavedText.Length > 0;
     public bool HasInventory { get; init; }
     public bool HasBank => Bank.Count > 0;
 
@@ -36,6 +39,7 @@ sealed class CharacterGear
             Bags = Grids(inv.Bags, inv.BagSizes, item, bag => bag == 0 ? "Backpack" : $"Bag {bag}"),
             Bank = Grids(inv.Bank, inv.BankSizes, item, bag => bag < 0 ? "Bank" : $"Bank bag {bag - 4}"),
             BankText = inv.BankAt > 0 ? $"Bank, as of {Format.Ago(inv.BankAt)}" : "Open your bank in game once and it shows up here.",
+            SavedText = inv.SavedAt <= 0 ? "" : $"Saved {Format.Ago(inv.SavedAt)}" + (inv.SavedZone.Length > 0 ? $", in {inv.SavedZone}" : ""),
             HasInventory = true,
         };
     }
