@@ -38,7 +38,8 @@ static partial class Wowhead
         {
             disk ??= LoadDisk();
             // Entries cached before the HTML was kept are fetched once more.
-            if (disk.TryGetValue(key, out var cached) && cached.Html is not null) return cached;
+            // The text is made again from the HTML, so cached entries get fixes to ToText too.
+            if (disk.TryGetValue(key, out var cached) && cached.Html is not null) return cached with { Tooltip = ToText(cached.Html) };
         }
         await Parallel.WaitAsync();
         try
@@ -95,18 +96,32 @@ static partial class Wowhead
         catch (Exception) { return []; }
     }
 
-    // The tooltip comes as HTML; this keeps the text, one line per row.
+    // The tooltip comes as HTML; this keeps the text, one line per row. The HTML's own line breaks
+    // mean nothing (some rows are split over lines), a row's cells ("Two-Hand", "Mace") share a line,
+    // and money gets its g/s/c back (Wowhead shows coin icons there).
     static string ToText(string html)
     {
         if (html.Length == 0) return "";
-        var text = LineBreaks().Replace(html, "\n");
+        var text = Whitespace().Replace(html, " ");
+        text = Money().Replace(text, m => m.Groups[2].Value + m.Groups[1].Value[0]);
+        text = CellGap().Replace(text, "   ");
+        text = LineBreaks().Replace(text, "\n");
         text = Tags().Replace(text, "");
         text = WebUtility.HtmlDecode(text);
         var lines = text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0);
         return string.Join("\n", lines);
     }
 
-    [GeneratedRegex(@"<br\s*/?>|</tr>|</div>|</table>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
+
+    [GeneratedRegex(@"<span class=""money(gold|silver|copper)"">\s*([^<]*?)\s*</span>", RegexOptions.IgnoreCase)]
+    private static partial Regex Money();
+
+    [GeneratedRegex(@"</t[dh]>\s*<t[dh][^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex CellGap();
+
+    [GeneratedRegex(@"<br\s*/?>|</tr>|</div>|</table>|<table[^>]*>|<div[^>]*>", RegexOptions.IgnoreCase)]
     private static partial Regex LineBreaks();
 
     [GeneratedRegex("<[^>]+>")]

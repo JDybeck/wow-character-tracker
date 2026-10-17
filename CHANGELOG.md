@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.15.1
+
+- Item tooltips in the app read properly again: lines that ran together ("Binds when picked upTwo-HandMace") are split, the damage and speed share a line, and the sell price shows its g/s/c.
+
 ## v0.15.0
 
 - **Uninstall**, at the bottom of Settings: shows everything the app and the addon created on your PC (the app, the addon in each game, your character data in each game, settings and caches), with every path and size, and you pick what goes.
