@@ -28,6 +28,9 @@ sealed class Tracker : IDisposable
     Timer? safetyNet;
     bool initialDone;
     int lastWaiting; // posts waiting for a webhook, said once per change
+    // When each character's saved file was last written (NoteSaves), and whether the first read is done.
+    readonly Dictionary<string, long> savedAt = [];
+    bool savesKnown;
 
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
@@ -187,8 +190,6 @@ sealed class Tracker : IDisposable
     // The addon notes when and where each character's saved file was written (/reload or logout; the
     // game doesn't say which). A newer note than last time goes in the console. The first read only
     // learns what's there.
-    readonly Dictionary<string, long> savedAt = [];
-    bool savesKnown;
     void NoteSaves(TrackerData data)
     {
         foreach (var inv in data.Inventories.Where(i => i.SavedAt > 0))

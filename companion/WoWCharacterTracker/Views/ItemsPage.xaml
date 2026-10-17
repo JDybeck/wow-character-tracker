@@ -5,9 +5,9 @@
              xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
              xmlns:ui="clr-namespace:WoWCharacterTracker.Ui">
   <UserControl.Resources>
-    <!-- A server header between the items. -->
+    <!-- A server's header. -->
     <DataTemplate DataType="{x:Type vm:ItemHeader}">
-      <StackPanel Margin="24,14,24,6">
+      <StackPanel Margin="0,14,0,6">
         <StackPanel Orientation="Horizontal">
           <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,0,7,0"/>
           <TextBlock Text="{Binding Realm}" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
@@ -30,7 +30,7 @@
     </DataTemplate>
     <!-- An item: icon in its quality color, name, total, and who has it where. -->
     <DataTemplate DataType="{x:Type vm:ItemRow}">
-      <Grid Margin="24,3" Background="Transparent" Cursor="Hand" ToolTip="{Binding Info.Tooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
+      <Grid Width="330" Margin="0,3,14,3" Background="Transparent" Cursor="Hand" ToolTip="{Binding Info.Tooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
         <Grid.InputBindings>
           <MouseBinding MouseAction="LeftClick" Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Info.Url}"/>
         </Grid.InputBindings>
@@ -42,7 +42,7 @@
           <Image Source="{Binding Info.IconUrl}" Margin="1"/>
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-          <TextBlock FontSize="13">
+          <TextBlock FontSize="13" TextTrimming="CharacterEllipsis">
             <Run Text="{Binding Info.Name, Mode=OneWay}" Foreground="{Binding Info.Brush, Mode=OneWay}"/>
             <Run Text="{Binding TotalText, Mode=OneWay}" Foreground="{StaticResource Muted}"/>
           </TextBlock>
@@ -101,21 +101,23 @@
         </DockPanel>
       </Border>
 
-      <ListBox Grid.Row="2" ItemsSource="{Binding Rows}" Background="Transparent" BorderThickness="0" Focusable="False"
-               ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.ScrollUnit="Pixel" Padding="0,0,0,12">
-        <ListBox.ItemContainerStyle>
-          <Style TargetType="ListBoxItem">
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Template">
-              <Setter.Value>
-                <ControlTemplate TargetType="ListBoxItem">
-                  <ContentPresenter/>
-                </ControlTemplate>
-              </Setter.Value>
-            </Setter>
-          </Style>
-        </ListBox.ItemContainerStyle>
-      </ListBox>
+      <!-- Each server: its header, then its items in as many columns as the window has room for. -->
+      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="24,0,10,12">
+        <ItemsControl ItemsSource="{Binding Groups}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:ItemGroup}">
+              <StackPanel>
+                <ContentPresenter Content="{Binding Header}"/>
+                <ItemsControl ItemsSource="{Binding Items}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
 
       <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440"
                   Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}">

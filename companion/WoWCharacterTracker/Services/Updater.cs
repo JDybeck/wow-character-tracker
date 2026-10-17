@@ -60,8 +60,14 @@ static class Updater
         }
     }
 
+    // The steps of an install, shown in the update banner as they happen.
+    public static readonly string[] Steps = ["Downloading", "Checking the download", "Putting the new version in place", "Restarting"];
+
+    // Step: index into Steps. Fraction and Detail: the download's progress ("12.3 of 70.1 MB").
+    public sealed record Step(int Index, double? Fraction = null, string Detail = "");
+
     // Returns null when the new version was started (the caller then quits), or a reason it couldn't.
-    public static async Task<string?> InstallAsync(Release release)
+    public static async Task<string?> InstallAsync(Release release, IProgress<Step>? progress = null)
     {
         if (!CanInstall) return "This is a development build, so it can't update itself. Build it again instead.";
         if (release.DownloadUrl.Length == 0) return "That release has no exe attached.";
@@ -69,10 +75,42 @@ static class Updater
         var newExe = exe + ".new";
         try
         {
-            var bytes = await Http.GetByteArrayAsync(release.DownloadUrl);
-            await File.WriteAllBytesAsync(newExe, bytes);
+            progress?.Report(new Step(0, 0));
+            using (var res = await Http.GetAsync(release.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+            {
+                res.EnsureSuccessStatusCode();
+                var total = res.Content.Headers.ContentLength;
+                await using (var from = await res.Content.ReadAsStreamAsync())
+                await using (var to = File.Create(newExe))
+                {
+                    var buffer = new byte[81920];
+                    long done = 0;
+                    var shown = DateTime.MinValue;
+                    int n;
+                    while ((n = await from.ReadAsync(buffer)) > 0)
+                    {
+                        await to.WriteAsync(buffer.AsMemory(0, n));
+                        done += n;
+                        if (DateTime.Now - shown < TimeSpan.FromMilliseconds(100)) continue;
+                        shown = DateTime.Now;
+                        progress?.Report(new Step(0, total > 0 ? (double)done / total : null,
+                            total > 0 ? $"{done / 1e6:0.0} of {total / 1e6:0.0} MB" : $"{done / 1e6:0.0} MB"));
+                    }
+                }
+
+                // A whole Windows program: the size GitHub said it would be, starting with "MZ".
+                progress?.Report(new Step(1));
+                var length = new FileInfo(newExe).Length;
+                if (total is long expected && length != expected) throw new IOException("the download was cut off");
+                await using var check = File.OpenRead(newExe);
+                if (check.ReadByte() != 'M' || check.ReadByte() != 'Z') throw new IOException("the download isn't a Windows program");
+            }
+
+            progress?.Report(new Step(2));
             File.Move(exe, exe + ".old", overwrite: true);
             File.Move(newExe, exe);
+
+            progress?.Report(new Step(3));
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--updated") { UseShellExecute = true });
             return null;
         }
@@ -83,7 +121,8 @@ static class Updater
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
             if (!File.Exists(exe) && File.Exists(exe + ".old")) File.Move(exe + ".old", exe); // put it back
-            return "The download didn't work: " + ex.Message;
+            try { if (File.Exists(newExe)) File.Delete(newExe); } catch (IOException) { }
+            return "The update didn't work: " + ex.Message;
         }
     }
 

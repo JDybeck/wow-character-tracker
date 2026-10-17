@@ -39,10 +39,7 @@ sealed class MainViewModel : Observable
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
         TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
-        OpenUrlCommand = new RelayCommand(p =>
-        {
-            if (p is string { Length: > 0 } url) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-        });
+        OpenUrlCommand = new RelayCommand(p => Browser.Open(p as string));
     }
 
     public bool Backfill { get; }
@@ -235,7 +232,7 @@ sealed class MainViewModel : Observable
         var url = SelectedFlavor?.Flavor == Flavors.Forever
             ? $"https://www.wowhead.com/forever/talent-calc/{c.ClassFile.ToLowerInvariant()}/{c.TalentCalc}".TrimEnd('/')
             : $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(c.TalentExport)}";
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        Browser.Open(url);
     }
 
     // --- tags ---

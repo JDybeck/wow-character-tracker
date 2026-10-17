@@ -159,12 +159,14 @@
 
               <!-- Details for the selected character, in tabs so it stays readable. They're only built
                    for the open character and the open tab: the gear and bags alone are hundreds of icons. -->
-              <ContentControl Content="{Binding}" Focusable="False">
+              <!-- No content at all while closed (an empty template would show the row's type name). -->
+              <ContentControl Focusable="False">
                 <ContentControl.Style>
                   <Style TargetType="ContentControl">
-                    <Setter Property="ContentTemplate" Value="{x:Null}"/>
+                    <Setter Property="Content" Value="{x:Null}"/>
                     <Style.Triggers>
                       <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                        <Setter Property="Content" Value="{Binding}"/>
                         <Setter Property="ContentTemplate" Value="{StaticResource CharacterDetails}"/>
                       </DataTrigger>
                     </Style.Triggers>

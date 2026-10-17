@@ -17,7 +17,6 @@ sealed class ItemInfo(int itemId, string url) : Observable
     public string? Tooltip { get => tooltip; private set => Set(ref tooltip, value); }
     SolidColorBrush brush = ClassColors.Hex(0xFFFFFF);
     public SolidColorBrush Brush { get => brush; private set => Set(ref brush, value); }
-    public bool Loaded { get; private set; }
 
     public async Task LoadAsync(Flavor flavor)
     {
@@ -26,7 +25,6 @@ sealed class ItemInfo(int itemId, string url) : Observable
         IconUrl = Wowhead.IconUrl(info.Icon, "medium");
         Tooltip = info.Tooltip;
         if (HighlightRow.QualityBrush(info.Quality) is { } q) Brush = q;
-        Loaded = true;
     }
 }
 

@@ -82,30 +82,46 @@ end
 -- functions taints the default UI, which on Classic clients blocked Esc and showed "blocked from an
 -- action" errors, so that's gone. Muting the chat windows above does the same job safely.)
 
--- Optional (off by default, /wct popup): offer a reload after a ding, for when the live
--- channel doesn't work on a client.
--- The dialog is only added to Blizzard's StaticPopupDialogs when it's used: anything an addon
--- puts in Blizzard's tables can spread taint, so it stays out unless the player turned this on.
+-- Reload prompts ----------------------------------------------------------------
+-- Small boxes that offer a /reload (the game only writes the saved file then, and only a click may
+-- reload). A dialog is only added to Blizzard's StaticPopupDialogs when it's first used: anything an
+-- addon puts in Blizzard's tables can spread taint, so it stays out unless it's needed.
+local function askReload(name, text, accept, decline, arg)
+  if not StaticPopupDialogs[name] then
+    StaticPopupDialogs[name] = {
+      text = text, button1 = accept, button2 = decline,
+      OnAccept = function() ReloadUI() end,
+      timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+    }
+  end
+  StaticPopup_Show(name, arg)
+end
+
+-- Optional (off by default, /wct popup): after a ding, for when the live channel doesn't work on a client.
 function ns.offerPost(level)
   if not WoWCharacterTrackerDB.popup then return end
   if InCombatLockdown() then
     ns.popupLevel = level -- show it when combat ends
     return
   end
-  if not StaticPopupDialogs["CHARACTERTRACKER_POST"] then
-    StaticPopupDialogs["CHARACTERTRACKER_POST"] = {
-      text = "Ding! Level %d.\n\nReload your UI now to post it to Discord?",
-      button1 = "Post now",
-      button2 = "Later",
-      OnAccept = function() ReloadUI() end,
-      timeout = 0,
-      whileDead = true,
-      hideOnEscape = true,
-      preferredIndex = 3,
-    }
-  end
-  StaticPopup_Show("CHARACTERTRACKER_POST", level)
+  askReload("CHARACTERTRACKER_POST", "Ding! Level %d.\n\nReload your UI now to post it to Discord?", "Post now", "Later", level)
 end
+
+-- On a flight path, with gear or bags changed since the last save: so the app gets the new items
+-- (the flight goes on through the loading screen). Once per flight, never in combat, and only when
+-- the app's "Offer a reload on flight paths" is on (Settings.lua flightReload).
+local askedThisFlight = false
+
+function ns.onFlightStart()
+  local s = WoWCharacterTrackerSettings
+  if askedThisFlight or (s and s.flightReload == false) or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
+  if InCombatLockdown() or not ns.itemsChanged() then return end
+  askedThisFlight = true
+  askReload("CHARACTERTRACKER_FLIGHT_RELOAD",
+    "Character Tracker\n\nYour bags changed since the last save.\nReload now to update the app? (You keep flying.)", "Reload", "Not now")
+end
+
+function ns.onFlightEnd() askedThisFlight = false end
 
 local getGroup -- below, with the boss kills
 

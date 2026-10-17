@@ -5,8 +5,7 @@ using System.Windows.Threading;
 namespace WoWCharacterTracker.ViewModels;
 
 // The Items page: everything a game tab's characters carry (equipped, bags, bank), with icons,
-// searchable by name, grouped per server. Rows is one list of server headers and items, so a big
-// bank still scrolls smoothly.
+// searchable by name, grouped per server (each server's items wrap into as many columns as fit).
 sealed class ItemsViewModel : Observable
 {
     readonly Func<int, ItemInfo> item;
@@ -21,7 +20,7 @@ sealed class ItemsViewModel : Observable
         refresh.Tick += (_, _) => { refresh.Stop(); Rebuild(); };
     }
 
-    public ObservableCollection<object> Rows { get; } = [];
+    public ObservableCollection<ItemGroup> Groups { get; } = [];
     public ObservableCollection<GroupChip> Realms { get; } = [];
     public bool HasRealms => Realms.Count > 2; // "All" plus at least two servers
 
@@ -33,7 +32,7 @@ sealed class ItemsViewModel : Observable
 
     string emptyText = "";
     public string EmptyText { get => emptyText; private set => Set(ref emptyText, value); }
-    public bool IsEmpty => Rows.Count == 0;
+    public bool IsEmpty => Groups.Count == 0;
 
     public void Show(List<CharacterRow> rows)
     {
@@ -64,7 +63,7 @@ sealed class ItemsViewModel : Observable
 
     void Rebuild()
     {
-        Rows.Clear();
+        Groups.Clear();
         var shown = characters.Where(c => c.Inventory is not null && (selectedRealm is not { Key.Length: > 0 } r || c.Realm == r.Key));
         var query = Search.Trim();
         var place = SelectedPlace.Key;
@@ -81,8 +80,7 @@ sealed class ItemsViewModel : Observable
             if (rows.Count == 0) continue;
             // When each character's bags were last saved (and where), so it's clear how fresh this is.
             var saved = realm.Where(c => c.Gear.HasSavedText).Select(c => new ItemPlace(c.FullName, c.ClassBrush, c.Gear.SavedText)).ToList();
-            Rows.Add(new ItemHeader(realm.First().RealmText, $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}", saved));
-            foreach (var row in rows) Rows.Add(row);
+            Groups.Add(new ItemGroup(new ItemHeader(realm.First().RealmText, $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}", saved), rows));
         }
         EmptyText = characters.All(c => c.Inventory is null)
             ? "Nothing yet. Log in with the updated addon and type /reload (or log out): gear and bags show up here, and the bank once you've opened it."
@@ -107,8 +105,9 @@ sealed class ItemsViewModel : Observable
         .ToList();
 }
 
-// A server header in the Items list, with when each character's bags were last saved.
+// A server in the Items list: its header (with when each character's bags were last saved) and items.
 sealed record ItemHeader(string Realm, string Summary, IReadOnlyList<ItemPlace> Saved);
+sealed record ItemGroup(ItemHeader Header, IReadOnlyList<ItemRow> Items);
 
 // One item in the Items list: how many in total, and where (per character).
 sealed record ItemRow(ItemInfo Info, int Total, IReadOnlyList<ItemPlace> Places)

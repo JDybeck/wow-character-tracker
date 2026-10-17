@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -12,7 +13,7 @@ sealed class UpdatesViewModel : Observable
     {
         this.justUpdated = justUpdated;
         CheckUpdatesCommand = new RelayCommand(_ => CheckAsync(manual: true));
-        InstallUpdateCommand = new RelayCommand(_ => InstallAsync(), _ => update is not null);
+        InstallUpdateCommand = new RelayCommand(_ => InstallAsync(), _ => update is not null && !IsInstalling);
         ToggleNotesCommand = new RelayCommand(_ => ShowNotes = !ShowNotes);
         CloseBannerCommand = new RelayCommand(_ => ShowBanner = false);
     }
@@ -80,22 +81,51 @@ sealed class UpdatesViewModel : Observable
         ShowNotes = false;
         ShowBanner = true;
         Raise(nameof(HasUpdate));
+        CommandManager.InvalidateRequerySuggested(); // Update now is clickable right away
         Log.Info($"Update available: {latest.Version}.");
     }
 
+    // --- installing, step by step in the banner ---
+
+    public ObservableCollection<UpdateStepRow> InstallSteps { get; } = [];
+    bool isInstalling;
+    public bool IsInstalling { get => isInstalling; set => Set(ref isInstalling, value); }
+    double downloadPercent;
+    public double DownloadPercent { get => downloadPercent; set => Set(ref downloadPercent, value); }
+    string downloadText = "";
+    public string DownloadText { get => downloadText; set => Set(ref downloadText, value); }
+
     async Task InstallAsync()
     {
-        if (update is null) return;
-        Log.Info($"Downloading version {update.Version}...");
-        var problem = await Updater.InstallAsync(update);
+        if (update is null || IsInstalling) return;
+        Log.Info($"Updating to version {update.Version}...");
+        InstallSteps.Clear();
+        foreach (var s in Updater.Steps) InstallSteps.Add(new UpdateStepRow(s == "Downloading" ? $"Downloading version {update.Version}" : s));
+        IsInstalling = true;
+        ShowNotes = false;
+
+        var problem = await Updater.InstallAsync(update, new Progress<Updater.Step>(ShowStep));
         if (problem is null)
         {
             UpdateStarted?.Invoke();
             return;
         }
+        if (InstallSteps.FirstOrDefault(s => s.State == "active") is { } failed) failed.State = "failed";
+        InstallSteps.Add(new UpdateStepRow(problem) { State = "note" });
         Log.Error(problem);
-        if (update.PageUrl.Length > 0)
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(update.PageUrl) { UseShellExecute = true });
+        Browser.Open(update.PageUrl);
+    }
+
+    public void ShowStep(Updater.Step step)
+    {
+        for (var i = 0; i < InstallSteps.Count; i++)
+            InstallSteps[i].State = i < step.Index ? "done" : i == step.Index ? "active" : "waiting";
+        if (step.Index == 0)
+        {
+            DownloadPercent = (step.Fraction ?? 0) * 100;
+            DownloadText = step.Detail;
+        }
+        else DownloadPercent = 100;
     }
 
     // After an update: what's new in this version.
@@ -108,4 +138,12 @@ sealed class UpdatesViewModel : Observable
         ShowNotes = true;
         ShowBanner = true;
     }
+}
+
+// One step of an app update: waiting, active, done or failed (and "note" for the reason it failed).
+sealed class UpdateStepRow(string text) : Observable
+{
+    public string Text { get; } = text;
+    string state = "waiting";
+    public string State { get => state; set => Set(ref state, value); }
 }

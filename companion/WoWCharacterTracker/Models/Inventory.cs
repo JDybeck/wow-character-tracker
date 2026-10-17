@@ -20,8 +20,6 @@ record Inventory(string Guid, IReadOnlyList<ItemSlot> Gear, IReadOnlyList<ItemSl
         Slots(s("bank")), Sizes(s("bankSizes")),
         (long)n("scannedAt"), (long)n("bankAt"), (long)n("savedAt"), s("savedZone"));
 
-    public IEnumerable<ItemSlot> All => Gear.Concat(Bags).Concat(Bank);
-
     // Every item with where it is: "equipped", "bags" or "bank".
     public IEnumerable<(ItemSlot Slot, string Place)> Placed =>
         Gear.Select(s => (s, "equipped")).Concat(Bags.Select(s => (s, "bags"))).Concat(Bank.Select(s => (s, "bank")));

@@ -11,7 +11,7 @@
           Background="{DynamicResource IndigoPanel}" BorderBrush="{DynamicResource IndigoLine}" BorderThickness="1">
     <StackPanel>
       <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Hidden}}">
           <Button Style="{StaticResource GhostButton}" Content="What's new" Command="{Binding Updates.ToggleNotesCommand}" Margin="0,0,6,0" Padding="10,4"
                   Visibility="{Binding Updates.BannerNotes, Converter={StaticResource VisibleIfSet}}"/>
           <Button Style="{StaticResource IndigoButton}" Content="Update now" Command="{Binding Updates.InstallUpdateCommand}" Margin="0,0,6,0" Padding="12,5"
@@ -29,6 +29,48 @@
                     Visibility="{Binding Updates.ShowNotes, Converter={StaticResource Visible}}">
         <TextBlock Text="{Binding Updates.BannerNotes}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" LineHeight="19"/>
       </ScrollViewer>
+
+      <!-- Updating: each step as it happens, the download with its progress. -->
+      <StackPanel Margin="25,10,0,2" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Visible}}">
+        <ItemsControl ItemsSource="{Binding Updates.InstallSteps}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:UpdateStepRow}">
+              <StackPanel Orientation="Horizontal" Margin="0,2">
+                <TextBlock x:Name="Mark" Style="{StaticResource Icon}" Text="&#xE9AE;" FontSize="11" Width="20" Foreground="{StaticResource Faint}"/>
+                <TextBlock x:Name="Label" Text="{Binding Text}" FontSize="12" Foreground="{StaticResource Dim}" TextWrapping="Wrap" MaxWidth="700"/>
+              </StackPanel>
+              <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="active">
+                  <Setter TargetName="Mark" Property="Text" Value="&#xE72C;"/>
+                  <Setter TargetName="Mark" Property="Foreground" Value="{DynamicResource Indigo}"/>
+                  <Setter TargetName="Label" Property="Foreground" Value="White"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="done">
+                  <Setter TargetName="Mark" Property="Text" Value="&#xE73E;"/>
+                  <Setter TargetName="Mark" Property="Foreground" Value="{StaticResource Green}"/>
+                  <Setter TargetName="Label" Property="Foreground" Value="{StaticResource TextSoft}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="failed">
+                  <Setter TargetName="Mark" Property="Text" Value="&#xE711;"/>
+                  <Setter TargetName="Mark" Property="Foreground" Value="{StaticResource Red}"/>
+                  <Setter TargetName="Label" Property="Foreground" Value="{StaticResource Red}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="note">
+                  <Setter TargetName="Mark" Property="Text" Value=""/>
+                  <Setter TargetName="Label" Property="Foreground" Value="{StaticResource Muted}"/>
+                </DataTrigger>
+              </DataTemplate.Triggers>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Orientation="Horizontal" Margin="20,6,0,0">
+          <ProgressBar Width="260" Height="6" Minimum="0" Maximum="100" Value="{Binding Updates.DownloadPercent}"
+                       Foreground="{DynamicResource Indigo}" Background="#33FFFFFF" BorderThickness="0"/>
+          <TextBlock Text="{Binding Updates.DownloadText}" FontSize="11" Foreground="{StaticResource Dim}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
+        <TextBlock Text="After the restart, the new version updates the addon in your game folders and shows what's new here."
+                   FontSize="11" Foreground="{StaticResource Dim}" Margin="20,8,0,0" TextWrapping="Wrap"/>
+      </StackPanel>
     </StackPanel>
   </Border>
   <!-- Settings changed while the game runs: the addon only reads them on /reload or login. -->

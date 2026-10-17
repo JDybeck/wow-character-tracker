@@ -13,11 +13,14 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Boss kills in the highlights say who was in the group; hardcore deaths say how much played time and gold went with them.
 - Total played for the characters you've filtered on, next to the total gold.
 - Click any item (gear, bags, bank, Items page) to open it on Wowhead.
+- The Items page shows its items in as many columns as the window has room for.
+- Updating the app shows each step in the banner: the download with its progress, checking it, putting it in place, restarting.
 - On a flight path, when your bags or gear changed since the last save, a small box in game offers a /reload so the app's items get up to date (you keep flying). Once per flight; switch it off under What gets posted.
 - The slot under the weapons says Relic for Paladins, Druids and Shamans, Ranged for everyone else.
 - Lost duels and Mak'goras are recorded too, and running away from a duel. They show in the highlights and the duel record ("Duels: 5 won, 2 lost"), but only wins are posted.
 - The realm shows its region when it's known, like "EU · Tarren Mill".
 - Opening Test characters (and the list in general) is quicker: the details are only built for the open character and tab.
+- The README shows the Gear and bags tab.
 - Forever characters get their own portrait in the app (the picture your unit frame shows), taken from the addon's check-in right after you log in. Unit frame addons don't change it, since the addon asks the game for the portrait itself. Each character can switch between In-game and Standard (Overview tab). Discord posts keep the race portrait.
 - Retail's character window has no Ranged slot, so the app doesn't show one there.
 

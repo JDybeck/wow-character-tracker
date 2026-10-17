@@ -7,8 +7,8 @@ namespace WoWCharacterTracker.Ui;
 // For testing: CHARACTERTRACKER_SCREENSHOT=<png> renders the window to that file and quits, so
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
-//   extra:  rename | options (a webhook) | removehook | testchars | testall (every Test button) | addonupdate
-//   extra2: gear | leveling (a details tab) | search (Items page, "potion") | cardopts (card options open) | post (Post to Discord for the first character) | remove (its remove question) | sync (Sync now)
+//   extra:  rename | options (a webhook) | removehook | testchars | updating (the update banner mid-download) | testall (every Test button) | addonupdate
+//   extra2: gear | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | cardopts (card options open) | post (Post to Discord for the first character) | remove (its remove question) | sync (Sync now)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
@@ -34,14 +34,25 @@ static class ScreenshotMode
             if (Part(2) == "testall")
                 foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "death", "duel", "makgora", "mplus", "pvp" })
                     vm.TestKindCommand.Execute(kind);
-            if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(); // show the details panel too
+            // show the details panel too, for CHARACTERTRACKER_SCREENSHOT_CHARACTER (a name) or the first character
+            var pick = Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_CHARACTER");
+            if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(c => c.Name == pick) ?? f.Characters.FirstOrDefault();
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
+            if (Part(3) == "closed" && vm.SelectedFlavor is { } cf) cf.SelectedCharacter = null; // every row closed
             if (Part(3) is "gear" or "leveling" && vm.SelectedFlavor?.SelectedCharacter is { } dc) dc.DetailTab = Part(3);
             if (Part(3) == "search" && vm.SelectedFlavor is { } sf) { await Task.Delay(2500); sf.Items.Search = "potion"; }
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
+            if (Part(2) == "updating") // the update banner mid-download
+            {
+                vm.Updates.BannerTitle = "Version 0.15.0 is available (you have 0.14.0)."; vm.Updates.ShowBanner = true;
+                vm.Updates.InstallSteps.Clear();
+                foreach (var s in Updater.Steps) vm.Updates.InstallSteps.Add(new UpdateStepRow(s == "Downloading" ? "Downloading version 0.15.0" : s));
+                vm.Updates.IsInstalling = true;
+                vm.Updates.ShowStep(new Updater.Step(0, 0.42, "29.6 of 70.4 MB"));
+            }
             if (Part(3) == "posthighlight" && vm.SelectedFlavor?.SelectedCharacter?.Highlights.FirstOrDefault() is { } h)
             {
                 await Task.Delay(3000);
