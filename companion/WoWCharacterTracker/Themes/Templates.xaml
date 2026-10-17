@@ -40,7 +40,12 @@
   <DataTemplate x:Key="ItemCellTemplate" DataType="{x:Type vm:ItemCell}">
     <Border x:Name="Slot" Width="34" Height="34" Margin="0,0,3,3" CornerRadius="4" BorderThickness="1"
             Background="#33000000" BorderBrush="#26FFFFFF"
-            ToolTip="{Binding Item.Tooltip}" ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
+            ToolTipService.IsEnabled="{Binding IsEmpty, Converter={StaticResource Not}}" ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
+      <Border.ToolTip>
+        <ToolTip Style="{DynamicResource BareToolTip}">
+          <ui:WowTooltip Html="{Binding Item.Html}" Text="{Binding Item.Tooltip}"/>
+        </ToolTip>
+      </Border.ToolTip>
       <Border.InputBindings>
         <MouseBinding MouseAction="LeftClick" Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Item.Url}"/>
       </Border.InputBindings>

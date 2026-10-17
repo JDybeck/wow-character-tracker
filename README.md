@@ -82,7 +82,7 @@ The **In game** page has what the addon does in game besides posting:
     <img src="docs/images/gear-and-bags.png" alt="A character's gear and bags in the app" width="560">
 
   - **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew, your duel record, and the level history. On Forever also the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP too.
-- **Items**: everything your characters carry (worn, bags and bank) in one list per server, with icons. Search by name to see who has what and where, or show only what's equipped, in bags or in the bank. Each server shows when and where every character was last saved, since items only update on `/reload` or logout.
+- **Items**: everything your characters carry (worn, bags and bank) in one list per server, with icons. Search by name to see who has what and where, or show only what's equipped, in bags or in the bank, or only one type (gear, consumables, trade goods, quest items). Hover an item for its tooltip, colored like in game. Each server shows when and where every character was last saved, since items only update on `/reload` or logout.
 - **Tags**: make your own (like Main, Alts, Guild) and put them on characters. Webhooks can post only for some tags.
 - **Post to Discord**: sends the character as a card picture, with icons and quality colors. The gear next to it picks what the card shows (item level, played, gold, crests, professions, talents, stats, guild, last seen, levels, highlights). **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
 
@@ -101,7 +101,15 @@ The **In game** page has what the addon does in game besides posting:
 
 ### Making a Discord webhook
 
-In Discord, hover the channel, click the gear (Edit Channel), then Integrations, Webhooks, New Webhook, and Copy Webhook URL. You need the Manage Webhooks permission on the server. Posts use the webhook's name and the character's portrait as the sender.
+You can share a channel with friends (everyone adds the same webhook, or each their own webhook in that channel, and all your moments show up together), or make a channel just for yourself.
+
+In Discord, hover the channel and click the gear (Edit Channel):
+
+<img src="docs/images/discord-edit-channel.png" alt="The gear next to a Discord channel opens Edit Channel" width="268">
+
+Then Integrations, Create Webhook (or Webhooks, New Webhook), and Copy Webhook URL. Paste it in the app with **Add** under Discord. You need the Manage Webhooks permission on the server. Posts use the webhook's name and the character's portrait as the sender.
+
+<img src="docs/images/discord-integrations.png" alt="Integrations in a channel's settings, with Create Webhook" width="560">
 
 Treat the link like a password: anyone with it can post in that channel. The app only ever shows it masked, and it's only stored on your PC.
 
@@ -150,7 +158,7 @@ Not built yet, roughly in order:
 
 ## Questions and ideas
 
-Use [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) for questions, ideas and showing off your posts, and [Issues](https://github.com/JDybeck/wow-character-tracker/issues) for bugs.
+Use [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) (the **Feedback** button in the app goes there) for questions, ideas and showing off your posts, and [Issues](https://github.com/JDybeck/wow-character-tracker/issues) for bugs.
 
 ## Privacy
 

@@ -10,7 +10,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>WoWCharacterTracker</AssemblyName>
     <RootNamespace>WoWCharacterTracker</RootNamespace>
-    <Version>0.15.2</Version>
+    <Version>0.16.0</Version>
     <!-- dotnet publish -c Release gives one WoWCharacterTracker.exe that runs without .NET installed. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
@@ -23,6 +23,11 @@
 
   <ItemGroup>
     <PackageReference Include="MoonSharp" Version="2.0.0" />
+  </ItemGroup>
+
+  <!-- The app's classes are internal; the tests (companion/WoWCharacterTracker.Tests) may see them. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="WoWCharacterTracker.Tests" />
   </ItemGroup>
 
   <!-- WPF projects leave these out of the implicit usings. -->

@@ -14,6 +14,7 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
 {
     public List<Inventory> Inventories { get; init; } = [];
     public Dictionary<int, long> XpTable { get; init; } = [];
+    public Dictionary<int, int> ItemClasses { get; init; } = []; // itemId -> the game's item class (Inventory.lua)
 
     public static TrackerData Empty { get; } = new([], []);
 }

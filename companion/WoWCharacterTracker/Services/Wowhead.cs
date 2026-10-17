@@ -1,14 +1,13 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace WoWCharacterTracker.Services;
 
 // Names, icons and tooltip text for items and currencies, from Wowhead's public tooltip endpoint
 // (the one their site tooltips use). Results are kept in wowhead.json next to the config, so each
 // thing is only looked up once.
-static partial class Wowhead
+static class Wowhead
 {
     // Tooltip is the plain text; Html the tooltip as Wowhead sends it (colors and layout, for the item picture).
     public sealed record Info(string Name, string Icon, int Quality, string Tooltip, string? Html = null);
@@ -96,36 +95,14 @@ static partial class Wowhead
         catch (Exception) { return []; }
     }
 
-    // The tooltip comes as HTML; this keeps the text, one line per row. The HTML's own line breaks
-    // mean nothing (some rows are split over lines), a row's cells ("Two-Hand", "Mace") share a line,
-    // and money gets its g/s/c back (Wowhead shows coin icons there).
-    static string ToText(string html)
-    {
-        if (html.Length == 0) return "";
-        var text = Whitespace().Replace(html, " ");
-        text = Money().Replace(text, m => m.Groups[2].Value + m.Groups[1].Value[0]);
-        text = CellGap().Replace(text, "   ");
-        text = LineBreaks().Replace(text, "\n");
-        text = Tags().Replace(text, "");
-        text = WebUtility.HtmlDecode(text);
-        var lines = text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0);
-        return string.Join("\n", lines);
-    }
+    // A Forever build in Wowhead's talent calculator: talent-calc/<class>/v2<ranks per talent, per tree>
+    // (trees joined by "-", so "v2--05203021201" is 16 points in the third tree). Checked against
+    // Wowhead's own "Copy talents" link. Without a code it opens the empty calculator for the class.
+    public static string ForeverTalentUrl(string classFile, string talentCalc) =>
+        $"https://www.wowhead.com/forever/talent-calc/{classFile.ToLowerInvariant()}" + (talentCalc.Length > 0 ? "/v2" + talentCalc : "");
 
-    [GeneratedRegex(@"\s+")]
-    private static partial Regex Whitespace();
-
-    [GeneratedRegex(@"<span class=""money(gold|silver|copper)"">\s*([^<]*?)\s*</span>", RegexOptions.IgnoreCase)]
-    private static partial Regex Money();
-
-    [GeneratedRegex(@"</t[dh]>\s*<t[dh][^>]*>", RegexOptions.IgnoreCase)]
-    private static partial Regex CellGap();
-
-    [GeneratedRegex(@"<br\s*/?>|</tr>|</div>|</table>|<table[^>]*>|<div[^>]*>", RegexOptions.IgnoreCase)]
-    private static partial Regex LineBreaks();
-
-    [GeneratedRegex("<[^>]+>")]
-    private static partial Regex Tags();
+    // The tooltip comes as HTML; this keeps the text, one line per row (see TooltipHtml).
+    static string ToText(string html) => html.Length == 0 ? "" : TooltipHtml.ToText(html);
 
     // Profession icons by English name.
     public static readonly Dictionary<string, string> ProfessionIcons = new(StringComparer.OrdinalIgnoreCase)

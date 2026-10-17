@@ -24,7 +24,18 @@ static class SavedVariables
         {
             Inventories = ReadInventories(db.Table.Get("items")),
             XpTable = ReadXpTable(db.Table.Get("xpTable")),
+            ItemClasses = ReadItemClasses(db.Table.Get("itemClasses")),
         };
+    }
+
+    // itemClasses[itemId] = the item's class (consumable, weapon, armor, trade goods...).
+    static Dictionary<int, int> ReadItemClasses(DynValue table)
+    {
+        var classes = new Dictionary<int, int>();
+        if (table.Type != DataType.Table) return classes;
+        foreach (var p in table.Table.Pairs)
+            if (p.Key.CastToNumber() is double id && p.Value.CastToNumber() is double c) classes[(int)id] = (int)c;
+        return classes;
     }
 
     static List<Entry> ReadEvents(DynValue events)

@@ -30,7 +30,12 @@
     </DataTemplate>
     <!-- An item: icon in its quality color, name, total, and who has it where. -->
     <DataTemplate DataType="{x:Type vm:ItemRow}">
-      <Grid Width="330" Margin="0,3,14,3" Background="Transparent" Cursor="Hand" ToolTip="{Binding Info.Tooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
+      <Grid Width="330" Margin="0,3,14,3" Background="Transparent" Cursor="Hand" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
+        <Grid.ToolTip>
+          <ToolTip Style="{DynamicResource BareToolTip}">
+            <ui:WowTooltip Html="{Binding Info.Html}" Text="{Binding Info.Tooltip}"/>
+          </ToolTip>
+        </Grid.ToolTip>
         <Grid.InputBindings>
           <MouseBinding MouseAction="LeftClick" Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Info.Url}"/>
         </Grid.InputBindings>
@@ -90,12 +95,21 @@
       <!-- Where to look, and when this list changes. -->
       <Border Grid.Row="1" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="24,8">
         <DockPanel>
-          <ListBox DockPanel.Dock="Left" ItemsSource="{Binding PlaceChips}" SelectedItem="{Binding SelectedPlace}" ItemContainerStyle="{StaticResource GroupChipItem}"
-                   Background="Transparent" BorderThickness="0" VerticalAlignment="Center">
-            <ListBox.ItemsPanel>
-              <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-            </ListBox.ItemsPanel>
-          </ListBox>
+          <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+            <ListBox ItemsSource="{Binding PlaceChips}" SelectedItem="{Binding SelectedPlace}" ItemContainerStyle="{StaticResource GroupChipItem}"
+                     Background="Transparent" BorderThickness="0">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+            </ListBox>
+            <!-- What kind of item (from the game's item class, saved by the addon). -->
+            <ListBox ItemsSource="{Binding KindChips}" SelectedItem="{Binding SelectedKind}" ItemContainerStyle="{StaticResource GroupChipItem}"
+                     Background="Transparent" BorderThickness="0" Margin="0,6,0,0">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+            </ListBox>
+          </StackPanel>
           <TextBlock Text="Items may not be up to date: they update when you /reload or log out (the game only saves then), and the bank when you open it. Each server shows when every character was last saved."
                      Foreground="{StaticResource Dim}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Right" Margin="16,0,0,0"/>
         </DockPanel>

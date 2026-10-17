@@ -30,6 +30,20 @@ local function slotItem(bag, slot)
   return nil
 end
 
+-- itemClasses[itemId] = the item's class (0 consumable, 2 weapon, 4 armor, 5 reagent, 7 trade
+-- goods, 12 quest...), shared by all characters, so the app can sort items by type.
+-- GetItemInfoInstant needs no item cache, so it answers right away.
+local function noteClass(id)
+  local db = WoWCharacterTrackerDB
+  if not db or not id then return end
+  db.itemClasses = db.itemClasses or {}
+  if db.itemClasses[id] then return end
+  local f = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  if not f then return end
+  local ok, _, _, _, _, _, classID = pcall(f, id)
+  if ok and type(classID) == "number" then db.itemClasses[id] = classID end
+end
+
 -- The given bags as two strings: what's in each slot, and each bag's size.
 local function scanBags(bags)
   local items, sizes = {}, {}
@@ -39,7 +53,10 @@ local function scanBags(bags)
       sizes[#sizes + 1] = bag .. "~" .. size
       for slot = 1, size do
         local itemID, count = slotItem(bag, slot)
-        if itemID then items[#items + 1] = string.format("%d~%d~%d~%d", bag, slot, itemID, count) end
+        if itemID then
+          items[#items + 1] = string.format("%d~%d~%d~%d", bag, slot, itemID, count)
+          noteClass(itemID)
+        end
       end
     end
   end
@@ -74,7 +91,7 @@ local function gear()
   local items = {}
   for slot = 1, 19 do
     local id = GetInventoryItemID and GetInventoryItemID("player", slot)
-    if id then items[#items + 1] = slot .. "~" .. id end
+    if id then items[#items + 1] = slot .. "~" .. id; noteClass(id) end
   end
   return table.concat(items, ",")
 end

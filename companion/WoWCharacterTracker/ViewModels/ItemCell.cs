@@ -15,8 +15,27 @@ sealed class ItemInfo(int itemId, string url) : Observable
     public string? IconUrl { get => iconUrl; private set => Set(ref iconUrl, value); }
     string? tooltip;
     public string? Tooltip { get => tooltip; private set => Set(ref tooltip, value); }
+    string? html;
+    public string? Html { get => html; private set => Set(ref html, value); } // Wowhead's tooltip, for WowTooltip
     SolidColorBrush brush = ClassColors.Hex(0xFFFFFF);
     public SolidColorBrush Brush { get => brush; private set => Set(ref brush, value); }
+
+    // The game's item class (Inventory.lua's itemClasses), -1 until the addon has seen it.
+    int classId = -1;
+    public int ClassId { get => classId; set => Set(ref classId, value); }
+
+    // "gear", "consumable", "trade", "quest" or "other", for the Items page's type chips. Items the
+    // addon hasn't classed yet (scanned before 0.16.0) are guessed from the tooltip.
+    public string Kind => ClassId switch
+    {
+        2 or 4 => "gear",
+        0 => "consumable",
+        3 or 5 or 7 or 9 => "trade", // gems, reagents, trade goods, recipes
+        12 => "quest",
+        -1 when Tooltip is { } t && (t.Contains("Durability") || t.Contains(" Armor\n")) => "gear",
+        -1 when Tooltip is { } t && (t.Contains("Quest Item") || t.Contains("This Item Begins a Quest")) => "quest",
+        _ => "other",
+    };
 
     public async Task LoadAsync(Flavor flavor)
     {
@@ -24,6 +43,7 @@ sealed class ItemInfo(int itemId, string url) : Observable
         Name = info.Name;
         IconUrl = Wowhead.IconUrl(info.Icon, "medium");
         Tooltip = info.Tooltip;
+        Html = info.Html;
         if (HighlightRow.QualityBrush(info.Quality) is { } q) Brush = q;
     }
 }
