@@ -10,7 +10,7 @@
   <UserControl.Resources>
     <!-- The open character's details: the tab strip, then only the open tab's view. -->
     <DataTemplate x:Key="CharacterDetails" DataType="{x:Type vm:CharacterRow}">
-      <Border Margin="24,0,24,16" Padding="18,2,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+      <Border Margin="24,0,24,16" Padding="18,2,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{DynamicResource Line}" BorderThickness="1" ui:Motion.Reveal="True">
         <StackPanel>
           <Border Margin="0,2,0,2">
             <StackPanel Orientation="Horizontal">
@@ -24,21 +24,21 @@
               <Style TargetType="ContentControl">
                 <Setter Property="ContentTemplate">
                   <Setter.Value>
-                    <DataTemplate><views:CharacterOverview/></DataTemplate>
+                    <DataTemplate><views:CharacterOverview ui:Motion.FadeIn="True"/></DataTemplate>
                   </Setter.Value>
                 </Setter>
                 <Style.Triggers>
                   <DataTrigger Binding="{Binding DetailTab}" Value="gear">
                     <Setter Property="ContentTemplate">
                       <Setter.Value>
-                        <DataTemplate><views:CharacterGear/></DataTemplate>
+                        <DataTemplate><views:CharacterGear ui:Motion.FadeIn="True"/></DataTemplate>
                       </Setter.Value>
                     </Setter>
                   </DataTrigger>
                   <DataTrigger Binding="{Binding DetailTab}" Value="leveling">
                     <Setter Property="ContentTemplate">
                       <Setter.Value>
-                        <DataTemplate><views:CharacterLeveling/></DataTemplate>
+                        <DataTemplate><views:CharacterLeveling ui:Motion.FadeIn="True"/></DataTemplate>
                       </Setter.Value>
                     </Setter>
                   </DataTrigger>
@@ -52,7 +52,7 @@
   </UserControl.Resources>
 
   <!-- DataContext: the game tab (FlavorViewModel); MainWindow has one of these per tab. -->
-  <Border Style="{StaticResource CardBorder}" ClipToBounds="True"
+  <Border Style="{StaticResource CardBorder}" ClipToBounds="True" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="0"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=characters}">
     <Grid>
       <Grid.RowDefinitions>
@@ -63,7 +63,7 @@
       <Border Grid.Row="2" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,12"
               Padding="24,10" Visibility="{Binding HasCharacters, Converter={StaticResource Visible}}">
         <StackPanel Orientation="Horizontal">
-          <TextBlock Style="{StaticResource Icon}" Text="&#xE8C7;" Foreground="#FBBF24" FontSize="13" Margin="0,0,8,0"/>
+          <Image Source="{StaticResource GoldBag}" Width="22" Height="22" Margin="0,0,8,0" VerticalAlignment="Center"/>
           <TextBlock Text="{Binding TotalGoldText}" Foreground="{StaticResource TextSoft}" FontSize="13" Margin="0,0,10,0" VerticalAlignment="Center"/>
           <ItemsControl ItemsSource="{Binding TotalCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}" VerticalAlignment="Center"/>
           <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Dim}" FontSize="13" Margin="18,0,8,0"
@@ -72,7 +72,7 @@
         </StackPanel>
       </Border>
       <Border Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
-        <Grid Margin="24,14">
+        <Grid Margin="35,14,35,14"> <!-- lines up with the rows: their frame margin (10) + border (1) + 24 -->
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="{StaticResource ColClass}"/>
@@ -91,7 +91,7 @@
       </Border>
 
       <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
-               Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}"
+               Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}" Padding="0,6"
                ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
         <ListBox.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:CharacterRow}">

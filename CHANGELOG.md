@@ -2,6 +2,21 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.17.0
+
+- **Color themes**: pick a palette per game under Settings. Retail: Midnight (the current expansion), Void arcane and Silvermoon. Forever: Classic gold, Forever wisp, Emerald Dream and Blackrock ember.
+- **Characters in frames**: each character in the list sits in its own box with a sharper edge in the theme's color, brighter on hover and when open.
+- **Switch animation**: switching games sends a blue wisp flying to Forever, or a void orb to Retail. It plays once, in the tab strip.
+- **Turn a game off**: only play Forever (or only Retail)? Untick **Track Retail** (or Forever) under Settings. The app then doesn't look for that game, read its data or install the addon there. Its tab stays, with a button to turn it back on, and a button to remove the addon from that game if it's still installed. Nothing is deleted otherwise.
+- **Stream overlay and text files** (Settings, Stream overlay): a page for an OBS or Streamlabs Browser source with the character you're playing, its latest level times, today's levels and highlights, and a big **DING!** alert when you level. Add `?only=ding` for just the alert, `?scale=1.5` to make it bigger. Text files with the same info (level, last level time, today...) for Text sources. Only your PC can open the page.
+- **Animations**: a character's details unfold when you open them, pages slide in from the side of their tab (Characters, Items, What gets posted, In game), and so does the game when you switch between Retail and Forever. Untick **Animations** under Settings to have everything switch instantly (the tab orb too).
+- A gold bag next to the total gold, instead of a card.
+- **Test ding** next to the stream overlay settings shows the DING! alert in OBS right away, to set it up without leveling.
+- Forever portraits are replaced in place (one file per character, swapped in whole), and a check-in screenshot the app couldn't read is deleted instead of staying in your Screenshots folder.
+- The test characters' surname is TESTCHAR, so their posts can't be mistaken for real ones.
+- README: new pictures (a real level-up post, the four Forever themes, Items, settings, Uninstall, the stream overlay) and a Streaming section that walks through the OBS setup.
+- **Picking the game folder is clearer**: Browse asks for your World of Warcraft folder (or the game's folder inside it) and starts there. Any folder inside them works too, picking the other game's folder finds the right one next to it, and when it can't, it says why (like "This World of Warcraft folder has _retail_ but no _classic_beta_. Is Forever installed?").
+
 ## v0.16.0
 
 - **Item tooltips look like the game's and Wowhead's**: dark box, quality colors, yellow item level, green effects, class colors, the slot and type on one line ("Two-Hand ... Mace"), and coins in their colors.

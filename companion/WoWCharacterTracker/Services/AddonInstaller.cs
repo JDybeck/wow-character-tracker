@@ -61,6 +61,14 @@ static partial class AddonInstaller
                 File.Delete(old);
     }
 
+    // Takes the addon out of the game's AddOns folder (the data it saved stays, in WTF). For a game
+    // the user turned off; the Uninstall page removes it the same way.
+    public static void Remove(string flavorDir)
+    {
+        var target = TargetDir(flavorDir);
+        if (Directory.Exists(target)) Directory.Delete(target, recursive: true);
+    }
+
     // Settings.lua tells the addon which events get a screenshot. The game reads it on /reload or login.
     public static void WriteSettings(string flavorDir, FlavorSettings s)
     {

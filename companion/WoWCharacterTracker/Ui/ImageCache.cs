@@ -21,6 +21,8 @@ static class ImageCache
         if (isFile && !File.Exists(source)) return null;
         var key = isFile ? $"{source}|{File.GetLastWriteTimeUtc(source).Ticks}" : source;
         if (Cache.TryGetValue(key, out var cached)) return cached;
+        // A replaced portrait: the older picture of the same file goes.
+        if (isFile) foreach (var old in Cache.Keys.Where(k => k.StartsWith(source + "|", StringComparison.OrdinalIgnoreCase)).ToList()) Cache.Remove(old);
         try
         {
             var img = new BitmapImage();

@@ -6,7 +6,7 @@
              xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
              xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
              xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure">
-  <Border Style="{StaticResource CardBorder}" DataContext="{Binding SelectedFlavor}"
+  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" DataContext="{Binding SelectedFlavor}"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=posting}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="26,22">

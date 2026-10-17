@@ -6,7 +6,8 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
 {
     readonly DiscordWebhook webhook = new(webhookUrl);
     readonly EventEmbeds embeds = new(flavor);
-    const string TestMark = " [TESTCHAR]";
+    // Test characters' surname is TESTCHAR; when the tab's name style leaves the surname out, it's added.
+    static string Marked(string name, bool test) => test && !name.Contains("TESTCHAR") ? name + " TESTCHAR" : name;
 
     // Posts the event. Loot gets a picture of the item's tooltip (like Wowhead's) as the embed's
     // image. A screenshot is uploaded with the message: the embed's image, or a second embed under
@@ -18,7 +19,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         var testChar = TestCharacters.IsTest(e.Guid);
         e = e with
         {
-            Char = Format.Name(e.Char, e.Surname, nameStyle) + (testChar ? TestMark : ""),
+            Char = Marked(Format.Name(e.Char, e.Surname, nameStyle), testChar),
             Realm = testChar ? $"Test character, not a real one ({e.Realm})" : e.Realm,
         };
         var item = e.Kind == "loot" && e.ItemId > 0 ? await ItemTooltipImage.RenderAsync(e.ItemId, flavor) : null;
@@ -73,7 +74,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         if (Shows("guild") && c.HasGuild) subtitle += $"\n<{c.Guild}>";
         var embed = new Dictionary<string, object>
         {
-            ["title"] = Format.Name(c.Name, c.Surname, nameStyle) + (c.Dead ? " (dead)" : "") + (c.IsTest ? TestMark : ""),
+            ["title"] = Marked(Format.Name(c.Name, c.Surname, nameStyle), c.IsTest) + (c.Dead ? " (dead)" : ""),
             ["description"] = subtitle,
             ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
             ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },
