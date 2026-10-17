@@ -12,7 +12,7 @@
     <DataTemplate x:Key="CharacterDetails" DataType="{x:Type vm:CharacterRow}">
       <Border Margin="24,0,24,16" Padding="18,2,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{DynamicResource Line}" BorderThickness="1">
         <StackPanel>
-          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Margin="0,0,0,4">
+          <Border Margin="0,2,0,2">
             <StackPanel Orientation="Horizontal">
               <RadioButton Style="{StaticResource DetailTab}" Content="Overview" IsChecked="{Binding IsOverviewTab}" GroupName="{Binding Guid}"/>
               <RadioButton Style="{StaticResource DetailTab}" Content="Gear and bags" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>

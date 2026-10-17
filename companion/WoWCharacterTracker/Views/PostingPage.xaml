@@ -48,24 +48,6 @@
             <TextBlock Style="{StaticResource Hint}" Text="Just your character and the world in the picture: action bars, minimap, chat and frames are hidden for a split second, then come right back. Nameplates stay."/>
           </StackPanel>
         </CheckBox>
-        <CheckBox IsChecked="{Binding AdvancedCombatLog}" Margin="0,0,0,16">
-          <StackPanel>
-            <TextBlock Text="Advanced combat logging" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-            <TextBlock Style="{StaticResource Hint}" Text="Turns on the game's own Advanced Combat Logging setting (System, Network): more detail in the combat log file, for log tools and for features here later. The addon sets it at your next /reload or login, out of combat. Unticking turns it off again."/>
-          </StackPanel>
-        </CheckBox>
-        <CheckBox IsChecked="{Binding FlightReloadPrompt}" Margin="0,0,0,16">
-          <StackPanel>
-            <TextBlock Text="Offer a reload on flight paths" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-            <TextBlock Style="{StaticResource Hint}" Text="When you take a flight and your bags or gear changed since the last save, a small box in game offers a /reload, so the app's items get up to date. You keep flying through it."/>
-          </StackPanel>
-        </CheckBox>
-        <CheckBox IsChecked="{Binding ChatReloadReminder}" Margin="0,0,0,16">
-          <StackPanel>
-            <TextBlock Text="Remind me in chat to /reload" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-            <TextBlock Style="{StaticResource Hint}" Text="One line in chat when your bags or gear changed since the last save: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes."/>
-          </StackPanel>
-        </CheckBox>
         <StackPanel Margin="0,0,0,16" Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
           <TextBlock Text="Name in posts" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
           <TextBlock Style="{StaticResource Hint}" Text="Forever characters have a surname. Pick what posts and character cards call them." Margin="0,2,0,8"/>

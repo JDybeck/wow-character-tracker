@@ -11,6 +11,7 @@
   <ui:NullToVisibility x:Key="VisibleIfSet"/>
   <ui:NullToVisibility x:Key="HiddenIfSet" Invert="True"/>
   <ui:EqualsToVisibility x:Key="PageIs"/>
+  <ui:ActiveIf x:Key="ActiveIf"/>
   <BooleanToVisibilityConverter x:Key="BoolVis"/>
   <ui:Not x:Key="Not"/>
 </ResourceDictionary>

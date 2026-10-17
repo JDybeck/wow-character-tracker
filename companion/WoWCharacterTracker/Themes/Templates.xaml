@@ -72,16 +72,20 @@
     <Setter Property="Foreground" Value="{StaticResource Muted}"/>
     <Setter Property="Template">
       <Setter.Value>
+        <!-- Same look as the page tabs, a size smaller. -->
         <ControlTemplate TargetType="RadioButton">
-          <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="2,8,2,6" Margin="0,0,20,0">
-            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="13" TextElement.FontWeight="SemiBold"/>
+          <Border x:Name="Bd" Background="Transparent" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+                  CornerRadius="7" Padding="12,5" Margin="0,8,6,8">
+            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="12.5" TextElement.FontWeight="SemiBold"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLineSoft}"/>
               <Setter Property="Foreground" Value="{StaticResource Text}"/>
             </Trigger>
             <Trigger Property="IsChecked" Value="True">
-              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLine}"/>
               <Setter Property="Foreground" Value="White"/>
             </Trigger>
           </ControlTemplate.Triggers>
@@ -180,16 +184,20 @@
     <Setter Property="Foreground" Value="{StaticResource Muted}"/>
     <Setter Property="Template">
       <Setter.Value>
+        <!-- A box with the page's icon and name; the open page (Tag "active") is filled in the tab's theme. -->
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="4,8" Margin="0,0,22,0">
-            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="14" TextElement.FontWeight="SemiBold"/>
+          <Border x:Name="Bd" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+                  CornerRadius="9" Padding="14,8" Margin="0,0,8,0">
+            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="13.5" TextElement.FontWeight="SemiBold"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLineSoft}"/>
               <Setter Property="Foreground" Value="{StaticResource Text}"/>
             </Trigger>
             <Trigger Property="Tag" Value="active">
-              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLine}"/>
               <Setter Property="Foreground" Value="White"/>
             </Trigger>
           </ControlTemplate.Triggers>

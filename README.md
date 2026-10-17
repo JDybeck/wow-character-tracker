@@ -56,9 +56,6 @@ Every option has a **Test** button that posts a sample, using the selected chara
 Above the columns:
 
 - **Hide chat in screenshots** and **Hide the whole interface in screenshots** (like Alt+Z): hidden for the split second of the shot, then right back.
-- **Offer a reload on flight paths**: when you take a flight and your bags or gear changed since the last save, a small box in game offers a `/reload` (you keep flying), so the Items page gets up to date.
-- **Remind me in chat to /reload**: one line in chat when your bags or gear changed since the last save, after the bank, mailbox, a vendor or the auction house, when you leave a dungeon, and every 30 minutes.
-- **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
 
 **Copy settings** puts the whole page on your clipboard as a short code (it starts with `WCT1:`) to share with friends, and **Paste settings** applies a code someone shared to the game tab you're on. Webhooks and folders are never part of it.
 
@@ -67,6 +64,14 @@ Posts show the character's portrait as the sender picture, item and mount names 
 The Retail tab has its own Midnight look:
 
 ![The Retail tab](docs/images/retail-tab.png)
+
+### In game
+
+The **In game** page has what the addon does in game besides posting:
+
+- **Offer a reload on flight paths**: when you take a flight and your bags or gear changed since the last save, a small box in game offers a `/reload` (you keep flying), so the Items page gets up to date.
+- **Remind me in chat to /reload**: one line in chat when your bags or gear changed since the last save, after the bank, mailbox, a vendor or the auction house, when you leave a dungeon, and every 30 minutes.
+- **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
 
 ### The app
 
@@ -99,7 +104,7 @@ In Discord, hover the channel, click the gear (Edit Channel), then Integrations,
 
 Treat the link like a password: anyone with it can post in that channel. The app only ever shows it masked, and it's only stored on your PC.
 
-### In game
+### In-game commands
 
 - `/wct` shows your last 10 level times for the character you're on.
 - `/wct test` checks that instant posting reaches the app.

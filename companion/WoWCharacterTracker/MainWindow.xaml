@@ -50,45 +50,30 @@
           </ListBox>
         </StackPanel>
         </Grid>
+        <!-- The pages, as boxed tabs: icon and name, the open one filled. -->
         <StackPanel Orientation="Horizontal">
-        <Button Content="Characters" Command="{Binding ShowPageCommand}" CommandParameter="characters">
-          <Button.Style>
-            <Style TargetType="Button" BasedOn="{StaticResource PageTab}">
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding Page}" Value="characters">
-                  <Setter Property="Tag" Value="active"/>
-                </DataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Button.Style>
-        </Button>
-        <Button Content="Items" Command="{Binding ShowPageCommand}" CommandParameter="items">
-          <Button.Style>
-            <Style TargetType="Button" BasedOn="{StaticResource PageTab}">
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding Page}" Value="items">
-                  <Setter Property="Tag" Value="active"/>
-                </DataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Button.Style>
-        </Button>
-        <Button Content="What gets posted" Command="{Binding ShowPageCommand}" CommandParameter="posting">
-          <Button.Style>
-            <Style TargetType="Button" BasedOn="{StaticResource PageTab}">
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding Page}" Value="posting">
-                  <Setter Property="Tag" Value="active"/>
-                </DataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Button.Style>
-        </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="characters">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Characters"/></StackPanel>
+          </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="items">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7B8;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Items"/></StackPanel>
+          </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=posting}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="posting">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="What gets posted"/></StackPanel>
+          </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=ingame}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="ingame">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7FC;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="In game"/></StackPanel>
+          </Button>
         </StackPanel>
       </DockPanel>
 
       <views:CharactersPage Grid.Row="1"/>
       <views:PostingPage Grid.Row="1"/>
+      <views:InGamePage Grid.Row="1"/>
       <views:ItemsPage Grid.Row="1" Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
 
       <Grid Grid.Row="1" Grid.Column="2">
