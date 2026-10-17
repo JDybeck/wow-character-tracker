@@ -37,14 +37,18 @@
 
     <Border Grid.Column="1" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
             CornerRadius="10" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16,0">
-      <ListBox ItemsSource="{Binding FlavorTabs}" SelectedItem="{Binding SelectedFlavor}" ItemContainerStyle="{StaticResource FlavorTab}"
-               Background="Transparent" BorderThickness="0">
-        <ListBox.ItemsPanel>
-          <ItemsPanelTemplate>
-            <StackPanel Orientation="Horizontal"/>
-          </ItemsPanelTemplate>
-        </ListBox.ItemsPanel>
-      </ListBox>
+      <Grid>
+        <ListBox x:Name="Tabs" ItemsSource="{Binding FlavorTabs}" SelectedItem="{Binding SelectedFlavor}" ItemContainerStyle="{StaticResource FlavorTab}"
+                 Background="Transparent" BorderThickness="0" SelectionChanged="Tabs_SelectionChanged">
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+        </ListBox>
+        <!-- The switch animation flies over the tabs (Ui/TabOrb). -->
+        <Canvas x:Name="OrbLayer" IsHitTestVisible="False"/>
+      </Grid>
     </Border>
 
     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -129,6 +133,46 @@
               <TextBlock Text="Test characters" FontSize="13" Foreground="{StaticResource TextSoft}"/>
             </CheckBox>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,14"/>
+            <!-- Color themes for the open game tab (AppearanceViewModel). -->
+            <TextBlock Text="{Binding Appearance.Title}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="0,0,0,6"/>
+            <ItemsControl ItemsSource="{Binding Appearance.Choices}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:ThemeChoice}">
+                  <Button Command="{Binding DataContext.Appearance.PickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                          CommandParameter="{Binding Key}" Cursor="Hand" ToolTip="{Binding Description}" Margin="0,0,0,4">
+                    <Button.Template>
+                      <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Padding="6,5" CornerRadius="7" BorderThickness="1" BorderBrush="Transparent" Background="Transparent">
+                          <DockPanel>
+                            <!-- Swatches: the card color with the accents on it. -->
+                            <Border DockPanel.Dock="Left" Width="44" Height="22" CornerRadius="5" Background="{Binding Bg}" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,10,0">
+                              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Ellipse Width="9" Height="9" Fill="{Binding Accent}" Margin="1,0"/>
+                                <Ellipse Width="9" Height="9" Fill="{Binding Second}" Margin="1,0"/>
+                                <Ellipse Width="9" Height="9" Fill="{Binding AccentText}" Margin="1,0"/>
+                              </StackPanel>
+                            </Border>
+                            <TextBlock x:Name="Check" DockPanel.Dock="Right" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="12"
+                                       Foreground="{DynamicResource BlueText}" VerticalAlignment="Center" Visibility="Collapsed"/>
+                            <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+                          </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/>
+                          </Trigger>
+                          <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+                            <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                          </DataTrigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </Button.Template>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border Height="1" Background="{DynamicResource Line}" Margin="0,10,0,14"/>
             <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,0,0,0" Padding="12,4"
                     Command="{Binding ShowUninstallCommand}" ToolTip="Pick what to remove: the app, the addon, your data, settings">
               <StackPanel Orientation="Horizontal">

@@ -1,0 +1,25 @@
+using WoWCharacterTracker.Ui;
+
+namespace WoWCharacterTracker.Tests;
+
+public class ThemeTests
+{
+    [Fact]
+    public void Unknown_or_missing_theme_falls_back_to_the_games_default()
+    {
+        Assert.Equal("midnight", Theme.Find(Flavors.Retail, null).Key);
+        Assert.Equal("classic", Theme.Find(Flavors.Forever, "no-such-theme").Key);
+        // A Retail theme picked for Forever (a hand-edited config) doesn't leak across games.
+        Assert.Equal("classic", Theme.Find(Flavors.Forever, "midnight").Key);
+    }
+
+    [Fact]
+    public void Theme_keys_are_unique_per_game()
+    {
+        foreach (var flavor in new[] { Flavors.Retail, Flavors.Forever })
+        {
+            var keys = Theme.OptionsFor(flavor).Select(o => o.Key).ToList();
+            Assert.Equal(keys.Count, keys.Distinct().Count());
+        }
+    }
+}

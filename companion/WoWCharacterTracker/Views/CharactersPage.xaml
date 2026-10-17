@@ -72,7 +72,7 @@
         </StackPanel>
       </Border>
       <Border Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
-        <Grid Margin="24,14">
+        <Grid Margin="35,14,35,14"> <!-- lines up with the rows: their frame margin (10) + border (1) + 24 -->
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="{StaticResource ColClass}"/>
@@ -91,7 +91,7 @@
       </Border>
 
       <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
-               Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}"
+               Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}" Padding="0,6"
                ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False">
         <ListBox.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:CharacterRow}">

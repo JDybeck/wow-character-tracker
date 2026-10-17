@@ -2,6 +2,12 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.17.0
+
+- **Color themes**: pick a palette per game under Settings. Retail: Midnight (the current expansion), Void arcane and Silvermoon. Forever: Classic gold, Forever wisp, Emerald Dream and Blackrock ember.
+- **Characters in frames**: each character in the list sits in its own box with a sharper edge in the theme's color, brighter on hover and when open.
+- **Switch animation**: switching games sends a blue wisp flying to Forever, or a void orb to Retail. It plays once, in the tab strip.
+
 ## v0.16.0
 
 - **Item tooltips look like the game's and Wowhead's**: dark box, quality colors, yellow item level, green effects, class colors, the slot and type on one line ("Two-Hand ... Mace"), and coins in their colors.

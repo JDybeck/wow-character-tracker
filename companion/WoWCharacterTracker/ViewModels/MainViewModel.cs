@@ -14,6 +14,7 @@ sealed class MainViewModel : Observable
         Updates = new UpdatesViewModel(justUpdated);
         Discord = new DiscordViewModel(this);
         Uninstall = new UninstallViewModel(this);
+        Appearance = new AppearanceViewModel(this);
         Log.Written += line => OnUi(() =>
         {
             Logs.Insert(0, line);
@@ -54,6 +55,7 @@ sealed class MainViewModel : Observable
     public UpdatesViewModel Updates { get; }
     public DiscordViewModel Discord { get; }
     public UninstallViewModel Uninstall { get; }
+    public AppearanceViewModel Appearance { get; }
 
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
@@ -68,7 +70,7 @@ sealed class MainViewModel : Observable
             if (!Set(ref selectedFlavor, value) || value is null) return;
             if (old is not null) old.IsSelected = false;
             value.IsSelected = true;
-            Theme.Apply(value.Flavor);
+            Appearance.Apply();
             Config.SelectedFlavor = value.Flavor.Key;
             Config.Save();
             Discord.Refresh();

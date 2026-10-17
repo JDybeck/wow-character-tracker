@@ -42,6 +42,10 @@
   <SolidColorBrush x:Key="IndigoTextBright" Color="#E0E7FF"/>
   <SolidColorBrush x:Key="IndigoPanel" Color="#33312E81"/>
   <SolidColorBrush x:Key="IndigoLineSoft" Color="#4D6366F1"/>
+  <!-- Character row frames (Theme.cs sets these from the tab's accent). -->
+  <SolidColorBrush x:Key="Frame" Color="#592563EB"/>
+  <SolidColorBrush x:Key="FrameStrong" Color="#B33B82F6"/>
+  <SolidColorBrush x:Key="RowBg" Color="#0F172A"/>
 
   <FontFamily x:Key="Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
   <FontFamily x:Key="Mono">Cascadia Mono, Consolas</FontFamily>

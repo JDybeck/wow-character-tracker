@@ -113,15 +113,21 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ListBoxItem">
-          <Border x:Name="Bd" Background="Transparent" BorderBrush="{DynamicResource LineSoft}" BorderThickness="0,0,0,1">
-            <ContentPresenter/>
+          <!-- Each character in its own frame: an accent edge (stronger on hover and when open) over
+               a soft shade of the card colors. The inner border is the hover/open tint. -->
+          <Border x:Name="Frame" Margin="10,4" CornerRadius="9" BorderThickness="1" Background="{DynamicResource RowBg}" BorderBrush="{DynamicResource Frame}">
+            <Border x:Name="Bd" CornerRadius="8" Background="Transparent">
+              <ContentPresenter/>
+            </Border>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/>
+              <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource FrameStrong}"/>
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
               <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Selected}"/>
+              <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource FrameStrong}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

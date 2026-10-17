@@ -8,6 +8,8 @@ namespace WoWCharacterTracker.Ui;
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
 //   extra:  rename | options (a webhook) | removehook | testchars | updating (the update banner mid-download) | testall (every Test button) | addonupdate
+//           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
+// CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
 //   extra2: gear | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | cardopts (card options open) | post (Post to Discord for the first character) | remove (its remove question) | sync (Sync now)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
@@ -66,10 +68,45 @@ static class ScreenshotMode
                 vm.PostCharacterCommand.Execute(c);
                 await Task.Delay(4000);
             }
+            if (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_THEME") is { Length: > 0 } theme) vm.Appearance.PickCommand.Execute(theme);
+            if (Part(2) == "settings") vm.ShowSettings = true;
             await Task.Delay(2500);
+            if (Part(2) == "orb" && vm.FlavorTabs.FirstOrDefault(t => t != vm.SelectedFlavor) is { } other)
+            {
+                // The tab switch animation mid-flight (CHARACTERTRACKER_SCREENSHOT_ORBMS after the click).
+                vm.SelectedFlavor = other;
+                var ms = int.TryParse(Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_ORBMS"), out var v) ? v : 250;
+                await Task.Delay(ms);
+            }
             Save(window, target);
+            if (Part(2) == "settings" && Find<Views.Header>(window)?.FindName("SettingsMenu") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement menu })
+                Save(menu, Path.ChangeExtension(target, null) + "-settings.png");
             window.Close();
         };
+    }
+
+    static T? Find<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T found) return found;
+            if (Find<T>(child) is { } deeper) return deeper;
+        }
+        return null;
+    }
+
+    // A popup's content (it's its own window, so not in the window's picture).
+    static void Save(FrameworkElement element, string path)
+    {
+        var dpi = VisualTreeHelper.GetDpi(element);
+        var bmp = new RenderTargetBitmap((int)(element.ActualWidth * dpi.DpiScaleX), (int)(element.ActualHeight * dpi.DpiScaleY),
+            dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+        bmp.Render(element);
+        var png = new PngBitmapEncoder();
+        png.Frames.Add(BitmapFrame.Create(bmp));
+        using var fs = File.Create(path);
+        png.Save(fs);
     }
 
     static void Save(Window window, string path)

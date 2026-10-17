@@ -27,6 +27,9 @@ class Config
     // Parts of the character card (Post to Discord) the user turned off. Guild is off unless picked.
     public List<string> CardHidden { get; set; } = ["guild"];
 
+    // The color theme picked per game tab (flavor key -> Theme option key); missing = the game's default.
+    public Dictionary<string, string> Themes { get; set; } = [];
+
     // Forever characters (GUIDs) shown with their standard race portrait instead of the in-game one.
     public List<string> StandardPortraits { get; set; } = [];
 
