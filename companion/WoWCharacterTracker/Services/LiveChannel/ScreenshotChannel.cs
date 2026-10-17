@@ -46,6 +46,9 @@ sealed class ScreenshotChannel(string flavorDir) : IDisposable
                             EntryReceived?.Invoke(entry, shotAt, entry.Kind == "snapshot" ? GridDecoder.CropPortrait(bytes, cellSize) : null);
                         break;
                     case GridResult.Damaged:
+                        // The addon's own shot (it has the grid's start), just unreadable: the event
+                        // comes with the next save anyway, so it doesn't stay in the Screenshots folder.
+                        TryDelete(file);
                         Unreadable?.Invoke(file);
                         break;
                 }

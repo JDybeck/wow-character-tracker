@@ -32,6 +32,9 @@ class Config
     public List<string> TurnedOff { get; set; } = [];
     public bool IsOn(Flavor flavor) => !TurnedOff.Contains(flavor.Key);
 
+    // Slides, fades and the tab orb (Ui/Motion). Off: everything switches instantly.
+    public bool Animations { get; set; } = true;
+
     // Stream overlay (a localhost page for OBS) and stream text files, off until turned on.
     public bool StreamEnabled { get; set; }
     public int StreamPort { get; set; } = 8721;

@@ -140,6 +140,10 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,6,0,14"/>
+            <CheckBox IsChecked="{Binding Animations}" Margin="0,0,0,12"
+                      ToolTip="Slides between pages and games, characters that unfold when opened, and the orb between the game tabs. Off: everything switches instantly.">
+              <TextBlock Text="Animations" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+            </CheckBox>
             <CheckBox IsChecked="{Binding ShowTestCharacters}"
                       ToolTip="Show made-up Forever characters (Zeb, Fågelmannen, Goggo) to try the app without playing. They're never posted on their own.">
               <TextBlock Text="Test characters" FontSize="13" Foreground="{StaticResource TextSoft}"/>
@@ -195,6 +199,8 @@
               <WrapPanel Margin="-8,4,0,0">
                 <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Copy address" Command="{Binding Stream.CopyUrlCommand}" FontSize="12"/>
                 <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Preview" Command="{Binding Stream.OpenOverlayCommand}" FontSize="12"/>
+                <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Test ding" Command="{Binding Stream.TestDingCommand}" FontSize="12"
+                        ToolTip="Shows the DING! alert on the overlay now (in OBS too), without posting anything"/>
                 <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Text files" Command="{Binding Stream.OpenFolderCommand}" FontSize="12"
                         ToolTip="One value per file (level, last level time, today's levels...), for OBS Text sources with Read from file"/>
               </WrapPanel>

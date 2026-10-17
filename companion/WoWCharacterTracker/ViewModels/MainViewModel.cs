@@ -59,6 +59,13 @@ sealed class MainViewModel : Observable
     public AppearanceViewModel Appearance { get; }
     public StreamViewModel Stream { get; }
 
+    // Settings, Animations: slides, fades and the tab orb (Ui/Motion), or everything instant.
+    public bool Animations
+    {
+        get => Config.Animations;
+        set { Config.Animations = Motion.Enabled = value; Config.Save(); Raise(nameof(Animations)); }
+    }
+
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
 
@@ -104,6 +111,7 @@ sealed class MainViewModel : Observable
     public async Task StartAsync()
     {
         Config = Config.Load();
+        Motion.Enabled = Config.Animations;
         Log.Info("Character Tracker started.");
         Discord.ShowAddWebhook = Config.Webhooks.Count == 0;
 

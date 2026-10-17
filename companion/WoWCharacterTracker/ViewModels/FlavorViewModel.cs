@@ -103,6 +103,7 @@ sealed class FlavorViewModel : Observable
 
     public Flavor Flavor { get; }
     public string Name => Flavor.Name;
+    public int Order => Flavors.All.ToList().IndexOf(Flavor); // tab order, for the slide direction (Ui/Motion)
 
     ImageSource? logo;
     public ImageSource? Logo { get => logo; private set { Set(ref logo, value); Raise(nameof(HasLogo)); } }

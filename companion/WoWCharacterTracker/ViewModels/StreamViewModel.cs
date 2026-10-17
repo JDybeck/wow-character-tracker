@@ -18,11 +18,27 @@ sealed class StreamViewModel : Observable
         CopyUrlCommand = new RelayCommand(_ => { try { Clipboard.SetText(Url); Log.Info("Copied the stream overlay address: " + Url); } catch { } });
         OpenFolderCommand = new RelayCommand(_ => { Directory.CreateDirectory(StreamFiles.Dir); Browser.Open(StreamFiles.Dir); });
         OpenOverlayCommand = new RelayCommand(_ => Browser.Open(Url + "?preview=1")); // a dark backdrop behind it
+        TestDingCommand = new RelayCommand(_ => TestDing(), _ => server is not null);
     }
 
     public ICommand CopyUrlCommand { get; }
     public ICommand OpenFolderCommand { get; }
     public ICommand OpenOverlayCommand { get; }
+    public ICommand TestDingCommand { get; }
+
+    // Shows the ding alert on the overlay right now (OBS included), for setting it up without
+    // leveling. Only the overlay sees it: nothing is posted or saved, the text files stay as they are.
+    void TestDing()
+    {
+        if (server is null) return;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var level = snapshot.HasCharacter ? snapshot.Level + 1 : 40;
+        var test = snapshot.HasCharacter ? snapshot : StreamSnapshot.Empty with { Character = "Zeb TESTCHAR", Level = 39, ClassName = "Warrior", ClassColor = "#C69B6D", Zone = "Scarlet Monastery" };
+        server.Snapshot = test with { Ding = new StreamDing($"test-{now}", level, "23m 11s", now) };
+        Log.Info("Test ding sent to the stream overlay (only the overlay shows it).");
+        // Back to the real state a bit later, so the next real ding still counts as new.
+        _ = Task.Delay(TimeSpan.FromSeconds(10)).ContinueWith(_ => { if (server is not null) server.Snapshot = snapshot; });
+    }
     public string Url => $"http://localhost:{main.Config.StreamPort}/";
 
     public bool Enabled
