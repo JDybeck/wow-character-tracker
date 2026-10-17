@@ -74,6 +74,7 @@
       <views:CharactersPage Grid.Row="1"/>
       <views:PostingPage Grid.Row="1"/>
       <views:InGamePage Grid.Row="1"/>
+      <views:UninstallPage Grid.Row="1"/>
       <views:ItemsPage Grid.Row="1" Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
 
       <Grid Grid.Row="1" Grid.Column="2">

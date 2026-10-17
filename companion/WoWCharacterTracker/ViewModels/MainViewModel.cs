@@ -13,6 +13,7 @@ sealed class MainViewModel : Observable
         Backfill = backfill;
         Updates = new UpdatesViewModel(justUpdated);
         Discord = new DiscordViewModel(this);
+        Uninstall = new UninstallViewModel(this);
         Log.Written += line => OnUi(() =>
         {
             Logs.Insert(0, line);
@@ -40,12 +41,19 @@ sealed class MainViewModel : Observable
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
         TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
         OpenUrlCommand = new RelayCommand(p => Browser.Open(p as string));
+        ShowUninstallCommand = new RelayCommand(_ =>
+        {
+            ShowSettings = false;
+            Uninstall.Refresh();
+            Page = "uninstall";
+        });
     }
 
     public bool Backfill { get; }
     public Config Config { get; private set; } = new();
     public UpdatesViewModel Updates { get; }
     public DiscordViewModel Discord { get; }
+    public UninstallViewModel Uninstall { get; }
 
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
@@ -84,6 +92,7 @@ sealed class MainViewModel : Observable
     public ICommand DeleteTagCommand { get; }
     public ICommand TestKindCommand { get; }
     public ICommand OpenUrlCommand { get; }
+    public ICommand ShowUninstallCommand { get; }
 
     public async Task StartAsync()
     {

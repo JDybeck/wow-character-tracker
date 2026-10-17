@@ -37,6 +37,7 @@ public partial class App : Application
 
         vm = new MainViewModel(backfill: e.Args.Contains("--backfill"), justUpdated: e.Args.Contains("--updated"));
         vm.Updates.UpdateStarted += QuitForUpdate;
+        vm.Uninstall.QuitRequested += QuitAfterUninstall;
         var window = new MainWindow(vm);
         MainWindow = window;
         window.Closing += (_, args) =>
@@ -97,6 +98,15 @@ public partial class App : Application
         quitting = true;
         tray?.Dispose();
         vm?.Shutdown();
+        Environment.Exit(0);
+    }
+
+    // After an uninstall: the exe is removed once this process has gone (if that was picked).
+    void QuitAfterUninstall()
+    {
+        if (vm?.Uninstall.RemovesApp == true) Uninstaller.RemoveAppAfterExit();
+        quitting = true;
+        tray?.Dispose();
         Environment.Exit(0);
     }
 
