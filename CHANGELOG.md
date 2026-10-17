@@ -2,6 +2,16 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.14.0
+
+- **Items**: a new page with everything your characters carry (worn, in bags and in the bank), with icons, in one list per server. Search by name to see who has what, and where.
+- The character details are in tabs now: **Overview**, **Gear and bags** and **Leveling**.
+- **Gear and bags**: what the character wears, laid out like the character window, its bags slot by slot, and its bank as of the last time you opened it. With icons, quality colors and Wowhead tooltips. Needs the updated addon and a /reload (or logout).
+- **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew while leveling, and your duel and Mak'gora record.
+- Forever: the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP the higher you get.
+- Boss kills in the highlights say who was in the group; hardcore deaths say how much played time and gold went with them.
+- Total played for the characters you've filtered on, next to the total gold.
+
 ## v0.13.0
 
 The app and the addon now share one version number, starting here.

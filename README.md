@@ -68,7 +68,11 @@ The Retail tab has its own Midnight look:
 
 ### The app
 
-- **Characters**: every character you've logged in with the addon, with class, spec, level, item level, gold and when you last played. The bottom of the list shows the total gold for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for guild, total played, gold, crests (Retail), professions, talents, stats, last zone, highlights and level history. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there.
+- **Characters**: every character you've logged in with the addon, with class, spec, level, item level, gold and when you last played. The bottom of the list shows the total gold and total played for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for its details, in three tabs:
+  - **Overview**: guild, total played, gold, crests (Retail), professions, talents, stats, last zone and highlights. Boss kills say who was there, deaths what they cost. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there.
+  - **Gear and bags**: what the character wears, laid out like the character window, then its bags and its bank (as of the last time you opened it), with icons, quality colors and Wowhead tooltips.
+  - **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew, your duel record, and the level history. On Forever also the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP too.
+- **Items**: everything your characters carry (worn, bags and bank) in one list per server, with icons. Search by name to see who has what and where.
 - **Tags**: make your own (like Main, Alts, Guild) and put them on characters. Webhooks can post only for some tags.
 - **Post to Discord**: sends the character as a card picture, with icons and quality colors. The gear next to it picks what the card shows (item level, played, gold, crests, professions, talents, stats, guild, last seen, levels, highlights). **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
 
@@ -120,11 +124,13 @@ Not built yet, roughly in order:
 - **Hardcore death killer**: name what killed the character again (newer clients keep the combat log from addons).
 - **Minimap button** for the addon, with the commands and a test button.
 - **Per-character posting rules**, on top of each game's What gets posted.
-- **Bags and bank** through Baganator, so the app shows what each character carries.
+- **Warband bank** (Retail), maybe through Baganator's saved data.
+
 ## Notes and limits
 
 - Talents: Forever shows points in its three trees plus each pick. Retail shows points in the class, spec and hero trees.
 - Professions and end bosses are matched by English name, so a non-English client won't show them.
+- Bags and gear reach the app on `/reload` or logout (they're too much for the live channel). The bank only updates when you open it in game.
 - Rating milestones start counting from the first time the addon sees your rating, so ratings you already had aren't posted.
 - Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Characters Raider.IO doesn't know, and Forever characters, get their race portrait from Wowhead's icon CDN, or the class icon.
 - Screenshots go out at full size first (boosted servers allow bigger uploads). If Discord says one is too big, a smaller JPEG copy is sent instead, and only if that's still too big does the post go out without it.
