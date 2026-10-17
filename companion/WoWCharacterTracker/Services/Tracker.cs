@@ -313,6 +313,8 @@ sealed class Tracker : IDisposable
     {
         var events = new Dictionary<string, Entry>();
         var chars = new List<Snapshot>();
+        var inventories = new List<Inventory>();
+        var xpTable = new Dictionary<int, long>();
         foreach (var account in Wow.Accounts(flavorDir))
         {
             var file = Wow.SavedVarsFile(flavorDir, account);
@@ -322,6 +324,8 @@ sealed class Tracker : IDisposable
                 var d = SavedVariables.Read(file);
                 foreach (var e in d.Events) events[e.Id] = e;
                 chars.AddRange(d.Characters);
+                inventories.AddRange(d.Inventories);
+                foreach (var (level, xp) in d.XpTable) xpTable[level] = xp;
             }
             catch (Exception ex)
             {
@@ -331,7 +335,7 @@ sealed class Tracker : IDisposable
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(ToSnapshot));
-        return new TrackerData(events.Values.ToList(), chars);
+        return new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable };
     }
 
     public void Dispose()
