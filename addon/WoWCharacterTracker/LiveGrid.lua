@@ -26,6 +26,7 @@ local function encode(t)
       if v == true then v = 1 end
       if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
       if k == "sex" then v = (v == "female") and "f" or "m" end
+      if k == "guid" and type(v) == "string" then v = v:gsub("^Player%-", "") end -- the app puts it back
       local s = tostring(v):gsub("[%%;=#|]", function(c) return string.format("%%%02X", c:byte()) end)
       table.insert(parts, (SHORT[k] or k) .. "=" .. s)
     end
@@ -34,7 +35,7 @@ local function encode(t)
   return table.concat(parts, ";")
 end
 
--- The grid: 160 cells across, 2 pixels each, saved as PNG so the small cells stay sharp. Row 0
+-- The grid: 160 cells across, 2 pixels each, black or white, saved as a high-quality JPEG (fast for the game to write; tested to read back cleanly). Row 0
 -- and column 0 alternate white/black so the app can measure the cell size in the picture; the
 -- other cells hold the bits (black = 1): a magic byte (0xC8: this layout and short keys), the
 -- payload length (2 bytes), the payload, and a 2-byte checksum. (0xC7 was the older 128 x 5 px
@@ -61,10 +62,19 @@ local function toBits(data)
   return bits
 end
 
-local grid, gridWhite, gridPortrait
+-- Which screen corner the grid sits in (Settings.lua gridCorner): row 0 and column 0 (the clock) are always
+-- at that corner, so the grid is mirrored for the right and bottom corners. The label and the portrait sit
+-- on the inner side. The app tries every corner.
+local function corner()
+  local c = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.gridCorner
+  if c == "TOPRIGHT" or c == "BOTTOMLEFT" or c == "BOTTOMRIGHT" then return c end
+  return "TOPLEFT"
+end
+
+local grid, gridWhite, gridPortrait, gridLabel
 -- Where the portrait goes, in screen pixels from the top-left corner (the app knows the same spot):
 -- right of the grid's 160 columns and the 230 px label.
-local PORTRAIT_X, PORTRAIT_SIZE = 160 * 2 + 4 + 230 + 4, 64
+local PORTRAIT_X, PORTRAIT_SIZE = 160 * 2 + 4 + 230 + 4, 64 -- kept where it was (the label used to be 230 px)
 local gridTextures = {}
 
 -- A frame without a parent stays visible when the UI is hidden (Alt+Z). Its scale is set so one
@@ -80,30 +90,23 @@ local function gridFrame()
   gridWhite:SetColorTexture(1, 1, 1, 1)
   gridWhite:SetAllPoints()
 
-  -- A label next to the grid so players know what the flicker in the corner is. It sits to the
-  -- right of the 160 columns with a gap, outside the area the app reads.
-  local label = CreateFrame("Frame", nil, grid)
-  label:SetPoint("TOPLEFT", grid, "TOPLEFT", GRID_COLS * CELL + 4, 0)
-  label:SetSize(230, 30)
-  local bg = label:CreateTexture(nil, "BACKGROUND")
-  bg:SetColorTexture(0.05, 0.05, 0.08, 0.85)
+  -- A small label next to the grid so players know what the flicker in the corner is (Settings.lua
+  -- gridLabel = false hides it). It sits beside the 160 columns with a gap, outside what the app reads.
+  gridLabel = CreateFrame("Frame", nil, grid)
+  gridLabel:SetSize(150, 16)
+  local bg = gridLabel:CreateTexture(nil, "BACKGROUND")
+  bg:SetColorTexture(0.05, 0.05, 0.08, 0.8)
   bg:SetAllPoints()
-  local font = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-  local title = label:CreateFontString(nil, "OVERLAY")
-  title:SetFont(font, 12, "")
+  local title = gridLabel:CreateFontString(nil, "OVERLAY")
+  title:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 10, "")
   title:SetTextColor(1, 0.82, 0)
-  title:SetPoint("TOPLEFT", 6, -3)
-  title:SetText("WoW Character Tracker")
-  local sub = label:CreateFontString(nil, "OVERLAY")
-  sub:SetFont(font, 10, "")
-  sub:SetTextColor(0.85, 0.85, 0.85)
-  sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
-  sub:SetText("Sending to the app. /wct help")
+  title:SetPoint("CENTER")
+  title:SetText("Character Tracker  /wct")
 
-  -- The character's portrait (what the unit frame shows), at a fixed spot right of the label, only in
+  -- The character's portrait (what the unit frame shows), at a fixed spot beside the grid, only in
   -- the check-in shot after login: the app cuts it out and uses it as the character's picture.
+  -- (drawGrid places it, and the label, on the inner side of the corner in use.)
   local portraitFrame = CreateFrame("Frame", nil, grid)
-  portraitFrame:SetPoint("TOPLEFT", grid, "TOPLEFT", PORTRAIT_X, 0)
   portraitFrame:SetSize(PORTRAIT_SIZE, PORTRAIT_SIZE)
   gridPortrait = portraitFrame:CreateTexture(nil, "ARTWORK")
   gridPortrait:SetAllPoints()
@@ -134,9 +137,19 @@ local function drawGrid(bits)
   f:SetScale(pixelScale())
   local dataCols = GRID_COLS - 1
   local rows = math.ceil(#bits / dataCols) + 1
+  local where = corner()
+  local right, bottom = where:find("RIGHT") ~= nil, where:find("BOTTOM") ~= nil
   f:ClearAllPoints()
-  f:SetPoint("TOPLEFT", nil, "TOPLEFT", 0, 0)
+  f:SetPoint(where, nil, where, 0, 0)
   f:SetSize(GRID_COLS * CELL, rows * CELL)
+  -- The label and the portrait on the inner side, level with the corner's edge.
+  local edge = bottom and "BOTTOM" or "TOP"
+  gridLabel:ClearAllPoints()
+  if right then gridLabel:SetPoint(edge .. "RIGHT", f, edge .. "LEFT", -4, 0) else gridLabel:SetPoint(edge .. "LEFT", f, edge .. "RIGHT", 4, 0) end
+  gridLabel:SetShown(not (WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.gridLabel == false))
+  gridPortrait.frame:ClearAllPoints()
+  if right then gridPortrait.frame:SetPoint(edge .. "RIGHT", f, edge .. "RIGHT", -PORTRAIT_X, 0)
+  else gridPortrait.frame:SetPoint(edge .. "LEFT", f, edge .. "LEFT", PORTRAIT_X, 0) end
 
   local used = 0
   local function black(x, y, cells)
@@ -149,7 +162,10 @@ local function drawGrid(bits)
       gridTextures[used] = t
     end
     t:ClearAllPoints()
-    t:SetPoint("TOPLEFT", f, "TOPLEFT", x * CELL, -y * CELL)
+    -- mirrored for the right and bottom corners, so the clock stays at the screen corner
+    local px = right and (GRID_COLS - x - cells) or x
+    local py = bottom and (rows - 1 - y) or y
+    t:SetPoint("TOPLEFT", f, "TOPLEFT", px * CELL, -py * CELL)
     t:SetSize(cells * CELL, CELL)
     t:Show()
   end
@@ -185,11 +201,12 @@ local savedCVars
 local getCVar = (C_CVar and C_CVar.GetCVar) or GetCVar
 local setCVar = (C_CVar and C_CVar.SetCVar) or SetCVar
 
--- PNG while the grid is captured (lossless, so the 2 px cells stay sharp; TGA can't be read by
--- the app). The player's own settings come back right after.
+-- JPEG at the best quality while the grid is captured: much faster for the game to write than PNG,
+-- and the black and white 2 px cells read back cleanly (tested down to quality 60). TGA can't be
+-- read by the app. The player's own settings come back right after.
 local function useGridShotSettings()
   savedCVars = { format = getCVar("screenshotFormat"), quality = getCVar("screenshotQuality") }
-  pcall(setCVar, "screenshotFormat", "png") -- lossless, so 2 px cells come through clean
+  pcall(setCVar, "screenshotFormat", "jpeg")
   pcall(setCVar, "screenshotQuality", "10")
   if ActionStatus and ActionStatus.UnregisterEvent then ActionStatus:UnregisterEvent("SCREENSHOT_SUCCEEDED") end
 end

@@ -53,7 +53,7 @@ sealed class Tracker : IDisposable
         if (flavor == Flavors.Retail && !File.Exists(statePath) && File.Exists(oldState)) File.Move(oldState, statePath);
         firstRun = !File.Exists(statePath);
 
-        shots = new ScreenshotChannel(flavorDir);
+        shots = new ScreenshotChannel(flavorDir, () => settings().GridCorner);
         shots.EntryReceived += OnLiveEntry;
         shots.Unreadable += file => Log.Warn($"{Tag}A live event screenshot couldn't be read ({Path.GetFileName(file)}). It gets posted on your next /reload or logout instead.");
     }

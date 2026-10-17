@@ -2,8 +2,13 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
-## v0.17.0
+## v0.18.0
 
+- **Faster instant posts**: the addon's data screenshot is saved as a high-quality JPEG instead of PNG (a fraction of the size, and much quicker for the game to write), and the app notices it the moment it's written instead of checking every half second. In tests a shot was picked up 70 ms after the game finished writing it, where it used to take 0.3 to 0.8 seconds.
+- **Pick the corner** for the data grid on the **In game** page: top left (as before), top right, bottom left or bottom right. The app finds it in any corner, so changing it never loses a post.
+- The grid's label is now one small line ("Character Tracker /wct"), and you can hide it.
+- More reliable grid reading: a busy game scene below the grid could make a shot unreadable at some resolutions; the app now measures the grid from its clock row only.
+- Animations no longer replay on the open character every time the list refreshes.
 - **Color themes**: pick a palette per game under Settings. Retail: Midnight (the current expansion), Void arcane and Silvermoon. Forever: Classic gold, Forever wisp, Emerald Dream and Blackrock ember.
 - **Characters in frames**: each character in the list sits in its own box with a sharper edge in the theme's color, brighter on hover and when open.
 - **Switch animation**: switching games sends a blue wisp flying to Forever, or a void orb to Retail. It plays once, in the tab strip.

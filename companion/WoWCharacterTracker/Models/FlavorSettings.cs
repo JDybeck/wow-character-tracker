@@ -71,6 +71,13 @@ class FlavorSettings
     public bool HideUiInShots { get; set; } // the whole interface hidden for the shot, like Alt+Z
     public bool FlightReloadPrompt { get; set; } = true; // the addon offers a /reload on flight paths when bags changed
     public bool ChatReloadReminder { get; set; } = true; // and reminds in chat (good moments, every 30 minutes)
+
+    // Where the addon draws its data grid for the instant posts (TOPLEFT, TOPRIGHT, BOTTOMLEFT,
+    // BOTTOMRIGHT) and whether the small label shows next to it. The app reads every corner either way.
+    public string GridCorner { get; set; } = "TOPLEFT";
+    public bool GridLabel { get; set; } = true;
+    public static readonly string[] Corners = ["TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"];
+    public static string CornerOrDefault(string? corner) => Corners.Contains(corner) ? corner! : "TOPLEFT";
     public bool? AdvancedCombatLog { get; set; } // the game's Advanced Combat Logging; null = leave the player's setting alone
 
     // Characters removed in the app: guid -> when. A character played after that shows up again.

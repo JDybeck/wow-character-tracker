@@ -167,6 +167,21 @@ sealed class FlavorViewModel : Observable
     public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
     public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
 
+    // The data grid's corner (four radio buttons) and its label (In game page).
+    public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
+    public bool GridTopLeft { get => Corner == "TOPLEFT"; set { if (value) SetCorner("TOPLEFT"); } }
+    public bool GridTopRight { get => Corner == "TOPRIGHT"; set { if (value) SetCorner("TOPRIGHT"); } }
+    public bool GridBottomLeft { get => Corner == "BOTTOMLEFT"; set { if (value) SetCorner("BOTTOMLEFT"); } }
+    public bool GridBottomRight { get => Corner == "BOTTOMRIGHT"; set { if (value) SetCorner("BOTTOMRIGHT"); } }
+    string Corner => FlavorSettings.CornerOrDefault(Settings.GridCorner);
+    void SetCorner(string corner)
+    {
+        if (Corner == corner) return;
+        Settings.GridCorner = corner;
+        Changed();
+        Raise(nameof(GridTopLeft)); Raise(nameof(GridTopRight)); Raise(nameof(GridBottomLeft)); Raise(nameof(GridBottomRight));
+    }
+
     // Name in posts (Forever has surnames): three chips that act like radio buttons.
     public bool HasSurnames => Flavor == Flavors.Forever;
     public bool NameFull { get => Settings.NameStyle is not ("first" or "last"); set { if (value) SetNameStyle("full"); } }
@@ -553,6 +568,7 @@ sealed class FlavorViewModel : Observable
         itemClasses = data.ItemClasses;
         foreach (var (id, c) in itemClasses) if (items.TryGetValue(id, out var known)) known.ClassId = c;
         var keepTab = SelectedCharacter?.DetailTab;
+        Motion.Quiet(); // the rows are rebuilt: what's open stays still
         var rows = CharacterRow.Build(data, Flavor, ItemFor)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
