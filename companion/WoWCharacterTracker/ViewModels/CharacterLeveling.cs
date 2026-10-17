@@ -69,18 +69,19 @@ sealed class CharacterLeveling
         return lines;
     }
 
-    // "Duels won: 2 (1 ran away). Mak'gora won: 1."
+    // "Duels: 5 won, 2 lost (1 ran away). Mak'gora: 1 won."
     static string Duels(IReadOnlyList<Entry> all)
     {
-        var duels = all.Where(e => e.Kind == "duel").ToList();
-        var makgora = all.Count(e => e.Kind == "makgora");
-        var parts = new List<string>();
-        if (duels.Count > 0)
+        string Record(string kind, string label)
         {
-            var fled = duels.Count(d => d.Fled);
-            parts.Add($"Duels won: {duels.Count}" + (fled > 0 ? $" ({fled} ran away)" : ""));
+            var fights = all.Where(e => e.Kind == kind).ToList();
+            if (fights.Count == 0) return "";
+            var won = fights.Count(f => !f.Lost);
+            var lost = fights.Count - won;
+            var fled = fights.Count(f => f.Lost && f.Fled);
+            return $"{label}: {won} won" + (lost > 0 ? $", {lost} lost" : "") + (fled > 0 ? $" ({fled} ran away)" : "");
         }
-        if (makgora > 0) parts.Add($"Mak'gora won: {makgora}");
+        var parts = new[] { Record("duel", "Duels"), Record("makgora", "Mak'gora") }.Where(p => p.Length > 0).ToList();
         return parts.Count == 0 ? "" : string.Join(". ", parts) + ".";
     }
 }

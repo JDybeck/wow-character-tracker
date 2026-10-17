@@ -81,7 +81,7 @@ sealed class ItemsViewModel : Observable
             if (rows.Count == 0) continue;
             // When each character's bags were last saved (and where), so it's clear how fresh this is.
             var saved = realm.Where(c => c.Gear.HasSavedText).Select(c => new ItemPlace(c.FullName, c.ClassBrush, c.Gear.SavedText)).ToList();
-            Rows.Add(new ItemHeader($"{realm.Key}", $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}", saved));
+            Rows.Add(new ItemHeader(realm.First().RealmText, $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}", saved));
             foreach (var row in rows) Rows.Add(row);
         }
         EmptyText = characters.All(c => c.Inventory is null)

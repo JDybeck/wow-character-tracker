@@ -7,6 +7,50 @@
              xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
              xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure"
              xmlns:views="clr-namespace:WoWCharacterTracker.Views">
+  <UserControl.Resources>
+    <!-- The open character's details: the tab strip, then only the open tab's view. -->
+    <DataTemplate x:Key="CharacterDetails" DataType="{x:Type vm:CharacterRow}">
+      <Border Margin="24,0,24,16" Padding="18,2,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+        <StackPanel>
+          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Margin="0,0,0,4">
+            <StackPanel Orientation="Horizontal">
+              <RadioButton Style="{StaticResource DetailTab}" Content="Overview" IsChecked="{Binding IsOverviewTab}" GroupName="{Binding Guid}"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Gear and bags" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Leveling" IsChecked="{Binding IsLevelingTab}" GroupName="{Binding Guid}"/>
+            </StackPanel>
+          </Border>
+          <ContentControl Content="{Binding}" Focusable="False">
+            <ContentControl.Style>
+              <Style TargetType="ContentControl">
+                <Setter Property="ContentTemplate">
+                  <Setter.Value>
+                    <DataTemplate><views:CharacterOverview/></DataTemplate>
+                  </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding DetailTab}" Value="gear">
+                    <Setter Property="ContentTemplate">
+                      <Setter.Value>
+                        <DataTemplate><views:CharacterGear/></DataTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding DetailTab}" Value="leveling">
+                    <Setter Property="ContentTemplate">
+                      <Setter.Value>
+                        <DataTemplate><views:CharacterLeveling/></DataTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </ContentControl.Style>
+          </ContentControl>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </UserControl.Resources>
+
   <Border Style="{StaticResource CardBorder}" ClipToBounds="True" DataContext="{Binding SelectedFlavor}"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=characters}">
     <Grid>
@@ -79,7 +123,7 @@
                                TextTrimming="CharacterEllipsis" ToolTip="{Binding FullName}"/>
                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                       <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
-                      <TextBlock Text="{Binding Realm}" Foreground="{StaticResource Dim}" FontSize="12"/>
+                      <TextBlock Text="{Binding RealmText}" Foreground="{StaticResource Dim}" FontSize="12"/>
                       <Border x:Name="TagBox" Margin="8,0,0,0" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
@@ -113,22 +157,20 @@
                 <TextBlock Grid.Column="5" Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center"/>
               </Grid>
 
-              <!-- Details for the selected character, in tabs so it stays readable. -->
-              <Border Margin="24,0,24,16" Padding="18,2,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{DynamicResource Line}" BorderThickness="1"
-                      Visibility="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource BoolVis}}">
-                <StackPanel>
-                  <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Margin="0,0,0,4">
-                    <StackPanel Orientation="Horizontal">
-                      <RadioButton Style="{StaticResource DetailTab}" Content="Overview" IsChecked="{Binding IsOverviewTab}" GroupName="{Binding Guid}"/>
-                      <RadioButton Style="{StaticResource DetailTab}" Content="Gear and bags" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>
-                      <RadioButton Style="{StaticResource DetailTab}" Content="Leveling" IsChecked="{Binding IsLevelingTab}" GroupName="{Binding Guid}"/>
-                    </StackPanel>
-                  </Border>
-                  <views:CharacterOverview Visibility="{Binding IsOverviewTab, Converter={StaticResource Visible}}"/>
-                  <views:CharacterGear Visibility="{Binding IsGearTab, Converter={StaticResource Visible}}"/>
-                  <views:CharacterLeveling Visibility="{Binding IsLevelingTab, Converter={StaticResource Visible}}"/>
-                </StackPanel>
-              </Border>
+              <!-- Details for the selected character, in tabs so it stays readable. They're only built
+                   for the open character and the open tab: the gear and bags alone are hundreds of icons. -->
+              <ContentControl Content="{Binding}" Focusable="False">
+                <ContentControl.Style>
+                  <Style TargetType="ContentControl">
+                    <Setter Property="ContentTemplate" Value="{x:Null}"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                        <Setter Property="ContentTemplate" Value="{StaticResource CharacterDetails}"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </ContentControl.Style>
+              </ContentControl>
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>

@@ -16,13 +16,13 @@ static class TestCharacters
 
         var zeb = new Snapshot($"{GuidPrefix}Zeb", "Zeb", "Stormreach", 40, "Warrior", "WARRIOR", "Night Elf", "NightElf", "male",
             "", "", 38.4, 3 * 86400 + 5 * 3600, "Scarlet Monastery", "Mining 210, Blacksmithing 205", "Arms 21 / Fury 10 / Protection 0",
-            Ago(0.2), false, "Normal", 87_45_12, Guild: "Bloodhounds", Surname: "Skogsbrand", TalentPicks: "12282~3~3~1,16462~5~5~1,12292~1~1~1,12294~1~1~1,12320~5~5~2", Stats: "Strength~152,Agility~89,Stamina~141,Intellect~22,Spirit~48,Armor~2410,Attack Power~398,Crit~9.2%", Xp: 31200, XpMax: 90700, MaxLevel: 60);
+            Ago(0.2), false, "Normal", 87_45_12, Guild: "Bloodhounds", Surname: "Skogsbrand", TalentPicks: "12282~3~3~1,16462~5~5~1,12292~1~1~1,12294~1~1~1,12320~5~5~2", Stats: "Strength~152,Agility~89,Stamina~141,Intellect~22,Spirit~48,Armor~2410,Attack Power~398,Crit~9.2%", Xp: 31200, XpMax: 90700, MaxLevel: 60, Region: "eu");
         var fagel = new Snapshot($"{GuidPrefix}Fagelmannen", "Fågelmannen", "Stormreach", 21, "Druid", "DRUID", "Tauren", "Tauren", "male",
             "", "", 18.1, 19 * 3600 + 40 * 60, "The Barrens", "Herbalism 95, Alchemy 80", "Balance 0 / Feral Combat 12 / Restoration 0",
-            Ago(5), false, "Normal", 4_12_80, Guild: "Bloodhounds", Surname: "Fjäder", Xp: 6100, XpMax: 25200, MaxLevel: 60);
+            Ago(5), false, "Normal", 4_12_80, Guild: "Bloodhounds", Surname: "Fjäder", Xp: 6100, XpMax: 25200, MaxLevel: 60, Region: "eu");
         var goggo = new Snapshot($"{GuidPrefix}Goggo", "Goggo", "Ashfall", 60, "Hunter", "HUNTER", "Dwarf", "Dwarf", "male",
             "", "", 61.7, 9 * 86400 + 14 * 3600, "Blackrock Spire", "Leatherworking 300, Skinning 300", "Beast Mastery 31 / Marksmanship 20 / Survival 0",
-            Ago(26), true, "Hardcore", 512_30_10, Guild: "", Surname: "Bergsten", MaxLevel: 60);
+            Ago(26), true, "Hardcore", 512_30_10, Guild: "", Surname: "Bergsten", MaxLevel: 60, Region: "us");
 
         var events = new List<Entry>();
         Entry Base(Snapshot s, string kind, long at, int level) => new()
@@ -66,6 +66,7 @@ static class TestCharacters
         events.Add(Base(zeb, "loot", Ago(1.18), 39) with { Item = "Herod's Shoulder", ItemId = 7718, Quality = 3 });
         events.Add(Base(zeb, "duel", Ago(3), 38) with { Opponent = "Skuggan" });
         events.Add(Base(zeb, "duel", Ago(2.5), 38) with { Opponent = "Brandur", Fled = true });
+        events.Add(Base(zeb, "duel", Ago(2.2), 38) with { Opponent = "Lumi", Lost = true });
 
         // Fågelmannen: Wailing Caverns, Mutanus down, Leggings of the Fang.
         Levels(fagel, 17, 21, 5.5, 55);

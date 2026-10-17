@@ -13,6 +13,16 @@
     <StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="CHARACTER"/>
       <TextBlock Style="{StaticResource FactValue}" Text="{Binding Description}"/>
+      <!-- Forever: the in-game portrait from the login check-in, or the standard one. -->
+      <StackPanel Visibility="{Binding HasGamePortrait, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="PORTRAIT"/>
+        <StackPanel Orientation="Horizontal">
+          <CheckBox Style="{StaticResource OptionChip}" Content="In-game" IsChecked="{Binding UseGamePortrait}" Margin="0,0,6,0"
+                    ToolTip="The portrait your character has in game, captured when you log in"/>
+          <CheckBox Style="{StaticResource OptionChip}" Content="Standard" IsChecked="{Binding UseStandardPortrait}"
+                    ToolTip="The standard portrait for your race"/>
+        </StackPanel>
+      </StackPanel>
       <StackPanel Visibility="{Binding HasGuild, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="GUILD"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Guild, StringFormat='&lt;{0}&gt;'}"/>

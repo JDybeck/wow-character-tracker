@@ -36,6 +36,8 @@ sealed class CharacterRow : Observable
     public string TalentExport { get; init; } = ""; // the game's loadout string (retail)
     public bool HasTalentExport => TalentExport.Length > 0;
     public string Region { get; init; } = ""; // "eu", "us"... for the Retail character render
+    // "EU · Tarren Mill" when the region is known, so same-named realms in other regions stand apart.
+    public string RealmText => Region.Length > 0 ? $"{Region.ToUpperInvariant()} · {Realm}" : Realm;
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
@@ -148,10 +150,34 @@ sealed class CharacterRow : Observable
 
     public async Task LoadPictureAsync(Flavor flavor)
     {
-        // Forever: the character's own portrait from its last check-in, when the app has one.
-        if (flavor == Flavors.Forever && CharacterArt.LocalPortrait(Guid) is { } own) { PictureUrl = own; return; }
+        pictureFlavor = flavor;
+        // Forever: the character's own portrait from its last check-in, unless the user picked the standard one.
+        var own = flavor == Flavors.Forever ? CharacterArt.LocalPortrait(Guid) : null;
+        HasGamePortrait = own is not null;
+        if (own is not null && !useStandard) { PictureUrl = own; return; }
         PictureUrl = CharacterArt.ClassIconUrl(ClassFile);
         if (await CharacterArt.PictureUrlAsync(flavor, Region, Realm, Name, RaceFile, Sex, ClassFile) is { } url) PictureUrl = url;
+    }
+
+    // Forever: which picture to show once an in-game portrait was captured, the in-game one or the
+    // standard (race) one. The choice is saved (Config.StandardPortraits) through the callback.
+    Flavor? pictureFlavor;
+    bool useStandard;
+    Action<bool>? portraitChosen;
+    bool hasGamePortrait;
+    public bool HasGamePortrait { get => hasGamePortrait; private set => Set(ref hasGamePortrait, value); }
+    public bool UseGamePortrait { get => !useStandard; set { if (value) ChoosePortrait(false); } }
+    public bool UseStandardPortrait { get => useStandard; set { if (value) ChoosePortrait(true); } }
+
+    public void SetPortraitChoice(bool standard, Action<bool> chosen) => (useStandard, portraitChosen) = (standard, chosen);
+
+    void ChoosePortrait(bool standard)
+    {
+        if (useStandard == standard) return;
+        useStandard = standard;
+        portraitChosen?.Invoke(standard);
+        Raise(nameof(UseGamePortrait)); Raise(nameof(UseStandardPortrait));
+        if (pictureFlavor is { } f) _ = LoadPictureAsync(f);
     }
 
     // One row per character: the latest snapshot, filled in from events when there isn't one yet.
@@ -225,7 +251,7 @@ sealed class CharacterRow : Observable
                     .Select(Highlight)
                     .ToList(),
                 Inventory = inventories.GetValueOrDefault(guid),
-                Gear = CharacterGear.From(inventories.GetValueOrDefault(guid), item, ranged: flavor != Flavors.Retail),
+                Gear = CharacterGear.From(inventories.GetValueOrDefault(guid), item, Pick(s?.ClassFile, last?.ClassFile), retail: flavor == Flavors.Retail),
                 Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor == Flavors.Forever),
             });
         }
@@ -253,7 +279,9 @@ sealed class CharacterRow : Observable
     {
         "boss" => new("", ClassColors.Hex(0xFBBF24), "Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
         "loot" => new("", HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD), "Looted ", e.Item, When(e.At), e.ItemId),
+        "duel" when e.Lost => new("", ClassColors.Hex(0x94A3B8), e.Fled ? "Ran from a duel with " : "Lost a duel to ", e.Opponent, When(e.At)),
         "duel" => new("", ClassColors.Hex(0x93C5FD), "Won a duel against ", e.Opponent, When(e.At)),
+        "makgora" when e.Lost => new("", ClassColors.Hex(0x94A3B8), "Lost a Mak'gora to ", e.Opponent, When(e.At)),
         "makgora" => new("", ClassColors.Hex(0xF87171), "Won a Mak'gora against ", e.Opponent, When(e.At)),
         "mplus" => new("", ClassColors.Hex(0xC084FC), "Reached ", $"{e.Step} Mythic+ rating ({e.Rating})", When(e.At)),
         "pvp" => new("", ClassColors.Hex(0xF87171), "Reached ", $"{e.Step} in {e.Bracket} ({e.Rating})", When(e.At)),

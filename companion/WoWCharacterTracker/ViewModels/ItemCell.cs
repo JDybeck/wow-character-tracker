@@ -4,9 +4,10 @@ namespace WoWCharacterTracker.ViewModels;
 
 // One item as the app shows it: icon, name in its quality color and Wowhead's tooltip. Shared per
 // item id within a game tab (ItemInfo), so each item is only looked up once.
-sealed class ItemInfo(int itemId) : Observable
+sealed class ItemInfo(int itemId, string url) : Observable
 {
     public int ItemId { get; } = itemId;
+    public string Url { get; } = url; // the item's Wowhead page (clicking the item opens it)
 
     string name = "";
     public string Name { get => name; private set => Set(ref name, value); }

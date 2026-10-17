@@ -7,7 +7,11 @@ sealed class CharacterGear
     // Inventory slots down the left and right of the character window, and the weapons below.
     static readonly (int Slot, string Name)[] LeftSlots = [(1, "Head"), (2, "Neck"), (3, "Shoulder"), (15, "Back"), (5, "Chest"), (4, "Shirt"), (19, "Tabard"), (9, "Wrist")];
     static readonly (int Slot, string Name)[] RightSlots = [(10, "Hands"), (6, "Waist"), (7, "Legs"), (8, "Feet"), (11, "Finger"), (12, "Finger"), (13, "Trinket"), (14, "Trinket")];
-    static readonly (int Slot, string Name)[] BottomSlots = [(16, "Main Hand"), (17, "Off Hand"), (18, "Ranged")];
+    static readonly (int Slot, string Name)[] Weapons = [(16, "Main Hand"), (17, "Off Hand")];
+    // Slot 18: a relic (libram, idol, totem) for Paladins, Druids and Shamans, else ranged. Retail has
+    // had no slot 18 since Legion.
+    static (int, string)[] BottomSlots(string classFile, bool retail) =>
+        retail ? Weapons : [.. Weapons, (18, classFile.ToUpperInvariant() is "PALADIN" or "DRUID" or "SHAMAN" ? "Relic" : "Ranged")];
 
     public IReadOnlyList<ItemCell> Left { get; init; } = [];
     public IReadOnlyList<ItemCell> Right { get; init; } = [];
@@ -23,8 +27,7 @@ sealed class CharacterGear
 
     public static CharacterGear Empty { get; } = new();
 
-    // ranged: Classic-style clients have a ranged slot; Retail hasn't since Legion.
-    public static CharacterGear From(Inventory? inv, Func<int, ItemInfo> item, bool ranged = true)
+    public static CharacterGear From(Inventory? inv, Func<int, ItemInfo> item, string classFile, bool retail)
     {
         if (inv is null) return Empty;
         var worn = inv.Gear.ToDictionary(g => g.Slot, g => g.ItemId);
@@ -35,7 +38,7 @@ sealed class CharacterGear
         {
             Left = Slots(LeftSlots),
             Right = Slots(RightSlots),
-            Bottom = Slots(ranged ? BottomSlots : BottomSlots[..2]),
+            Bottom = Slots(BottomSlots(classFile, retail)),
             Bags = Grids(inv.Bags, inv.BagSizes, item, bag => bag == 0 ? "Backpack" : $"Bag {bag}"),
             Bank = Grids(inv.Bank, inv.BankSizes, item, bag => bag < 0 ? "Bank" : $"Bank bag {bag - 4}"),
             BankText = inv.BankAt > 0 ? $"Bank, as of {Format.Ago(inv.BankAt)}" : "Open your bank in game once and it shows up here.",

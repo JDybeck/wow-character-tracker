@@ -30,7 +30,10 @@
     </DataTemplate>
     <!-- An item: icon in its quality color, name, total, and who has it where. -->
     <DataTemplate DataType="{x:Type vm:ItemRow}">
-      <Grid Margin="24,3" Background="Transparent" ToolTip="{Binding Info.Tooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
+      <Grid Margin="24,3" Background="Transparent" Cursor="Hand" ToolTip="{Binding Info.Tooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
+        <Grid.InputBindings>
+          <MouseBinding MouseAction="LeftClick" Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Info.Url}"/>
+        </Grid.InputBindings>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>

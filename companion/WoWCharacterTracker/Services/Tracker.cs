@@ -322,6 +322,8 @@ sealed class Tracker : IDisposable
         "loot" => $"{e.Char} looted {e.Item}",
         "mount" => $"{e.Char} got a new mount, {e.Mount}",
         "death" => $"{e.Char} died at level {e.Level}",
+        "duel" when e.Lost => $"{e.Char} lost a duel to {e.Opponent}",
+        "makgora" when e.Lost => $"{e.Char} lost a Mak'gora to {e.Opponent}",
         "duel" => $"{e.Char} won a duel against {e.Opponent}",
         "makgora" => $"{e.Char} won a Mak'gora against {e.Opponent}",
         "mplus" => $"{e.Char} reached {e.Step} Mythic+ rating ({e.Rating})",

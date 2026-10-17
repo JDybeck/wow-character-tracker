@@ -27,6 +27,9 @@ class Config
     // Parts of the character card (Post to Discord) the user turned off. Guild is off unless picked.
     public List<string> CardHidden { get; set; } = ["guild"];
 
+    // Forever characters (GUIDs) shown with their standard race portrait instead of the in-game one.
+    public List<string> StandardPortraits { get; set; } = [];
+
     // Older name, from when the window itself started with Windows. Moved on load.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? StartWithWindows { get; set; }

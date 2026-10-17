@@ -39,7 +39,10 @@ sealed class MainViewModel : Observable
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
         TestKindCommand = new RelayCommand(p => SendKindTestAsync((string)p!));
-        OpenUrlCommand = new RelayCommand(p => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo((string)p!) { UseShellExecute = true }));
+        OpenUrlCommand = new RelayCommand(p =>
+        {
+            if (p is string { Length: > 0 } url) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        });
     }
 
     public bool Backfill { get; }

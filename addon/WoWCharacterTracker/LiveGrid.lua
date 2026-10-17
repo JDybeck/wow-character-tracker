@@ -10,7 +10,7 @@ local SHORT = {
   race = "e", raceFile = "E", sex = "x", hardcore = "h", ruleset = "u", seconds = "d", played = "y",
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
-  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A",
+  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y",
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
@@ -334,6 +334,7 @@ local function wanted(e)
     if (e.quality or 0) >= 4 then return post.epic and true or false end
     return post.rare and true or false
   end
+  if e.lost then return false end -- duels and Mak'gora: only wins are posted
   return post[e.kind] and true or false
 end
 

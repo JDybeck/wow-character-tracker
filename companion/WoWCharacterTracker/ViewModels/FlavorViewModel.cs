@@ -409,7 +409,7 @@ sealed class FlavorViewModel : Observable
     ItemInfo ItemFor(int id)
     {
         if (items.TryGetValue(id, out var info)) return info;
-        items[id] = info = new ItemInfo(id);
+        items[id] = info = new ItemInfo(id, $"https://www.wowhead.com/{Flavor.WowheadPath}item={id}");
         _ = LoadItemAsync(info);
         return info;
     }
@@ -477,6 +477,12 @@ sealed class FlavorViewModel : Observable
         foreach (var r in rows.Where(r => selectedGroup.Key.Length == 0 || GroupOf(r) == selectedGroup.Key))
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
+            r.SetPortraitChoice(main.Config.StandardPortraits.Contains(r.Guid), standard =>
+            {
+                main.Config.StandardPortraits.Remove(r.Guid);
+                if (standard) main.Config.StandardPortraits.Add(r.Guid);
+                main.Config.Save();
+            });
             Characters.Add(r);
             _ = r.LoadPictureAsync(Flavor);
             _ = r.LoadIconsAsync(Flavor);

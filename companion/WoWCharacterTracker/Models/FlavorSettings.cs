@@ -92,8 +92,8 @@ class FlavorSettings
         "mount" => PostMounts,
         "boss" => PostBosses && SkipBossBecause(e) is null,
         "death" => PostDeaths,
-        "duel" => PostDuels,
-        "makgora" => PostMakgora,
+        "duel" => PostDuels && !e.Lost, // only wins are posted
+        "makgora" => PostMakgora && !e.Lost,
         "mplus" => PostMPlus,
         "pvp" => PostPvp,
         _ => false,
