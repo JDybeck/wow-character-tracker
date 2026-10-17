@@ -8,7 +8,7 @@ namespace WoWCharacterTracker.Ui;
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
 //   extra:  rename | options (a webhook) | removehook | testchars | testall (every Test button) | addonupdate
-//   extra2: cardopts (card options open) | post (Post to Discord for the first character) | remove (its remove question) | sync (Sync now)
+//   extra2: gear | leveling (a details tab) | search (Items page, "potion") | cardopts (card options open) | post (Post to Discord for the first character) | remove (its remove question) | sync (Sync now)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
@@ -36,6 +36,8 @@ static class ScreenshotMode
                     vm.TestKindCommand.Execute(kind);
             if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(); // show the details panel too
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
+            if (Part(3) is "gear" or "leveling" && vm.SelectedFlavor?.SelectedCharacter is { } dc) dc.DetailTab = Part(3);
+            if (Part(3) == "search" && vm.SelectedFlavor is { } sf) { await Task.Delay(2500); sf.Items.Search = "potion"; }
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;

@@ -1,0 +1,101 @@
+<!-- The Leveling tab of the character details: level times in numbers and as a chart, the time to
+     max level (Forever), how gear and professions grew, the duel record, and the level history. -->
+<UserControl x:Class="WoWCharacterTracker.Views.CharacterLeveling"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="28"/>
+      <ColumnDefinition Width="1.3*"/>
+    </Grid.ColumnDefinitions>
+
+    <StackPanel>
+      <TextBlock Text="No timed levels yet. Ding once with the addon running and the numbers show up here." Foreground="{StaticResource Dim}"
+                 FontSize="13" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="{Binding Leveling.HasStats, Converter={StaticResource Hidden}}"/>
+      <StackPanel Visibility="{Binding Leveling.HasStats, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="AVERAGE LEVEL"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.AverageText}"/>
+        <TextBlock Style="{StaticResource FactLabel}" Text="FASTEST"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.FastestText}"/>
+        <TextBlock Style="{StaticResource FactLabel}" Text="SLOWEST"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.SlowestText}"/>
+      </StackPanel>
+      <StackPanel Visibility="{Binding Leveling.HasEstimate, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="TO MAX LEVEL"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.EstimateText}" TextWrapping="Wrap"
+                   ToolTip="Worked out from your last few levels. Later levels need more XP, but monsters also give more, and both are counted in. Rested XP, dungeons and breaks change the pace."/>
+      </StackPanel>
+      <StackPanel Visibility="{Binding Leveling.HasProgress, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="PROGRESS"/>
+        <ItemsControl ItemsSource="{Binding Leveling.Progress}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding}" Style="{StaticResource FactValue}" Margin="0,0,0,2"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+      <StackPanel Visibility="{Binding Leveling.HasDuels, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="DUELS"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.DuelText}" TextWrapping="Wrap"/>
+      </StackPanel>
+    </StackPanel>
+
+    <StackPanel Grid.Column="2">
+      <!-- One bar per level (the last 40), fastest and slowest highlighted. -->
+      <StackPanel Visibility="{Binding Leveling.HasStats, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="LEVEL TIMES"/>
+        <ItemsControl ItemsSource="{Binding Leveling.Bars}" Height="74" Margin="0,4,0,0">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:LevelBar}">
+              <Border x:Name="Bar" Width="9" Height="{Binding Height}" Margin="0,0,3,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0"
+                      Background="{DynamicResource IndigoMid}" Opacity="0.55" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="50"/>
+              <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Highlight}" Value="True">
+                  <Setter TargetName="Bar" Property="Background" Value="{DynamicResource Indigo}"/>
+                  <Setter TargetName="Bar" Property="Opacity" Value="1"/>
+                </DataTrigger>
+              </DataTemplate.Triggers>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <TextBlock Style="{StaticResource FactLabel}" Text="LEVEL HISTORY"/>
+      <TextBlock Text="No level-ups recorded yet. Ding once and it shows up here." Foreground="{StaticResource Dim}" FontSize="13"
+                 Visibility="{Binding HasLevels, Converter={StaticResource Hidden}}" TextWrapping="Wrap"/>
+      <ItemsControl ItemsSource="{Binding Levels}" MaxHeight="300">
+        <ItemsControl.Template>
+          <ControlTemplate TargetType="ItemsControl">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <ItemsPresenter/>
+            </ScrollViewer>
+          </ControlTemplate>
+        </ItemsControl.Template>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:LevelRow}">
+            <Grid Margin="0,3,8,3">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="72"/>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{Binding LevelText}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource TextSoft}"/>
+              <TextBlock Grid.Column="1" Text="{Binding Took}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Green}"/>
+              <TextBlock Grid.Column="2" Text="{Binding Zone}" FontSize="12" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Grid.Column="3" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Grid>
+</UserControl>

@@ -55,6 +55,24 @@ sealed class CharacterRow : Observable
     public bool HasProfessions => ProfessionList.Count > 0;
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
+    public Inventory? Inventory { get; init; } // what the character carries, as saved (the Items page)
+    public CharacterGear Gear { get; init; } = CharacterGear.Empty;
+    public CharacterLeveling Leveling { get; init; } = new();
+
+    // The details are split into tabs: "overview", "gear" (gear and bags) and "leveling".
+    string detailTab = "overview";
+    public string DetailTab
+    {
+        get => detailTab;
+        set
+        {
+            if (!Set(ref detailTab, value)) return;
+            Raise(nameof(IsOverviewTab)); Raise(nameof(IsGearTab)); Raise(nameof(IsLevelingTab));
+        }
+    }
+    public bool IsOverviewTab { get => DetailTab == "overview"; set { if (value) DetailTab = "overview"; } }
+    public bool IsGearTab { get => DetailTab == "gear"; set { if (value) DetailTab = "gear"; } }
+    public bool IsLevelingTab { get => DetailTab == "leveling"; set { if (value) DetailTab = "leveling"; } }
 
     // Fills in icons and tooltips: crests and items from Wowhead, professions from the built-in list.
     public async Task LoadIconsAsync(Flavor flavor)
@@ -135,8 +153,12 @@ sealed class CharacterRow : Observable
     }
 
     // One row per character: the latest snapshot, filled in from events when there isn't one yet.
-    public static List<CharacterRow> Build(TrackerData data)
+    // item: the tab's shared item info per item id (icons and names are looked up once).
+    public static List<CharacterRow> Build(TrackerData data, Flavor flavor, Func<int, ItemInfo> item)
     {
+        var inventories = data.Inventories.GroupBy(i => i.Guid).ToDictionary(g => g.Key, g => g.MaxBy(i => Math.Max(i.ScannedAt, i.BankAt))!);
+        // XP only comes with the saved file, so the newest snapshot that has it.
+        var xpSnaps = data.Characters.Where(c => c.XpMax > 0).GroupBy(c => c.Guid).ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!);
         var events = data.Events.GroupBy(e => e.Guid).ToDictionary(g => g.Key, g => g.OrderBy(e => e.At).ToList());
         var snaps = data.Characters.GroupBy(c => c.Guid).ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!);
         // Live check-ins leave the guild out when there's none, so take the newest snapshot that knows it.
@@ -157,13 +179,14 @@ sealed class CharacterRow : Observable
             var last = all.LastOrDefault();
             if (s is null && last is null) continue;
             var hardcore = (s?.Hardcore ?? false) || all.Any(e => e.Hardcore);
+            var level = Math.Max(s?.Level ?? 0, all.Count > 0 ? all.Max(e => e.Level) : 0);
 
             rows.Add(new CharacterRow
             {
                 Guid = guid,
                 Name = s?.Char is { Length: > 0 } n ? n : last?.Char ?? "?",
                 Realm = s?.Realm ?? last!.Realm,
-                Level = Math.Max(s?.Level ?? 0, all.Count > 0 ? all.Max(e => e.Level) : 0),
+                Level = level,
                 ClassName = Pick(s?.Class, last?.Class),
                 ClassFile = Pick(s?.ClassFile, last?.ClassFile),
                 Race = Pick(s?.Race, last?.Race),
@@ -199,17 +222,28 @@ sealed class CharacterRow : Observable
                     .OrderByDescending(e => e.At)
                     .Select(Highlight)
                     .ToList(),
+                Inventory = inventories.GetValueOrDefault(guid),
+                Gear = CharacterGear.From(inventories.GetValueOrDefault(guid), item),
+                Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor == Flavors.Forever),
             });
         }
 
         return rows.OrderByDescending(r => r.LastSeen).ToList();
     }
 
-    // A highlight row, keeping its event so it can be posted from the details.
+    // A highlight row, keeping its event so it can be posted from the details. Boss kills say who
+    // was there, deaths what was lost.
     static HighlightRow Highlight(Entry e)
     {
         var row = Row(e);
         row.Source = e;
+        row.Detail = e.Kind switch
+        {
+            "boss" when e.Members.Count > 0 => "With " + string.Join(", ", e.Members.Select(m => $"{m.Name} ({m.Level} {m.Class})".Replace(" ()", ""))),
+            "boss" when e.GroupSize > 5 => $"With a raid of {e.GroupSize}",
+            "death" => string.Join(", ", new[] { e.Played > 0 ? $"{Format.Played(e.Played)} played" : "", $"lost {Format.Money(e.Gold)}", e.Zone }.Where(p => p.Length > 0)),
+            _ => "",
+        };
         return row;
     }
 
