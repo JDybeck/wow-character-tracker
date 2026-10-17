@@ -56,7 +56,6 @@ Every option has a **Test** button that posts a sample, using the selected chara
 Above the columns:
 
 - **Hide chat in screenshots** and **Hide the whole interface in screenshots** (like Alt+Z): hidden for the split second of the shot, then right back.
-- **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
 
 **Copy settings** puts the whole page on your clipboard as a short code (it starts with `WCT1:`) to share with friends, and **Paste settings** applies a code someone shared to the game tab you're on. Webhooks and folders are never part of it.
 
@@ -66,9 +65,24 @@ The Retail tab has its own Midnight look:
 
 ![The Retail tab](docs/images/retail-tab.png)
 
+### In game
+
+The **In game** page has what the addon does in game besides posting:
+
+- **Offer a reload on flight paths**: when you take a flight and your bags or gear changed since the last save, a small box in game offers a `/reload` (you keep flying), so the Items page gets up to date.
+- **Remind me in chat to /reload**: one line in chat when your bags or gear changed since the last save, after the bank, mailbox, a vendor or the auction house, when you leave a dungeon, and every 30 minutes.
+- **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
+
 ### The app
 
-- **Characters**: every character you've logged in with the addon, with class, spec, level, item level, gold and when you last played. The bottom of the list shows the total gold for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for guild, total played, gold, crests (Retail), professions, talents, stats, last zone, highlights and level history. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there.
+- **Characters**: every character you've logged in with the addon, with class, spec, level, item level, gold and when you last played. The bottom of the list shows the total gold and total played for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for its details, in three tabs:
+  - **Overview**: guild, total played, gold, crests (Retail), professions, talents, stats, last zone and highlights. Boss kills say who was there, deaths what they cost. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there.
+  - **Gear and bags**: what the character wears, laid out like the character window, then its bags and its bank (as of the last time you opened it), with icons, quality colors and Wowhead tooltips. Click an item to open it on Wowhead.
+
+    <img src="docs/images/gear-and-bags.png" alt="A character's gear and bags in the app" width="560">
+
+  - **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew, your duel record, and the level history. On Forever also the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP too.
+- **Items**: everything your characters carry (worn, bags and bank) in one list per server, with icons. Search by name to see who has what and where, or show only what's equipped, in bags or in the bank. Each server shows when and where every character was last saved, since items only update on `/reload` or logout.
 - **Tags**: make your own (like Main, Alts, Guild) and put them on characters. Webhooks can post only for some tags.
 - **Post to Discord**: sends the character as a card picture, with icons and quality colors. The gear next to it picks what the card shows (item level, played, gold, crests, professions, talents, stats, guild, last seen, levels, highlights). **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
 
@@ -90,7 +104,7 @@ In Discord, hover the channel, click the gear (Edit Channel), then Integrations,
 
 Treat the link like a password: anyone with it can post in that channel. The app only ever shows it masked, and it's only stored on your PC.
 
-### In game
+### In-game commands
 
 - `/wct` shows your last 10 level times for the character you're on.
 - `/wct test` checks that instant posting reaches the app.
@@ -120,13 +134,15 @@ Not built yet, roughly in order:
 - **Hardcore death killer**: name what killed the character again (newer clients keep the combat log from addons).
 - **Minimap button** for the addon, with the commands and a test button.
 - **Per-character posting rules**, on top of each game's What gets posted.
-- **Bags and bank** through Baganator, so the app shows what each character carries.
+- **Warband bank** (Retail), maybe through Baganator's saved data.
+
 ## Notes and limits
 
 - Talents: Forever shows points in its three trees plus each pick. Retail shows points in the class, spec and hero trees.
 - Professions and end bosses are matched by English name, so a non-English client won't show them.
+- Bags and gear reach the app on `/reload` or logout (they're too much for the live channel). The bank only updates when you open it in game.
 - Rating milestones start counting from the first time the addon sees your rating, so ratings you already had aren't posted.
-- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Characters Raider.IO doesn't know, and Forever characters, get their race portrait from Wowhead's icon CDN, or the class icon.
+- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Forever characters show their own portrait in the app: the addon puts it next to the data grid in the check-in shot after you log in, and the app cuts it out. Discord needs a web address for pictures, so posts use the race portrait from Wowhead's icon CDN (or the class icon) instead.
 - Screenshots go out at full size first (boosted servers allow bigger uploads). If Discord says one is too big, a smaller JPEG copy is sent instead, and only if that's still too big does the post go out without it.
 - On the first run, events already saved are marked as posted so the channel isn't flooded. Start the app with `--backfill` to post them instead.
 - Settings and webhooks are saved in `%LOCALAPPDATA%\WoWCharacterTracker\config.json` and survive updates.

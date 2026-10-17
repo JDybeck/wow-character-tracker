@@ -38,6 +38,7 @@ sealed class FlavorViewModel : Observable
             ActionCommand = new RelayCommand(_ => SetUpAddon(force: true)),
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
+        Items = new ItemsViewModel(ItemFor);
         _ = LoadLogoAsync();
         Shots = Flavors.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
@@ -153,6 +154,8 @@ sealed class FlavorViewModel : Observable
     public bool HideChatInShots { get => Settings.HideChatInShots; set { Settings.HideChatInShots = value; Changed(); } }
     public bool HideUiInShots { get => Settings.HideUiInShots; set { Settings.HideUiInShots = value; Changed(); } }
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
+    public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
+    public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
 
     // Name in posts (Forever has surnames): three chips that act like radio buttons.
     public bool HasSurnames => Flavor == Flavors.Forever;
@@ -403,6 +406,24 @@ sealed class FlavorViewModel : Observable
 
     TrackerData lastData = TrackerData.Empty;
 
+    // Item names, icons and tooltips, one per item id for the whole tab (characters and the Items page).
+    readonly Dictionary<int, ItemInfo> items = [];
+    ItemInfo ItemFor(int id)
+    {
+        if (items.TryGetValue(id, out var info)) return info;
+        items[id] = info = new ItemInfo(id, $"https://www.wowhead.com/{Flavor.WowheadPath}item={id}");
+        _ = LoadItemAsync(info);
+        return info;
+    }
+    async Task LoadItemAsync(ItemInfo info)
+    {
+        await info.LoadAsync(Flavor);
+        Items.NameLoaded();
+    }
+
+    // The Items page: everything the tab's characters carry, searchable, per server.
+    public ItemsViewModel Items { get; }
+
     public void Refresh() => ShowData(lastData);
 
     // Retail characters are grouped by realm, Forever ones by ruleset (hardcore, self-found...).
@@ -432,9 +453,14 @@ sealed class FlavorViewModel : Observable
         if (main.ShowTestCharacters && Flavor == Flavors.Forever)
         {
             var test = TestCharacters.Build();
-            data = new TrackerData([.. data.Events, .. test.Events], [.. data.Characters, .. test.Characters]);
+            data = new TrackerData([.. data.Events, .. test.Events], [.. data.Characters, .. test.Characters])
+            {
+                Inventories = [.. data.Inventories, .. test.Inventories],
+                XpTable = data.XpTable.Count > 0 ? data.XpTable : test.XpTable,
+            };
         }
-        var rows = CharacterRow.Build(data)
+        var keepTab = SelectedCharacter?.DetailTab;
+        var rows = CharacterRow.Build(data, Flavor, ItemFor)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
 
@@ -453,15 +479,24 @@ sealed class FlavorViewModel : Observable
         foreach (var r in rows.Where(r => selectedGroup.Key.Length == 0 || GroupOf(r) == selectedGroup.Key))
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
+            r.SetPortraitChoice(main.Config.StandardPortraits.Contains(r.Guid), standard =>
+            {
+                main.Config.StandardPortraits.Remove(r.Guid);
+                if (standard) main.Config.StandardPortraits.Add(r.Guid);
+                main.Config.Save();
+            });
             Characters.Add(r);
             _ = r.LoadPictureAsync(Flavor);
             _ = r.LoadIconsAsync(Flavor);
         }
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
+        if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
+        Items.Show(rows);
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
         Raise(nameof(TotalGoldText));
         Raise(nameof(TotalCoins));
+        Raise(nameof(TotalPlayedText));
         UpdateStatus();
     }
 
@@ -477,6 +512,9 @@ sealed class FlavorViewModel : Observable
     }
 
     public IReadOnlyList<Coin> TotalCoins => Coin.Full(Characters.Sum(c => c.Money));
+
+    // Played time of the characters the filter shows, added up.
+    public string TotalPlayedText => Characters.Sum(c => c.Played) is var played and > 0 ? $"Total played: {Format.Played(played)}" : "";
 
     // Hides the character in the app. The game's own data isn't touched (the game would just write
     // it back), and playing the character again brings it back.

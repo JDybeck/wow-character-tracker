@@ -46,7 +46,8 @@ record Entry
     public string Group { get; init; } = ""; // boss kills: the other party members, see Members
     public int GroupSize { get; init; }
     public string Opponent { get; init; } = ""; // duel / makgora
-    public bool Fled { get; init; }              // duel: the opponent ran away
+    public bool Fled { get; init; }              // duel: the loser ran away (the opponent, or this character when Lost)
+    public bool Lost { get; init; }              // duel / makgora: this character lost
     public int Rating { get; init; }             // mplus / pvp: the rating now
     public int Step { get; init; }               // mplus / pvp: the milestone passed
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
@@ -109,6 +110,7 @@ record Entry
             GroupSize = (int)n("groupSize"),
             Opponent = s("opponent"),
             Fled = s("fled") is "true" or "1",
+            Lost = s("lost") is "true" or "1",
             Rating = (int)n("rating"),
             Step = (int)n("step"),
             Bracket = s("bracket"),

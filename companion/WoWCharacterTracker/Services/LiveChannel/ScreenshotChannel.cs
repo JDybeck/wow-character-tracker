@@ -12,7 +12,8 @@ sealed class ScreenshotChannel(string flavorDir) : IDisposable
     readonly object pollLock = new();
     Timer? timer;
 
-    public event Action<Entry, DateTime>? EntryReceived; // with when the game took the picture
+    // With when the game took the picture, and the character's portrait from a check-in shot (or null).
+    public event Action<Entry, DateTime, byte[]?>? EntryReceived;
     public event Action<string>? Unreadable; // looked like a data grid but didn't check out
 
     public void Start()
@@ -36,12 +37,13 @@ sealed class ScreenshotChannel(string flavorDir) : IDisposable
                 if (!TryRead(file, out var bytes)) continue;
                 seen[file] = true;
 
-                switch (GridDecoder.Decode(bytes, out var payload))
+                switch (GridDecoder.Decode(bytes, out var payload, out var cellSize))
                 {
                     case GridResult.Ok:
                         var shotAt = File.GetCreationTime(file);
                         TryDelete(file);
-                        if (Payload.Parse(payload!) is { } entry) EntryReceived?.Invoke(entry, shotAt);
+                        if (Payload.Parse(payload!) is { } entry)
+                            EntryReceived?.Invoke(entry, shotAt, entry.Kind == "snapshot" ? GridDecoder.CropPortrait(bytes, cellSize) : null);
                         break;
                     case GridResult.Damaged:
                         Unreadable?.Invoke(file);

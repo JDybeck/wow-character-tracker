@@ -2,6 +2,32 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.14.0
+
+- **Items**: a new page with everything your characters carry (worn, in bags and in the bank), with icons, in one list per server. Search by name to see who has what, and where, or show only what's equipped, in bags or in the bank.
+- Items update when you /reload or log out (the game only saves then). The app says so, shows when and where each character was last saved, and the console notes each logout or /reload.
+- The character details are in tabs now: **Overview**, **Gear and bags** and **Leveling**.
+- **Gear and bags**: what the character wears, laid out like the character window, its bags slot by slot, and its bank as of the last time you opened it. With icons, quality colors and Wowhead tooltips. Needs the updated addon and a /reload (or logout).
+- **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew while leveling, and your duel and Mak'gora record.
+- Forever: the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP the higher you get.
+- Boss kills in the highlights say who was in the group; hardcore deaths say how much played time and gold went with them.
+- Total played for the characters you've filtered on, next to the total gold.
+- Click any item (gear, bags, bank, Items page) to open it on Wowhead.
+- The Items page shows its items in as many columns as the window has room for.
+- Updating the app shows each step in the banner: the download with its progress, checking it, putting it in place, restarting.
+- On a flight path, when your bags or gear changed since the last save, a small box in game offers a /reload so the app's items get up to date (you keep flying). Once per flight; switch it off under What gets posted.
+- A reminder in chat to /reload when your bags or gear changed since the last save: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes. Switch it off under What gets posted.
+- The slot under the weapons says Relic for Paladins, Druids and Shamans, Ranged for everyone else.
+- Lost duels and Mak'goras are recorded too, and running away from a duel. They show in the highlights and the duel record ("Duels: 5 won, 2 lost"), but only wins are posted.
+- The realm shows its region when it's known, like "EU · Tarren Mill".
+- Opening Test characters (and the list in general) is quicker: the details are only built for the open character and tab.
+- The README shows the Gear and bags tab.
+- A new **In game** page holds what the addon does in game besides posting: the reload box on flight paths, the chat reminder and advanced combat logging.
+- The page tabs and the character details tabs are boxes with icons, the open one filled in the tab's colors.
+- The (i) next to the settings says what reaches the app right away and what waits for a /reload or logout (loading screens don't count).
+- Forever characters get their own portrait in the app (the picture your unit frame shows), taken from the addon's check-in right after you log in. Unit frame addons don't change it, since the addon asks the game for the portrait itself. Each character can switch between In-game and Standard (Overview tab). Discord posts keep the race portrait.
+- Retail's character window has no Ranged slot, so the app doesn't show one there.
+
 ## v0.13.0
 
 The app and the addon now share one version number, starting here.

@@ -36,7 +36,8 @@
 
       <DockPanel Margin="2,0,0,10">
         <!-- Filter by realm (Retail) or ruleset (Forever), on the Characters page -->
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" DataContext="{Binding SelectedFlavor}"
+        <Grid DockPanel.Dock="Right" Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=characters}">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DataContext="{Binding SelectedFlavor}"
                     Visibility="{Binding HasGroups, Converter={StaticResource Visible}}">
           <TextBlock Text="{Binding GroupLabel}" Foreground="{StaticResource Dim}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
           <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" ItemContainerStyle="{StaticResource GroupChipItem}"
@@ -48,43 +49,57 @@
             </ListBox.ItemsPanel>
           </ListBox>
         </StackPanel>
+        </Grid>
+        <!-- The pages, as boxed tabs: icon and name, the open one filled. -->
         <StackPanel Orientation="Horizontal">
-        <Button Content="Characters" Command="{Binding ShowPageCommand}" CommandParameter="characters">
-          <Button.Style>
-            <Style TargetType="Button" BasedOn="{StaticResource PageTab}">
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding Page}" Value="characters">
-                  <Setter Property="Tag" Value="active"/>
-                </DataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Button.Style>
-        </Button>
-        <Button Content="What gets posted" Command="{Binding ShowPageCommand}" CommandParameter="posting">
-          <Button.Style>
-            <Style TargetType="Button" BasedOn="{StaticResource PageTab}">
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding Page}" Value="posting">
-                  <Setter Property="Tag" Value="active"/>
-                </DataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Button.Style>
-        </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="characters">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Characters"/></StackPanel>
+          </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="items">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7B8;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Items"/></StackPanel>
+          </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=posting}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="posting">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="What gets posted"/></StackPanel>
+          </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=ingame}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="ingame">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7FC;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="In game"/></StackPanel>
+          </Button>
         </StackPanel>
       </DockPanel>
 
       <views:CharactersPage Grid.Row="1"/>
       <views:PostingPage Grid.Row="1"/>
+      <views:InGamePage Grid.Row="1"/>
+      <views:ItemsPage Grid.Row="1" Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
 
       <Grid Grid.Row="1" Grid.Column="2">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="20"/>
           <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <views:DiscordPanel DataContext="{Binding Discord}"/>
         <views:ConsolePanel Grid.Row="2"/>
+        <!-- The maker, quietly in the corner. -->
+        <Button Grid.Row="3" HorizontalAlignment="Right" Margin="0,6,2,-14" Cursor="Hand" ToolTip="twitch.tv/zebdryg"
+                Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
+          <Button.Template>
+            <ControlTemplate TargetType="Button">
+              <TextBlock x:Name="Credit" Text="made by ZebDryg @ twitch" FontSize="10" Foreground="{StaticResource Faint}" Opacity="0.6"/>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="Credit" Property="Opacity" Value="1"/>
+                  <Setter TargetName="Credit" Property="Foreground" Value="#9146FF"/>
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Button.Template>
+        </Button>
       </Grid>
     </Grid>
   </Grid>

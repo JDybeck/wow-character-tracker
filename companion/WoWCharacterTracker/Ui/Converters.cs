@@ -32,6 +32,16 @@ sealed class EqualsToVisibility : IValueConverter
         throw new NotSupportedException();
 }
 
+// "active" when the bound value equals the ConverterParameter (for a tab's Tag: the open page).
+sealed class ActiveIf : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object parameter, CultureInfo culture) =>
+        Equals(value?.ToString(), parameter?.ToString()) ? "active" : null;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 sealed class NullToVisibility : IValueConverter
 {
     public bool Invert { get; set; }

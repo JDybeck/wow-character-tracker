@@ -28,6 +28,9 @@ sealed class Tracker : IDisposable
     Timer? safetyNet;
     bool initialDone;
     int lastWaiting; // posts waiting for a webhook, said once per change
+    // When each character's saved file was last written (NoteSaves), and whether the first read is done.
+    readonly Dictionary<string, long> savedAt = [];
+    bool savesKnown;
 
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
@@ -86,8 +89,11 @@ sealed class Tracker : IDisposable
         _ = SyncAsync().ContinueWith(_ => shots.Start()); // live events only after old ones are handled
     }
 
-    void OnLiveEntry(Entry e, DateTime shotAt)
+    void OnLiveEntry(Entry e, DateTime shotAt, byte[]? portrait)
     {
+        // Forever's characters get their picture from the check-in shot (Retail has real renders).
+        if (portrait is not null && flavor == Flavors.Forever) CharacterArt.SavePortrait(e.Guid, portrait);
+
         // Every live event carries the character's current state, so the list updates right away.
         presence[e.Guid] = e;
 
@@ -140,6 +146,7 @@ sealed class Tracker : IDisposable
                 : JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(statePath)) ?? [];
 
             var data = ReadAll();
+            NoteSaves(data);
             DataChanged?.Invoke(data);
 
             // On the very first run, mark old entries as posted instead of flooding the channel.
@@ -178,6 +185,22 @@ sealed class Tracker : IDisposable
         {
             gate.Release();
         }
+    }
+
+    // The addon notes when and where each character's saved file was written (/reload or logout; the
+    // game doesn't say which). A newer note than last time goes in the console. The first read only
+    // learns what's there.
+    void NoteSaves(TrackerData data)
+    {
+        foreach (var inv in data.Inventories.Where(i => i.SavedAt > 0))
+        {
+            var before = savedAt.GetValueOrDefault(inv.Guid);
+            savedAt[inv.Guid] = Math.Max(before, inv.SavedAt);
+            if (!savesKnown || inv.SavedAt <= before) continue;
+            var name = data.Characters.Where(c => c.Guid == inv.Guid).MaxBy(c => c.LastSeen)?.Char ?? "A character";
+            Log.Info($"{Tag}{name} logged out or reloaded" + (inv.SavedZone.Length > 0 ? $" in {inv.SavedZone}" : "") + ". Gear and bags are up to date as of now.");
+        }
+        savesKnown = true;
     }
 
     // Posts what this tab wants, in order. Things it isn't set to post are marked as handled, so
@@ -300,6 +323,8 @@ sealed class Tracker : IDisposable
         "loot" => $"{e.Char} looted {e.Item}",
         "mount" => $"{e.Char} got a new mount, {e.Mount}",
         "death" => $"{e.Char} died at level {e.Level}",
+        "duel" when e.Lost => $"{e.Char} lost a duel to {e.Opponent}",
+        "makgora" when e.Lost => $"{e.Char} lost a Mak'gora to {e.Opponent}",
         "duel" => $"{e.Char} won a duel against {e.Opponent}",
         "makgora" => $"{e.Char} won a Mak'gora against {e.Opponent}",
         "mplus" => $"{e.Char} reached {e.Step} Mythic+ rating ({e.Rating})",
@@ -313,6 +338,8 @@ sealed class Tracker : IDisposable
     {
         var events = new Dictionary<string, Entry>();
         var chars = new List<Snapshot>();
+        var inventories = new List<Inventory>();
+        var xpTable = new Dictionary<int, long>();
         foreach (var account in Wow.Accounts(flavorDir))
         {
             var file = Wow.SavedVarsFile(flavorDir, account);
@@ -322,6 +349,8 @@ sealed class Tracker : IDisposable
                 var d = SavedVariables.Read(file);
                 foreach (var e in d.Events) events[e.Id] = e;
                 chars.AddRange(d.Characters);
+                inventories.AddRange(d.Inventories);
+                foreach (var (level, xp) in d.XpTable) xpTable[level] = xp;
             }
             catch (Exception ex)
             {
@@ -331,7 +360,7 @@ sealed class Tracker : IDisposable
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(ToSnapshot));
-        return new TrackerData(events.Values.ToList(), chars);
+        return new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable };
     }
 
     public void Dispose()

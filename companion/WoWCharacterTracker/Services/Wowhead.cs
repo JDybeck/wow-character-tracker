@@ -16,6 +16,8 @@ static partial class Wowhead
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
     static readonly ConcurrentDictionary<string, Task<Info?>> Lookups = new();
     static readonly object DiskLock = new();
+    // Bags and banks mean hundreds of items at once; a few lookups at a time keeps Wowhead happy.
+    static readonly SemaphoreSlim Parallel = new(6);
     static Dictionary<string, Info>? disk;
     static string CachePath => Path.Combine(Config.Dir, "wowhead.json");
 
@@ -38,6 +40,7 @@ static partial class Wowhead
             // Entries cached before the HTML was kept are fetched once more.
             if (disk.TryGetValue(key, out var cached) && cached.Html is not null) return cached;
         }
+        await Parallel.WaitAsync();
         try
         {
             string json;
@@ -54,17 +57,28 @@ static partial class Wowhead
             var quality = root.TryGetProperty("quality", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : -1;
             var info = new Info(Str("name"), Str("icon"), quality, ToText(Str("tooltip")), Str("tooltip"));
             if (info.Name.Length == 0) return null;
-            lock (DiskLock)
-            {
-                disk![key] = info;
-                try { File.WriteAllText(CachePath, JsonSerializer.Serialize(disk)); } catch (IOException) { }
-            }
+            lock (DiskLock) disk![key] = info;
+            SaveSoon();
             return info;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             Lookups.TryRemove(key, out _); // try again another time
             lock (DiskLock) return disk!.GetValueOrDefault(key); // an older cached entry still beats nothing
+        }
+        finally { Parallel.Release(); }
+    }
+
+    // The cache file is written once lookups go quiet, not after each of hundreds of items.
+    static int saveVersion;
+    static async void SaveSoon()
+    {
+        var mine = Interlocked.Increment(ref saveVersion);
+        await Task.Delay(2000);
+        if (mine != saveVersion) return;
+        lock (DiskLock)
+        {
+            try { File.WriteAllText(CachePath, JsonSerializer.Serialize(disk)); } catch (IOException) { }
         }
     }
 

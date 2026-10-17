@@ -59,26 +59,32 @@ local function isMe(name)
   return name == me or (surname and name == me .. " " .. surname)
 end
 
-local function recordDuel(kind, opponent, fled)
+-- lost: this character lost (to opponent). fled: the loser ran away (the opponent, or this
+-- character when lost is set).
+local function recordDuel(kind, opponent, fled, lost)
   local e = ns.characterInfo()
   e.kind = kind -- "duel" or "makgora"
   e.opponent = opponent
   e.fled = fled or nil
+  e.lost = lost or nil
   e.at = time()
   e.id = string.format("%s:%s:%d", e.guid, kind, e.at)
   ns.addEvent(e)
 end
 
+-- Argument 1 is the winner, argument 2 the loser, in every duel and Mak'gora message.
 function ns.onSystemMessage(text)
   if not text then return end
   if not duelPatterns then buildDuelPatterns() end
   for _, c in ipairs(makgoraPatterns) do
     local a = matchFormat(text, c)
     if a and isMe(a[1]) then recordDuel("makgora", a[2]); return end
+    if a and isMe(a[2]) then recordDuel("makgora", a[1], nil, true); return end
   end
   for _, c in ipairs(duelPatterns) do
     local a = matchFormat(text, c)
     if a and isMe(a[1]) then recordDuel("duel", a[2], c.fled); return end
+    if a and isMe(a[2]) then recordDuel("duel", a[1], c.fled, true); return end
   end
 end
 

@@ -386,6 +386,10 @@ function ns.characterInfo()
     money = safe(GetMoney), -- copper
     crests = safe(getCrests),
     guild = safe(getGuild),
+    -- For the app's time-to-max estimate (saved file only).
+    xp = num(safe(UnitXP, "player")),
+    xpMax = num(safe(UnitXPMax, "player")),
+    maxLevel = num(safe(GetMaxPlayerLevel)) or num(MAX_PLAYER_LEVEL),
   }
   -- Secret values can't be saved or sent (and doing anything with them is an error), so none stay.
   if issecretvalue then
@@ -424,4 +428,8 @@ function ns.saveSnapshot()
   if info.spec == info.class then info.spec = nil end
   if type(GetSpecialization) ~= "function" then info.role = nil end
   WoWCharacterTrackerDB.chars[guid] = info
+  -- The XP each level needs on this client, so the app can estimate time to max level.
+  if info.level and info.xpMax and info.xpMax > 0 and WoWCharacterTrackerDB.xpTable then
+    WoWCharacterTrackerDB.xpTable[info.level] = info.xpMax
+  end
 end

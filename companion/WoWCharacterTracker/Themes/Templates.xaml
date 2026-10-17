@@ -35,6 +35,65 @@
       </StackPanel>
     </Border>
   </DataTemplate>
+  <!-- An item slot (bags, bank, gear): the icon in a border of its quality color, the stack size in
+       the corner, Wowhead's tooltip on hover, its Wowhead page on click. Empty slots are a dim square. -->
+  <DataTemplate x:Key="ItemCellTemplate" DataType="{x:Type vm:ItemCell}">
+    <Border x:Name="Slot" Width="34" Height="34" Margin="0,0,3,3" CornerRadius="4" BorderThickness="1"
+            Background="#33000000" BorderBrush="#26FFFFFF"
+            ToolTip="{Binding Item.Tooltip}" ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
+      <Border.InputBindings>
+        <MouseBinding MouseAction="LeftClick" Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Item.Url}"/>
+      </Border.InputBindings>
+      <Grid>
+        <Image Source="{Binding Item.IconUrl}" Margin="1" RenderOptions.BitmapScalingMode="HighQuality">
+          <Image.Clip>
+            <RectangleGeometry Rect="0,0,30,30" RadiusX="3" RadiusY="3"/>
+          </Image.Clip>
+        </Image>
+        <TextBlock Text="{Binding CountText}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,3,1"
+                   FontSize="11" FontWeight="Bold" Foreground="White">
+          <TextBlock.Effect>
+            <DropShadowEffect ShadowDepth="0" BlurRadius="3" Opacity="1" Color="Black"/>
+          </TextBlock.Effect>
+        </TextBlock>
+      </Grid>
+    </Border>
+    <DataTemplate.Triggers>
+      <DataTrigger Binding="{Binding IsEmpty}" Value="False">
+        <Setter TargetName="Slot" Property="BorderBrush" Value="{Binding Item.Brush}"/>
+        <Setter TargetName="Slot" Property="Cursor" Value="Hand"/>
+      </DataTrigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+
+  <!-- Tabs inside the character details: Overview, Gear and bags, Leveling. -->
+  <Style x:Key="DetailTab" TargetType="RadioButton">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <!-- Same look as the page tabs, a size smaller. -->
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Bd" Background="Transparent" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+                  CornerRadius="7" Padding="12,5" Margin="0,8,6,8">
+            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="12.5" TextElement.FontWeight="SemiBold"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLineSoft}"/>
+              <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLine}"/>
+              <Setter Property="Foreground" Value="White"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- Same column widths for the header row and every character row. -->
   <GridLength x:Key="ColClass">130</GridLength>
   <GridLength x:Key="ColLevel">70</GridLength>
@@ -125,16 +184,20 @@
     <Setter Property="Foreground" Value="{StaticResource Muted}"/>
     <Setter Property="Template">
       <Setter.Value>
+        <!-- A box with the page's icon and name; the open page (Tag "active") is filled in the tab's theme. -->
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="4,8" Margin="0,0,22,0">
-            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="14" TextElement.FontWeight="SemiBold"/>
+          <Border x:Name="Bd" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+                  CornerRadius="9" Padding="14,8" Margin="0,0,8,0">
+            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="13.5" TextElement.FontWeight="SemiBold"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLineSoft}"/>
               <Setter Property="Foreground" Value="{StaticResource Text}"/>
             </Trigger>
             <Trigger Property="Tag" Value="active">
-              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLine}"/>
               <Setter Property="Foreground" Value="White"/>
             </Trigger>
           </ControlTemplate.Triggers>
