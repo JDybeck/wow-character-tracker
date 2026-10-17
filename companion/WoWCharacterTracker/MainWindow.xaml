@@ -19,7 +19,7 @@
     </Grid.RowDefinitions>
 
     <views:Header/>
-    <views:SetupBar Grid.Row="1"/>
+    <views:SetupBar Grid.Row="1" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
 
     <!-- Main area: the page tabs on top (left), then the page and the right column side by side,
          so their top edges line up. -->
@@ -94,6 +94,8 @@
       <views:PostingPage Grid.Row="1"/>
       <views:InGamePage Grid.Row="1"/>
       <views:UninstallPage Grid.Row="1"/>
+      <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
+      <views:GameOffPage Grid.Row="0" Grid.RowSpan="2"/>
 
       <Grid Grid.Row="1" Grid.Column="2">
         <Grid.RowDefinitions>

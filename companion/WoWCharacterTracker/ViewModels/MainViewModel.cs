@@ -116,12 +116,14 @@ sealed class MainViewModel : Observable
         Raise(nameof(OpenWithWow));
 
         foreach (var f in Flavors.All) FlavorTabs.Add(new FlavorViewModel(this, f));
-        SelectedFlavor = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
+        // Opens on the last tab, unless that game is turned off and another one isn't.
+        var last = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
+        SelectedFlavor = last.IsOn ? last : FlavorTabs.FirstOrDefault(t => t.IsOn) ?? last;
 
         foreach (var tab in FlavorTabs) tab.Start();
         if (Config.Webhooks.Count == 0)
             Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
-        await Task.WhenAll(FlavorTabs.Select(t => t.CheckDiscordAsync()));
+        await Task.WhenAll(FlavorTabs.Where(t => t.IsOn).Select(t => t.CheckDiscordAsync()));
 
         // Test runs stay off the network for this, unless they fake an old version to test it.
         if (Config.IsTest && Environment.GetEnvironmentVariable("CHARACTERTRACKER_FAKE_VERSION") is null) return;
@@ -183,7 +185,7 @@ sealed class MainViewModel : Observable
             if (!Set(ref showTestCharacters, value)) return;
             foreach (var tab in FlavorTabs) tab.Refresh();
             if (!value) return;
-            if (FlavorTabs.FirstOrDefault(t => t.Flavor == Flavors.Forever) is { } forever) SelectedFlavor = forever;
+            if (FlavorTabs.FirstOrDefault(t => t.Flavor == Flavors.Forever) is { IsOn: true } forever) SelectedFlavor = forever;
             Log.Info("Test characters on (Forever tab). They're never posted on their own, but Test buttons and Post to Discord work with them.");
         }
     }

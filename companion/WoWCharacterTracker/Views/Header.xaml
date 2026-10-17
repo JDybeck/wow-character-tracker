@@ -128,6 +128,18 @@
               <TextBlock Text="Hide the window when the game closes" FontSize="13" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap"/>
             </CheckBox>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,14"/>
+            <!-- Which games the app looks at (a game that's off keeps its tab, with a way back on). -->
+            <ItemsControl ItemsSource="{Binding FlavorTabs}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
+                  <CheckBox IsChecked="{Binding TrackThis}" IsEnabled="{Binding CanToggle}" Margin="0,0,0,8"
+                            ToolTip="Off: the app doesn't look for this game, read its data or install the addon there. At least one game stays on.">
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSoft}"><Run Text="Track "/><Run Text="{Binding Name, Mode=OneWay}"/></TextBlock>
+                  </CheckBox>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border Height="1" Background="{DynamicResource Line}" Margin="0,6,0,14"/>
             <CheckBox IsChecked="{Binding ShowTestCharacters}"
                       ToolTip="Show made-up Forever characters (Zeb, Fågelmannen, Goggo) to try the app without playing. They're never posted on their own.">
               <TextBlock Text="Test characters" FontSize="13" Foreground="{StaticResource TextSoft}"/>

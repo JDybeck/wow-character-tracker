@@ -109,7 +109,9 @@ sealed class FlavorViewModel : Observable
     async Task LoadLogoAsync() => Logo = await Logos.LoadAsync(Flavor);
     FlavorSettings Settings => main.Config.For(Flavor);
     public Tracker? Tracker => tracker;
-    public string? FolderPath => flavorDir; // the game folder in use (the Uninstall page lists what's in it)
+    public string? FolderPath => flavorDir; // the game folder in use
+    // The folder in use, or for a game that's turned off the one it had (the Uninstall page lists what's in it).
+    public string? KnownFolder => flavorDir ?? (Wow.IsFlavorDir(Settings.Path) ? Settings.Path : null);
 
     // The open game tab. Each tab keeps its own Characters and Items pages and only the open one
     // shows, so switching tabs doesn't build hundreds of rows and icons again.
@@ -253,8 +255,84 @@ sealed class FlavorViewModel : Observable
 
     // --- startup and folder ---
 
+    // --- turning the game off (Config.TurnedOff) ---
+
+    // Off: the app doesn't look for this game, read or watch its saved file, or install or update
+    // the addon there. The tab stays, showing the Game off page.
+    public bool IsOn => main.Config.IsOn(Flavor);
+    public bool IsOff => !IsOn;
+
+    // The settings menu's checkbox. The last game that's on can't be turned off.
+    public bool TrackThis { get => IsOn; set { if (value) TurnOn(); else TurnOff(); } }
+    public bool CanToggle => IsOff || main.FlavorTabs.Any(t => t != this && t.IsOn);
+
+    public ICommand TurnOnCommand => new RelayCommand(_ => TurnOn());
+    public ICommand RemoveAddonCommand => new RelayCommand(_ => RemoveAddon());
+
+    // The game is off but the addon is still in its AddOns folder (from before), so it still saves
+    // data and takes instant-post shots in game. Only checked where the folder is already known.
+    public bool AddonLeftInstalled => IsOff && Settings.Path is { } p && Wow.IsFlavorDir(p) && AddonInstaller.InstalledVersion(p) is not null;
+    public string AddonLeftPath => Settings.Path is { } p ? AddonInstaller.TargetDir(p) : "";
+
+    void TurnOff()
+    {
+        if (IsOff || !CanToggle) return;
+        main.Config.TurnedOff.Add(Flavor.Key);
+        main.Config.Save();
+        tracker?.Dispose();
+        tracker = null;
+        flavorDir = null;
+        ReloadNeeded = false;
+        ShowData(TrackerData.Empty);
+        StatusText = $"{Name} is turned off";
+        Log.Info($"[{Name}] Turned off: the app no longer looks at {Name}." + (AddonLeftInstalled ? " The addon is still installed there; remove it on the tab if you like." : ""));
+        Toggled();
+    }
+
+    void TurnOn()
+    {
+        if (IsOn) return;
+        main.Config.TurnedOff.Remove(Flavor.Key);
+        main.Config.Save();
+        Log.Info($"[{Name}] Turned on.");
+        Toggled();
+        Start();
+    }
+
+    void RemoveAddon()
+    {
+        if (Settings.Path is not { } path) return;
+        try
+        {
+            AddonInstaller.Remove(path);
+            Log.Success($"[{Name}] Removed the addon from {AddonInstaller.TargetDir(path)}. The data it saved stays in the game's WTF folder.");
+            if (Wow.IsRunning(path)) Log.Warn($"[{Name}] The game is running: it keeps the addon loaded until you exit it.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Error($"[{Name}] Couldn't remove the addon: {ex.Message}");
+        }
+        Raise(nameof(AddonLeftInstalled));
+    }
+
+    void Toggled()
+    {
+        foreach (var tab in main.FlavorTabs) tab.RaiseToggle();
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    void RaiseToggle()
+    {
+        Raise(nameof(IsOn)); Raise(nameof(IsOff)); Raise(nameof(TrackThis)); Raise(nameof(CanToggle)); Raise(nameof(AddonLeftInstalled));
+    }
+
     public void Start()
     {
+        if (IsOff)
+        {
+            StatusText = $"{Name} is turned off";
+            return;
+        }
         var path = Wow.IsFlavorDir(Settings.Path) ? Settings.Path : Wow.Detect(Flavor);
         if (path is null)
         {
@@ -385,6 +463,7 @@ sealed class FlavorViewModel : Observable
 
     public async Task CheckDiscordAsync()
     {
+        if (IsOff) return;
         var active = main.Config.ActiveWebhooks(Flavor);
         if (active.Count == 0)
         {
