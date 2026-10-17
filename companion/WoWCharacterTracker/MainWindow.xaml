@@ -100,21 +100,16 @@
       <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
       <views:GameOffPage Grid.Row="0" Grid.RowSpan="2"/>
 
-      <Grid Grid.Row="1" Grid.Column="2">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="16"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="16"/>
-          <RowDefinition Height="*" MinHeight="120"/>
-          <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <views:DiscordPanel DataContext="{Binding Discord}"/>
-        <views:StreamPanel Grid.Row="2" DataContext="{Binding Stream}"/>
-        <views:ConsolePanel Grid.Row="4"/>
-        <!-- The maker, quietly in the corner. -->
+      <!-- The right column scrolls as one (the scrollbar only shows when it doesn't all fit). The console
+           fills what's left and keeps a readable height when there isn't room (MainWindow.FitRightColumn). -->
+      <ScrollViewer x:Name="RightScroll" Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                    Margin="0,0,-14,0" Padding="0,0,14,0" Focusable="False">
+      <StackPanel x:Name="RightColumn">
+        <views:DiscordPanel x:Name="DiscordView" DataContext="{Binding Discord}"/>
+        <views:StreamPanel x:Name="StreamView" Margin="0,16,0,0" DataContext="{Binding Stream}"/>
+        <views:ConsolePanel x:Name="ConsoleView" Margin="0,16,0,0"/>
         <!-- The maker and a tip link, quietly in the corner. -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,2,-14">
+        <StackPanel x:Name="CreditRow" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,2,0">
           <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
             <Button.Template>
               <ControlTemplate TargetType="Button">
@@ -143,7 +138,8 @@
             </Button.Template>
           </Button>
         </StackPanel>
-      </Grid>
+      </StackPanel>
+      </ScrollViewer>
     </Grid>
   </Grid>
 </Window>

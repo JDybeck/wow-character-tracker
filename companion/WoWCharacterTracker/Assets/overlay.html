@@ -5,7 +5,8 @@
        ?only=card        the character card (level times, today, records)
        ?only=highlights  the highlights box        ?only=ding   the ding alert
        ?scale=1.5   bigger (or smaller)            ?side=right  boxes on the right
-       ?preview=1   a dark backdrop, for looking at it in a normal browser (the app's Preview button)  -->
+       ?preview=1   a dark backdrop, for looking at it in a normal browser (the app's Preview button)
+     A single part (?only=...) fills its Browser source, keeping its shape: resize the source to resize it.  -->
 <html>
 <head>
 <meta charset="utf-8">
@@ -17,6 +18,9 @@
   body { font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif; color: #f1f5f9; }
   .wrap { transform: scale(var(--scale)); transform-origin: top left; padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .right .wrap { transform-origin: top right; align-items: flex-end; }
+  /* One part on its own: no margin, scaled to fill the source (fit() sets --scale). */
+  body.fit .wrap { padding: 0; transform-origin: top left; align-items: flex-start; }
+  body.fit .box.solid { box-shadow: none; }
 
   .box { width: 340px; padding: 14px 16px 12px; border-radius: 12px; background: rgba(10, 8, 6, var(--bg));
          border: 1px solid color-mix(in srgb, var(--edge) 55%, transparent); display: none;
@@ -41,6 +45,7 @@
   .ding { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(var(--scale)); text-align: center;
           opacity: 0; pointer-events: none; }
   .ding.show { animation: ding 7s ease-out forwards; }
+  body.fit .ding { top: 50%; }
   .ding .orb { position: absolute; left: 50%; top: 50%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%;
                background: radial-gradient(circle, rgba(255, 255, 255, .9) 0%, rgba(253, 224, 71, .55) 22%, rgba(245, 158, 11, .18) 48%, transparent 70%); }
   .ding.show .orb { animation: burst 1.6s ease-out forwards; }
@@ -90,6 +95,21 @@
   if (q.get("scale")) document.documentElement.style.setProperty("--scale", q.get("scale"));
   if (q.get("side") === "right") document.body.classList.add("right");
   if (q.get("preview")) document.body.classList.add("preview");
+  const fitting = ["card", "highlights", "ding"].includes(only);
+  if (fitting) document.body.classList.add("fit");
+
+  // A single part fills the window (the Browser source) without changing shape, so resizing the
+  // source in OBS resizes the part. Layout sizes (offsetWidth) ignore the transform, so they're
+  // the part's natural size.
+  function fit() {
+    if (!fitting) return;
+    const el = $(only === "highlights" ? "hl" : only);
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (!w || !h) return;
+    const pad = only === "ding" ? 1.15 : 1; // the ding's glow reaches past its text
+    document.documentElement.style.setProperty("--scale", Math.min(innerWidth / (w * pad), innerHeight / (h * pad)));
+  }
+  addEventListener("resize", fit);
   const $ = id => document.getElementById(id);
   const text = (el, s) => { el.textContent = s || ""; el.style.display = s ? "" : "none"; };
   let seenDing = null, first = true;
@@ -152,6 +172,7 @@
       seenDing = d.id;
     }
     first = false;
+    fit();
   }
 
   async function tick() {

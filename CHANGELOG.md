@@ -7,7 +7,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 The streaming release.
 
 - **Stream overlay panel**: all the stream settings now have their own panel between Discord and the console (fold it away by clicking its title). Turn the overlay on there, copy its addresses, preview it, send a test ding and open the text files.
-- **Place each part on its own**: copy the address of just the **card**, just the **highlights** or just the **DING! alert**, and add them as separate Browser sources. Or one address for everything.
+- **Place each part on its own**: copy the address of just the **card**, just the **highlights** or just the **DING! alert**, and add them as separate Browser sources. A part on its own fills its source, so resizing the source in OBS resizes it. Or one address for everything.
+- The right column (Discord, Stream overlay, console) scrolls as one when it doesn't fit, and the console keeps a readable height. No scrollbar when everything fits.
 - **Background**: a slider from see-through (just the text) to solid.
 - **Choose what shows**: level times, today's levels, the duel record, the Mak'gora record and highlights, each on or off. For highlights, pick which kinds count: loot, boss kills, mounts, duels, Mak'gora, deaths, Mythic+ and PvP rating.
 - **Duel and Mak'gora records** on the card (won and lost), and in `duels.txt` and `makgora.txt` for text sources.

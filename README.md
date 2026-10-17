@@ -116,7 +116,7 @@ Optional, and off until you turn it on: show your character, your records, your 
 <img src="docs/images/stream-panel.png" alt="The Stream overlay panel: on, the addresses, background, what to show, highlights, start from now" width="390">
 
 1. Tick **On** in the Stream overlay panel.
-2. Click **Copy all** for one source with everything (the address is `http://localhost:8721/`), or copy **Card**, **Highlights** and **Ding alert** one by one to add them as separate sources and place each where you like.
+2. Click **Copy all** for one source with everything (the address is `http://localhost:8721/`), or copy **Card**, **Highlights** and **Ding alert** one by one to add them as separate sources and place each where you like. A part on its own fills its whole Browser source, so its box in OBS fits it snugly: resize the source to resize the part.
 3. In OBS: under **Sources** click **+**, pick **Browser**, paste the address as the **URL**, and set the width and height to your canvas (like 1920 and 1080). In Streamlabs: **+**, **Browser Source**, the same.
 4. Click **Preview** to see it in your normal browser first (with a dark background so you can see it; on stream it's see-through).
 5. Click **Test ding** to see the DING! alert in OBS right away, without leveling. Nothing is posted.
