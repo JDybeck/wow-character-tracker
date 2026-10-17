@@ -51,7 +51,8 @@
     </DataTemplate>
   </UserControl.Resources>
 
-  <Border Style="{StaticResource CardBorder}" ClipToBounds="True" DataContext="{Binding SelectedFlavor}"
+  <!-- DataContext: the game tab (FlavorViewModel); MainWindow has one of these per tab. -->
+  <Border Style="{StaticResource CardBorder}" ClipToBounds="True"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=characters}">
     <Grid>
       <Grid.RowDefinitions>
@@ -111,7 +112,7 @@
                     <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
                     <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="17" FontWeight="Bold"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    <Image Source="{Binding PictureUrl}" Stretch="UniformToFill">
+                    <Image Source="{Binding PictureUrl, Converter={StaticResource WebImage}}" Stretch="UniformToFill">
                       <Image.Clip>
                         <EllipseGeometry Center="21,21" RadiusX="21" RadiusY="21"/>
                       </Image.Clip>

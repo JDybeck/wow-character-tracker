@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 
 namespace WoWCharacterTracker.Ui;
 
@@ -22,9 +21,16 @@ static class Theme
         "#B45309", "#D97706", "#FCD34D", "#FEF3C7",
         "#A16207", "#CA8A04", "#FACC15", "#FDE68A", "#FEF9C3", "#713F12");
 
-    public static void Apply(Flavor flavor, bool animate = true)
+    // The tab's palette lives in its own merged dictionary, swapped in whole: every change to the
+    // app's resources makes WPF walk the whole window for DynamicResource users, so one swap is one
+    // walk instead of one per color. (It used to fade each color too, which redrew the window for
+    // every animation frame; on Retail that was most of a second of CPU per tab switch.)
+    static ResourceDictionary? current;
+
+    public static void Apply(Flavor flavor)
     {
         var p = flavor == Flavors.Retail ? Midnight : Gold;
+        var dict = new ResourceDictionary();
         Set("Bg", p.Bg); Set("Card", p.Card); Set("CardHeader", p.CardHeader);
         Set("Line", p.Line); Set("LineSoft", p.Line, 0x80); Set("Hover", p.Line, 0x4D); Set("Selected", p.Line, 0x99);
         Set("Blue", p.Accent); Set("BlueHover", p.AccentHover); Set("BlueSoft", p.Accent, 0x33); Set("BlueLine", p.AccentHover, 0x80);
@@ -34,19 +40,20 @@ static class Theme
         Set("IndigoText", p.SecondText); Set("IndigoTextBright", p.SecondTextBright);
         Set("IndigoSoft", p.SecondDeep, 0x33); Set("IndigoPanel", p.SecondDeep, 0x33);
 
+        var merged = Application.Current.Resources.MergedDictionaries;
+        if (current is not null && merged.IndexOf(current) is var i and >= 0) merged[i] = dict;
+        else merged.Add(dict); // last, so it wins over Palette.xaml's defaults
+        current = dict;
+
         // Styles freeze the brushes they use, so each key gets a new brush (the XAML uses
-        // DynamicResource for these), fading from the old color.
+        // DynamicResource for these). Frozen brushes are cheaper to render.
         void Set(string key, string hex, byte alpha = 0xFF)
         {
             var c = (Color)ColorConverter.ConvertFromString(hex);
             c.A = alpha;
             var brush = new SolidColorBrush(c);
-            if (animate && Application.Current.Resources[key] is SolidColorBrush old && old.Color != c)
-            {
-                brush.Color = old.Color;
-                brush.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation(c, TimeSpan.FromMilliseconds(250)));
-            }
-            Application.Current.Resources[key] = brush;
+            brush.Freeze();
+            dict[key] = brush;
         }
     }
 }

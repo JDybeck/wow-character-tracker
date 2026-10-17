@@ -71,11 +71,29 @@
         </StackPanel>
       </DockPanel>
 
-      <views:CharactersPage Grid.Row="1"/>
+      <!-- Characters and Items, once per game tab (their DataContext is the tab): the hidden tab's
+           pages stay built, so switching tabs only swaps which one shows. -->
+      <ItemsControl Grid.Row="1" ItemsSource="{Binding FlavorTabs}" Focusable="False">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><Grid/></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemContainerStyle>
+          <Style TargetType="ContentPresenter">
+            <Setter Property="Visibility" Value="{Binding IsSelected, Converter={StaticResource Visible}}"/>
+          </Style>
+        </ItemsControl.ItemContainerStyle>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
+            <Grid>
+              <views:CharactersPage/>
+              <views:ItemsPage Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
       <views:PostingPage Grid.Row="1"/>
       <views:InGamePage Grid.Row="1"/>
       <views:UninstallPage Grid.Row="1"/>
-      <views:ItemsPage Grid.Row="1" Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
 
       <Grid Grid.Row="1" Grid.Column="2">
         <Grid.RowDefinitions>
