@@ -45,6 +45,21 @@ public class StreamTests
     }
 
     [Fact]
+    public void No_characters_at_all_is_an_empty_overlay_not_a_crash()
+    {
+        // A fresh install (no characters on any tab) used to throw "Sequence contains no elements".
+        Assert.Same(StreamSnapshot.Empty, StreamSnapshot.Latest([], Now));
+    }
+
+    [Fact]
+    public void The_character_played_last_wins_across_games()
+    {
+        var retail = Ronnie with { Guid = "R-1", Name = "Drygbeck", Game = "Retail", LastSeen = Now.ToUnixTimeSeconds() - 3600 };
+        var s = StreamSnapshot.Latest([(retail, []), (Ronnie, [])], Now);
+        Assert.Equal("Ronnie Raket", s.Character);
+    }
+
+    [Fact]
     public void Text_files_are_empty_without_a_character()
     {
         Assert.All(StreamFiles.Contents(StreamSnapshot.Empty), f => Assert.Equal("", f.Text));

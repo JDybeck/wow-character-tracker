@@ -17,7 +17,7 @@ sealed class StreamViewModel : Observable
         this.main = main;
         CopyUrlCommand = new RelayCommand(_ => { try { Clipboard.SetText(Url); Log.Info("Copied the stream overlay address: " + Url); } catch { } });
         OpenFolderCommand = new RelayCommand(_ => { Directory.CreateDirectory(StreamFiles.Dir); Browser.Open(StreamFiles.Dir); });
-        OpenOverlayCommand = new RelayCommand(_ => Browser.Open(Url));
+        OpenOverlayCommand = new RelayCommand(_ => Browser.Open(Url + "?preview=1")); // a dark backdrop behind it
     }
 
     public ICommand CopyUrlCommand { get; }
@@ -68,9 +68,7 @@ sealed class StreamViewModel : Observable
         else
             latest.Remove(flavor);
 
-        snapshot = latest.Values.MaxBy(v => v.Character.LastSeen) is var (c, e) && c is not null
-            ? StreamSnapshot.Build(c, e, DateTimeOffset.Now)
-            : StreamSnapshot.Empty;
+        snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now);
         if (server is null) return;
         server.Snapshot = snapshot;
         StreamFiles.Write(snapshot);

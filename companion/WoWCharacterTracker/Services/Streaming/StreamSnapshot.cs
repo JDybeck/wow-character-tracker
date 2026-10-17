@@ -18,6 +18,16 @@ sealed record StreamSnapshot(
     const int LevelsShown = 5;
     const int HighlightsShown = 3;
 
+    // The character played last of each game's candidates (Empty when there are none: MaxBy on an
+    // empty list of tuples would throw).
+    public static StreamSnapshot Latest(IEnumerable<(StreamCharacter Character, IReadOnlyList<Entry> Events)> candidates, DateTimeOffset now)
+    {
+        var list = candidates.ToList();
+        if (list.Count == 0) return Empty;
+        var (character, events) = list.MaxBy(v => v.Character.LastSeen);
+        return Build(character, events, now);
+    }
+
     public static StreamSnapshot Build(StreamCharacter c, IEnumerable<Entry> events, DateTimeOffset now)
     {
         var levels = events.Where(e => e.Kind == "level" && e.Guid == c.Guid).OrderByDescending(e => e.At).ToList();
