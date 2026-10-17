@@ -12,7 +12,6 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Character details fade in when you open them, and when you switch their tabs.
 - A gold bag next to the total gold, instead of a card.
 - The test characters' surname is TESTCHAR, so their posts can't be mistaken for real ones.
-- Fixed: a game tab without any characters made every sync fail ("Sequence contains no elements") while the stream code was in this version's test builds.
 - README: new pictures (a real level-up post, the four Forever themes, Items, settings, Uninstall, the stream overlay) and a Streaming section that walks through the OBS setup.
 - **Picking the game folder is clearer**: Browse asks for your World of Warcraft folder (or the game's folder inside it) and starts there. Any folder inside them works too, picking the other game's folder finds the right one next to it, and when it can't, it says why (like "This World of Warcraft folder has _retail_ but no _classic_beta_. Is Forever installed?").
 
