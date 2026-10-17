@@ -17,6 +17,7 @@ sealed class SetupItem(string title) : Observable
     public string? ActionText { get => actionText; set => Set(ref actionText, value); }
 
     public ICommand? ActionCommand { get; init; }
+    public string? ActionTooltip { get; init; } // what the button does, e.g. which folder to pick
 
     public void Set(bool ok, string detail, string? action = null) => (Ok, Detail, ActionText) = (ok, detail, action);
 }

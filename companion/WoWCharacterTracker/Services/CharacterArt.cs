@@ -52,15 +52,22 @@ static class CharacterArt
 
     public static string? LocalPortrait(string guid) => File.Exists(PortraitPath(guid)) ? PortraitPath(guid) : null;
 
+    // One file per character, replaced by each new check-in: written next to it first and then moved
+    // over it, so the app never reads half a picture and no older copies pile up.
     public static void SavePortrait(string guid, byte[] png)
     {
+        var path = PortraitPath(guid);
+        var temp = path + ".new";
         try
         {
-            var path = PortraitPath(guid);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllBytes(path, png);
+            File.WriteAllBytes(temp, png);
+            File.Move(temp, path, overwrite: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            try { File.Delete(temp); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     static async Task<bool> ExistsAsync(string url)

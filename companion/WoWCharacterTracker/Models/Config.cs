@@ -27,6 +27,18 @@ class Config
     // Parts of the character card (Post to Discord) the user turned off. Guild is off unless picked.
     public List<string> CardHidden { get; set; } = ["guild"];
 
+    // Games the user turned off (flavor keys): not looked for, not read, no addon installed or
+    // updated there. Their tab stays, with a way to turn them back on.
+    public List<string> TurnedOff { get; set; } = [];
+    public bool IsOn(Flavor flavor) => !TurnedOff.Contains(flavor.Key);
+
+    // Slides, fades and the tab orb (Ui/Motion). Off: everything switches instantly.
+    public bool Animations { get; set; } = true;
+
+    // Stream overlay (a localhost page for OBS) and stream text files, off until turned on.
+    public bool StreamEnabled { get; set; }
+    public int StreamPort { get; set; } = 8721;
+
     // The color theme picked per game tab (flavor key -> Theme option key); missing = the game's default.
     public Dictionary<string, string> Themes { get; set; } = [];
 

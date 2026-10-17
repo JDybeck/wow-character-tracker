@@ -23,3 +23,16 @@ public class ThemeTests
         }
     }
 }
+
+public class TurnedOffTests
+{
+    [Fact]
+    public void A_game_is_on_unless_turned_off()
+    {
+        var config = new Config();
+        Assert.True(config.IsOn(Flavors.Retail));
+        config.TurnedOff.Add(Flavors.Retail.Key);
+        Assert.False(config.IsOn(Flavors.Retail));
+        Assert.True(config.IsOn(Flavors.Forever));
+    }
+}

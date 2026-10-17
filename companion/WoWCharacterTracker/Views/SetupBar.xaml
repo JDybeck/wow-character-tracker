@@ -113,7 +113,7 @@
                          TextTrimming="CharacterEllipsis" LineHeight="16" LineStackingStrategy="BlockLineHeight" MaxHeight="32"
                          ToolTip="{Binding Detail}"/>
             </StackPanel>
-            <Button Grid.Column="2" Style="{StaticResource ButtonBase}" Content="{Binding ActionText}" Command="{Binding ActionCommand}"
+            <Button Grid.Column="2" Style="{StaticResource ButtonBase}" Content="{Binding ActionText}" Command="{Binding ActionCommand}" ToolTip="{Binding ActionTooltip}"
                     Visibility="{Binding ActionText, Converter={StaticResource VisibleIfSet}}" Margin="10,0,0,0" Padding="10,4"/>
           </Grid>
         </Border>

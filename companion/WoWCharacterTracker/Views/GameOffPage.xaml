@@ -1,0 +1,35 @@
+<!-- Shown instead of the pages for a game the user turned off (FlavorViewModel.IsOff): what that means,
+     turning it back on, and removing the addon if it's still installed in that game. -->
+<UserControl x:Class="WoWCharacterTracker.Views.GameOffPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Border Style="{StaticResource CardBorder}" DataContext="{Binding SelectedFlavor}"
+          Visibility="{Binding IsOff, Converter={StaticResource Visible}}">
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="480" Margin="24">
+      <Image Source="{Binding Logo}" Height="72" Opacity="0.5" Margin="0,0,0,12" RenderOptions.BitmapScalingMode="HighQuality"
+             Visibility="{Binding HasLogo, Converter={StaticResource Visible}}"/>
+      <TextBlock HorizontalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="White">
+        <Run Text="{Binding Name, Mode=OneWay}"/><Run Text=" is turned off"/>
+      </TextBlock>
+      <TextBlock Style="{StaticResource Hint}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,16" LineHeight="18"
+                 Text="The app doesn't look for this game, read its saved data or install the addon there. Nothing is deleted: turn it back on and everything shows up again."/>
+      <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Center" Command="{Binding TurnOnCommand}">
+        <TextBlock Foreground="White"><Run Text="Turn "/><Run Text="{Binding Name, Mode=OneWay}"/><Run Text=" back on"/></TextBlock>
+      </Button>
+
+      <!-- The addon is still in this game's AddOns folder from before. -->
+      <Border Margin="0,22,0,0" Padding="16,12" CornerRadius="10" BorderThickness="1" BorderBrush="{DynamicResource Line}"
+              Visibility="{Binding AddonLeftInstalled, Converter={StaticResource Visible}}">
+        <StackPanel>
+          <TextBlock Text="The addon is still installed in this game" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+          <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,4,0,8"
+                     Text="While you play it, it keeps saving data and taking the small instant-post screenshots. Remove it if you don't play this game with the tracker. The data it saved stays."/>
+          <TextBlock Text="{Binding AddonLeftPath}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Dim}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+          <Button Style="{StaticResource ButtonBase}" HorizontalAlignment="Left" Padding="12,5" Command="{Binding RemoveAddonCommand}">
+            <TextBlock Text="Remove the addon from this game"/>
+          </Button>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </Border>
+</UserControl>

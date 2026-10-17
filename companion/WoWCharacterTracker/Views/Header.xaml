@@ -128,6 +128,22 @@
               <TextBlock Text="Hide the window when the game closes" FontSize="13" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap"/>
             </CheckBox>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,14"/>
+            <!-- Which games the app looks at (a game that's off keeps its tab, with a way back on). -->
+            <ItemsControl ItemsSource="{Binding FlavorTabs}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
+                  <CheckBox IsChecked="{Binding TrackThis}" IsEnabled="{Binding CanToggle}" Margin="0,0,0,8"
+                            ToolTip="Off: the app doesn't look for this game, read its data or install the addon there. At least one game stays on.">
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSoft}"><Run Text="Track "/><Run Text="{Binding Name, Mode=OneWay}"/></TextBlock>
+                  </CheckBox>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border Height="1" Background="{DynamicResource Line}" Margin="0,6,0,14"/>
+            <CheckBox IsChecked="{Binding Animations}" Margin="0,0,0,12"
+                      ToolTip="Slides between pages and games, characters that unfold when opened, and the orb between the game tabs. Off: everything switches instantly.">
+              <TextBlock Text="Animations" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+            </CheckBox>
             <CheckBox IsChecked="{Binding ShowTestCharacters}"
                       ToolTip="Show made-up Forever characters (Zeb, Fågelmannen, Goggo) to try the app without playing. They're never posted on their own.">
               <TextBlock Text="Test characters" FontSize="13" Foreground="{StaticResource TextSoft}"/>
@@ -173,6 +189,25 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,10,0,14"/>
+            <!-- Stream overlay (a localhost page for OBS) and text files (StreamViewModel). -->
+            <CheckBox IsChecked="{Binding Stream.Enabled}"
+                      ToolTip="Shows the character you play, its latest level times, today's levels, highlights and a ding alert on stream. Only your PC can open the page.">
+              <TextBlock Text="Stream overlay and text files" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+            </CheckBox>
+            <StackPanel Margin="24,6,0,0" Visibility="{Binding Stream.Enabled, Converter={StaticResource Visible}}">
+              <TextBlock Text="{Binding Stream.Url}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource BlueText}"/>
+              <WrapPanel Margin="-8,4,0,0">
+                <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Copy address" Command="{Binding Stream.CopyUrlCommand}" FontSize="12"/>
+                <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Preview" Command="{Binding Stream.OpenOverlayCommand}" FontSize="12"/>
+                <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Test ding" Command="{Binding Stream.TestDingCommand}" FontSize="12"
+                        ToolTip="Shows the DING! alert on the overlay now (in OBS too), without posting anything"/>
+                <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Text files" Command="{Binding Stream.OpenFolderCommand}" FontSize="12"
+                        ToolTip="One value per file (level, last level time, today's levels...), for OBS Text sources with Read from file"/>
+              </WrapPanel>
+              <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" FontSize="11" Margin="0,4,0,0"
+                         Text="In OBS: add a Browser source with this address. Add ?only=ding for just the ding alert, ?scale=1.5 for bigger."/>
+            </StackPanel>
+            <Border Height="1" Background="{DynamicResource Line}" Margin="0,12,0,14"/>
             <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,0,0,0" Padding="12,4"
                     Command="{Binding ShowUninstallCommand}" ToolTip="Pick what to remove: the app, the addon, your data, settings">
               <StackPanel Orientation="Horizontal">

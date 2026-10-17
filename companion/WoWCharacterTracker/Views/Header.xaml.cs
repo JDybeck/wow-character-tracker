@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace WoWCharacterTracker.Views;
@@ -11,7 +11,7 @@ public partial class Header : UserControl
     // when there's no old tab).
     void Tabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (e.RemovedItems.Count == 0 || e.AddedItems is not [FlavorViewModel next]) return;
+        if (!Motion.Enabled || e.RemovedItems.Count == 0 || e.AddedItems is not [FlavorViewModel next]) return;
         if (Tabs.ItemContainerGenerator.ContainerFromItem(e.RemovedItems[0]) is not FrameworkElement from
             || Tabs.ItemContainerGenerator.ContainerFromItem(next) is not FrameworkElement to) return;
         TabOrb.Play(OrbLayer, from, to, next.Flavor == Flavors.Forever ? TabOrb.Kind.Wisp : TabOrb.Kind.Void);

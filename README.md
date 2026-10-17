@@ -6,19 +6,9 @@ Made with WoW Forever (Classic+) in mind, and works for Retail too. Each has its
 
 ![The app on the Forever tab, with a character's details open](docs/images/characters.png)
 
-A level-up post looks like this:
+A level-up post, with the screenshot the addon took in game:
 
-```
-[Night Elf portrait]   Night Elf Warrior
-                       Zeb Skogsbrand just dinged level 40.
-                       39 to 40 took 1h 59m.
-                       Total played: 3d 5h.
-                       They dinged in Scarlet Monastery.
-
-                       Professions: ⛏️ Mining 210, 🔨 Blacksmithing 205
-                       Talents: Arms 21 / Fury 10 / Protection 0
-                       [screenshot]
-```
+<img src="docs/images/level-up-post.png" alt="A level-up post in Discord with an in-game screenshot" width="500">
 
 ## Getting started
 
@@ -61,9 +51,9 @@ Above the columns:
 
 Posts show the character's portrait as the sender picture, item and mount names link to Wowhead, and professions get an emoji.
 
-The Retail tab has its own Midnight look:
+Each game has its own look, and under Settings you can pick a color theme per game: Midnight, Void arcane or Silvermoon for Retail, Classic gold, Forever wisp, Emerald Dream or Blackrock ember for Forever. Here's Forever in its four themes:
 
-![The Retail tab](docs/images/retail-tab.png)
+![Forever in Classic gold, Forever wisp, Emerald Dream and Blackrock ember](docs/images/themes.png)
 
 ### In game
 
@@ -83,6 +73,9 @@ The **In game** page has what the addon does in game besides posting:
 
   - **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew, your duel record, and the level history. On Forever also the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP too.
 - **Items**: everything your characters carry (worn, bags and bank) in one list per server, with icons. Search by name to see who has what and where, or show only what's equipped, in bags or in the bank, or only one type (gear, consumables, trade goods, quest items). Hover an item for its tooltip, colored like in game. Each server shows when and where every character was last saved, since items only update on `/reload` or logout.
+
+  ![The Items page: every item with who has it and where, with place and type chips](docs/images/items.png)
+
 - **Tags**: make your own (like Main, Alts, Guild) and put them on characters. Webhooks can post only for some tags.
 - **Post to Discord**: sends the character as a card picture, with icons and quality colors. The gear next to it picks what the card shows (item level, played, gold, crests, professions, talents, stats, guild, last seen, levels, highlights). **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.
 
@@ -95,9 +88,36 @@ The **In game** page has what the addon does in game besides posting:
 
 - **Console**: what the app is doing, like posts sent and anything that needs your attention. Instant posts say how long they took to reach Discord, and where the time went.
 - **Sync now**: reads the game's saved data again and posts anything new. The icon spins while it works, and the console says what it found.
-- **Settings** (the gear at the top): **Open with World of Warcraft** (the app waits in the tray and opens when the game starts), **Hide the window when the game closes**, and **Test characters**, three made-up Forever characters (Zeb, Fågelmannen and Goggo) to try everything without playing. They're never posted on their own. **Colors for** the open game picks its theme: Midnight, Void arcane or Silvermoon for Retail, Classic gold, Forever wisp, Emerald Dream or Blackrock ember for Forever.
+- **Settings** (the gear at the top):
+
+  <img src="docs/images/settings.png" alt="The settings menu: games, test characters, color themes, stream overlay" width="300">
+
+  **Animations** (on by default): characters unfold when opened, pages and games slide in from the side, and an orb flies between the game tabs. Untick it to have everything switch instantly. **Open with World of Warcraft** (the app waits in the tray and opens when the game starts), **Hide the window when the game closes**, and **Test characters**, three made-up Forever characters (Zeb, Fågelmannen and Goggo) to try everything without playing. They're never posted on their own. **Track Retail** / **Track Forever** turn a game off if you only play the other one: the app then doesn't look at it at all (no addon installed there, its data isn't read), and its tab offers to turn it back on or remove the addon from it. **Colors for** the open game picks its theme: Midnight, Void arcane or Silvermoon for Retail, Classic gold, Forever wisp, Emerald Dream or Blackrock ember for Forever.
 - **Updates**: the app checks for a new version when it starts and every few hours. **Check for updates** next to the version number checks right away. **Update now** downloads it and restarts, and **What's new** shows the notes from [CHANGELOG.md](CHANGELOG.md).
+- **Stream overlay**: see [Streaming](#streaming).
 - **Uninstall** (Settings, at the bottom): lists everything the app and the addon put on your PC, with every path and its size, and you pick what goes: the app, the addon in each game, your character data in each game, and the app's settings and caches. **Keep my data** (the default) removes the app and the addon but keeps your characters and settings for later, **Remove everything** removes it all, **Only the app** leaves the addon running. Afterwards it shows what was removed, closes, and the app deletes itself a moment later. Close the game first, since it writes the addon's files again when it exits. Your screenshots, your webhooks in Discord and the game's Advanced combat logging setting stay either way.
+
+  <img src="docs/images/uninstall.png" alt="The Uninstall page: every part with its paths and size" width="640">
+
+### Streaming
+
+Show your character and your dings on stream, in OBS or Streamlabs:
+
+1. In the app, open **Settings** (the gear at the top) and tick **Stream overlay and text files**.
+2. Click **Copy address**. It's `http://localhost:8721/`.
+3. In OBS: under **Sources** click **+**, pick **Browser**, paste the address as the **URL**, and set the width and height to your canvas (like 1920 and 1080). In Streamlabs: **+**, **Browser Source**, the same.
+4. Click **Preview** in the app to see it in your normal browser first (with a dark background so you can see it; on stream it's see-through).
+5. Click **Test ding** to see the DING! alert in OBS right away, without leveling. Nothing is posted.
+
+What it shows: a card with the character you're playing (the one you played last, Retail or Forever), its level and zone, how long the last level took, the levels before that, how many levels you did today and their average, and your latest highlights. When you ding, a big **DING!** with the level and the time it took pops up in the middle for a few seconds.
+
+<img src="docs/images/stream-overlay.png" alt="The stream overlay: the character card and the DING! alert" width="560">
+
+Add these to the address to change it: `?only=ding` just the ding alert (add the overlay twice to place them separately), `?only=card` just the card, `?scale=1.5` bigger (or `0.8` smaller), `?side=right` the card in the top right corner. Combine them with `&`, like `http://localhost:8721/?only=card&scale=1.3`.
+
+**Text files** opens a folder with the same info, one value per file, for OBS **Text** sources (tick **Read from file**): `character.txt`, `character_line.txt` (Ronnie Raket, level 22 Paladin), `level.txt`, `last_level.txt` (21 to 22 took 23m 11s), `levels.txt`, `today.txt`, `highlights.txt`, `zone.txt`, `played.txt` and `item_level.txt`.
+
+Only your own PC can open the page. Test characters never show up on it.
 
 ### Making a Discord webhook
 
@@ -168,7 +188,7 @@ The app and addon only send data where you point them, plus a few lookups to sho
 - **GitHub**: the update check (this repo's latest release).
 - **Wowhead** (icons, item and talent names), **Raider.IO** (Retail character pictures, by realm and name) and **Warcraft Wiki** (the tab logos): public lookups, cached on your PC.
 
-Nothing else leaves your PC. Settings, webhooks and caches stay in `%LOCALAPPDATA%\WoWCharacterTracker`, and the addon only writes to the game's own SavedVariables and Screenshots folders.
+Nothing else leaves your PC. The stream overlay (when you turn it on) is a page only your own PC can open (localhost). Settings, webhooks and caches stay in `%LOCALAPPDATA%\WoWCharacterTracker`, and the addon only writes to the game's own SavedVariables and Screenshots folders.
 
 ## Code signing policy
 

@@ -31,6 +31,7 @@ sealed class FlavorViewModel : Observable
             Detail = "Looking for the game...",
             ActionText = "Browse",
             ActionCommand = new RelayCommand(_ => Browse()),
+            ActionTooltip = $"Pick your World of Warcraft folder (usually {Wow.DefaultRoot}), or the {Wow.FolderHint(flavor)} folder inside it. Anything inside those works too.",
         };
         AddonStep = new SetupItem("Addon")
         {
@@ -102,6 +103,7 @@ sealed class FlavorViewModel : Observable
 
     public Flavor Flavor { get; }
     public string Name => Flavor.Name;
+    public int Order => Flavors.All.ToList().IndexOf(Flavor); // tab order, for the slide direction (Ui/Motion)
 
     ImageSource? logo;
     public ImageSource? Logo { get => logo; private set { Set(ref logo, value); Raise(nameof(HasLogo)); } }
@@ -109,7 +111,9 @@ sealed class FlavorViewModel : Observable
     async Task LoadLogoAsync() => Logo = await Logos.LoadAsync(Flavor);
     FlavorSettings Settings => main.Config.For(Flavor);
     public Tracker? Tracker => tracker;
-    public string? FolderPath => flavorDir; // the game folder in use (the Uninstall page lists what's in it)
+    public string? FolderPath => flavorDir; // the game folder in use
+    // The folder in use, or for a game that's turned off the one it had (the Uninstall page lists what's in it).
+    public string? KnownFolder => flavorDir ?? (Wow.IsFlavorDir(Settings.Path) ? Settings.Path : null);
 
     // The open game tab. Each tab keeps its own Characters and Items pages and only the open one
     // shows, so switching tabs doesn't build hundreds of rows and icons again.
@@ -253,34 +257,111 @@ sealed class FlavorViewModel : Observable
 
     // --- startup and folder ---
 
+    // --- turning the game off (Config.TurnedOff) ---
+
+    // Off: the app doesn't look for this game, read or watch its saved file, or install or update
+    // the addon there. The tab stays, showing the Game off page.
+    public bool IsOn => main.Config.IsOn(Flavor);
+    public bool IsOff => !IsOn;
+
+    // The settings menu's checkbox. The last game that's on can't be turned off.
+    public bool TrackThis { get => IsOn; set { if (value) TurnOn(); else TurnOff(); } }
+    public bool CanToggle => IsOff || main.FlavorTabs.Any(t => t != this && t.IsOn);
+
+    public ICommand TurnOnCommand => new RelayCommand(_ => TurnOn());
+    public ICommand RemoveAddonCommand => new RelayCommand(_ => RemoveAddon());
+
+    // The game is off but the addon is still in its AddOns folder (from before), so it still saves
+    // data and takes instant-post shots in game. Only checked where the folder is already known.
+    public bool AddonLeftInstalled => IsOff && Settings.Path is { } p && Wow.IsFlavorDir(p) && AddonInstaller.InstalledVersion(p) is not null;
+    public string AddonLeftPath => Settings.Path is { } p ? AddonInstaller.TargetDir(p) : "";
+
+    void TurnOff()
+    {
+        if (IsOff || !CanToggle) return;
+        main.Config.TurnedOff.Add(Flavor.Key);
+        main.Config.Save();
+        tracker?.Dispose();
+        tracker = null;
+        flavorDir = null;
+        ReloadNeeded = false;
+        ShowData(TrackerData.Empty);
+        StatusText = $"{Name} is turned off";
+        Log.Info($"[{Name}] Turned off: the app no longer looks at {Name}." + (AddonLeftInstalled ? " The addon is still installed there; remove it on the tab if you like." : ""));
+        Toggled();
+    }
+
+    void TurnOn()
+    {
+        if (IsOn) return;
+        main.Config.TurnedOff.Remove(Flavor.Key);
+        main.Config.Save();
+        Log.Info($"[{Name}] Turned on.");
+        Toggled();
+        Start();
+    }
+
+    void RemoveAddon()
+    {
+        if (Settings.Path is not { } path) return;
+        try
+        {
+            AddonInstaller.Remove(path);
+            Log.Success($"[{Name}] Removed the addon from {AddonInstaller.TargetDir(path)}. The data it saved stays in the game's WTF folder.");
+            if (Wow.IsRunning(path)) Log.Warn($"[{Name}] The game is running: it keeps the addon loaded until you exit it.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Error($"[{Name}] Couldn't remove the addon: {ex.Message}");
+        }
+        Raise(nameof(AddonLeftInstalled));
+    }
+
+    void Toggled()
+    {
+        foreach (var tab in main.FlavorTabs) tab.RaiseToggle();
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    void RaiseToggle()
+    {
+        Raise(nameof(IsOn)); Raise(nameof(IsOff)); Raise(nameof(TrackThis)); Raise(nameof(CanToggle)); Raise(nameof(AddonLeftInstalled));
+    }
+
     public void Start()
     {
+        if (IsOff)
+        {
+            StatusText = $"{Name} is turned off";
+            return;
+        }
         var path = Wow.IsFlavorDir(Settings.Path) ? Settings.Path : Wow.Detect(Flavor);
         if (path is null)
         {
             FolderStep.Ok = false;
-            FolderStep.Detail = Flavor == Flavors.Forever
-                ? "Not found. Click Browse and pick the Forever folder (for the beta that's _classic_beta_)."
-                : $"Not found. Click Browse and pick the {Flavor.Folders[0]} folder in your WoW folder.";
+            FolderStep.Detail = $"Not found. Click Browse and pick your World of Warcraft folder (usually {Wow.DefaultRoot}); the app finds {Wow.FolderHint(Flavor)} in it.";
             StatusText = "Waiting for the game folder";
-            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse next to Game folder to pick it.");
+            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse on the Game folder card and pick your World of Warcraft folder, or the {Wow.FolderHint(Flavor)} folder inside it.");
             return;
         }
         UseFolder(path);
     }
 
+    // The folder picker. Any of these work: the World of Warcraft folder, this game's folder in it, or
+    // anything inside that (Wow.Resolve finds the right one, and says why when it can't).
     void Browse()
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            Title = $"Pick the {Name} folder (inside your World of Warcraft folder)",
-            InitialDirectory = flavorDir is not null ? Path.GetDirectoryName(flavorDir) : null,
+            Title = $"Pick your World of Warcraft folder (or the {Wow.FolderHint(Flavor)} folder inside it)",
+            InitialDirectory = flavorDir is not null ? Path.GetDirectoryName(flavorDir) : Wow.LikelyRoot(),
         };
         if (dialog.ShowDialog() != true) return;
-        var path = Wow.Normalize(dialog.FolderName, Flavor);
+        var (path, problem) = Wow.Resolve(dialog.FolderName, Flavor);
         if (path is null)
         {
-            Log.Warn($"[{Name}] That isn't a game folder. Pick the one that starts with an underscore, like {Flavor.Folders[^1]}.");
+            Log.Warn($"[{Name}] {problem}");
+            if (flavorDir is null) FolderStep.Detail = problem ?? FolderStep.Detail;
             return;
         }
         UseFolder(path);
@@ -385,6 +466,7 @@ sealed class FlavorViewModel : Observable
 
     public async Task CheckDiscordAsync()
     {
+        if (IsOff) return;
         var active = main.Config.ActiveWebhooks(Flavor);
         if (active.Count == 0)
         {
@@ -503,6 +585,7 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
+        main.Stream.Update(Flavor, rows, data.Events);
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
         Raise(nameof(TotalGoldText));

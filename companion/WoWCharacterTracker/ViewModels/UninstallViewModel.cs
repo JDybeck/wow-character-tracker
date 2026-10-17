@@ -64,7 +64,7 @@ sealed class UninstallViewModel : Observable
         Done = false;
         Results.Clear();
         Rows.Clear();
-        foreach (var part in Uninstaller.Find(main.FlavorTabs.Select(t => (t.Flavor, t.FolderPath))))
+        foreach (var part in Uninstaller.Find(main.FlavorTabs.Select(t => (t.Flavor, t.KnownFolder))))
             Rows.Add(new UninstallRow(part, Changed));
         Preset(k => k is Uninstaller.Kind.App or Uninstaller.Kind.Addon);
     }

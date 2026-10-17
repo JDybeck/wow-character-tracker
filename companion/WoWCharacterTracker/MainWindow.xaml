@@ -19,7 +19,7 @@
     </Grid.RowDefinitions>
 
     <views:Header/>
-    <views:SetupBar Grid.Row="1"/>
+    <views:SetupBar Grid.Row="1" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
 
     <!-- Main area: the page tabs on top (left), then the page and the right column side by side,
          so their top edges line up. -->
@@ -80,13 +80,16 @@
         <ItemsControl.ItemContainerStyle>
           <Style TargetType="ContentPresenter">
             <Setter Property="Visibility" Value="{Binding IsSelected, Converter={StaticResource Visible}}"/>
+            <!-- slides in from the side of its tab (Retail left, Forever right) -->
+            <Setter Property="ui:Motion.SlideIndex" Value="{Binding Order}"/>
+            <Setter Property="ui:Motion.SlideGroup" Value="game"/>
           </Style>
         </ItemsControl.ItemContainerStyle>
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
             <Grid>
               <views:CharactersPage/>
-              <views:ItemsPage Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
+              <views:ItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="1" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
             </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
@@ -94,6 +97,8 @@
       <views:PostingPage Grid.Row="1"/>
       <views:InGamePage Grid.Row="1"/>
       <views:UninstallPage Grid.Row="1"/>
+      <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
+      <views:GameOffPage Grid.Row="0" Grid.RowSpan="2"/>
 
       <Grid Grid.Row="1" Grid.Column="2">
         <Grid.RowDefinitions>
