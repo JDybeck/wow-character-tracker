@@ -17,7 +17,7 @@ static class SampleEvents
             }
             : new Entry
             {
-                Id = "test", Char = c.Name, Surname = c.Surname, Realm = c.Realm, Level = Math.Max(c.Level, 2), At = now,
+                Id = "test", Guid = c.Guid, Char = c.Name, Surname = c.Surname, Realm = c.Realm, Level = Math.Max(c.Level, 2), At = now,
                 Zone = c.Zone, Professions = c.Professions, Talents = c.Talents, Spec = c.Spec, Class = c.ClassName,
                 ClassFile = c.ClassFile, Race = c.Race, RaceFile = c.RaceFile, Sex = c.Sex, Played = c.Played,
                 Hardcore = c.Hardcore, Ruleset = c.Ruleset,

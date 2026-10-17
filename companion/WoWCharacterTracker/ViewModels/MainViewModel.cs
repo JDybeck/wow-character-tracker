@@ -64,7 +64,10 @@ sealed class MainViewModel : Observable
         get => selectedFlavor;
         set
         {
+            var old = selectedFlavor;
             if (!Set(ref selectedFlavor, value) || value is null) return;
+            if (old is not null) old.IsSelected = false;
+            value.IsSelected = true;
             Theme.Apply(value.Flavor);
             Config.SelectedFlavor = value.Flavor.Key;
             Config.Save();

@@ -163,7 +163,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="12"
                            Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
-                <Image Source="{Binding IconUrl}" Width="16" Height="16" HorizontalAlignment="Left"
+                <Image Source="{Binding IconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" HorizontalAlignment="Left"
                        Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
                 <StackPanel Grid.Column="1">
                   <TextBlock FontSize="12" TextTrimming="CharacterEllipsis">

@@ -2,6 +2,13 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.15.2
+
+- Switching between Retail and Forever is much lighter: each game keeps its Characters and Items pages instead of building them again, so a switch takes a few hundredths of a second instead of up to 3 seconds of heavy CPU (Retail was the worst). Memory no longer grows with every switch.
+- Icons and portraits are loaded once and shared, instead of downloaded and decoded again every time a page shows them.
+- The tab colors change in one go instead of fading color by color (the fade redrew the whole window many times).
+- Posts from test characters are marked: the name gets [TESTCHAR] and the post says it's a test character, so nobody in the channel takes it for real.
+
 ## v0.15.1
 
 - Item tooltips in the app read properly again: lines that ran together ("Binds when picked upTwo-HandMace") are split, the damage and speed share a line, and the sell price shows its g/s/c.

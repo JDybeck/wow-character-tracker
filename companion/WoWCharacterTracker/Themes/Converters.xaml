@@ -14,4 +14,5 @@
   <ui:ActiveIf x:Key="ActiveIf"/>
   <BooleanToVisibilityConverter x:Key="BoolVis"/>
   <ui:Not x:Key="Not"/>
+  <ui:WebImage x:Key="WebImage"/>
 </ResourceDictionary>

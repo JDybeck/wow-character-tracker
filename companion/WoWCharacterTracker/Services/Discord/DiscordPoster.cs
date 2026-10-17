@@ -6,16 +6,23 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
 {
     readonly DiscordWebhook webhook = new(webhookUrl);
     readonly EventEmbeds embeds = new(flavor);
+    const string TestMark = " [TESTCHAR]";
 
     // Posts the event. Loot gets a picture of the item's tooltip (like Wowhead's) as the embed's
     // image. A screenshot is uploaded with the message: the embed's image, or a second embed under
     // the item picture.
     public async Task<bool> PostAsync(Entry e, bool isTest = false, string? screenshot = null)
     {
-        e = e with { Char = Format.Name(e.Char, e.Surname, nameStyle) };
+        var avatar = await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile);
+        // A made-up test character says so in the name and under the post, so nobody takes it for real.
+        var testChar = TestCharacters.IsTest(e.Guid);
+        e = e with
+        {
+            Char = Format.Name(e.Char, e.Surname, nameStyle) + (testChar ? TestMark : ""),
+            Realm = testChar ? $"Test character, not a real one ({e.Realm})" : e.Realm,
+        };
         var item = e.Kind == "loot" && e.ItemId > 0 ? await ItemTooltipImage.RenderAsync(e.ItemId, flavor) : null;
         var embed = await embeds.BuildAsync(e, isTest, itemPicture: item is not null);
-        var avatar = await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile);
 
         var list = new List<Dictionary<string, object>> { embed };
         var files = new List<(byte[] Data, string Name)>();
@@ -66,7 +73,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         if (Shows("guild") && c.HasGuild) subtitle += $"\n<{c.Guild}>";
         var embed = new Dictionary<string, object>
         {
-            ["title"] = Format.Name(c.Name, c.Surname, nameStyle) + (c.Dead ? " (dead)" : ""),
+            ["title"] = Format.Name(c.Name, c.Surname, nameStyle) + (c.Dead ? " (dead)" : "") + (c.IsTest ? TestMark : ""),
             ["description"] = subtitle,
             ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
             ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },

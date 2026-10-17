@@ -39,7 +39,7 @@
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Border Width="34" Height="34" CornerRadius="4" BorderThickness="1" BorderBrush="{Binding Info.Brush}" Background="#33000000" Margin="0,0,10,0">
-          <Image Source="{Binding Info.IconUrl}" Margin="1"/>
+          <Image Source="{Binding Info.IconUrl, Converter={StaticResource WebImage}}" Margin="1"/>
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
           <TextBlock FontSize="13" TextTrimming="CharacterEllipsis">
@@ -63,7 +63,7 @@
     </DataTemplate>
   </UserControl.Resources>
 
-  <Border Style="{StaticResource CardBorder}" ClipToBounds="True" DataContext="{Binding SelectedFlavor.Items}">
+  <Border Style="{StaticResource CardBorder}" ClipToBounds="True" DataContext="{Binding Items}"> <!-- the page's DataContext is its game tab -->
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>

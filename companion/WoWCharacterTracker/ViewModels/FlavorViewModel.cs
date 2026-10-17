@@ -111,6 +111,11 @@ sealed class FlavorViewModel : Observable
     public Tracker? Tracker => tracker;
     public string? FolderPath => flavorDir; // the game folder in use (the Uninstall page lists what's in it)
 
+    // The open game tab. Each tab keeps its own Characters and Items pages and only the open one
+    // shows, so switching tabs doesn't build hundreds of rows and icons again.
+    bool isSelected;
+    public bool IsSelected { get => isSelected; set => Set(ref isSelected, value); }
+
     public SetupItem FolderStep { get; }
     public SetupItem AddonStep { get; }
     public SetupItem DiscordStep { get; }
