@@ -15,7 +15,7 @@ local SHORT = {
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
 -- code also rides along with the check-in after login, so the Wowhead link shows right away.)
-local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true }
+local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true, maxLevel = true }
 
 -- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
 -- character's GUID in front (it's in g already). Characters that would break it are %XX.

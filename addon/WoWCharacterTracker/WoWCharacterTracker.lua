@@ -12,6 +12,8 @@ function on.ADDON_LOADED(name)
   db.events = db.events or {}             -- level-ups and notable moments
   db.chars = db.chars or {}               -- [guid] = latest snapshot of that character
   db.logoutPlayed = db.logoutPlayed or {} -- [guid] = total played at logout
+  db.items = db.items or {}               -- [guid] = gear, bags and bank (Inventory.lua)
+  db.xpTable = db.xpTable or {}           -- [level] = XP that level needs, on this client
   if db.popup == nil then db.popup = false end
   ns.flushBlocked()
 end
@@ -21,12 +23,16 @@ function on.PLAYER_LOGIN()
   ns.say("Loaded. Type /wct help for the commands.")
 end
 
-function on.PLAYER_LOGOUT() ns.onLogout() end
+function on.PLAYER_LOGOUT()
+  ns.scanInventory()
+  ns.onLogout()
+end
 
 function on.PLAYER_ENTERING_WORLD()
   -- Gear and spec info can take a few seconds after login. Snapshot then, and every 5 minutes.
   C_Timer.After(2, ns.applyGameSettings)
   C_Timer.After(10, ns.saveSnapshot)
+  C_Timer.After(10, ns.scanInventory)
   C_Timer.After(12, ns.checkRatings)
   C_Timer.After(15, ns.checkIn)
   if type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
@@ -70,9 +76,21 @@ end
 function on.SCREENSHOT_SUCCEEDED() ns.shotDone() end
 on.SCREENSHOT_FAILED = on.SCREENSHOT_SUCCEEDED
 
+-- Gear, bags and the bank (while it's open).
+on.BAG_UPDATE_DELAYED = ns.scanInventorySoon
+on.PLAYERBANKSLOTS_CHANGED = ns.scanInventorySoon
+function on.BANKFRAME_OPENED()
+  ns.bankOpen = true
+  C_Timer.After(0.5, ns.scanBank)
+end
+function on.BANKFRAME_CLOSED() ns.bankOpen = false end
+
 -- The character snapshot follows gear, spec, talent and guild changes...
 local function snapshotSoon() C_Timer.After(1, ns.saveSnapshot) end
-on.PLAYER_EQUIPMENT_CHANGED = snapshotSoon
+function on.PLAYER_EQUIPMENT_CHANGED()
+  snapshotSoon()
+  ns.scanInventorySoon()
+end
 on.PLAYER_SPECIALIZATION_CHANGED = snapshotSoon
 on.TRAIT_CONFIG_UPDATED = snapshotSoon
 on.CHARACTER_POINTS_CHANGED = snapshotSoon
