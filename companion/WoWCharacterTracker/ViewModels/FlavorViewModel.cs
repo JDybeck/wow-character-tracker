@@ -31,6 +31,7 @@ sealed class FlavorViewModel : Observable
             Detail = "Looking for the game...",
             ActionText = "Browse",
             ActionCommand = new RelayCommand(_ => Browse()),
+            ActionTooltip = $"Pick your World of Warcraft folder (usually {Wow.DefaultRoot}), or the {Wow.FolderHint(flavor)} folder inside it. Anything inside those works too.",
         };
         AddonStep = new SetupItem("Addon")
         {
@@ -337,28 +338,29 @@ sealed class FlavorViewModel : Observable
         if (path is null)
         {
             FolderStep.Ok = false;
-            FolderStep.Detail = Flavor == Flavors.Forever
-                ? "Not found. Click Browse and pick the Forever folder (for the beta that's _classic_beta_)."
-                : $"Not found. Click Browse and pick the {Flavor.Folders[0]} folder in your WoW folder.";
+            FolderStep.Detail = $"Not found. Click Browse and pick your World of Warcraft folder (usually {Wow.DefaultRoot}); the app finds {Wow.FolderHint(Flavor)} in it.";
             StatusText = "Waiting for the game folder";
-            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse next to Game folder to pick it.");
+            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse on the Game folder card and pick your World of Warcraft folder, or the {Wow.FolderHint(Flavor)} folder inside it.");
             return;
         }
         UseFolder(path);
     }
 
+    // The folder picker. Any of these work: the World of Warcraft folder, this game's folder in it, or
+    // anything inside that (Wow.Resolve finds the right one, and says why when it can't).
     void Browse()
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            Title = $"Pick the {Name} folder (inside your World of Warcraft folder)",
-            InitialDirectory = flavorDir is not null ? Path.GetDirectoryName(flavorDir) : null,
+            Title = $"Pick your World of Warcraft folder (or the {Wow.FolderHint(Flavor)} folder inside it)",
+            InitialDirectory = flavorDir is not null ? Path.GetDirectoryName(flavorDir) : Wow.LikelyRoot(),
         };
         if (dialog.ShowDialog() != true) return;
-        var path = Wow.Normalize(dialog.FolderName, Flavor);
+        var (path, problem) = Wow.Resolve(dialog.FolderName, Flavor);
         if (path is null)
         {
-            Log.Warn($"[{Name}] That isn't a game folder. Pick the one that starts with an underscore, like {Flavor.Folders[^1]}.");
+            Log.Warn($"[{Name}] {problem}");
+            if (flavorDir is null) FolderStep.Detail = problem ?? FolderStep.Detail;
             return;
         }
         UseFolder(path);

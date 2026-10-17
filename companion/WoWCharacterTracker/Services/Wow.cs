@@ -26,15 +26,62 @@ static class Wow
         && (File.Exists(Path.Combine(dir, ".flavor.info")) || Directory.Exists(Path.Combine(dir, "WTF"))
             || Directory.Exists(Path.Combine(dir, "Interface")));
 
-    // Turns whatever the user picked (the flavor folder, the WoW folder, or an exe) into a flavor folder.
-    public static string? Normalize(string input, Flavor flavor)
+    // Turns whatever the user picked into this game's flavor folder (see Resolve), or null.
+    public static string? Normalize(string input, Flavor flavor) => Resolve(input, flavor).Path;
+
+    // Whatever the user picked, as this game's flavor folder: the World of Warcraft folder, the flavor
+    // folder itself, anything inside them (Interface\AddOns, WTF...), an exe, or even the other
+    // game's folder next to it. Problem says in plain words why it isn't one, and what to pick.
+    public static (string? Path, string? Problem) Resolve(string input, Flavor flavor)
     {
-        var path = input.Trim().Trim('"');
-        if (path.Length == 0) return null;
+        var path = input.Trim().Trim('"').TrimEnd('\\', '/');
+        if (path.Length == 0) return (null, "Nothing was picked.");
         if (File.Exists(path)) path = Path.GetDirectoryName(path)!;
-        path = path.TrimEnd('\\', '/');
-        if (IsFlavorDir(path)) return path;
-        return flavor.Folders.Select(f => Path.Combine(path, f)).FirstOrDefault(IsFlavorDir);
+
+        string? otherGame = null; // a flavor folder of another game on the way up
+        for (var dir = path; !string.IsNullOrEmpty(dir); dir = Path.GetDirectoryName(dir))
+        {
+            var name = Path.GetFileName(dir);
+            if (IsFlavorDir(dir))
+            {
+                if (flavor.Folders.Contains(name, StringComparer.OrdinalIgnoreCase)) return (dir, null);
+                otherGame ??= name;
+                continue; // its parent is the WoW folder, which may have this game too
+            }
+            if (flavor.Folders.Select(f => Path.Combine(dir, f)).FirstOrDefault(IsFlavorDir) is { } inside) return (inside, null);
+        }
+
+        var want = FolderHint(flavor);
+        if (otherGame is not null)
+            return (null, $"That's the {GameName(otherGame)} folder ({otherGame}), not {flavor.Name}, and there's no {want} next to it. Is {flavor.Name} installed?");
+        var root = Ancestors(path).FirstOrDefault(d => GameFolders(d).Count > 0);
+        if (root is not null)
+            return (null, $"This World of Warcraft folder has {string.Join(", ", GameFolders(root))} but no {want}. Is {flavor.Name} installed? Start it once from Battle.net, then pick the folder again.");
+        return (null, $"That isn't a World of Warcraft folder. Pick your World of Warcraft folder (usually {LikelyRoot() ?? DefaultRoot}) or the {want} folder inside it.");
+    }
+
+    // "_retail_", or for Forever "_classic_beta_" (what the beta uses) and the others it may become.
+    public static string FolderHint(Flavor flavor) =>
+        flavor.Folders.Length == 1 ? flavor.Folders[0] : $"{flavor.Folders[^1]} (or {string.Join(", ", flavor.Folders[..^1])})";
+
+    public const string DefaultRoot = @"C:\Program Files (x86)\World of Warcraft";
+
+    // The World of Warcraft folder found on this PC, to start the folder picker in.
+    public static string? LikelyRoot() => Roots().FirstOrDefault(Directory.Exists);
+
+    // A game folder's name for people: our tabs' names, else the folder name.
+    static string GameName(string folder) =>
+        Flavors.All.FirstOrDefault(f => f.Folders.Contains(folder, StringComparer.OrdinalIgnoreCase))?.Name ?? folder;
+
+    static List<string> GameFolders(string root)
+    {
+        try { return Directory.EnumerateDirectories(root, "_*").Where(IsFlavorDir).Select(d => Path.GetFileName(d)).ToList(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return []; }
+    }
+
+    static IEnumerable<string> Ancestors(string path)
+    {
+        for (var dir = path; !string.IsNullOrEmpty(dir); dir = Path.GetDirectoryName(dir)) yield return dir;
     }
 
     public static string? Detect(Flavor flavor) =>

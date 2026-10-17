@@ -8,6 +8,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - **Characters in frames**: each character in the list sits in its own box with a sharper edge in the theme's color, brighter on hover and when open.
 - **Switch animation**: switching games sends a blue wisp flying to Forever, or a void orb to Retail. It plays once, in the tab strip.
 - **Turn a game off**: only play Forever (or only Retail)? Untick **Track Retail** (or Forever) under Settings. The app then doesn't look for that game, read its data or install the addon there. Its tab stays, with a button to turn it back on, and a button to remove the addon from that game if it's still installed. Nothing is deleted otherwise.
+- **Picking the game folder is clearer**: Browse asks for your World of Warcraft folder (or the game's folder inside it) and starts there. Any folder inside them works too, picking the other game's folder finds the right one next to it, and when it can't, it says why (like "This World of Warcraft folder has _retail_ but no _classic_beta_. Is Forever installed?").
 
 ## v0.16.0
 

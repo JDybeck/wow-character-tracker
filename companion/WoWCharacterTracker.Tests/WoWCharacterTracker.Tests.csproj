@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="System.IO" /> <!-- WPF projects leave it out of the implicit usings -->
     <Using Include="WoWCharacterTracker.Models" />
     <Using Include="WoWCharacterTracker.Services" />
     <Using Include="WoWCharacterTracker.ViewModels" />
