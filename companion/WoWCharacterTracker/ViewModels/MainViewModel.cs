@@ -15,6 +15,7 @@ sealed class MainViewModel : Observable
         Discord = new DiscordViewModel(this);
         Uninstall = new UninstallViewModel(this);
         Appearance = new AppearanceViewModel(this);
+        Stream = new StreamViewModel(this);
         Log.Written += line => OnUi(() =>
         {
             Logs.Insert(0, line);
@@ -56,6 +57,7 @@ sealed class MainViewModel : Observable
     public DiscordViewModel Discord { get; }
     public UninstallViewModel Uninstall { get; }
     public AppearanceViewModel Appearance { get; }
+    public StreamViewModel Stream { get; }
 
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
@@ -120,6 +122,7 @@ sealed class MainViewModel : Observable
         var last = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
         SelectedFlavor = last.IsOn ? last : FlavorTabs.FirstOrDefault(t => t.IsOn) ?? last;
 
+        Stream.Apply();
         foreach (var tab in FlavorTabs) tab.Start();
         if (Config.Webhooks.Count == 0)
             Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
@@ -133,6 +136,7 @@ sealed class MainViewModel : Observable
     public void Shutdown()
     {
         foreach (var tab in FlavorTabs) tab.Shutdown();
+        Stream.Shutdown();
     }
 
     public static void OnUi(Action a)

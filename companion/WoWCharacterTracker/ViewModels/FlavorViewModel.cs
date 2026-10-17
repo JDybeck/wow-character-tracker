@@ -584,6 +584,7 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
+        main.Stream.Update(Flavor, rows, data.Events);
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
         Raise(nameof(TotalGoldText));

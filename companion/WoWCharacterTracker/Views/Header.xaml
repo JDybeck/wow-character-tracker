@@ -185,6 +185,23 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,10,0,14"/>
+            <!-- Stream overlay (a localhost page for OBS) and text files (StreamViewModel). -->
+            <CheckBox IsChecked="{Binding Stream.Enabled}"
+                      ToolTip="Shows the character you play, its latest level times, today's levels, highlights and a ding alert on stream. Only your PC can open the page.">
+              <TextBlock Text="Stream overlay and text files" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+            </CheckBox>
+            <StackPanel Margin="24,6,0,0" Visibility="{Binding Stream.Enabled, Converter={StaticResource Visible}}">
+              <TextBlock Text="{Binding Stream.Url}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource BlueText}"/>
+              <WrapPanel Margin="-8,4,0,0">
+                <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Copy address" Command="{Binding Stream.CopyUrlCommand}" FontSize="12"/>
+                <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Preview" Command="{Binding Stream.OpenOverlayCommand}" FontSize="12"/>
+                <Button Style="{StaticResource GhostButton}" Padding="8,3" Content="Text files" Command="{Binding Stream.OpenFolderCommand}" FontSize="12"
+                        ToolTip="One value per file (level, last level time, today's levels...), for OBS Text sources with Read from file"/>
+              </WrapPanel>
+              <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" FontSize="11" Margin="0,4,0,0"
+                         Text="In OBS: add a Browser source with this address. Add ?only=ding for just the ding alert, ?scale=1.5 for bigger."/>
+            </StackPanel>
+            <Border Height="1" Background="{DynamicResource Line}" Margin="0,12,0,14"/>
             <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,0,0,0" Padding="12,4"
                     Command="{Binding ShowUninstallCommand}" ToolTip="Pick what to remove: the app, the addon, your data, settings">
               <StackPanel Orientation="Horizontal">

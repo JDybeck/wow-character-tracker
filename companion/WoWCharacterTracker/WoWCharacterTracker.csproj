@@ -46,6 +46,11 @@
     <Resource Include="Assets\app.ico" />
   </ItemGroup>
 
+  <!-- The stream overlay page (Services/Streaming/OverlayServer serves it). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\overlay.html" LogicalName="Stream/overlay.html" />
+  </ItemGroup>
+
   <!-- The addon ships inside the exe so the companion can install and update it. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\addon\WoWCharacterTracker\*.*" LogicalName="Addon/%(Filename)%(Extension)" />

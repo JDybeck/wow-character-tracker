@@ -1,0 +1,118 @@
+<!doctype html>
+<!-- Character Tracker stream overlay, served by the app (Services/Streaming/OverlayServer) on localhost.
+     Add it in OBS / Streamlabs as a Browser source. Options in the address:
+       ?only=card   the character card only      ?only=ding   the ding alert only
+       ?scale=1.5   bigger (or smaller)           ?side=right  card on the right                 -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Character Tracker overlay</title>
+<style>
+  :root { --scale: 1; }
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  body { font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif; color: #f1f5f9; }
+  .wrap { transform: scale(var(--scale)); transform-origin: top left; padding: 16px; }
+  .right .wrap { transform-origin: top right; display: flex; justify-content: flex-end; }
+
+  .card { width: 340px; padding: 14px 16px 12px; border-radius: 12px; background: rgba(10, 8, 6, .78);
+          border: 1px solid rgba(217, 119, 6, .55); box-shadow: 0 6px 24px rgba(0, 0, 0, .45); display: none; }
+  .card.on { display: block; }
+  .name { font-size: 22px; font-weight: 700; line-height: 1.15; }
+  .sub { font-size: 13px; color: #cbd5e1; margin-top: 2px; }
+  .last { margin-top: 10px; font-size: 15px; }
+  .last b { color: #fcd34d; }
+  .levels { margin-top: 6px; font-size: 13px; color: #cbd5e1; display: grid; grid-template-columns: auto 1fr; gap: 1px 12px; }
+  .levels span:nth-child(odd) { color: #94a3b8; }
+  .today { margin-top: 8px; font-size: 13px; color: #fcd34d; }
+  .hl { margin-top: 8px; font-size: 13px; color: #e2e8f0; border-top: 1px solid rgba(255, 255, 255, .08); padding-top: 6px; }
+  .hl div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* The ding alert: center of the canvas, a burst of light, then fades. */
+  .ding { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(var(--scale)); text-align: center;
+          opacity: 0; pointer-events: none; }
+  .ding.show { animation: ding 7s ease-out forwards; }
+  .ding .orb { position: absolute; left: 50%; top: 50%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%;
+               background: radial-gradient(circle, rgba(255, 255, 255, .9) 0%, rgba(253, 224, 71, .55) 22%, rgba(245, 158, 11, .18) 48%, transparent 70%); }
+  .ding.show .orb { animation: burst 1.6s ease-out forwards; }
+  .ding .big { position: relative; font-size: 74px; font-weight: 900; letter-spacing: 4px; color: #fde68a;
+               text-shadow: 0 0 18px rgba(245, 158, 11, .9), 0 0 42px rgba(245, 158, 11, .6), 0 4px 0 #78350f; }
+  .ding .lvl { position: relative; font-size: 30px; font-weight: 800; color: #fff; text-shadow: 0 2px 8px #000; margin-top: -6px; }
+  .ding .took { position: relative; font-size: 18px; color: #fef3c7; text-shadow: 0 2px 6px #000; margin-top: 4px; }
+  @keyframes ding { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--scale) * .6)); }
+                    8% { opacity: 1; transform: translate(-50%, -50%) scale(calc(var(--scale) * 1.08)); }
+                    14% { transform: translate(-50%, -50%) scale(var(--scale)); }
+                    85% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes burst { 0% { transform: scale(.2); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="card">
+    <div class="name" id="name"></div>
+    <div class="sub" id="sub"></div>
+    <div class="last" id="last"></div>
+    <div class="levels" id="levels"></div>
+    <div class="today" id="today"></div>
+    <div class="hl" id="hl"></div>
+  </div>
+</div>
+<div class="ding" id="ding">
+  <div class="orb"></div>
+  <div class="big">DING!</div>
+  <div class="lvl" id="dingLevel"></div>
+  <div class="took" id="dingTook"></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const only = q.get("only");
+  if (q.get("scale")) document.documentElement.style.setProperty("--scale", q.get("scale"));
+  if (q.get("side") === "right") document.body.classList.add("right");
+  const $ = id => document.getElementById(id);
+  const text = (el, s) => { el.textContent = s || ""; el.style.display = s ? "" : "none"; };
+  let seenDing = null, first = true;
+
+  function show(s) {
+    const card = $("card");
+    card.classList.toggle("on", !!s.character && only !== "ding");
+    if (s.character) {
+      $("name").textContent = s.character;
+      $("name").style.color = s.classColor || "#fff";
+      card.style.borderColor = (s.classColor || "#d97706") + "8c";
+      text($("sub"), [`Level ${s.level} ${s.className}`.trim(), s.zone].filter(Boolean).join(" · "));
+      $("last").innerHTML = "";
+      if (s.lastLevel) { const b = document.createElement("b"); b.textContent = s.lastLevel; $("last").append(b); }
+      $("last").style.display = s.lastLevel ? "" : "none";
+      const lv = $("levels"); lv.innerHTML = "";
+      (s.levels || []).slice(1).forEach(l => { // the newest is the line above
+        const a = document.createElement("span"); a.textContent = `Level ${l.level}`;
+        const b = document.createElement("span"); b.textContent = l.took; lv.append(a, b);
+      });
+      lv.style.display = lv.childElementCount ? "" : "none";
+      text($("today"), s.today);
+      const hl = $("hl"); hl.innerHTML = "";
+      (s.highlights || []).forEach(h => { const d = document.createElement("div"); d.textContent = h; hl.append(d); });
+      hl.style.display = hl.childElementCount ? "" : "none";
+    }
+
+    // A ding that's new and from the last 90 seconds gets the alert (not one from before the page loaded).
+    const d = s.ding;
+    if (d && d.id !== seenDing) {
+      const fresh = s.now - d.at < 90;
+      if ((!first || fresh) && fresh && only !== "card") {
+        $("dingLevel").textContent = `Level ${d.level}`;
+        $("dingTook").textContent = d.took && d.took !== "?" ? `${d.level - 1} to ${d.level} took ${d.took}` : "";
+        const el = $("ding"); el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+      }
+      seenDing = d.id;
+    }
+    first = false;
+  }
+
+  async function tick() {
+    try { const r = await fetch("/state", { cache: "no-store" }); if (r.ok) show(await r.json()); } catch { /* the app is closed */ }
+    setTimeout(tick, 2000);
+  }
+  tick();
+</script>
+</body>
+</html>
