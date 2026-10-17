@@ -26,7 +26,8 @@ static class ScreenshotMode
             string Part(int i) => view.Length > i ? view[i] : "";
 
             if (vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Part(0)) is { } tab) vm.SelectedFlavor = tab;
-            if (Part(1).Length > 0) vm.Page = Part(1);
+            if (Part(1) == "uninstall") vm.ShowUninstallCommand.Execute(null); // fills the list too
+            else if (Part(1).Length > 0) vm.Page = Part(1);
             if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
             if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;

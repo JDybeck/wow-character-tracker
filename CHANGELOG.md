@@ -2,6 +2,13 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.15.0
+
+- **Uninstall**, at the bottom of Settings: shows everything the app and the addon created on your PC (the app, the addon in each game, your character data in each game, settings and caches), with every path and size, and you pick what goes.
+- Presets for the usual choices: **Keep my data** (removes the app and the addon, keeps your characters and settings), **Remove everything**, and **Only the app**.
+- Afterwards it lists what was removed (and why, if something couldn't be), then closes and removes itself. It also takes the app out of Windows startup.
+- It waits for the game to be closed, since the game writes the addon's saved file again when it exits.
+
 ## v0.14.0
 
 - **Items**: a new page with everything your characters carry (worn, in bags and in the bank), with icons, in one list per server. Search by name to see who has what, and where, or show only what's equipped, in bags or in the bank.

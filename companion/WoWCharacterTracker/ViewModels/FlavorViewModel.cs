@@ -109,6 +109,7 @@ sealed class FlavorViewModel : Observable
     async Task LoadLogoAsync() => Logo = await Logos.LoadAsync(Flavor);
     FlavorSettings Settings => main.Config.For(Flavor);
     public Tracker? Tracker => tracker;
+    public string? FolderPath => flavorDir; // the game folder in use (the Uninstall page lists what's in it)
 
     public SetupItem FolderStep { get; }
     public SetupItem AddonStep { get; }

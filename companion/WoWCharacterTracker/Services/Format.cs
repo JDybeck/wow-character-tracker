@@ -63,6 +63,15 @@ static class Format
         return $"{c}c";
     }
 
+    // "840 KB", "77.1 MB".
+    public static string Size(long bytes) => bytes switch
+    {
+        < 1_000 => $"{bytes} bytes",
+        < 1_000_000 => $"{bytes / 1e3:0} KB",
+        < 1_000_000_000 => $"{bytes / 1e6:0.0} MB",
+        _ => $"{bytes / 1e9:0.0} GB",
+    };
+
     public static string Quality(int q) => q switch { 3 => "Rare", 4 => "Epic", 5 => "Legendary", 6 => "Artifact", _ => "" };
 
     public static string Ago(long unixSeconds)
