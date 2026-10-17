@@ -1,8 +1,17 @@
-# wow-character-tracker
+# WoW Character Tracker
 
-Posts your World of Warcraft moments to a Discord channel, the moment they happen: level-ups, end boss kills, rare and epic loot, new mounts, hardcore deaths, duels, Mak'gora wins and Mythic+ or PvP rating milestones. Posts can include a screenshot taken in game. The app also shows all your characters with their level, item level, gold, talents, stats, highlights and level history, and can post a character card to Discord.
+**All your World of Warcraft characters in one place, and your best moments in Discord and on stream, if you want them there.**
 
-Made with WoW Forever (Classic+) in mind, and works for Retail too. Each has its own tab and its own look.
+Made for WoW Forever (Classic+), and works for Retail too. An addon in the game plus a small Windows app.
+
+- **Tracks every character**: level, item level, gold, talents, professions, stats, gear, bags and bank, highlights, and how long every level took. On Forever it also estimates the played time left to max level.
+- **Finds any item** across all your characters, with Wowhead tooltips in the game's colors.
+- **Discord posts (optional)**: add a webhook and your moments are posted the moment they happen. Level-ups with the level's time, end boss kills with the group, rare, epic and legendary loot, new mounts, hardcore deaths, duel and Mak'gora wins, and Mythic+ or PvP rating milestones, with an in-game screenshot if you like. You pick what gets posted. Character cards too.
+- **Stream overlay (optional)**: turn it on in Settings and add it to OBS or Streamlabs: your character, its level times and a big **DING!** when you level. Text files for text sources too.
+- **Looks the part**: a color theme per game (Midnight for Retail, Classic gold for Forever, and more to pick from), with smooth animations you can switch off.
+- **Stays out of the way**: waits in the tray, opens when WoW starts, updates itself, can ignore a game you don't play, and uninstalls everything it added if you want.
+
+Nothing leaves your PC unless you set it up: posts only go to your own Discord webhooks, and the overlay is a page only your PC can open. See [Privacy](#privacy).
 
 ![The app on the Forever tab, with a character's details open](docs/images/characters.png)
 
@@ -102,7 +111,7 @@ The **In game** page has what the addon does in game besides posting:
 
 ### Streaming
 
-Show your character and your dings on stream, in OBS or Streamlabs:
+Optional, and off until you turn it on: show your character and your dings on stream, in OBS or Streamlabs.
 
 1. In the app, open **Settings** (the gear at the top) and tick **Stream overlay and text files**.
 2. Click **Copy address**. It's `http://localhost:8721/`.
