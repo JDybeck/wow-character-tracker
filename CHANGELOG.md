@@ -21,6 +21,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - The realm shows its region when it's known, like "EU · Tarren Mill".
 - Opening Test characters (and the list in general) is quicker: the details are only built for the open character and tab.
 - The README shows the Gear and bags tab.
+- The (i) next to the settings says what reaches the app right away and what waits for a /reload or logout (loading screens don't count).
 - Forever characters get their own portrait in the app (the picture your unit frame shows), taken from the addon's check-in right after you log in. Unit frame addons don't change it, since the addon asks the game for the portrait itself. Each character can switch between In-game and Standard (Overview tab). Discord posts keep the race portrait.
 - Retail's character window has no Ranged slot, so the app doesn't show one there.
 

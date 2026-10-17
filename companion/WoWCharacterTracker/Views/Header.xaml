@@ -60,7 +60,20 @@
               /wct test     check that instant posting works<LineBreak/>
               /wct live     instant posting on or off<LineBreak/>
               /wct popup    reload popup after a ding on or off<LineBreak/>
+              /wct debug    save details for tracking down problems<LineBreak/>
               /wct help     this list, in game
+            </TextBlock>
+
+            <!-- What reaches the app right away, and what waits for the game to write its saved file. -->
+            <TextBlock Text="What updates when" FontWeight="SemiBold" Margin="0,14,0,6"/>
+            <TextBlock FontSize="12" LineHeight="19" MaxWidth="440" TextWrapping="Wrap">
+              <Run Text="Right away (live):" FontWeight="SemiBold"/>
+              <Run Text="level-ups, boss kills, posted loot, mounts, hardcore deaths, duels, Mak'gora and rating steps, and a check-in about 15 seconds after you log in (level, gear level, zone, gold, talents, the Forever portrait)."/>
+              <LineBreak/><LineBreak/>
+              <Run Text="On /reload or logout:" FontWeight="SemiBold"/>
+              <Run Text="gear, bags and bank, stats, talent picks, and loot that isn't posted. The game only writes its saved file then (or when you exit). Loading screens like dungeons, portals and boats don't count, and a crash doesn't save. The bank updates when you open it."/>
+              <LineBreak/><LineBreak/>
+              <Run Text="Settings from What gets posted reach the game on your next /reload or login."/>
             </TextBlock>
           </StackPanel>
         </Border.ToolTip>
