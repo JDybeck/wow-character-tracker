@@ -12,7 +12,20 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = vm;
         SourceInitialized += (_, _) => UseDarkTitleBar();
+        RightScroll.SizeChanged += (_, _) => FitRightColumn();
+        DiscordView.SizeChanged += (_, _) => FitRightColumn();
+        StreamView.SizeChanged += (_, _) => FitRightColumn();
         if (ScreenshotMode.Target is { } shot) ScreenshotMode.Attach(this, vm, shot);
+    }
+
+    // The right column scrolls as one: the console takes whatever height is left under Discord and
+    // the stream panel, but never less than a readable minimum (then the column scrolls instead).
+    const double ConsoleMin = 240;
+    void FitRightColumn()
+    {
+        var others = DiscordView.ActualHeight + StreamView.ActualHeight + StreamView.Margin.Top + ConsoleView.Margin.Top
+                     + CreditRow.ActualHeight + CreditRow.Margin.Top;
+        ConsoleView.Height = Math.Max(ConsoleMin, RightScroll.ActualHeight - others);
     }
 
     // Dark title bar to match the window (Windows 10 20H1 and later).

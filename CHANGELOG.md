@@ -2,6 +2,19 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.19.0
+
+The streaming release.
+
+- **Stream overlay panel**: all the stream settings now have their own panel between Discord and the console (fold it away by clicking its title). Turn the overlay on there, copy its addresses, preview it, send a test ding and open the text files.
+- **Place each part on its own**: copy the address of just the **card**, just the **highlights** or just the **DING! alert**, and add them as separate Browser sources. A part on its own fills its source, so resizing the source in OBS resizes it. Or one address for everything.
+- The right column (Discord, Stream overlay, console) scrolls as one when it doesn't fit, and the console keeps a readable height. No scrollbar when everything fits.
+- **Background**: a slider from see-through (just the text) to solid.
+- **Choose what shows**: level times, today's levels, the duel record, the Mak'gora record and highlights, each on or off. For highlights, pick which kinds count: loot, boss kills, mounts, duels, Mak'gora, deaths, Mythic+ and PvP rating.
+- **Duel and Mak'gora records** on the card (won and lost), and in `duels.txt` and `makgora.txt` for text sources.
+- **Start from now**: the overlay only counts what happens from that moment (records, highlights, level times), handy for a fresh stream. Everything is still tracked in the app, and **All time** brings it back.
+- **A WoW-style DING!**: gold lettering with a dark edge, an ornament line and the level in the game's yellow.
+- A small **tip** link next to the credit in the corner.
 ## v0.18.0
 
 - **Faster instant posts**: the addon's data screenshot is saved as a high-quality JPEG instead of PNG (a fraction of the size, and much quicker for the game to write), and the app notices it the moment it's written instead of checking every half second. In tests a shot was picked up 70 ms after the game finished writing it, where it used to take 0.3 to 0.8 seconds.

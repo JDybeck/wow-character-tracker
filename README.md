@@ -7,7 +7,7 @@ Made for WoW Forever (Classic+), and works for Retail too. An addon in the game 
 - **Tracks every character**: level, item level, gold, talents, professions, stats, gear, bags and bank, highlights, and how long every level took. On Forever it also estimates the played time left to max level.
 - **Finds any item** across all your characters, with Wowhead tooltips in the game's colors.
 - **Discord posts (optional)**: add a webhook and your moments are posted the moment they happen. Level-ups with the level's time, end boss kills with the group, rare, epic and legendary loot, new mounts, hardcore deaths, duel and Mak'gora wins, and Mythic+ or PvP rating milestones, with an in-game screenshot if you like. You pick what gets posted. Character cards too.
-- **Stream overlay (optional)**: turn it on in Settings and add it to OBS or Streamlabs: your character, its level times and a big **DING!** when you level. Text files for text sources too.
+- **Stream overlay (optional)**: turn it on in its own panel and add it to OBS or Streamlabs: your character, level times, duel and Mak'gora records, the highlights you pick, and a big WoW-style **DING!** when you level. Each part can be placed on its own, and the background can be anything from see-through to solid. Text files for text sources too.
 - **Looks the part**: a color theme per game (Midnight for Retail, Classic gold for Forever, and more to pick from), with smooth animations you can switch off.
 - **Stays out of the way**: waits in the tray, opens when WoW starts, updates itself, can ignore a game you don't play, and uninstalls everything it added if you want.
 
@@ -100,35 +100,42 @@ The **In game** page has what the addon does in game besides posting:
 - **Sync now**: reads the game's saved data again and posts anything new. The icon spins while it works, and the console says what it found.
 - **Settings** (the gear at the top):
 
-  <img src="docs/images/settings.png" alt="The settings menu: games, test characters, color themes, stream overlay" width="300">
+  <img src="docs/images/settings.png" alt="The settings menu: animations, games, test characters, color themes" width="300">
 
   **Animations** (on by default): characters unfold when opened, pages and games slide in from the side, and an orb flies between the game tabs. Untick it to have everything switch instantly. **Open with World of Warcraft** (the app waits in the tray and opens when the game starts), **Hide the window when the game closes**, and **Test characters**, three made-up Forever characters (Zeb, Fågelmannen and Goggo) to try everything without playing. They're never posted on their own. **Track Retail** / **Track Forever** turn a game off if you only play the other one: the app then doesn't look at it at all (no addon installed there, its data isn't read), and its tab offers to turn it back on or remove the addon from it. **Colors for** the open game picks its theme: Midnight, Void arcane or Silvermoon for Retail, Classic gold, Forever wisp, Emerald Dream or Blackrock ember for Forever.
 - **Updates**: the app checks for a new version when it starts and every few hours. **Check for updates** next to the version number checks right away. **Update now** downloads it and restarts, and **What's new** shows the notes from [CHANGELOG.md](CHANGELOG.md).
-- **Stream overlay**: see [Streaming](#streaming).
+- **Stream overlay** (the panel between Discord and the console): see [Streaming](#streaming).
 - **Uninstall** (Settings, at the bottom): lists everything the app and the addon put on your PC, with every path and its size, and you pick what goes: the app, the addon in each game, your character data in each game, and the app's settings and caches. **Keep my data** (the default) removes the app and the addon but keeps your characters and settings for later, **Remove everything** removes it all, **Only the app** leaves the addon running. Afterwards it shows what was removed, closes, and the app deletes itself a moment later. Close the game first, since it writes the addon's files again when it exits. Your screenshots, your webhooks in Discord and the game's Advanced combat logging setting stay either way.
 
   <img src="docs/images/uninstall.png" alt="The Uninstall page: every part with its paths and size" width="640">
 
 ### Streaming
 
-Optional, and off until you turn it on: show your character and your dings on stream, in OBS or Streamlabs.
+Optional, and off until you turn it on: show your character, your records, your highlights and your dings on stream, in OBS or Streamlabs. Everything is in the **Stream overlay** panel, between Discord and the console (click its title to fold it away).
 
-1. In the app, open **Settings** (the gear at the top) and tick **Stream overlay and text files**.
-2. Click **Copy address**. It's `http://localhost:8721/`.
+<img src="docs/images/stream-panel.png" alt="The Stream overlay panel: on, the addresses, background, what to show, highlights, start from now" width="390">
+
+1. Tick **On** in the Stream overlay panel.
+2. Click **Copy all** for one source with everything (the address is `http://localhost:8721/`), or copy **Card**, **Highlights** and **Ding alert** one by one to add them as separate sources and place each where you like. A part on its own fills its whole Browser source, so its box in OBS fits it snugly: resize the source to resize the part.
 3. In OBS: under **Sources** click **+**, pick **Browser**, paste the address as the **URL**, and set the width and height to your canvas (like 1920 and 1080). In Streamlabs: **+**, **Browser Source**, the same.
-4. Click **Preview** in the app to see it in your normal browser first (with a dark background so you can see it; on stream it's see-through).
+4. Click **Preview** to see it in your normal browser first (with a dark background so you can see it; on stream it's see-through).
 5. Click **Test ding** to see the DING! alert in OBS right away, without leveling. Nothing is posted.
 
-What it shows: a card with the character you're playing (the one you played last, Retail or Forever), its level and zone, how long the last level took, the levels before that, how many levels you did today and their average, and your latest highlights. When you ding, a big **DING!** with the level and the time it took pops up in the middle for a few seconds.
+What it shows:
 
-<img src="docs/images/stream-overlay.png" alt="The stream overlay: the character card and the DING! alert" width="560">
+- **The card**: the character you're playing (the one you played last, Retail or Forever), its level and zone, how long the last level took and the levels before that, how many levels you did today and their average, and your duel and Mak'gora records (won and lost).
+- **Highlights**: your latest moments. Pick which kinds count: loot, boss kills, mounts, duels, Mak'gora, deaths, Mythic+ and PvP rating milestones.
+- **The DING! alert**: when you level, a big gold DING! with the level and the time it took pops up in the middle for a few seconds, styled like the game.
 
-Add these to the address to change it: `?only=ding` just the ding alert (add the overlay twice to place them separately), `?only=card` just the card, `?scale=1.5` bigger (or `0.8` smaller), `?side=right` the card in the top right corner. Combine them with `&`, like `http://localhost:8721/?only=card&scale=1.3`.
+<img src="docs/images/stream-overlay.png" alt="The stream overlay: the card with records, the highlights box and the DING! alert" width="640">
 
-**Text files** opens a folder with the same info, one value per file, for OBS **Text** sources (tick **Read from file**): `character.txt`, `character_line.txt` (Ronnie Raket, level 22 Paladin), `level.txt`, `last_level.txt` (21 to 22 took 23m 11s), `levels.txt`, `today.txt`, `highlights.txt`, `zone.txt`, `played.txt` and `item_level.txt`.
+In the panel you can also set the **Background** (from see-through, just the text, to solid), switch parts on or off under **Show**, and click **Start from now** so the overlay only counts what happens from that moment (records, highlights, level times), perfect for a fresh stream. The app keeps tracking everything as before, and **All time** brings the rest back.
+
+Add these to an address to change it: `?scale=1.5` bigger (or `0.8` smaller), `?side=right` the boxes on the right. Combine them with `&`, like `http://localhost:8721/?only=card&scale=1.3`.
+
+**Text files** opens a folder with the same info, one value per file, for OBS **Text** sources (tick **Read from file**): `character.txt`, `character_line.txt` (Ronnie Raket, level 22 Paladin), `level.txt`, `last_level.txt` (21 to 22 took 23m 11s), `levels.txt`, `today.txt`, `highlights.txt`, `duels.txt` and `makgora.txt` (like 12 won, 3 lost), `zone.txt`, `played.txt` and `item_level.txt`.
 
 Only your own PC can open the page. Test characters never show up on it.
-
 ### Making a Discord webhook
 
 You can share a channel with friends (everyone adds the same webhook, or each their own webhook in that channel, and all your moments show up together), or make a channel just for yourself.
@@ -189,6 +196,8 @@ Not built yet, roughly in order:
 ## Questions and ideas
 
 Use [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) (the **Feedback** button in the app goes there) for questions, ideas and showing off your posts, and [Issues](https://github.com/JDybeck/wow-character-tracker/issues) for bugs.
+
+Like it? Tips are welcome at [streamlabs.com/zebdryg/tip](https://streamlabs.com/zebdryg/tip) (there's a small **tip** link in the app's corner too). Never needed, always appreciated.
 
 ## Privacy
 
