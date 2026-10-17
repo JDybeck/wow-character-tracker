@@ -20,7 +20,8 @@ sealed class CharacterGear
 
     public static CharacterGear Empty { get; } = new();
 
-    public static CharacterGear From(Inventory? inv, Func<int, ItemInfo> item)
+    // ranged: Classic-style clients have a ranged slot; Retail hasn't since Legion.
+    public static CharacterGear From(Inventory? inv, Func<int, ItemInfo> item, bool ranged = true)
     {
         if (inv is null) return Empty;
         var worn = inv.Gear.ToDictionary(g => g.Slot, g => g.ItemId);
@@ -31,7 +32,7 @@ sealed class CharacterGear
         {
             Left = Slots(LeftSlots),
             Right = Slots(RightSlots),
-            Bottom = Slots(BottomSlots),
+            Bottom = Slots(ranged ? BottomSlots : BottomSlots[..2]),
             Bags = Grids(inv.Bags, inv.BagSizes, item, bag => bag == 0 ? "Backpack" : $"Bag {bag}"),
             Bank = Grids(inv.Bank, inv.BankSizes, item, bag => bag < 0 ? "Bank" : $"Bank bag {bag - 4}"),
             BankText = inv.BankAt > 0 ? $"Bank, as of {Format.Ago(inv.BankAt)}" : "Open your bank in game once and it shows up here.",

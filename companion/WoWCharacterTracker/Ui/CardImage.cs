@@ -64,7 +64,7 @@ static class CardImage
     {
         try
         {
-            var bytes = await Http.GetByteArrayAsync(url);
+            var bytes = File.Exists(url) ? await File.ReadAllBytesAsync(url) : await Http.GetByteArrayAsync(url); // a saved Forever portrait, or a web picture
             var img = new BitmapImage();
             img.BeginInit();
             img.CacheOption = BitmapCacheOption.OnLoad;

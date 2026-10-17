@@ -86,8 +86,11 @@ sealed class Tracker : IDisposable
         _ = SyncAsync().ContinueWith(_ => shots.Start()); // live events only after old ones are handled
     }
 
-    void OnLiveEntry(Entry e, DateTime shotAt)
+    void OnLiveEntry(Entry e, DateTime shotAt, byte[]? portrait)
     {
+        // Forever's characters get their picture from the check-in shot (Retail has real renders).
+        if (portrait is not null && flavor == Flavors.Forever) CharacterArt.SavePortrait(e.Guid, portrait);
+
         // Every live event carries the character's current state, so the list updates right away.
         presence[e.Guid] = e;
 

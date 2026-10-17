@@ -61,7 +61,10 @@ local function toBits(data)
   return bits
 end
 
-local grid, gridWhite
+local grid, gridWhite, gridPortrait
+-- Where the portrait goes, in screen pixels from the top-left corner (the app knows the same spot):
+-- right of the grid's 160 columns and the 230 px label.
+local PORTRAIT_X, PORTRAIT_SIZE = 160 * 2 + 4 + 230 + 4, 64
 local gridTextures = {}
 
 -- A frame without a parent stays visible when the UI is hidden (Alt+Z). Its scale is set so one
@@ -96,7 +99,26 @@ local function gridFrame()
   sub:SetTextColor(0.85, 0.85, 0.85)
   sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
   sub:SetText("Sending to the app. /wct help")
+
+  -- The character's portrait (what the unit frame shows), at a fixed spot right of the label, only in
+  -- the check-in shot after login: the app cuts it out and uses it as the character's picture.
+  local portraitFrame = CreateFrame("Frame", nil, grid)
+  portraitFrame:SetPoint("TOPLEFT", grid, "TOPLEFT", PORTRAIT_X, 0)
+  portraitFrame:SetSize(PORTRAIT_SIZE, PORTRAIT_SIZE)
+  gridPortrait = portraitFrame:CreateTexture(nil, "ARTWORK")
+  gridPortrait:SetAllPoints()
+  portraitFrame:Hide()
+  gridPortrait.frame = portraitFrame
   return grid
+end
+
+local function showPortrait(on)
+  if not gridPortrait then return end
+  if on and SetPortraitTexture and pcall(SetPortraitTexture, gridPortrait, "player") then
+    gridPortrait.frame:Show()
+  else
+    gridPortrait.frame:Hide()
+  end
 end
 
 local function pixelScale()
@@ -272,6 +294,7 @@ ns.processShots = function()
   if item.bits then
     ns.doing("data grid screenshot")
     drawGrid(item.bits)
+    showPortrait(item.portrait)
     useGridShotSettings()
     grid:Show()
     onNextFrame(function() Screenshot() end) -- let the grid be drawn once first
@@ -286,7 +309,7 @@ end
 
 function ns.sendLive(e)
   if WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
-  table.insert(shotQueue, { bits = toBits(encode(e)) })
+  table.insert(shotQueue, { bits = toBits(encode(e)), portrait = e.kind == "snapshot" })
   ns.processShots()
 end
 

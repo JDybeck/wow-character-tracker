@@ -13,9 +13,13 @@ static class GridDecoder
     const int MagicSmall = 0xC8, MagicOld = 0xC7;
 
     // Finds the grid in the top-left corner of the picture and reads its bytes.
-    public static GridResult Decode(byte[] image, out string? payload)
+    public static GridResult Decode(byte[] image, out string? payload) => Decode(image, out payload, out _);
+
+    // cellSize: one grid cell in the picture's pixels (2 on screen, less if the picture is scaled).
+    public static GridResult Decode(byte[] image, out string? payload, out double cellSize)
     {
         payload = null;
+        cellSize = 0;
         BitmapSource frame;
         try
         {
@@ -97,7 +101,39 @@ static class GridDecoder
         if (ch < 0 || cl < 0 || ch * 256 + cl != sum) return GridResult.Damaged;
 
         payload = Encoding.UTF8.GetString(data);
+        cellSize = cellW.Value;
         return GridResult.Ok;
+    }
+
+    // The addon's check-in shot also shows the character's portrait at a fixed spot right of the grid
+    // and its label (PORTRAIT_X in LiveGrid.lua, in screen pixels; a cell is 2 of them). Returns it as
+    // a PNG, or null when the spot is empty (an older addon, or the portrait didn't draw).
+    const int PortraitX = 160 * 2 + 4 + 230 + 4, PortraitSize = 64;
+    public static byte[]? CropPortrait(byte[] image, double cellSize)
+    {
+        try
+        {
+            using var ms = new MemoryStream(image);
+            var frame = BitmapDecoder.Create(ms, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+            var scale = cellSize / 2;
+            var rect = new System.Windows.Int32Rect((int)Math.Round(PortraitX * scale), 0, (int)Math.Round(PortraitSize * scale), (int)Math.Round(PortraitSize * scale));
+            if (rect.Width < 16 || rect.X + rect.Width > frame.PixelWidth || rect.Height > frame.PixelHeight) return null;
+            var crop = new FormatConvertedBitmap(new CroppedBitmap(frame, rect), PixelFormats.Bgra32, null, 0);
+
+            // Something drawn there has some variety; a blank spot is one flat color.
+            var px = new byte[rect.Width * rect.Height * 4];
+            crop.CopyPixels(px, rect.Width * 4, 0);
+            var lums = Enumerable.Range(0, rect.Width * rect.Height).Select(i => (px[i * 4 + 2] * 299 + px[i * 4 + 1] * 587 + px[i * 4] * 114) / 1000).ToList();
+            var mean = lums.Average();
+            if (lums.Average(l => Math.Abs(l - mean)) < 6) return null;
+
+            var png = new PngBitmapEncoder();
+            png.Frames.Add(BitmapFrame.Create(crop));
+            using var outMs = new MemoryStream();
+            png.Save(outMs);
+            return outMs.ToArray();
+        }
+        catch (Exception) { return null; }
     }
 
     // Measures the alternating pattern along a line from the top-left corner. Returns the

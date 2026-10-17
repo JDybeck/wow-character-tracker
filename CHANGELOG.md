@@ -11,6 +11,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Forever: the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP the higher you get.
 - Boss kills in the highlights say who was in the group; hardcore deaths say how much played time and gold went with them.
 - Total played for the characters you've filtered on, next to the total gold.
+- Forever characters get their own portrait in the app (the picture your unit frame shows), taken from the addon's check-in right after you log in. Discord posts keep the race portrait.
+- Retail's character window has no Ranged slot, so the app doesn't show one there.
 
 ## v0.13.0
 

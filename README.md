@@ -132,7 +132,7 @@ Not built yet, roughly in order:
 - Professions and end bosses are matched by English name, so a non-English client won't show them.
 - Bags and gear reach the app on `/reload` or logout (they're too much for the live channel). The bank only updates when you open it in game.
 - Rating milestones start counting from the first time the addon sees your rating, so ratings you already had aren't posted.
-- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Characters Raider.IO doesn't know, and Forever characters, get their race portrait from Wowhead's icon CDN, or the class icon.
+- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Forever characters show their own portrait in the app: the addon puts it next to the data grid in the check-in shot after you log in, and the app cuts it out. Discord needs a web address for pictures, so posts use the race portrait from Wowhead's icon CDN (or the class icon) instead.
 - Screenshots go out at full size first (boosted servers allow bigger uploads). If Discord says one is too big, a smaller JPEG copy is sent instead, and only if that's still too big does the post go out without it.
 - On the first run, events already saved are marked as posted so the channel isn't flooded. Start the app with `--backfill` to post them instead.
 - Settings and webhooks are saved in `%LOCALAPPDATA%\WoWCharacterTracker\config.json` and survive updates.

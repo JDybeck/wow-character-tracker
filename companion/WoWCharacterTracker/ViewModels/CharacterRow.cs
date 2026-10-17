@@ -148,6 +148,8 @@ sealed class CharacterRow : Observable
 
     public async Task LoadPictureAsync(Flavor flavor)
     {
+        // Forever: the character's own portrait from its last check-in, when the app has one.
+        if (flavor == Flavors.Forever && CharacterArt.LocalPortrait(Guid) is { } own) { PictureUrl = own; return; }
         PictureUrl = CharacterArt.ClassIconUrl(ClassFile);
         if (await CharacterArt.PictureUrlAsync(flavor, Region, Realm, Name, RaceFile, Sex, ClassFile) is { } url) PictureUrl = url;
     }
@@ -223,7 +225,7 @@ sealed class CharacterRow : Observable
                     .Select(Highlight)
                     .ToList(),
                 Inventory = inventories.GetValueOrDefault(guid),
-                Gear = CharacterGear.From(inventories.GetValueOrDefault(guid), item),
+                Gear = CharacterGear.From(inventories.GetValueOrDefault(guid), item, ranged: flavor != Flavors.Retail),
                 Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor == Flavors.Forever),
             });
         }

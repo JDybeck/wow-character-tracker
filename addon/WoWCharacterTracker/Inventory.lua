@@ -87,23 +87,28 @@ local function entry()
   return e
 end
 
--- Gear and bags. Called after bag and gear changes (a few seconds after the last one), at login
--- and logout.
+-- Gear and bags. Called after bag and gear changes (a few seconds after the last one) and after
+-- login. Not at logout: by then the game has already emptied its bag and gear info. A scan that
+-- comes back empty (the game not ready, or logging out) never replaces a real one: the backpack
+-- always has slots, and a character always wears something.
 function ns.scanInventory()
   local e = entry()
   if not e then return end
   ns.doing("inventory scan")
-  e.gear = gear()
-  e.bags, e.bagSizes = scanBags(carriedBags())
-  e.scannedAt = time()
+  local worn = gear()
+  if worn ~= "" then e.gear = worn end
+  local bags, sizes = scanBags(carriedBags())
+  if sizes ~= "" then e.bags, e.bagSizes = bags, sizes end
+  if worn ~= "" or sizes ~= "" then e.scannedAt = time() end
   if ns.bankOpen then ns.scanBank() end
 end
 
 function ns.scanBank()
   local e = entry()
   if not e then return end
-  e.bank, e.bankSizes = scanBags(bankBags())
-  e.bankAt = time()
+  local bank, sizes = scanBags(bankBags())
+  if sizes == "" then return end -- the bank isn't readable right now
+  e.bank, e.bankSizes, e.bankAt = bank, sizes, time()
 end
 
 -- Bags change a lot while looting, so the scan waits for a quiet moment.
