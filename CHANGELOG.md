@@ -11,9 +11,6 @@ The app shows the notes for a new version when it finds an update. Each release 
 - **Wowhead talent link fixed** for Forever: it now opens with your points filled in (Wowhead's link format needed a "v2").
 - A **Feedback** button at the top opens the Discussions page.
 - README: pictures of where to make a webhook in Discord, and that you can share a channel with friends or make your own.
-
-## v0.15.2
-
 - Switching between Retail and Forever is much lighter: each game keeps its Characters and Items pages instead of building them again, so a switch takes a few hundredths of a second instead of up to 3 seconds of heavy CPU (Retail was the worst). Memory no longer grows with every switch.
 - Icons and portraits are loaded once and shared, instead of downloaded and decoded again every time a page shows them.
 - The tab colors change in one go instead of fading color by color (the fade redrew the whole window many times).
