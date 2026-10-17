@@ -13,6 +13,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Boss kills in the highlights say who was in the group; hardcore deaths say how much played time and gold went with them.
 - Total played for the characters you've filtered on, next to the total gold.
 - Click any item (gear, bags, bank, Items page) to open it on Wowhead.
+- On a flight path, when your bags or gear changed since the last save, a small box in game offers a /reload so the app's items get up to date (you keep flying). Once per flight; switch it off under What gets posted.
 - The slot under the weapons says Relic for Paladins, Druids and Shamans, Ranged for everyone else.
 - Lost duels and Mak'goras are recorded too, and running away from a duel. They show in the highlights and the duel record ("Duels: 5 won, 2 lost"), but only wins are posted.
 - The realm shows its region when it's known, like "EU · Tarren Mill".

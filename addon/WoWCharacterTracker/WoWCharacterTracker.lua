@@ -85,6 +85,13 @@ function on.BANKFRAME_OPENED()
 end
 function on.BANKFRAME_CLOSED() ns.bankOpen = false end
 
+-- Flight paths: the reload box when gear or bags changed (Inventory.lua). The flight has started a
+-- moment after control goes or the flight map closes.
+local function flightMaybe() C_Timer.After(1.5, ns.onFlightStart) end
+on.PLAYER_CONTROL_LOST = flightMaybe
+on.TAXIMAP_CLOSED = flightMaybe
+function on.PLAYER_CONTROL_GAINED() ns.onFlightEnd() end
+
 -- The character snapshot follows gear, spec, talent and guild changes...
 local function snapshotSoon() C_Timer.After(1, ns.saveSnapshot) end
 function on.PLAYER_EQUIPMENT_CHANGED()

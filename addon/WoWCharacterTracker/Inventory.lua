@@ -79,13 +79,23 @@ local function gear()
   return table.concat(items, ",")
 end
 
+-- What the saved file had when this session started, to tell whether anything changed since.
+local atLoad
+
 local function entry()
   local guid = UnitGUID("player")
   if not guid or not WoWCharacterTrackerDB then return nil end
   WoWCharacterTrackerDB.items = WoWCharacterTrackerDB.items or {}
   local e = WoWCharacterTrackerDB.items[guid] or {}
   WoWCharacterTrackerDB.items[guid] = e
+  atLoad = atLoad or { gear = e.gear, bags = e.bags, bank = e.bank }
   return e
+end
+
+-- Gear, bags or bank differ from what the saved file has, so a /reload would update the app.
+function ns.itemsChanged()
+  local e = entry()
+  return e ~= nil and atLoad ~= nil and (e.gear ~= atLoad.gear or e.bags ~= atLoad.bags or e.bank ~= atLoad.bank)
 end
 
 -- Gear and bags. Called after bag and gear changes (a few seconds after the last one) and after
@@ -120,6 +130,34 @@ function ns.noteSaved()
   e.savedAt = time()
   e.savedZone = (GetRealZoneText and GetRealZoneText()) or nil
 end
+
+-- On a flight path, with gear or bags changed since the last save: a small box offers a /reload, so
+-- the app gets the new items (the flight goes on through the loading screen). Once per flight, never
+-- in combat, and only when the app's "Offer a reload on flight paths" is on (Settings.lua flightReload).
+-- The dialog is only added to Blizzard's StaticPopupDialogs when it's used (taint, see Events.lua).
+local askedThisFlight = false
+
+function ns.onFlightStart()
+  local s = WoWCharacterTrackerSettings
+  if askedThisFlight or (s and s.flightReload == false) or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
+  if InCombatLockdown() or not ns.itemsChanged() then return end
+  askedThisFlight = true
+  if not StaticPopupDialogs["CHARACTERTRACKER_FLIGHT_RELOAD"] then
+    StaticPopupDialogs["CHARACTERTRACKER_FLIGHT_RELOAD"] = {
+      text = "Character Tracker\n\nYour bags changed since the last save.\nReload now to update the app? (You keep flying.)",
+      button1 = "Reload",
+      button2 = "Not now",
+      OnAccept = function() ReloadUI() end,
+      timeout = 0,
+      whileDead = true,
+      hideOnEscape = true,
+      preferredIndex = 3,
+    }
+  end
+  StaticPopup_Show("CHARACTERTRACKER_FLIGHT_RELOAD")
+end
+
+function ns.onFlightEnd() askedThisFlight = false end
 
 -- Bags change a lot while looting, so the scan waits for a quiet moment.
 local scanPending = false
