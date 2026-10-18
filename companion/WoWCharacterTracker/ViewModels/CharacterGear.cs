@@ -44,13 +44,12 @@ sealed class CharacterGear
     }
 
     // Beside the gear: the sets it counts for and the items' Equip/Use effects, as the game's tooltips say.
+    // Enchants sit under the item names (ItemCell.Enchant).
     public IReadOnlyList<SetView> Sets { get; init; } = [];
     public IReadOnlyList<EffectView> Effects { get; init; } = [];
-    public IReadOnlyList<EffectView> Enchants { get; init; } = [];
     public bool HasSets => Sets.Count > 0;
     public bool HasEffects => Effects.Count > 0;
-    public bool HasEnchants => Enchants.Count > 0;
-    public bool HasExtras => HasSets || HasEffects || HasEnchants;
+    public bool HasExtras => HasSets || HasEffects;
     // Saved by an addon from before set bonuses were read (0.23.0): say how to get them.
     public bool NeedsGearScan { get; init; }
     public bool ShowsSide => HasExtras || NeedsGearScan;
@@ -68,8 +67,13 @@ sealed class CharacterGear
         if (inv is null) return Empty;
         var worn = inv.Gear.ToDictionary(g => g.Slot, g => g.ItemId);
         var wornInfos = worn.Values.Distinct().Select(item).ToList();
-        IReadOnlyList<ItemCell> Slots((int Slot, string Name)[] slots) =>
-            slots.Select(s => new ItemCell(worn.TryGetValue(s.Slot, out var id) ? item(id) : null, 1, s.Name)).ToList();
+        var enchants = EnchantsBySlot(inv.Enchants);
+        IReadOnlyList<ItemCell> Slots((int Slot, string Name)[] slots) => slots
+            .Select(s => new ItemCell(worn.TryGetValue(s.Slot, out var id) ? item(id) : null, 1, s.Name)
+            {
+                Enchant = enchants.GetValueOrDefault(s.Slot, ""),
+            })
+            .ToList();
 
         var gear = new CharacterGear
         {
@@ -83,8 +87,7 @@ sealed class CharacterGear
             SavedText = SavedTextOf(inv),
             HasInventory = true,
             Sets = inv.Sets.Select(s => new SetView(s, wornInfos, spec)).ToList(),
-            Effects = Lines(inv.Effects, item),
-            Enchants = Lines(inv.Enchants, item),
+            Effects = EffectRows(inv.Effects, item),
             IsRetail = retail,
         };
         gear.FillBank();
@@ -95,12 +98,17 @@ sealed class CharacterGear
     public static string SavedTextOf(Inventory? inv) =>
         inv is null || inv.SavedAt <= 0 ? "" : $"Saved {Format.Ago(inv.SavedAt)}" + (inv.SavedZone.Length > 0 ? $", in {inv.SavedZone}" : "");
 
-    // One row per equipped item, its lines under each other (an item with an Equip: and a Use: line
+    // One row per equipped item, its effects under each other (an item with an Equip: and a Use: line
     // showed its icon twice).
-    static List<EffectView> Lines(IReadOnlyList<GearEffect> effects, Func<int, ItemInfo> item) => effects
+    static List<EffectView> EffectRows(IReadOnlyList<GearEffect> effects, Func<int, ItemInfo> item) => effects
         .GroupBy(e => (e.Slot, e.ItemId))
         .Select(g => new EffectView(new ItemCell(item(g.Key.ItemId)), string.Join("\n", g.Select(e => Format.TooltipLine(e.Text)))))
         .ToList();
+
+    // Each slot's enchant text, shown under the item there (a slot with two enchants gets both lines).
+    static Dictionary<int, string> EnchantsBySlot(IReadOnlyList<GearEffect> enchants) => enchants
+        .GroupBy(e => e.Slot)
+        .ToDictionary(g => g.Key, g => string.Join("\n", g.Select(e => Format.EnchantName(e.Text))));
 
     // Each bag as its items in slot order, and how many slots are free (empty slots aren't drawn:
     // they were most of the cells and told nothing a count doesn't).

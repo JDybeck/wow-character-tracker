@@ -75,6 +75,8 @@ sealed class ItemCell(ItemInfo? item, int count = 1, string slotName = "")
     public string CountText => Count > 1 ? Count.ToString() : "";
     public bool IsEmpty => Item is null;
     public string SlotName { get; } = slotName; // "Head", "Main Hand"... for equipped gear
+    public string Enchant { get; init; } = ""; // equipped gear: its enchant, shown under the name
+    public bool HasEnchant => Enchant.Length > 0;
 }
 
 // One bag (or the bank's own slots or a bank tab): its items, and how many slots are free.
