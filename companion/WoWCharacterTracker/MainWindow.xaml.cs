@@ -23,8 +23,8 @@ public partial class MainWindow : Window
     const double ConsoleMin = 240;
     void FitRightColumn()
     {
-        var others = DiscordView.ActualHeight + StreamView.ActualHeight + StreamView.Margin.Top + ConsoleView.Margin.Top
-                     + CreditRow.ActualHeight + CreditRow.Margin.Top;
+        // The credit row sits under the scrolling part, so it isn't counted here.
+        var others = DiscordView.ActualHeight + StreamView.ActualHeight + StreamView.Margin.Top + ConsoleView.Margin.Top;
         ConsoleView.Height = Math.Max(ConsoleMin, RightScroll.ActualHeight - others);
     }
 

@@ -101,6 +101,13 @@ static class Wowhead
     public static string ForeverTalentUrl(string classFile, string talentCalc) =>
         $"https://www.wowhead.com/forever/talent-calc/{classFile.ToLowerInvariant()}" + (talentCalc.Length > 0 ? "/v2" + talentCalc : "");
 
+    // A character's build in Wowhead's talent calculator, or null without one. Forever: Wowhead's
+    // classic-style calculator code. Retail: the game's own loadout code.
+    public static string? TalentCalcUrl(Flavor flavor, string classFile, string talentCalc, string talentExport) =>
+        flavor == Flavors.Forever
+            ? (talentCalc.Length > 0 ? ForeverTalentUrl(classFile, talentCalc) : null)
+            : (talentExport.Length > 0 ? $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(talentExport)}" : null);
+
     // The tooltip comes as HTML; this keeps the text, one line per row (see TooltipHtml).
     static string ToText(string html) => html.Length == 0 ? "" : TooltipHtml.ToText(html);
 

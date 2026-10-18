@@ -35,6 +35,10 @@
         <TextBlock Style="{StaticResource FactLabel}" Text="CRESTS"/>
         <ItemsControl ItemsSource="{Binding CrestList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
       </StackPanel>
+      <StackPanel Visibility="{Binding HasKeystone, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="KEYSTONE"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding KeystoneText}" ToolTip="The Mythic Keystone in your bags, as of the last save or check-in"/>
+      </StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
       <ItemsControl ItemsSource="{Binding ProfessionList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
                     Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>
@@ -43,15 +47,25 @@
       <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
       <ItemsControl ItemsSource="{Binding TalentPickList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
                     Margin="0,6,0,0" Visibility="{Binding HasTalentPicks, Converter={StaticResource Visible}}"/>
-      <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,2,0,0" Padding="12,4"
-              ToolTip="Open this build in Wowhead's talent calculator"
-              Visibility="{Binding HasTalentLink, Converter={StaticResource Visible}}"
-              Command="{Binding DataContext.OpenTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
-        <StackPanel Orientation="Horizontal">
-          <TextBlock Style="{StaticResource Icon}" Text="&#xE8A7;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
-          <TextBlock Text="Open in Wowhead talent calculator" FontSize="12" Foreground="{DynamicResource BlueText}"/>
-        </StackPanel>
-      </Button>
+      <WrapPanel Margin="-12,2,0,0">
+        <Button Style="{StaticResource GhostButton}" Padding="12,4"
+                ToolTip="Open this build in Wowhead's talent calculator"
+                Visibility="{Binding HasTalentLink, Converter={StaticResource Visible}}"
+                Command="{Binding DataContext.OpenTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE8A7;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+            <TextBlock Text="Open in Wowhead talent calculator" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource GhostButton}" Padding="12,4"
+                ToolTip="Post this character's talents to Discord: level, race and class, the points per tree, the talents picked and the Wowhead calculator link"
+                Command="{Binding DataContext.PostTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+            <TextBlock Text="Post talents to Discord" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+          </StackPanel>
+        </Button>
+      </WrapPanel>
       <StackPanel Visibility="{Binding HasStats, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="STATS"/>
         <ItemsControl ItemsSource="{Binding StatChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>

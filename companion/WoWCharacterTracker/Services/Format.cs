@@ -38,6 +38,15 @@ static class Format
         return string.Join(", ", crests.Split(',').Select(c => c.Split('~')).Where(p => p.Length >= 3).Select(p => $"{p[2]} {p[1]}"));
     }
 
+    // The Retail keystone: "12~503~Ara-Kara, City of Echoes" -> "+12 Ara-Kara, City of Echoes"; "" for
+    // none ("none") or not known.
+    public static string Keystone(string keystone)
+    {
+        var p = keystone.Split('~', 3);
+        if (p.Length < 3 || !int.TryParse(p[0], out var level) || level <= 0) return "";
+        return $"+{level} {p[2]}".TrimEnd();
+    }
+
     public static string Duration(long seconds)
     {
         var ts = TimeSpan.FromSeconds(seconds);

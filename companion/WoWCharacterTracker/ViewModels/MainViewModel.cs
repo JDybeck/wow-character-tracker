@@ -38,6 +38,7 @@ sealed class MainViewModel : Observable
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
         PostHighlightCommand = new RelayCommand(p => PostHighlightAsync((HighlightRow)p!));
         OpenTalentsCommand = new RelayCommand(p => OpenTalents(p as CharacterRow));
+        PostTalentsCommand = new RelayCommand(p => { if (p is CharacterRow c) _ = PostTalentsAsync(c); });
         ToggleCardOptionsCommand = new RelayCommand(_ => ShowCardOptions = !ShowCardOptions);
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
@@ -101,6 +102,7 @@ sealed class MainViewModel : Observable
     public ICommand PostCharacterCommand { get; }
     public ICommand PostHighlightCommand { get; }
     public ICommand OpenTalentsCommand { get; }
+    public ICommand PostTalentsCommand { get; }
     public ICommand ToggleCardOptionsCommand { get; }
     public ICommand AddTagCommand { get; }
     public ICommand DeleteTagCommand { get; }
@@ -254,12 +256,18 @@ sealed class MainViewModel : Observable
     // Opens the character's build in Wowhead's talent calculator.
     void OpenTalents(CharacterRow? c)
     {
-        if (c is not { HasTalentLink: true }) return;
-        // Forever: Wowhead's classic-style calculator code. Retail: the game's own loadout code.
-        var url = SelectedFlavor?.Flavor == Flavors.Forever
-            ? Wowhead.ForeverTalentUrl(c.ClassFile, c.TalentCalc)
-            : $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(c.TalentExport)}";
-        Browser.Open(url);
+        if (c is null || SelectedFlavor is not { } tab) return;
+        if (Wowhead.TalentCalcUrl(tab.Flavor, c.ClassFile, c.TalentCalc, c.TalentExport) is { } url) Browser.Open(url);
+    }
+
+    // Posts the character's talents (level, race, class, the build and its Wowhead link) to the
+    // webhooks a character card would go to.
+    async Task PostTalentsAsync(CharacterRow c)
+    {
+        if (SelectedFlavor is not { } tab) return;
+        foreach (var w in WebhooksFor(tab, c))
+            if (await PosterFor(tab, w).PostTalentsAsync(c))
+                Log.Success($"[{tab.Name}] Posted {c.Name}'s talents to \"{w.Name}\".");
     }
 
     // --- tags ---

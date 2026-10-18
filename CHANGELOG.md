@@ -2,6 +2,25 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.20.0
+
+Alerts, a clearer card, and a pile of small things.
+
+- **Alerts, not just DING!**: the stream alert now pops up for your other big moments too, each in its own colors: **MAX LEVEL!** with turning light rays, **VICTORY!** for an end boss or a duel win, **LEGENDARY!**, **EPIC LOOT!** and **RARE LOOT!**, **NEW MOUNT!**, **MAK'GORA!** in blood red, a calm gray **R.I.P.** for a hardcore death, and **MILESTONE!** for Mythic+ and PvP rating steps. Pick which ones under **Alerts** in the Stream overlay panel (rare loot is off by default). **Test alert** shows the next kind on each click. The address for just the alert is now `?only=alert` (`?only=ding` still works).
+- **The alert's glow no longer ends in a box**: on its own source the alert leaves room for its burst of light, and the edges fade out softly.
+- **Card and highlights each have a job**: the card is the character right now, with its stats on the left (item level, played, gold, your Mythic Keystone on Retail, duel and Mak'gora records) and its leveling on the right (last level, the ones before, today). Without level times the stats get the card. The highlights box is what happened lately. The card's top line has race and spec too.
+- **What the overlay counts**: three choices at the bottom of the panel, the one in use highlighted: **Start counting now** (shows since when; click again to restart), **Today** (since midnight, starts over by itself) and **All**.
+- Mythic+ and PvP rating only show up as overlay options while you're streaming a Retail character.
+- **Clearer buttons** in the Stream overlay panel: they have a frame now and light up on hover.
+- **Hover for info**: tooltips come up quicker (0.3 seconds) and stay longer, and the stream options all say what they do.
+- **Your Mythic Keystone** (Retail) in a character's overview and on the stream card: level and dungeon.
+- **Post talents to Discord**: next to the Wowhead talent calculator link, posts the build on its own (level, race and class, points per tree, the talents picked and the Wowhead link).
+- **Items: leave a place out**: click **Equipped**, **Bags** or **Bank** to show only that place, click it again to leave it out instead (red and crossed out), and once more for everything.
+- **Updates are hard to miss**: a filled **Update to v...** button at the top, and a bolder banner that says what Update now does.
+- The **made by / tip** line stays in view at the bottom of the right column, the panels scroll above it.
+- The Discord panel's webhook steps fold away behind **How do I make one?**.
+- README: a table of contents, and fresh pictures.
+
 ## v0.19.0
 
 The streaming release.

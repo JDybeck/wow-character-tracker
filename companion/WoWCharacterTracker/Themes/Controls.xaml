@@ -75,6 +75,36 @@
     </Setter>
   </Style>
 
+  <!-- One of a few choices (a RadioButton), shaped and highlighted like OptionChip. -->
+  <Style x:Key="ChoiceChip" TargetType="RadioButton">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Bd" CornerRadius="12" Padding="10,4" BorderThickness="1" BorderBrush="#475569" Background="#1E293B">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="Ico" Text="&#xEA3A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="9"
+                         Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+              <ContentPresenter x:Name="Txt" TextElement.Foreground="#CBD5E1" TextElement.FontSize="11" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoMid}"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoChip}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Indigo}"/>
+              <Setter TargetName="Ico" Property="Text" Value="&#xE73E;"/>
+              <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource IndigoText}"/>
+              <Setter TargetName="Txt" Property="TextElement.Foreground" Value="{DynamicResource IndigoTextBright}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- Small pill checkbox for the screenshot options. -->
   <Style x:Key="ChipCheck" TargetType="CheckBox">
     <Setter Property="Cursor" Value="Hand"/>
@@ -240,6 +270,35 @@
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderBrush" Value="Transparent"/>
     <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+  </Style>
+
+  <!-- A small button that still looks like a button: a frame, a slight fill, lights up on hover. -->
+  <Style x:Key="SmallButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="Margin" Value="0,0,6,6"/>
+    <Setter Property="Background" Value="#1E293B"/>
+    <Setter Property="BorderBrush" Value="#475569"/>
+    <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoChip}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Indigo}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <!-- Text input -->

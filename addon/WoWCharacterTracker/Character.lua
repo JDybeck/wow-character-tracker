@@ -323,6 +323,17 @@ local function getCrests()
   return table.concat(parts, ",")
 end
 
+-- Retail: the Mythic Keystone in your bags as "level~mapID~dungeon", "none" without one, nil on
+-- clients without Mythic+ (Forever).
+local function getKeystone()
+  if not (C_MythicPlus and C_MythicPlus.GetOwnedKeystoneChallengeMapID) then return nil end
+  local mapID = C_MythicPlus.GetOwnedKeystoneChallengeMapID()
+  local level = C_MythicPlus.GetOwnedKeystoneLevel and C_MythicPlus.GetOwnedKeystoneLevel()
+  if not mapID or not level or level == 0 then return "none" end
+  local name = C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(mapID)
+  return string.format("%d~%d~%s", level, mapID, ((name or "?"):gsub("[~,;=]", " ")))
+end
+
 -- Best guess of total /played right now.
 function ns.playedNow()
   if not ns.lastPlayed then return nil end
@@ -385,6 +396,7 @@ function ns.characterInfo()
     ruleset = safe(getRuleset),
     money = safe(GetMoney), -- copper
     crests = safe(getCrests),
+    keystone = safe(getKeystone),
     guild = safe(getGuild),
     -- For the app's time-to-max estimate (saved file only).
     xp = num(safe(UnitXP, "player")),

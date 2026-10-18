@@ -52,6 +52,9 @@ sealed class CharacterRow : Observable
     public IReadOnlyList<Coin> MoneyCoins => Coin.Full(Money);
     public IReadOnlyList<Coin> ShortCoins => Coin.Short(Money);
     public bool HasCrests => Crests.Length > 0;
+    public string Keystone { get; init; } = "";      // retail: "level~mapID~dungeon", "none"
+    public string KeystoneText => Format.Keystone(Keystone);
+    public bool HasKeystone => KeystoneText.Length > 0;
     public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
     public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
     public bool HasProfessions => ProfessionList.Count > 0;
@@ -234,6 +237,7 @@ sealed class CharacterRow : Observable
                 // The newest of the snapshot and the last event says what the character has now.
                 Money = last is not null && last.At > (s?.LastSeen ?? 0) && last.Money > 0 ? last.Money : s?.Money ?? last?.Money ?? 0,
                 Crests = Pick(s?.Crests, last?.Crests),
+                Keystone = last is not null && last.At > (s?.LastSeen ?? 0) && last.Keystone.Length > 0 ? last.Keystone : Pick(s?.Keystone, last?.Keystone),
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Surname = Pick(s?.Surname, last?.Surname),
                 TalentPicks = Newest(guid, c => c.TalentPicks),

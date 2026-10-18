@@ -7,10 +7,11 @@ namespace WoWCharacterTracker.Ui;
 // For testing: CHARACTERTRACKER_SCREENSHOT=<png> renders the window to that file and quits, so
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
-//   extra:  rename | options (a webhook) | removehook | testchars | updating (the update banner mid-download) | testall (every Test button) | addonupdate
+//   extra:  rename | options (a webhook) | removehook | testchars | updating (the update banner mid-download) | updateready (a new version offered)
+//           | stream (the Stream overlay panel on and open) | testall (every Test button) | addonupdate
 //           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
-//   extra2: gear | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | cardopts (card options open) | post (Post to Discord for the first character) | remove (its remove question) | sync (Sync now)
+//   extra2: gear | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
@@ -48,6 +49,21 @@ static class ScreenshotMode
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
+            if (Part(2) == "updateready") // the update banner and header button for a new version
+            {
+                var next = new Version(Updater.Current.Major, Updater.Current.Minor + 1, 0);
+                vm.Updates.Offer(new Updater.Release(next, $"v{next}", "- Something new", "", ""));
+            }
+            if (Part(2) == "stream") { vm.Stream.PanelOpen = true; vm.Stream.Enabled = true; }
+            if (Part(3) == "exclude" && vm.SelectedFlavor is { } xf) // Items: Bags focused, then Bank left out (saved as <name>-only.png first)
+            {
+                await Task.Delay(2500);
+                xf.Items.PlaceCommand.Execute(xf.Items.PlaceChips[2]);
+                await Task.Delay(800);
+                Save(window, Path.ChangeExtension(target, null) + "-only.png");
+                xf.Items.PlaceCommand.Execute(xf.Items.PlaceChips[3]);
+                xf.Items.PlaceCommand.Execute(xf.Items.PlaceChips[3]);
+            }
             if (Part(2) == "updating") // the update banner mid-download
             {
                 vm.Updates.BannerTitle = "Version 0.15.0 is available (you have 0.14.0)."; vm.Updates.ShowBanner = true;
@@ -61,6 +77,12 @@ static class ScreenshotMode
                 await Task.Delay(3000);
                 vm.PostHighlightCommand.Execute(h);
                 await Task.Delay(3000);
+            }
+            if (Part(3) == "posttalents" && vm.SelectedFlavor?.SelectedCharacter is { } tc)
+            {
+                await Task.Delay(3000); // talent names
+                vm.PostTalentsCommand.Execute(tc);
+                await Task.Delay(4000);
             }
             if (Part(3) == "post" && vm.SelectedFlavor?.SelectedCharacter is { } c)
             {

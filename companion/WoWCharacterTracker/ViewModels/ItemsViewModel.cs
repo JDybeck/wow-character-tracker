@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -55,11 +56,26 @@ sealed class ItemsViewModel : Observable
         refresh.Start();
     }
 
-    // Where to look: everything, or only what's equipped, in bags or in the bank.
-    public IReadOnlyList<GroupChip> PlaceChips { get; } =
-        [new("", "All"), new("equipped", "Equipped"), new("bags", "Bags"), new("bank", "Bank")];
-    GroupChip? selectedPlace;
-    public GroupChip SelectedPlace { get => selectedPlace ?? PlaceChips[0]; set { if (value is not null && Set(ref selectedPlace, value)) Rebuild(); } }
+    // Where to look: everything, only one place (equipped, bags, bank), or everything but one place.
+    // A place's chip cycles: only it, then all but it, then everything (PlaceChip).
+    public IReadOnlyList<PlaceChip> PlaceChips { get; } =
+        [new("", "All") { State = "only" }, new("equipped", "Equipped"), new("bags", "Bags"), new("bank", "Bank")];
+    public ICommand PlaceCommand => placeCommand ??= new RelayCommand(p => { if (p is PlaceChip chip) ClickPlace(chip); });
+    ICommand? placeCommand;
+    string place = "";
+    bool placeOut;
+
+    void ClickPlace(PlaceChip chip)
+    {
+        if (chip.Key.Length == 0 || (chip.Key == place && placeOut)) (place, placeOut) = ("", false);
+        else if (chip.Key == place) placeOut = true;
+        else (place, placeOut) = (chip.Key, false);
+        foreach (var c in PlaceChips)
+            c.State = c.Key.Length == 0 ? (place.Length == 0 ? "only" : "") : c.Key != place ? "" : placeOut ? "out" : "only";
+        Rebuild();
+    }
+
+    bool Wanted(string where) => place.Length == 0 || (where == place) != placeOut;
 
     // What kind of item: gear, consumables, trade goods and reagents, quest items, the rest
     // (ItemInfo.Kind, from the game's item class).
@@ -73,12 +89,11 @@ sealed class ItemsViewModel : Observable
         Groups.Clear();
         var shown = characters.Where(c => c.Inventory is not null && (selectedRealm is not { Key.Length: > 0 } r || c.Realm == r.Key));
         var query = Search.Trim();
-        var place = SelectedPlace.Key;
         var kind = SelectedKind.Key;
         foreach (var realm in shown.GroupBy(c => c.Realm).OrderBy(g => g.Key))
         {
             var rows = realm
-                .SelectMany(c => c.Inventory!.Placed.Where(p => place.Length == 0 || p.Place == place).Select(p => (Character: c, p.Slot, p.Place)))
+                .SelectMany(c => c.Inventory!.Placed.Where(p => Wanted(p.Place)).Select(p => (Character: c, p.Slot, p.Place)))
                 .GroupBy(x => x.Slot.ItemId)
                 .Select(g => new ItemRow(item(g.Key), g.Sum(x => x.Slot.Count), Places(g)))
                 .Where(i => query.Length == 0 || i.Info.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
@@ -95,7 +110,7 @@ sealed class ItemsViewModel : Observable
             ? "Nothing yet. Log in with the updated addon and type /reload (or log out): gear and bags show up here, and the bank once you've opened it."
             : query.Length > 0 ? $"Nothing matches \"{query}\"."
             : kind.Length > 0 ? $"No {SelectedKind.Label.ToLowerInvariant()} here. Types come from the addon: after the update, /reload once so it can tell what each item is."
-            : place == "bank" ? "Nothing in the bank yet. Open your bank in game once and it shows up here."
+            : place == "bank" && !placeOut ? "Nothing in the bank yet. Open your bank in game once and it shows up here."
             : "Nothing here.";
         Raise(nameof(IsEmpty));
     }
