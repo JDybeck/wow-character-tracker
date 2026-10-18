@@ -17,9 +17,12 @@ Alerts, a clearer card, and a pile of small things.
 - **Post talents to Discord**: next to the Wowhead talent calculator link, posts the build on its own (level, race and class, points per tree, the talents picked and the Wowhead link).
 - **Items: leave a place out**: click **Equipped**, **Bags** or **Bank** to show only that place, click it again to leave it out instead (red and crossed out), and once more for everything.
 - **Updates are hard to miss**: a filled **Update to v...** button at the top, and a bolder banner that says what Update now does.
+- **Screenshots that went missing**: when the game doesn't take an event's screenshot (it seems to happen when you ding mid-fight), the addon now tries again right after combat, and the app waits for that later picture instead of posting without one. The addon keeps a short log of its last shots for troubleshooting.
 - The **made by / tip** line stays in view at the bottom of the right column, the panels scroll above it.
 - The Discord panel's webhook steps fold away behind **How do I make one?**.
 - README: a table of contents, and fresh pictures.
+- **Find it in Windows search**: the app adds itself to your Start menu, so typing "WoW Character Tracker" finds it. The Uninstall page removes the shortcut with the app.
+- **A smaller download**: the exe is about 14 MB smaller (60 MB instead of 73). The tray icon no longer pulls in a whole second UI toolkit, and Windows' translations for languages the app doesn't use are left out.
 
 ## v0.19.0
 

@@ -39,6 +39,7 @@ public partial class App : Application
         ToolTipService.ShowDurationProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(20000));
         base.OnStartup(e);
         Updater.CleanUp();
+        StartMenu.Apply();
 
         vm = new MainViewModel(backfill: e.Args.Contains("--backfill"), justUpdated: e.Args.Contains("--updated"));
         vm.Updates.UpdateStarted += QuitForUpdate;
