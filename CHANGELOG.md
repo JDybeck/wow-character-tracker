@@ -2,7 +2,7 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
-## v0.21.2
+## v0.22.0
 
 - **Stream card and highlights no longer cut off**: as a single source (`?only=card`, `?only=highlights`) the part is scaled up to fill the source, but the page only kept its unscaled height, so everything below the first lines was cut away in OBS and Streamlabs. Now the whole part shows.
 - **Fast with lots of characters**: with 60+ characters the app froze for 10 seconds or more at startup and again when opening Items. Now the Items list is only built when you open it and only draws what's on screen, a character's gear, bags and icons load when you open that character, and Wowhead lookups run in the background. Startup went from about 30 seconds of work to 2 on 64 Retail characters.

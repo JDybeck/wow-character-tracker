@@ -4,14 +4,17 @@
 
 Made for WoW Forever (Classic+), and works for Retail too. An addon in the game plus a small Windows app.
 
-- **Tracks every character**: level, item level, gold, talents, professions, stats, gear, bags and bank, highlights, and how long every level took. On Forever it also estimates the played time left to max level.
+- **Tracks every character**: level, item level, gold, talents, professions, stats, gear, bags and bank, highlights, and how long every level took. Sort the list any way you like, filter by realm or ruleset. On Forever it also estimates the played time left to max level.
 - **Finds any item** across all your characters, with Wowhead tooltips in the game's colors.
 - **Discord posts (optional)**: add a webhook and your moments are posted the moment they happen. Level-ups with the level's time, end boss kills with the group, rare, epic and legendary loot, new mounts, hardcore deaths, duel and Mak'gora wins, and Mythic+ or PvP rating milestones, with an in-game screenshot if you like. You pick what gets posted. Character cards too.
-- **Stream overlay (optional)**: turn it on in its own panel and add it to OBS or Streamlabs: your character's stats next to its level times, duel and Mak'gora records, the highlights you pick, and big WoW-style alerts like **DING!**, **VICTORY!** and **EPIC LOOT!**. Each part can be placed on its own, and the background can be anything from see-through to solid. Text files for text sources too.
+- **Tells your guild or group (optional)**: a line in guild and/or party chat when you ding, kill an end boss, loot an epic (as a clickable link) and more. You pick what.
+- **Stream overlay (optional)**: turn it on in its own panel and add it to OBS or Streamlabs: your character's stats next to its level times, duel, Mak'gora and battleground records, the highlights you pick (wins and losses), and big WoW-style alerts like **DING!**, **VICTORY!** and **EPIC LOOT!**. Each part can be placed on its own, and the background can be anything from see-through to solid. Text files for text sources too.
 - **Looks the part**: a color theme per game (Midnight for Retail, Classic gold for Forever, and more to pick from), with smooth animations you can switch off.
 - **Stays out of the way**: waits in the tray, opens when WoW starts, updates itself, can ignore a game you don't play, and uninstalls everything it added if you want.
 
 Nothing leaves your PC unless you set it up: posts only go to your own Discord webhooks, and the overlay is a page only your PC can open. See [Privacy](#privacy).
+
+> **Still young, testers wanted.** It works day to day, but few people have run it so far, especially on Forever, which launches on November 4, 2026. If something looks off, or you have an idea, say so in [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) or [Issues](https://github.com/JDybeck/wow-character-tracker/issues).
 
 ![The app on the Forever tab, with a character's details open](docs/images/characters.png)
 
@@ -75,7 +78,7 @@ Above the columns:
 
 **Copy settings** puts the whole page on your clipboard as a short code (it starts with `WCT1:`) to share with friends, and **Paste settings** applies a code someone shared to the game tab you're on. Webhooks and folders are never part of it.
 
-Posts show the character's portrait as the sender picture, item and mount names link to Wowhead, and professions get an emoji.
+Posts are sent as Character Tracker, with its logo, so they're easy to spot; the character's own picture is in the post (the same one the app shows). Item and mount names link to Wowhead, and professions get an emoji.
 
 Each game has its own look, and under Settings you can pick a color theme per game: Midnight, Void arcane or Silvermoon for Retail, Classic gold, Forever wisp, Emerald Dream or Blackrock ember for Forever. Here's Forever in its four themes:
 
@@ -87,12 +90,16 @@ The **In game** page has what the addon does in game besides posting:
 
 - **Offer a reload on flight paths**: when you take a flight and your bags or gear changed since the last save, a small box in game offers a `/reload` (you keep flying), so the Items page gets up to date.
 - **Remind me in chat to /reload**: one line in chat when your bags or gear changed since the last save, after the bank, mailbox, a vendor or the auction house, when you leave a dungeon, and every 30 minutes.
+- **Tell your guild or group**: the addon writes one line in guild chat and/or party (or raid) chat, as you, when something happens: level-ups ("Ding! Level 23. 22 to 23 took 41m 12s."), max level, end boss kills, epic and legendary loot as a clickable item link, new mounts, duel, Mak'gora and battleground wins, rating steps (Retail) and hardcore deaths. Pick which. Messages wait until you're out of combat, and boss kills don't list the group. Off until you tick Guild chat or Party / raid chat.
+
+  <img src="docs/images/in-game.png" alt="The In game page: reload reminders and Tell your guild or group" width="640">
+
 - **Instant posting**: the corner the small data grid is flashed in (top left, top right, bottom left or bottom right), and whether its small label shows.
 - **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
 
 ### The app
 
-- **Characters**: every character you've logged in with the addon, with class, spec, level, item level, gold and when you last played. The bottom of the list shows the total gold and total played for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for its details, in three tabs:
+- **Characters**: every character you've logged in with the addon, with class, spec, a role icon (tank, healer, or melee, ranged or caster damage), level, item level, gold and when you last played. Click a column title to sort by it, again to flip it; race, played time and rating (Retail) sort from next to CHARACTER. The order is remembered per game. The bottom of the list shows the total gold and total played for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for its details, in three tabs:
   - **Overview**: guild, total played, gold, crests and your Mythic Keystone (Retail), professions, talents, stats (each with its icon), last zone (with an icon for what kind of place it is: dungeon, raid, battleground, city, town or the open world) and highlights. Boss kills say who was there, deaths what they cost. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there. **Post talents to Discord** posts the build on its own: level, race and class, the points per tree, the talents picked and the Wowhead calculator link.
   - **Gear and bags**: what the character wears, laid out like the character window, then its bags and its bank (as of the last time you opened it), with icons, quality colors and Wowhead tooltips. Click an item to open it on Wowhead.
 
@@ -108,7 +115,7 @@ The **In game** page has what the addon does in game besides posting:
 
   <img src="docs/images/character-card.png" alt="A character card as posted to Discord" width="480">
 
-- **Filter**: chips above the list filter by realm on Retail and by ruleset (Hardcore, Self-found, Normal) on Forever.
+- **Filter**: chips at the top of the Characters and Items pages filter by realm on Retail and by ruleset (Hardcore, Self-found, Normal) on Forever. With lots of realms they wrap onto more lines.
 - **Discord**: add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, on Forever which rulesets (so a hardcore channel only gets hardcore characters), and which character tags (none picked means every character). Click the pencil to rename a webhook, like "#leveling / My Guild". Hover a webhook to see its masked link.
 
   <img src="docs/images/webhook-options.png" alt="Webhooks with their options: games and Forever rulesets" width="340">
@@ -134,7 +141,7 @@ The **In game** page has what the addon does in game besides posting:
 
 Optional, and off until you turn it on: show your character, your records, your highlights and your big moments on stream, in OBS or Streamlabs. Everything is in the **Stream overlay** panel, between Discord and the console (click its title to fold it away).
 
-<img src="docs/images/stream-panel.png" alt="The Stream overlay panel: the addresses, background, what the card shows, highlights, alerts and what it counts" width="372">
+<img src="docs/images/stream-panel.png" alt="The Stream overlay panel: the addresses, background, what the card shows, highlights, alerts and what it counts" width="384">
 
 1. Tick **On** in the Stream overlay panel.
 2. Click **Copy all** for one source with everything (the address is `http://localhost:8721/`), or copy **Card**, **Highlights** and **Alert** one by one to add them as separate sources and place each where you like. A part on its own fills its whole Browser source, so its box in OBS fits it snugly: resize the source to resize the part. Give the alert a roomy source: its glow fades out softly at the edges.
@@ -144,9 +151,9 @@ Optional, and off until you turn it on: show your character, your records, your 
 
 What it shows:
 
-- **The card**: who the character is right now. Its name, level, race, spec and class and zone on top, then its stats on the left (item level, played, gold, your Mythic Keystone on Retail, and your duel and Mak'gora records) and its leveling on the right (how long the last level took, the levels before that, today's levels and their average). Without level times, like at max level, the stats get the card to themselves.
-- **Highlights**: what happened lately, as a short list. Pick which kinds count: loot, boss kills, mounts, duel wins, Mak'gora wins, deaths, and on Retail Mythic+ and PvP rating milestones.
-- **Alerts**: the big moments pop up in the middle for a few seconds, styled like the game, each in its own colors: **DING!** with the level and its time, **MAX LEVEL!** with light rays, **VICTORY!** for an end boss or a duel win, **LEGENDARY!**, **EPIC LOOT!** and **RARE LOOT!**, **NEW MOUNT!**, **MAK'GORA!** in blood red, a calm gray **R.I.P.** for a hardcore death, and on Retail **MILESTONE!** for rating steps. Pick which ones pop up under **Alerts** (rare loot is off by default, it happens a lot).
+- **The card**: who the character is right now. Its name, level, race, spec and class and zone on top, then its stats on the left (item level, played, gold, your Mythic Keystone and ratings on Retail, and your duel, Mak'gora and battleground records) and its leveling on the right (how long the last level took, the levels before that, today's levels and their average). Without level times, like at max level, the stats get the card to themselves.
+- **Highlights**: what happened lately, as a short list. Pick which kinds count: loot, boss kills, mounts, duels, Mak'gora, battlegrounds (wins and losses), deaths, and on Retail Mythic+ and PvP rating milestones.
+- **Alerts**: the big moments pop up in the middle for a few seconds, styled like the game, each in its own colors: **DING!** with the level and its time, **MAX LEVEL!** with light rays, **VICTORY!** for an end boss, a duel or a battleground win, **LEGENDARY!**, **EPIC LOOT!** and **RARE LOOT!**, **NEW MOUNT!**, **MAK'GORA!** in blood red, a calm gray **R.I.P.** for a hardcore death, and on Retail **MILESTONE!** for rating steps. Pick which ones pop up under **Alerts** (rare loot is off by default, it happens a lot).
 
 <img src="docs/images/stream-alerts.png" alt="Alerts: MAX LEVEL!, EPIC LOOT!, MAK'GORA! and R.I.P." width="640">
 
@@ -156,7 +163,7 @@ In the panel you can also set the **Background** (from see-through, just the tex
 
 Add these to an address to change it: `?scale=1.5` bigger (or `0.8` smaller), `?side=right` the boxes on the right. Combine them with `&`, like `http://localhost:8721/?only=card&scale=1.3`. (`?only=ding` from older versions still works for the alert.)
 
-**Text files** opens a folder with the same info, one value per file, for OBS **Text** sources (tick **Read from file**): `character.txt`, `character_line.txt` (Ronnie Raket, level 22 Paladin), `level.txt`, `last_level.txt` (21 to 22 took 23m 11s), `levels.txt`, `today.txt`, `highlights.txt`, `duels.txt` and `makgora.txt` (like 12 won, 3 lost), `zone.txt`, `played.txt` and `item_level.txt`.
+**Text files** opens a folder with the same info, one value per file, for OBS **Text** sources (tick **Read from file**): `character.txt`, `character_line.txt` (Ronnie Raket, level 22 Paladin), `level.txt`, `last_level.txt` (21 to 22 took 23m 11s), `levels.txt`, `today.txt`, `highlights.txt`, `duels.txt`, `makgora.txt` and `battlegrounds.txt` (like 12 won, 3 lost), `zone.txt`, `played.txt` and `item_level.txt`.
 
 Only your own PC can open the page. Test characters never show up on it.
 ### Making a Discord webhook
@@ -167,7 +174,7 @@ In Discord, hover the channel and click the gear (Edit Channel):
 
 <img src="docs/images/discord-edit-channel.png" alt="The gear next to a Discord channel opens Edit Channel" width="268">
 
-Then Integrations, Create Webhook (or Webhooks, New Webhook), and Copy Webhook URL. Paste it in the app with **Add** under Discord. You need the Manage Webhooks permission on the server. Posts use the webhook's name and the character's portrait as the sender.
+Then Integrations, Create Webhook (or Webhooks, New Webhook), and Copy Webhook URL. Paste it in the app with **Add** under Discord. You need the Manage Webhooks permission on the server. Posts show up as Character Tracker with its logo.
 
 <img src="docs/images/discord-integrations.png" alt="Integrations in a channel's settings, with Create Webhook" width="560">
 
@@ -190,7 +197,7 @@ WoW addons can't make network calls and only save their data on `/reload` or log
 
 <sub>The grid enlarged 3x. The top row and left column alternate black and white so the app can measure the cell size, even if the picture is scaled.</sub>
 
-Every event goes out this way (so the level history and highlights stay current), except loot that won't be posted, which waits for your next `/reload` or logout to keep the corner flicker down. There's also one check-in about 15 seconds after you log in, so your character's row in the app updates right away. In-game screenshots are only taken for events that get posted. Nothing is posted twice.
+Every event goes out this way, posted or not, so the level history and highlights stay current while you play. There's also one check-in about 15 seconds after you log in, so your character's row in the app updates right away. In-game screenshots are only taken for events that get posted. Nothing is posted twice.
 
 Level times: the addon stores your total played at the start of each level, and a finished level's time is the difference. It times the level right at the ding from the played time it already knows (the played time at your last logout, plus the time since you logged in), so it doesn't wait on the game. `RequestTimePlayed()` answers then make the next level's start exact. Level 1 to 2 always counts from 0. If the addon came in mid-level, that level is still logged, with its time shown as "?".
 
@@ -210,9 +217,10 @@ Not built yet, roughly in order:
 
 - Talents: Forever shows points in its three trees plus each pick. Retail shows points in the class, spec and hero trees.
 - Professions and end bosses are matched by English name, so a non-English client won't show them.
+- Battlegrounds count when the game says who won (arenas and draws don't). Results are tracked and shown, not posted to Discord.
 - Bags and gear reach the app on `/reload` or logout (they're too much for the live channel). The bank only updates when you open it in game.
 - Rating milestones start counting from the first time the addon sees your rating, so ratings you already had aren't posted.
-- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Forever characters show their own portrait in the app: the addon puts it next to the data grid in the check-in shot after you log in, and the app cuts it out. Talent posts and text character cards upload it with the message as their picture. The sender picture has to be a web address, so it stays the race portrait from Wowhead's icon CDN (or the class icon), and so do automatic posts like level-ups.
+- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Forever characters show their own portrait in the app: the addon puts it next to the data grid in the check-in shot after you log in, and the app cuts it out. Posts upload it with the message as their picture (unless you picked Standard for that character). One rule picks the picture everywhere: the app, posts and character cards.
 - Screenshots go out at full size first (boosted servers allow bigger uploads). If Discord says one is too big, a smaller JPEG copy is sent instead, and only if that's still too big does the post go out without it.
 - On the first run, events already saved are marked as posted so the channel isn't flooded. Start the app with `--backfill` to post them instead.
 - Settings and webhooks are saved in `%LOCALAPPDATA%\WoWCharacterTracker\config.json` and survive updates.
