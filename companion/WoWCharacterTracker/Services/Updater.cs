@@ -14,14 +14,7 @@ static class Updater
 
     public sealed record Release(Version Version, string Tag, string Notes, string DownloadUrl, string PageUrl);
 
-    static readonly HttpClient Http = CreateClient();
-
-    static HttpClient CreateClient()
-    {
-        var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("WoWCharacterTracker"); // GitHub's API wants one
-        return http;
-    }
+    static readonly HttpClient Http = Web.Client(TimeSpan.FromMinutes(5));
 
     // CHARACTERTRACKER_FAKE_VERSION (tests only) pretends to be an older version, to see the banner.
     public static Version Current =>

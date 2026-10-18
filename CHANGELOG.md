@@ -4,7 +4,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.24.0
 
-- **Enchants under your gear**: each item on the Gear and bags tab shows its enchant right under its name in green, like "Nature's Fury" under a ring, instead of in a separate list. The "Enchant Ring -" part is left out, the slot already says that.
+- **Enchants under your gear**: each item on the Gear and bags tab shows its enchant right under its name in green, like "Nature's Fury" under a ring, instead of in a separate list. The "Enchant Ring -" part is left out, the slot already says that. Hover an enchant to see what it does (Wowhead's tooltip, like items), click it to open its Wowhead page. Works on Retail and Forever for enchants the game names; ones it only shows as stats ("+41 Agility/Strength & +115 Stamina") have nothing to look up.
 
 ## v0.23.1
 

@@ -217,7 +217,6 @@ sealed class CharacterRow : Observable
     // info: the tab's shared info per Wowhead type and id (icons and names are looked up once).
     public static List<CharacterRow> Build(TrackerData data, Flavor flavor, Func<string, int, ItemInfo> info)
     {
-        ItemInfo item(int id) => info("item", id);
         var inventories = data.Inventories.GroupBy(i => i.Guid).ToDictionary(g => g.Key, g => g.MaxBy(i => Math.Max(i.ScannedAt, i.BankAt))!);
         // XP only comes with the saved file, so the newest snapshot that has it.
         var xpSnaps = data.Characters.Where(c => c.XpMax > 0).GroupBy(c => c.Guid).ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!);
@@ -231,7 +230,7 @@ sealed class CharacterRow : Observable
         // (the talent code), so each is taken from the newest snapshot that has it.
         string Newest(string guid, Func<Snapshot, string> field) =>
             data.Characters.Where(c => c.Guid == guid && field(c).Length > 0).MaxBy(c => c.LastSeen) is { } n ? field(n) : "";
-        Func<CharacterGear> MakeGear(Inventory? inv, string classFile, string spec) => () => CharacterGear.From(inv, item, classFile, retail: flavor == Flavors.Retail, spec);
+        Func<CharacterGear> MakeGear(Inventory? inv, string classFile, string spec) => () => CharacterGear.From(inv, info, flavor, classFile, spec);
 
         var rows = new List<CharacterRow>();
         foreach (var guid in snaps.Keys.Union(events.Keys))

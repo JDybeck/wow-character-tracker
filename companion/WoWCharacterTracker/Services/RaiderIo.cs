@@ -8,7 +8,7 @@ namespace WoWCharacterTracker.Services;
 // keep. Answers are cached in renders.json for a day; characters Raider.IO doesn't know get none.
 static class RaiderIo
 {
-    static readonly HttpClient Http = CreateClient();
+    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(10));
     static readonly ConcurrentDictionary<string, Task<string?>> Lookups = new();
     static readonly object DiskLock = new();
     static Dictionary<string, Cached>? disk;
@@ -16,13 +16,6 @@ static class RaiderIo
     static readonly TimeSpan MaxAge = TimeSpan.FromDays(1);
 
     sealed record Cached(string? Url, DateTimeOffset At);
-
-    static HttpClient CreateClient()
-    {
-        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("WoWCharacterTracker");
-        return http;
-    }
 
     // "Tarren Mill" -> "tarren-mill", "Azjol-Nerub" -> "azjol-nerub", "Kel'Thuzad" -> "kelthuzad"
     public static string RealmSlug(string realm) =>

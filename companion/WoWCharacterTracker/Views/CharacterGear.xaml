@@ -3,7 +3,8 @@
 <UserControl x:Class="WoWCharacterTracker.Views.CharacterGear"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels">
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui">
   <UserControl.Resources>
     <!-- A gear slot: the item's icon, then its name in quality color (or the empty slot's name) and
          its enchant under it in the game's green. -->
@@ -12,8 +13,8 @@
         <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ItemCellTemplate}" DockPanel.Dock="Left"/>
         <StackPanel Margin="6,0,0,3" VerticalAlignment="Center">
           <TextBlock x:Name="Name" Text="{Binding Item.Name}" Foreground="{Binding Item.Brush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
-          <TextBlock Text="{Binding Enchant}" Foreground="#1EFF00" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip="{Binding Enchant}"
-                     Visibility="{Binding HasEnchant, Converter={StaticResource Visible}}"/>
+          <TextBlock Text="{Binding Enchant.Text}" Foreground="#1EFF00" FontSize="11" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left"
+                     ui:ItemTip.Info="{Binding Enchant.Info}" Visibility="{Binding HasEnchant, Converter={StaticResource Visible}}"/>
         </StackPanel>
       </DockPanel>
       <DataTemplate.Triggers>
