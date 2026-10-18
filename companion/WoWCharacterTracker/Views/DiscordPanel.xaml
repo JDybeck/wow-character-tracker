@@ -200,24 +200,32 @@
       <!-- How to get a webhook, until there is one: one line, the steps folded away until asked for. -->
       <StackPanel Visibility="{Binding HasWebhooks, Converter={StaticResource Hidden}}" Margin="0,8,0,4">
         <DockPanel>
-          <ToggleButton x:Name="HowTo" DockPanel.Dock="Right" Cursor="Hand" VerticalAlignment="Center" ToolTip="Show or hide the steps for making a webhook in Discord">
+          <TextBlock DockPanel.Dock="Left" Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,0,8,0" VerticalAlignment="Center"
+                     Text="A webhook is the link the app posts through."/>
+          <!-- A small round "?" right after the line; lights up while the steps are open. -->
+          <ToggleButton x:Name="HowTo" Cursor="Hand" HorizontalAlignment="Left" VerticalAlignment="Center"
+                        ToolTip="How do I make one? Shows the steps for making a webhook in Discord.">
             <ToggleButton.Template>
               <ControlTemplate TargetType="ToggleButton">
-                <StackPanel Orientation="Horizontal" Background="Transparent">
-                  <TextBlock x:Name="Txt" Text="How do I make one?" FontSize="12" Foreground="{DynamicResource BlueText}"/>
-                  <TextBlock x:Name="Chev" Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="10" Foreground="{DynamicResource BlueText}" Margin="5,1,0,0"/>
-                </StackPanel>
+                <Border x:Name="Bd" Width="20" Height="20" CornerRadius="10" BorderThickness="1"
+                        BorderBrush="{StaticResource Dim}" Background="Transparent">
+                  <TextBlock x:Name="Mark" Text="?" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Muted}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,1"/>
+                </Border>
                 <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueText}"/>
+                    <Setter TargetName="Mark" Property="Foreground" Value="{DynamicResource BlueText}"/>
+                  </Trigger>
                   <Trigger Property="IsChecked" Value="True">
-                    <Setter TargetName="Txt" Property="Text" Value="Hide steps"/>
-                    <Setter TargetName="Chev" Property="Text" Value="&#xE70E;"/>
+                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Indigo}"/>
+                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+                    <Setter TargetName="Mark" Property="Foreground" Value="{DynamicResource IndigoText}"/>
                   </Trigger>
                 </ControlTemplate.Triggers>
               </ControlTemplate>
             </ToggleButton.Template>
           </ToggleButton>
-          <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,0,8,0"
-                     Text="A webhook is the link the app posts through."/>
         </DockPanel>
         <TextBlock Foreground="{StaticResource TextSoft}" FontSize="13" TextWrapping="Wrap" LineHeight="21" Margin="0,6,0,0"
                    Visibility="{Binding IsChecked, ElementName=HowTo, Converter={StaticResource BoolVis}}">
