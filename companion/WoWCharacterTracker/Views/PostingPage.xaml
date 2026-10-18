@@ -68,7 +68,7 @@
           </Grid.ColumnDefinitions>
 
           <!-- General -->
-          <Border Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+          <Border Style="{StaticResource PanelBorder}">
             <StackPanel>
               <TextBlock Style="{StaticResource SectionTitle}" Text="General" Margin="0,0,0,14"/>
               <StackPanel Style="{StaticResource PostOption}">
@@ -149,7 +149,7 @@
           </Border>
 
           <!-- PvE -->
-          <Border Grid.Column="2" Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+          <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
             <StackPanel>
               <TextBlock Style="{StaticResource SectionTitle}" Text="PvE" Margin="0,0,0,14"/>
               <StackPanel Style="{StaticResource PostOption}">
@@ -210,7 +210,7 @@
           </Border>
 
           <!-- PvP -->
-          <Border Grid.Column="4" Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+          <Border Grid.Column="4" Style="{StaticResource PanelBorder}">
             <StackPanel>
               <TextBlock Style="{StaticResource SectionTitle}" Text="PvP" Margin="0,0,0,14"/>
               <StackPanel Style="{StaticResource PostOption}">

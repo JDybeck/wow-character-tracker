@@ -4,7 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms> <!-- only for the tray icon -->
+    <!-- The app is English only; without this the exe carries WPF's translations for 13 languages (~17 MB). -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -35,9 +36,6 @@
     <Using Include="System.IO" />
     <Using Include="System.Net.Http" />
     <Using Include="System.Threading" />
-    <!-- WinForms is only used for the tray icon; keep its names from clashing with WPF's. -->
-    <Using Remove="System.Windows.Forms" />
-    <Using Remove="System.Drawing" />
   </ItemGroup>
 
   <!-- The logo, for the header and the window/taskbar icon. -->

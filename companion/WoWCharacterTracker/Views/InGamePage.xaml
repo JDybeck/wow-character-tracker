@@ -16,7 +16,7 @@
                    Text="What the addon does in game besides posting. Changes reach the game on your next /reload or login."/>
 
         <!-- Reloads: the game only writes the addon's saved file on /reload or logout. -->
-        <Border Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Margin="0,0,0,16">
+        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitle}" Text="Keeping the app up to date" Margin="0,0,0,4"/>
             <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14"
@@ -37,7 +37,7 @@
         </Border>
 
         <!-- The data grid: the small black and white pattern the addon flashes for one frame per event. -->
-        <Border Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Margin="0,0,0,16">
+        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitle}" Text="Instant posting" Margin="0,0,0,4"/>
             <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" TextWrapping="Wrap"
@@ -58,7 +58,7 @@
         </Border>
 
         <!-- Game settings the addon sets for you. -->
-        <Border Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+        <Border Style="{StaticResource PanelBorder}">
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitle}" Text="Game settings" Margin="0,0,0,14"/>
             <CheckBox IsChecked="{Binding AdvancedCombatLog}">
