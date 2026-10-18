@@ -3,14 +3,19 @@
 <UserControl x:Class="WoWCharacterTracker.Views.CharacterGear"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels">
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui">
   <UserControl.Resources>
-    <!-- A gear slot: the item's icon, then its name in quality color (or the empty slot's name). -->
+    <!-- A gear slot: the item's icon, then its name in quality color (or the empty slot's name) and
+         its enchant under it in the game's green. -->
     <DataTemplate x:Key="GearSlot" DataType="{x:Type vm:ItemCell}">
       <DockPanel Margin="0,0,0,2" Background="Transparent">
         <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ItemCellTemplate}" DockPanel.Dock="Left"/>
-        <TextBlock x:Name="Name" Text="{Binding Item.Name}" Foreground="{Binding Item.Brush}" FontSize="12" Margin="6,0,0,3"
-                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <StackPanel Margin="6,0,0,3" VerticalAlignment="Center">
+          <TextBlock x:Name="Name" Text="{Binding Item.Name}" Foreground="{Binding Item.Brush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+          <TextBlock Text="{Binding Enchant.Text}" Foreground="#1EFF00" FontSize="11" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left"
+                     ui:ItemTip.Info="{Binding Enchant.Info}" Visibility="{Binding HasEnchant, Converter={StaticResource Visible}}"/>
+        </StackPanel>
       </DockPanel>
       <DataTemplate.Triggers>
         <DataTrigger Binding="{Binding IsEmpty}" Value="True">
@@ -19,7 +24,7 @@
         </DataTrigger>
       </DataTemplate.Triggers>
     </DataTemplate>
-    <!-- An effect or enchant beside the gear: the item, then the line in the game's green. -->
+    <!-- An item's effects beside the gear: the item, then its lines in the game's green. -->
     <DataTemplate x:Key="GearLine" DataType="{x:Type vm:EffectView}">
       <DockPanel Margin="0,4,0,2">
         <ContentPresenter Content="{Binding Cell}" ContentTemplate="{StaticResource ItemCellTemplate}" DockPanel.Dock="Left" VerticalAlignment="Top"/>
@@ -122,10 +127,6 @@
             </ToggleButton>
             <ItemsControl ItemsSource="{Binding Gear.Effects}" ItemTemplate="{StaticResource GearLine}"
                           Visibility="{Binding IsChecked, ElementName=EffectsToggle, Converter={StaticResource Visible}}"/>
-          </StackPanel>
-          <StackPanel Visibility="{Binding Gear.HasEnchants, Converter={StaticResource Visible}}">
-            <TextBlock Style="{StaticResource FactLabel}" Text="ENCHANTS"/>
-            <ItemsControl ItemsSource="{Binding Gear.Enchants}" ItemTemplate="{StaticResource GearLine}"/>
           </StackPanel>
         </StackPanel>
 

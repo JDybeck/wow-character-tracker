@@ -12,7 +12,7 @@ static class Wowhead
     // Tooltip is the plain text; Html the tooltip as Wowhead sends it (colors and layout, for the item picture).
     public sealed record Info(string Name, string Icon, int Quality, string Tooltip, string? Html = null);
 
-    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
+    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(10));
     static readonly ConcurrentDictionary<string, Task<Info?>> Lookups = new();
     static readonly object DiskLock = new();
     // Bags and banks mean hundreds of items at once; a few lookups at a time keeps Wowhead happy.
@@ -95,6 +95,45 @@ static class Wowhead
     {
         try { return File.Exists(CachePath) ? JsonSerializer.Deserialize<Dictionary<string, Info>>(File.ReadAllText(CachePath)) ?? [] : []; }
         catch (Exception) { return []; }
+    }
+
+    // An enchant's Wowhead page by its name ("Enchant Ring - Nature's Fury"): the game only gives the
+    // name, and Wowhead has no tooltips by enchant id. Uses the search box's suggestions; kept for the
+    // session only (the tooltip it leads to is cached like any other). Null when nothing matches.
+    static readonly ConcurrentDictionary<string, Task<(string Type, int Id)?>> Searches = new();
+
+    public static Task<(string Type, int Id)?> FindAsync(string name, Flavor flavor) =>
+        Searches.GetOrAdd(flavor.WowheadPath + name, _ => Task.Run(() => SearchAsync(name, flavor)));
+
+    static async Task<(string Type, int Id)?> SearchAsync(string name, Flavor flavor)
+    {
+        await Parallel.WaitAsync();
+        try
+        {
+            var url = $"https://www.wowhead.com/{flavor.WowheadPath}search/suggestions-template?q={Uri.EscapeDataString(name)}";
+            return PickByName(await Http.GetStringAsync(url), name);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            Searches.TryRemove(flavor.WowheadPath + name, out _); // try again another time
+            return null;
+        }
+        finally { Parallel.Release(); }
+    }
+
+    // The result named exactly so: an item first (an enchant's scroll says what it does, plainly), else
+    // a spell (Death Knight runes have no item). Anything only partly matching ("Formula: ...") is left out.
+    internal static (string Type, int Id)? PickByName(string json, string name)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array) return null;
+        var named = results.EnumerateArray()
+            .Where(r => r.TryGetProperty("name", out var n) && string.Equals(n.GetString(), name, StringComparison.OrdinalIgnoreCase))
+            .Select(r => (Type: r.GetProperty("type").GetInt32(), Id: r.GetProperty("id").GetInt32()))
+            .ToList();
+        foreach (var (type, label) in new[] { (3, "item"), (6, "spell") })
+            if (named.FirstOrDefault(r => r.Type == type) is { Id: > 0 } hit) return (label, hit.Id);
+        return null;
     }
 
     // A Forever build in Wowhead's talent calculator: talent-calc/<class>/v2<ranks per talent, per tree>

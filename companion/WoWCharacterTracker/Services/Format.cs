@@ -1,6 +1,8 @@
+using System.Text.RegularExpressions;
+
 namespace WoWCharacterTracker.Services;
 
-static class Format
+static partial class Format
 {
     // The name posts use, from the tab's NameStyle: "full", "first" or "last" (surname, if there is one).
     public static string Name(string first, string surname, string style) => style switch
@@ -113,10 +115,18 @@ static class Format
     // spaces put back.
     public static string TooltipLine(string text)
     {
-        text = System.Text.RegularExpressions.Regex.Replace(text, @"(\d+(?:[.,]\d+)?)?(\s*)\|4([^:;|]*):([^;|]*);",
-            m => m.Groups[1].Value + m.Groups[2].Value + (m.Groups[1].Value == "1" ? m.Groups[3].Value : m.Groups[4].Value));
-        return System.Text.RegularExpressions.Regex.Replace(text, @" {2,}", "\n");
+        text = GrammarCode().Replace(text, m =>
+        {
+            var number = m.Groups["number"].Value;
+            var word = number == "1" ? m.Groups["one"].Value : m.Groups["many"].Value;
+            return number + m.Groups["space"].Value + word;
+        });
+        return LineBreak().Replace(text, "\n");
     }
+
+    // "Enchant Helm - Empowered Blessing of Speed" as "Empowered Blessing of Speed": shown under the
+    // item, the slot goes without saying. Enchants without that prefix ("+41 Agility") stay as they are.
+    public static string EnchantName(string text) => EnchantSlot().Replace(text, "");
 
     public static string Quality(int q) => q switch { 3 => "Rare", 4 => "Epic", 5 => "Legendary", 6 => "Artifact", _ => "" };
 
@@ -130,4 +140,14 @@ static class Format
         if (span.TotalDays < 30) return $"{(int)span.TotalDays}d ago";
         return DateTimeOffset.FromUnixTimeSeconds(unixSeconds).LocalDateTime.ToString("yyyy-MM-dd");
     }
+
+    // "30 |4Sec:Sec;": the number before it (if any), then the singular and plural word.
+    [GeneratedRegex(@"(?<number>\d+(?:[.,]\d+)?)?(?<space>\s*)\|4(?<one>[^:;|]*):(?<many>[^;|]*);")]
+    private static partial Regex GrammarCode();
+
+    [GeneratedRegex(" {2,}")]
+    private static partial Regex LineBreak();
+
+    [GeneratedRegex("^Enchant [^-]+ - ")]
+    private static partial Regex EnchantSlot();
 }

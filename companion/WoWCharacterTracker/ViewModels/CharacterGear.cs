@@ -44,13 +44,12 @@ sealed class CharacterGear
     }
 
     // Beside the gear: the sets it counts for and the items' Equip/Use effects, as the game's tooltips say.
+    // Enchants sit under the item names (ItemCell.Enchant).
     public IReadOnlyList<SetView> Sets { get; init; } = [];
     public IReadOnlyList<EffectView> Effects { get; init; } = [];
-    public IReadOnlyList<EffectView> Enchants { get; init; } = [];
     public bool HasSets => Sets.Count > 0;
     public bool HasEffects => Effects.Count > 0;
-    public bool HasEnchants => Enchants.Count > 0;
-    public bool HasExtras => HasSets || HasEffects || HasEnchants;
+    public bool HasExtras => HasSets || HasEffects;
     // Saved by an addon from before set bonuses were read (0.23.0): say how to get them.
     public bool NeedsGearScan { get; init; }
     public bool ShowsSide => HasExtras || NeedsGearScan;
@@ -62,14 +61,22 @@ sealed class CharacterGear
 
     public static CharacterGear Empty { get; } = new();
 
+    // info: the tab's shared lookup per Wowhead type and id (FlavorViewModel.InfoFor).
     // spec: the character's spec, to pick its tier bonuses from Wowhead's (Retail lists every spec's).
-    public static CharacterGear From(Inventory? inv, Func<int, ItemInfo> item, string classFile, bool retail, string spec = "")
+    public static CharacterGear From(Inventory? inv, Func<string, int, ItemInfo> info, Flavor flavor, string classFile, string spec = "")
     {
         if (inv is null) return Empty;
+        ItemInfo item(int id) => info("item", id);
+        var retail = flavor == Flavors.Retail;
         var worn = inv.Gear.ToDictionary(g => g.Slot, g => g.ItemId);
         var wornInfos = worn.Values.Distinct().Select(item).ToList();
-        IReadOnlyList<ItemCell> Slots((int Slot, string Name)[] slots) =>
-            slots.Select(s => new ItemCell(worn.TryGetValue(s.Slot, out var id) ? item(id) : null, 1, s.Name)).ToList();
+        var enchants = inv.Enchants.GroupBy(e => e.Slot).ToDictionary(g => g.Key, g => new EnchantView(g.First().Text, info, flavor)); // an item holds one
+        IReadOnlyList<ItemCell> Slots((int Slot, string Name)[] slots) => slots
+            .Select(s => new ItemCell(worn.TryGetValue(s.Slot, out var id) ? item(id) : null, 1, s.Name)
+            {
+                Enchant = enchants.GetValueOrDefault(s.Slot),
+            })
+            .ToList();
 
         var gear = new CharacterGear
         {
@@ -83,8 +90,7 @@ sealed class CharacterGear
             SavedText = SavedTextOf(inv),
             HasInventory = true,
             Sets = inv.Sets.Select(s => new SetView(s, wornInfos, spec)).ToList(),
-            Effects = Lines(inv.Effects, item),
-            Enchants = Lines(inv.Enchants, item),
+            Effects = EffectRows(inv.Effects, item),
             IsRetail = retail,
         };
         gear.FillBank();
@@ -95,9 +101,9 @@ sealed class CharacterGear
     public static string SavedTextOf(Inventory? inv) =>
         inv is null || inv.SavedAt <= 0 ? "" : $"Saved {Format.Ago(inv.SavedAt)}" + (inv.SavedZone.Length > 0 ? $", in {inv.SavedZone}" : "");
 
-    // One row per equipped item, its lines under each other (an item with an Equip: and a Use: line
+    // One row per equipped item, its effects under each other (an item with an Equip: and a Use: line
     // showed its icon twice).
-    static List<EffectView> Lines(IReadOnlyList<GearEffect> effects, Func<int, ItemInfo> item) => effects
+    static List<EffectView> EffectRows(IReadOnlyList<GearEffect> effects, Func<int, ItemInfo> item) => effects
         .GroupBy(e => (e.Slot, e.ItemId))
         .Select(g => new EffectView(new ItemCell(item(g.Key.ItemId)), string.Join("\n", g.Select(e => Format.TooltipLine(e.Text)))))
         .ToList();
@@ -170,3 +176,24 @@ sealed class BonusView(string text) : Observable
 
 // An item's Equip/Use line on the gear tab, with the item (its icon, tooltip and link).
 sealed record EffectView(ItemCell Cell, string Text);
+
+// An enchant under its item on the gear tab: the name without the "Enchant Ring -" part, and Wowhead's
+// tooltip for it (Ui/ItemTip) once the full name is found there. Enchants the game shows as stats only
+// ("+4 All Stats", Classic style) have no name to find and stay plain text.
+sealed class EnchantView : Observable
+{
+    public string Text { get; }
+    ItemInfo? info;
+    public ItemInfo? Info { get => info; private set => Set(ref info, value); }
+
+    public EnchantView(string saved, Func<string, int, ItemInfo> lookup, Flavor flavor)
+    {
+        Text = Format.EnchantName(saved);
+        _ = FindAsync(saved, lookup, flavor);
+    }
+
+    async Task FindAsync(string name, Func<string, int, ItemInfo> lookup, Flavor flavor)
+    {
+        if (await Wowhead.FindAsync(name, flavor) is { } hit) Info = lookup(hit.Type, hit.Id);
+    }
+}

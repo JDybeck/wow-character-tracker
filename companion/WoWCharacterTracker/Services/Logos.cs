@@ -7,14 +7,7 @@ namespace WoWCharacterTracker.Services;
 // config. Without a connection the tab just shows its name.
 static class Logos
 {
-    static readonly HttpClient Http = CreateClient();
-
-    static HttpClient CreateClient()
-    {
-        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("WoWCharacterTracker");
-        return http;
-    }
+    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(15));
 
     public static async Task<BitmapSource?> LoadAsync(Flavor flavor)
     {

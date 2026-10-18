@@ -146,11 +146,37 @@ public class ItemKindTests
         var inv = new Inventory("g", [new ItemSlot(Inventory.Equipped, 13, 5, 1)], [], new Dictionary<int, int>(), [], new Dictionary<int, int>(), 1, 0)
         {
             Effects = Inventory.ParseEffects("13~5~Equip: One.\n13~5~Use: Two.\n14~6~Equip: Three."),
+            Enchants = Inventory.ParseEffects("13~5~Enchant Ring - Nature's Fury"),
         };
-        var gear = CharacterGear.From(inv, id => new ItemInfo(id, ""), "WARRIOR", retail: true);
+        var gear = CharacterGear.From(inv, (type, id) => new ItemInfo(id, "", type), Flavors.Retail, "WARRIOR");
         Assert.Equal(["Equip: One.\nUse: Two.", "Equip: Three."], gear.Effects.Select(e => e.Text));
         Assert.False(gear.ShowsCatalystNote); // no sets
+        // Enchants go under the item in its slot, not in a list of their own.
+        Assert.Equal("Nature's Fury", gear.Right.Single(c => c.Item?.ItemId == 5).Enchant?.Text);
+        Assert.All(gear.Left, c => Assert.False(c.HasEnchant));
     }
+
+    [Fact]
+    public void Enchants_are_found_on_Wowhead_by_their_exact_name()
+    {
+        const string json = """
+            {"results":[
+              {"type":3,"id":256752,"name":"Formula: Enchant Ring - Nature's Fury"},
+              {"type":6,"id":1236080,"name":"Enchant Ring - Nature's Fury"},
+              {"type":3,"id":243987,"name":"Enchant Ring - Nature's Fury"}]}
+            """;
+        Assert.Equal(("item", 243987), Wowhead.PickByName(json, "Enchant Ring - Nature's Fury")); // the scroll beats the spell
+        Assert.Equal(("spell", 326805), Wowhead.PickByName("""{"results":[{"type":6,"id":326805,"name":"Rune of Sanguination"}]}""", "Rune of Sanguination"));
+        Assert.Null(Wowhead.PickByName("""{"results":[{"type":3,"id":1,"name":"Something else"}]}""", "+4 All Stats"));
+        Assert.Null(Wowhead.PickByName("""{"search":"x"}""", "x"));
+    }
+
+    [Theory]
+    [InlineData("Enchant Helm - Empowered Blessing of Speed", "Empowered Blessing of Speed")]
+    [InlineData("Enchant Weapon - Rune of Sanguination - extra", "Rune of Sanguination - extra")]
+    [InlineData("+41 Agility/Strength & +115 Stamina", "+41 Agility/Strength & +115 Stamina")]
+    [InlineData("Rune of Sanguination", "Rune of Sanguination")]
+    public void Enchant_names_lose_the_slot_prefix(string saved, string shown) => Assert.Equal(shown, Format.EnchantName(saved));
 }
 
 public class PlaceTests
