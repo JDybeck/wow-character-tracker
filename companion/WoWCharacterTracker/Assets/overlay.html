@@ -13,8 +13,10 @@
 <title>Character Tracker overlay</title>
 <style>
   :root { --scale: 1; --bg: .78; --edge: #d97706; }
-  html, body { margin: 0; background: transparent; overflow: hidden; }
-  body.preview { background: radial-gradient(ellipse at 60% 40%, #3a3f4b 0%, #16181d 70%); min-height: 100vh; }
+  /* The body fills the source: it clips what's outside it, and a fitted part is scaled past its own
+     layout size (transforms don't grow the body), so a content-high body would cut the card off. */
+  html, body { margin: 0; background: transparent; overflow: hidden; height: 100%; }
+  body.preview { background: radial-gradient(ellipse at 60% 40%, #3a3f4b 0%, #16181d 70%); }
   body { font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif; color: #f1f5f9; }
   .wrap { transform: scale(var(--scale)); transform-origin: top left; padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .right .wrap { transform-origin: top right; align-items: flex-end; }

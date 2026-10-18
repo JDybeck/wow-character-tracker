@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.21.2
+
+- **Stream card and highlights no longer cut off**: as a single source (`?only=card`, `?only=highlights`) the part is scaled up to fill the source, but the page only kept its unscaled height, so everything below the first lines was cut away in OBS and Streamlabs. Now the whole part shows.
+- **Test alert fills the highlights too**: each test (boss kill, loot, duel...) also puts its line in the highlights box for a few seconds, so you can place the highlights source without waiting for real loot.
+
 ## v0.21.1
 
 - **Missing ding screenshots fixed**: a screenshot taken mid-fight could be overwritten by the tracker's own data shot when the fight ended in the same second (the game names screenshots by the second), so the post went out without a picture. Shots now always land in different seconds. Comes with the updated addon, so log in (or `/reload`) once.
