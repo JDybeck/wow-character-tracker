@@ -28,6 +28,7 @@ record Entry
     public long Money { get; init; }            // copper the character had
     public string Crests { get; init; } = "";  // retail: "Gilded Crest 45, Runed Crest 120"
     public string Keystone { get; init; } = ""; // retail: "level~mapID~dungeon", "none" without one
+    public string ZoneType { get; init; } = ""; // dungeon, raid, pvp, rest (inn or city), zone; "" before 0.20.0
     public string? Guild { get; init; }         // "" = no guild, null = not known
     public string Surname { get; init; } = ""; // Forever: "Raket" for Ronnie Raket
     public string Region { get; init; } = "";  // "eu", "us", "kr", "tw", "cn"
@@ -107,6 +108,7 @@ record Entry
             Money = (long)n("money"),
             Crests = s("crests"),
             Keystone = s("keystone"),
+            ZoneType = s("zoneType"),
             Guild = s("guild") is { Length: > 0 } g ? g : null,
             Surname = s("surname"),
             Region = s("region"),

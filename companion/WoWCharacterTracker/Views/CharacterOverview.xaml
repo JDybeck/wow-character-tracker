@@ -71,7 +71,11 @@
         <ItemsControl ItemsSource="{Binding StatChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
       </StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
-      <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
+      <StackPanel Orientation="Horizontal">
+        <Image Source="{Binding ZoneIconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center"
+               ToolTip="{Binding ZoneKindName}" Visibility="{Binding ZoneIconUrl, Converter={StaticResource VisibleIfSet}}"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
+      </StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="TAGS"/>
       <ItemsControl ItemsSource="{Binding TagOptions}">
         <ItemsControl.ItemsPanel>

@@ -120,4 +120,15 @@ static class Wowhead
         ["Inscription"] = "inv_inscription_tradeskill01", ["Jewelcrafting"] = "inv_misc_gem_01",
         ["Cooking"] = "inv_misc_food_15", ["Fishing"] = "trade_fishing", ["First Aid"] = "spell_holy_sealofsacrifice",
     };
+
+    // Character sheet stat icons by the names Character.lua's getStats uses (the buff or ability that
+    // stands for each).
+    public static readonly Dictionary<string, string> StatIcons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Strength"] = "spell_nature_strength", ["Agility"] = "spell_holy_blessingofagility",
+        ["Stamina"] = "spell_nature_unyeildingstamina", ["Intellect"] = "spell_holy_magicalsentry",
+        ["Spirit"] = "spell_holy_divinespirit", ["Armor"] = "inv_shield_06", ["Attack Power"] = "ability_warrior_battleshout",
+        ["Spell Power"] = "spell_fire_flamebolt", ["Crit"] = "ability_criticalstrike", ["Haste"] = "spell_nature_bloodlust",
+        ["Mastery"] = "spell_holy_championsbond", ["Versatility"] = "ability_paladin_artofwar",
+    };
 }

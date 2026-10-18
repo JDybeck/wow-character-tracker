@@ -210,6 +210,19 @@ local function getZone()
   return zone
 end
 
+-- What kind of place the zone is: dungeon, raid, pvp (battleground or arena), rest (an inn or a
+-- city, where the character is resting) or zone. The app tells capital cities from towns by name.
+local function getZoneType()
+  local inInstance, kind = IsInInstance()
+  if inInstance then
+    if kind == "raid" then return "raid" end
+    if kind == "pvp" or kind == "arena" then return "pvp" end
+    return "dungeon"
+  end
+  if IsResting and IsResting() then return "rest" end
+  return "zone"
+end
+
 local function getItemLevel()
   if type(GetAverageItemLevel) ~= "function" then return nil end
   local overall, equipped = GetAverageItemLevel()
@@ -378,6 +391,7 @@ function ns.characterInfo()
     region = safe(getRegion),
     level = safe(UnitLevel, "player"),
     zone = safe(getZone),
+    zoneType = safe(getZoneType),
     professions = safe(getProfessions),
     talents = talents,
     talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)

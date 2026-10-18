@@ -55,3 +55,32 @@ public class ItemKindTests
         Assert.Equal(kind, new ItemInfo(1, "") { ClassId = classId }.Kind);
     }
 }
+
+public class PlaceTests
+{
+    [Theory]
+    [InlineData("The Deadmines", "dungeon", "Dungeon")]
+    [InlineData("Molten Core", "raid", "Raid")]
+    [InlineData("Warsong Gulch", "pvp", "Battleground")]
+    [InlineData("Ironforge", "rest", "City")]
+    [InlineData("Orgrimmar", "", "City")]          // from before zone types: capitals are still known
+    [InlineData("Goldshire", "rest", "Town")]
+    [InlineData("Elwynn Forest", "zone", "Zone")]
+    public void Zone_kind(string zone, string type, string expected)
+    {
+        Assert.Equal(expected, Places.Of(zone, type)?.Name);
+    }
+
+    [Fact]
+    public void Unknown_type_has_no_kind()
+    {
+        Assert.Null(Places.Of("Elwynn Forest", ""));
+    }
+
+    [Fact]
+    public void Every_stat_the_addon_sends_has_an_icon()
+    {
+        foreach (var stat in new[] { "Strength", "Agility", "Stamina", "Intellect", "Spirit", "Armor", "Attack Power", "Spell Power", "Crit", "Haste", "Mastery", "Versatility" })
+            Assert.True(Wowhead.StatIcons.ContainsKey(stat), stat);
+    }
+}

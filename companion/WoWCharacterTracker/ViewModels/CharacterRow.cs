@@ -43,7 +43,8 @@ sealed class CharacterRow : Observable
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
     public IReadOnlyList<(string Name, string Value)> StatList => Stats.Split(',', StringSplitOptions.RemoveEmptyEntries)
         .Select(p => p.Split('~')).Where(p => p.Length == 2).Select(p => (p[0], p[1])).ToList();
-    public IReadOnlyList<IconChip> StatChips => StatList.Select(s => new IconChip($"{s.Name} {s.Value}")).ToList();
+    public IReadOnlyList<IconChip> StatChips => StatList.Select(s => new IconChip($"{s.Name} {s.Value}",
+        Wowhead.StatIcons.TryGetValue(s.Name, out var icon) ? Wowhead.IconUrl(icon, "small") : null, s.Name)).ToList();
     public bool HasStats => Stats.Length > 0;
     public string FullName => Surname.Length > 0 ? $"{Name} {Surname}" : Name;
 
@@ -130,6 +131,10 @@ sealed class CharacterRow : Observable
     public string ProfessionsText => Professions is { Length: > 0 } and not "None" ? Professions : "None yet";
     public string TalentsText => Talents.Length > 0 ? Talents : "-";
     public string ZoneText => Zone.Length > 0 ? Zone : "-";
+    public string ZoneType { get; init; } = "";       // dungeon, raid, pvp, rest, zone (Places)
+    Places.Kind? ZoneKind => Places.Of(Zone, ZoneType);
+    public string? ZoneIconUrl => ZoneKind is { } k ? Wowhead.IconUrl(k.Icon, "small") : null;
+    public string ZoneKindName => ZoneKind?.Name ?? "";
     public string Description => string.Join(" ", new[] { Race, Spec, ClassName }.Where(s => s.Length > 0));
     public bool HasLevels => Levels.Count > 0;
     public bool HasHighlights => Highlights.Count > 0;
@@ -230,6 +235,7 @@ sealed class CharacterRow : Observable
                 ItemLevel = s?.ItemLevel is > 0 ? s.ItemLevel : last?.ItemLevel ?? 0,
                 Played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0),
                 Zone = Pick(s?.Zone, last?.Zone),
+                ZoneType = s?.Zone is { Length: > 0 } ? s.ZoneType : last?.ZoneType ?? "", // from where the zone came from
                 Professions = Pick(s?.Professions, last?.Professions),
                 Talents = Pick(s?.Talents, last?.Talents),
                 LastSeen = Math.Max(s?.LastSeen ?? 0, last?.At ?? 0),

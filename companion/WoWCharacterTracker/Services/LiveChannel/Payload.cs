@@ -15,7 +15,7 @@ static class Payload
         ["c"] = "class", ["C"] = "classFile", ["e"] = "race", ["E"] = "raceFile", ["x"] = "sex", ["h"] = "hardcore",
         ["u"] = "ruleset", ["d"] = "seconds", ["y"] = "played", ["b"] = "boss", ["I"] = "instance", ["m"] = "item",
         ["M"] = "itemId", ["q"] = "quality", ["G"] = "gold", ["K"] = "killer", ["w"] = "mount", ["B"] = "bought",
-        ["S"] = "shot", ["P"] = "group", ["Z"] = "groupSize", ["N"] = "money", ["R"] = "crests", ["X"] = "maxLevel", ["U"] = "guild", ["L"] = "surname", ["O"] = "opponent", ["F"] = "fled", ["T"] = "rating", ["H"] = "step", ["D"] = "bracket", ["J"] = "talentExport", ["Q"] = "talentCalc", ["A"] = "region", ["Y"] = "lost", ["V"] = "opponentInfo", ["W"] = "keystone",
+        ["S"] = "shot", ["P"] = "group", ["Z"] = "groupSize", ["N"] = "money", ["R"] = "crests", ["X"] = "maxLevel", ["U"] = "guild", ["L"] = "surname", ["O"] = "opponent", ["F"] = "fled", ["T"] = "rating", ["H"] = "step", ["D"] = "bracket", ["J"] = "talentExport", ["Q"] = "talentCalc", ["A"] = "region", ["Y"] = "lost", ["V"] = "opponentInfo", ["W"] = "keystone", ["f"] = "zoneType",
     };
 
     public static Entry? Parse(string data)
