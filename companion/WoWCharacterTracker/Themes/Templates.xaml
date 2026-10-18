@@ -238,13 +238,13 @@
     </Setter>
   </Style>
 
-  <!-- Realm / ruleset filter chips. -->
+  <!-- Realm / ruleset filter chips (Views/ChipBar), item kinds. The margin spaces wrapped rows too. -->
   <Style x:Key="GroupChipItem" TargetType="ListBoxItem">
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ListBoxItem">
-          <Border x:Name="Bd" Padding="10,3" CornerRadius="12" Margin="0,0,6,0" BorderThickness="1" BorderBrush="#334155" Background="Transparent">
+          <Border x:Name="Bd" Padding="10,3" CornerRadius="12" Margin="0,2,6,2" BorderThickness="1" BorderBrush="#334155" Background="Transparent">
             <TextBlock x:Name="Txt" Text="{Binding Label}" FontSize="12" Foreground="{StaticResource Muted}"/>
           </Border>
           <ControlTemplate.Triggers>

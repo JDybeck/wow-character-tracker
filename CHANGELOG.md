@@ -2,6 +2,21 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.22.0
+
+- **Stream card and highlights no longer cut off**: as a single source (`?only=card`, `?only=highlights`) the part is scaled up to fill the source, but the page only kept its unscaled height, so everything below the first lines was cut away in OBS and Streamlabs. Now the whole part shows.
+- **Fast with lots of characters**: with 60+ characters the app froze for 10 seconds or more at startup and again when opening Items. Now the Items list is only built when you open it and only draws what's on screen, a character's gear, bags and icons load when you open that character, and Wowhead lookups run in the background. Startup went from about 30 seconds of work to 2 on 64 Retail characters.
+- **Realm filter under the page tabs**: with many realms the filter chips pushed the Characters, Items... tabs off screen. The chips now sit at the top of the Characters and Items pages and wrap onto more lines when needed.
+- **Tell your guild or group** (In game page): the addon can write a line in guild and/or party/raid chat when you level up, hit max level, kill an end boss, loot an epic (as a clickable link), get a mount, win a duel, Mak'gora or battleground, reach a rating step, or die in hardcore. Pick which. Messages wait until you're out of combat, and boss kills don't list the group. Off until you turn it on.
+- **Battlegrounds**: wins and losses are tracked (with the updated addon), shown as highlights, as a record on the stream card, and a win pops VICTORY! on the stream.
+- **Stream highlights show losses too**: duel and Mak'gora losses now show in the highlights box, the same lines as in the app.
+- **Loot is a highlight right away**: loot that isn't posted used to wait for /reload before it showed. Now it comes in live like everything else.
+- **Sort your characters**: click CLASS, LEVEL, ITEM LEVEL, GOLD or LAST SEEN to sort, click again to flip. Race, played time and rating (Retail) sort from next to CHARACTER. Remembered per game.
+- **Role icons**: tanks, healers, and damage dealers split into melee, ranged (bow) and caster. Forever characters get one from their top talent tree.
+- **Same picture everywhere**: Discord posts showed a race portrait for Retail characters while the app showed their real render. One rule now picks the picture for the app, posts and cards. The post sender is always the Character Tracker logo, with the character's picture in the post.
+- **Smoother start**: the window fades in once it's ready instead of stuttering.
+- **Test alert fills the highlights too**: each test (boss kill, loot, duel...) also puts its line in the highlights box for a few seconds, so you can place the highlights source without waiting for real loot.
+
 ## v0.21.1
 
 - **Missing ding screenshots fixed**: a screenshot taken mid-fight could be overwritten by the tracker's own data shot when the fight ended in the same second (the game names screenshots by the second), so the post went out without a picture. Shots now always land in different seconds. Comes with the updated addon, so log in (or `/reload`) once.

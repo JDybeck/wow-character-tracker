@@ -28,7 +28,9 @@ static class Wowhead
     {
         if (id <= 0) return Task.FromResult<Info?>(null);
         var key = $"{flavor.WowheadPath}{type}/{id}";
-        return Lookups.GetOrAdd(key, k => FetchAsync(k));
+        // On a worker thread: the first lookup reads the whole cache file and every hit parses its
+        // tooltip HTML, which on the UI thread froze the window with thousands of items.
+        return Lookups.GetOrAdd(key, k => Task.Run(() => FetchAsync(k)));
     }
 
     static async Task<Info?> FetchAsync(string key)

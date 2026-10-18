@@ -48,24 +48,24 @@ sealed partial class DiscordWebhook(string url)
         }
     }
 
-    // avatar: the sender picture for this message (the character's portrait), or the logo.
-    public async Task<bool> SendAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar) =>
-        await SendOrReportAsync(embed, image, imageName, avatar) == Result.Sent;
+    // The sender is always the app (its logo), so posts keep one identity; the character's picture is in the message.
+    public async Task<bool> SendAsync(Dictionary<string, object> embed, byte[]? image, string imageName) =>
+        await SendOrReportAsync(embed, image, imageName) == Result.Sent;
 
-    public async Task<bool> SendAsync(IReadOnlyList<Dictionary<string, object>> embeds, IReadOnlyList<(byte[] Data, string Name)> files, string? avatar) =>
-        await SendOrReportAsync(embeds, files, avatar) == Result.Sent;
+    public async Task<bool> SendAsync(IReadOnlyList<Dictionary<string, object>> embeds, IReadOnlyList<(byte[] Data, string Name)> files) =>
+        await SendOrReportAsync(embeds, files) == Result.Sent;
 
     // Like SendAsync, but says when Discord turned the image down for its size (HTTP 413).
-    public Task<Result> SendOrReportAsync(Dictionary<string, object> embed, byte[]? image, string imageName, string? avatar) =>
-        SendOrReportAsync([embed], image is null ? [] : [(image, imageName)], avatar);
+    public Task<Result> SendOrReportAsync(Dictionary<string, object> embed, byte[]? image, string imageName) =>
+        SendOrReportAsync([embed], image is null ? [] : [(image, imageName)]);
 
     // Several embeds (a loot post's item picture and screenshot) and the files they show as
     // attachment://<name>, in one message.
-    public async Task<Result> SendOrReportAsync(IReadOnlyList<Dictionary<string, object>> embeds, IReadOnlyList<(byte[] Data, string Name)> files, string? avatar)
+    public async Task<Result> SendOrReportAsync(IReadOnlyList<Dictionary<string, object>> embeds, IReadOnlyList<(byte[] Data, string Name)> files)
     {
         var body = new Dictionary<string, object>
         {
-            ["avatar_url"] = avatar ?? LogoUrl,
+            ["avatar_url"] = LogoUrl,
             ["embeds"] = embeds,
             ["allowed_mentions"] = new { parse = Array.Empty<string>() },
         };

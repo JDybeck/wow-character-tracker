@@ -3,7 +3,10 @@ namespace WoWCharacterTracker.Services.Discord;
 // Posts to one webhook for one game tab: events (with an optional screenshot) and character cards.
 // nameStyle: what posts call the character on Forever ("full", "first" or "last").
 // standardPortrait: Forever characters (by GUID) the user set to the standard picture instead of the in-game one.
-sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = "full", Func<string, bool>? standardPortrait = null)
+// known: the character as the app knows it (by GUID), whose region and realm fill in what an event
+// leaves out, so posts get the same picture as the app (CharacterPicture).
+sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = "full", Func<string, bool>? standardPortrait = null,
+    Func<string, PictureSubject?>? known = null)
 {
     readonly DiscordWebhook webhook = new(webhookUrl);
     readonly EventEmbeds embeds = new(flavor);
@@ -15,7 +18,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
     // the item picture.
     public async Task<bool> PostAsync(Entry e, bool isTest = false, string? screenshot = null)
     {
-        var avatar = await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile);
+        var picture = await CharacterPicture.StandardAsync(flavor, SubjectOf(e));
         // A made-up test character says so in the name and under the post, so nobody takes it for real.
         var testChar = TestCharacters.IsTest(e.Guid);
         e = e with
@@ -24,7 +27,8 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             Realm = testChar ? $"Test character, not a real one ({e.Realm})" : e.Realm,
         };
         var item = e.Kind == "loot" && e.ItemId > 0 ? await ItemTooltipImage.RenderAsync(e.ItemId, flavor) : null;
-        var embed = await embeds.BuildAsync(e, isTest, itemPicture: item is not null);
+        var embed = embeds.Build(e, isTest, itemPicture: item is not null);
+        if (picture is not null) embed["thumbnail"] = new { url = picture };
 
         var list = new List<Dictionary<string, object>> { embed };
         var files = new List<(byte[] Data, string Name)>();
@@ -37,7 +41,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         if (screenshot is not null && !File.Exists(screenshot))
             Log.Warn($"The screenshot for this post was gone before it could be sent ({Path.GetFileName(screenshot)}), so it went out without one.");
         if (screenshot is null || !File.Exists(screenshot))
-            return await webhook.SendAsync(list, files, avatar);
+            return await webhook.SendAsync(list, files);
 
         var shotEmbed = embed;
         if (item is not null)
@@ -52,20 +56,20 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         var image = await File.ReadAllBytesAsync(screenshot);
         var name = "screenshot" + Path.GetExtension(screenshot).ToLowerInvariant();
         shotEmbed["image"] = new { url = "attachment://" + name };
-        var result = await webhook.SendOrReportAsync(list, [.. files, (image, name)], avatar);
+        var result = await webhook.SendOrReportAsync(list, [.. files, (image, name)]);
         if (result != DiscordWebhook.Result.TooLarge) return result == DiscordWebhook.Result.Sent;
 
         if (await Task.Run(() => ImageShrinker.ToJpegUnder(image, DiscordWebhook.FreeUploadLimit)) is { } smaller)
         {
             Log.Info($"The screenshot was too big for this Discord server ({image.Length / 1_000_000.0:0.#} MB), so a smaller copy was sent.");
             shotEmbed["image"] = new { url = "attachment://screenshot.jpg" };
-            if (await webhook.SendOrReportAsync(list, [.. files, (smaller, "screenshot.jpg")], avatar) is var r && r != DiscordWebhook.Result.TooLarge)
+            if (await webhook.SendOrReportAsync(list, [.. files, (smaller, "screenshot.jpg")]) is var r && r != DiscordWebhook.Result.TooLarge)
                 return r == DiscordWebhook.Result.Sent;
         }
         if (shotEmbed == embed) embed.Remove("image");
         else list.Remove(shotEmbed);
         Log.Warn("The screenshot was too big for Discord even when shrunk, so the post went out without it.");
-        return await webhook.SendAsync(list, files, avatar);
+        return await webhook.SendAsync(list, files);
     }
 
     // A character card, sent from the character details in the app. With a rendered card image
@@ -82,7 +86,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         {
             embed.Remove("description"); // the card says it already
             embed["image"] = new { url = "attachment://card.png" };
-            return await webhook.SendAsync(embed, card, "card.png", await PictureAsync(c));
+            return await webhook.SendAsync(embed, card, "card.png");
         }
 
         embed["fields"] = CardFields(c, Shows);
@@ -115,16 +119,15 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         if (picture is not null) embed["thumbnail"] = new { url = picture };
         var files = new List<(byte[] Data, string Name)>();
         await AddPortraitAsync(embed, files, c.Guid);
-        return await webhook.SendAsync([embed], files, picture);
+        return await webhook.SendAsync([embed], files);
     }
 
     // Every post's thumbnail is the picture the app shows for the character (CharacterRow.PictureUrl).
     // Forever's in-game portrait is a file on this PC, so it's uploaded with the message and replaces
-    // the standard thumbnail; the sender avatar has to be a web address, so that stays the standard picture.
+    // the standard thumbnail. The sender is always the app's logo (DiscordWebhook).
     async Task AddPortraitAsync(Dictionary<string, object> embed, List<(byte[] Data, string Name)> files, string guid)
     {
-        if (flavor != Flavors.Forever || standardPortrait?.Invoke(guid) == true) return;
-        if (CharacterArt.LocalPortrait(guid) is not { } own) return;
+        if (CharacterPicture.GamePortrait(flavor, guid, standardPortrait?.Invoke(guid) == true) is not { } own) return;
         try { files.Add((await File.ReadAllBytesAsync(own), "portrait.png")); }
         catch (IOException) { return; } // being replaced by a new check-in right now, the standard one will do
         embed["thumbnail"] = new { url = "attachment://portrait.png" };
@@ -132,8 +135,12 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
 
     string CharacterName(CharacterRow c) => Marked(Format.Name(c.Name, c.Surname, nameStyle), c.IsTest);
 
-    Task<string?> PictureAsync(CharacterRow c) =>
-        CharacterArt.PictureUrlAsync(flavor, c.Region, c.Realm, c.Name, c.RaceFile, c.Sex, c.ClassFile);
+    Task<string?> PictureAsync(CharacterRow c) => CharacterPicture.StandardAsync(flavor, c.Picture);
+
+    // The character an event is about, for its picture: as the app knows it when it does (events
+    // often don't carry the region a Retail render needs), else from the event itself.
+    PictureSubject SubjectOf(Entry e) =>
+        known?.Invoke(e.Guid) ?? new PictureSubject(e.Guid, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile);
 
     // What every post about a character has: the title, the class color stripe, the realm with the
     // class icon on top, and the footer.

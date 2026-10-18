@@ -40,6 +40,8 @@ sealed class FlavorViewModel : Observable
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
         Items = new ItemsViewModel(ItemFor);
+        // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
+        Groups = new ChipFilter(flavor == Flavors.Forever ? "Ruleset" : "Realm", () => ShowData(lastData));
         _ = LoadLogoAsync();
         Shots = Flavors.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
@@ -127,7 +129,11 @@ sealed class FlavorViewModel : Observable
 
     public ObservableCollection<CharacterRow> Characters { get; } = [];
     CharacterRow? selectedCharacter;
-    public CharacterRow? SelectedCharacter { get => selectedCharacter; set => Set(ref selectedCharacter, value); }
+    public CharacterRow? SelectedCharacter
+    {
+        get => selectedCharacter;
+        set { if (Set(ref selectedCharacter, value)) _ = value?.LoadIconsAsync(Flavor); } // only the opened one needs its icons
+    }
     public bool HasCharacters => Characters.Count > 0;
 
     string statusText = "Starting up...";
@@ -166,6 +172,22 @@ sealed class FlavorViewModel : Observable
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
     public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
     public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
+
+    // Telling the guild and/or group in game chat (In game page; the addon's Announce.lua).
+    public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; Changed(); Raise(nameof(Announces)); } }
+    public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; Changed(); Raise(nameof(Announces)); } }
+    public bool Announces => AnnounceGuild || AnnounceParty;
+    static readonly (string Kind, string Name, string Tip)[] AnnounceNames =
+    [
+        ("level", "Level-ups", "\"Ding! Level 23. 22 to 23 took 41m 12s.\""), ("maxlevel", "Max level", "\"Reached max level 60! Total played 6d 4h 12m.\""),
+        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\" (without the group)"), ("loot", "Epic loot", "Epic and legendary items, as a link you can click"),
+        ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
+        ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
+        ("mplus", "Mythic+", "Mythic+ rating steps (Retail)"), ("pvp", "PvP rating", "PvP rating steps (Retail)"), ("death", "Deaths", "Hardcore deaths"),
+    ];
+    ObservableCollection<ToggleOption>? announceKinds;
+    public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
+        ToggleOption.Kinds(AnnounceNames.Where(k => IsRetail || k.Kind is not ("mplus" or "pvp")), Settings.AnnounceKinds, () => AddonSettingsChanged());
 
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
@@ -531,23 +553,26 @@ sealed class FlavorViewModel : Observable
 
     public void Refresh() => ShowData(lastData);
 
-    // Retail characters are grouped by realm, Forever ones by ruleset (hardcore, self-found...).
-    public string GroupLabel => Flavor == Flavors.Forever ? "Ruleset" : "Realm";
+    // The realm (Retail) or ruleset (Forever) chips over the character list.
+    public ChipFilter Groups { get; }
     string GroupOf(CharacterRow r) => Flavor == Flavors.Forever ? r.Ruleset : r.Realm;
 
-    public ObservableCollection<GroupChip> Groups { get; } = [];
-    public bool HasGroups => Groups.Count > 2; // "All" plus at least two groups
-
-    GroupChip? selectedGroup;
-    public GroupChip? SelectedGroup
+    // The list's order: clicking a column header (or race, played, rating) sorts by it, again flips it.
+    CharacterSort? sort;
+    public CharacterSort Sort => sort ??= CharacterSort.Parse(main.Config.CharacterSort.GetValueOrDefault(Flavor.Key));
+    public ICommand SortCommand => sortCommand ??= new RelayCommand(p =>
     {
-        get => selectedGroup;
-        set
-        {
-            if (value is null || !Set(ref selectedGroup, value)) return;
-            ShowData(lastData);
-        }
-    }
+        if (p is not string key) return;
+        Sort.Click(key);
+        main.Config.CharacterSort[Flavor.Key] = Sort.ToString();
+        main.Config.Save();
+        ShowData(lastData);
+    });
+    ICommand? sortCommand;
+
+    // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
+    List<CharacterRow> allRows = [];
+    public CharacterRow? RowFor(string guid) => allRows.FirstOrDefault(r => r.Guid == guid);
 
     void ShowData(TrackerData data)
     {
@@ -573,19 +598,11 @@ sealed class FlavorViewModel : Observable
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
 
-        // Rebuild the chips, keeping the chosen one if it still exists.
-        var chosen = selectedGroup?.Key ?? "";
-        var chips = new List<GroupChip> { new("", $"All ({rows.Count})") };
-        chips.AddRange(rows.GroupBy(GroupOf).OrderBy(g => g.Key)
-            .Select(g => new GroupChip(g.Key, $"{(g.Key.Length > 0 ? g.Key : "Unknown")} ({g.Count()})")));
-        Groups.Clear();
-        foreach (var c in chips) Groups.Add(c);
-        selectedGroup = Groups.FirstOrDefault(c => c.Key == chosen) ?? Groups[0];
-        Raise(nameof(SelectedGroup));
-        Raise(nameof(HasGroups));
+        allRows = rows;
+        Groups.Fill(rows, GroupOf);
 
         Characters.Clear();
-        foreach (var r in rows.Where(r => selectedGroup.Key.Length == 0 || GroupOf(r) == selectedGroup.Key))
+        foreach (var r in Sort.Apply(rows.Where(r => Groups.Matches(GroupOf(r)))))
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
             r.SetPortraitChoice(main.Config.StandardPortraits.Contains(r.Guid), standard =>
@@ -596,7 +613,6 @@ sealed class FlavorViewModel : Observable
             });
             Characters.Add(r);
             _ = r.LoadPictureAsync(Flavor);
-            _ = r.LoadIconsAsync(Flavor);
         }
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
@@ -615,7 +631,7 @@ sealed class FlavorViewModel : Observable
     {
         get
         {
-            var where = selectedGroup is { Key.Length: > 0 } g ? $" on {g.Key}" : "";
+            var where = Groups.Key.Length > 0 ? $" on {Groups.Key}" : "";
             var count = Characters.Count;
             return $"Total gold{where} ({count} character{(count == 1 ? "" : "s")}):";
         }

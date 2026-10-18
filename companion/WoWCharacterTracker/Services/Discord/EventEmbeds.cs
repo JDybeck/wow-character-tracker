@@ -12,7 +12,7 @@ sealed class EventEmbeds(Flavor flavor)
     public string ItemUrl(int itemId) => $"https://www.wowhead.com/{flavor.WowheadPath}item={itemId}";
 
     // itemPicture: the post shows the item's tooltip as a picture, so the text leaves out the item line.
-    public async Task<Dictionary<string, object>> BuildAsync(Entry e, bool isTest, bool itemPicture = false)
+    public Dictionary<string, object> Build(Entry e, bool isTest, bool itemPicture = false)
     {
         var (title, lines) = e.Kind switch
         {
@@ -61,8 +61,7 @@ sealed class EventEmbeds(Flavor flavor)
             embed["author"] = author;
         }
 
-        if (await CharacterArt.PictureUrlAsync(flavor, e.Region, e.Realm, e.Char, e.RaceFile, e.Sex, e.ClassFile) is { } picture)
-            embed["thumbnail"] = new { url = picture };
+        // The thumbnail (the character's picture) is added by DiscordPoster, by CharacterPicture's rule.
 
         var footer = isTest ? "Test message from Character Tracker" : e.Realm;
         if (footer.Length > 0) embed["footer"] = new { text = footer };

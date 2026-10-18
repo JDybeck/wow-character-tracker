@@ -46,10 +46,12 @@ function on.PLAYER_ENTERING_WORLD()
   local inInstance = IsInInstance and IsInInstance() or false
   if ns.wasInInstance and not inInstance then remindSoon() end
   ns.wasInInstance = inInstance
+  ns.checkBattleground() -- out of a battleground: ready for the next one
 end
 
 function on.PLAYER_REGEN_ENABLED()
   ns.processShots() -- data grids held back during combat
+  ns.flushAnnouncements() -- guild/group messages held back during combat
   if ns.popupLevel then
     local level = ns.popupLevel
     ns.popupLevel = nil
@@ -71,6 +73,8 @@ function on.CHAT_MSG_SYSTEM(text) ns.onSystemMessage(text) end -- duels and Mak'
 function on.DUEL_REQUESTED(name) ns.onDuelRequested(name) end -- remembers the challenger's class and level
 function on.CHALLENGE_MODE_COMPLETED() C_Timer.After(5, ns.checkRatings) end -- the new score takes a moment
 function on.PVP_RATED_STATS_UPDATE() ns.checkRatings() end
+function on.UPDATE_BATTLEFIELD_STATUS() ns.checkBattleground() end
+function on.PVP_MATCH_COMPLETE() ns.checkBattleground() end -- retail
 
 -- Mounts: bought while a vendor is open, or learned
 function on.MERCHANT_SHOW() ns.merchantOpen = true end

@@ -25,16 +25,8 @@ static class CharacterArt
     public static string? ClassIconUrl(string classFile) =>
         classFile.Length > 0 ? $"{IconBase}classicon_{classFile.ToLowerInvariant()}.jpg" : null;
 
-    // The best picture of the character: on Retail its actual render (from Raider.IO, needs the
-    // region), otherwise the race portrait, and the class icon as the last fallback.
-    public static async Task<string?> PictureUrlAsync(Flavor flavor, string region, string realm, string name,
-        string raceFile, string sex, string classFile)
-    {
-        if (flavor == Flavors.Retail && await RaiderIo.AvatarUrlAsync(region, realm, name) is { } render) return render;
-        return await PictureUrlAsync(raceFile, sex, classFile);
-    }
-
-    // The race portrait matches the character best; the class icon is the fallback.
+    // The race portrait matches the character best; the class icon is the fallback. Which picture a
+    // character gets overall is CharacterPicture's call.
     public static async Task<string?> PictureUrlAsync(string raceFile, string sex, string classFile)
     {
         if (raceFile.Length > 0)

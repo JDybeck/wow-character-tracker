@@ -74,6 +74,7 @@ sealed class StreamViewModel : Observable
     public bool ShowToday { get => Options.ShowToday; set { Options.ShowToday = value; OptionsChanged(); } }
     public bool ShowDuels { get => Options.ShowDuels; set { Options.ShowDuels = value; OptionsChanged(); } }
     public bool ShowMakgora { get => Options.ShowMakgora; set { Options.ShowMakgora = value; OptionsChanged(); } }
+    public bool ShowBattlegrounds { get => Options.ShowBattlegrounds; set { Options.ShowBattlegrounds = value; OptionsChanged(); } }
     public bool ShowHighlights { get => Options.ShowHighlights; set { Options.ShowHighlights = value; OptionsChanged(); } }
 
     // Which highlights count, as on/off chips. Mythic+ and PvP rating are Retail only, so they're
@@ -81,8 +82,8 @@ sealed class StreamViewModel : Observable
     static readonly (string Kind, string Name, string Tip)[] KindNames =
     [
         ("loot", "Loot", "Rare, epic and legendary items looted"), ("boss", "Boss kills", "Dungeon and raid end bosses killed"),
-        ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won (losses only count in the record on the card)"),
-        ("makgora", "Mak'gora", "Mak'goras won"), ("death", "Deaths", "Hardcore deaths"),
+        ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won and lost"),
+        ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"), ("death", "Deaths", "Hardcore deaths"),
         ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
     ];
     static readonly string[] RetailOnly = ["mplus", "pvp"];
@@ -98,20 +99,16 @@ sealed class StreamViewModel : Observable
         ("boss", "Boss kills", "VICTORY! when an end boss dies"), ("legendary", "Legendary loot", "LEGENDARY! in orange"),
         ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
         ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"), ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"),
+        ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
         ("death", "Deaths", "R.I.P. when a hardcore character dies"),
         ("mplus", "Mythic+", "MILESTONE! for a Mythic+ rating step (Retail)"), ("pvp", "PvP rating", "MILESTONE! for a PvP rating step (Retail)"),
     ];
     ObservableCollection<ToggleOption>? alertKinds;
     public ObservableCollection<ToggleOption> AlertKinds => alertKinds ??= Chips(AlertNames, Options.AlertKinds);
 
-    // One on/off chip per kind this game offers; a click adds the kind to the list or takes it out.
+    // One on/off chip per kind this game offers.
     ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
-        new(names.Where(k => OffersKind(k.Kind)).Select(k => new ToggleOption(k.Name, picked.Contains(k.Kind), on =>
-        {
-            picked.Remove(k.Kind);
-            if (on) picked.Add(k.Kind);
-            OptionsChanged();
-        }, k.Tip)));
+        ToggleOption.Kinds(names.Where(k => OffersKind(k.Kind)), picked, OptionsChanged);
 
     // What the overlay counts: three choices, the one in use highlighted.
     public bool RangeAll => Options.RangeMode == "all";
@@ -197,21 +194,25 @@ sealed class StreamViewModel : Observable
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var level = snapshot.HasCharacter ? snapshot.Level + 1 : 40;
         var name = snapshot.HasCharacter ? snapshot.Character : "Zeb TESTCHAR";
-        StreamAlert[] samples =
+        // Each alert with the highlight line it would add (level-ups aren't highlights), so the
+        // highlights source can be set up too.
+        (StreamAlert Alert, string Highlight)[] samples =
         [
-            new("", "level", "DING!", $"Level {level}", $"{level - 1} to {level} took 23m 11s", "gold", now),
-            new("", "maxlevel", "MAX LEVEL!", "Level 60", "Total played 6d 4h 12m", "legendary", now),
-            new("", "boss", "VICTORY!", "Edwin VanCleef defeated", "The Deadmines", "victory", now),
-            new("", "legendary", "LEGENDARY!", "Thunderfury, Blessed Blade of the Windseeker", "", "legendary", now),
-            new("", "epic", "EPIC LOOT!", "Sul'thraze the Lasher", "", "epic", now),
-            new("", "duel", "VICTORY!", "Won a duel against Grimtusk", "Level 40 Orc Warrior", "duel", now),
-            new("", "makgora", "MAK'GORA!", "Grimtusk fell to the death", "Level 40 Orc Warrior", "blood", now),
-            new("", "mount", "NEW MOUNT!", "Swift Palomino", "", "gold", now),
-            new("", "death", "R.I.P.", $"{name} fell at level {level - 1}", "After 3d 5h played", "death", now),
+            (new("", "level", "DING!", $"Level {level}", $"{level - 1} to {level} took 23m 11s", "gold", now), ""),
+            (new("", "maxlevel", "MAX LEVEL!", "Level 60", "Total played 6d 4h 12m", "legendary", now), ""),
+            (new("", "boss", "VICTORY!", "Edwin VanCleef defeated", "The Deadmines", "victory", now), "Killed Edwin VanCleef"),
+            (new("", "legendary", "LEGENDARY!", "Thunderfury, Blessed Blade of the Windseeker", "", "legendary", now), "Looted Thunderfury, Blessed Blade of the Windseeker"),
+            (new("", "epic", "EPIC LOOT!", "Sul'thraze the Lasher", "", "epic", now), "Looted Sul'thraze the Lasher"),
+            (new("", "duel", "VICTORY!", "Won a duel against Grimtusk", "Level 40 Orc Warrior", "duel", now), "Won a duel against Grimtusk"),
+            (new("", "makgora", "MAK'GORA!", "Grimtusk fell to the death", "Level 40 Orc Warrior", "blood", now), "Won a Mak'gora against Grimtusk"),
+            (new("", "mount", "NEW MOUNT!", "Swift Palomino", "", "gold", now), "Got Swift Palomino"),
+            (new("", "death", "R.I.P.", $"{name} fell at level {level - 1}", "After 3d 5h played", "death", now), $"Died at level {level - 1}"),
         ];
-        var sample = samples[testIndex++ % samples.Length] with { Id = $"test-{now}-{testIndex}" };
+        var (alert, highlight) = samples[testIndex++ % samples.Length];
+        var sample = alert with { Id = $"test-{now}-{testIndex}" };
         var test = snapshot.HasCharacter ? snapshot : snapshot with { Character = name, Level = level - 1, ClassName = "Warrior", ClassColor = "#C69B6D", Zone = "Scarlet Monastery" };
-        server.Snapshot = test with { Alert = sample };
+        var highlights = highlight.Length > 0 ? [highlight, .. test.Highlights.Take(2)] : test.Highlights;
+        server.Snapshot = test with { Alert = sample, Highlights = highlights };
         Log.Info($"Test alert sent to the stream overlay: {sample.Title} (click again for the next kind; only the overlay shows it).");
         // Back to the real state a bit later, so the next real alert still counts as new.
         _ = Task.Delay(TimeSpan.FromSeconds(10)).ContinueWith(_ => { if (server is not null) server.Snapshot = snapshot; });

@@ -392,13 +392,13 @@ local function wantsScreenshot(kind)
 end
 
 -- Stores an event in SavedVariables and sends it live, so the app's level history and highlights
--- stay current while you play. Only events that will be posted get a screenshot (if the app
--- asked for one). Loot that won't be posted stays off the live channel, since blue items drop
--- often and each live event is a flicker in the corner; it reaches the app on /reload or logout.
+-- stay current while you play, whether it gets posted or not (before 0.21.2 loot that wouldn't be
+-- posted waited for /reload). Only events that will be posted get a screenshot (if the app asked
+-- for one).
 function ns.addEvent(e)
   table.insert(WoWCharacterTrackerDB.events, e)
+  if ns.announce then ns.announce(e) end -- guild/group chat (Announce.lua)
   local posted = wanted(e)
-  if not posted and e.kind == "loot" then return end
   local shot = posted and wantsScreenshot(e.kind)
   if shot then e.shot = true end
   ns.sendLive(e)

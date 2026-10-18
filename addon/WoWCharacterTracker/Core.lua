@@ -34,6 +34,7 @@ local EVENTS = {
   "ENCOUNTER_END", "CHAT_MSG_LOOT", "PLAYER_DEAD",                       -- bosses, loot, deaths
   "MERCHANT_SHOW", "MERCHANT_CLOSED", "NEW_MOUNT_ADDED",                 -- mounts (bought or learned)
   "CHAT_MSG_SYSTEM", "DUEL_REQUESTED", "CHALLENGE_MODE_COMPLETED", "PVP_RATED_STATS_UPDATE", -- duels, Mak'gora, ratings
+  "UPDATE_BATTLEFIELD_STATUS", "PVP_MATCH_COMPLETE",                     -- battleground results
   "SCREENSHOT_SUCCEEDED", "SCREENSHOT_FAILED",                           -- the shot queue
   "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", -- gear, bags and bank
   "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED", "TAXIMAP_CLOSED",                 -- flight paths (the reload box)

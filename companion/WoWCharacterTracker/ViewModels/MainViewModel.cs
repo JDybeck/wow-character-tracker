@@ -80,6 +80,7 @@ sealed class MainViewModel : Observable
             if (!Set(ref selectedFlavor, value) || value is null) return;
             if (old is not null) old.IsSelected = false;
             value.IsSelected = true;
+            ShowItemsWhereOpen();
             Appearance.Apply();
             Config.SelectedFlavor = value.Flavor.Key;
             Config.Save();
@@ -89,7 +90,13 @@ sealed class MainViewModel : Observable
 
     // "characters" or "posting".
     string page = "characters";
-    public string Page { get => page; set => Set(ref page, value); }
+    public string Page { get => page; set { if (Set(ref page, value)) ShowItemsWhereOpen(); } }
+
+    // Only the open tab's Items page builds its list (ItemsViewModel.IsShown).
+    void ShowItemsWhereOpen()
+    {
+        foreach (var tab in FlavorTabs) tab.Items.IsShown = tab.IsSelected && page == "items";
+    }
 
     public ICommand SyncCommand { get; }
     public ICommand ShowPageCommand { get; }
@@ -318,7 +325,7 @@ sealed class MainViewModel : Observable
     // --- posting from the app ---
 
     public DiscordPoster PosterFor(FlavorViewModel tab, WebhookInfo w) =>
-        new(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle, guid => Config.StandardPortraits.Contains(guid));
+        new(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle, guid => Config.StandardPortraits.Contains(guid), guid => tab.RowFor(guid)?.Picture);
 
     // The tab's webhooks that take this character: on Forever only those for its ruleset, and only
     // webhooks that post for its tags. Says so in the console when there are none.

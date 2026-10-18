@@ -63,13 +63,19 @@ sealed class CharacterRow : Observable
         r.Name == "Mythic+" ? "Mythic+ score" : $"{r.Name} rating")).ToList();
     public string RatingsText => Format.RatingsText(MplusScore, PvpRatings);
     public bool HasRatings => RatingsText.Length > 0;
+    // The highest of the Mythic+ score and the PvP ratings, for sorting by rating.
+    public int BestRating => Format.Ratings(MplusScore, PvpRatings).Select(r => r.Rating).DefaultIfEmpty(0).Max();
     public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
     public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
     public bool HasProfessions => ProfessionList.Count > 0;
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
     public Inventory? Inventory { get; init; } // what the character carries, as saved (the Items page)
-    public CharacterGear Gear { get; init; } = CharacterGear.Empty;
+    // The Gear and bags tab, built the first time it's shown: it makes an item (and a Wowhead
+    // lookup) per slot, which for dozens of characters at startup froze the window.
+    public Func<CharacterGear>? MakeGear { private get; init; }
+    CharacterGear? gear;
+    public CharacterGear Gear => gear ??= MakeGear?.Invoke() ?? CharacterGear.Empty;
     public CharacterLeveling Leveling { get; init; } = new();
 
     // The details are split into tabs: "overview", "gear" (gear and bags) and "leveling".
@@ -88,7 +94,11 @@ sealed class CharacterRow : Observable
     public bool IsLevelingTab { get => DetailTab == "leveling"; set { if (value) DetailTab = "leveling"; } }
 
     // Fills in icons and tooltips: crests and items from Wowhead, professions from the built-in list.
-    public async Task LoadIconsAsync(Flavor flavor)
+    // Loaded once, when the character is opened (its overview, card and talent posts use them).
+    Task? icons;
+    public Task LoadIconsAsync(Flavor flavor) => icons ??= LoadIcons(flavor);
+
+    async Task LoadIcons(Flavor flavor)
     {
         CrestList = CrestChips(Crests);
         ProfessionList = ProfessionChips(Professions);
@@ -151,27 +161,25 @@ sealed class CharacterRow : Observable
     public SolidColorBrush ClassBrush => ClassColors.Brush(ClassColors.For(ClassFile));
     public SolidColorBrush ClassSoftBrush => ClassColors.Brush(ClassColors.For(ClassFile), 0x26);
 
-    // Segoe Fluent Icons glyphs: shield, heart, lightning bolt.
-    public string RoleGlyph => Role switch { "TANK" => "", "HEALER" => "", "DAMAGER" => "", _ => "" };
-    public SolidColorBrush RoleBrush => Role switch
-    {
-        "TANK" => ClassColors.Hex(0x94A3B8),
-        "HEALER" => ClassColors.Hex(0x4ADE80),
-        _ => ClassColors.Hex(0xF87171),
-    };
+    // Tank, healer, or melee/ranged/caster damage (Roles), as a small WoW icon with its name as the tooltip.
+    public bool IsRetail { get; init; }
+    public string RoleKind => Roles.Of(Role, ClassFile, Spec, IsRetail);
+    public string? RoleIconUrl => Roles.Icon(RoleKind) is { } icon ? Wowhead.IconUrl(icon, "small") : null;
+    public string RoleName => Roles.Name(RoleKind);
 
     string? pictureUrl;
     public string? PictureUrl { get => pictureUrl; set => Set(ref pictureUrl, value); }
 
+    public PictureSubject Picture => new(Guid, Region, Realm, Name, RaceFile, Sex, ClassFile);
+
+    // The picture by the one rule (CharacterPicture); the class icon while the rest is looked up.
     public async Task LoadPictureAsync(Flavor flavor)
     {
         pictureFlavor = flavor;
-        // Forever: the character's own portrait from its last check-in, unless the user picked the standard one.
-        var own = flavor == Flavors.Forever ? CharacterArt.LocalPortrait(Guid) : null;
-        HasGamePortrait = own is not null;
-        if (own is not null && !useStandard) { PictureUrl = own; return; }
+        HasGamePortrait = CharacterPicture.GamePortrait(flavor, Guid, standardChosen: false) is not null;
+        if (CharacterPicture.GamePortrait(flavor, Guid, useStandard) is { } own) { PictureUrl = own; return; }
         PictureUrl = CharacterArt.ClassIconUrl(ClassFile);
-        if (await CharacterArt.PictureUrlAsync(flavor, Region, Realm, Name, RaceFile, Sex, ClassFile) is { } url) PictureUrl = url;
+        if (await CharacterPicture.StandardAsync(flavor, Picture) is { } url) PictureUrl = url;
     }
 
     // Forever: which picture to show once an in-game portrait was captured, the in-game one or the
@@ -212,6 +220,7 @@ sealed class CharacterRow : Observable
         // (the talent code), so each is taken from the newest snapshot that has it.
         string Newest(string guid, Func<Snapshot, string> field) =>
             data.Characters.Where(c => c.Guid == guid && field(c).Length > 0).MaxBy(c => c.LastSeen) is { } n ? field(n) : "";
+        Func<CharacterGear> MakeGear(Inventory? inv, string classFile) => () => CharacterGear.From(inv, item, classFile, retail: flavor == Flavors.Retail);
 
         var rows = new List<CharacterRow>();
         foreach (var guid in snaps.Keys.Union(events.Keys))
@@ -239,6 +248,7 @@ sealed class CharacterRow : Observable
                 Sex = Pick(s?.Sex, last?.Sex) is { Length: > 0 } sex ? sex : "male",
                 Spec = Pick(s?.Spec, last?.Spec) is var spec && spec != Pick(s?.Class, last?.Class) ? spec : "", // old Forever data had the class as spec
                 Role = s?.Role ?? "",
+                IsRetail = flavor == Flavors.Retail,
                 ItemLevel = s?.ItemLevel is > 0 ? s.ItemLevel : last?.ItemLevel ?? 0,
                 Played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0),
                 Zone = Pick(s?.Zone, last?.Zone),
@@ -266,12 +276,12 @@ sealed class CharacterRow : Observable
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", e.Seconds > 0 ? Format.Duration(e.Seconds) : "?", e.Zone, When(e.At)))
                     .ToList(),
                 Highlights = all
-                    .Where(e => e.Kind is "boss" or "loot" or "mount" or "death" or "duel" or "makgora" or "mplus" or "pvp")
+                    .Where(e => HighlightText.Kinds.Contains(e.Kind))
                     .OrderByDescending(e => e.At)
                     .Select(Highlight)
                     .ToList(),
                 Inventory = inventories.GetValueOrDefault(guid),
-                Gear = CharacterGear.From(inventories.GetValueOrDefault(guid), item, Pick(s?.ClassFile, last?.ClassFile), retail: flavor == Flavors.Retail),
+                MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile)),
                 Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor == Flavors.Forever),
             });
         }
@@ -296,19 +306,27 @@ sealed class CharacterRow : Observable
         return row;
     }
 
-    static HighlightRow Row(Entry e) => e.Kind switch
+    // The text is HighlightText's (shared with the stream overlay); the glyph and color are the app's.
+    static HighlightRow Row(Entry e)
     {
-        "boss" => new("", ClassColors.Hex(0xFBBF24), "Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : ""), When(e.At)),
-        "loot" => new("", HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD), "Looted ", e.Item, When(e.At), e.ItemId),
-        "duel" when e.Lost => new("", ClassColors.Hex(0x94A3B8), e.Fled ? "Ran from a duel with " : "Lost a duel to ", e.Opponent, When(e.At)),
-        "duel" => new("", ClassColors.Hex(0x93C5FD), "Won a duel against ", e.Opponent, When(e.At)),
-        "makgora" when e.Lost => new("", ClassColors.Hex(0x94A3B8), "Lost a Mak'gora to ", e.Opponent, When(e.At)),
-        "makgora" => new("", ClassColors.Hex(0xF87171), "Won a Mak'gora against ", e.Opponent, When(e.At)),
-        "mplus" => new("", ClassColors.Hex(0xC084FC), "Reached ", $"{e.Step} Mythic+ rating ({e.Rating})", When(e.At)),
-        "pvp" => new("", ClassColors.Hex(0xF87171), "Reached ", $"{e.Step} in {e.Bracket} ({e.Rating})", When(e.At)),
-        "mount" => new("", ClassColors.Hex(0x4ADE80), e.Bought ? "Bought " : "Got ", e.Mount, When(e.At), e.ItemId),
-        _ => new("", ClassColors.Hex(0xF87171), "", $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : ""), When(e.At)),
-    };
+        var (verb, subject) = HighlightText.Of(e);
+        var (glyph, color) = e.Kind switch
+        {
+            "boss" => ("", 0xFBBF24),
+            "loot" => ("", 0),
+            "duel" when e.Lost => ("", 0x94A3B8),
+            "duel" => ("", 0x93C5FD),
+            "bg" when e.Lost => ("", 0x94A3B8),
+            "bg" => ("", 0x93C5FD),
+            "makgora" when e.Lost => ("", 0x94A3B8),
+            "mplus" => ("", 0xC084FC),
+            "pvp" => ("", 0xF87171),
+            "mount" => ("", 0x4ADE80),
+            _ => ("", 0xF87171), // Mak'gora wins, deaths
+        };
+        var brush = e.Kind == "loot" ? HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD) : ClassColors.Hex(color);
+        return new(glyph, brush, verb, subject, When(e.At), e.Kind is "loot" or "mount" ? e.ItemId : 0);
+    }
 
     // Forever talent picks, "spellID~rank~maxRank~tree,...": a chip per talent ("5/5" until
     // Wowhead gives the name and icon), ordered by tree.
