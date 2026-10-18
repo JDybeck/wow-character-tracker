@@ -209,7 +209,7 @@
               <ControlTemplate TargetType="ToggleButton">
                 <Border x:Name="Bd" Width="20" Height="20" CornerRadius="10" BorderThickness="1"
                         BorderBrush="{StaticResource Dim}" Background="Transparent">
-                  <TextBlock x:Name="Mark" Text="?" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Muted}"
+                  <TextBlock x:Name="Mark" Text="?" FontSize="14" FontWeight="Bold" Foreground="{StaticResource Muted}"
                              HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,1"/>
                 </Border>
                 <ControlTemplate.Triggers>
