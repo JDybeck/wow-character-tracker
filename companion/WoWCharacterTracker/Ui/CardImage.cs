@@ -15,7 +15,6 @@ static class CardImage
     const double Width = 560;
     const double Scale = 2; // drawn at 2x so it stays sharp when Discord scales it
 
-    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
     static readonly FontFamily Ui = new("Segoe UI Variable Text, Segoe UI");
     static readonly FontFamily Mono = new("Cascadia Mono, Consolas");
 
@@ -34,48 +33,18 @@ static class CardImage
         var images = new Dictionary<string, BitmapSource>();
         await Task.WhenAll(urls.OfType<string>().Distinct().Select(async url =>
         {
-            if (await LoadAsync(url) is { } img) lock (images) images[url] = img;
+            if (await ImageRender.LoadAsync(url) is { } img) lock (images) images[url] = img;
         }));
         BitmapSource? Img(string? url) => url is not null && images.TryGetValue(url, out var i) ? i : null;
 
         try
         {
             var card = Build(c, flavor, Format.Name(c.Name, c.Surname, nameStyle), Shows, highlights, Img);
-            card.Measure(new Size(Width, double.PositiveInfinity));
-            card.Arrange(new Rect(card.DesiredSize));
-            card.UpdateLayout();
-
-            var bmp = new RenderTargetBitmap((int)Math.Ceiling(card.ActualWidth * Scale), (int)Math.Ceiling(card.ActualHeight * Scale),
-                96 * Scale, 96 * Scale, PixelFormats.Pbgra32);
-            bmp.Render(card);
-            var png = new PngBitmapEncoder();
-            png.Frames.Add(BitmapFrame.Create(bmp));
-            using var ms = new MemoryStream();
-            png.Save(ms);
-            return ms.ToArray();
+            return ImageRender.ToPng(card, new Size(Width, double.PositiveInfinity), Scale);
         }
         catch (Exception ex)
         {
             Log.Warn("Couldn't draw the character card, posting it as text instead: " + ex.Message);
-            return null;
-        }
-    }
-
-    internal static async Task<BitmapSource?> LoadAsync(string url)
-    {
-        try
-        {
-            var bytes = File.Exists(url) ? await File.ReadAllBytesAsync(url) : await Http.GetByteArrayAsync(url); // a saved Forever portrait, or a web picture
-            var img = new BitmapImage();
-            img.BeginInit();
-            img.CacheOption = BitmapCacheOption.OnLoad;
-            img.StreamSource = new MemoryStream(bytes);
-            img.EndInit();
-            img.Freeze();
-            return img;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or NotSupportedException or IOException)
-        {
             return null;
         }
     }
@@ -123,7 +92,7 @@ static class CardImage
         var place = new List<string>();
         if (shows("guild") && c.HasGuild) place.Add($"<{c.Guild}>");
         place.Add(c.Realm);
-        if (flavor == Flavors.Forever && c.Ruleset.Length > 0) place.Add(c.Ruleset);
+        if (flavor.HasRulesets && c.Ruleset.Length > 0) place.Add(c.Ruleset);
         who.Children.Add(Txt(string.Join("  ·  ", place), 12, dim));
         header.Children.Add(who);
         body.Children.Add(header);

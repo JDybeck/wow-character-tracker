@@ -7,7 +7,7 @@ static class ClassColors
     static readonly Color Neutral = Color.FromRgb(0x94, 0xA3, 0xB8);
 
     public static Color For(string classFile) =>
-        CharacterArt.ClassColors.TryGetValue(classFile.ToUpperInvariant(), out var c)
+        CharacterArt.ClassColor(classFile) is int c
             ? Color.FromRgb((byte)(c >> 16), (byte)(c >> 8), (byte)c)
             : Neutral;
 

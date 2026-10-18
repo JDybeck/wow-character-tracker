@@ -75,7 +75,7 @@ static partial class AddonInstaller
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
         static string B(bool v) => v ? "true" : "false";
-        var shots = string.Join(", ", Flavors.ShotKinds.Select(k => $"{k} = {B(s.Shoots(k))}"));
+        var shots = string.Join(", ", EventKinds.ShotKinds.Select(k => $"{k} = {B(s.Shoots(k))}"));
         // What gets posted, so the addon only sends those events live and screenshots only them.
         var post = $"level = {{ on = {B(s.PostLevels)}, split = {s.LevelSplit}, before = {s.LevelEveryBefore}, after = {s.LevelEveryAfter} }}, "
                    + $"rare = {B(s.PostRare)}, epic = {B(s.PostEpic)}, mount = {B(s.PostMounts)}, boss = {B(s.PostBosses)}, death = {B(s.PostDeaths)}, "

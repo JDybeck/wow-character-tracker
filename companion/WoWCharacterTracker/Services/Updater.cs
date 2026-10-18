@@ -114,7 +114,7 @@ static class Updater
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
             if (!File.Exists(exe) && File.Exists(exe + ".old")) File.Move(exe + ".old", exe); // put it back
-            try { if (File.Exists(newExe)) File.Delete(newExe); } catch (IOException) { }
+            Files.TryDelete(newExe);
             return "The update didn't work: " + ex.Message;
         }
     }
@@ -124,6 +124,6 @@ static class Updater
     {
         if (Environment.ProcessPath is not { } exe) return;
         foreach (var f in new[] { exe + ".old", exe + ".new" })
-            try { if (File.Exists(f)) File.Delete(f); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            Files.TryDelete(f);
     }
 }

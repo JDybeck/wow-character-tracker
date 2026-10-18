@@ -86,8 +86,8 @@ sealed class StreamViewModel : Observable
         ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"), ("death", "Deaths", "Hardcore deaths"),
         ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
     ];
-    static readonly string[] RetailOnly = ["mplus", "pvp"];
-    bool OffersKind(string kind) => snapshot.Game == Flavors.Retail.Name || !RetailOnly.Contains(kind);
+
+    bool HasRatings => Flavors.Named(snapshot.Game)?.HasRatings == true;
 
     ObservableCollection<ToggleOption>? kinds;
     public ObservableCollection<ToggleOption> HighlightKinds => kinds ??= Chips(KindNames, Options.HighlightKinds);
@@ -108,7 +108,7 @@ sealed class StreamViewModel : Observable
 
     // One on/off chip per kind this game offers.
     ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
-        ToggleOption.Kinds(names.Where(k => OffersKind(k.Kind)), picked, OptionsChanged);
+        ToggleOption.Kinds(EventKinds.Offered(names, HasRatings), picked, OptionsChanged);
 
     // What the overlay counts: three choices, the one in use highlighted.
     public bool RangeAll => Options.RangeMode == "all";
@@ -228,7 +228,7 @@ sealed class StreamViewModel : Observable
 
     static StreamCharacter Character(CharacterRow r, Flavor flavor) => new(
         r.Guid, r.FullName, flavor.Name, r.Level, r.ClassName,
-        CharacterArt.ClassColors.TryGetValue(r.ClassFile.ToUpperInvariant(), out var color) ? $"#{color:X6}" : "#FFFFFF",
+        CharacterArt.ClassColor(r.ClassFile) is int color ? $"#{color:X6}" : "#FFFFFF",
         r.Race, r.RealmText, r.Zone, r.Played > 0 ? Format.Played(r.Played) : "", r.ItemLevel > 0 ? r.ItemLevel.ToString("0") : "",
         r.LastSeen, r.Spec, r.Money >= 10000 ? $"{r.Money / 10000:N0}g" : "", r.KeystoneText,
         Format.Ratings(r.MplusScore, r.PvpRatings).Select(x => new StreamRating(x.Name, x.Rating)).ToList());

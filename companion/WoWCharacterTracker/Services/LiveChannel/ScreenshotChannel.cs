@@ -70,7 +70,7 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
                     case GridResult.Ok:
                         seen[file] = true;
                         var shotAt = File.GetCreationTime(file);
-                        TryDelete(file);
+                        Files.TryDelete(file);
                         if (Payload.Parse(payload!) is { } entry)
                             EntryReceived?.Invoke(entry, shotAt, entry.Kind == "snapshot" ? GridDecoder.CropPortrait(bytes, cellSize, where) : null);
                         break;
@@ -81,7 +81,7 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
                         seen[file] = true;
                         // The addon's own shot (it has the grid's start), just unreadable: the event
                         // comes with the next save anyway, so it doesn't stay in the Screenshots folder.
-                        TryDelete(file);
+                        Files.TryDelete(file);
                         Unreadable?.Invoke(file);
                         break;
                     default:
@@ -113,11 +113,6 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
             return bytes.Length > 0;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
-    }
-
-    static void TryDelete(string file)
-    {
-        try { File.Delete(file); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
     public void Dispose()

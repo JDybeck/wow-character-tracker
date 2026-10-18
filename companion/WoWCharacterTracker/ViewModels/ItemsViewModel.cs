@@ -168,7 +168,7 @@ sealed class ItemsViewModel : Observable
             // When each character's bags were last saved (and where), so it's clear how fresh this is.
             var saved = realm.Select(c => (c, Text: CharacterGear.SavedTextOf(c.Inventory))).Where(x => x.Text.Length > 0)
                 .Select(x => new ItemPlace(x.c.FullName, x.c.ClassBrush, x.Text)).ToList();
-            built.Add(new ItemGroup(new ItemHeader(realm.First().RealmText, $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}", saved), rows));
+            built.Add(new ItemGroup(new ItemHeader(realm.First().RealmText, $"{Format.Count(rows.Count, "item")}, {Format.Count(realm.Count(), "character")}", saved), rows));
         }
         groups = built;
         Relayout();

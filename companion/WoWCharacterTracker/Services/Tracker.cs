@@ -10,7 +10,7 @@ sealed class Tracker : IDisposable
     readonly Flavor flavor;
     readonly string flavorDir;
     readonly Func<List<WebhookInfo>> webhooks;
-    readonly Func<string, IReadOnlyCollection<string>> tagsFor;
+    readonly Func<Entry, List<WebhookInfo>> webhooksFor; // the tab's webhooks that take this event's character (Config.WebhooksFor)
     readonly Func<WebhookInfo, DiscordPoster> posterFor;
     readonly Func<FlavorSettings> settings;
     readonly bool backfill;
@@ -40,12 +40,12 @@ sealed class Tracker : IDisposable
     public event Action<Entry>? CheckedIn; // a character just logged in (live check-in)
 
     public Tracker(Flavor flavor, string flavorDir, Func<List<WebhookInfo>> webhooks, Func<FlavorSettings> settings,
-        Func<string, IReadOnlyCollection<string>> tagsFor, Func<WebhookInfo, DiscordPoster> posterFor, bool backfill)
+        Func<Entry, List<WebhookInfo>> webhooksFor, Func<WebhookInfo, DiscordPoster> posterFor, bool backfill)
     {
         this.flavor = flavor;
         this.flavorDir = flavorDir;
         this.webhooks = webhooks;
-        this.tagsFor = tagsFor;
+        this.webhooksFor = webhooksFor;
         this.posterFor = posterFor;
         this.settings = settings;
         this.backfill = backfill;
@@ -94,7 +94,7 @@ sealed class Tracker : IDisposable
     void OnLiveEntry(Entry e, DateTime shotAt, byte[]? portrait)
     {
         // Forever's characters get their picture from the check-in shot (Retail has real renders).
-        if (portrait is not null && flavor == Flavors.Forever) CharacterArt.SavePortrait(e.Guid, portrait);
+        if (portrait is not null && flavor.HasInGamePortraits) CharacterArt.SavePortrait(e.Guid, portrait);
 
         // Every live event carries the character's current state, so the list updates right away.
         presence[e.Guid] = e;
@@ -165,7 +165,7 @@ sealed class Tracker : IDisposable
             {
                 foreach (var e in pending) posted.Add(e.Id);
                 if (pending.Count > 0)
-                    Log.Info($"{Tag}Skipped {pending.Count} older event{(pending.Count == 1 ? "" : "s")} so the channel isn't flooded.");
+                    Log.Info($"{Tag}Skipped {Format.Count(pending.Count, "older event")} so the channel isn't flooded.");
             }
             else if (pending.Count > 0)
             {
@@ -176,7 +176,7 @@ sealed class Tracker : IDisposable
             if (report)
             {
                 var chars = data.Characters.Select(c => c.Guid).Concat(data.Events.Select(e => e.Guid)).Distinct().Count();
-                Log.Info($"{Tag}Synced: {chars} character{(chars == 1 ? "" : "s")}, {data.Events.Count} event{(data.Events.Count == 1 ? "" : "s")}. " +
+                Log.Info($"{Tag}Synced: {Format.Count(chars, "character")}, {Format.Count(data.Events.Count, "event")}. " +
                          (sent > 0 ? $"Posted {sent}." : "Nothing new to post. (The game saves its data on /reload or logout; instant posts arrive by themselves.)"));
             }
         }
@@ -217,7 +217,7 @@ sealed class Tracker : IDisposable
             posted!.Add(e.Id);
             // Only posted highlights keep their screenshot. (The addon normally doesn't take one for
             // these, unless the settings changed since the game last loaded them.)
-            if (e.Shot && ScreenshotFileFor(e, within: 20) is { } unwantedShot) TryDelete(unwantedShot);
+            if (e.Shot && ScreenshotFileFor(e, within: 20) is { } unwantedShot) Files.TryDelete(unwantedShot);
         }
 
         var toPost = pending.Where(s.Wants).ToList();
@@ -236,7 +236,7 @@ sealed class Tracker : IDisposable
         var sent = 0;
         foreach (var e in toPost)
         {
-            var forThis = WebhooksFor(e, hooks);
+            var forThis = webhooksFor(e);
             var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
             var allSent = true;
             foreach (var w in forThis)
@@ -258,15 +258,6 @@ sealed class Tracker : IDisposable
         return sent;
     }
 
-    // Webhooks can be limited to some rulesets (Forever) and to characters with some tags.
-    List<WebhookInfo> WebhooksFor(Entry e, List<WebhookInfo> hooks)
-    {
-        var tags = tagsFor(e.Guid);
-        return hooks
-            .Where(w => flavor != Flavors.Forever || w.AcceptsRuleset(e))
-            .Where(w => w.AcceptsTags(tags))
-            .ToList();
-    }
     // The addon takes the screenshot a second or two after the event. The game names it by time,
     // so the newest picture written just after the event is the one. For a live event the file may
     // not be there yet, so wait a little.
@@ -303,11 +294,6 @@ sealed class Tracker : IDisposable
             .Where(f => f.LastWriteTime >= at.AddSeconds(-2) && f.LastWriteTime <= at.AddSeconds(within))
             .OrderBy(f => f.LastWriteTime)
             .FirstOrDefault()?.FullName;
-    }
-
-    static void TryDelete(string file)
-    {
-        try { File.Delete(file); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
     // For instant posts: how long from the moment to Discord, and where that time went.

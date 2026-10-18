@@ -145,7 +145,7 @@ static class Wowhead
     // A character's build in Wowhead's talent calculator, or null without one. Forever: Wowhead's
     // classic-style calculator code. Retail: the game's own loadout code.
     public static string? TalentCalcUrl(Flavor flavor, string classFile, string talentCalc, string talentExport) =>
-        flavor == Flavors.Forever
+        flavor.HasClassicTalents
             ? (talentCalc.Length > 0 ? ForeverTalentUrl(classFile, talentCalc) : null)
             : (talentExport.Length > 0 ? $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(talentExport)}" : null);
 

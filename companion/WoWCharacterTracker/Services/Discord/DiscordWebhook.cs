@@ -10,7 +10,7 @@ namespace WoWCharacterTracker.Services.Discord;
 // optional images (multipart upload), with retries when Discord rate limits.
 sealed partial class DiscordWebhook(string url)
 {
-    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) }; // screenshots take a moment to upload
+    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(60)); // screenshots take a moment to upload
 
     // Discord's upload limit without server boosts (boosted servers allow 50 or 100 MB, and webhooks
     // get the same, but there's no way to ask which). Bigger files are tried first anyway.

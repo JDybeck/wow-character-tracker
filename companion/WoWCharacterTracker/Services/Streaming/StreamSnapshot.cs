@@ -48,7 +48,7 @@ sealed record StreamSnapshot(
         var today = levels.Where(e => e.At >= midnight).ToList();
         var timed = today.Where(e => e.Seconds > 0).ToList();
         var todayText = today.Count == 0 ? "No levels yet today"
-            : $"{today.Count} level{(today.Count == 1 ? "" : "s")} today" + (timed.Count > 0 ? $", {Format.Duration((long)timed.Average(e => e.Seconds))} average" : "");
+            : $"{Format.Count(today.Count, "level")} today" + (timed.Count > 0 ? $", {Format.Duration((long)timed.Average(e => e.Seconds))} average" : "");
 
         StreamRecord? Record(string kind)
         {
