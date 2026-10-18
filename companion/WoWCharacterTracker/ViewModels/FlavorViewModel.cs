@@ -402,7 +402,7 @@ sealed class FlavorViewModel : Observable
 
         tracker?.Dispose();
         tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings,
-            guid => main.Config.TagsOf(guid), main.Backfill);
+            guid => main.Config.TagsOf(guid), w => main.PosterFor(this, w), main.Backfill);
         tracker.DataChanged += data => MainViewModel.OnUi(() => { ShowData(data); CheckReloaded(); });
         tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
