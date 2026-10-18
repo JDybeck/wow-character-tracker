@@ -47,6 +47,33 @@ static class Format
         return $"+{level} {p[2]}".TrimEnd();
     }
 
+    // GetPersonalRatedInfo's bracket numbers as the addon sends them in pvpRatings.
+    static readonly Dictionary<int, string> PvpBrackets = new()
+    {
+        [1] = "2v2", [2] = "3v3", [4] = "RBG", [7] = "Solo Shuffle", [9] = "Blitz",
+    };
+
+    // The Retail ratings, Mythic+ first, then the PvP brackets in the game's order: score 2850 and
+    // "2~1850,7~2100" -> (Mythic+, 2850), (3v3, 1850), (Solo Shuffle, 2100). Zeros, unknown brackets
+    // and broken parts are left out.
+    public static IReadOnlyList<(string Name, int Rating)> Ratings(int mplusScore, string pvpRatings)
+    {
+        var list = new List<(string, int)>();
+        if (mplusScore > 0) list.Add(("Mythic+", mplusScore));
+        var pvp = pvpRatings.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Split('~'))
+            .Where(p => p.Length == 2 && int.TryParse(p[0], out _) && int.TryParse(p[1], out var r) && r > 0)
+            .Select(p => (Bracket: int.Parse(p[0]), Rating: int.Parse(p[1])))
+            .Where(p => PvpBrackets.ContainsKey(p.Bracket))
+            .OrderBy(p => p.Bracket);
+        foreach (var (bracket, rating) in pvp) list.Add((PvpBrackets[bracket], rating));
+        return list;
+    }
+
+    // "Mythic+ 2850, 3v3 1850" (the stream card), "" without ratings.
+    public static string RatingsText(int mplusScore, string pvpRatings) =>
+        string.Join(", ", Ratings(mplusScore, pvpRatings).Select(r => $"{r.Name} {r.Rating}"));
+
     public static string Duration(long seconds)
     {
         var ts = TimeSpan.FromSeconds(seconds);

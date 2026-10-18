@@ -1,7 +1,7 @@
 ﻿namespace WoWCharacterTracker.Services.Streaming;
 
 // What the stream overlay and the stream text files show, for the character played last. The card is
-// the character as it is now (item level, played, gold, keystone, duel and Mak'gora records) next to
+// the character as it is now (item level, played, gold, keystone, ratings, duel and Mak'gora records) next to
 // its leveling (latest level times, today); the highlights box is what happened (loot, bosses, duel
 // wins...); the alert is the newest big moment (a level-up, boss kill, epic loot...). Plus how the
 // overlay should look (StreamOptions). Built from plain data (StreamCharacter and the events), so it
@@ -12,7 +12,7 @@ sealed record StreamSnapshot(
     string Zone, string Played, string ItemLevel, IReadOnlyList<StreamLevel> Levels, string LastLevel, string Today,
     IReadOnlyList<string> Highlights, StreamAlert? Alert, long Now,
     StreamRecord? Duels = null, StreamRecord? Makgora = null, StreamLook? Look = null, string SinceText = "",
-    string Spec = "", string Gold = "", string Keystone = "")
+    string Spec = "", string Gold = "", string Keystone = "", IReadOnlyList<StreamRating>? Ratings = null)
 {
     public static readonly StreamSnapshot Empty = new("", "", 0, "", "#FFFFFF", "", "", "", "", "", [], "", "", [], null, 0, Look: StreamLook.From(new()));
 
@@ -68,7 +68,7 @@ sealed record StreamSnapshot(
             mine.Select(AlertFor).FirstOrDefault(a => a is not null && o.AlertKinds.Contains(a.Kind)),
             now.ToUnixTimeSeconds(),
             Record("duel"), Record("makgora"), StreamLook.From(o),
-            RangeText(o), c.Spec, c.Gold, c.Keystone);
+            RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? []);
     }
 
     // Under the card: what it counts, when it's not all time.
@@ -120,9 +120,13 @@ sealed record StreamSnapshot(
 
 // The character as the stream sees it (filled in from the character list).
 sealed record StreamCharacter(string Guid, string Name, string Game, int Level, string ClassName, string ClassColor, string Race,
-    string Realm, string Zone, string Played, string ItemLevel, long LastSeen, string Spec = "", string Gold = "", string Keystone = "");
+    string Realm, string Zone, string Played, string ItemLevel, long LastSeen, string Spec = "", string Gold = "", string Keystone = "",
+    IReadOnlyList<StreamRating>? Ratings = null);
 
 sealed record StreamLevel(int Level, string Took);
+
+// A Retail rating on the card: "Mythic+" 2850, "3v3" 1850 (Format.Ratings).
+sealed record StreamRating(string Name, int Rating);
 
 // Duels or Mak'goras won and lost.
 sealed record StreamRecord(int Won, int Lost)

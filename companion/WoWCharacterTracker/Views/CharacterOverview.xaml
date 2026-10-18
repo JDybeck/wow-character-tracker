@@ -39,6 +39,10 @@
         <TextBlock Style="{StaticResource FactLabel}" Text="KEYSTONE"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding KeystoneText}" ToolTip="The Mythic Keystone in your bags, as of the last save or check-in"/>
       </StackPanel>
+      <StackPanel Visibility="{Binding HasRatings, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="RATINGS"/>
+        <ItemsControl ItemsSource="{Binding RatingChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
+      </StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
       <ItemsControl ItemsSource="{Binding ProfessionList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
                     Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>

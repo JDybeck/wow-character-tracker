@@ -347,6 +347,29 @@ local function getKeystone()
   return string.format("%d~%d~%s", level, mapID, ((name or "?"):gsub("[~,;=]", " ")))
 end
 
+-- Retail: the current Mythic+ score, nil without one or on clients without Mythic+ (Forever).
+local function getMplusScore()
+  if not (C_MythicPlus and C_ChallengeMode and C_ChallengeMode.GetOverallDungeonScore) then return nil end
+  local score = C_ChallengeMode.GetOverallDungeonScore()
+  if type(score) ~= "number" or score <= 0 then return nil end
+  return math.floor(score)
+end
+
+-- Retail: rated PvP as "bracket~rating,..." (brackets as GetPersonalRatedInfo numbers them,
+-- the same as PVP_BRACKETS in PvP.lua), only brackets with a rating, nil when there are none.
+local function getPvpRatings()
+  if not (C_MythicPlus and type(GetPersonalRatedInfo) == "function") then return nil end
+  local parts = {}
+  for _, index in ipairs({ 1, 2, 4, 7, 9 }) do
+    local ok, rating = pcall(GetPersonalRatedInfo, index)
+    if ok and type(rating) == "number" and rating > 0 then
+      table.insert(parts, string.format("%d~%d", index, rating))
+    end
+  end
+  if #parts == 0 then return nil end
+  return table.concat(parts, ",")
+end
+
 -- Best guess of total /played right now.
 function ns.playedNow()
   if not ns.lastPlayed then return nil end
@@ -411,6 +434,8 @@ function ns.characterInfo()
     money = safe(GetMoney), -- copper
     crests = safe(getCrests),
     keystone = safe(getKeystone),
+    mplusScore = safe(getMplusScore),
+    pvpRatings = safe(getPvpRatings),
     guild = safe(getGuild),
     -- For the app's time-to-max estimate (saved file only).
     xp = num(safe(UnitXP, "player")),
@@ -429,8 +454,9 @@ end
 -- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
--- (Money too: during logout GetMoney() comes back as 0.)
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "zone", "played", "crests", "money" }
+-- (Money too: during logout GetMoney() comes back as 0. Ratings read as none until the game has
+-- answered RequestRatedInfo, so they keep the last known values too.)
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "zone", "played", "crests", "money", "mplusScore", "pvpRatings" }
 
 function ns.saveSnapshot()
   ns.doing("snapshot")

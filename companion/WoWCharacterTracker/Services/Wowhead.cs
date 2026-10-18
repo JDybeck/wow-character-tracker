@@ -131,4 +131,12 @@ static class Wowhead
         ["Spell Power"] = "spell_fire_flamebolt", ["Crit"] = "ability_criticalstrike", ["Haste"] = "spell_nature_bloodlust",
         ["Mastery"] = "spell_holy_championsbond", ["Versatility"] = "ability_paladin_artofwar",
     };
+
+    // Rating icons by the names Format.Ratings uses (the keystone, the arena and battleground achievements).
+    public static readonly Dictionary<string, string> RatingIcons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Mythic+"] = "inv_relics_hourglass", ["2v2"] = "achievement_arena_2v2_7", ["3v3"] = "achievement_arena_3v3_7",
+        ["RBG"] = "achievement_bg_killxenemies_generalsroom", ["Solo Shuffle"] = "achievement_featsofstrength_gladiator_10",
+        ["Blitz"] = "achievement_bg_masterofallbgs",
+    };
 }

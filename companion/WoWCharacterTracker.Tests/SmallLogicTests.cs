@@ -17,6 +17,32 @@ public class TalentLinkTests
     }
 }
 
+public class RatingTests
+{
+    [Theory]
+    [InlineData(2850, "2~1850,7~2100", "Mythic+ 2850, 3v3 1850, Solo Shuffle 2100")]
+    [InlineData(0, "9~1650,1~1720,4~1900", "2v2 1720, RBG 1900, Blitz 1650")] // the game's bracket order
+    [InlineData(3100, "", "Mythic+ 3100")]
+    [InlineData(0, "2~0,3~1500,x~5,7", "")] // zeros, unknown brackets and broken parts
+    [InlineData(0, "", "")]
+    public void Ratings_text(int score, string pvp, string expected) => Assert.Equal(expected, Format.RatingsText(score, pvp));
+
+    [Fact]
+    public void Every_rating_has_an_icon()
+    {
+        var all = Format.Ratings(1, "1~1,2~1,4~1,7~1,9~1");
+        Assert.Equal(6, all.Count);
+        Assert.All(all, r => Assert.True(Wowhead.RatingIcons.ContainsKey(r.Name), r.Name));
+    }
+
+    [Fact]
+    public void Live_check_ins_carry_the_ratings()
+    {
+        var e = WoWCharacterTracker.Services.LiveChannel.Payload.Parse("i=:snapshot:1;g=1403-0A1B2C3D;k=snapshot;j=2850;pr=2~1850,7~2100")!;
+        Assert.Equal((2850, "2~1850,7~2100"), (e.MplusScore, e.PvpRatings));
+    }
+}
+
 public class OpponentTests
 {
     [Theory]

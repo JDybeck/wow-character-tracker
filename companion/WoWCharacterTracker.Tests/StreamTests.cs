@@ -142,6 +142,14 @@ public class StreamTests
         Assert.Equal(("Holy", "1,204g", "+12 Ara-Kara, City of Echoes"), (s.Spec, s.Gold, s.Keystone));
     }
 
+    [Fact]
+    public void The_card_carries_ratings_and_none_without()
+    {
+        var s = StreamSnapshot.Build(Ronnie with { Ratings = [new("Mythic+", 2850), new("3v3", 1850)] }, [], Now);
+        Assert.Equal([new StreamRating("Mythic+", 2850), new StreamRating("3v3", 1850)], s.Ratings!);
+        Assert.Empty(StreamSnapshot.Build(Ronnie, [], Now).Ratings!);
+    }
+
     [Theory]
     [InlineData("12~503~Ara-Kara, City of Echoes", "+12 Ara-Kara, City of Echoes")]
     [InlineData("none", "")]
