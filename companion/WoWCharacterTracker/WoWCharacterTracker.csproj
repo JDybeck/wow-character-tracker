@@ -11,7 +11,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>WoWCharacterTracker</AssemblyName>
     <RootNamespace>WoWCharacterTracker</RootNamespace>
-    <Version>0.24.2</Version>
+    <Version>0.24.3</Version>
     <!-- dotnet publish -c Release gives one WoWCharacterTracker.exe that runs without .NET installed. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
