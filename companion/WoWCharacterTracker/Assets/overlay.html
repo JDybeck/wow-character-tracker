@@ -185,6 +185,7 @@
         if (s.played) row("Played", plain(s.played));
         if (s.gold) row("Gold", plain(s.gold));
         if (s.keystone) row("Keystone", plain(s.keystone));
+        (s.ratings || []).forEach(r => row(r.name, plain(r.rating)));
       }
       if (look.duels && s.duels) row("Duels", record(s.duels));
       if (look.makgora && s.makgora) row("Mak'gora", record(s.makgora));

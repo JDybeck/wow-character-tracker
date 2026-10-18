@@ -56,6 +56,13 @@ sealed class CharacterRow : Observable
     public string Keystone { get; init; } = "";      // retail: "level~mapID~dungeon", "none"
     public string KeystoneText => Format.Keystone(Keystone);
     public bool HasKeystone => KeystoneText.Length > 0;
+    public int MplusScore { get; init; }            // retail: the Mythic+ score, 0 = none
+    public string PvpRatings { get; init; } = "";   // retail: "bracket~rating,..."
+    public IReadOnlyList<IconChip> RatingChips => Format.Ratings(MplusScore, PvpRatings).Select(r => new IconChip($"{r.Name} {r.Rating}",
+        Wowhead.RatingIcons.TryGetValue(r.Name, out var icon) ? Wowhead.IconUrl(icon, "small") : null,
+        r.Name == "Mythic+" ? "Mythic+ score" : $"{r.Name} rating")).ToList();
+    public string RatingsText => Format.RatingsText(MplusScore, PvpRatings);
+    public bool HasRatings => RatingsText.Length > 0;
     public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
     public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
     public bool HasProfessions => ProfessionList.Count > 0;
@@ -245,6 +252,8 @@ sealed class CharacterRow : Observable
                 Money = newer is { Money: > 0 } ? newer.Money : s?.Money ?? last?.Money ?? 0,
                 Crests = Pick(s?.Crests, last?.Crests),
                 Keystone = newer is { Keystone.Length: > 0 } ? newer.Keystone : Pick(s?.Keystone, last?.Keystone),
+                MplusScore = newer is { MplusScore: > 0 } ? newer.MplusScore : s?.MplusScore is > 0 ? s.MplusScore : last?.MplusScore ?? 0,
+                PvpRatings = newer is { PvpRatings.Length: > 0 } ? newer.PvpRatings : Pick(s?.PvpRatings, last?.PvpRatings),
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Surname = Pick(s?.Surname, last?.Surname),
                 TalentPicks = Newest(guid, c => c.TalentPicks),
