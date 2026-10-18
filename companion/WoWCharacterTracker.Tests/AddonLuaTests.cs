@@ -87,6 +87,7 @@ public class AddonLuaTests
               [7] = { "Catalysted Greaves", unpack(set) },
             }
             function GetInventoryItemID(_, slot) return tips[slot] and (1000 + slot) or nil end
+            function GetInventoryItemLink(_, slot) return slot == 5 and "|cffffffff|Hitem:1005:7980::::::::80:::::|h[Plain Breastplate]|h|r" or nil end
             C_TooltipInfo = { GetInventoryItem = function(_, slot)
               local lines = {}
               for i, t in ipairs(tips[slot] or {}) do lines[i] = { leftText = t } end
@@ -100,6 +101,6 @@ public class AddonLuaTests
         Assert.Equal("Baleful Grave-Knight's Battlegear~2~5~0~Heart Strike deals 10% more damage.\n"
             + "Baleful Grave-Knight's Battlegear~2~5~4~Your Bone Shield lasts longer.", result[0].String);
         Assert.Equal("5~1005~Equip: Your attacks have a chance to heal you.", result[1].String);
-        Assert.Equal("5~1005~Crystalline Radiance", result[2].String);
+        Assert.Equal("5~1005~Crystalline Radiance~7980", result[2].String); // the enchant id from the item link
     }
 }

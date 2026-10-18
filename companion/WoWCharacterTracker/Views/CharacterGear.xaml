@@ -13,8 +13,8 @@
         <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ItemCellTemplate}" DockPanel.Dock="Left"/>
         <StackPanel Margin="6,0,0,3" VerticalAlignment="Center">
           <TextBlock x:Name="Name" Text="{Binding Item.Name}" Foreground="{Binding Item.Brush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
-          <TextBlock Text="{Binding Enchant.Text}" Foreground="#1EFF00" FontSize="11" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left"
-                     ui:ItemTip.Info="{Binding Enchant.Info}" Visibility="{Binding HasEnchant, Converter={StaticResource Visible}}"/>
+          <TextBlock Text="{Binding Enchant}" Foreground="#1EFF00" FontSize="11" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left"
+                     ui:ItemTip.Info="{Binding EnchantInfo.Info}" Visibility="{Binding HasEnchant, Converter={StaticResource Visible}}"/>
         </StackPanel>
       </DockPanel>
       <DataTemplate.Triggers>

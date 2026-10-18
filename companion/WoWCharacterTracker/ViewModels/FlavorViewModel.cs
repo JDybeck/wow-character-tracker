@@ -39,7 +39,8 @@ sealed class FlavorViewModel : Observable
             ActionCommand = new RelayCommand(_ => SetUpAddon(force: true)),
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
-        Items = new ItemsViewModel(ItemFor);
+        Lookup = new GameLookup(flavor, NameLoaded);
+        Items = new ItemsViewModel(Lookup.Item);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor == Flavors.Forever ? "Ruleset" : "Realm", () => ShowData(lastData));
         _ = LoadLogoAsync();
@@ -544,24 +545,9 @@ sealed class FlavorViewModel : Observable
 
     TrackerData lastData = TrackerData.Empty;
 
-    // Names, icons and tooltips of items, crests and talents, one per type and id for the whole tab
-    // (characters and the Items page).
-    readonly Dictionary<(string Type, int Id), ItemInfo> items = [];
-    Dictionary<int, int> itemClasses = [];
-    ItemInfo ItemFor(int id) => InfoFor("item", id);
-    ItemInfo InfoFor(string type, int id)
-    {
-        if (items.TryGetValue((type, id), out var info)) return info;
-        items[(type, id)] = info = new ItemInfo(id, $"https://www.wowhead.com/{Flavor.WowheadPath}{type}={id}", type);
-        if (type == "item" && itemClasses.TryGetValue(id, out var c)) info.ClassId = c;
-        _ = LoadItemAsync(info);
-        return info;
-    }
-    async Task LoadItemAsync(ItemInfo info)
-    {
-        await info.LoadAsync(Flavor);
-        Items.NameLoaded();
-    }
+    // Names, icons and tooltips of everything from the game, shared by the whole tab (characters and the Items page).
+    public GameLookup Lookup { get; }
+    void NameLoaded() => Items.NameLoaded(); // the Items page sorts by name
 
     // The Items page: everything the tab's characters carry, searchable, per server.
     public ItemsViewModel Items { get; }
@@ -605,11 +591,10 @@ sealed class FlavorViewModel : Observable
                 ItemClasses = data.ItemClasses,
             };
         }
-        itemClasses = data.ItemClasses;
-        foreach (var (id, c) in itemClasses) if (items.TryGetValue(("item", id), out var known)) known.ClassId = c;
+        Lookup.SetItemClasses(data.ItemClasses);
         var keepTab = SelectedCharacter?.DetailTab;
         Motion.Quiet(); // the rows are rebuilt: what's open stays still
-        var rows = CharacterRow.Build(data, Flavor, InfoFor)
+        var rows = CharacterRow.Build(data, Flavor, Lookup)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
 
