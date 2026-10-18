@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.24.1
+
+- **Enchant tooltips on Forever too**: Forever only shows an enchant's stats ("Stamina +2"), so the addon now also saves the enchant's id and the app knows which enchanting spell it is. Hover it for Wowhead's tooltip, click for its page, on Retail and Forever. Comes with the updated addon, so `/reload` once.
+- **Game tabs stay put**: the Retail and Forever buttons always sit in the middle of the header, a longer status line under the title no longer moves them.
+
 ## v0.24.0
 
 - **Enchants under your gear**: each item on the Gear and bags tab shows its enchant right under its name in green, like "Nature's Fury" under a ring, instead of in a separate list. The "Enchant Ring -" part is left out, the slot already says that. Hover an enchant to see what it does (Wowhead's tooltip, like items), click it to open its Wowhead page. Works on Retail and Forever for enchants the game names; ones it only shows as stats ("+41 Agility/Strength & +115 Stamina") have nothing to look up.

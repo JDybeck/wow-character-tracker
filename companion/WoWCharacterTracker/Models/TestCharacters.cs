@@ -106,7 +106,7 @@ static class TestCharacters
                     + "Giantstalker Armor~3~8~5~Increases the damage of Multi-Shot and Volley by 15%.\n"
                     + "Giantstalker Armor~3~8~8~Your normal ranged attacks have a 4% chance of restoring 200 mana."),
                 Effects = Inventory.ParseEffects("1~16846~Equip: Improves your chance to hit by 1%.\n5~16845~Equip: Improves your chance to get a critical strike by 1%."),
-                Enchants = Inventory.ParseEffects("5~16845~+4 All Stats\n18~18713~+7 Ranged Damage"),
+                Enchants = Inventory.ParseEnchants("5~16845~+4 All Stats~1891\n18~18713~+7 Ranged Damage~664"),
             },
         };
         var xpTable = new Dictionary<int, long> { [20] = 23200, [21] = 25200, [39] = 85700, [40] = 90700 };

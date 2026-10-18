@@ -156,7 +156,13 @@ end
 -- them. Saved-file only, one line each:
 --   sets     "set name~pieces worn~pieces in set~pieces needed (0 = active)~bonus text"
 --   effects  "slot~itemId~Equip: ... / Use: ..."
---   enchants "slot~itemId~enchant"
+--   enchants "slot~itemId~enchant~enchantId" (the id from the item link: Classic clients only show the
+--            enchant's stats, the app finds the enchant by its id)
+local function enchantId(slot)
+  local link = GetInventoryItemLink and GetInventoryItemLink("player", slot)
+  return tonumber(type(link) == "string" and link:match("item:%-?%d+:(%d+)") or nil) or 0
+end
+
 function ns.scanGearEffects()
   local sets, effects, enchants, seen = {}, {}, {}, {}
   local spec = ns.specName and ns.specName()
@@ -181,7 +187,7 @@ function ns.scanGearEffects()
           effects[#effects + 1] = slot .. "~" .. id .. "~" .. text
         end
         local enchant = text:match(ENCHANTED)
-        if enchant then enchants[#enchants + 1] = slot .. "~" .. id .. "~" .. enchant end
+        if enchant then enchants[#enchants + 1] = slot .. "~" .. id .. "~" .. enchant .. "~" .. enchantId(slot) end
       end
     end
   end

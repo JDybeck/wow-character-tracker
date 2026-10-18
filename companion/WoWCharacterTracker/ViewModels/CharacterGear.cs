@@ -61,22 +61,26 @@ sealed class CharacterGear
 
     public static CharacterGear Empty { get; } = new();
 
-    // info: the tab's shared lookup per Wowhead type and id (FlavorViewModel.InfoFor).
+    // lookup: the tab's shared things from the game (FlavorViewModel.Lookup).
     // spec: the character's spec, to pick its tier bonuses from Wowhead's (Retail lists every spec's).
-    public static CharacterGear From(Inventory? inv, Func<string, int, ItemInfo> info, Flavor flavor, string classFile, string spec = "")
+    public static CharacterGear From(Inventory? inv, GameLookup lookup, Flavor flavor, string classFile, string spec = "")
     {
         if (inv is null) return Empty;
-        ItemInfo item(int id) => info("item", id);
+        var item = lookup.Item;
         var retail = flavor == Flavors.Retail;
         var worn = inv.Gear.ToDictionary(g => g.Slot, g => g.ItemId);
         var wornInfos = worn.Values.Distinct().Select(item).ToList();
-        var enchants = inv.Enchants.GroupBy(e => e.Slot).ToDictionary(g => g.Key, g => new EnchantView(g.First().Text, info, flavor)); // an item holds one
-        IReadOnlyList<ItemCell> Slots((int Slot, string Name)[] slots) => slots
-            .Select(s => new ItemCell(worn.TryGetValue(s.Slot, out var id) ? item(id) : null, 1, s.Name)
+        var enchants = inv.Enchants.GroupBy(e => e.Slot).ToDictionary(g => g.Key, g => g.First()); // an item holds one
+        ItemCell Slot((int Slot, string Name) s)
+        {
+            var enchant = enchants.GetValueOrDefault(s.Slot);
+            return new ItemCell(worn.TryGetValue(s.Slot, out var id) ? item(id) : null, 1, s.Name)
             {
-                Enchant = enchants.GetValueOrDefault(s.Slot),
-            })
-            .ToList();
+                Enchant = enchant is null ? "" : Format.EnchantName(enchant.Text),
+                EnchantInfo = enchant is null ? null : lookup.Enchant(enchant.EnchantId, enchant.Text),
+            };
+        }
+        IReadOnlyList<ItemCell> Slots((int Slot, string Name)[] slots) => slots.Select(Slot).ToList();
 
         var gear = new CharacterGear
         {
@@ -176,24 +180,3 @@ sealed class BonusView(string text) : Observable
 
 // An item's Equip/Use line on the gear tab, with the item (its icon, tooltip and link).
 sealed record EffectView(ItemCell Cell, string Text);
-
-// An enchant under its item on the gear tab: the name without the "Enchant Ring -" part, and Wowhead's
-// tooltip for it (Ui/ItemTip) once the full name is found there. Enchants the game shows as stats only
-// ("+4 All Stats", Classic style) have no name to find and stay plain text.
-sealed class EnchantView : Observable
-{
-    public string Text { get; }
-    ItemInfo? info;
-    public ItemInfo? Info { get => info; private set => Set(ref info, value); }
-
-    public EnchantView(string saved, Func<string, int, ItemInfo> lookup, Flavor flavor)
-    {
-        Text = Format.EnchantName(saved);
-        _ = FindAsync(saved, lookup, flavor);
-    }
-
-    async Task FindAsync(string name, Func<string, int, ItemInfo> lookup, Flavor flavor)
-    {
-        if (await Wowhead.FindAsync(name, flavor) is { } hit) Info = lookup(hit.Type, hit.Id);
-    }
-}

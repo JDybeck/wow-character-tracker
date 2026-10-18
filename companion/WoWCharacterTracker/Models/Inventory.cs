@@ -12,8 +12,11 @@ record SetBonus(int Need, string Text)
     public bool IsActive(int have) => Need == 0 || have >= Need;
 }
 
-// An Equip: or Use: line of an equipped item, or its enchant.
+// An Equip: or Use: line of an equipped item.
 record GearEffect(int Slot, int ItemId, string Text);
+// An equipped item's enchant: the game's line ("Enchant Ring - Nature's Fury", or on Classic clients only
+// "Stamina +2") and its id from the item link (0 when saved before 0.24.1).
+record GearEnchant(int Slot, int ItemId, string Text, int EnchantId);
 
 // What a character carries, from the addon's items[guid] (Inventory.lua): equipped gear, bags, and
 // the bank as of the last time it was open (BankAt, 0 = never seen). SavedAt and SavedZone: when and
@@ -25,7 +28,7 @@ record Inventory(string Guid, IReadOnlyList<ItemSlot> Gear, IReadOnlyList<ItemSl
 
     public IReadOnlyList<GearSet> Sets { get; init; } = [];
     public IReadOnlyList<GearEffect> Effects { get; init; } = [];
-    public IReadOnlyList<GearEffect> Enchants { get; init; } = []; // the same shape: slot, item, the enchant
+    public IReadOnlyList<GearEnchant> Enchants { get; init; } = [];
     // Whether the addon has read the sets and effects at all (0.23.0 and later): none read is not "no sets".
     public bool HasGearScan { get; init; }
 
@@ -40,7 +43,7 @@ record Inventory(string Guid, IReadOnlyList<ItemSlot> Gear, IReadOnlyList<ItemSl
     {
         Sets = ParseSets(s("sets")),
         Effects = ParseEffects(s("effects")),
-        Enchants = ParseEffects(s("enchants")),
+        Enchants = ParseEnchants(s("enchants")),
         HasGearScan = n("setsAt") > 0 || s("sets").Length > 0 || s("effects").Length > 0,
     };
 
@@ -58,6 +61,18 @@ record Inventory(string Guid, IReadOnlyList<ItemSlot> Gear, IReadOnlyList<ItemSl
         .Select(l => l.Split('~', 3))
         .Where(p => p.Length == 3 && int.TryParse(p[0], out _) && int.TryParse(p[1], out _))
         .Select(p => new GearEffect(int.Parse(p[0]), int.Parse(p[1]), p[2]))
+        .ToList();
+
+    // "slot~itemId~enchant~enchantId", one per line (the id came in 0.24.1, older lines have none).
+    public static List<GearEnchant> ParseEnchants(string text) => ParseEffects(text)
+        .Select(e =>
+        {
+            var idAt = e.Text.LastIndexOf('~');
+            var hasId = idAt >= 0 && int.TryParse(e.Text[(idAt + 1)..], out _);
+            return hasId
+                ? new GearEnchant(e.Slot, e.ItemId, e.Text[..idAt], int.Parse(e.Text[(idAt + 1)..]))
+                : new GearEnchant(e.Slot, e.ItemId, e.Text, 0);
+        })
         .ToList();
 
     static IEnumerable<string> Lines(string text) => text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

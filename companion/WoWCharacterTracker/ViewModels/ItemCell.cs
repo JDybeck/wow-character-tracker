@@ -4,7 +4,7 @@ namespace WoWCharacterTracker.ViewModels;
 
 // One thing from the game as the app shows it: icon, name in its quality color and Wowhead's tooltip.
 // Mostly items, but crests (type "currency") and talents ("spell") are shown the same way. Shared per
-// type and id within a game tab (FlavorViewModel.InfoFor), so each is only looked up once. Ui/ItemTip
+// type and id within a game tab (GameLookup), so each is only looked up once. Ui/ItemTip
 // shows it on hover and opens its Wowhead page on click.
 sealed class ItemInfo(int itemId, string url, string type = "item") : Observable
 {
@@ -52,7 +52,7 @@ sealed class ItemInfo(int itemId, string url, string type = "item") : Observable
     // Looked up once; awaiting it again just waits for that lookup.
     Task? load;
     public Task LoadAsync(Flavor flavor) => load ??= Load(flavor);
-    // The lookup started for this (FlavorViewModel.InfoFor starts it), done when nothing was started.
+    // The lookup started for this (GameLookup starts it), done when nothing was started.
     public Task WhenLoaded => load ?? Task.CompletedTask;
 
     async Task Load(Flavor flavor)
@@ -75,8 +75,10 @@ sealed class ItemCell(ItemInfo? item, int count = 1, string slotName = "")
     public string CountText => Count > 1 ? Count.ToString() : "";
     public bool IsEmpty => Item is null;
     public string SlotName { get; } = slotName; // "Head", "Main Hand"... for equipped gear
-    public EnchantView? Enchant { get; init; } // equipped gear: its enchant, shown under the name
-    public bool HasEnchant => Enchant is not null;
+    // Equipped gear: its enchant under the name, and the enchant's Wowhead tooltip once found (GameLookup.Enchant).
+    public string Enchant { get; init; } = "";
+    public PendingInfo? EnchantInfo { get; init; }
+    public bool HasEnchant => Enchant.Length > 0;
 }
 
 // One bag (or the bank's own slots or a bank tab): its items, and how many slots are free.

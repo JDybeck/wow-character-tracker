@@ -146,14 +146,34 @@ public class ItemKindTests
         var inv = new Inventory("g", [new ItemSlot(Inventory.Equipped, 13, 5, 1)], [], new Dictionary<int, int>(), [], new Dictionary<int, int>(), 1, 0)
         {
             Effects = Inventory.ParseEffects("13~5~Equip: One.\n13~5~Use: Two.\n14~6~Equip: Three."),
-            Enchants = Inventory.ParseEffects("13~5~Enchant Ring - Nature's Fury"),
+            Enchants = Inventory.ParseEnchants("13~5~Enchant Ring - Nature's Fury~7346"),
         };
-        var gear = CharacterGear.From(inv, (type, id) => new ItemInfo(id, "", type), Flavors.Retail, "WARRIOR");
+        var gear = CharacterGear.From(inv, new GameLookup(Flavors.Retail, () => { }), Flavors.Retail, "WARRIOR");
         Assert.Equal(["Equip: One.\nUse: Two.", "Equip: Three."], gear.Effects.Select(e => e.Text));
         Assert.False(gear.ShowsCatalystNote); // no sets
         // Enchants go under the item in its slot, not in a list of their own.
-        Assert.Equal("Nature's Fury", gear.Right.Single(c => c.Item?.ItemId == 5).Enchant?.Text);
+        var ring = gear.Right.Single(c => c.Item?.ItemId == 5);
+        Assert.Equal("Nature's Fury", ring.Enchant);
+        Assert.NotNull(ring.EnchantInfo);
         Assert.All(gear.Left, c => Assert.False(c.HasEnchant));
+    }
+
+    [Fact]
+    public void Saved_enchant_lines_carry_their_id()
+    {
+        Assert.Equal(
+            [new GearEnchant(5, 279869, "Stamina +2", 41), new GearEnchant(11, 240949, "Enchant Ring - Nature's Fury", 0)],
+            Inventory.ParseEnchants("5~279869~Stamina +2~41\n11~240949~Enchant Ring - Nature's Fury")); // the second as saved before 0.24.1
+    }
+
+    [Fact]
+    public async Task Classic_enchants_are_found_by_id_without_asking_Wowhead()
+    {
+        // Forever only shows the stats ("+4 All Stats"), so the id has to do it: 1891 is Enchant Chest - Greater Stats.
+        Assert.Equal(20025, Enchants.SpellFor(1891));
+        Assert.Equal(("spell", 20025), await Enchants.FindAsync(1891, "+4 All Stats", Flavors.Forever));
+        Assert.Null(Enchants.SpellFor(0));
+        Assert.Null(Enchants.SpellFor(999999));
     }
 
     [Fact]
