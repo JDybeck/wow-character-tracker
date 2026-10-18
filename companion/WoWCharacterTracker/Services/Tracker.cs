@@ -164,7 +164,7 @@ sealed class Tracker : IDisposable
             }
             else if (pending.Count > 0)
             {
-                sent = await PostPendingAsync(pending, settings());
+                sent = await PostPendingAsync(pending, data.Events, settings());
             }
 
             File.WriteAllText(statePath, JsonSerializer.Serialize(posted));
@@ -203,19 +203,21 @@ sealed class Tracker : IDisposable
 
     // Posts what this tab wants, in order. Things it isn't set to post are marked as handled, so
     // turning a toggle on later doesn't dump old events into the channel. Returns how many posts went out.
-    async Task<int> PostPendingAsync(List<Entry> pending, FlavorSettings s)
+    async Task<int> PostPendingAsync(List<Entry> pending, List<Entry> history, FlavorSettings s)
     {
-        foreach (var e in pending.Where(e => !s.Wants(e)))
+        foreach (var e in pending.Where(e => !s.Wants(e, history)))
         {
             if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
                 Log.Info($"{Tag}Not posting {e.Boss}: {who.Name} is in the group (they post it).");
+            else if (e.Kind == "boss" && s.PostBosses && s.IsRepeatKill(e, history))
+                Log.Info($"{Tag}Not posting {e.Boss}: {e.Char} has killed it before (only first kills are posted).");
             posted!.Add(e.Id);
             // Only posted highlights keep their screenshot. (The addon normally doesn't take one for
             // these, unless the settings changed since the game last loaded them.)
             if (e.Shot && ScreenshotFileFor(e, within: 20) is { } unwantedShot) Files.TryDelete(unwantedShot);
         }
 
-        var toPost = pending.Where(s.Wants).ToList();
+        var toPost = pending.Where(e => s.Wants(e, history)).ToList();
         if (toPost.Count == 0) return 0;
         var hooks = webhooks();
         if (hooks.Count == 0)

@@ -73,6 +73,22 @@ public class SharedRulesTests
     }
 
     [Fact]
+    public void Only_a_characters_first_kill_of_a_boss_is_posted()
+    {
+        var s = new FlavorSettings { PostBosses = true };
+        Entry Kill(string guid, string boss, long at) => new() { Kind = "boss", Guid = guid, Boss = boss, At = at };
+        var first = Kill("a", "Ragnaros", 100);
+        var again = Kill("a", "Ragnaros", 200);
+        List<Entry> history = [first, again, Kill("b", "Ragnaros", 150), Kill("a", "Onyxia", 50)];
+
+        Assert.True(s.Wants(first, history));
+        Assert.False(s.Wants(again, history));
+        Assert.True(s.Wants(Kill("b", "Ragnaros", 150), history)); // another character's first
+        s.FirstBossKillOnly = false;
+        Assert.True(s.Wants(again, history));
+    }
+
+    [Fact]
     public void Webhooks_follow_rulesets_and_tags()
     {
         var config = new Config();

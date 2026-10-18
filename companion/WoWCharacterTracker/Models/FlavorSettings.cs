@@ -26,6 +26,7 @@ class FlavorSettings
     public bool PostMounts { get; set; } = true;
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
+    public bool FirstBossKillOnly { get; set; } = true; // each character's first kill of each end boss, not the farming after
 
     // Duels, hardcore Mak'gora, and retail rating milestones (posted when a step is passed).
     public bool PostDuels { get; set; }
@@ -96,6 +97,7 @@ class FlavorSettings
     {
         (PostLevels, LevelSplit, LevelEveryBefore, LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
         (PostRare, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
+        FirstBossKillOnly = d.FirstBossKillOnly;
         (PostMaxLevel, PostDuels, PostMakgora, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostMPlus, d.PostPvp);
         (MPlusSteps, PvpSteps) = ([.. d.MPlusSteps], [.. d.PvpSteps]);
         Screenshot = new(d.Screenshot);
@@ -113,6 +115,13 @@ class FlavorSettings
     }
 
     // Whether this tab posts the event. Legendary loot is always posted, with extra flair.
+    // Wants, plus what needs the character's history: a boss this character killed before isn't posted
+    // again when only first kills are. history: every event known for the tab.
+    public bool Wants(Entry e, IEnumerable<Entry> history) => Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
+
+    public bool IsRepeatKill(Entry e, IEnumerable<Entry> history) =>
+        FirstBossKillOnly && history.Any(o => o.Kind == "boss" && o.Guid == e.Guid && o.Boss == e.Boss && o.At < e.At);
+
     public bool Wants(Entry e) => e.Kind switch
     {
         "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),

@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.24.4
+
+- **Only the first boss kill per character**: an end boss is posted the first time each character kills it, not every run after (farming Stratholme or Molten Core no longer fills the channel). On by default; turn off "First kill only" under End boss kills on the What gets posted page to post every kill again. Every kill still shows in the app's highlights.
+
 ## v0.24.3
 
 - **Forever's new dungeons count as boss kills**: killing the last boss of The Hall of Thanes (Durgen Dirgehammer), Ruins of Lordaeron (Rath'mael), Excavation Site: Wetlands (Relic Guardian), City of Dalaran (Shade of the Archmage), Alcaz Prison (Blazeroar) or Shaper's Terrace (Nanaya) is now posted like any other end boss. More are added as Forever's dungeons and raids come out. Comes with the updated addon, so `/reload` once.

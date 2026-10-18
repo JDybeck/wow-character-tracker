@@ -16,7 +16,7 @@ static class PostingCode
         bool PostRare, bool PostEpic, bool PostMounts, bool PostBosses, bool PostDeaths,
         bool PostDuels, bool PostMakgora, bool PostMPlus, bool PostPvp,
         List<int> MPlusSteps, List<int> PvpSteps, string SkipBossGroupRegex, string NameStyle,
-        bool HideChatInShots, Dictionary<string, bool> Screenshot, Dictionary<string, bool> PostScreenshot, bool HideUiInShots = false);
+        bool HideChatInShots, Dictionary<string, bool> Screenshot, Dictionary<string, bool> PostScreenshot, bool HideUiInShots = false, bool FirstBossKillOnly = true);
 
     public static string Export(FlavorSettings s, Flavor flavor)
     {
@@ -25,7 +25,7 @@ static class PostingCode
             s.PostRare, s.PostEpic, s.PostMounts, s.PostBosses, s.PostDeaths,
             s.PostDuels, s.PostMakgora, s.PostMPlus, s.PostPvp,
             s.MPlusSteps, s.PvpSteps, s.SkipBossGroupRegex, s.NameStyle,
-            s.HideChatInShots, s.Screenshot, s.PostScreenshot, s.HideUiInShots);
+            s.HideChatInShots, s.Screenshot, s.PostScreenshot, s.HideUiInShots, s.FirstBossKillOnly);
         return Prefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(dto)));
     }
 
@@ -52,7 +52,7 @@ static class PostingCode
             LevelEveryBefore = Math.Clamp(d.LevelEveryBefore, 1, 100),
             LevelEveryAfter = Math.Clamp(d.LevelEveryAfter, 1, 100),
             PostMaxLevel = d.PostMaxLevel,
-            PostRare = d.PostRare, PostEpic = d.PostEpic, PostMounts = d.PostMounts, PostBosses = d.PostBosses, PostDeaths = d.PostDeaths,
+            PostRare = d.PostRare, PostEpic = d.PostEpic, PostMounts = d.PostMounts, PostBosses = d.PostBosses, PostDeaths = d.PostDeaths, FirstBossKillOnly = d.FirstBossKillOnly,
             PostDuels = d.PostDuels, PostMakgora = d.PostMakgora, PostMPlus = d.PostMPlus, PostPvp = d.PostPvp,
             MPlusSteps = Steps(d.MPlusSteps, target.MPlusSteps),
             PvpSteps = Steps(d.PvpSteps, target.PvpSteps),
