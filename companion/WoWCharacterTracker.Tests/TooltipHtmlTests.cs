@@ -49,4 +49,19 @@ public class TooltipHtmlTests
         const string html = "<table><tr><td><b class=\"q1\">Oil</b><div class=\"whtt-extra whtt-maxstack\">Max Stack: 20</div><div class=\"whtt-sellprice\">Sell Price: <span class=\"moneygold\">1</span> <span class=\"moneysilver\">6</span></div></td></tr></table>";
         Assert.Equal("Oil\nSell Price: 1g 6s", TooltipHtml.ToText(html));
     }
+
+    // A crest as Wowhead sends it: the description has its own line breaks, the cap is left out.
+    const string Mistcrest = "<table><tr><td><b>Hero Mistcrest</b><br><div style=\"max-width: 300px\" class=\"q\">Used to upgrade Hero equipment.  \n\n"
+        + "When used for crafting, sets the item level.\n\nEarned from the following activities:\n- Heroic The Venomous Abyss\n- Delves (Tier 11)</div>"
+        + "<br><span class=\"q\">Total cap: </span>100<br></td></tr></table>";
+
+    [Fact]
+    public void Line_breaks_inside_text_are_kept_and_the_cap_goes()
+    {
+        var lines = TooltipHtml.Parse(Mistcrest);
+        Assert.Equal(["Hero Mistcrest", "Used to upgrade Hero equipment.", "When used for crafting, sets the item level.",
+            "Earned from the following activities:", "- Heroic The Venomous Abyss", "- Delves (Tier 11)"], lines.Select(l => l.Text));
+        Assert.Equal([false, false, true, true, false, false], lines.Select(l => l.Gap));
+        Assert.All(lines.Skip(1), l => Assert.Equal("q", l.Left[0].Color));
+    }
 }

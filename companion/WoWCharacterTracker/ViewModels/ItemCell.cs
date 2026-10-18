@@ -2,12 +2,15 @@ using System.Windows.Media;
 
 namespace WoWCharacterTracker.ViewModels;
 
-// One item as the app shows it: icon, name in its quality color and Wowhead's tooltip. Shared per
-// item id within a game tab (ItemInfo), so each item is only looked up once.
-sealed class ItemInfo(int itemId, string url) : Observable
+// One thing from the game as the app shows it: icon, name in its quality color and Wowhead's tooltip.
+// Mostly items, but crests (type "currency") and talents ("spell") are shown the same way. Shared per
+// type and id within a game tab (FlavorViewModel.InfoFor), so each is only looked up once. Ui/ItemTip
+// shows it on hover and opens its Wowhead page on click.
+sealed class ItemInfo(int itemId, string url, string type = "item") : Observable
 {
     public int ItemId { get; } = itemId;
-    public string Url { get; } = url; // the item's Wowhead page (clicking the item opens it)
+    public string Url { get; } = url; // the Wowhead page (clicking it opens it)
+    public string Type { get; } = type; // "item", "currency" or "spell", as Wowhead calls them
 
     string name = "";
     public string Name { get => name; private set => Set(ref name, value); }
@@ -17,6 +20,7 @@ sealed class ItemInfo(int itemId, string url) : Observable
     public string? Tooltip { get => tooltip; private set => Set(ref tooltip, value); }
     string? html;
     public string? Html { get => html; private set => Set(ref html, value); } // Wowhead's tooltip, for WowTooltip
+    public int Quality { get; private set; } = -1; // -1 until known (currencies and spells have none)
     SolidColorBrush brush = ClassColors.Hex(0xFFFFFF);
     public SolidColorBrush Brush { get => brush; private set => Set(ref brush, value); }
 
@@ -37,13 +41,28 @@ sealed class ItemInfo(int itemId, string url) : Observable
         _ => "other",
     };
 
-    public async Task LoadAsync(Flavor flavor)
+    // The name the game gave (crests carry one), shown until or unless Wowhead answers.
+    public void Fallback(string name)
     {
-        if (await Wowhead.GetAsync("item", ItemId, flavor) is not { } info) return;
+        if (Name.Length > 0 || name.Length == 0) return;
+        Name = name;
+        Tooltip ??= name;
+    }
+
+    // Looked up once; awaiting it again just waits for that lookup.
+    Task? load;
+    public Task LoadAsync(Flavor flavor) => load ??= Load(flavor);
+    // The lookup started for this (FlavorViewModel.InfoFor starts it), done when nothing was started.
+    public Task WhenLoaded => load ?? Task.CompletedTask;
+
+    async Task Load(Flavor flavor)
+    {
+        if (await Wowhead.GetAsync(Type, ItemId, flavor) is not { } info) return;
         Name = info.Name;
         IconUrl = Wowhead.IconUrl(info.Icon, "medium");
-        Tooltip = info.Tooltip;
+        Tooltip = info.Tooltip.Length > 0 ? info.Tooltip : info.Name;
         Html = info.Html;
+        Quality = info.Quality;
         if (HighlightRow.QualityBrush(info.Quality) is { } q) Brush = q;
     }
 }
@@ -58,9 +77,11 @@ sealed class ItemCell(ItemInfo? item, int count = 1, string slotName = "")
     public string SlotName { get; } = slotName; // "Head", "Main Hand"... for equipped gear
 }
 
-// One bag (or the bank's own slots) as a grid of cells.
-sealed class BagView(string title, IReadOnlyList<ItemCell> cells)
+// One bag (or the bank's own slots or a bank tab): its items, and how many slots are free.
+sealed class BagView(string title, IReadOnlyList<ItemCell> cells, int free = 0)
 {
     public string Title { get; } = title;
     public IReadOnlyList<ItemCell> Cells { get; } = cells;
+    public int Free { get; } = free;
+    public string FreeText => Free switch { 0 => "full", 1 => "1 free slot", _ => $"{Free} free slots" };
 }

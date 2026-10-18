@@ -26,6 +26,13 @@ sealed class ChipFilter(string label, Action changed) : Observable
 
     public bool Matches(string key) => Key.Length == 0 || key == Key;
 
+    // Back to All, without running changed (the caller rebuilds once for everything it resets).
+    public void Reset()
+    {
+        selected = Chips.FirstOrDefault();
+        Raise(nameof(Selected));
+    }
+
     // Rebuilds the chips from the items' keys (an empty key reads "Unknown"), keeping the chosen one if it's still there.
     public void Fill<T>(IReadOnlyCollection<T> items, Func<T, string> keyOf)
     {

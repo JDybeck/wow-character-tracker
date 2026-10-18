@@ -160,6 +160,13 @@ local function getTraitTalents()
   return table.concat(parts, " / "), best, table.concat(picks, ","), calc
 end
 
+-- The Retail spec's name ("Blood"), nil on clients without specs (Forever) or before one is picked.
+function ns.specName()
+  if type(GetSpecialization) ~= "function" or type(GetSpecializationInfo) ~= "function" then return nil end
+  local spec = GetSpecialization()
+  return spec and select(2, GetSpecializationInfo(spec)) or nil
+end
+
 -- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or nil when there is nothing to show yet.
 -- Also returns the spec name on retail (nil on Classic).
 function ns.getTalents()
@@ -182,8 +189,7 @@ function ns.getTalents()
     return table.concat(parts, " / ")
   elseif type(GetSpecialization) == "function" then
     -- Retail: class, spec and hero trees.
-    local spec = GetSpecialization()
-    local specName = spec and select(2, GetSpecializationInfo(spec))
+    local specName = ns.specName()
     if not specName then return nil end
     local ok, split = pcall(getRetailTalentSplit, specName)
     if ok and split then return split, specName end

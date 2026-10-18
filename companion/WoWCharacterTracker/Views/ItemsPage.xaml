@@ -35,15 +35,7 @@
     </DataTemplate>
     <!-- An item: icon in its quality color, name, total, and who has it where. -->
     <DataTemplate DataType="{x:Type vm:ItemRow}">
-      <Grid Width="330" Margin="0,3,14,3" Background="Transparent" Cursor="Hand" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
-        <Grid.ToolTip>
-          <ToolTip Style="{DynamicResource BareToolTip}">
-            <ui:WowTooltip Html="{Binding Info.Html}" Text="{Binding Info.Tooltip}"/>
-          </ToolTip>
-        </Grid.ToolTip>
-        <Grid.InputBindings>
-          <MouseBinding MouseAction="LeftClick" Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Info.Url}"/>
-        </Grid.InputBindings>
+      <Grid Width="330" Margin="0,3,14,3" Background="Transparent" ui:ItemTip.Info="{Binding Info}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>

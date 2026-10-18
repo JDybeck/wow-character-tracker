@@ -4,6 +4,7 @@
 --   gear     "slot~itemId,..."            (inventory slots 1-19)
 --   bags     "bag~slot~itemId~count,..."  bagSizes "bag~size,..."
 --   bank     the same for the bank        bankSizes, bankAt (when the bank was last open)
+--   sets, effects, enchants: the gear's set bonuses, Equip/Use lines and enchants (scanGearEffects), setsAt when read
 --   savedAt, savedZone: when and where the saved file was last written (/reload or logout)
 local ADDON, ns = ...
 
@@ -96,6 +97,97 @@ local function gear()
   return table.concat(items, ",")
 end
 
+-- The text lines of an equipped item's tooltip, as the game shows it (C_TooltipInfo where the client
+-- has it, else our own hidden tooltip). Secret values are left out.
+local scanTip
+local function tooltipLines(slot)
+  local out = {}
+  local function add(text)
+    if type(text) == "string" and not (issecretvalue and issecretvalue(text)) then out[#out + 1] = text end
+  end
+  if C_TooltipInfo and C_TooltipInfo.GetInventoryItem then
+    local ok, data = pcall(C_TooltipInfo.GetInventoryItem, "player", slot)
+    if ok and type(data) == "table" and type(data.lines) == "table" then
+      for _, line in ipairs(data.lines) do add(line.leftText) end
+      return out
+    end
+  end
+  if not CreateFrame then return out end
+  scanTip = scanTip or CreateFrame("GameTooltip", "WoWCharacterTrackerScanTip", nil, "GameTooltipTemplate")
+  scanTip:SetOwner(WorldFrame, "ANCHOR_NONE")
+  scanTip:ClearLines()
+  if not pcall(scanTip.SetInventoryItem, scanTip, "player", slot) then return out end
+  for i = 1, scanTip:NumLines() do
+    local fs = _G["WoWCharacterTrackerScanTipTextLeft" .. i]
+    if fs then add(fs:GetText()) end
+  end
+  scanTip:Hide()
+  return out
+end
+
+local function plain(s) return (s:gsub("(%W)", "%%%1")) end
+-- "Set", "Equip:", "Use:" in the client's language.
+local SET = plain(((ITEM_SET_BONUS or "Set: %s"):match("^(.-):")) or "Set")
+local EQUIP = plain(ITEM_SPELL_TRIGGER_ONEQUIP or "Equip:")
+local USE = plain(ITEM_SPELL_TRIGGER_ONUSE or "Use:")
+local ENCHANTED = "^" .. plain(((ENCHANTED_TOOLTIP_LINE or "Enchanted: %s"):match("^(.-)%%s")) or "Enchanted: ") .. "(.+)$"
+
+-- Color codes and icons (the enchant's quality star) out, and the characters the saved lines use
+-- as separators.
+local function clean(text)
+  text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|A.-|a", ""):gsub("|T.-|t", ""):gsub("[~\r\n]", " ")
+  return (text:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+-- A set bonus line: "(2) Set: ..." while it isn't active yet, plain "Set: ..." once it is (the game
+-- drops the count then). Tier bonuses may name a spec ("(2) Set Blood: ..."); other specs' lines are
+-- left out. Returns the pieces needed (0 = active, count not shown) and the text, or nil.
+local function setBonus(text, spec)
+  local need, label, bonus = text:match("^%((%d+)%) " .. SET .. "([^:]*):%s*(.+)$")
+  if not need then label, bonus = text:match("^" .. SET .. "([^:]*):%s*(.+)$") end
+  if not bonus or (label ~= "" and not label:match("^ ")) then return nil end -- "Sets the..." isn't one
+  label = label:gsub("^%s+", ""):gsub("%s+$", "")
+  if label ~= "" and spec and label ~= spec then return nil end
+  return tonumber(need) or 0, bonus
+end
+
+-- Set bonuses and item effects of the equipped gear, read from the game's own tooltips, so pieces
+-- that count for a set without being one (catalyst, redirected tier) are counted as the game counts
+-- them. Saved-file only, one line each:
+--   sets     "set name~pieces worn~pieces in set~pieces needed (0 = active)~bonus text"
+--   effects  "slot~itemId~Equip: ... / Use: ..."
+--   enchants "slot~itemId~enchant"
+function ns.scanGearEffects()
+  local sets, effects, enchants, seen = {}, {}, {}, {}
+  local spec = ns.specName and ns.specName()
+  for slot = 1, 19 do
+    local id = GetInventoryItemID and GetInventoryItemID("player", slot)
+    if id then
+      local setName, have, max
+      for _, raw in ipairs(tooltipLines(slot)) do
+        local text = clean(raw)
+        local name, h, m = text:match("^(.+) %((%d+)/(%d+)%)$")
+        if name and not setName then
+          setName, have, max = name, h, m
+        elseif setName then
+          local need, bonus = setBonus(text, spec)
+          local key = bonus and (setName .. "~" .. bonus)
+          if key and not seen[key] then
+            seen[key] = true
+            sets[#sets + 1] = table.concat({ setName, have, max, need, bonus }, "~")
+          end
+        end
+        if text:match("^" .. EQUIP) or text:match("^" .. USE) then
+          effects[#effects + 1] = slot .. "~" .. id .. "~" .. text
+        end
+        local enchant = text:match(ENCHANTED)
+        if enchant then enchants[#enchants + 1] = slot .. "~" .. id .. "~" .. enchant end
+      end
+    end
+  end
+  return table.concat(sets, "\n"), table.concat(effects, "\n"), table.concat(enchants, "\n")
+end
+
 -- What the saved file had when this session started, to tell whether anything changed since.
 local atLoad
 
@@ -125,6 +217,11 @@ function ns.scanInventory()
   ns.doing("inventory scan")
   local worn = gear()
   if worn ~= "" then e.gear = worn end
+  -- Tooltips can come back secret in combat, so the set bonuses wait for the next scan out of it.
+  if worn ~= "" and not (InCombatLockdown and InCombatLockdown()) then
+    local ok, sets, effects, enchants = pcall(ns.scanGearEffects)
+    if ok then e.sets, e.effects, e.enchants, e.setsAt = sets, effects, enchants, time() end
+  end
   local bags, sizes = scanBags(carriedBags())
   if sizes ~= "" then e.bags, e.bagSizes = bags, sizes end
   if worn ~= "" or sizes ~= "" then e.scannedAt = time() end

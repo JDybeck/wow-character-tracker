@@ -53,17 +53,20 @@ sealed class WowTooltip : Border
     {
         var lines = Html is { Length: > 0 } html
             ? TooltipHtml.Parse(html)
-            : (Text ?? "").Split('\n').Select(l => new TooltipHtml.Line([new(l, "")], [])).ToList();
+            : (Text ?? "").Split('\n').Where(l => l.Length > 0).Select(l => new TooltipHtml.Line([new(l, "")], [])).ToList();
         var panel = new StackPanel();
         for (var i = 0; i < lines.Count; i++)
         {
             var left = Draw(lines[i].Left, title: i == 0);
+            // A new paragraph (an empty line in Wowhead's text) starts a little further down.
+            var gap = lines[i].Gap ? new Thickness(0, 8, 0, 0) : new Thickness(0);
             if (lines[i].Right.Count == 0)
             {
+                if (lines[i].Gap) left.Margin = gap;
                 panel.Children.Add(left);
                 continue;
             }
-            var row = new Grid();
+            var row = new Grid { Margin = gap };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var right = Draw(lines[i].Right, title: false);

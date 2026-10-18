@@ -147,9 +147,9 @@
                 </DockPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                  <Border Width="18" Height="18" CornerRadius="3" ClipToBounds="True" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding RoleName}"
-                          Visibility="{Binding RoleIconUrl, Converter={StaticResource VisibleIfSet}}">
-                    <Image Source="{Binding RoleIconUrl, Converter={StaticResource WebImage}}"/>
+                  <Border Width="22" Height="22" CornerRadius="4" ClipToBounds="True" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding SpecIconTip}"
+                          Visibility="{Binding SpecIconUrl, Converter={StaticResource VisibleIfSet}}">
+                    <Image Source="{Binding SpecIconUrl, Converter={StaticResource WebImage}}" RenderOptions.BitmapScalingMode="HighQuality"/>
                   </Border>
                   <StackPanel>
                     <TextBlock Text="{Binding ClassName}" Foreground="{Binding ClassBrush}" FontWeight="Medium" FontSize="13"/>

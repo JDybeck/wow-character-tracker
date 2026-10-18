@@ -1,8 +1,8 @@
 namespace WoWCharacterTracker.ViewModels;
 
-// A boss kill, rare loot, new mount or death, shown in the character details.
-// A small icon with text, like a crest and its count or a profession and its skill. The icon and
-// tooltip fill in once Wowhead has answered.
+// A small icon with text, like a crest and its count or a profession and its skill. Chips for things
+// from the game (crests, talents) carry an ItemInfo, so they show Wowhead's tooltip the way items do;
+// the others just have a plain tooltip text.
 sealed class IconChip(string text, string? iconUrl = null, string tooltip = "") : Observable
 {
     string text = text;
@@ -14,6 +14,9 @@ sealed class IconChip(string text, string? iconUrl = null, string tooltip = "") 
     string tooltip = tooltip;
     public string Tooltip { get => tooltip; set => Set(ref tooltip, value); }
 
-    // For crests: the currency id to look up.
+    // For crests and talents: the currency or spell id to look up.
     public int Tag { get; init; }
+
+    ItemInfo? info;
+    public ItemInfo? Info { get => info; set => Set(ref info, value); }
 }

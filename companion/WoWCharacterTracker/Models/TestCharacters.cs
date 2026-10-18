@@ -99,7 +99,15 @@ static class TestCharacters
         {
             Carrying(zeb, "1~7719,3~7718,5~6125,7~6087,8~7351,16~7717", "6948~1,2589~20,4306~32,2772~14,3575~8,929~5,4599~12,159~20", "4306~40,2772~20,7718~1,6125~1", now),
             Carrying(fagel, "7~10410,1~6505,16~1238", "6948~1,2589~11,2452~14,785~22,118~6,159~10", "", 0),
-            Carrying(goggo, "1~16846,3~16848,5~16845,18~18713", "6948~1,13444~8,13446~12,12662~4,14047~60", "14047~120,12809~4,16846~1", now - 3 * 86400),
+            Carrying(goggo, "1~16846,3~16848,5~16845,18~18713", "6948~1,13444~8,13446~12,12662~4,14047~60", "14047~120,12809~4,16846~1", now - 3 * 86400) with
+            {
+                // As the addon saves them (Inventory.lua scanGearEffects), for the gear tab's side column.
+                Sets = Inventory.ParseSets("Giantstalker Armor~3~8~3~Increases the range of your Mend Pet spell by 50% and the effect by 10%.\n"
+                    + "Giantstalker Armor~3~8~5~Increases the damage of Multi-Shot and Volley by 15%.\n"
+                    + "Giantstalker Armor~3~8~8~Your normal ranged attacks have a 4% chance of restoring 200 mana."),
+                Effects = Inventory.ParseEffects("1~16846~Equip: Improves your chance to hit by 1%.\n5~16845~Equip: Improves your chance to get a critical strike by 1%."),
+                Enchants = Inventory.ParseEffects("5~16845~+4 All Stats\n18~18713~+7 Ranged Damage"),
+            },
         };
         var xpTable = new Dictionary<int, long> { [20] = 23200, [21] = 25200, [39] = 85700, [40] = 90700 };
         return new TrackerData(events, [zeb, fagel, goggo]) { Inventories = inventories, XpTable = xpTable };
@@ -115,6 +123,6 @@ static class TestCharacters
         var equipped = gear.Split(',').Select(p => p.Split('~')).Select(p => new ItemSlot(Inventory.Equipped, int.Parse(p[0]), int.Parse(p[1]), 1)).ToList();
         return new Inventory(s.Guid, equipped, Fill(bags, 0, 16), new Dictionary<int, int> { [0] = 16, [1] = 14, [2] = 12, [3] = 10 },
             bankAt > 0 ? Fill(bank, -1, 24) : [], bankAt > 0 ? new Dictionary<int, int> { [-1] = 24, [5] = 12 } : new Dictionary<int, int>(),
-            s.LastSeen, bankAt, s.LastSeen, s.Zone);
+            s.LastSeen, bankAt, s.LastSeen, s.Zone) { HasGearScan = true };
     }
 }

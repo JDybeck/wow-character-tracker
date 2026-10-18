@@ -154,17 +154,6 @@
                   <Setter Property="TextWrapping" Value="Wrap"/>
                   <Setter Property="Foreground" Value="{StaticResource Text}"/>
                 </Style>
-
-  <!-- A tooltip that draws its own box (WowTooltip, the item tooltips in Wowhead's look). -->
-  <Style x:Key="BareToolTip" TargetType="ToolTip">
-    <Setter Property="Template">
-      <Setter.Value>
-        <ControlTemplate TargetType="ToolTip">
-          <ContentPresenter/>
-        </ControlTemplate>
-      </Setter.Value>
-    </Setter>
-  </Style>
               </ContentPresenter.Resources>
             </ContentPresenter>
           </Border>

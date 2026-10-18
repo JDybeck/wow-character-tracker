@@ -19,11 +19,20 @@
         </DataTrigger>
       </DataTemplate.Triggers>
     </DataTemplate>
-    <!-- A bag: its title, then its slots in rows. -->
+    <!-- An effect or enchant beside the gear: the item, then the line in the game's green. -->
+    <DataTemplate x:Key="GearLine" DataType="{x:Type vm:EffectView}">
+      <DockPanel Margin="0,4,0,2">
+        <ContentPresenter Content="{Binding Cell}" ContentTemplate="{StaticResource ItemCellTemplate}" DockPanel.Dock="Left" VerticalAlignment="Top"/>
+        <TextBlock Text="{Binding Text}" FontSize="12" LineHeight="17" TextWrapping="Wrap" Foreground="#1EFF00" Margin="6,0,0,0" VerticalAlignment="Center"/>
+      </DockPanel>
+    </DataTemplate>
+    <!-- A bag: its title and free slots, then its items in rows (empty slots aren't drawn). -->
     <DataTemplate x:Key="BagTemplate" DataType="{x:Type vm:BagView}">
       <StackPanel Margin="0,0,18,10">
-        <TextBlock Text="{Binding Title}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,0,0,4"/>
-        <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource ItemCellTemplate}" Width="296" HorizontalAlignment="Left">
+        <TextBlock FontSize="11" Margin="0,0,0,4">
+          <Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Dim}"/><Run Text=" · " Foreground="{StaticResource Faint}"/><Run Text="{Binding FreeText, Mode=OneWay}" Foreground="{StaticResource Faint}"/>
+        </TextBlock>
+        <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource ItemCellTemplate}" MaxWidth="296" HorizontalAlignment="Left">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
@@ -43,21 +52,75 @@
         <TextBlock FontSize="12" Foreground="{StaticResource Dim}" Text="{Binding Gear.SavedText}" Visibility="{Binding Gear.HasSavedText, Converter={StaticResource Visible}}"/>
         <TextBlock FontSize="12" Foreground="{StaticResource Dim}" Text="Updates on /reload or logout" Visibility="{Binding Gear.HasSavedText, Converter={StaticResource Hidden}}"/>
       </StackPanel>
-      <TextBlock Style="{StaticResource FactLabel}" Text="EQUIPPED"/>
-      <Grid Margin="0,4,0,0">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="16"/>
-          <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <ItemsControl ItemsSource="{Binding Gear.Left}" ItemTemplate="{StaticResource GearSlot}"/>
-        <ItemsControl Grid.Column="2" ItemsSource="{Binding Gear.Right}" ItemTemplate="{StaticResource GearSlot}"/>
-      </Grid>
-      <ItemsControl ItemsSource="{Binding Gear.Bottom}" ItemTemplate="{StaticResource GearSlot}" Margin="0,6,0,0">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-      </ItemsControl>
+      <DockPanel>
+        <!-- Beside the gear: set bonuses (active ones lit, like the game) and the items' Equip/Use effects. -->
+        <StackPanel DockPanel.Dock="Right" Width="300" Margin="20,0,0,0" Visibility="{Binding Gear.ShowsSide, Converter={StaticResource Visible}}">
+          <StackPanel Visibility="{Binding Gear.NeedsGearScan, Converter={StaticResource Visible}}">
+            <TextBlock Style="{StaticResource FactLabel}" Text="SET BONUSES"/>
+            <TextBlock Style="{StaticResource Hint}" Text="Log in with the updated addon and /reload (or log out) once: your set bonuses and gear effects show up here."/>
+          </StackPanel>
+          <StackPanel Visibility="{Binding Gear.HasSets, Converter={StaticResource Visible}}">
+            <TextBlock Style="{StaticResource FactLabel}" Text="SET BONUSES"/>
+            <ItemsControl ItemsSource="{Binding Gear.Sets}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:SetView}">
+                  <StackPanel Margin="0,4,0,8">
+                    <TextBlock FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap">
+                      <Run Text="{Binding Name, Mode=OneWay}" Foreground="#FFD100"/> <Run Text="{Binding Count, Mode=OneWay}" Foreground="{StaticResource Muted}"/>
+                    </TextBlock>
+                    <ItemsControl ItemsSource="{Binding Bonuses}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:BonusView}">
+                          <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="26"/>
+                              <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="Need" Text="{Binding Need}" FontSize="12" Foreground="{StaticResource Faint}"/>
+                            <TextBlock x:Name="Bonus" Grid.Column="1" Text="{Binding Text}" FontSize="12" LineHeight="17" TextWrapping="Wrap" Foreground="{StaticResource Faint}"/>
+                          </Grid>
+                          <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                              <Setter TargetName="Need" Property="Foreground" Value="#1EFF00"/>
+                              <Setter TargetName="Bonus" Property="Foreground" Value="#1EFF00"/>
+                            </DataTrigger>
+                          </DataTemplate.Triggers>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <StackPanel Visibility="{Binding Gear.HasEffects, Converter={StaticResource Visible}}">
+            <TextBlock Style="{StaticResource FactLabel}" Text="EFFECTS"/>
+            <ItemsControl ItemsSource="{Binding Gear.Effects}" ItemTemplate="{StaticResource GearLine}"/>
+          </StackPanel>
+          <StackPanel Visibility="{Binding Gear.HasEnchants, Converter={StaticResource Visible}}">
+            <TextBlock Style="{StaticResource FactLabel}" Text="ENCHANTS"/>
+            <ItemsControl ItemsSource="{Binding Gear.Enchants}" ItemTemplate="{StaticResource GearLine}"/>
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel>
+          <TextBlock Style="{StaticResource FactLabel}" Text="EQUIPPED"/>
+          <Grid Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="16"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <ItemsControl ItemsSource="{Binding Gear.Left}" ItemTemplate="{StaticResource GearSlot}"/>
+            <ItemsControl Grid.Column="2" ItemsSource="{Binding Gear.Right}" ItemTemplate="{StaticResource GearSlot}"/>
+          </Grid>
+          <ItemsControl ItemsSource="{Binding Gear.Bottom}" ItemTemplate="{StaticResource GearSlot}" Margin="0,6,0,0">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+      </DockPanel>
 
       <TextBlock Style="{StaticResource FactLabel}" Text="BAGS" Margin="0,14,0,6"/>
       <ItemsControl ItemsSource="{Binding Gear.Bags}" ItemTemplate="{StaticResource BagTemplate}">

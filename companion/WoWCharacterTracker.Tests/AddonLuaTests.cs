@@ -66,4 +66,40 @@ public class AddonLuaTests
         Assert.Empty(Announce("{ announce = { guild = false, party = false, kinds = { level = true } } }", "{ kind = 'level', level = 5 }"));
         Assert.Empty(Announce("{ }", "{ kind = 'level', level = 5 }")); // Settings.lua from an older app
     }
+
+    // Inventory.lua's scanGearEffects over stubbed tooltips: head and legs are tier (the legs a
+    // catalysted piece, which the game's tooltip counts all the same), the chest has an Equip line.
+    [Fact]
+    public void Set_bonuses_and_effects_come_from_the_gear_tooltips()
+    {
+        var script = new Script();
+        script.DoString("""
+            -- As the game shows it: active bonuses without their count, others with it, per spec on tier.
+            local set = { "|cffffd100Baleful Grave-Knight's Battlegear (2/5)|r", "  Baleful Grave-Knight's Casque",
+              "|cff00ff00Set: Heart Strike deals 10% more damage.|r", "(2) Set Frost: Remorseless Winter hits harder.",
+              "(4) Set Blood: Your Bone Shield lasts longer.", "Sets the item level: not a bonus." }
+            function GetSpecialization() return 1 end
+            function GetSpecializationInfo() return 250, "Blood" end
+            local tips = {
+              [1] = { "Baleful Grave-Knight's Casque", "Item Level 321", unpack(set) },
+              [5] = { "Plain Breastplate", "Enchanted: Crystalline Radiance |A:Professions-ChatIcon-Quality-Tier3:20:20|a",
+                "Equip: Your attacks have a chance to heal you." },
+              [7] = { "Catalysted Greaves", unpack(set) },
+            }
+            function GetInventoryItemID(_, slot) return tips[slot] and (1000 + slot) or nil end
+            C_TooltipInfo = { GetInventoryItem = function(_, slot)
+              local lines = {}
+              for i, t in ipairs(tips[slot] or {}) do lines[i] = { leftText = t } end
+              return { lines = lines }
+            end }
+            """);
+        var ns = new Table(script);
+        foreach (var file in new[] { "Character.lua", "Inventory.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        var result = script.Call(ns.Get("scanGearEffects")).Tuple;
+        Assert.Equal("Baleful Grave-Knight's Battlegear~2~5~0~Heart Strike deals 10% more damage.\n"
+            + "Baleful Grave-Knight's Battlegear~2~5~4~Your Bone Shield lasts longer.", result[0].String);
+        Assert.Equal("5~1005~Equip: Your attacks have a chance to heal you.", result[1].String);
+        Assert.Equal("5~1005~Crystalline Radiance", result[2].String);
+    }
 }

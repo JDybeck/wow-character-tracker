@@ -98,37 +98,44 @@ sealed class CharacterRow : Observable
     Task? icons;
     public Task LoadIconsAsync(Flavor flavor) => icons ??= LoadIcons(flavor);
 
+    // The tab's shared lookup of items, crests and talents (FlavorViewModel.InfoFor).
+    public Func<string, int, ItemInfo>? Info { private get; init; }
+
     async Task LoadIcons(Flavor flavor)
     {
+        // Crests, talents and loot are things from the game, so they get the same ItemInfo (and the
+        // same tooltip and Wowhead link, Ui/ItemTip) as items in bags.
+        ItemInfo? Lookup(string type, int id) => id > 0 ? Info?.Invoke(type, id) : null;
         CrestList = CrestChips(Crests);
+        foreach (var chip in CrestList) chip.Info = Lookup("currency", chip.Tag);
         ProfessionList = ProfessionChips(Professions);
         TalentPickList = TalentChips(TalentPicks);
+        foreach (var chip in TalentPickList) chip.Info = Lookup("spell", chip.Tag);
+        foreach (var h in Highlights) h.Info = Lookup("item", h.ItemId);
         Raise(nameof(TalentPickList));
         Raise(nameof(HasTalentPicks));
         Raise(nameof(CrestList));
         Raise(nameof(ProfessionList));
         Raise(nameof(HasProfessions));
 
-        foreach (var chip in CrestList.Where(c => c.Tag > 0))
-            if (await Wowhead.GetAsync("currency", chip.Tag, flavor) is { } info)
-            {
-                chip.IconUrl = Wowhead.IconUrl(info.Icon, "small");
-                chip.Tooltip = info.Tooltip.Length > 0 ? info.Tooltip : info.Name;
-            }
-        foreach (var chip in TalentPickList)
-            if (await Wowhead.GetAsync("spell", chip.Tag, flavor) is { } info)
-            {
-                chip.IconUrl = Wowhead.IconUrl(info.Icon, "small");
-                chip.Text = $"{info.Name} {chip.Text}";
-                chip.Tooltip = info.Tooltip.Length > 0 ? info.Tooltip : info.Name;
-            }
-        foreach (var h in Highlights.Where(h => h.ItemId > 0))
-            if (await Wowhead.GetAsync("item", h.ItemId, flavor) is { } info)
-            {
-                h.IconUrl = Wowhead.IconUrl(info.Icon, "small");
-                h.Tooltip = info.Tooltip;
-                if (HighlightRow.QualityBrush(info.Quality) is { } q) h.Brush = q;
-            }
+        foreach (var chip in CrestList.Where(c => c.Info is not null))
+        {
+            chip.Info!.Fallback(chip.Tooltip);
+            await chip.Info.LoadAsync(flavor);
+            chip.IconUrl = chip.Info.IconUrl;
+        }
+        foreach (var chip in TalentPickList.Where(c => c.Info is not null))
+        {
+            await chip.Info!.LoadAsync(flavor);
+            chip.IconUrl = chip.Info.IconUrl;
+            if (chip.Info.Name.Length > 0) chip.Text = $"{chip.Info.Name} {chip.Text}";
+        }
+        foreach (var h in Highlights.Where(h => h.Info is not null))
+        {
+            await h.Info!.LoadAsync(flavor);
+            h.IconUrl = h.Info.IconUrl;
+            if (h.Info.Quality >= 0) h.Brush = h.Info.Brush;
+        }
     }
 
     // The user's tags as on/off chips for this character, and the box for making a new one.
@@ -166,6 +173,9 @@ sealed class CharacterRow : Observable
     public string RoleKind => Roles.Of(Role, ClassFile, Spec, IsRetail);
     public string? RoleIconUrl => Roles.Icon(RoleKind) is { } icon ? Wowhead.IconUrl(icon, "small") : null;
     public string RoleName => Roles.Name(RoleKind);
+    // Next to the class: the spec's own icon, or the role's when the spec isn't known (SpecIcons).
+    public string? SpecIconUrl => SpecIcons.Of(ClassFile, Spec) is { } icon ? Wowhead.IconUrl(icon, "medium") : RoleIconUrl;
+    public string SpecIconTip => Spec.Length > 0 && RoleName.Length > 0 ? $"{Spec} ({RoleName})" : RoleName;
 
     string? pictureUrl;
     public string? PictureUrl { get => pictureUrl; set => Set(ref pictureUrl, value); }
@@ -204,9 +214,10 @@ sealed class CharacterRow : Observable
     }
 
     // One row per character: the latest snapshot, filled in from events when there isn't one yet.
-    // item: the tab's shared item info per item id (icons and names are looked up once).
-    public static List<CharacterRow> Build(TrackerData data, Flavor flavor, Func<int, ItemInfo> item)
+    // info: the tab's shared info per Wowhead type and id (icons and names are looked up once).
+    public static List<CharacterRow> Build(TrackerData data, Flavor flavor, Func<string, int, ItemInfo> info)
     {
+        ItemInfo item(int id) => info("item", id);
         var inventories = data.Inventories.GroupBy(i => i.Guid).ToDictionary(g => g.Key, g => g.MaxBy(i => Math.Max(i.ScannedAt, i.BankAt))!);
         // XP only comes with the saved file, so the newest snapshot that has it.
         var xpSnaps = data.Characters.Where(c => c.XpMax > 0).GroupBy(c => c.Guid).ToDictionary(g => g.Key, g => g.MaxBy(c => c.LastSeen)!);
@@ -220,7 +231,7 @@ sealed class CharacterRow : Observable
         // (the talent code), so each is taken from the newest snapshot that has it.
         string Newest(string guid, Func<Snapshot, string> field) =>
             data.Characters.Where(c => c.Guid == guid && field(c).Length > 0).MaxBy(c => c.LastSeen) is { } n ? field(n) : "";
-        Func<CharacterGear> MakeGear(Inventory? inv, string classFile) => () => CharacterGear.From(inv, item, classFile, retail: flavor == Flavors.Retail);
+        Func<CharacterGear> MakeGear(Inventory? inv, string classFile, string spec) => () => CharacterGear.From(inv, item, classFile, retail: flavor == Flavors.Retail, spec);
 
         var rows = new List<CharacterRow>();
         foreach (var guid in snaps.Keys.Union(events.Keys))
@@ -280,8 +291,9 @@ sealed class CharacterRow : Observable
                     .OrderByDescending(e => e.At)
                     .Select(Highlight)
                     .ToList(),
+                Info = info,
                 Inventory = inventories.GetValueOrDefault(guid),
-                MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile)),
+                MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile), Pick(s?.Spec, last?.Spec)),
                 Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor == Flavors.Forever),
             });
         }
