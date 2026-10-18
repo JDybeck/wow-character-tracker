@@ -69,7 +69,11 @@ sealed class CharacterRow : Observable
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
     public Inventory? Inventory { get; init; } // what the character carries, as saved (the Items page)
-    public CharacterGear Gear { get; init; } = CharacterGear.Empty;
+    // The Gear and bags tab, built the first time it's shown: it makes an item (and a Wowhead
+    // lookup) per slot, which for dozens of characters at startup froze the window.
+    public Func<CharacterGear>? MakeGear { private get; init; }
+    CharacterGear? gear;
+    public CharacterGear Gear => gear ??= MakeGear?.Invoke() ?? CharacterGear.Empty;
     public CharacterLeveling Leveling { get; init; } = new();
 
     // The details are split into tabs: "overview", "gear" (gear and bags) and "leveling".
@@ -88,7 +92,11 @@ sealed class CharacterRow : Observable
     public bool IsLevelingTab { get => DetailTab == "leveling"; set { if (value) DetailTab = "leveling"; } }
 
     // Fills in icons and tooltips: crests and items from Wowhead, professions from the built-in list.
-    public async Task LoadIconsAsync(Flavor flavor)
+    // Loaded once, when the character is opened (its overview, card and talent posts use them).
+    Task? icons;
+    public Task LoadIconsAsync(Flavor flavor) => icons ??= LoadIcons(flavor);
+
+    async Task LoadIcons(Flavor flavor)
     {
         CrestList = CrestChips(Crests);
         ProfessionList = ProfessionChips(Professions);
@@ -212,6 +220,7 @@ sealed class CharacterRow : Observable
         // (the talent code), so each is taken from the newest snapshot that has it.
         string Newest(string guid, Func<Snapshot, string> field) =>
             data.Characters.Where(c => c.Guid == guid && field(c).Length > 0).MaxBy(c => c.LastSeen) is { } n ? field(n) : "";
+        Func<CharacterGear> MakeGear(Inventory? inv, string classFile) => () => CharacterGear.From(inv, item, classFile, retail: flavor == Flavors.Retail);
 
         var rows = new List<CharacterRow>();
         foreach (var guid in snaps.Keys.Union(events.Keys))
@@ -271,7 +280,7 @@ sealed class CharacterRow : Observable
                     .Select(Highlight)
                     .ToList(),
                 Inventory = inventories.GetValueOrDefault(guid),
-                Gear = CharacterGear.From(inventories.GetValueOrDefault(guid), item, Pick(s?.ClassFile, last?.ClassFile), retail: flavor == Flavors.Retail),
+                MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile)),
                 Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor == Flavors.Forever),
             });
         }

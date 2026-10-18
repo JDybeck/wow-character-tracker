@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -19,39 +18,63 @@ sealed class ItemsViewModel : Observable
         // Names arrive from Wowhead one by one; the list follows a moment after the last one.
         refresh = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         refresh.Tick += (_, _) => { refresh.Stop(); Rebuild(); };
+        Realms = new ChipFilter("Realm", Rebuild);
     }
 
-    public ObservableCollection<ItemGroup> Groups { get; } = [];
-    public ObservableCollection<GroupChip> Realms { get; } = [];
-    public bool HasRealms => Realms.Count > 2; // "All" plus at least two servers
+    // The servers with their items, and the same as the list shows it: each server's header, then
+    // its items cut into lines of Columns, so the list can be virtualized (only the lines on screen
+    // are built; thousands of items in a WrapPanel froze the window for seconds).
+    List<ItemGroup> groups = [];
+    public IReadOnlyList<object> Lines { get; private set; } = [];
+    public ChipFilter Realms { get; }
+
+    // How many items fit side by side; the page sets it from its width.
+    int columns = 1;
+    public int Columns
+    {
+        get => columns;
+        set
+        {
+            if (value < 1 || value == columns) return;
+            columns = value;
+            Relayout();
+        }
+    }
+
+    void Relayout()
+    {
+        var lines = new List<object>();
+        foreach (var g in groups)
+        {
+            lines.Add(g.Header);
+            for (var i = 0; i < g.Items.Count; i += columns)
+                lines.Add(new ItemLine(g.Items.Skip(i).Take(columns).ToList()));
+        }
+        Lines = lines;
+        Raise(nameof(Lines));
+    }
 
     string search = "";
     public string Search { get => search; set { if (Set(ref search, value)) Rebuild(); } }
 
-    GroupChip? selectedRealm;
-    public GroupChip? SelectedRealm { get => selectedRealm; set { if (value is not null && Set(ref selectedRealm, value)) Rebuild(); } }
-
     string emptyText = "";
     public string EmptyText { get => emptyText; private set => Set(ref emptyText, value); }
-    public bool IsEmpty => Groups.Count == 0;
+    public bool IsEmpty => groups.Count == 0;
 
     public void Show(List<CharacterRow> rows)
     {
         characters = rows;
-        var chosen = selectedRealm?.Key ?? "";
-        var withItems = rows.Where(r => r.Inventory is not null).ToList();
-        Realms.Clear();
-        Realms.Add(new GroupChip("", $"All ({withItems.Count})"));
-        foreach (var g in withItems.GroupBy(r => r.Realm).OrderBy(g => g.Key))
-            Realms.Add(new GroupChip(g.Key, $"{g.Key} ({g.Count()})"));
-        selectedRealm = Realms.FirstOrDefault(c => c.Key == chosen) ?? Realms[0];
-        Raise(nameof(SelectedRealm));
-        Raise(nameof(HasRealms));
+        Realms.Fill(rows.Where(r => r.Inventory is not null).ToList(), r => r.Realm);
         Rebuild();
     }
 
     public void NameLoaded()
     {
+        if (!onScreen)
+        {
+            stale = true;
+            return;
+        }
         refresh.Stop();
         refresh.Start();
     }
@@ -84,10 +107,32 @@ sealed class ItemsViewModel : Observable
     GroupChip? selectedKind;
     public GroupChip SelectedKind { get => selectedKind ?? KindChips[0]; set { if (value is not null && Set(ref selectedKind, value)) Rebuild(); } }
 
+    // Whether the page is on screen (its game tab and the Items page are open). Building the list
+    // is costly with many characters (thousands of rows, rebuilt as names arrive), so while it's not
+    // shown it waits and is built once when it is.
+    bool onScreen;
+    bool stale;
+    public bool IsShown
+    {
+        get => onScreen;
+        set
+        {
+            if (onScreen == value) return;
+            onScreen = value;
+            if (onScreen && stale) Rebuild();
+        }
+    }
+
     void Rebuild()
     {
-        Groups.Clear();
-        var shown = characters.Where(c => c.Inventory is not null && (selectedRealm is not { Key.Length: > 0 } r || c.Realm == r.Key));
+        if (!onScreen)
+        {
+            stale = true;
+            return;
+        }
+        stale = false;
+        var built = new List<ItemGroup>();
+        var shown = characters.Where(c => c.Inventory is not null && Realms.Matches(c.Realm));
         var query = Search.Trim();
         var kind = SelectedKind.Key;
         foreach (var realm in shown.GroupBy(c => c.Realm).OrderBy(g => g.Key))
@@ -103,9 +148,12 @@ sealed class ItemsViewModel : Observable
                 .ToList();
             if (rows.Count == 0) continue;
             // When each character's bags were last saved (and where), so it's clear how fresh this is.
-            var saved = realm.Where(c => c.Gear.HasSavedText).Select(c => new ItemPlace(c.FullName, c.ClassBrush, c.Gear.SavedText)).ToList();
-            Groups.Add(new ItemGroup(new ItemHeader(realm.First().RealmText, $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}", saved), rows));
+            var saved = realm.Select(c => (c, Text: CharacterGear.SavedTextOf(c.Inventory))).Where(x => x.Text.Length > 0)
+                .Select(x => new ItemPlace(x.c.FullName, x.c.ClassBrush, x.Text)).ToList();
+            built.Add(new ItemGroup(new ItemHeader(realm.First().RealmText, $"{rows.Count} item{(rows.Count == 1 ? "" : "s")}, {realm.Count()} character{(realm.Count() == 1 ? "" : "s")}", saved), rows));
         }
+        groups = built;
+        Relayout();
         EmptyText = characters.All(c => c.Inventory is null)
             ? "Nothing yet. Log in with the updated addon and type /reload (or log out): gear and bags show up here, and the bank once you've opened it."
             : query.Length > 0 ? $"Nothing matches \"{query}\"."
@@ -133,6 +181,9 @@ sealed class ItemsViewModel : Observable
 // A server in the Items list: its header (with when each character's bags were last saved) and items.
 sealed record ItemHeader(string Realm, string Summary, IReadOnlyList<ItemPlace> Saved);
 sealed record ItemGroup(ItemHeader Header, IReadOnlyList<ItemRow> Items);
+
+// One line of the Items list: up to Columns items side by side.
+sealed record ItemLine(IReadOnlyList<ItemRow> Items);
 
 // One item in the Items list: how many in total, and where (per character).
 sealed record ItemRow(ItemInfo Info, int Total, IReadOnlyList<ItemPlace> Places)

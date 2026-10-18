@@ -40,6 +40,8 @@ sealed class FlavorViewModel : Observable
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
         Items = new ItemsViewModel(ItemFor);
+        // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
+        Groups = new ChipFilter(flavor == Flavors.Forever ? "Ruleset" : "Realm", () => ShowData(lastData));
         _ = LoadLogoAsync();
         Shots = Flavors.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
@@ -127,7 +129,11 @@ sealed class FlavorViewModel : Observable
 
     public ObservableCollection<CharacterRow> Characters { get; } = [];
     CharacterRow? selectedCharacter;
-    public CharacterRow? SelectedCharacter { get => selectedCharacter; set => Set(ref selectedCharacter, value); }
+    public CharacterRow? SelectedCharacter
+    {
+        get => selectedCharacter;
+        set { if (Set(ref selectedCharacter, value)) _ = value?.LoadIconsAsync(Flavor); } // only the opened one needs its icons
+    }
     public bool HasCharacters => Characters.Count > 0;
 
     string statusText = "Starting up...";
@@ -531,23 +537,9 @@ sealed class FlavorViewModel : Observable
 
     public void Refresh() => ShowData(lastData);
 
-    // Retail characters are grouped by realm, Forever ones by ruleset (hardcore, self-found...).
-    public string GroupLabel => Flavor == Flavors.Forever ? "Ruleset" : "Realm";
+    // The realm (Retail) or ruleset (Forever) chips over the character list.
+    public ChipFilter Groups { get; }
     string GroupOf(CharacterRow r) => Flavor == Flavors.Forever ? r.Ruleset : r.Realm;
-
-    public ObservableCollection<GroupChip> Groups { get; } = [];
-    public bool HasGroups => Groups.Count > 2; // "All" plus at least two groups
-
-    GroupChip? selectedGroup;
-    public GroupChip? SelectedGroup
-    {
-        get => selectedGroup;
-        set
-        {
-            if (value is null || !Set(ref selectedGroup, value)) return;
-            ShowData(lastData);
-        }
-    }
 
     void ShowData(TrackerData data)
     {
@@ -573,19 +565,10 @@ sealed class FlavorViewModel : Observable
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
 
-        // Rebuild the chips, keeping the chosen one if it still exists.
-        var chosen = selectedGroup?.Key ?? "";
-        var chips = new List<GroupChip> { new("", $"All ({rows.Count})") };
-        chips.AddRange(rows.GroupBy(GroupOf).OrderBy(g => g.Key)
-            .Select(g => new GroupChip(g.Key, $"{(g.Key.Length > 0 ? g.Key : "Unknown")} ({g.Count()})")));
-        Groups.Clear();
-        foreach (var c in chips) Groups.Add(c);
-        selectedGroup = Groups.FirstOrDefault(c => c.Key == chosen) ?? Groups[0];
-        Raise(nameof(SelectedGroup));
-        Raise(nameof(HasGroups));
+        Groups.Fill(rows, GroupOf);
 
         Characters.Clear();
-        foreach (var r in rows.Where(r => selectedGroup.Key.Length == 0 || GroupOf(r) == selectedGroup.Key))
+        foreach (var r in rows.Where(r => Groups.Matches(GroupOf(r))))
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
             r.SetPortraitChoice(main.Config.StandardPortraits.Contains(r.Guid), standard =>
@@ -596,7 +579,6 @@ sealed class FlavorViewModel : Observable
             });
             Characters.Add(r);
             _ = r.LoadPictureAsync(Flavor);
-            _ = r.LoadIconsAsync(Flavor);
         }
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
@@ -615,7 +597,7 @@ sealed class FlavorViewModel : Observable
     {
         get
         {
-            var where = selectedGroup is { Key.Length: > 0 } g ? $" on {g.Key}" : "";
+            var where = Groups.Key.Length > 0 ? $" on {Groups.Key}" : "";
             var count = Characters.Count;
             return $"Total gold{where} ({count} character{(count == 1 ? "" : "s")}):";
         }

@@ -5,6 +5,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 ## v0.21.2
 
 - **Stream card and highlights no longer cut off**: as a single source (`?only=card`, `?only=highlights`) the part is scaled up to fill the source, but the page only kept its unscaled height, so everything below the first lines was cut away in OBS and Streamlabs. Now the whole part shows.
+- **Fast with lots of characters**: with 60+ characters the app froze for 10 seconds or more at startup and again when opening Items. Now the Items list is only built when you open it and only draws what's on screen, a character's gear, bags and icons load when you open that character, and Wowhead lookups run in the background. Startup went from about 30 seconds of work to 2 on 64 Retail characters.
+- **Realm filter under the page tabs**: with many realms the filter chips pushed the Characters, Items... tabs off screen. The chips now sit at the top of the Characters and Items pages and wrap onto more lines when needed.
 - **Test alert fills the highlights too**: each test (boss kill, loot, duel...) also puts its line in the highlights box for a few seconds, so you can place the highlights source without waiting for real loot.
 
 ## v0.21.1

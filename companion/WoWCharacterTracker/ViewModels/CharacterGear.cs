@@ -42,10 +42,14 @@ sealed class CharacterGear
             Bags = Grids(inv.Bags, inv.BagSizes, item, bag => bag switch { 0 => "Backpack", 5 => "Reagent bag", _ => $"Bag {bag}" }), // 5: retail's reagent bag slot
             Bank = Grids(inv.Bank, inv.BankSizes, item, bag => bag < 0 ? "Bank" : $"Bank bag {bag - 4}"),
             BankText = inv.BankAt > 0 ? $"Bank, as of {Format.Ago(inv.BankAt)}" : "Open your bank in game once and it shows up here.",
-            SavedText = inv.SavedAt <= 0 ? "" : $"Saved {Format.Ago(inv.SavedAt)}" + (inv.SavedZone.Length > 0 ? $", in {inv.SavedZone}" : ""),
+            SavedText = SavedTextOf(inv),
             HasInventory = true,
         };
     }
+
+    // "Saved 12m ago, in Stormwind City", or "" when not known. The Items page shows it per character too.
+    public static string SavedTextOf(Inventory? inv) =>
+        inv is null || inv.SavedAt <= 0 ? "" : $"Saved {Format.Ago(inv.SavedAt)}" + (inv.SavedZone.Length > 0 ? $", in {inv.SavedZone}" : "");
 
     // Each bag as a full grid: its items in their slots, empty slots in between.
     static List<BagView> Grids(IReadOnlyList<ItemSlot> items, IReadOnlyDictionary<int, int> sizes, Func<int, ItemInfo> item, Func<int, string> title)
