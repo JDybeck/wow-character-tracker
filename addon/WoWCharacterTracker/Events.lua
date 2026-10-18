@@ -1,9 +1,29 @@
 -- Recording what happens: level-ups (with /played), end boss kills, loot, mounts and hardcore deaths.
 local ADDON, ns = ...
 
--- Last boss of each Classic dungeon and raid (English names, as ENCOUNTER_END and the
--- combat log report them). Killing one of these is posted as an end boss kill.
+-- Last boss of each dungeon and raid (English names, as ENCOUNTER_END reports them). Killing one
+-- of these is posted as an end boss kill. The name on the right is only a fallback for the post:
+-- the game's own instance name (GetInstanceInfo) is used when there is one.
+--
+-- KEEP THIS UP TO DATE (check on every release PR, see .github/pull_request_template.md):
+-- Forever adds dungeons and raids as it goes. The game keeps a "<Boss> Kills (<Dungeon>)"
+-- statistic for each final boss, which Wowhead lists, so new ones show up there:
+-- https://www.wowhead.com/forever/guide/dungeons-overview-locations-details
+-- https://www.wowhead.com/forever/guide/raids-overview-hub-dates-locations
+-- Still unknown (October 2026): The Drowned City, Krol'dok Stronghold, Blackmaw Hold, and the
+-- Forever raids (The Wild King in Hyjal Summit and Sonya Darkhallow in Barrow Deeps have kill
+-- statistics already; add them once the raids are out).
+-- Later, if players ask: other languages. Names only match an English client; the encounter id
+-- from ENCOUNTER_END would work in every language.
 local END_BOSSES = {
+  -- Forever's new dungeons (final bosses as the game's kill statistics name them).
+  ["Durgen Dirgehammer"] = "The Hall of Thanes",
+  ["Rath'mael"] = "Ruins of Lordaeron",
+  ["Relic Guardian"] = "Excavation Site: Wetlands", -- from the dungeon guide, no kill statistic yet
+  ["Shade of the Archmage"] = "City of Dalaran",
+  ["Blazeroar"] = "Alcaz Prison",
+  ["Nanaya"] = "Shaper's Terrace",
+  -- Classic dungeons and raids (also in Forever).
   ["Bazzalan"] = "Ragefire Chasm",
   ["Mutanus the Devourer"] = "Wailing Caverns",
   ["Edwin VanCleef"] = "The Deadmines",
@@ -28,8 +48,8 @@ local END_BOSSES = {
   ["Prince Tortheldrin"] = "Dire Maul West",
   ["King Gordok"] = "Dire Maul North",
   ["Darkmaster Gandling"] = "Scholomance",
-  ["Balnazzar"] = "Stratholme",
-  ["Baron Rivendare"] = "Stratholme",
+  ["Balnazzar"] = "Stratholme (Living side)",
+  ["Baron Rivendare"] = "Stratholme (Undead side)",
   ["Onyxia"] = "Onyxia's Lair",
   ["Ragnaros"] = "Molten Core",
   ["Nefarian"] = "Blackwing Lair",
