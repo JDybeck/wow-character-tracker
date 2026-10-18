@@ -1,5 +1,7 @@
 # WoW Character Tracker
 
+![WoW Character Tracker social preview](docs/images/social-preview.png)
+
 **All your World of Warcraft characters in one place, and your best moments in Discord and on stream, if you want them there.**
 
 Made for WoW Forever (Classic+), and works for Retail too. An addon in the game plus a small Windows app.
