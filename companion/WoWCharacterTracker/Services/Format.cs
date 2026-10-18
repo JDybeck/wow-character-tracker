@@ -108,6 +108,16 @@ static class Format
         _ => $"{bytes / 1e9:0.0} GB",
     };
 
+    // A line from the game's tooltip as the addon saved it: "|4Min:Min;" grammar codes (singular:plural,
+    // picked by the number before it) resolved, and the line breaks the addon turned into runs of
+    // spaces put back.
+    public static string TooltipLine(string text)
+    {
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(\d+(?:[.,]\d+)?)?(\s*)\|4([^:;|]*):([^;|]*);",
+            m => m.Groups[1].Value + m.Groups[2].Value + (m.Groups[1].Value == "1" ? m.Groups[3].Value : m.Groups[4].Value));
+        return System.Text.RegularExpressions.Regex.Replace(text, @" {2,}", "\n");
+    }
+
     public static string Quality(int q) => q switch { 3 => "Rare", 4 => "Epic", 5 => "Legendary", 6 => "Artifact", _ => "" };
 
     public static string Ago(long unixSeconds)

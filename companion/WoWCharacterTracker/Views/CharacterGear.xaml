@@ -92,10 +92,36 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,10" Visibility="{Binding Gear.ShowsCatalystNote, Converter={StaticResource Visible}}"
+                       Text="Catalysted items may not show properly on Retail: the game's tooltips don't always count them for their set."/>
           </StackPanel>
+          <!-- Effects, folded away until clicked: handy to look up, too long to show by default. -->
           <StackPanel Visibility="{Binding Gear.HasEffects, Converter={StaticResource Visible}}">
-            <TextBlock Style="{StaticResource FactLabel}" Text="EFFECTS"/>
-            <ItemsControl ItemsSource="{Binding Gear.Effects}" ItemTemplate="{StaticResource GearLine}"/>
+            <ToggleButton x:Name="EffectsToggle" Cursor="Hand" HorizontalAlignment="Left" Focusable="True"
+                          ToolTip="Show or hide the Equip: and Use: lines of the worn gear">
+              <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                  <Border Background="Transparent"><ContentPresenter/></Border>
+                </ControlTemplate>
+              </ToggleButton.Template>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource FactLabel}" Text="{Binding Gear.EffectsTitle}"/>
+                <TextBlock FontSize="9" Foreground="{StaticResource Muted}" VerticalAlignment="Bottom" Margin="6,0,0,1">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                      <Setter Property="Text" Value="&#xE70D;"/>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsChecked, ElementName=EffectsToggle}" Value="True">
+                          <Setter Property="Text" Value="&#xE70E;"/>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+              </StackPanel>
+            </ToggleButton>
+            <ItemsControl ItemsSource="{Binding Gear.Effects}" ItemTemplate="{StaticResource GearLine}"
+                          Visibility="{Binding IsChecked, ElementName=EffectsToggle, Converter={StaticResource Visible}}"/>
           </StackPanel>
           <StackPanel Visibility="{Binding Gear.HasEnchants, Converter={StaticResource Visible}}">
             <TextBlock Style="{StaticResource FactLabel}" Text="ENCHANTS"/>

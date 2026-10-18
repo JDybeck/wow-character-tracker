@@ -54,6 +54,11 @@ sealed class CharacterGear
     // Saved by an addon from before set bonuses were read (0.23.0): say how to get them.
     public bool NeedsGearScan { get; init; }
     public bool ShowsSide => HasExtras || NeedsGearScan;
+    // Retail's catalyst pieces don't always read as their set in the game's tooltips: say so under the sets.
+    public bool IsRetail { get; init; }
+    public bool ShowsCatalystNote => IsRetail && HasSets;
+    // "Effects (9)", folded away by default: useful to look up, not worth the room.
+    public string EffectsTitle => $"EFFECTS ({Effects.Count})";
 
     public static CharacterGear Empty { get; } = new();
 
@@ -78,8 +83,9 @@ sealed class CharacterGear
             SavedText = SavedTextOf(inv),
             HasInventory = true,
             Sets = inv.Sets.Select(s => new SetView(s, wornInfos, spec)).ToList(),
-            Effects = inv.Effects.Select(e => new EffectView(new ItemCell(item(e.ItemId)), e.Text)).ToList(),
-            Enchants = inv.Enchants.Select(e => new EffectView(new ItemCell(item(e.ItemId)), e.Text)).ToList(),
+            Effects = Lines(inv.Effects, item),
+            Enchants = Lines(inv.Enchants, item),
+            IsRetail = retail,
         };
         gear.FillBank();
         return gear;
@@ -88,6 +94,13 @@ sealed class CharacterGear
     // "Saved 12m ago, in Stormwind City", or "" when not known. The Items page shows it per character too.
     public static string SavedTextOf(Inventory? inv) =>
         inv is null || inv.SavedAt <= 0 ? "" : $"Saved {Format.Ago(inv.SavedAt)}" + (inv.SavedZone.Length > 0 ? $", in {inv.SavedZone}" : "");
+
+    // One row per equipped item, its lines under each other (an item with an Equip: and a Use: line
+    // showed its icon twice).
+    static List<EffectView> Lines(IReadOnlyList<GearEffect> effects, Func<int, ItemInfo> item) => effects
+        .GroupBy(e => (e.Slot, e.ItemId))
+        .Select(g => new EffectView(new ItemCell(item(g.Key.ItemId)), string.Join("\n", g.Select(e => Format.TooltipLine(e.Text)))))
+        .ToList();
 
     // Each bag as its items in slot order, and how many slots are free (empty slots aren't drawn:
     // they were most of the cells and told nothing a count doesn't).

@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.23.1
+
+- **Tidier gear effects**: the Equip: and Use: lines on the Gear and bags tab are folded away under "Effects (N)", click to open. Each item shows once with all its lines, multi-line effects keep their line breaks, and cooldowns read "1 Min 30 Sec" instead of game codes.
+- **Catalyst note on Retail**: set bonuses on Retail say that catalysted items may not show properly.
+
 ## v0.23.0
 
 - **Set bonuses, effects and enchants next to your gear**: the Gear and bags tab now lists the sets you're wearing (like "4/5") with each bonus and how many pieces it needs, the active ones lit green, every Equip: and Use: effect on your gear, and your enchants. It reads the game's own tooltips, so catalysted pieces that count for a tier set count here too, and tier bonuses show for your spec only. Works on Retail and Forever. Comes with the updated addon, so `/reload` once.
