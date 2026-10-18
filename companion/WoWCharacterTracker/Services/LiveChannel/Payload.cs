@@ -8,7 +8,7 @@ namespace WoWCharacterTracker.Services.LiveChannel;
 static class Payload
 {
     // Same table as SHORT in the addon.
-    static readonly Dictionary<string, string> ShortKeys = new()
+    internal static readonly Dictionary<string, string> ShortKeys = new()
     {
         ["i"] = "id", ["k"] = "kind", ["g"] = "guid", ["n"] = "char", ["r"] = "realm", ["l"] = "level", ["a"] = "at",
         ["z"] = "zone", ["p"] = "professions", ["t"] = "talents", ["s"] = "spec", ["o"] = "role", ["v"] = "ilvl",

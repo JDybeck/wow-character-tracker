@@ -117,11 +117,6 @@ sealed class Tracker : IDisposable
         _ = SyncAsync();
     }
 
-    static Snapshot ToSnapshot(Entry e) => new(e.Guid, e.Char, e.Realm, e.Level, e.Class, e.ClassFile,
-        e.Race, e.RaceFile, e.Sex, e.Spec, e.Role, e.ItemLevel, e.Played, e.Zone, e.Professions, e.Talents,
-        e.At, e.Hardcore, e.Ruleset, e.Money, e.Crests, e.Guild, e.Surname, TalentExport: e.TalentExport, TalentCalc: e.TalentCalc, Region: e.Region, Keystone: e.Keystone, ZoneType: e.ZoneType,
-        MplusScore: e.MplusScore, PvpRatings: e.PvpRatings);
-
     void Schedule()
     {
         debounce?.Cancel();
@@ -308,20 +303,14 @@ sealed class Tracker : IDisposable
         return $" In Discord {total}s after it happened: the game sent it after {inGame}s, then {here}s for the screenshot and upload.";
     }
 
-    public static string Describe(Entry e) => e.Kind switch
+    // "Zeb killed Edwin VanCleef (The Deadmines)": the highlight line (HighlightText) with the name in front.
+    public static string Describe(Entry e)
     {
-        "boss" => $"{e.Char} killed {e.Boss}",
-        "loot" => $"{e.Char} looted {e.Item}",
-        "mount" => $"{e.Char} got a new mount, {e.Mount}",
-        "death" => $"{e.Char} died at level {e.Level}",
-        "duel" when e.Lost => $"{e.Char} lost a duel to {e.Opponent}",
-        "makgora" when e.Lost => $"{e.Char} lost a Mak'gora to {e.Opponent}",
-        "duel" => $"{e.Char} won a duel against {e.Opponent}",
-        "makgora" => $"{e.Char} won a Mak'gora against {e.Opponent}",
-        "mplus" => $"{e.Char} reached {e.Step} Mythic+ rating ({e.Rating})",
-        "pvp" => $"{e.Char} reached {e.Step} in {e.Bracket} ({e.Rating})",
-        _ => e.Seconds > 0 ? $"{e.Char} dinged level {e.Level} in {Format.Duration(e.Seconds)}" : $"{e.Char} dinged level {e.Level}",
-    };
+        if (e.Kind == "level")
+            return e.Seconds > 0 ? $"{e.Char} dinged level {e.Level} in {Format.Duration(e.Seconds)}" : $"{e.Char} dinged level {e.Level}";
+        var text = HighlightText.Text(e);
+        return text.Length == 0 ? $"{e.Char}: {e.Kind}" : $"{e.Char} {char.ToLowerInvariant(text[0])}{text[1..]}";
+    }
 
     // Merges every account's file plus anything that came in live. A character only lives on one
     // account, and a live event later shows up in the file with the same id.
@@ -352,7 +341,7 @@ sealed class Tracker : IDisposable
         }
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
-        chars.AddRange(presence.Values.Select(ToSnapshot));
+        chars.AddRange(presence.Values.Select(Snapshot.Of));
         return new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses };
     }
 

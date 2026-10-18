@@ -62,16 +62,20 @@ static class SavedVariables
         {
             if (pair.Value.Type != DataType.Table || pair.Key.Type != DataType.String) continue;
             var t = pair.Value.Table;
-            list.Add(new Snapshot(
-                pair.Key.String, S(t, "char"), S(t, "realm"), (int)N(t, "level"),
-                S(t, "class"), S(t, "classFile"), S(t, "race"), S(t, "raceFile"),
-                S(t, "sex") == "female" ? "female" : "male",
-                S(t, "spec"), S(t, "role"), N(t, "ilvl"), (long)N(t, "played"),
-                S(t, "zone"), S(t, "professions"), S(t, "talents"), (long)N(t, "lastSeen"),
-                S(t, "hardcore") == "true", S(t, "ruleset"), (long)N(t, "money"), S(t, "crests"),
-                t.Get("guild").IsNil() ? null : S(t, "guild"), S(t, "surname"), S(t, "talentPicks"), S(t, "talentExport"), S(t, "stats"), S(t, "talentCalc"), S(t, "region"),
-                (long)N(t, "xp"), (long)N(t, "xpMax"), (int)N(t, "maxLevel"), S(t, "keystone"), S(t, "zoneType"),
-                (int)N(t, "mplusScore"), S(t, "pvpRatings")));
+            var e = Entry.From(k => S(t, k), k => N(t, k));
+            list.Add(Snapshot.Of(e) with
+            {
+                Guid = pair.Key.String,
+                Char = S(t, "char"),
+                Professions = S(t, "professions"),
+                LastSeen = (long)N(t, "lastSeen"),
+                Guild = t.Get("guild").IsNil() ? null : S(t, "guild"), // "" = no guild, nil = not known yet
+                TalentPicks = S(t, "talentPicks"),
+                Stats = S(t, "stats"),
+                Xp = (long)N(t, "xp"),
+                XpMax = (long)N(t, "xpMax"),
+                MaxLevel = (int)N(t, "maxLevel"),
+            });
         }
 
         return list;

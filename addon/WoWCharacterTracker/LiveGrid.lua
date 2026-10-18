@@ -385,6 +385,7 @@ local function wanted(e)
   if e.lost then return false end -- duels and Mak'gora: only wins are posted
   return post[e.kind] and true or false
 end
+ns.wanted = wanted -- the app's tests check it against FlavorSettings.Wants
 
 local function wantsScreenshot(kind)
   local s = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.screenshot
