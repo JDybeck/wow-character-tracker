@@ -80,6 +80,57 @@ public class ItemKindTests
     {
         Assert.Equal(kind, new ItemInfo(1, "") { ClassId = classId }.Kind);
     }
+
+    [Theory]
+    [InlineData("DEATHKNIGHT", "Frost", "spell_deathknight_frostpresence")]
+    [InlineData("MAGE", "Frost", "spell_frost_frostbolt02")]
+    [InlineData("DRUID", "Feral Combat", "ability_druid_catform")] // Forever's tree name
+    [InlineData("DEMONHUNTER", "Devourer", "classicon_demonhunter_void")]
+    [InlineData("WARRIOR", "", null)]
+    [InlineData("WARRIOR", "Gladiator", null)] // unknown: the row falls back to the role icon
+    public void Spec_icons_go_by_class_and_spec(string classFile, string spec, string? icon) =>
+        Assert.Equal(icon, SpecIcons.Of(classFile, spec));
+
+    // The set part of Wowhead's tooltip for a Retail tier piece and a weapon set piece, as Wowhead sends it.
+    const string TierHtml = "<br /><br /><span class=\"q\"><a href=\"/item-set=2055/x\" class=\"q\">Baleful Grave-Knight's Crucible</a> (0/5)</span>"
+        + "<div class=\"q0 indent\"><span><a href=\"/item=271477/x\">Baleful Grave-Knight's Breastplate</a></span><br /></div><br />"
+        + "<span class=\"q0\"><span>(2) Set Blood: <a href=\"/spell=1\">When you Death Strike...</a></span><br />"
+        + "<span>(2) Set Frost: <a href=\"/spell=2\">Each time Remorseless Winter...</a></span><br />"
+        + "<span>(4) Set Blood: <a href=\"/spell=3\">When consuming Blood Debt...</a></span><br />"
+        + "<span>(4) Set Frost: <a href=\"/spell=4\">Remorseless Winter deals...</a></span><br /></span>";
+    const string WeaponSetHtml = "<span class=\"q\"><a href=\"/item-set=2070/x\" class=\"q\">Bite of Zul'jan</a> (0/3)</span>"
+        + "<div class=\"q0 indent\"><span><a href=\"/item=270173/x\">Zul'jin's Guillotine Technique</a></span><br /></div><br />"
+        + "<span class=\"q0\"><span>(2) Set : <a href=\"/spell=5\">Perfect your Guillotine technique...</a></span></span>";
+
+    [Fact]
+    public void Wowhead_gives_the_pieces_each_bonus_needs_for_the_spec()
+    {
+        Assert.Equal([2, 4], SetBonuses.Counts(TierHtml, "Baleful Grave-Knight's Crucible", "Blood"));
+        Assert.Equal([2], SetBonuses.Counts(WeaponSetHtml, "Bite of Zul'jan", "Blood"));
+        Assert.Empty(SetBonuses.Counts(WeaponSetHtml, "Baleful Grave-Knight's Crucible", "Blood")); // another set
+    }
+
+    [Fact]
+    public void Active_bonuses_get_their_counts_by_position()
+    {
+        // The game: both active, so no counts shown (0), or an older scan's wrong guess (5, 5).
+        Assert.Equal([2, 4], SetBonuses.Needs([0, 0], [2, 4]));
+        Assert.Equal([2, 4], SetBonuses.Needs([5, 5], [2, 4]));
+        Assert.Equal([2], SetBonuses.Needs([3], [2]));
+        Assert.Equal([0, 4], SetBonuses.Needs([0, 4], [2])); // they don't line up: keep the game's
+    }
+
+    [Fact]
+    public void Saved_set_lines_group_into_sets_with_active_bonuses()
+    {
+        var set = Assert.Single(Inventory.ParseSets("Battlegear~3~5~4~Four.\nBattlegear~3~5~2~Two, with a ~ in it.\nbroken line"));
+        Assert.Equal(("Battlegear", 3, 5), (set.Name, set.Have, set.Max));
+        Assert.Equal([4, 2], set.Bonuses.Select(b => b.Need)); // as saved: the game's order
+        Assert.Equal("Two, with a ~ in it.", set.Bonuses[1].Text);
+        Assert.Equal([false, true], set.Bonuses.Select(b => b.IsActive(set.Have)));
+        Assert.True(new SetBonus(0, "active, count not shown").IsActive(1));
+        Assert.Equal(new GearEffect(7, 271473, "Equip: Something."), Assert.Single(Inventory.ParseEffects("7~271473~Equip: Something.\nx~y~z")));
+    }
 }
 
 public class PlaceTests

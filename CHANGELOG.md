@@ -2,6 +2,15 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.23.0
+
+- **Set bonuses, effects and enchants next to your gear**: the Gear and bags tab now lists the sets you're wearing (like "4/5") with each bonus and how many pieces it needs, the active ones lit green, every Equip: and Use: effect on your gear, and your enchants. It reads the game's own tooltips, so catalysted pieces that count for a tier set count here too, and tier bonuses show for your spec only. Works on Retail and Forever. Comes with the updated addon, so `/reload` once.
+- **Gear and bags opens faster**: the gear and bags show right away and bank tabs fill in after, empty slots are a count ("12 free slots") instead of hundreds of empty boxes, and item tooltips are only built when you first hover them.
+- **Crests and talents look like items**: hovering a crest, a talent or a looted item in the highlights shows the same game-style tooltip as items in your bags, and clicking it opens its Wowhead page.
+- **Easier to read crest tooltips**: the description keeps its paragraphs and list lines instead of running together, and the cap line is gone.
+- **Spec icons**: the class column shows your spec's icon (Blood, Fury, Devourer, Feral Combat...), or the role icon when the spec isn't known yet.
+- **Click a page tab again to start it over**: clicking Characters while you're on it closes the open character, resets the filter and scrolls to the top. Items clears the search and filters. The other pages scroll back to the top.
+
 ## v0.22.0
 
 - **Stream card and highlights no longer cut off**: as a single source (`?only=card`, `?only=highlights`) the part is scaled up to fill the source, but the page only kept its unscaled height, so everything below the first lines was cut away in OBS and Streamlabs. Now the whole part shows.

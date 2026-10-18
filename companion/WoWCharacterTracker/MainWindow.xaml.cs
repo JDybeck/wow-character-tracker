@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
@@ -17,6 +19,7 @@ public partial class MainWindow : Window
         RightScroll.SizeChanged += (_, _) => FitRightColumn();
         DiscordView.SizeChanged += (_, _) => FitRightColumn();
         StreamView.SizeChanged += (_, _) => FitRightColumn();
+        vm.PageReset += () => Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ScrollPagesToTop);
         if (ScreenshotMode.Target is { } shot) ScreenshotMode.Attach(this, vm, shot);
         else if (Motion.Enabled) FadeInWhenReady();
     }
@@ -45,6 +48,19 @@ public partial class MainWindow : Window
         // The credit row sits under the scrolling part, so it isn't counted here.
         var others = DiscordView.ActualHeight + StreamView.ActualHeight + StreamView.Margin.Top + ConsoleView.Margin.Top;
         ConsoleView.Height = Math.Max(ConsoleMin, RightScroll.ActualHeight - others);
+    }
+
+    // A page started over (its tab clicked again): every list and scroll area on it back to the top.
+    // The right column is not part of the page and stays where it is.
+    void ScrollPagesToTop()
+    {
+        void Walk(DependencyObject d)
+        {
+            if (d == RightScroll || d is UIElement { IsVisible: false }) return;
+            if (d is ScrollViewer scroll) scroll.ScrollToTop();
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Walk(VisualTreeHelper.GetChild(d, i));
+        }
+        Walk(Page);
     }
 
     // Dark title bar to match the window (Windows 10 20H1 and later).

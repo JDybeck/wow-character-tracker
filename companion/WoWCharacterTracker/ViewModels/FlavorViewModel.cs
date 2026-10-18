@@ -136,6 +136,19 @@ sealed class FlavorViewModel : Observable
     }
     public bool HasCharacters => Characters.Count > 0;
 
+    // Clicking the open page's tab again: that page as it is when first opened (the sort order is a
+    // saved choice, so it stays).
+    public void ResetPage(string page)
+    {
+        if (page == "characters")
+        {
+            SelectedCharacter = null;
+            Groups.Reset();
+            ShowData(lastData);
+        }
+        else if (page == "items") Items.Reset();
+    }
+
     string statusText = "Starting up...";
     public string StatusText { get => statusText; set => Set(ref statusText, value); }
 
@@ -531,14 +544,16 @@ sealed class FlavorViewModel : Observable
 
     TrackerData lastData = TrackerData.Empty;
 
-    // Item names, icons and tooltips, one per item id for the whole tab (characters and the Items page).
-    readonly Dictionary<int, ItemInfo> items = [];
+    // Names, icons and tooltips of items, crests and talents, one per type and id for the whole tab
+    // (characters and the Items page).
+    readonly Dictionary<(string Type, int Id), ItemInfo> items = [];
     Dictionary<int, int> itemClasses = [];
-    ItemInfo ItemFor(int id)
+    ItemInfo ItemFor(int id) => InfoFor("item", id);
+    ItemInfo InfoFor(string type, int id)
     {
-        if (items.TryGetValue(id, out var info)) return info;
-        items[id] = info = new ItemInfo(id, $"https://www.wowhead.com/{Flavor.WowheadPath}item={id}");
-        if (itemClasses.TryGetValue(id, out var c)) info.ClassId = c;
+        if (items.TryGetValue((type, id), out var info)) return info;
+        items[(type, id)] = info = new ItemInfo(id, $"https://www.wowhead.com/{Flavor.WowheadPath}{type}={id}", type);
+        if (type == "item" && itemClasses.TryGetValue(id, out var c)) info.ClassId = c;
         _ = LoadItemAsync(info);
         return info;
     }
@@ -591,10 +606,10 @@ sealed class FlavorViewModel : Observable
             };
         }
         itemClasses = data.ItemClasses;
-        foreach (var (id, c) in itemClasses) if (items.TryGetValue(id, out var known)) known.ClassId = c;
+        foreach (var (id, c) in itemClasses) if (items.TryGetValue(("item", id), out var known)) known.ClassId = c;
         var keepTab = SelectedCharacter?.DetailTab;
         Motion.Quiet(); // the rows are rebuilt: what's open stays still
-        var rows = CharacterRow.Build(data, Flavor, ItemFor)
+        var rows = CharacterRow.Build(data, Flavor, InfoFor)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
 

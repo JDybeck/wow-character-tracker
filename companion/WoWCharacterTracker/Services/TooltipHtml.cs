@@ -11,8 +11,9 @@ static partial class TooltipHtml
     // One piece of text in one color (Color "" = the default white).
     public sealed record Part(string Text, string Color);
 
-    // A line: the left side, and the right side of two-column rows ("Two-Hand ... Mace").
-    public sealed record Line(IReadOnlyList<Part> Left, IReadOnlyList<Part> Right)
+    // A line: the left side, and the right side of two-column rows ("Two-Hand ... Mace"). Gap: an
+    // empty line came before it (a new paragraph), so it's drawn a bit further down.
+    public sealed record Line(IReadOnlyList<Part> Left, IReadOnlyList<Part> Right, bool Gap = false)
     {
         public string Text => Right.Count == 0 ? Join(Left) : $"{Join(Left)}   {Join(Right)}";
         static string Join(IEnumerable<Part> parts) => string.Concat(parts.Select(p => p.Text));
@@ -20,28 +21,44 @@ static partial class TooltipHtml
 
     // Wowhead keeps these for its own extended view (drop sources, max stack), not the tooltip.
     static readonly string[] Hidden = ["whtt-droppedby", "whtt-dropchance", "whtt-maxstack"];
+    // Lines that say nothing about the character: a currency's cap is the game's, not how much is left.
+    static readonly string[] HiddenLines = ["Total cap:", "Weekly cap:"];
 
     // Walks the HTML once: a stack of colors from class attributes, a new line at <br>, rows, tables
     // and divs, a row's second cell (<th>) as the right side, and g/s/c after money (Wowhead shows
-    // coin icons there). The HTML's own line breaks mean nothing.
+    // coin icons there). Line breaks between tags mean nothing, but breaks inside a piece of text
+    // (currency descriptions are written that way) are kept, an empty line as a gap.
     public static List<Line> Parse(string html)
     {
         var lines = new List<Line>();
         var left = new List<Part>();
         var right = new List<Part>();
         var inRight = false;
+        var gap = false;
         var stack = new Stack<(string Tag, string? Color, bool Hide, string? Coin)>();
 
         void NewLine()
         {
             Trim(left);
             Trim(right);
-            if (left.Count > 0 || right.Count > 0) lines.Add(new Line(left, right));
+            var line = new Line(left, right, gap && lines.Count > 0);
+            if ((left.Count > 0 || right.Count > 0) && !HiddenLines.Any(h => line.Text.StartsWith(h)))
+            {
+                lines.Add(line);
+                gap = false;
+            }
             left = [];
             right = [];
             inRight = false;
         }
         bool Hiding() => stack.Any(s => s.Hide);
+        void Add(string raw)
+        {
+            var text = Whitespace().Replace(raw, " ");
+            var coin = stack.FirstOrDefault(s => s.Coin is not null).Coin;
+            var color = stack.FirstOrDefault(s => s.Color is not null).Color ?? "";
+            (inRight ? right : left).Add(new Part(coin is null ? text : text.Trim() + coin, color));
+        }
 
         html = Comments().Replace(html, "");
         foreach (Match m in Token().Matches(html))
@@ -49,10 +66,22 @@ static partial class TooltipHtml
             if (m.Groups["text"].Success)
             {
                 if (Hiding()) continue;
-                var text = Whitespace().Replace(WebUtility.HtmlDecode(m.Value), " ");
-                var coin = stack.FirstOrDefault(s => s.Coin is not null).Coin;
-                var color = stack.FirstOrDefault(s => s.Color is not null).Color ?? "";
-                (inRight ? right : left).Add(new Part(coin is null ? text : text.Trim() + coin, color));
+                var raw = WebUtility.HtmlDecode(m.Value);
+                var core = raw.Trim();
+                if (!core.Contains('\n'))
+                {
+                    Add(raw);
+                    continue;
+                }
+                var at = 0;
+                foreach (Match b in LineBreak().Matches(core))
+                {
+                    Add(core[at..b.Index]);
+                    NewLine();
+                    if (b.Groups["blank"].Success) gap = true;
+                    at = b.Index + b.Length;
+                }
+                Add(core[at..]);
                 continue;
             }
 
@@ -84,8 +113,8 @@ static partial class TooltipHtml
         return lines;
     }
 
-    // The tooltip as plain text, one line per row.
-    public static string ToText(string html) => string.Join("\n", Parse(html).Select(l => l.Text));
+    // The tooltip as plain text, one line per row, an empty line before a gap.
+    public static string ToText(string html) => string.Join("\n", Parse(html).Select(l => l.Gap ? "\n" + l.Text : l.Text));
 
     static bool IsColor(string c) =>
         c is "q" or "toycolor" || c.StartsWith("money")
@@ -109,6 +138,10 @@ static partial class TooltipHtml
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();
+
+    // A line break inside text, with the spaces around it; "blank" when an empty line follows.
+    [GeneratedRegex(@"[ \t\r]*\n(?<blank>[ \t\r]*\n)*[ \t\r]*")]
+    private static partial Regex LineBreak();
 
     [GeneratedRegex(@"class=""([^""]*)""")]
     private static partial Regex ClassAttr();

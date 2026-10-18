@@ -2,7 +2,8 @@
 <UserControl x:Class="WoWCharacterTracker.Views.CharacterOverview"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels">
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui">
   <Grid>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="*"/>
@@ -180,7 +181,7 @@
           </ItemsControl.Template>
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:HighlightRow}">
-              <Grid Margin="0,3,8,3" Background="Transparent" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="60000">
+              <Grid Margin="0,3,8,3" Background="Transparent" ui:ItemTip.Info="{Binding Info}">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="22"/>
                   <ColumnDefinition Width="*"/>

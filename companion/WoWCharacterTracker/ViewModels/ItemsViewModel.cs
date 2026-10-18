@@ -93,8 +93,26 @@ sealed class ItemsViewModel : Observable
         if (chip.Key.Length == 0 || (chip.Key == place && placeOut)) (place, placeOut) = ("", false);
         else if (chip.Key == place) placeOut = true;
         else (place, placeOut) = (chip.Key, false);
+        ShowPlace();
+        Rebuild();
+    }
+
+    void ShowPlace()
+    {
         foreach (var c in PlaceChips)
             c.State = c.Key.Length == 0 ? (place.Length == 0 ? "only" : "") : c.Key != place ? "" : placeOut ? "out" : "only";
+    }
+
+    // The page as it opens the first time: no search, every place, type and realm.
+    public void Reset()
+    {
+        (place, placeOut) = ("", false);
+        ShowPlace();
+        search = "";
+        Raise(nameof(Search));
+        selectedKind = null;
+        Raise(nameof(SelectedKind));
+        Realms.Reset();
         Rebuild();
     }
 

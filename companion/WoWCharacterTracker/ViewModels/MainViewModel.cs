@@ -23,7 +23,18 @@ sealed class MainViewModel : Observable
         });
 
         SyncCommand = new RelayCommand(SyncNowAsync, _ => SelectedFlavor?.Tracker is not null);
-        ShowPageCommand = new RelayCommand(p => Page = (string)p!);
+        ShowPageCommand = new RelayCommand(p =>
+        {
+            var target = (string)p!;
+            if (target != Page)
+            {
+                Page = target;
+                return;
+            }
+            // The open page's tab again: start that page over (MainWindow scrolls it to the top).
+            SelectedFlavor?.ResetPage(target);
+            PageReset?.Invoke();
+        });
         ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
         CopyPostingCommand = new RelayCommand(_ =>
         {
@@ -100,6 +111,7 @@ sealed class MainViewModel : Observable
 
     public ICommand SyncCommand { get; }
     public ICommand ShowPageCommand { get; }
+    public event Action? PageReset;
     public ICommand ResetPostingCommand { get; }
     public ICommand CopyPostingCommand { get; }
     public ICommand PastePostingCommand { get; }
