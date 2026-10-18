@@ -198,6 +198,10 @@ local shotQueue = {}
 local shotBusy = false
 local shotItem
 local savedCVars
+-- The game names screenshots by the second (WoWScrnShot_MMDDYY_HHMMSS), so two in the same second
+-- share a file and the second one overwrites the first. A ding shot in combat followed by the
+-- grid right as combat ended did exactly that. The next shot waits for the clock to move on.
+local lastShotSecond = 0
 
 local getCVar = (C_CVar and C_CVar.GetCVar) or GetCVar
 local setCVar = (C_CVar and C_CVar.SetCVar) or SetCVar
@@ -291,6 +295,7 @@ end
 -- screenshots mid-fight); the app waits for it.
 function ns.shotDone(ok)
   if not shotBusy then return end
+  lastShotSecond = math.max(lastShotSecond, time())
   local item = shotItem
   if item and item.bits then
     if grid then grid:Hide() end
@@ -322,6 +327,10 @@ end
 
 ns.processShots = function()
   if shotBusy or #shotQueue == 0 then return end
+  if time() <= lastShotSecond then
+    C_Timer.After(0.25, ns.processShots)
+    return
+  end
   local item = nextShot()
   if not item then return end -- only grids left, PLAYER_REGEN_ENABLED picks them up
   shotItem = item

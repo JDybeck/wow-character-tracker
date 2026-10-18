@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.21.1
+
+- **Missing ding screenshots fixed**: a screenshot taken mid-fight could be overwritten by the tracker's own data shot when the fight ended in the same second (the game names screenshots by the second), so the post went out without a picture. Shots now always land in different seconds. Comes with the updated addon, so log in (or `/reload`) once.
+
 ## v0.21.0
 
 - **Your ratings** (Retail): a character's overview shows its current Mythic+ score and PvP ratings (2v2, 3v3, RBG, Solo Shuffle, Blitz), each with its icon. Only brackets you have a rating in show up, and nothing shows on Forever. The stream card lists them under the keystone too. They come with the updated addon, so log in (or `/reload`) once.
