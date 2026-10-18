@@ -89,12 +89,7 @@ sealed class StreamViewModel : Observable
     bool OffersKind(string kind) => snapshot.Game == Flavors.Retail.Name || !RetailOnly.Contains(kind);
 
     ObservableCollection<ToggleOption>? kinds;
-    public ObservableCollection<ToggleOption> HighlightKinds => kinds ??= new(KindNames.Where(k => OffersKind(k.Kind)).Select(k => new ToggleOption(k.Name, Options.HighlightKinds.Contains(k.Kind), on =>
-    {
-        Options.HighlightKinds.Remove(k.Kind);
-        if (on) Options.HighlightKinds.Add(k.Kind);
-        OptionsChanged();
-    }, k.Tip)));
+    public ObservableCollection<ToggleOption> HighlightKinds => kinds ??= Chips(KindNames, Options.HighlightKinds);
 
     // Which moments pop up as the big alert, as on/off chips.
     static readonly (string Kind, string Name, string Tip)[] AlertNames =
@@ -107,12 +102,16 @@ sealed class StreamViewModel : Observable
         ("mplus", "Mythic+", "MILESTONE! for a Mythic+ rating step (Retail)"), ("pvp", "PvP rating", "MILESTONE! for a PvP rating step (Retail)"),
     ];
     ObservableCollection<ToggleOption>? alertKinds;
-    public ObservableCollection<ToggleOption> AlertKinds => alertKinds ??= new(AlertNames.Where(k => OffersKind(k.Kind)).Select(k => new ToggleOption(k.Name, Options.AlertKinds.Contains(k.Kind), on =>
-    {
-        Options.AlertKinds.Remove(k.Kind);
-        if (on) Options.AlertKinds.Add(k.Kind);
-        OptionsChanged();
-    }, k.Tip)));
+    public ObservableCollection<ToggleOption> AlertKinds => alertKinds ??= Chips(AlertNames, Options.AlertKinds);
+
+    // One on/off chip per kind this game offers; a click adds the kind to the list or takes it out.
+    ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
+        new(names.Where(k => OffersKind(k.Kind)).Select(k => new ToggleOption(k.Name, picked.Contains(k.Kind), on =>
+        {
+            picked.Remove(k.Kind);
+            if (on) picked.Add(k.Kind);
+            OptionsChanged();
+        }, k.Tip)));
 
     // What the overlay counts: three choices, the one in use highlighted.
     public bool RangeAll => Options.RangeMode == "all";

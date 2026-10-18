@@ -74,17 +74,8 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         bool Shows(string part) => !hidden.Contains(part);
         var subtitle = $"Level {c.Level} {c.Description}".Trim();
         if (Shows("guild") && c.HasGuild) subtitle += $"\n<{c.Guild}>";
-        var embed = new Dictionary<string, object>
-        {
-            ["title"] = Marked(Format.Name(c.Name, c.Surname, nameStyle), c.IsTest) + (c.Dead ? " (dead)" : ""),
-            ["description"] = subtitle,
-            ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
-            ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },
-        };
-        if (CharacterArt.ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
-        if (CharacterArt.ClassIconUrl(c.ClassFile) is { } classIcon)
-            embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
-        var picture = await CharacterArt.PictureUrlAsync(flavor, c.Region, c.Realm, c.Name, c.RaceFile, c.Sex, c.ClassFile);
+        var embed = CharacterEmbed(c, CharacterName(c) + (c.Dead ? " (dead)" : ""), subtitle);
+        var picture = await PictureAsync(c);
 
         if (card is not null)
         {
@@ -105,17 +96,8 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         var url = Wowhead.TalentCalcUrl(flavor, c.ClassFile, c.TalentCalc, c.TalentExport);
         var lines = new List<string> { $"**Level {c.Level} {c.Description}**".Replace("  ", " ") };
         if (c.Talents.Length > 0) lines.Add(c.Talents);
-        var embed = new Dictionary<string, object>
-        {
-            ["title"] = $"{Marked(Format.Name(c.Name, c.Surname, nameStyle), c.IsTest)}'s talents",
-            ["description"] = string.Join("\n", lines),
-            ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
-            ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },
-        };
+        var embed = CharacterEmbed(c, $"{CharacterName(c)}'s talents", string.Join("\n", lines));
         if (url is not null) embed["url"] = url;
-        if (CharacterArt.ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
-        if (CharacterArt.ClassIconUrl(c.ClassFile) is { } classIcon)
-            embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
         var fields = new List<object>();
         // Discord fields take up to 1024 characters; long pick lists are cut at a whole talent.
         var picks = string.Join(", ", c.TalentPickList.Select(p => p.Text).Where(t => t.Length > 0));
@@ -123,9 +105,31 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         if (picks.Length > 0) fields.Add(new { name = "Picked", value = picks, inline = false });
         if (url is not null) fields.Add(new { name = "Wowhead", value = $"[Open in the talent calculator]({url})", inline = false });
         if (fields.Count > 0) embed["fields"] = fields;
-        var picture = await CharacterArt.PictureUrlAsync(flavor, c.Region, c.Realm, c.Name, c.RaceFile, c.Sex, c.ClassFile);
+        var picture = await PictureAsync(c);
         if (picture is not null) embed["thumbnail"] = new { url = picture };
         return await webhook.SendAsync(embed, null, "", picture);
+    }
+
+    string CharacterName(CharacterRow c) => Marked(Format.Name(c.Name, c.Surname, nameStyle), c.IsTest);
+
+    Task<string?> PictureAsync(CharacterRow c) =>
+        CharacterArt.PictureUrlAsync(flavor, c.Region, c.Realm, c.Name, c.RaceFile, c.Sex, c.ClassFile);
+
+    // What every post about a character has: the title, the class color stripe, the realm with the
+    // class icon on top, and the footer.
+    Dictionary<string, object> CharacterEmbed(CharacterRow c, string title, string description)
+    {
+        var embed = new Dictionary<string, object>
+        {
+            ["title"] = title,
+            ["description"] = description,
+            ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
+            ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },
+        };
+        if (CharacterArt.ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
+        if (CharacterArt.ClassIconUrl(c.ClassFile) is { } classIcon)
+            embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
+        return embed;
     }
 
     // The card as text fields, for when the picture couldn't be drawn.

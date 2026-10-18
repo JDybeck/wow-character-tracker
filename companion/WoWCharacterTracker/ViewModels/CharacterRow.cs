@@ -211,6 +211,8 @@ sealed class CharacterRow : Observable
             if (s is null && last is null) continue;
             var hardcore = (s?.Hardcore ?? false) || all.Any(e => e.Hardcore);
             var level = Math.Max(s?.Level ?? 0, all.Count > 0 ? all.Max(e => e.Level) : 0);
+            // The newest of the snapshot and the last event says what the character has now.
+            var newer = last is not null && last.At > (s?.LastSeen ?? 0) ? last : null;
 
             rows.Add(new CharacterRow
             {
@@ -234,10 +236,9 @@ sealed class CharacterRow : Observable
                 Hardcore = hardcore,
                 Ruleset = Pick(s?.Ruleset, last?.Ruleset) is { Length: > 0 } rs ? rs : hardcore ? "Hardcore" : "Normal",
                 Dead = all.Any(e => e.Kind == "death"),
-                // The newest of the snapshot and the last event says what the character has now.
-                Money = last is not null && last.At > (s?.LastSeen ?? 0) && last.Money > 0 ? last.Money : s?.Money ?? last?.Money ?? 0,
+                Money = newer is { Money: > 0 } ? newer.Money : s?.Money ?? last?.Money ?? 0,
                 Crests = Pick(s?.Crests, last?.Crests),
-                Keystone = last is not null && last.At > (s?.LastSeen ?? 0) && last.Keystone.Length > 0 ? last.Keystone : Pick(s?.Keystone, last?.Keystone),
+                Keystone = newer is { Keystone.Length: > 0 } ? newer.Keystone : Pick(s?.Keystone, last?.Keystone),
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Surname = Pick(s?.Surname, last?.Surname),
                 TalentPicks = Newest(guid, c => c.TalentPicks),
