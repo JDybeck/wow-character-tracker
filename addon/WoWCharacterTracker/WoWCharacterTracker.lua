@@ -84,8 +84,8 @@ function on.NEW_MOUNT_ADDED(mountID)
 end
 
 -- The shot queue
-function on.SCREENSHOT_SUCCEEDED() ns.shotDone() end
-on.SCREENSHOT_FAILED = on.SCREENSHOT_SUCCEEDED
+function on.SCREENSHOT_SUCCEEDED() ns.shotDone(true) end
+function on.SCREENSHOT_FAILED() ns.shotDone(false) end
 
 -- Gear, bags and the bank (while it's open).
 on.BAG_UPDATE_DELAYED = ns.scanInventorySoon

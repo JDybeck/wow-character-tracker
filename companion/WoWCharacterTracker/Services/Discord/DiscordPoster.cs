@@ -32,6 +32,8 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             embed["image"] = new { url = "attachment://item.png" };
             files.Add((item, "item.png"));
         }
+        if (screenshot is not null && !File.Exists(screenshot))
+            Log.Warn($"The screenshot for this post was gone before it could be sent ({Path.GetFileName(screenshot)}), so it went out without one.");
         if (screenshot is null || !File.Exists(screenshot))
             return await webhook.SendAsync(list, files, avatar);
 

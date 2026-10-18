@@ -214,7 +214,7 @@ sealed class Tracker : IDisposable
             posted!.Add(e.Id);
             // Only posted highlights keep their screenshot. (The addon normally doesn't take one for
             // these, unless the settings changed since the game last loaded them.)
-            if (e.Shot && ScreenshotFileFor(e) is { } unwantedShot) TryDelete(unwantedShot);
+            if (e.Shot && ScreenshotFileFor(e, within: 20) is { } unwantedShot) TryDelete(unwantedShot);
         }
 
         var toPost = pending.Where(s.Wants).ToList();
@@ -286,16 +286,18 @@ sealed class Tracker : IDisposable
         return null;
     }
 
-    // The first picture written from just before the event to 20 seconds after. (Data grid
-    // screenshots are deleted as soon as they're read, so they don't get picked here.)
-    string? ScreenshotFileFor(Entry e)
+    // The first picture written from just before the event to 90 seconds after (a shot the game
+    // refused mid-fight is taken again when combat ends, so it can come late). Data grid
+    // screenshots are deleted as soon as they're read, so they don't get picked here.
+    // (Deleting an unwanted one only looks 20 seconds out, so it never takes a picture of your own.)
+    string? ScreenshotFileFor(Entry e, int within = 90)
     {
         var dir = Path.Combine(flavorDir, "Screenshots");
         if (!Directory.Exists(dir)) return null;
         var at = DateTimeOffset.FromUnixTimeSeconds(e.At).LocalDateTime;
         return new DirectoryInfo(dir).EnumerateFiles()
             .Where(f => f.Extension is ".jpg" or ".jpeg" or ".png")
-            .Where(f => f.LastWriteTime >= at.AddSeconds(-2) && f.LastWriteTime <= at.AddSeconds(20))
+            .Where(f => f.LastWriteTime >= at.AddSeconds(-2) && f.LastWriteTime <= at.AddSeconds(within))
             .OrderBy(f => f.LastWriteTime)
             .FirstOrDefault()?.FullName;
     }
