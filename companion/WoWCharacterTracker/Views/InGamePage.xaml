@@ -21,13 +21,13 @@
             <TextBlock Style="{StaticResource SectionTitle}" Text="Keeping the app up to date" Margin="0,0,0,4"/>
             <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14"
                        Text="Gear, bags and bank only reach the app when you /reload or log out (loading screens don't count). These remind you when they changed."/>
-            <CheckBox IsChecked="{Binding FlightReloadPrompt}" Margin="0,0,0,14">
+            <CheckBox ToolTip="On a flight path, offer a /reload when your bags or gear changed" IsChecked="{Binding FlightReloadPrompt}" Margin="0,0,0,14">
               <StackPanel>
                 <TextBlock Text="Offer a reload on flight paths" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
                 <TextBlock Style="{StaticResource Hint}" Text="When you take a flight and your bags or gear changed since the last save, a small box offers a /reload. You keep flying through it."/>
               </StackPanel>
             </CheckBox>
-            <CheckBox IsChecked="{Binding ChatReloadReminder}">
+            <CheckBox ToolTip="Put a line in chat reminding you to /reload when your bags or gear changed" IsChecked="{Binding ChatReloadReminder}">
               <StackPanel>
                 <TextBlock Text="Remind me in chat to /reload" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
                 <TextBlock Style="{StaticResource Hint}" Text="One line in chat when your bags or gear changed since the last save: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes."/>
@@ -43,12 +43,12 @@
             <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" TextWrapping="Wrap"
                        Text="For each event the addon shows a small black and white pattern (about 320 x 30 pixels) in a corner for a single frame and takes a screenshot of it, which is how the app hears about it right away. Pick the corner that bothers you least."/>
             <WrapPanel Margin="0,0,0,12">
-              <RadioButton Style="{StaticResource DetailTab}" Content="Top left" IsChecked="{Binding GridTopLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
-              <RadioButton Style="{StaticResource DetailTab}" Content="Top right" IsChecked="{Binding GridTopRight}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
-              <RadioButton Style="{StaticResource DetailTab}" Content="Bottom left" IsChecked="{Binding GridBottomLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
-              <RadioButton Style="{StaticResource DetailTab}" Content="Bottom right" IsChecked="{Binding GridBottomRight}" GroupName="{Binding Name, StringFormat=corner-{0}}"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Top left" ToolTip="Show the instant-post pattern in the top left corner" IsChecked="{Binding GridTopLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Top right" ToolTip="Show the instant-post pattern in the top right corner" IsChecked="{Binding GridTopRight}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Bottom left" ToolTip="Show the instant-post pattern in the bottom left corner" IsChecked="{Binding GridBottomLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Bottom right" ToolTip="Show the instant-post pattern in the bottom right corner" IsChecked="{Binding GridBottomRight}" GroupName="{Binding Name, StringFormat=corner-{0}}"/>
             </WrapPanel>
-            <CheckBox IsChecked="{Binding GridLabel}">
+            <CheckBox ToolTip="Show a small &quot;Character Tracker /wct&quot; label next to the pattern" IsChecked="{Binding GridLabel}">
               <StackPanel>
                 <TextBlock Text="Show a small label next to it" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
                 <TextBlock Style="{StaticResource Hint}" Text="&quot;Character Tracker /wct&quot;, so anyone watching (or you) knows what the flicker is."/>
@@ -61,7 +61,7 @@
         <Border Padding="18,16" CornerRadius="10" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitle}" Text="Game settings" Margin="0,0,0,14"/>
-            <CheckBox IsChecked="{Binding AdvancedCombatLog}">
+            <CheckBox ToolTip="Turn on the game's Advanced Combat Logging setting" IsChecked="{Binding AdvancedCombatLog}">
               <StackPanel>
                 <TextBlock Text="Advanced combat logging" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
                 <TextBlock Style="{StaticResource Hint}" Text="Turns on the game's own Advanced Combat Logging setting (System, Network): more detail in the combat log file, for log tools and for features here later. The addon sets it at your next /reload or login, out of combat. Unticking turns it off again."/>

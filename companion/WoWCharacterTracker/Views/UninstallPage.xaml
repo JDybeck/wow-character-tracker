@@ -35,7 +35,7 @@
                         Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}">
                   <DockPanel>
                     <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" FontSize="12" Foreground="{StaticResource Muted}" Margin="12,2,0,0"/>
-                    <CheckBox IsChecked="{Binding IsOn}" VerticalAlignment="Top">
+                    <CheckBox ToolTip="Ticked gets removed, unticked stays on your PC" IsChecked="{Binding IsOn}" VerticalAlignment="Top">
                       <StackPanel>
                         <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
                         <TextBlock Style="{StaticResource Hint}" Text="{Binding Detail}"/>
@@ -65,8 +65,8 @@
 
           <DockPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-              <Button Style="{StaticResource GhostButton}" Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0"/>
-              <Button Style="{StaticResource ButtonBase}" Padding="16,7" Background="#7F1D1D" BorderBrush="#B91C1C" Command="{Binding UninstallCommand}">
+              <Button Style="{StaticResource GhostButton}" ToolTip="Go back without removing anything" Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0"/>
+              <Button Style="{StaticResource ButtonBase}" Padding="16,7" Background="#7F1D1D" BorderBrush="#B91C1C" ToolTip="Remove everything ticked above" Command="{Binding UninstallCommand}">
                 <TextBlock Text="Uninstall" Foreground="White" FontWeight="SemiBold"/>
               </Button>
             </StackPanel>
@@ -102,7 +102,7 @@
           </ItemsControl>
           <TextBlock Style="{StaticResource Hint}" Margin="0,12,0,12" TextWrapping="Wrap"
                      Text="Done. The app closes now, and if you picked it, removes itself a moment later. Anything that couldn't be removed is listed above with the reason."/>
-          <Button Style="{StaticResource ButtonBase}" HorizontalAlignment="Left" Padding="16,7" Command="{Binding CloseCommand}">
+          <Button Style="{StaticResource ButtonBase}" HorizontalAlignment="Left" Padding="16,7" ToolTip="Close the app now. If you picked it, the app removes itself a moment later." Command="{Binding CloseCommand}">
             <TextBlock Text="Close the app"/>
           </Button>
         </StackPanel>

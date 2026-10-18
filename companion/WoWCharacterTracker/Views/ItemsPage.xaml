@@ -85,7 +85,7 @@
             </ListBox.ItemsPanel>
           </ListBox>
           <Grid>
-            <TextBox Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=200}" Padding="17,7,10,7"/>
+            <TextBox ToolTip="Search items by name" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=200}" Padding="17,7,10,7"/>
             <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" Foreground="{StaticResource Dim}" FontSize="13" Margin="12,0,0,0" IsHitTestVisible="False"/>
             <TextBlock Text="Search items on all your characters" Foreground="{StaticResource Faint}" FontSize="13" Margin="34,0,0,0"
                        VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding Search, Converter={StaticResource HiddenIfSet}}"/>
