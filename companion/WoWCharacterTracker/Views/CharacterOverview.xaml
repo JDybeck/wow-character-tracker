@@ -83,12 +83,14 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:ToggleOption}">
-            <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+            <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"
+                      ToolTip="Put this tag on the character, or take it off. Discord webhooks can filter on tags."/>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <Grid Width="220" HorizontalAlignment="Left">
-        <TextBox Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" FontSize="12">
+        <TextBox Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" FontSize="12"
+                 ToolTip="Type a new tag and press Enter to add it to this character">
           <TextBox.InputBindings>
             <KeyBinding Key="Enter" Command="{Binding DataContext.AddTagCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         CommandParameter="{Binding}"/>
@@ -120,7 +122,8 @@
           <ItemsControl ItemsSource="{Binding DataContext.CardOptions, RelativeSource={RelativeSource AncestorType=Window}}" ItemsPanel="{StaticResource Wrap}">
             <ItemsControl.ItemTemplate>
               <DataTemplate DataType="{x:Type vm:ToggleOption}">
-                <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+                <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"
+                          ToolTip="Show or hide this on the Discord card"/>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
@@ -145,11 +148,12 @@
           </TextBlock>
           <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
             <Button Style="{StaticResource ButtonBase}" Padding="12,5" Background="#7F1D1D" BorderBrush="#B91C1C" Margin="0,0,8,0"
+                    ToolTip="Hide this character from the list"
                     Command="{Binding DataContext.RemoveCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                     CommandParameter="{Binding}">
               <TextBlock Text="Yes, remove" FontSize="12" Foreground="White"/>
             </Button>
-            <Button Style="{StaticResource ButtonBase}" Padding="12,5"
+            <Button Style="{StaticResource ButtonBase}" Padding="12,5" ToolTip="Keep the character"
                     Command="{Binding DataContext.CancelRemoveCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                     CommandParameter="{Binding}">
               <TextBlock Text="Cancel" FontSize="12"/>

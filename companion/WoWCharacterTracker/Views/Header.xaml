@@ -104,7 +104,7 @@
 
       <!-- App settings. The button can't be clicked while the menu is open, so a click outside
            (on the button too) just closes it. -->
-      <ToggleButton x:Name="SettingsButton" IsChecked="{Binding ShowSettings}" Cursor="Hand" Margin="0,0,12,0" ToolTip="Settings"
+      <ToggleButton x:Name="SettingsButton" IsChecked="{Binding ShowSettings}" Cursor="Hand" Margin="0,0,12,0" ToolTip="Open the app settings"
                     IsHitTestVisible="{Binding IsOpen, ElementName=SettingsMenu, Converter={StaticResource Not}}">
         <ToggleButton.Template>
           <ControlTemplate TargetType="ToggleButton">

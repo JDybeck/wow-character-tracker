@@ -10,14 +10,14 @@
     <StackPanel>
       <DockPanel Margin="0,0,0,4">
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-          <Button Style="{StaticResource ButtonBase}" Command="{Binding TestWebhookCommand}" Margin="0,0,8,0"
+          <Button Style="{StaticResource ButtonBase}" ToolTip="Send a test message to this game's webhooks that are on" Command="{Binding TestWebhookCommand}" Margin="0,0,8,0"
                   Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}">
             <StackPanel Orientation="Horizontal">
               <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Margin="0,0,6,0" Foreground="{StaticResource TextSoft}"/>
               <TextBlock Text="Send test" Foreground="{StaticResource TextSoft}"/>
             </StackPanel>
           </Button>
-          <Button Style="{StaticResource ButtonBase}" Command="{Binding ToggleAddWebhookCommand}">
+          <Button Style="{StaticResource ButtonBase}" ToolTip="Add a Discord webhook to post to" Command="{Binding ToggleAddWebhookCommand}">
             <StackPanel Orientation="Horizontal">
               <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,6,0" Foreground="{StaticResource TextSoft}"/>
               <TextBlock Text="Add" Foreground="{StaticResource TextSoft}"/>
@@ -66,7 +66,7 @@
                     </DockPanel>
                     <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
                   </StackPanel>
-                  <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" Margin="0,0,8,0"
+                  <TextBox ToolTip="New name for the webhook. Enter saves, Esc cancels." Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" Margin="0,0,8,0"
                            ui:FocusWhenVisible.Enabled="True"
                            Visibility="{Binding IsEditing, Converter={StaticResource Visible}}">
                     <TextBox.InputBindings>
@@ -82,7 +82,7 @@
                           CommandParameter="{Binding}">
                     <TextBlock x:Name="Gear" Style="{StaticResource Icon}" Text="&#xE713;" FontSize="13" Foreground="{StaticResource Dim}"/>
                   </Button>
-                  <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename"
+                  <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename this webhook"
                           Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}"
                           Command="{Binding DataContext.RenameWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
@@ -100,7 +100,7 @@
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="13" Foreground="{StaticResource Dim}"/>
                   </Button>
                   <Border x:Name="Radio" Grid.Column="4" Width="20" Height="20" CornerRadius="5" BorderThickness="1" BorderBrush="#475569"
-                          Background="Transparent" Cursor="Hand" VerticalAlignment="Center" ToolTip="On or off for this tab">
+                          Background="Transparent" Cursor="Hand" VerticalAlignment="Center" ToolTip="Turn this webhook on or off for this game tab">
                     <Border.InputBindings>
                       <MouseBinding MouseAction="LeftClick"
                                     Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -115,12 +115,12 @@
                 <DockPanel Margin="0,10,0,0" Visibility="{Binding ConfirmRemove, Converter={StaticResource Visible}}">
                   <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <Button Style="{StaticResource ButtonBase}" Padding="10,4" Background="#7F1D1D" BorderBrush="#B91C1C" Margin="0,0,6,0"
-                            Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            ToolTip="Remove this webhook for good" Command="{Binding DataContext.RemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             CommandParameter="{Binding}">
                       <TextBlock Text="Remove" FontSize="12" Foreground="White"/>
                     </Button>
                     <Button Style="{StaticResource ButtonBase}" Padding="10,4"
-                            Command="{Binding DataContext.CancelRemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            ToolTip="Keep the webhook" Command="{Binding DataContext.CancelRemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             CommandParameter="{Binding}">
                       <TextBlock Text="Cancel" FontSize="12"/>
                     </Button>
@@ -137,7 +137,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate DataType="{x:Type vm:ToggleOption}">
-                        <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+                        <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6" ToolTip="Post this game's events to this webhook"/>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
@@ -150,7 +150,7 @@
                       <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:ToggleOption}">
                           <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"
-                                    ToolTip="Right-click to delete this tag everywhere">
+                                    ToolTip="Only post characters with the picked tags. Right-click to delete this tag everywhere.">
                             <CheckBox.ContextMenu>
                               <ContextMenu>
                                 <MenuItem Header="Delete this tag everywhere"
@@ -173,7 +173,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate DataType="{x:Type vm:ToggleOption}">
-                        <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6"/>
+                        <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" Margin="0,0,6,6" ToolTip="Post Forever characters on this ruleset to this webhook"/>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
@@ -200,24 +200,32 @@
       <!-- How to get a webhook, until there is one: one line, the steps folded away until asked for. -->
       <StackPanel Visibility="{Binding HasWebhooks, Converter={StaticResource Hidden}}" Margin="0,8,0,4">
         <DockPanel>
-          <ToggleButton x:Name="HowTo" DockPanel.Dock="Right" Cursor="Hand" VerticalAlignment="Center" ToolTip="Show or hide the steps for making a webhook in Discord">
+          <TextBlock DockPanel.Dock="Left" Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,0,8,0" VerticalAlignment="Center"
+                     Text="A webhook is the link the app posts through."/>
+          <!-- A small round "?" right after the line; lights up while the steps are open. -->
+          <ToggleButton x:Name="HowTo" Cursor="Hand" HorizontalAlignment="Left" VerticalAlignment="Center"
+                        ToolTip="How do I make one? Shows the steps for making a webhook in Discord.">
             <ToggleButton.Template>
               <ControlTemplate TargetType="ToggleButton">
-                <StackPanel Orientation="Horizontal" Background="Transparent">
-                  <TextBlock x:Name="Txt" Text="How do I make one?" FontSize="12" Foreground="{DynamicResource BlueText}"/>
-                  <TextBlock x:Name="Chev" Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="10" Foreground="{DynamicResource BlueText}" Margin="5,1,0,0"/>
-                </StackPanel>
+                <Border x:Name="Bd" Width="20" Height="20" CornerRadius="10" BorderThickness="1"
+                        BorderBrush="{StaticResource Dim}" Background="Transparent">
+                  <TextBlock x:Name="Mark" Text="?" FontSize="14" FontWeight="Bold" Foreground="{StaticResource Muted}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,1"/>
+                </Border>
                 <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueText}"/>
+                    <Setter TargetName="Mark" Property="Foreground" Value="{DynamicResource BlueText}"/>
+                  </Trigger>
                   <Trigger Property="IsChecked" Value="True">
-                    <Setter TargetName="Txt" Property="Text" Value="Hide steps"/>
-                    <Setter TargetName="Chev" Property="Text" Value="&#xE70E;"/>
+                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Indigo}"/>
+                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+                    <Setter TargetName="Mark" Property="Foreground" Value="{DynamicResource IndigoText}"/>
                   </Trigger>
                 </ControlTemplate.Triggers>
               </ControlTemplate>
             </ToggleButton.Template>
           </ToggleButton>
-          <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,0,8,0"
-                     Text="A webhook is the link the app posts through."/>
         </DockPanel>
         <TextBlock Foreground="{StaticResource TextSoft}" FontSize="13" TextWrapping="Wrap" LineHeight="21" Margin="0,6,0,0"
                    Visibility="{Binding IsChecked, ElementName=HowTo, Converter={StaticResource BoolVis}}">
@@ -233,13 +241,13 @@
         <StackPanel>
           <TextBlock Text="Add New Webhook" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextSoft}" Margin="0,0,0,10"/>
           <Grid Margin="0,0,0,8">
-            <TextBox Text="{Binding NewWebhookUrl, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBox ToolTip="Paste the webhook URL from Discord (channel settings, Integrations, Webhooks)" Text="{Binding NewWebhookUrl, UpdateSourceTrigger=PropertyChanged}"/>
             <TextBlock Text="https://discord.com/api/webhooks/..." Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
                        VerticalAlignment="Center" IsHitTestVisible="False"
                        Visibility="{Binding NewWebhookUrl, Converter={StaticResource HiddenIfSet}}"/>
           </Grid>
           <Grid>
-            <TextBox Text="{Binding NewWebhookName, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBox ToolTip="A name so you can tell your webhooks apart" Text="{Binding NewWebhookName, UpdateSourceTrigger=PropertyChanged}"/>
             <TextBlock Text="Name, e.g. #leveling / My Guild (optional)" Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
                        VerticalAlignment="Center" IsHitTestVisible="False"
                        Visibility="{Binding NewWebhookName, Converter={StaticResource HiddenIfSet}}"/>
@@ -247,9 +255,9 @@
           <TextBlock Text="{Binding AddWebhookError}" Foreground="{StaticResource Red}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
                      Visibility="{Binding AddWebhookError, Converter={StaticResource VisibleIfSet}}"/>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Style="{StaticResource GhostButton}" Content="Cancel" Command="{Binding ToggleAddWebhookCommand}" Margin="0,0,8,0"
+            <Button Style="{StaticResource GhostButton}" ToolTip="Close this without adding anything" Content="Cancel" Command="{Binding ToggleAddWebhookCommand}" Margin="0,0,8,0"
                     Visibility="{Binding HasWebhooks, Converter={StaticResource Visible}}"/>
-            <Button Style="{StaticResource IndigoButton}" Content="Save Webhook" Command="{Binding SaveWebhookCommand}" IsDefault="True"/>
+            <Button Style="{StaticResource IndigoButton}" ToolTip="Check the URL and add the webhook" Content="Save Webhook" Command="{Binding SaveWebhookCommand}" IsDefault="True"/>
           </StackPanel>
         </StackPanel>
       </Border>
