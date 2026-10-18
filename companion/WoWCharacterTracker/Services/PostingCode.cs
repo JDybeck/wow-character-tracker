@@ -42,22 +42,28 @@ static class PostingCode
         catch (Exception ex) when (ex is FormatException or JsonException or ArgumentException) { d = null; }
         if (d is null) return (null, "The settings code is damaged. Copy it again, the whole line.");
 
-        target.PostLevels = d.PostLevels;
-        target.LevelSplit = Math.Clamp(d.LevelSplit, 1, 100);
-        target.LevelEveryBefore = Math.Clamp(d.LevelEveryBefore, 1, 100);
-        target.LevelEveryAfter = Math.Clamp(d.LevelEveryAfter, 1, 100);
-        target.PostMaxLevel = d.PostMaxLevel;
-        (target.PostRare, target.PostEpic, target.PostMounts, target.PostBosses, target.PostDeaths) =
-            (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
-        (target.PostDuels, target.PostMakgora, target.PostMPlus, target.PostPvp) = (d.PostDuels, d.PostMakgora, d.PostMPlus, d.PostPvp);
-        if (d.MPlusSteps is { Count: > 0 }) target.MPlusSteps = [.. d.MPlusSteps.Where(n => n is > 0 and < 10000).Distinct().Order()];
-        if (d.PvpSteps is { Count: > 0 }) target.PvpSteps = [.. d.PvpSteps.Where(n => n is > 0 and < 10000).Distinct().Order()];
+        // The code's settings, checked, then taken over the same way Reset does (FlavorSettings.CopyPostingFrom).
+        static List<int> Steps(List<int>? steps, List<int> fallback) =>
+            steps?.Where(n => n is > 0 and < 10000).Distinct().Order().ToList() is { Count: > 0 } ok ? ok : fallback;
+        target.CopyPostingFrom(new FlavorSettings
+        {
+            PostLevels = d.PostLevels,
+            LevelSplit = Math.Clamp(d.LevelSplit, 1, 100),
+            LevelEveryBefore = Math.Clamp(d.LevelEveryBefore, 1, 100),
+            LevelEveryAfter = Math.Clamp(d.LevelEveryAfter, 1, 100),
+            PostMaxLevel = d.PostMaxLevel,
+            PostRare = d.PostRare, PostEpic = d.PostEpic, PostMounts = d.PostMounts, PostBosses = d.PostBosses, PostDeaths = d.PostDeaths,
+            PostDuels = d.PostDuels, PostMakgora = d.PostMakgora, PostMPlus = d.PostMPlus, PostPvp = d.PostPvp,
+            MPlusSteps = Steps(d.MPlusSteps, target.MPlusSteps),
+            PvpSteps = Steps(d.PvpSteps, target.PvpSteps),
+            Screenshot = d.Screenshot ?? [],
+            PostScreenshot = d.PostScreenshot ?? [],
+        });
+        // Also in a code, not part of a Reset.
         target.SkipBossGroupRegex = d.SkipBossGroupRegex ?? "";
         target.NameStyle = d.NameStyle is "first" or "last" ? d.NameStyle : "full";
         target.HideChatInShots = d.HideChatInShots;
         target.HideUiInShots = d.HideUiInShots;
-        target.Screenshot = new(d.Screenshot ?? []);
-        target.PostScreenshot = new(d.PostScreenshot ?? []);
         return (d.Game, null);
     }
 }

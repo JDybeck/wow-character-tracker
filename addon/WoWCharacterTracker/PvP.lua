@@ -55,7 +55,7 @@ end
 local function isMe(name)
   if not name then return false end
   local me, surname = UnitName("player")
-  name = name:gsub("%-.*$", "") -- drop "-Realm"
+  name = ns.withoutRealm(name)
   return name == me or (surname and name == me .. " " .. surname)
 end
 
@@ -69,7 +69,7 @@ local function plain(v)
 end
 local function opponentInfo(name)
   if not name then return nil end
-  name = name:gsub("%-.*$", "")
+  name = ns.withoutRealm(name)
   local units = { "target", "focus", "mouseover", "targettarget" }
   for i = 1, 4 do units[#units + 1] = "party" .. i end
   for i = 1, 40 do units[#units + 1] = "nameplate" .. i end
@@ -92,21 +92,13 @@ end
 
 -- DUEL_REQUESTED: someone challenged us; they're usually close and visible now, maybe not at the end.
 function ns.onDuelRequested(name)
-  if name then seenOpponents[name:gsub("%-.*$", "")] = opponentInfo(name) end
+  if name then seenOpponents[ns.withoutRealm(name)] = opponentInfo(name) end
 end
 
 -- lost: this character lost (to opponent). fled: the loser ran away (the opponent, or this
 -- character when lost is set).
 local function recordDuel(kind, opponent, fled, lost)
-  local e = ns.characterInfo()
-  e.kind = kind -- "duel" or "makgora"
-  e.opponent = opponent
-  e.opponentInfo = opponentInfo(opponent)
-  e.fled = fled or nil
-  e.lost = lost or nil
-  e.at = time()
-  e.id = string.format("%s:%s:%d", e.guid, kind, e.at)
-  ns.addEvent(e)
+  ns.record(kind, { opponent = opponent, opponentInfo = opponentInfo(opponent), fled = fled or nil, lost = lost or nil }) -- "duel" or "makgora"
 end
 
 -- Argument 1 is the winner, argument 2 the loser, in every duel and Mak'gora message.
@@ -142,13 +134,7 @@ function ns.checkBattleground()
   local mine = type(GetBattlefieldArenaFaction) == "function" and GetBattlefieldArenaFaction() or nil
   if mine ~= 0 and mine ~= 1 then mine = UnitFactionGroup("player") == "Horde" and 0 or 1 end
   bgRecorded = true
-  local e = ns.characterInfo()
-  e.kind = "bg"
-  e.instance = GetInstanceInfo and GetInstanceInfo() or GetZoneText()
-  e.lost = winner ~= mine or nil
-  e.at = time()
-  e.id = string.format("%s:bg:%d", e.guid, e.at)
-  ns.addEvent(e)
+  ns.record("bg", { instance = GetInstanceInfo and GetInstanceInfo() or GetZoneText(), lost = winner ~= mine or nil })
 end
 
 -- Rating milestones (retail) -------------------------------------------------
@@ -167,17 +153,11 @@ local function stepPassed(old, new, steps)
 end
 
 local function recordRating(kind, rating, step, bracket)
-  local e = ns.characterInfo()
-  e.kind = kind -- "mplus" or "pvp"
-  e.rating = rating
-  e.step = step
-  e.bracket = bracket
-  e.at = time()
   -- Once per step and season: a new season can post the same step again.
   local season = (kind == "mplus" and C_MythicPlus and C_MythicPlus.GetCurrentSeason and C_MythicPlus.GetCurrentSeason())
     or (kind == "pvp" and GetCurrentArenaSeason and GetCurrentArenaSeason()) or 0
-  e.id = string.format("%s:%s:%s:%d:s%s", e.guid, kind, bracket or "", step, tostring(season))
-  ns.addEvent(e)
+  ns.record(kind, { rating = rating, step = step, bracket = bracket }, -- "mplus" or "pvp"
+    string.format("%s:%s:%d:s%s", kind, bracket or "", step, tostring(season)))
 end
 
 -- The first reading per character only sets the baseline, so nothing is posted for ratings that
@@ -185,7 +165,7 @@ end
 function ns.checkRatings()
   local guid = UnitGUID("player")
   if not guid or not WoWCharacterTrackerDB then return end
-  local post = (WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.post) or {}
+  local post = ns.setting("post") or {}
   WoWCharacterTrackerDB.ratings = WoWCharacterTrackerDB.ratings or {}
   local known = WoWCharacterTrackerDB.ratings[guid] or {}
   WoWCharacterTrackerDB.ratings[guid] = known

@@ -64,7 +64,8 @@ public class SharedRulesTests
             script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
             script.DoString("WoWCharacterTrackerDB = { events = {}, live = false } function CreateFrame() return { SetScript = function() end } end Screenshot = nil");
             var ns = new Table(script);
-            script.Call(script.LoadString(AddonFile("LiveGrid.lua")), "WoWCharacterTracker", ns);
+            foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
+                script.Call(script.LoadString(AddonFile(file)), "WoWCharacterTracker", ns);
             var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")} }}");
             return script.Call(ns.Get("wanted"), ev).Boolean;
         }

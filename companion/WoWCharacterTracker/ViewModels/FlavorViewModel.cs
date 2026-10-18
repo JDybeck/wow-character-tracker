@@ -273,14 +273,7 @@ sealed class FlavorViewModel : Observable
 
     public void ResetPosting()
     {
-        var d = Flavor.Defaults();
-        var s = Settings;
-        (s.PostLevels, s.LevelSplit, s.LevelEveryBefore, s.LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
-        (s.PostRare, s.PostEpic, s.PostMounts, s.PostBosses, s.PostDeaths) = (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
-        (s.PostMaxLevel, s.PostDuels, s.PostMakgora, s.PostMPlus, s.PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostMPlus, d.PostPvp);
-        (s.MPlusSteps, s.PvpSteps) = (d.MPlusSteps, d.PvpSteps);
-        s.Screenshot = new(d.Screenshot);
-        s.PostScreenshot = new(d.PostScreenshot);
+        Settings.CopyPostingFrom(Flavor.Defaults());
         PostingReplaced();
         Log.Info($"[{Name}] Posting settings reset to the defaults.");
     }

@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.24.2
+
+- **Guild and party announcements fixed**: with announcements on, every level-up was called out as "Reached max level"! Now only the real one is. The addon also stops taking screenshots for moments that won't be posted. Comes with the updated addon, so `/reload` once.
+- **Under the hood**: the app and the addon were cleaned up so each rule lives in one place (which webhooks take a character, what each game has, event texts, how events are recorded), with tests that keep the addon and the app in step. Nothing else should look different.
+
 ## v0.24.1
 
 - **Enchant tooltips on Forever too**: Forever only shows an enchant's stats ("Stamina +2"), so the addon now also saves the enchant's id and the app knows which enchanting spell it is. Hover it for Wowhead's tooltip, click for its page, on Retail and Forever. Comes with the updated addon, so `/reload` once.

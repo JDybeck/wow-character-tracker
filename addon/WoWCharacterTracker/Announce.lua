@@ -4,15 +4,6 @@
 -- you're out of combat, and boss kills don't list the group (they're right there).
 local ADDON, ns = ...
 
--- 2492 -> "41m 32s", 7380 -> "2h 3m", days too for total played.
-local function duration(s)
-  s = math.floor(s or 0)
-  local d, h, m = math.floor(s / 86400), math.floor(s % 86400 / 3600), math.floor(s % 3600 / 60)
-  if d > 0 then return string.format("%dd %dh %dm", d, h, m) end
-  if h > 0 then return string.format("%dh %dm", h, m) end
-  return string.format("%dm %ds", m, s % 60)
-end
-
 -- The item as a clickable link when the game has it, else its name in brackets.
 local function itemLink(id, name)
   local link = id and GetItemInfo and select(2, GetItemInfo(id))
@@ -23,9 +14,9 @@ end
 local function message(e)
   local k = e.kind
   if k == "level" and e.maxLevel then
-    return string.format("Reached max level %d!", e.level) .. (e.played and string.format(" Total played %s.", duration(e.played)) or "")
+    return string.format("Reached max level %d!", e.level) .. (e.played and string.format(" Total played %s.", ns.formatPlayed(e.played)) or "")
   elseif k == "level" then
-    return string.format("Ding! Level %d.", e.level) .. (e.seconds and string.format(" %d to %d took %s.", e.level - 1, e.level, duration(e.seconds)) or "")
+    return string.format("Ding! Level %d.", e.level) .. (e.seconds and string.format(" %d to %d took %s.", e.level - 1, e.level, ns.formatDuration(e.seconds)) or "")
   elseif k == "boss" then
     return string.format("Killed %s%s!", e.boss, (e.instance and e.instance ~= "") and (" in " .. e.instance) or "")
   elseif k == "loot" and (e.quality or 0) >= 4 then
@@ -51,7 +42,7 @@ end
 local pending = {}
 
 local function send(msg)
-  local a = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.announce
+  local a = ns.setting("announce")
   if not a or type(SendChatMessage) ~= "function" then return end
   if a.guild and IsInGuild and IsInGuild() then pcall(SendChatMessage, msg, "GUILD") end
   if a.party and IsInGroup and IsInGroup() then
@@ -69,7 +60,7 @@ end
 
 -- Called for every recorded event (ns.addEvent).
 function ns.announce(e)
-  local a = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.announce
+  local a = ns.setting("announce")
   if not a or not (a.guild or a.party) or not a.kinds then return end
   if not a.kinds[e.maxLevel and "maxlevel" or e.kind] then return end
   local msg = message(e)
