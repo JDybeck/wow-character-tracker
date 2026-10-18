@@ -5,6 +5,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 ## v0.21.1
 
 - **Missing ding screenshots fixed**: a screenshot taken mid-fight could be overwritten by the tracker's own data shot when the fight ended in the same second (the game names screenshots by the second), so the post went out without a picture. Shots now always land in different seconds. Comes with the updated addon, so log in (or `/reload`) once.
+- **In-game portrait on every post** (Forever): dings, boss kills, loot and the rest now show the character's in-game portrait as the thumbnail, like character cards and talent posts already did. Characters set to Standard keep the standard picture.
 
 ## v0.21.0
 

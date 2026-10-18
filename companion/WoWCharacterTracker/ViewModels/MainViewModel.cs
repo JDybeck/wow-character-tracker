@@ -317,7 +317,8 @@ sealed class MainViewModel : Observable
 
     // --- posting from the app ---
 
-    public DiscordPoster PosterFor(FlavorViewModel tab, WebhookInfo w) => new(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle);
+    public DiscordPoster PosterFor(FlavorViewModel tab, WebhookInfo w) =>
+        new(w.Url, tab.Flavor, Config.For(tab.Flavor).NameStyle, guid => Config.StandardPortraits.Contains(guid));
 
     // The tab's webhooks that take this character: on Forever only those for its ruleset, and only
     // webhooks that post for its tags. Says so in the console when there are none.

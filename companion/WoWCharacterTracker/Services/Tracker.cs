@@ -11,6 +11,7 @@ sealed class Tracker : IDisposable
     readonly string flavorDir;
     readonly Func<List<WebhookInfo>> webhooks;
     readonly Func<string, IReadOnlyCollection<string>> tagsFor;
+    readonly Func<WebhookInfo, DiscordPoster> posterFor;
     readonly Func<FlavorSettings> settings;
     readonly bool backfill;
     readonly string statePath;
@@ -39,12 +40,13 @@ sealed class Tracker : IDisposable
     public event Action<Entry>? CheckedIn; // a character just logged in (live check-in)
 
     public Tracker(Flavor flavor, string flavorDir, Func<List<WebhookInfo>> webhooks, Func<FlavorSettings> settings,
-        Func<string, IReadOnlyCollection<string>> tagsFor, bool backfill)
+        Func<string, IReadOnlyCollection<string>> tagsFor, Func<WebhookInfo, DiscordPoster> posterFor, bool backfill)
     {
         this.flavor = flavor;
         this.flavorDir = flavorDir;
         this.webhooks = webhooks;
         this.tagsFor = tagsFor;
+        this.posterFor = posterFor;
         this.settings = settings;
         this.backfill = backfill;
 
@@ -241,7 +243,7 @@ sealed class Tracker : IDisposable
             {
                 var key = $"{e.Id}@{w.Id}";
                 if (posted!.Contains(key)) continue;
-                if (await new DiscordPoster(w.Url, flavor, s.NameStyle).PostAsync(e, screenshot: shot))
+                if (await posterFor(w).PostAsync(e, screenshot: shot))
                 {
                     posted.Add(key);
                     sent++;

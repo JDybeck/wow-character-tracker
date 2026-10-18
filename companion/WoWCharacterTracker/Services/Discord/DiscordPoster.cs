@@ -2,7 +2,8 @@ namespace WoWCharacterTracker.Services.Discord;
 
 // Posts to one webhook for one game tab: events (with an optional screenshot) and character cards.
 // nameStyle: what posts call the character on Forever ("full", "first" or "last").
-sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = "full")
+// standardPortrait: Forever characters (by GUID) the user set to the standard picture instead of the in-game one.
+sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = "full", Func<string, bool>? standardPortrait = null)
 {
     readonly DiscordWebhook webhook = new(webhookUrl);
     readonly EventEmbeds embeds = new(flavor);
@@ -27,6 +28,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
 
         var list = new List<Dictionary<string, object>> { embed };
         var files = new List<(byte[] Data, string Name)>();
+        await AddPortraitAsync(embed, files, e.Guid);
         if (item is not null)
         {
             embed["image"] = new { url = "attachment://item.png" };
@@ -106,19 +108,26 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         return await SendWithPortraitAsync(embed, c);
     }
 
-    // Sends a text post with the character's picture as the thumbnail: the one the app shows for it
-    // (CharacterRow.PictureUrl). Forever's in-game portrait is a file on this PC, so it's uploaded with
-    // the message; the sender avatar has to be a web address, so that stays the standard picture.
+    // Sends a text post with the character's picture as the thumbnail (see AddPortraitAsync).
     async Task<bool> SendWithPortraitAsync(Dictionary<string, object> embed, CharacterRow c)
     {
         var picture = await PictureAsync(c);
-        if (c.PictureUrl is { } own && !own.StartsWith("http", StringComparison.OrdinalIgnoreCase) && File.Exists(own))
-        {
-            embed["thumbnail"] = new { url = "attachment://portrait.png" };
-            return await webhook.SendAsync(embed, await File.ReadAllBytesAsync(own), "portrait.png", picture);
-        }
         if (picture is not null) embed["thumbnail"] = new { url = picture };
-        return await webhook.SendAsync(embed, null, "", picture);
+        var files = new List<(byte[] Data, string Name)>();
+        await AddPortraitAsync(embed, files, c.Guid);
+        return await webhook.SendAsync([embed], files, picture);
+    }
+
+    // Every post's thumbnail is the picture the app shows for the character (CharacterRow.PictureUrl).
+    // Forever's in-game portrait is a file on this PC, so it's uploaded with the message and replaces
+    // the standard thumbnail; the sender avatar has to be a web address, so that stays the standard picture.
+    async Task AddPortraitAsync(Dictionary<string, object> embed, List<(byte[] Data, string Name)> files, string guid)
+    {
+        if (flavor != Flavors.Forever || standardPortrait?.Invoke(guid) == true) return;
+        if (CharacterArt.LocalPortrait(guid) is not { } own) return;
+        try { files.Add((await File.ReadAllBytesAsync(own), "portrait.png")); }
+        catch (IOException) { return; } // being replaced by a new check-in right now, the standard one will do
+        embed["thumbnail"] = new { url = "attachment://portrait.png" };
     }
 
     string CharacterName(CharacterRow c) => Marked(Format.Name(c.Name, c.Surname, nameStyle), c.IsTest);
