@@ -38,7 +38,7 @@ A level-up post, with the screenshot the addon took in game:
 
 ## Getting started
 
-1. Download `WoWCharacterTracker.exe` from the [Releases page](https://github.com/JDybeck/wow-character-tracker/releases/latest). Nothing else to install. Windows might show a SmartScreen warning since the exe isn't signed, click **More info** and then **Run anyway**.
+1. Download `WoWCharacterTracker.exe` (about 60 MB) from the [Releases page](https://github.com/JDybeck/wow-character-tracker/releases/latest). Nothing else to install. On its first start it adds itself to your Start menu, so you can find it later by typing "WoW Character Tracker" in Windows search. Windows might show a SmartScreen warning since the exe isn't signed, click **More info** and then **Run anyway**.
 
    Developers can build it themselves instead: run `build.cmd` (needs the [.NET 10 SDK](https://dotnet.microsoft.com/download)), it lands in `dist\`.
 2. Double-click `WoWCharacterTracker.exe`. Pick **Retail** or **Forever** at the top. Three checks show what's set up for that game:
@@ -93,7 +93,7 @@ The **In game** page has what the addon does in game besides posting:
 ### The app
 
 - **Characters**: every character you've logged in with the addon, with class, spec, level, item level, gold and when you last played. The bottom of the list shows the total gold and total played for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for its details, in three tabs:
-  - **Overview**: guild, total played, gold, crests and your Mythic Keystone (Retail), professions, talents, stats, last zone and highlights. Boss kills say who was there, deaths what they cost. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there. **Post talents to Discord** posts the build on its own: level, race and class, the points per tree, the talents picked and the Wowhead calculator link.
+  - **Overview**: guild, total played, gold, crests and your Mythic Keystone (Retail), professions, talents, stats (each with its icon), last zone (with an icon for what kind of place it is: dungeon, raid, battleground, city, town or the open world) and highlights. Boss kills say who was there, deaths what they cost. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there. **Post talents to Discord** posts the build on its own: level, race and class, the points per tree, the talents picked and the Wowhead calculator link.
   - **Gear and bags**: what the character wears, laid out like the character window, then its bags and its bank (as of the last time you opened it), with icons, quality colors and Wowhead tooltips. Click an item to open it on Wowhead.
 
     <img src="docs/images/gear-and-bags.png" alt="A character's gear and bags in the app" width="560">
@@ -126,7 +126,7 @@ The **In game** page has what the addon does in game besides posting:
   ![A new version available: the Update button at the top and the banner with Update now](docs/images/update-available.png)
 
 - **Stream overlay** (the panel between Discord and the console): see [Streaming](#streaming).
-- **Uninstall** (Settings, at the bottom): lists everything the app and the addon put on your PC, with every path and its size, and you pick what goes: the app, the addon in each game, your character data in each game, and the app's settings and caches. **Keep my data** (the default) removes the app and the addon but keeps your characters and settings for later, **Remove everything** removes it all, **Only the app** leaves the addon running. Afterwards it shows what was removed, closes, and the app deletes itself a moment later. Close the game first, since it writes the addon's files again when it exits. Your screenshots, your webhooks in Discord and the game's Advanced combat logging setting stay either way.
+- **Uninstall** (Settings, at the bottom): lists everything the app and the addon put on your PC, with every path and its size, and you pick what goes: the app (with its Start menu shortcut), the addon in each game, your character data in each game, and the app's settings and caches. **Keep my data** (the default) removes the app and the addon but keeps your characters and settings for later, **Remove everything** removes it all, **Only the app** leaves the addon running. Afterwards it shows what was removed, closes, and the app deletes itself a moment later. Close the game first, since it writes the addon's files again when it exits. Your screenshots, your webhooks in Discord and the game's Advanced combat logging setting stay either way.
 
   <img src="docs/images/uninstall.png" alt="The Uninstall page: every part with its paths and size" width="640">
 
@@ -212,7 +212,7 @@ Not built yet, roughly in order:
 - Professions and end bosses are matched by English name, so a non-English client won't show them.
 - Bags and gear reach the app on `/reload` or logout (they're too much for the live channel). The bank only updates when you open it in game.
 - Rating milestones start counting from the first time the addon sees your rating, so ratings you already had aren't posted.
-- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Forever characters show their own portrait in the app: the addon puts it next to the data grid in the check-in shot after you log in, and the app cuts it out. Discord needs a web address for pictures, so posts use the race portrait from Wowhead's icon CDN (or the class icon) instead.
+- Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Forever characters show their own portrait in the app: the addon puts it next to the data grid in the check-in shot after you log in, and the app cuts it out. Talent posts and text character cards upload it with the message as their picture. The sender picture has to be a web address, so it stays the race portrait from Wowhead's icon CDN (or the class icon), and so do automatic posts like level-ups.
 - Screenshots go out at full size first (boosted servers allow bigger uploads). If Discord says one is too big, a smaller JPEG copy is sent instead, and only if that's still too big does the post go out without it.
 - On the first run, events already saved are marked as posted so the channel isn't flooded. Start the app with `--backfill` to post them instead.
 - Settings and webhooks are saved in `%LOCALAPPDATA%\WoWCharacterTracker\config.json` and survive updates.
