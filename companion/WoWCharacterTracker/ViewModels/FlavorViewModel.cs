@@ -164,6 +164,7 @@ sealed class FlavorViewModel : Observable
     public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; Changed(); } }
     public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
     public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
+    public bool FirstBossKillOnly { get => Settings.FirstBossKillOnly; set { Settings.FirstBossKillOnly = value; main.Config.Save(); Raise(nameof(FirstBossKillOnly)); } }
     public bool PostMaxLevel { get => Settings.PostMaxLevel; set { Settings.PostMaxLevel = value; Changed(); } }
     public bool PostDuels { get => Settings.PostDuels; set { Settings.PostDuels = value; Changed(); } }
     public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; Changed(); } }

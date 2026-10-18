@@ -163,6 +163,7 @@
                   <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="boss"/>
                   <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" ToolTip="Take a screenshot in game a moment after it happens" IsChecked="{Binding Shots[boss].Take}"/>
                   <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" ToolTip="Attach that screenshot to the Discord post" IsChecked="{Binding Shots[boss].Post}" Visibility="{Binding Shots[boss].Take, Converter={StaticResource Visible}}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="First kill only" ToolTip="Post each character's first kill of each end boss, not the runs after it. Every kill still shows in the app's highlights." IsChecked="{Binding FirstBossKillOnly}" IsEnabled="{Binding PostBosses}"/>
                 </WrapPanel>
                 <StackPanel Margin="30,6,0,0" IsEnabled="{Binding PostBosses}">
                   <TextBlock Text="Skip when someone in the group matches (regex)" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,4" TextWrapping="Wrap"/>
