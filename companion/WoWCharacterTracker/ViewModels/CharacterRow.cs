@@ -258,7 +258,7 @@ sealed class CharacterRow : Observable
                 Sex = Pick(s?.Sex, last?.Sex) is { Length: > 0 } sex ? sex : "male",
                 Spec = Pick(s?.Spec, last?.Spec) is var spec && spec != Pick(s?.Class, last?.Class) ? spec : "", // old Forever data had the class as spec
                 Role = s?.Role ?? "",
-                IsRetail = flavor == Flavors.Retail,
+                IsRetail = flavor.HasSpecs,
                 ItemLevel = s?.ItemLevel is > 0 ? s.ItemLevel : last?.ItemLevel ?? 0,
                 Played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0),
                 Zone = Pick(s?.Zone, last?.Zone),
@@ -286,14 +286,14 @@ sealed class CharacterRow : Observable
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", e.Seconds > 0 ? Format.Duration(e.Seconds) : "?", e.Zone, When(e.At)))
                     .ToList(),
                 Highlights = all
-                    .Where(e => HighlightText.Kinds.Contains(e.Kind))
+                    .Where(e => EventKinds.Highlights.Contains(e.Kind))
                     .OrderByDescending(e => e.At)
                     .Select(Highlight)
                     .ToList(),
                 Lookup = lookup,
                 Inventory = inventories.GetValueOrDefault(guid),
                 MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile), Pick(s?.Spec, last?.Spec)),
-                Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor == Flavors.Forever),
+                Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor.EstimatesXp),
             });
         }
 

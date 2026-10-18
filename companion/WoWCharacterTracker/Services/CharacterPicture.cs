@@ -16,13 +16,13 @@ static class CharacterPicture
     // The web picture: render, race portrait or class icon.
     public static async Task<string?> StandardAsync(Flavor flavor, PictureSubject who)
     {
-        if (flavor == Flavors.Retail && await RaiderIo.AvatarUrlAsync(who.Region, who.Realm, who.Name) is { } render) return render;
+        if (flavor.HasRenders && await RaiderIo.AvatarUrlAsync(who.Region, who.Realm, who.Name) is { } render) return render;
         return await CharacterArt.PictureUrlAsync(who.RaceFile, who.Sex, who.ClassFile);
     }
 
     // The in-game portrait file when that's the one to show, else null.
     public static string? GamePortrait(Flavor flavor, string guid, bool standardChosen) =>
-        flavor == Flavors.Forever && !standardChosen ? CharacterArt.LocalPortrait(guid) : null;
+        flavor.HasInGamePortraits && !standardChosen ? CharacterArt.LocalPortrait(guid) : null;
 
     // What the app shows: the in-game portrait file or the standard picture's address.
     public static async Task<string?> ShownAsync(Flavor flavor, PictureSubject who, bool standardChosen) =>

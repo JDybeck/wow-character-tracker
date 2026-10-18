@@ -18,10 +18,10 @@ class WebhookInfo
         Tags is not { Count: > 0 } || Tags.Any(characterTags.Contains);
 
     // A character can be both hardcore and self-found ("Hardcore, Self-found"); either one counts.
-    public bool AcceptsRuleset(Entry e)
+    public bool AcceptsRuleset(string ruleset, bool hardcore)
     {
         if (ForeverRulesets is null) return true;
-        var ruleset = e.Ruleset.Length > 0 ? e.Ruleset : e.Hardcore ? "Hardcore" : "Normal";
+        if (ruleset.Length == 0) ruleset = hardcore ? "Hardcore" : "Normal";
         return ruleset.Split(", ").Any(ForeverRulesets.Contains);
     }
 }

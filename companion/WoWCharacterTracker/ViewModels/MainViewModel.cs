@@ -218,7 +218,7 @@ sealed class MainViewModel : Observable
             if (!Set(ref showTestCharacters, value)) return;
             foreach (var tab in FlavorTabs) tab.Refresh();
             if (!value) return;
-            if (FlavorTabs.FirstOrDefault(t => t.Flavor == Flavors.Forever) is { IsOn: true } forever) SelectedFlavor = forever;
+            if (FlavorTabs.FirstOrDefault(t => t.Flavor.HasRulesets) is { IsOn: true } forever) SelectedFlavor = forever; // where the test characters are
             Log.Info("Test characters on (Forever tab). They're never posted on their own, but Test buttons and Post to Discord work with them.");
         }
     }
@@ -343,14 +343,10 @@ sealed class MainViewModel : Observable
     // webhooks that post for its tags. Says so in the console when there are none.
     List<WebhookInfo> WebhooksFor(FlavorViewModel tab, CharacterRow c)
     {
-        var asEntry = new Entry { Ruleset = c.Ruleset, Hardcore = c.Hardcore };
-        var hooks = Config.ActiveWebhooks(tab.Flavor)
-            .Where(w => tab.Flavor != Flavors.Forever || w.AcceptsRuleset(asEntry))
-            .Where(w => w.AcceptsTags(Config.TagsOf(c.Guid)))
-            .ToList();
+        var hooks = Config.WebhooksFor(tab.Flavor, c.Guid, c.Ruleset, c.Hardcore);
         if (hooks.Count == 0)
             Log.Warn($"[{tab.Name}] No webhook to post {c.Name} to. Turn one on in the Discord panel" +
-                     (tab.Flavor == Flavors.Forever ? $" (and check it takes {c.Ruleset} characters)." : "."));
+                     (tab.Flavor.HasRulesets ? $" (and check it takes {c.Ruleset} characters)." : "."));
         return hooks;
     }
 

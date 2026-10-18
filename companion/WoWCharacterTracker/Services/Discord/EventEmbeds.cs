@@ -46,7 +46,7 @@ sealed class EventEmbeds(Flavor flavor)
             embed["color"] = 0xA335EE;
         else if (e.Kind == "pvp")
             embed["color"] = 0xC41E3A;
-        else if (CharacterArt.ClassColors.TryGetValue(e.ClassFile.ToUpperInvariant(), out var color))
+        else if (CharacterArt.ClassColor(e.ClassFile) is int color)
             embed["color"] = color;
 
         if (e.Kind is "loot" or "mount" && e.ItemId > 0)

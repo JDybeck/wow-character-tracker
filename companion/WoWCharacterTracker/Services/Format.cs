@@ -13,6 +13,9 @@ static partial class Format
         _ => $"{first} {surname}",
     };
 
+    // "1 character", "3 characters" (plural defaults to the word plus "s").
+    public static string Count(int n, string word, string? plural = null) => $"{n} {(n == 1 ? word : plural ?? word + "s")}";
+
     // Discord can't show item icons in text, so professions get a plain emoji each.
     static readonly Dictionary<string, string> ProfessionEmoji = new(StringComparer.OrdinalIgnoreCase)
     {

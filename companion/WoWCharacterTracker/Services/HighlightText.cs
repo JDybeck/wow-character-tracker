@@ -5,9 +5,6 @@ namespace WoWCharacterTracker.Services;
 // the subject ("Won a duel against " + "Grimtusk").
 static class HighlightText
 {
-    // The kinds that are highlights (level-ups aren't, they have their own lists).
-    public static readonly string[] Kinds = ["boss", "loot", "mount", "death", "duel", "makgora", "bg", "mplus", "pvp"];
-
     public static (string Verb, string Subject) Of(Entry e) => e.Kind switch
     {
         "boss" => ("Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : "")),

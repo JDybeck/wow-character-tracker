@@ -75,6 +75,17 @@ class Config
         return Webhooks.Where(w => ids.Contains(w.Id)).ToList();
     }
 
+    // The tab's webhooks that take this character: only those for its ruleset (games with rulesets)
+    // and only those that post for one of its tags. Events and posts from the app both go by this.
+    public List<WebhookInfo> WebhooksFor(Flavor f, string guid, string ruleset, bool hardcore)
+    {
+        var tags = TagsOf(guid);
+        return ActiveWebhooks(f)
+            .Where(w => !f.HasRulesets || w.AcceptsRuleset(ruleset, hardcore))
+            .Where(w => w.AcceptsTags(tags))
+            .ToList();
+    }
+
     public bool IsActive(Flavor f, WebhookInfo w) => ActiveWebhooks(f).Contains(w);
 
     public void SetActive(Flavor f, WebhookInfo w, bool active)

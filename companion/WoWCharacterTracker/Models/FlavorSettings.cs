@@ -90,6 +90,18 @@ class FlavorSettings
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
 
+    // What gets posted (the level rule, each kind, rating steps, screenshots) taken over from other
+    // settings: Reset to defaults and pasted settings codes. Folder, webhooks and names stay.
+    public void CopyPostingFrom(FlavorSettings d)
+    {
+        (PostLevels, LevelSplit, LevelEveryBefore, LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
+        (PostRare, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
+        (PostMaxLevel, PostDuels, PostMakgora, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostMPlus, d.PostPvp);
+        (MPlusSteps, PvpSteps) = ([.. d.MPlusSteps], [.. d.PvpSteps]);
+        Screenshot = new(d.Screenshot);
+        PostScreenshot = new(d.PostScreenshot);
+    }
+
     public bool Shoots(string kind) => Screenshot.GetValueOrDefault(kind);
     public bool PostsShot(string kind) => Shoots(kind) && PostScreenshot.GetValueOrDefault(kind);
 

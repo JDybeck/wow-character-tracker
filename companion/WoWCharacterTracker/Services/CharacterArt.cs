@@ -6,7 +6,7 @@ namespace WoWCharacterTracker.Services;
 // icon as the fallback. Both come from Wowhead's icon CDN.
 static class CharacterArt
 {
-    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(15));
 
     // Class colors as the game uses them (RAID_CLASS_COLORS).
     public static readonly Dictionary<string, int> ClassColors = new()
@@ -16,6 +16,9 @@ static class CharacterArt
         ["WARLOCK"] = 0x8788EE, ["MONK"] = 0x00FF98, ["DRUID"] = 0xFF7C0A, ["DEMONHUNTER"] = 0xA330C9,
         ["EVOKER"] = 0x33937F,
     };
+
+    // A class's color as 0xRRGGBB, or null for an unknown class. Any letter case works.
+    public static int? ClassColor(string classFile) => ClassColors.TryGetValue(classFile.ToUpperInvariant(), out var c) ? c : null;
 
     const string IconBase = "https://wow.zamimg.com/images/wow/icons/large/";
 
@@ -58,7 +61,7 @@ static class CharacterArt
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            try { File.Delete(temp); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+            Files.TryDelete(temp);
         }
     }
 

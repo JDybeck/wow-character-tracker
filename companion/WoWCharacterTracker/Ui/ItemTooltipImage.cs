@@ -31,7 +31,7 @@ static class ItemTooltipImage
         if (info?.Html is not { Length: > 0 } html) return null;
         var lines = ItemTooltip.Parse(html);
         if (lines.Count == 0) return null;
-        var icon = info.Icon.Length > 0 ? await CardImage.LoadAsync(Wowhead.IconUrl(info.Icon, "large")) : null;
+        var icon = info.Icon.Length > 0 ? await ImageRender.LoadAsync(Wowhead.IconUrl(info.Icon, "large")) : null;
         return await app.Dispatcher.InvokeAsync(() => Draw(lines, icon));
     }
 
@@ -39,18 +39,7 @@ static class ItemTooltipImage
     {
         try
         {
-            var root = Build(lines, icon);
-            root.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            root.Arrange(new Rect(root.DesiredSize));
-            root.UpdateLayout();
-            var bmp = new RenderTargetBitmap((int)Math.Ceiling(root.ActualWidth * Scale), (int)Math.Ceiling(root.ActualHeight * Scale),
-                96 * Scale, 96 * Scale, PixelFormats.Pbgra32);
-            bmp.Render(root);
-            var png = new PngBitmapEncoder();
-            png.Frames.Add(BitmapFrame.Create(bmp));
-            using var ms = new MemoryStream();
-            png.Save(ms);
-            return ms.ToArray();
+            return ImageRender.ToPng(Build(lines, icon), new Size(double.PositiveInfinity, double.PositiveInfinity), Scale);
         }
         catch (Exception ex)
         {

@@ -67,7 +67,7 @@ end
 -- at that corner, so the grid is mirrored for the right and bottom corners. The label and the portrait sit
 -- on the inner side. The app tries every corner.
 local function corner()
-  local c = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.gridCorner
+  local c = ns.setting("gridCorner")
   if c == "TOPRIGHT" or c == "BOTTOMLEFT" or c == "BOTTOMRIGHT" then return c end
   return "TOPLEFT"
 end
@@ -147,7 +147,7 @@ local function drawGrid(bits)
   local edge = bottom and "BOTTOM" or "TOP"
   gridLabel:ClearAllPoints()
   if right then gridLabel:SetPoint(edge .. "RIGHT", f, edge .. "LEFT", -4, 0) else gridLabel:SetPoint(edge .. "LEFT", f, edge .. "RIGHT", 4, 0) end
-  gridLabel:SetShown(not (WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.gridLabel == false))
+  gridLabel:SetShown(ns.setting("gridLabel") ~= false)
   gridPortrait.frame:ClearAllPoints()
   if right then gridPortrait.frame:SetPoint(edge .. "RIGHT", f, edge .. "RIGHT", -PORTRAIT_X, 0)
   else gridPortrait.frame:SetPoint(edge .. "LEFT", f, edge .. "LEFT", PORTRAIT_X, 0) end
@@ -369,7 +369,7 @@ local SHOT_DELAY = { level = 1.0, boss = 1.5, loot = 0.3, mount = 0.5, death = 0
 -- the addon only sends events live (and screenshots them) when they'll actually be posted.
 -- Without those settings (an older app), everything counts as wanted.
 local function wanted(e)
-  local post = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.post
+  local post = ns.setting("post")
   if not post then return true end
   if e.kind == "loot" and (e.quality or 0) >= 5 then return true end -- legendary: always worth a post
   if e.maxLevel and post.maxLevel ~= false then return true end -- max level has its own switch
@@ -385,9 +385,10 @@ local function wanted(e)
   if e.lost then return false end -- duels and Mak'gora: only wins are posted
   return post[e.kind] and true or false
 end
+ns.wanted = wanted -- the app's tests check it against FlavorSettings.Wants
 
 local function wantsScreenshot(kind)
-  local s = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.screenshot
+  local s = ns.setting("screenshot")
   return s and s[kind] and type(Screenshot) == "function"
 end
 

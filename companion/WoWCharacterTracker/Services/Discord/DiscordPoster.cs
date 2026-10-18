@@ -153,7 +153,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
             ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },
         };
-        if (CharacterArt.ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
+        if (CharacterArt.ClassColor(c.ClassFile) is int color) embed["color"] = color;
         if (CharacterArt.ClassIconUrl(c.ClassFile) is { } classIcon)
             embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
         return embed;
@@ -171,7 +171,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         Field("", "Level", c.Level.ToString());
         Field("ilvl", "Item level", c.ItemLevelText);
         Field("played", "Total played", c.PlayedText);
-        if (flavor == Flavors.Forever) Field("", "Ruleset", c.Ruleset);
+        if (flavor.HasRulesets) Field("", "Ruleset", c.Ruleset);
         Field("gold", "Gold", c.HasMoney ? Format.Money(c.Money) : "");
         Field("crests", "Crests", Format.Crests(c.Crests));
         Field("professions", "Professions", Format.ProfessionsWithEmoji(c.Professions), inline: false);

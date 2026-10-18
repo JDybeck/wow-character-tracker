@@ -113,8 +113,7 @@ end
 local askedThisFlight = false
 
 function ns.onFlightStart()
-  local s = WoWCharacterTrackerSettings
-  if askedThisFlight or (s and s.flightReload == false) or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
+  if askedThisFlight or ns.setting("flightReload") == false or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
   if InCombatLockdown() or not ns.itemsChanged() then return end
   askedThisFlight = true
   askReload("CHARACTERTRACKER_FLIGHT_RELOAD",
@@ -129,8 +128,7 @@ function ns.onFlightEnd() askedThisFlight = false end
 -- on (Settings.lua chatReminder).
 local lastReminder = time()
 function ns.remindReload(moment)
-  local s = WoWCharacterTrackerSettings
-  if (s and s.chatReminder == false) or not ns.itemsChanged() then return end
+  if ns.setting("chatReminder") == false or not ns.itemsChanged() then return end
   if time() - lastReminder < (moment and 600 or 1800) then return end
   lastReminder = time()
   ns.say("Your bags changed since the last save. Type /reload to update the app (no logout needed).")
@@ -237,20 +235,18 @@ function ns.onTimePlayed(total, thisLevel)
   C_Timer.After(0.5, ns.unmutePlayed)
 end
 function ns.recordLevel(guid, level, seconds, played)
-  local e = ns.characterInfo()
-  e.kind = "level"
-  e.id = guid .. ":" .. level
-  e.level = level -- UnitLevel can lag right after the ding
-  e.seconds = seconds -- nil when the level's start isn't known
+  local fields = {
+    level = level, -- UnitLevel can lag right after the ding
+    seconds = seconds, -- nil when the level's start isn't known
+    played = played, -- total /played at the ding
+  }
   -- Max level gets a big post (always, whatever the level rule says).
   local maxLevel = (GetMaxPlayerLevel and GetMaxPlayerLevel()) or MAX_PLAYER_LEVEL
   if maxLevel and level >= maxLevel then
-    e.maxLevel = true
-    e.group, e.groupSize = getGroup()
+    fields.maxLevel = true
+    fields.group, fields.groupSize = getGroup()
   end
-  e.played = played -- total /played at the ding
-  e.at = time()
-  ns.addEvent(e)
+  ns.record("level", fields, tostring(level))
 end
 
 -- The other people in the party: "Name~level~CLASSFILE~Class~Race~Realm" per member, joined by
@@ -284,14 +280,9 @@ function ns.recordBoss(name)
   if ns.recentBosses[name] and now - ns.recentBosses[name] < 600 then return end
   ns.recentBosses[name] = now
 
-  local e = ns.characterInfo()
-  e.kind = "boss"
-  e.boss = name
-  e.instance = (GetInstanceInfo and GetInstanceInfo()) or instance
-  e.group, e.groupSize = getGroup()
-  e.at = now
-  e.id = string.format("%s:boss:%s:%d", e.guid, name, now)
-  ns.addEvent(e)
+  local group, groupSize = getGroup()
+  ns.record("boss", { boss = name, instance = (GetInstanceInfo and GetInstanceInfo()) or instance,
+    group = group, groupSize = groupSize, at = now }, string.format("boss:%s:%d", name, now))
   ns.say(string.format("End boss down: %s.", name))
 end
 
@@ -332,14 +323,9 @@ function ns.recordMount(name, itemId)
   if time() - lastMountAt < 120 then return end
   lastMountAt = time()
 
-  local e = ns.characterInfo()
-  e.kind = "mount"
-  e.mount = name
-  e.itemId = itemId
-  e.bought = ns.merchantOpen or nil
-  e.at = time()
-  e.id = string.format("%s:mount:%s:%d", e.guid, name, e.at)
-  ns.addEvent(e)
+  local now = time()
+  ns.record("mount", { mount = name, itemId = itemId, bought = ns.merchantOpen or nil, at = now },
+    string.format("mount:%s:%d", name, now))
   ns.say(string.format("New mount: %s.", name))
 end
 
@@ -377,25 +363,13 @@ function ns.recordLoot(text)
   end
   if not quality or quality < 3 then return end -- rare (blue) and better only
 
-  local e = ns.characterInfo()
-  e.kind = "loot"
-  e.item = name
-  e.itemId = itemId
-  e.quality = quality
-  e.at = time()
-  e.id = string.format("%s:loot:%d:%d", e.guid, itemId, e.at)
-  ns.addEvent(e)
+  local now = time()
+  ns.record("loot", { item = name, itemId = itemId, quality = quality, at = now }, string.format("loot:%d:%d", itemId, now))
 end
 
 function ns.recordDeath()
   if not ns.isHardcore() then return end
-  local e = ns.characterInfo()
-  e.kind = "death"
-  e.played = ns.playedNow()
-  e.gold = GetMoney and GetMoney() or 0 -- copper
   -- (No killer: that came from the combat log, which newer clients keep from addons.)
-  e.at = time()
-  e.id = string.format("%s:death:%d", e.guid, e.at)
-  ns.addEvent(e)
+  ns.record("death", { played = ns.playedNow(), gold = GetMoney and GetMoney() or 0 }) -- gold in copper
   ns.saveSnapshot()
 end

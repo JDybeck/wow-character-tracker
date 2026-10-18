@@ -35,9 +35,34 @@ public class AddonLuaTests
         script.DoString("function GetItemInfo(id) return \"Sul'thraze\", '|cffa335ee|Hitem:'..id..\"|h[Sul'thraze the Lasher]|h|r\" end");
         script.DoString("WoWCharacterTrackerSettings = " + settings);
         var ns = new Table(script);
-        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Announce.lua"))), "WoWCharacterTracker", ns);
+        foreach (var file in new[] { "Shared.lua", "Announce.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         script.Call(ns.Get("announce"), script.DoString("return " + eventLua));
         return sent;
+    }
+
+    // ns.record: what characterInfo knows plus the event's fields, and its id. characterInfo's
+    // maxLevel (the level cap, for the snapshot) must not make every event a max level ding.
+    [Fact]
+    public void Recorded_events_are_not_max_level_unless_they_say_so()
+    {
+        var script = new Script();
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.DoString("function time() return 1000 end");
+        var recorded = new List<Table>();
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 5, maxLevel = 60 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+
+        script.Call(ns.Get("record"), "loot", script.DoString("return { item = 'X', at = 900 }"), "loot:1:900");
+        script.Call(ns.Get("record"), "level", script.DoString("return { level = 60, maxLevel = true }"), "60");
+        script.Call(ns.Get("record"), "death");
+
+        Assert.True(recorded[0].Get("maxLevel").IsNil());
+        Assert.Equal("Player-1:loot:1:900", recorded[0].Get("id").String);
+        Assert.Equal(900, recorded[0].Get("at").Number);
+        Assert.True(recorded[1].Get("maxLevel").Boolean);
+        Assert.Equal("Player-1:death:1000", recorded[2].Get("id").String);
     }
 
     const string GuildOnly = "{ announce = { guild = true, party = false, kinds = { level = true, boss = true, loot = true, duel = true } } }";

@@ -95,12 +95,3 @@ ns.merchantOpen = false -- a mount that shows up while a vendor is open was boug
 function ns.say(msg)
   print("|cff00ccff[Character Tracker]|r " .. msg)
 end
-
-function ns.formatDuration(s)
-  local h = math.floor(s / 3600)
-  local m = math.floor((s % 3600) / 60)
-  local sec = s % 60
-  if h > 0 then return string.format("%dh %dm", h, m) end
-  if m > 0 then return string.format("%dm %ds", m, sec) end
-  return string.format("%ds", sec)
-end

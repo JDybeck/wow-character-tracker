@@ -67,7 +67,7 @@ sealed class CharacterGear
     {
         if (inv is null) return Empty;
         var item = lookup.Item;
-        var retail = flavor == Flavors.Retail;
+        var retail = !flavor.HasRangedSlot;
         var worn = inv.Gear.ToDictionary(g => g.Slot, g => g.ItemId);
         var wornInfos = worn.Values.Distinct().Select(item).ToList();
         var enchants = inv.Enchants.GroupBy(e => e.Slot).ToDictionary(g => g.Key, g => g.First()); // an item holds one

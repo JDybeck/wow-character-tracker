@@ -86,8 +86,8 @@ sealed class StreamViewModel : Observable
         ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"), ("death", "Deaths", "Hardcore deaths"),
         ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
     ];
-    static readonly string[] RetailOnly = ["mplus", "pvp"];
-    bool OffersKind(string kind) => snapshot.Game == Flavors.Retail.Name || !RetailOnly.Contains(kind);
+
+    bool HasRatings => Flavors.Named(snapshot.Game)?.HasRatings == true;
 
     ObservableCollection<ToggleOption>? kinds;
     public ObservableCollection<ToggleOption> HighlightKinds => kinds ??= Chips(KindNames, Options.HighlightKinds);
@@ -108,7 +108,7 @@ sealed class StreamViewModel : Observable
 
     // One on/off chip per kind this game offers.
     ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
-        ToggleOption.Kinds(names.Where(k => OffersKind(k.Kind)), picked, OptionsChanged);
+        ToggleOption.Kinds(EventKinds.Offered(names, HasRatings), picked, OptionsChanged);
 
     // What the overlay counts: three choices, the one in use highlighted.
     public bool RangeAll => Options.RangeMode == "all";
@@ -194,22 +194,14 @@ sealed class StreamViewModel : Observable
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var level = snapshot.HasCharacter ? snapshot.Level + 1 : 40;
         var name = snapshot.HasCharacter ? snapshot.Character : "Zeb TESTCHAR";
-        // Each alert with the highlight line it would add (level-ups aren't highlights), so the
+        // The same sample events as the Test post buttons (SampleEvents), shown the way a real one
+        // would be: its alert and the highlight line it adds (level-ups aren't highlights), so the
         // highlights source can be set up too.
-        (StreamAlert Alert, string Highlight)[] samples =
-        [
-            (new("", "level", "DING!", $"Level {level}", $"{level - 1} to {level} took 23m 11s", "gold", now), ""),
-            (new("", "maxlevel", "MAX LEVEL!", "Level 60", "Total played 6d 4h 12m", "legendary", now), ""),
-            (new("", "boss", "VICTORY!", "Edwin VanCleef defeated", "The Deadmines", "victory", now), "Killed Edwin VanCleef"),
-            (new("", "legendary", "LEGENDARY!", "Thunderfury, Blessed Blade of the Windseeker", "", "legendary", now), "Looted Thunderfury, Blessed Blade of the Windseeker"),
-            (new("", "epic", "EPIC LOOT!", "Sul'thraze the Lasher", "", "epic", now), "Looted Sul'thraze the Lasher"),
-            (new("", "duel", "VICTORY!", "Won a duel against Grimtusk", "Level 40 Orc Warrior", "duel", now), "Won a duel against Grimtusk"),
-            (new("", "makgora", "MAK'GORA!", "Grimtusk fell to the death", "Level 40 Orc Warrior", "blood", now), "Won a Mak'gora against Grimtusk"),
-            (new("", "mount", "NEW MOUNT!", "Swift Palomino", "", "gold", now), "Got Swift Palomino"),
-            (new("", "death", "R.I.P.", $"{name} fell at level {level - 1}", "After 3d 5h played", "death", now), $"Died at level {level - 1}"),
-        ];
-        var (alert, highlight) = samples[testIndex++ % samples.Length];
-        var sample = alert with { Id = $"test-{now}-{testIndex}" };
+        string[] kinds = ["level", "max", "boss", "legendary", "epic", "duel", "makgora", "mount", "death"];
+        var e = SampleEvents.For(kinds[testIndex++ % kinds.Length], Flavors.Forever, null, []);
+        e = e with { Id = $"test-{now}-{testIndex}", Char = name, At = now, Level = e.MaxLevel ? e.Level : level };
+        if (StreamSnapshot.AlertFor(e) is not { } sample) return;
+        var highlight = HighlightText.Text(e);
         var test = snapshot.HasCharacter ? snapshot : snapshot with { Character = name, Level = level - 1, ClassName = "Warrior", ClassColor = "#C69B6D", Zone = "Scarlet Monastery" };
         var highlights = highlight.Length > 0 ? [highlight, .. test.Highlights.Take(2)] : test.Highlights;
         server.Snapshot = test with { Alert = sample, Highlights = highlights };
@@ -228,7 +220,7 @@ sealed class StreamViewModel : Observable
 
     static StreamCharacter Character(CharacterRow r, Flavor flavor) => new(
         r.Guid, r.FullName, flavor.Name, r.Level, r.ClassName,
-        CharacterArt.ClassColors.TryGetValue(r.ClassFile.ToUpperInvariant(), out var color) ? $"#{color:X6}" : "#FFFFFF",
+        CharacterArt.ClassColor(r.ClassFile) is int color ? $"#{color:X6}" : "#FFFFFF",
         r.Race, r.RealmText, r.Zone, r.Played > 0 ? Format.Played(r.Played) : "", r.ItemLevel > 0 ? r.ItemLevel.ToString("0") : "",
         r.LastSeen, r.Spec, r.Money >= 10000 ? $"{r.Money / 10000:N0}g" : "", r.KeystoneText,
         Format.Ratings(r.MplusScore, r.PvpRatings).Select(x => new StreamRating(x.Name, x.Rating)).ToList());

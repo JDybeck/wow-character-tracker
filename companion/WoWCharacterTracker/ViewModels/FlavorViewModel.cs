@@ -42,9 +42,9 @@ sealed class FlavorViewModel : Observable
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
-        Groups = new ChipFilter(flavor == Flavors.Forever ? "Ruleset" : "Realm", () => ShowData(lastData));
+        Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         _ = LoadLogoAsync();
-        Shots = Flavors.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
+        Shots = EventKinds.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
 
     // Screenshot options per kind of event, bound as Shots[level].Take and so on.
@@ -169,7 +169,7 @@ sealed class FlavorViewModel : Observable
     public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; Changed(); } }
     public bool PostMPlus { get => Settings.PostMPlus; set { Settings.PostMPlus = value; Changed(); } }
     public bool PostPvp { get => Settings.PostPvp; set { Settings.PostPvp = value; Changed(); } }
-    public bool IsRetail => Flavor == Flavors.Retail;
+    public bool IsRetail => Flavor.HasRatings; // the Mythic+ and PvP rating options
 
     // Rating milestones as "1500, 2000, 2500": whole numbers, sorted, typos ignored.
     public string MPlusStepsText { get => string.Join(", ", Settings.MPlusSteps); set { Settings.MPlusSteps = ParseSteps(value, Settings.MPlusSteps); Changed(); } }
@@ -201,7 +201,7 @@ sealed class FlavorViewModel : Observable
     ];
     ObservableCollection<ToggleOption>? announceKinds;
     public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
-        ToggleOption.Kinds(AnnounceNames.Where(k => IsRetail || k.Kind is not ("mplus" or "pvp")), Settings.AnnounceKinds, () => AddonSettingsChanged());
+        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, () => AddonSettingsChanged());
 
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
@@ -219,7 +219,7 @@ sealed class FlavorViewModel : Observable
     }
 
     // Name in posts (Forever has surnames): three chips that act like radio buttons.
-    public bool HasSurnames => Flavor == Flavors.Forever;
+    public bool HasSurnames => Flavor.HasSurnames;
     public bool NameFull { get => Settings.NameStyle is not ("first" or "last"); set { if (value) SetNameStyle("full"); } }
     public bool NameFirst { get => Settings.NameStyle == "first"; set { if (value) SetNameStyle("first"); } }
     public bool NameLast { get => Settings.NameStyle == "last"; set { if (value) SetNameStyle("last"); } }
@@ -273,14 +273,7 @@ sealed class FlavorViewModel : Observable
 
     public void ResetPosting()
     {
-        var d = Flavor.Defaults();
-        var s = Settings;
-        (s.PostLevels, s.LevelSplit, s.LevelEveryBefore, s.LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
-        (s.PostRare, s.PostEpic, s.PostMounts, s.PostBosses, s.PostDeaths) = (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
-        (s.PostMaxLevel, s.PostDuels, s.PostMakgora, s.PostMPlus, s.PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostMPlus, d.PostPvp);
-        (s.MPlusSteps, s.PvpSteps) = (d.MPlusSteps, d.PvpSteps);
-        s.Screenshot = new(d.Screenshot);
-        s.PostScreenshot = new(d.PostScreenshot);
+        Settings.CopyPostingFrom(Flavor.Defaults());
         PostingReplaced();
         Log.Info($"[{Name}] Posting settings reset to the defaults.");
     }
@@ -438,7 +431,7 @@ sealed class FlavorViewModel : Observable
 
         tracker?.Dispose();
         tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings,
-            guid => main.Config.TagsOf(guid), w => main.PosterFor(this, w), main.Backfill);
+            e => main.Config.WebhooksFor(Flavor, e.Guid, e.Ruleset, e.Hardcore), w => main.PosterFor(this, w), main.Backfill);
         tracker.DataChanged += data => MainViewModel.OnUi(() => { ShowData(data); CheckReloaded(); });
         tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
@@ -556,7 +549,7 @@ sealed class FlavorViewModel : Observable
 
     // The realm (Retail) or ruleset (Forever) chips over the character list.
     public ChipFilter Groups { get; }
-    string GroupOf(CharacterRow r) => Flavor == Flavors.Forever ? r.Ruleset : r.Realm;
+    string GroupOf(CharacterRow r) => Flavor.HasRulesets ? r.Ruleset : r.Realm;
 
     // The list's order: clicking a column header (or race, played, rating) sorts by it, again flips it.
     CharacterSort? sort;
@@ -581,7 +574,7 @@ sealed class FlavorViewModel : Observable
         var keep = SelectedCharacter?.Guid;
         var removed = Settings.Removed;
         // The made-up characters, when switched on (Forever only). They're only shown, never posted.
-        if (main.ShowTestCharacters && Flavor == Flavors.Forever)
+        if (main.ShowTestCharacters && Flavor.HasRulesets)
         {
             var test = TestCharacters.Build();
             data = new TrackerData([.. data.Events, .. test.Events], [.. data.Characters, .. test.Characters])
@@ -633,7 +626,7 @@ sealed class FlavorViewModel : Observable
         {
             var where = Groups.Key.Length > 0 ? $" on {Groups.Key}" : "";
             var count = Characters.Count;
-            return $"Total gold{where} ({count} character{(count == 1 ? "" : "s")}):";
+            return $"Total gold{where} ({Format.Count(count, "character")}):";
         }
     }
 
@@ -656,7 +649,7 @@ sealed class FlavorViewModel : Observable
     {
         if (tracker is null) { StatusText = "Waiting for the game folder"; return; }
         var count = Characters.Count;
-        var chars = count == 0 ? "no characters yet" : $"{count} character{(count == 1 ? "" : "s")}";
+        var chars = count == 0 ? "no characters yet" : Format.Count(count, "character");
         StatusText = lastPost is null
             ? $"Watching {Name}, {chars}"
             : $"Watching {Name}, {chars}, last post: {Tracker.Describe(lastPost)}";
