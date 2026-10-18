@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 
 namespace WoWCharacterTracker;
@@ -32,8 +33,13 @@ public partial class App : Application
         }
 
         DispatcherUnhandledException += OnCrash;
+        // Hover info comes up quickly (Windows' default wait feels like nothing is there) and stays
+        // long enough to read.
+        ToolTipService.InitialShowDelayProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(300));
+        ToolTipService.ShowDurationProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(20000));
         base.OnStartup(e);
         Updater.CleanUp();
+        StartMenu.Apply();
 
         vm = new MainViewModel(backfill: e.Args.Contains("--backfill"), justUpdated: e.Args.Contains("--updated"));
         vm.Updates.UpdateStarted += QuitForUpdate;

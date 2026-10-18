@@ -2,8 +2,8 @@
 <!-- Character Tracker stream overlay, served by the app (Services/Streaming/OverlayServer) on localhost.
      Add it in OBS / Streamlabs as a Browser source. What it shows and how see-through it is come from
      the app's Stream overlay panel. Options in the address:
-       ?only=card        the character card (level times, today, records)
-       ?only=highlights  the highlights box        ?only=ding   the ding alert
+       ?only=card        the character card (stats and records, next to its level times)
+       ?only=highlights  the highlights box        ?only=alert  the alert (DING!, VICTORY!, EPIC LOOT!...; ?only=ding still works)
        ?scale=1.5   bigger (or smaller)            ?side=right  boxes on the right
        ?preview=1   a dark backdrop, for looking at it in a normal browser (the app's Preview button)
      A single part (?only=...) fills its Browser source, keeping its shape: resize the source to resize it.  -->
@@ -27,96 +27,136 @@
          text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
   .box.solid { box-shadow: 0 6px 24px rgba(0, 0, 0, .45); }
   .box.on { display: block; }
-  .name { font-size: 22px; font-weight: 700; line-height: 1.15; }
+  /* The card: who the character is (head), its stats on the left and its leveling on the right.
+     Without level times (or with them turned off) the stats get the card to themselves. */
+  #card { width: auto; min-width: 260px; max-width: 560px; }
+  .name { font-size: 22px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
   .sub { font-size: 13px; color: #cbd5e1; margin-top: 2px; }
-  .last { margin-top: 10px; font-size: 15px; }
+  .cols { display: flex; gap: 22px; margin-top: 10px; }
+  .cols:empty { display: none; }
+  .col { min-width: 0; }
+  .col + .col { padding-left: 22px; border-left: 1px solid color-mix(in srgb, var(--edge) 35%, transparent); }
+  .col-title { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
+  .stats { font-size: 13px; display: grid; grid-template-columns: auto auto; gap: 2px 12px; white-space: nowrap; }
+  .stats span:nth-child(odd) { color: #94a3b8; }
+  .stats span:nth-child(even) { color: #f1f5f9; font-weight: 600; }
+  .stats .won { color: #86efac; } .stats .lost { color: #fca5a5; }
+  .last { font-size: 15px; white-space: nowrap; }
   .last b { color: #fcd34d; }
-  .levels { margin-top: 6px; font-size: 13px; color: #cbd5e1; display: grid; grid-template-columns: auto 1fr; gap: 1px 12px; }
+  .levels { margin-top: 4px; font-size: 13px; color: #cbd5e1; display: grid; grid-template-columns: auto auto; gap: 1px 12px; white-space: nowrap; }
   .levels span:nth-child(odd) { color: #94a3b8; }
-  .today { margin-top: 8px; font-size: 13px; color: #fcd34d; }
-  .records { margin-top: 8px; font-size: 13px; color: #e2e8f0; display: flex; gap: 16px; }
-  .records b { font-weight: 700; }
-  .records .won { color: #86efac; } .records .lost { color: #fca5a5; }
+  .today { margin-top: 6px; font-size: 13px; color: #fcd34d; white-space: nowrap; }
   .since { margin-top: 8px; font-size: 11px; color: #94a3b8; }
   .hl-title { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
   .hl div.line { font-size: 13px; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
 
-  /* The ding alert: center of the canvas, a burst of light, then fades. */
+  /* The alert (DING!, VICTORY!, EPIC LOOT!...): center of the canvas, a burst of light, then fades.
+     WoW's look: Friz Quadrata when it's installed, else a classic serif, with a dark edge. The tone
+     class sets its colors: --t1..--t3 the title's gradient, --glow, --accent the ornament and line. */
   .ding { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(var(--scale)); text-align: center;
-          opacity: 0; pointer-events: none; }
+          opacity: 0; pointer-events: none; font-family: "Friz Quadrata TT", "Friz Quadrata", "Palatino Linotype", "Book Antiqua", Constantia, serif;
+          --t1: #fffbe6; --t2: #f5c518; --t3: #8a5a06; --glow: rgba(255, 180, 40, .75); --accent: #ffd100; }
+  .ding.tone-legendary { --t1: #fff1d6; --t2: #ff9a1f; --t3: #8a3a00; --glow: rgba(255, 128, 0, .85); --accent: #ff8000; }
+  .ding.tone-epic { --t1: #f6e8ff; --t2: #b866ff; --t3: #4a1a7a; --glow: rgba(163, 53, 238, .8); --accent: #c77dff; }
+  .ding.tone-rare { --t1: #e6f2ff; --t2: #3d9cff; --t3: #0a3a7a; --glow: rgba(0, 112, 221, .8); --accent: #4da3ff; }
+  .ding.tone-victory { --t1: #fff6e0; --t2: #ffcf4d; --t3: #7a2a00; --glow: rgba(255, 120, 40, .8); --accent: #ffb347; }
+  .ding.tone-duel { --t1: #eef6ff; --t2: #8fc7ff; --t3: #1d3f6e; --glow: rgba(110, 170, 255, .75); --accent: #9cc9ff; }
+  .ding.tone-blood { --t1: #ffe5e5; --t2: #ff4d4d; --t3: #5a0000; --glow: rgba(220, 20, 20, .85); --accent: #ff5c5c; }
+  .ding.tone-death { --t1: #f1f1f1; --t2: #9a9a9a; --t3: #2e2e2e; --glow: rgba(160, 160, 160, .35); --accent: #b0b0b0; }
+  .ding.tone-rating { --t1: #e9fffb; --t2: #4fe0c8; --t3: #0b5a50; --glow: rgba(60, 220, 200, .7); --accent: #5ff0d8; }
   .ding.show { animation: ding 7s ease-out forwards; }
+  .ding.show.tone-legendary, .ding.show.max { animation-duration: 9s; }
+  .ding.show.tone-death { animation: rip 8s ease-in-out forwards; }
   body.fit .ding { top: 50%; }
+  /* The alert on its own: the source's edges fade out, so the glow never ends in a hard box. */
+  html.only-alert { -webkit-mask: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent), linear-gradient(180deg, transparent, #000 8%, #000 92%, transparent);
+                    -webkit-mask-composite: source-in; mask-composite: intersect; min-height: 100vh; }
   .ding .orb { position: absolute; left: 50%; top: 50%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%;
-               background: radial-gradient(circle, rgba(255, 255, 255, .9) 0%, rgba(253, 224, 71, .55) 22%, rgba(245, 158, 11, .18) 48%, transparent 70%); }
+               background: radial-gradient(circle, rgba(255, 255, 255, .9) 0%, color-mix(in srgb, var(--t2) 55%, transparent) 22%, color-mix(in srgb, var(--t2) 18%, transparent) 48%, transparent 70%); }
   .ding.show .orb { animation: burst 1.6s ease-out forwards; }
-  /* WoW's look: Friz Quadrata when it's installed, else a classic serif; gold with a dark edge. */
-  .ding { font-family: "Friz Quadrata TT", "Friz Quadrata", "Palatino Linotype", "Book Antiqua", Constantia, serif; }
-  .ding .big { position: relative; font-size: 80px; font-weight: 700; letter-spacing: 3px; line-height: 1;
-               background: linear-gradient(180deg, #fffbe6 0%, #ffe680 30%, #f5c518 55%, #c8860b 85%, #8a5a06 100%);
+  .ding.tone-death .orb { display: none; }
+  /* Max level: light rays turning behind it, and a second, bigger burst. */
+  .ding .rays { position: absolute; left: 50%; top: 50%; width: 620px; height: 620px; margin: -310px 0 0 -310px; border-radius: 50%; display: none;
+                background: repeating-conic-gradient(color-mix(in srgb, var(--t2) 38%, transparent) 0deg 6deg, transparent 6deg 22deg);
+                -webkit-mask: radial-gradient(circle, #000 18%, transparent 68%); mask: radial-gradient(circle, #000 18%, transparent 68%); }
+  .ding.max .rays { display: block; animation: spin 9s linear forwards; }
+  .ding.max.show .orb { animation: burst 1.6s ease-out forwards, burst 2s ease-out 0.5s forwards; }
+  .ding .big { position: relative; font-size: 80px; font-weight: 700; letter-spacing: 3px; line-height: 1; white-space: nowrap;
+               background: linear-gradient(180deg, var(--t1) 0%, color-mix(in srgb, var(--t1) 40%, var(--t2)) 30%, var(--t2) 55%, color-mix(in srgb, var(--t2) 50%, var(--t3)) 85%, var(--t3) 100%);
                -webkit-background-clip: text; background-clip: text; color: transparent;
-               -webkit-text-stroke: 1.5px #3b2205; filter: drop-shadow(0 0 14px rgba(255, 180, 40, .75)) drop-shadow(0 3px 2px rgba(0, 0, 0, .9)); }
+               -webkit-text-stroke: 1.5px color-mix(in srgb, var(--t3) 60%, #000); filter: drop-shadow(0 0 14px var(--glow)) drop-shadow(0 3px 2px rgba(0, 0, 0, .9)); }
+  .ding.max .big { font-size: 92px; }
   .ding .ornament { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0 6px; }
-  .ding .ornament i { display: block; width: 110px; height: 2px; background: linear-gradient(90deg, transparent, #f5c518); }
-  .ding .ornament i:last-child { background: linear-gradient(90deg, #f5c518, transparent); }
-  .ding .ornament b { display: block; width: 9px; height: 9px; background: #ffd100; transform: rotate(45deg); box-shadow: 0 0 8px #ffb000; }
-  .ding .lvl { position: relative; font-size: 32px; font-weight: 700; color: #ffd100; letter-spacing: 1px;
-               text-shadow: 0 0 1px #000, 0 2px 3px #000, 0 0 12px rgba(255, 170, 0, .6); }
-  .ding .took { position: relative; font-size: 18px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 6px #000; margin-top: 6px; }  @keyframes ding { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--scale) * .6)); }
+  .ding .ornament i { display: block; width: 110px; height: 2px; background: linear-gradient(90deg, transparent, var(--accent)); }
+  .ding .ornament i:last-child { background: linear-gradient(90deg, var(--accent), transparent); }
+  .ding .ornament b { display: block; width: 9px; height: 9px; background: var(--accent); transform: rotate(45deg); box-shadow: 0 0 8px var(--accent); }
+  .ding .lvl { position: relative; font-size: 32px; font-weight: 700; color: var(--accent); letter-spacing: 1px; white-space: nowrap;
+               text-shadow: 0 0 1px #000, 0 2px 3px #000, 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .ding .took { position: relative; font-size: 18px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 6px #000; margin-top: 6px; white-space: nowrap; }
+  @keyframes ding { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--scale) * .6)); }
                     8% { opacity: 1; transform: translate(-50%, -50%) scale(calc(var(--scale) * 1.08)); }
                     14% { transform: translate(-50%, -50%) scale(var(--scale)); }
                     85% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes rip { 0% { opacity: 0; transform: translate(-50%, -50%) scale(var(--scale)); } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes burst { 0% { transform: scale(.2); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
-</style>
+  @keyframes spin { 0% { transform: rotate(0deg); opacity: 0; } 10% { opacity: 1; } 85% { opacity: 1; } 100% { transform: rotate(120deg); opacity: 0; } }</style>
 </head>
 <body>
 <div class="wrap">
   <div class="box" id="card">
     <div class="name" id="name"></div>
     <div class="sub" id="sub"></div>
-    <div class="last" id="last"></div>
-    <div class="levels" id="levels"></div>
-    <div class="today" id="today"></div>
-    <div class="records" id="records"></div>
+    <div class="cols">
+      <div class="col" id="statsCol"><div class="stats" id="stats"></div></div>
+      <div class="col" id="levelCol">
+        <div class="col-title">Leveling</div>
+        <div class="last" id="last"></div>
+        <div class="levels" id="levels"></div>
+        <div class="today" id="today"></div>
+      </div>
+    </div>
     <div class="since" id="since"></div>
   </div>
   <div class="box hl" id="hl"></div>
 </div>
 <div class="ding" id="ding">
+  <div class="rays"></div>
   <div class="orb"></div>
-  <div class="big">DING!</div>
+  <div class="big" id="alertTitle">DING!</div>
   <div class="ornament"><i></i><b></b><i></i></div>
   <div class="lvl" id="dingLevel"></div>
   <div class="took" id="dingTook"></div>
 </div>
 <script>
   const q = new URLSearchParams(location.search);
-  const only = q.get("only"); // card, highlights, ding, or everything
+  const only = q.get("only") === "ding" ? "alert" : q.get("only"); // card, highlights, alert (ding before 0.20.0), or everything
   const wants = part => !only || only === part;
   if (q.get("scale")) document.documentElement.style.setProperty("--scale", q.get("scale"));
   if (q.get("side") === "right") document.body.classList.add("right");
   if (q.get("preview")) document.body.classList.add("preview");
-  const fitting = ["card", "highlights", "ding"].includes(only);
+  const fitting = ["card", "highlights", "alert"].includes(only);
   if (fitting) document.body.classList.add("fit");
+  if (only) document.documentElement.classList.add("only-" + only);
 
   // A single part fills the window (the Browser source) without changing shape, so resizing the
   // source in OBS resizes the part. Layout sizes (offsetWidth) ignore the transform, so they're
-  // the part's natural size.
+  // the part's natural size. The alert's burst of light reaches well past its text, so it's fitted
+  // with room for the glow (else the source's edge cuts it into a box).
   function fit() {
     if (!fitting) return;
-    const el = $(only === "highlights" ? "hl" : only);
-    const w = el.offsetWidth, h = el.offsetHeight;
+    const el = $({ card: "card", highlights: "hl", alert: "ding" }[only]);
+    let w = el.offsetWidth, h = el.offsetHeight;
     if (!w || !h) return;
-    const pad = only === "ding" ? 1.15 : 1; // the ding's glow reaches past its text
-    document.documentElement.style.setProperty("--scale", Math.min(innerWidth / (w * pad), innerHeight / (h * pad)));
+    if (only === "alert") { const glow = el.classList.contains("max") ? 520 : 400; w = Math.max(w * 1.2, glow); h = Math.max(h * 1.4, glow); }
+    document.documentElement.style.setProperty("--scale", Math.min(innerWidth / w, innerHeight / h));
   }
   addEventListener("resize", fit);
   const $ = id => document.getElementById(id);
   const text = (el, s) => { el.textContent = s || ""; el.style.display = s ? "" : "none"; };
-  let seenDing = null, first = true;
+  let seenAlert = null;
 
-  function record(label, r) {
+  function record(r) {
     const span = document.createElement("span");
-    span.append(label + " ");
     const w = document.createElement("b"); w.className = "won"; w.textContent = r.won;
     const l = document.createElement("b"); l.className = "lost"; l.textContent = r.lost;
     span.append(w, " - ", l);
@@ -124,7 +164,7 @@
   }
 
   function show(s) {
-    const look = s.look || { cardOpacity: 78, levels: true, today: true, duels: true, makgora: true, highlights: true };
+    const look = s.look || { cardOpacity: 78, stats: true, levels: true, today: true, duels: true, makgora: true, highlights: true };
     document.documentElement.style.setProperty("--bg", look.cardOpacity / 100);
     document.documentElement.style.setProperty("--edge", s.classColor || "#d97706");
     const card = $("card"), hl = $("hl");
@@ -134,21 +174,34 @@
     if (s.character) {
       $("name").textContent = s.character;
       $("name").style.color = s.classColor || "#fff";
-      text($("sub"), [`Level ${s.level} ${s.className}`.trim(), s.zone].filter(Boolean).join(" · "));
+      text($("sub"), [`Level ${s.level} ${s.race || ""} ${s.spec || ""} ${s.className}`.replace(/\s+/g, " ").trim(), s.zone].filter(Boolean).join(" · "));
+
+      // Left: the character's stats and records.
+      const st = $("stats"); st.innerHTML = "";
+      const row = (label, value) => { const a = document.createElement("span"); a.textContent = label; st.append(a, value); };
+      const plain = v => { const b = document.createElement("span"); b.textContent = v; return b; };
+      if (look.stats !== false) {
+        if (s.itemLevel) row("Item level", plain(s.itemLevel));
+        if (s.played) row("Played", plain(s.played));
+        if (s.gold) row("Gold", plain(s.gold));
+        if (s.keystone) row("Keystone", plain(s.keystone));
+      }
+      if (look.duels && s.duels) row("Duels", record(s.duels));
+      if (look.makgora && s.makgora) row("Mak'gora", record(s.makgora));
+      $("statsCol").style.display = st.childElementCount ? "" : "none";
+
+      // Right: leveling. Without level times it's left out and the stats have the card.
+      const leveling = look.levels && !!s.lastLevel;
       $("last").innerHTML = "";
-      if (look.levels && s.lastLevel) { const b = document.createElement("b"); b.textContent = s.lastLevel; $("last").append(b); }
-      $("last").style.display = look.levels && s.lastLevel ? "" : "none";
+      if (leveling) { const b = document.createElement("b"); b.textContent = s.lastLevel; $("last").append(b); }
       const lv = $("levels"); lv.innerHTML = "";
-      if (look.levels) (s.levels || []).slice(1).forEach(l => { // the newest is the line above
+      if (leveling) (s.levels || []).slice(1).forEach(l => { // the newest is the line above
         const a = document.createElement("span"); a.textContent = `Level ${l.level}`;
         const b = document.createElement("span"); b.textContent = l.took; lv.append(a, b);
       });
       lv.style.display = lv.childElementCount ? "" : "none";
-      text($("today"), look.today ? s.today : "");
-      const rec = $("records"); rec.innerHTML = "";
-      if (look.duels && s.duels) rec.append(record("Duels", s.duels));
-      if (look.makgora && s.makgora) rec.append(record("Mak'gora", s.makgora));
-      rec.style.display = rec.childElementCount ? "" : "none";
+      text($("today"), leveling && look.today ? s.today : "");
+      $("levelCol").style.display = leveling ? "" : "none";
       text($("since"), s.sinceText);
     }
 
@@ -160,18 +213,21 @@
     }
     hl.classList.toggle("on", lines.length > 0 && wants("highlights"));
 
-    // A ding that's new and from the last 90 seconds gets the alert (not one from before the page loaded).
-    const d = s.ding;
-    if (d && d.id !== seenDing) {
-      const fresh = s.now - d.at < 90;
-      if ((!first || fresh) && fresh && wants("ding")) {
-        $("dingLevel").textContent = `Level ${d.level}`;
-        $("dingTook").textContent = d.took && d.took !== "?" ? `${d.level - 1} to ${d.level} took ${d.took}` : "";
-        const el = $("ding"); el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+    // An alert that's new and from the last 90 seconds pops up (not one from before the page loaded):
+    // DING!, MAX LEVEL!, VICTORY!, EPIC LOOT!... with its tone's colors.
+    const a = s.alert;
+    if (a && a.id !== seenAlert) {
+      const fresh = s.now - a.at < 90;
+      if (fresh && wants("alert")) {
+        const el = $("ding");
+        $("alertTitle").textContent = a.title;
+        text($("dingLevel"), a.line);
+        text($("dingTook"), a.sub);
+        el.className = "ding tone-" + (a.tone || "gold") + (a.kind === "maxlevel" ? " max" : "");
+        void el.offsetWidth; el.classList.add("show");
       }
-      seenDing = d.id;
+      seenAlert = a.id;
     }
-    first = false;
     fit();
   }
 

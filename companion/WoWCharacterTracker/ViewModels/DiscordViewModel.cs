@@ -33,7 +33,10 @@ sealed class DiscordViewModel : Observable
     public string TabName => main.SelectedFlavor?.Name ?? "";
 
     bool showAddWebhook;
-    public bool ShowAddWebhook { get => showAddWebhook; set => Set(ref showAddWebhook, value); }
+    public bool ShowAddWebhook { get => showAddWebhook; set { if (Set(ref showAddWebhook, value)) Raise(nameof(ShowWebhookHelp)); } }
+
+    // The "what's a webhook" line with its "?" steps: before the first one, and whenever one is being added.
+    public bool ShowWebhookHelp => !HasWebhooks || ShowAddWebhook;
     string newWebhookName = "";
     public string NewWebhookName { get => newWebhookName; set => Set(ref newWebhookName, value); }
     string newWebhookUrl = "";
@@ -85,6 +88,7 @@ sealed class DiscordViewModel : Observable
             Webhooks.Add(new WebhookRow(w, active, expanded.Contains(w.Id), games, rulesets, tags));
         }
         Raise(nameof(HasWebhooks));
+        Raise(nameof(ShowWebhookHelp));
         Raise(nameof(TabName));
         CommandManager.InvalidateRequerySuggested();
     }

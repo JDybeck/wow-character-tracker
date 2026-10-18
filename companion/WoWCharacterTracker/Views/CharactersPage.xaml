@@ -14,9 +14,9 @@
         <StackPanel>
           <Border Margin="0,2,0,2">
             <StackPanel Orientation="Horizontal">
-              <RadioButton Style="{StaticResource DetailTab}" Content="Overview" IsChecked="{Binding IsOverviewTab}" GroupName="{Binding Guid}"/>
-              <RadioButton Style="{StaticResource DetailTab}" Content="Gear and bags" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>
-              <RadioButton Style="{StaticResource DetailTab}" Content="Leveling" IsChecked="{Binding IsLevelingTab}" GroupName="{Binding Guid}"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Overview" ToolTip="Who the character is, tags, posting and highlights" IsChecked="{Binding IsOverviewTab}" GroupName="{Binding Guid}"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Gear and bags" ToolTip="Equipped gear, bags and bank" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Leveling" ToolTip="Level times, the chart and the level history" IsChecked="{Binding IsLevelingTab}" GroupName="{Binding Guid}"/>
             </StackPanel>
           </Border>
           <ContentControl Content="{Binding}" Focusable="False">

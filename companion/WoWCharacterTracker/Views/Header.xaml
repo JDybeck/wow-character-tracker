@@ -24,8 +24,18 @@
           <TextBlock Text="{Binding SelectedFlavor.StatusText}" Foreground="{StaticResource Muted}" FontSize="13"
                      MaxWidth="240" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedFlavor.StatusText}"/>
           <TextBlock Text="{Binding Updates.VersionText}" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"/>
+          <!-- A new version: a filled button that can't be missed, one click installs it. -->
+          <Button Style="{StaticResource IndigoButton}" Padding="10,3" Margin="8,0,0,0" FontSize="12" Command="{Binding Updates.InstallUpdateCommand}"
+                  ToolTip="Download and install the new version now. The app restarts by itself in a few seconds; your settings stay."
+                  VerticalAlignment="Center" Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Visible}}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="11" Foreground="White" Margin="0,0,6,0"/>
+              <TextBlock Text="{Binding Updates.UpdateButtonText}" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
           <Button Style="{StaticResource GhostButton}" Padding="6,0" Margin="4,0,0,0" Command="{Binding Updates.CheckUpdatesCommand}"
-                  ToolTip="Look for a new version on GitHub" VerticalAlignment="Center">
+                  ToolTip="Look for a new version on GitHub" VerticalAlignment="Center"
+                  Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Hidden}}">
             <StackPanel Orientation="Horizontal">
               <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="11" Foreground="{DynamicResource BlueText}" Margin="0,0,5,0"/>
               <TextBlock Text="{Binding Updates.UpdateButtonText}" FontSize="12" Foreground="{DynamicResource BlueText}" VerticalAlignment="Center"/>
@@ -94,7 +104,7 @@
 
       <!-- App settings. The button can't be clicked while the menu is open, so a click outside
            (on the button too) just closes it. -->
-      <ToggleButton x:Name="SettingsButton" IsChecked="{Binding ShowSettings}" Cursor="Hand" Margin="0,0,12,0" ToolTip="Settings"
+      <ToggleButton x:Name="SettingsButton" IsChecked="{Binding ShowSettings}" Cursor="Hand" Margin="0,0,12,0" ToolTip="Open the app settings"
                     IsHitTestVisible="{Binding IsOpen, ElementName=SettingsMenu, Converter={StaticResource Not}}">
         <ToggleButton.Template>
           <ControlTemplate TargetType="ToggleButton">

@@ -13,7 +13,7 @@
       </TextBlock>
       <TextBlock Style="{StaticResource Hint}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,16" LineHeight="18"
                  Text="The app doesn't look for this game, read its saved data or install the addon there. Nothing is deleted: turn it back on and everything shows up again."/>
-      <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Center" Command="{Binding TurnOnCommand}">
+      <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Center" ToolTip="Start tracking this game version again" Command="{Binding TurnOnCommand}">
         <TextBlock Foreground="White"><Run Text="Turn "/><Run Text="{Binding Name, Mode=OneWay}"/><Run Text=" back on"/></TextBlock>
       </Button>
 
@@ -25,7 +25,7 @@
           <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,4,0,8"
                      Text="While you play it, it keeps saving data and taking the small instant-post screenshots. Remove it if you don't play this game with the tracker. The data it saved stays."/>
           <TextBlock Text="{Binding AddonLeftPath}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Dim}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-          <Button Style="{StaticResource ButtonBase}" HorizontalAlignment="Left" Padding="12,5" Command="{Binding RemoveAddonCommand}">
+          <Button Style="{StaticResource ButtonBase}" HorizontalAlignment="Left" Padding="12,5" ToolTip="Delete the addon from this game's AddOns folder" Command="{Binding RemoveAddonCommand}">
             <TextBlock Text="Remove the addon from this game"/>
           </Button>
         </StackPanel>

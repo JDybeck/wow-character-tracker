@@ -70,7 +70,7 @@ static class SavedVariables
                 S(t, "zone"), S(t, "professions"), S(t, "talents"), (long)N(t, "lastSeen"),
                 S(t, "hardcore") == "true", S(t, "ruleset"), (long)N(t, "money"), S(t, "crests"),
                 t.Get("guild").IsNil() ? null : S(t, "guild"), S(t, "surname"), S(t, "talentPicks"), S(t, "talentExport"), S(t, "stats"), S(t, "talentCalc"), S(t, "region"),
-                (long)N(t, "xp"), (long)N(t, "xpMax"), (int)N(t, "maxLevel")));
+                (long)N(t, "xp"), (long)N(t, "xpMax"), (int)N(t, "maxLevel"), S(t, "keystone"), S(t, "zoneType")));
         }
 
         return list;

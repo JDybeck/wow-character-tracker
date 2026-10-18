@@ -100,16 +100,23 @@
       <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
       <views:GameOffPage Grid.Row="0" Grid.RowSpan="2"/>
 
-      <!-- The right column scrolls as one (the scrollbar only shows when it doesn't all fit). The console
-           fills what's left and keeps a readable height when there isn't room (MainWindow.FitRightColumn). -->
-      <ScrollViewer x:Name="RightScroll" Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                    Margin="0,0,-14,0" Padding="0,0,14,0" Focusable="False">
-      <StackPanel x:Name="RightColumn">
-        <views:DiscordPanel x:Name="DiscordView" DataContext="{Binding Discord}"/>
-        <views:StreamPanel x:Name="StreamView" Margin="0,16,0,0" DataContext="{Binding Stream}"/>
-        <views:ConsolePanel x:Name="ConsoleView" Margin="0,16,0,0"/>
-        <!-- The maker and a tip link, quietly in the corner. -->
-        <StackPanel x:Name="CreditRow" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,2,0">
+      <Grid Grid.Row="1" Grid.Column="2">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <!-- The right column scrolls as one (the scrollbar only shows when it doesn't all fit). The console
+             fills what's left and keeps a readable height when there isn't room (MainWindow.FitRightColumn). -->
+        <ScrollViewer x:Name="RightScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Margin="0,0,-14,0" Padding="0,0,14,0" Focusable="False">
+        <StackPanel x:Name="RightColumn">
+          <views:DiscordPanel x:Name="DiscordView" DataContext="{Binding Discord}"/>
+          <views:StreamPanel x:Name="StreamView" Margin="0,16,0,0" DataContext="{Binding Stream}"/>
+          <views:ConsolePanel x:Name="ConsoleView" Margin="0,16,0,0"/>
+        </StackPanel>
+        </ScrollViewer>
+        <!-- The maker and a tip link, quietly in the corner, always in view (outside the scrolling). -->
+        <StackPanel x:Name="CreditRow" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,2,0">
           <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
             <Button.Template>
               <ControlTemplate TargetType="Button">
@@ -138,8 +145,7 @@
             </Button.Template>
           </Button>
         </StackPanel>
-      </StackPanel>
-      </ScrollViewer>
+      </Grid>
     </Grid>
   </Grid>
 </Window>

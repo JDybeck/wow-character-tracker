@@ -74,7 +74,13 @@ sealed class UpdatesViewModel : Observable
             UpdateButtonText = "Up to date";
             return;
         }
-        UpdateButtonText = $"v{latest.Version} ready";
+        Offer(latest);
+    }
+
+    // A newer version: the banner and the header button offer it.
+    internal void Offer(Updater.Release latest)
+    {
+        UpdateButtonText = $"Update to v{latest.Version}";
         update = latest;
         BannerTitle = $"Version {latest.Version} is available (you have {Updater.Current}).";
         BannerNotes = latest.Notes.Trim();

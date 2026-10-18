@@ -262,6 +262,47 @@
     </Setter>
   </Style>
 
+  <!-- A place chip on the Items page (PlaceChip): plain, "only" (filled, a check), or "out" (red,
+       crossed out, an X) so it's clear whether a place is focused on or left out. -->
+  <Style x:Key="PlaceChipButton" TargetType="Button">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Padding="10,3" CornerRadius="12" Margin="0,0,6,0" BorderThickness="1" BorderBrush="#334155" Background="Transparent">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="Ico" FontFamily="{StaticResource Icons}" VerticalAlignment="Center" FontSize="9" Margin="0,0,6,0" Visibility="Collapsed"/>
+              <TextBlock x:Name="Txt" Text="{Binding Label}" FontSize="12" Foreground="{StaticResource Muted}"/>
+            </StackPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource Text}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="#475569"/>
+            </Trigger>
+            <DataTrigger Binding="{Binding IsOnly}" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BlueSoft}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource BlueTextBright}"/>
+              <Setter TargetName="Ico" Property="Text" Value="&#xE73E;"/>
+              <Setter TargetName="Ico" Property="Foreground" Value="{DynamicResource BlueTextBright}"/>
+              <Setter TargetName="Ico" Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsOut}" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="#33EF4444"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="#B91C1C"/>
+              <Setter TargetName="Txt" Property="Foreground" Value="#FCA5A5"/>
+              <Setter TargetName="Txt" Property="TextDecorations" Value="Strikethrough"/>
+              <Setter TargetName="Ico" Property="Text" Value="&#xE711;"/>
+              <Setter TargetName="Ico" Property="Foreground" Value="#FCA5A5"/>
+              <Setter TargetName="Ico" Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- Page tabs (Characters / What gets posted) with an underline. -->
   <Style x:Key="PageTab" TargetType="Button">
     <Setter Property="Cursor" Value="Hand"/>

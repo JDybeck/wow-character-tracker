@@ -43,7 +43,8 @@ sealed class CharacterRow : Observable
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
     public IReadOnlyList<(string Name, string Value)> StatList => Stats.Split(',', StringSplitOptions.RemoveEmptyEntries)
         .Select(p => p.Split('~')).Where(p => p.Length == 2).Select(p => (p[0], p[1])).ToList();
-    public IReadOnlyList<IconChip> StatChips => StatList.Select(s => new IconChip($"{s.Name} {s.Value}")).ToList();
+    public IReadOnlyList<IconChip> StatChips => StatList.Select(s => new IconChip($"{s.Name} {s.Value}",
+        Wowhead.StatIcons.TryGetValue(s.Name, out var icon) ? Wowhead.IconUrl(icon, "small") : null, s.Name)).ToList();
     public bool HasStats => Stats.Length > 0;
     public string FullName => Surname.Length > 0 ? $"{Name} {Surname}" : Name;
 
@@ -52,6 +53,9 @@ sealed class CharacterRow : Observable
     public IReadOnlyList<Coin> MoneyCoins => Coin.Full(Money);
     public IReadOnlyList<Coin> ShortCoins => Coin.Short(Money);
     public bool HasCrests => Crests.Length > 0;
+    public string Keystone { get; init; } = "";      // retail: "level~mapID~dungeon", "none"
+    public string KeystoneText => Format.Keystone(Keystone);
+    public bool HasKeystone => KeystoneText.Length > 0;
     public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
     public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
     public bool HasProfessions => ProfessionList.Count > 0;
@@ -127,6 +131,10 @@ sealed class CharacterRow : Observable
     public string ProfessionsText => Professions is { Length: > 0 } and not "None" ? Professions : "None yet";
     public string TalentsText => Talents.Length > 0 ? Talents : "-";
     public string ZoneText => Zone.Length > 0 ? Zone : "-";
+    public string ZoneType { get; init; } = "";       // dungeon, raid, pvp, rest, zone (Places)
+    Places.Kind? ZoneKind => Places.Of(Zone, ZoneType);
+    public string? ZoneIconUrl => ZoneKind is { } k ? Wowhead.IconUrl(k.Icon, "small") : null;
+    public string ZoneKindName => ZoneKind?.Name ?? "";
     public string Description => string.Join(" ", new[] { Race, Spec, ClassName }.Where(s => s.Length > 0));
     public bool HasLevels => Levels.Count > 0;
     public bool HasHighlights => Highlights.Count > 0;
@@ -208,6 +216,8 @@ sealed class CharacterRow : Observable
             if (s is null && last is null) continue;
             var hardcore = (s?.Hardcore ?? false) || all.Any(e => e.Hardcore);
             var level = Math.Max(s?.Level ?? 0, all.Count > 0 ? all.Max(e => e.Level) : 0);
+            // The newest of the snapshot and the last event says what the character has now.
+            var newer = last is not null && last.At > (s?.LastSeen ?? 0) ? last : null;
 
             rows.Add(new CharacterRow
             {
@@ -225,15 +235,16 @@ sealed class CharacterRow : Observable
                 ItemLevel = s?.ItemLevel is > 0 ? s.ItemLevel : last?.ItemLevel ?? 0,
                 Played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0),
                 Zone = Pick(s?.Zone, last?.Zone),
+                ZoneType = s?.Zone is { Length: > 0 } ? s.ZoneType : last?.ZoneType ?? "", // from where the zone came from
                 Professions = Pick(s?.Professions, last?.Professions),
                 Talents = Pick(s?.Talents, last?.Talents),
                 LastSeen = Math.Max(s?.LastSeen ?? 0, last?.At ?? 0),
                 Hardcore = hardcore,
                 Ruleset = Pick(s?.Ruleset, last?.Ruleset) is { Length: > 0 } rs ? rs : hardcore ? "Hardcore" : "Normal",
                 Dead = all.Any(e => e.Kind == "death"),
-                // The newest of the snapshot and the last event says what the character has now.
-                Money = last is not null && last.At > (s?.LastSeen ?? 0) && last.Money > 0 ? last.Money : s?.Money ?? last?.Money ?? 0,
+                Money = newer is { Money: > 0 } ? newer.Money : s?.Money ?? last?.Money ?? 0,
                 Crests = Pick(s?.Crests, last?.Crests),
+                Keystone = newer is { Keystone.Length: > 0 } ? newer.Keystone : Pick(s?.Keystone, last?.Keystone),
                 Guild = guilds.GetValueOrDefault(guid) ?? all.LastOrDefault(e => e.Guild is not null)?.Guild ?? "",
                 Surname = Pick(s?.Surname, last?.Surname),
                 TalentPicks = Newest(guid, c => c.TalentPicks),

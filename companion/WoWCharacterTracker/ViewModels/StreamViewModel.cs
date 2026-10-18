@@ -5,7 +5,7 @@ using System.Windows.Input;
 namespace WoWCharacterTracker.ViewModels;
 
 // The Stream overlay panel (between Discord and the console): on or off, the overlay's addresses
-// (everything, or the card, highlights and ding alert as separate sources), how it looks and what it
+// (everything, or the card, highlights and alert as separate sources), how it looks and what it
 // shows (Config.StreamOptions), and keeping the overlay and the text files up to date with the
 // character played last, across the game tabs.
 sealed class StreamViewModel : Observable
@@ -21,10 +21,17 @@ sealed class StreamViewModel : Observable
         CopyCommand = new RelayCommand(p => Copy(Url + (p as string ?? "")));
         OpenFolderCommand = new RelayCommand(_ => { Directory.CreateDirectory(StreamFiles.Dir); Browser.Open(StreamFiles.Dir); });
         OpenOverlayCommand = new RelayCommand(_ => Browser.Open(Url + "?preview=1")); // a dark backdrop behind it
-        TestDingCommand = new RelayCommand(_ => TestDing(), _ => server is not null);
+        TestAlertCommand = new RelayCommand(_ => TestAlert(), _ => server is not null);
         TogglePanelCommand = new RelayCommand(_ => PanelOpen = !PanelOpen);
-        StartFromNowCommand = new RelayCommand(_ => { Options.Since = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); OptionsChanged(); Log.Info("Stream overlay: counting from now. Everything before is still tracked in the app."); });
-        AllTimeCommand = new RelayCommand(_ => { Options.Since = 0; OptionsChanged(); });
+        StartFromNowCommand = new RelayCommand(_ =>
+        {
+            Options.Range = "now";
+            Options.Since = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            OptionsChanged();
+            Log.Info("Stream overlay: counting from now. Everything before is still tracked in the app.");
+        });
+        TodayCommand = new RelayCommand(_ => { Options.Range = "today"; OptionsChanged(); });
+        AllTimeCommand = new RelayCommand(_ => { Options.Range = "all"; OptionsChanged(); });
     }
 
     StreamOptions Options => main.Config.StreamOptions;
@@ -32,9 +39,10 @@ sealed class StreamViewModel : Observable
     public ICommand CopyCommand { get; }
     public ICommand OpenFolderCommand { get; }
     public ICommand OpenOverlayCommand { get; }
-    public ICommand TestDingCommand { get; }
+    public ICommand TestAlertCommand { get; }
     public ICommand TogglePanelCommand { get; }
     public ICommand StartFromNowCommand { get; }
+    public ICommand TodayCommand { get; }
     public ICommand AllTimeCommand { get; }
 
     public string Url => $"http://localhost:{main.Config.StreamPort}/";
@@ -61,33 +69,65 @@ sealed class StreamViewModel : Observable
     // --- how it looks and what it shows ---
 
     public int CardOpacity { get => Options.CardOpacity; set { Options.CardOpacity = value; Raise(nameof(CardOpacity)); OptionsChanged(); } }
+    public bool ShowStats { get => Options.ShowStats; set { Options.ShowStats = value; OptionsChanged(); } }
     public bool ShowLevels { get => Options.ShowLevels; set { Options.ShowLevels = value; OptionsChanged(); } }
     public bool ShowToday { get => Options.ShowToday; set { Options.ShowToday = value; OptionsChanged(); } }
     public bool ShowDuels { get => Options.ShowDuels; set { Options.ShowDuels = value; OptionsChanged(); } }
     public bool ShowMakgora { get => Options.ShowMakgora; set { Options.ShowMakgora = value; OptionsChanged(); } }
     public bool ShowHighlights { get => Options.ShowHighlights; set { Options.ShowHighlights = value; OptionsChanged(); } }
 
-    // Which highlights count, as on/off chips.
-    static readonly (string Kind, string Name)[] KindNames =
-        [("loot", "Loot"), ("boss", "Boss kills"), ("mount", "Mounts"), ("duel", "Duels"), ("makgora", "Mak'gora"), ("death", "Deaths"), ("mplus", "Mythic+"), ("pvp", "PvP rating")];
-    ObservableCollection<ToggleOption>? kinds;
-    public ObservableCollection<ToggleOption> HighlightKinds => kinds ??= new(KindNames.Select(k => new ToggleOption(k.Name, Options.HighlightKinds.Contains(k.Kind), on =>
-    {
-        Options.HighlightKinds.Remove(k.Kind);
-        if (on) Options.HighlightKinds.Add(k.Kind);
-        OptionsChanged();
-    })));
+    // Which highlights count, as on/off chips. Mythic+ and PvP rating are Retail only, so they're
+    // only offered while the overlay shows a Retail character.
+    static readonly (string Kind, string Name, string Tip)[] KindNames =
+    [
+        ("loot", "Loot", "Rare, epic and legendary items looted"), ("boss", "Boss kills", "Dungeon and raid end bosses killed"),
+        ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won (losses only count in the record on the card)"),
+        ("makgora", "Mak'gora", "Mak'goras won"), ("death", "Deaths", "Hardcore deaths"),
+        ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
+    ];
+    static readonly string[] RetailOnly = ["mplus", "pvp"];
+    bool OffersKind(string kind) => snapshot.Game == Flavors.Retail.Name || !RetailOnly.Contains(kind);
 
-    public bool CountingFromNow => Options.Since > 0;
-    public string SinceText => Options.Since > 0
-        ? "Counting since " + DateTimeOffset.FromUnixTimeSeconds(Options.Since).LocalDateTime.ToString("MMM d, HH:mm", System.Globalization.CultureInfo.InvariantCulture)
-        : "Counting everything (all time)";
+    ObservableCollection<ToggleOption>? kinds;
+    public ObservableCollection<ToggleOption> HighlightKinds => kinds ??= Chips(KindNames, Options.HighlightKinds);
+
+    // Which moments pop up as the big alert, as on/off chips.
+    static readonly (string Kind, string Name, string Tip)[] AlertNames =
+    [
+        ("level", "Level-ups", "DING! with the level and how long it took"), ("maxlevel", "Max level", "MAX LEVEL! with light rays, when you reach the cap"),
+        ("boss", "Boss kills", "VICTORY! when an end boss dies"), ("legendary", "Legendary loot", "LEGENDARY! in orange"),
+        ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
+        ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"), ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"),
+        ("death", "Deaths", "R.I.P. when a hardcore character dies"),
+        ("mplus", "Mythic+", "MILESTONE! for a Mythic+ rating step (Retail)"), ("pvp", "PvP rating", "MILESTONE! for a PvP rating step (Retail)"),
+    ];
+    ObservableCollection<ToggleOption>? alertKinds;
+    public ObservableCollection<ToggleOption> AlertKinds => alertKinds ??= Chips(AlertNames, Options.AlertKinds);
+
+    // One on/off chip per kind this game offers; a click adds the kind to the list or takes it out.
+    ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
+        new(names.Where(k => OffersKind(k.Kind)).Select(k => new ToggleOption(k.Name, picked.Contains(k.Kind), on =>
+        {
+            picked.Remove(k.Kind);
+            if (on) picked.Add(k.Kind);
+            OptionsChanged();
+        }, k.Tip)));
+
+    // What the overlay counts: three choices, the one in use highlighted.
+    public bool RangeAll => Options.RangeMode == "all";
+    public bool RangeToday => Options.RangeMode == "today";
+    public bool RangeNow => Options.RangeMode == "now";
+    public string NowText => RangeNow
+        ? "Counting since " + DateTimeOffset.FromUnixTimeSeconds(Options.Since).LocalDateTime.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)
+        : "Start counting now";
 
     void OptionsChanged()
     {
         main.Config.Save();
-        Raise(nameof(CountingFromNow));
-        Raise(nameof(SinceText));
+        Raise(nameof(RangeAll));
+        Raise(nameof(RangeToday));
+        Raise(nameof(RangeNow));
+        Raise(nameof(NowText));
         Refresh();
     }
 
@@ -98,6 +138,7 @@ sealed class StreamViewModel : Observable
     public void Apply()
     {
         kinds = null;
+        alertKinds = null;
         Raise(string.Empty);
         if (Enabled && server is null)
         {
@@ -131,23 +172,48 @@ sealed class StreamViewModel : Observable
 
     void Refresh()
     {
+        var game = snapshot.Game;
         snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options);
+        if (snapshot.Game != game)
+        {
+            // Another game's character: the Retail-only chips come or go.
+            kinds = null;
+            alertKinds = null;
+            Raise(nameof(HighlightKinds));
+            Raise(nameof(AlertKinds));
+        }
         if (server is null) return;
         server.Snapshot = snapshot;
         StreamFiles.Write(snapshot);
     }
 
-    // Shows the ding alert on the overlay right now (OBS included), for setting it up without
-    // leveling. Only the overlay sees it: nothing is posted or saved, the text files stay as they are.
-    void TestDing()
+    // Shows an alert on the overlay right now (OBS included), for setting it up without playing. Each
+    // click shows the next kind (DING!, MAX LEVEL!, VICTORY!, EPIC LOOT!...). Only the overlay sees it:
+    // nothing is posted or saved, the text files stay as they are.
+    int testIndex;
+    void TestAlert()
     {
         if (server is null) return;
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var level = snapshot.HasCharacter ? snapshot.Level + 1 : 40;
-        var test = snapshot.HasCharacter ? snapshot : snapshot with { Character = "Zeb TESTCHAR", Level = 39, ClassName = "Warrior", ClassColor = "#C69B6D", Zone = "Scarlet Monastery" };
-        server.Snapshot = test with { Ding = new StreamDing($"test-{now}", level, "23m 11s", now) };
-        Log.Info("Test ding sent to the stream overlay (only the overlay shows it).");
-        // Back to the real state a bit later, so the next real ding still counts as new.
+        var name = snapshot.HasCharacter ? snapshot.Character : "Zeb TESTCHAR";
+        StreamAlert[] samples =
+        [
+            new("", "level", "DING!", $"Level {level}", $"{level - 1} to {level} took 23m 11s", "gold", now),
+            new("", "maxlevel", "MAX LEVEL!", "Level 60", "Total played 6d 4h 12m", "legendary", now),
+            new("", "boss", "VICTORY!", "Edwin VanCleef defeated", "The Deadmines", "victory", now),
+            new("", "legendary", "LEGENDARY!", "Thunderfury, Blessed Blade of the Windseeker", "", "legendary", now),
+            new("", "epic", "EPIC LOOT!", "Sul'thraze the Lasher", "", "epic", now),
+            new("", "duel", "VICTORY!", "Won a duel against Grimtusk", "Level 40 Orc Warrior", "duel", now),
+            new("", "makgora", "MAK'GORA!", "Grimtusk fell to the death", "Level 40 Orc Warrior", "blood", now),
+            new("", "mount", "NEW MOUNT!", "Swift Palomino", "", "gold", now),
+            new("", "death", "R.I.P.", $"{name} fell at level {level - 1}", "After 3d 5h played", "death", now),
+        ];
+        var sample = samples[testIndex++ % samples.Length] with { Id = $"test-{now}-{testIndex}" };
+        var test = snapshot.HasCharacter ? snapshot : snapshot with { Character = name, Level = level - 1, ClassName = "Warrior", ClassColor = "#C69B6D", Zone = "Scarlet Monastery" };
+        server.Snapshot = test with { Alert = sample };
+        Log.Info($"Test alert sent to the stream overlay: {sample.Title} (click again for the next kind; only the overlay shows it).");
+        // Back to the real state a bit later, so the next real alert still counts as new.
         _ = Task.Delay(TimeSpan.FromSeconds(10)).ContinueWith(_ => { if (server is not null) server.Snapshot = snapshot; });
     }
 
@@ -163,5 +229,5 @@ sealed class StreamViewModel : Observable
         r.Guid, r.FullName, flavor.Name, r.Level, r.ClassName,
         CharacterArt.ClassColors.TryGetValue(r.ClassFile.ToUpperInvariant(), out var color) ? $"#{color:X6}" : "#FFFFFF",
         r.Race, r.RealmText, r.Zone, r.Played > 0 ? Format.Played(r.Played) : "", r.ItemLevel > 0 ? r.ItemLevel.ToString("0") : "",
-        r.LastSeen);
+        r.LastSeen, r.Spec, r.Money >= 10000 ? $"{r.Money / 10000:N0}g" : "", r.KeystoneText);
 }

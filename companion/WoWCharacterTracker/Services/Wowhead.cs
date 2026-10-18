@@ -101,6 +101,13 @@ static class Wowhead
     public static string ForeverTalentUrl(string classFile, string talentCalc) =>
         $"https://www.wowhead.com/forever/talent-calc/{classFile.ToLowerInvariant()}" + (talentCalc.Length > 0 ? "/v2" + talentCalc : "");
 
+    // A character's build in Wowhead's talent calculator, or null without one. Forever: Wowhead's
+    // classic-style calculator code. Retail: the game's own loadout code.
+    public static string? TalentCalcUrl(Flavor flavor, string classFile, string talentCalc, string talentExport) =>
+        flavor == Flavors.Forever
+            ? (talentCalc.Length > 0 ? ForeverTalentUrl(classFile, talentCalc) : null)
+            : (talentExport.Length > 0 ? $"https://www.wowhead.com/talent-calc/blizzard/{Uri.EscapeDataString(talentExport)}" : null);
+
     // The tooltip comes as HTML; this keeps the text, one line per row (see TooltipHtml).
     static string ToText(string html) => html.Length == 0 ? "" : TooltipHtml.ToText(html);
 
@@ -112,5 +119,16 @@ static class Wowhead
         ["Mining"] = "trade_mining", ["Skinning"] = "inv_misc_pelt_wolf_01", ["Tailoring"] = "trade_tailoring",
         ["Inscription"] = "inv_inscription_tradeskill01", ["Jewelcrafting"] = "inv_misc_gem_01",
         ["Cooking"] = "inv_misc_food_15", ["Fishing"] = "trade_fishing", ["First Aid"] = "spell_holy_sealofsacrifice",
+    };
+
+    // Character sheet stat icons by the names Character.lua's getStats uses (the buff or ability that
+    // stands for each).
+    public static readonly Dictionary<string, string> StatIcons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Strength"] = "spell_nature_strength", ["Agility"] = "spell_holy_blessingofagility",
+        ["Stamina"] = "spell_nature_unyeildingstamina", ["Intellect"] = "spell_holy_magicalsentry",
+        ["Spirit"] = "spell_holy_divinespirit", ["Armor"] = "inv_shield_06", ["Attack Power"] = "ability_warrior_battleshout",
+        ["Spell Power"] = "spell_fire_flamebolt", ["Crit"] = "ability_criticalstrike", ["Haste"] = "spell_nature_bloodlust",
+        ["Mastery"] = "spell_holy_championsbond", ["Versatility"] = "ability_paladin_artofwar",
     };
 }

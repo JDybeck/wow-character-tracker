@@ -10,7 +10,7 @@ local SHORT = {
   race = "e", raceFile = "E", sex = "x", hardcore = "h", ruleset = "u", seconds = "d", played = "y",
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
-  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V",
+  maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V", keystone = "W", zoneType = "f",
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
@@ -276,13 +276,33 @@ local function showChat()
   hiddenChat = nil
 end
 
-function ns.shotDone()
+-- The last few shots and how they went (kind, ok, in combat, retried), for /wct debug.
+local function logShot(item, ok)
+  local log = WoWCharacterTrackerDB.shotLog or {}
+  WoWCharacterTrackerDB.shotLog = log
+  table.insert(log, string.format("%s %s %s%s%s", date("%H:%M:%S"), item.bits and "grid" or (item.kind or "event"),
+    ok and "ok" or "FAILED", item.inCombat and " in combat" or "", item.retried and " (retry)" or ""))
+  while #log > 20 do table.remove(log, 1) end
+end
+
+-- ok = false when the game said the screenshot failed or never answered. An event's own picture
+-- that failed in combat is tried once more, first thing after combat (some clients may refuse
+-- screenshots mid-fight); the app waits for it.
+function ns.shotDone(ok)
   if not shotBusy then return end
-  if shotItem and shotItem.bits then
+  local item = shotItem
+  if item and item.bits then
     if grid then grid:Hide() end
     restoreShotSettings()
   else
     showChat()
+  end
+  if item then
+    logShot(item, ok ~= false)
+    if ok == false and not item.bits and not item.retried then
+      item.retried, item.afterCombat, item.delay = true, true, 0.3
+      table.insert(shotQueue, 1, item)
+    end
   end
   shotItem = nil
   shotBusy = false
@@ -290,11 +310,11 @@ function ns.shotDone()
 end
 
 -- In combat only normal screenshots are taken (the moment itself); data grids wait until combat
--- ends, so screenshot settings are never changed mid-fight.
+-- ends, so screenshot settings are never changed mid-fight. A retried event shot waits too.
 local function nextShot()
   if not InCombatLockdown() then return table.remove(shotQueue, 1) end
   for i, item in ipairs(shotQueue) do
-    if not item.bits then return table.remove(shotQueue, i) end
+    if not item.bits and not item.afterCombat then return table.remove(shotQueue, i) end
   end
   return nil
 end
@@ -305,8 +325,9 @@ ns.processShots = function()
   if not item then return end -- only grids left, PLAYER_REGEN_ENABLED picks them up
   shotItem = item
   shotBusy = true
-  -- Never wait forever on a screenshot event that doesn't come.
-  C_Timer.After(5, function() if shotItem == item then ns.shotDone() end end)
+  item.inCombat = InCombatLockdown() and true or nil
+  -- Never wait forever on a screenshot event that doesn't come (that counts as failed).
+  C_Timer.After(5 + (item.delay or 0), function() if shotItem == item then ns.shotDone(false) end end)
 
   if item.bits then
     ns.doing("data grid screenshot")
@@ -372,7 +393,7 @@ function ns.addEvent(e)
   if shot then e.shot = true end
   ns.sendLive(e)
   if shot then
-    table.insert(shotQueue, { delay = SHOT_DELAY[e.kind] or 0.5 })
+    table.insert(shotQueue, { delay = SHOT_DELAY[e.kind] or 0.5, kind = e.kind })
     ns.processShots()
   end
 end

@@ -32,6 +32,8 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             embed["image"] = new { url = "attachment://item.png" };
             files.Add((item, "item.png"));
         }
+        if (screenshot is not null && !File.Exists(screenshot))
+            Log.Warn($"The screenshot for this post was gone before it could be sent ({Path.GetFileName(screenshot)}), so it went out without one.");
         if (screenshot is null || !File.Exists(screenshot))
             return await webhook.SendAsync(list, files, avatar);
 
@@ -72,28 +74,73 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         bool Shows(string part) => !hidden.Contains(part);
         var subtitle = $"Level {c.Level} {c.Description}".Trim();
         if (Shows("guild") && c.HasGuild) subtitle += $"\n<{c.Guild}>";
+        var embed = CharacterEmbed(c, CharacterName(c) + (c.Dead ? " (dead)" : ""), subtitle);
+
+        if (card is not null)
+        {
+            embed.Remove("description"); // the card says it already
+            embed["image"] = new { url = "attachment://card.png" };
+            return await webhook.SendAsync(embed, card, "card.png", await PictureAsync(c));
+        }
+
+        embed["fields"] = CardFields(c, Shows);
+        return await SendWithPortraitAsync(embed, c);
+    }
+
+    // The character's talents: name, level, race and class, the points per tree, the talents picked
+    // (Forever) and the build in Wowhead's talent calculator (the title links there too).
+    public async Task<bool> PostTalentsAsync(CharacterRow c)
+    {
+        var url = Wowhead.TalentCalcUrl(flavor, c.ClassFile, c.TalentCalc, c.TalentExport);
+        var lines = new List<string> { $"**Level {c.Level} {c.Description}**".Replace("  ", " ") };
+        if (c.Talents.Length > 0) lines.Add(c.Talents);
+        var embed = CharacterEmbed(c, $"{CharacterName(c)}'s talents", string.Join("\n", lines));
+        if (url is not null) embed["url"] = url;
+        var fields = new List<object>();
+        // Discord fields take up to 1024 characters; long pick lists are cut at a whole talent.
+        var picks = string.Join(", ", c.TalentPickList.Select(p => p.Text).Where(t => t.Length > 0));
+        if (picks.Length > 1000) picks = picks[..picks.LastIndexOf(", ", 1000, StringComparison.Ordinal)] + "...";
+        if (picks.Length > 0) fields.Add(new { name = "Picked", value = picks, inline = false });
+        if (url is not null) fields.Add(new { name = "Wowhead", value = $"[Open in the talent calculator]({url})", inline = false });
+        if (fields.Count > 0) embed["fields"] = fields;
+        return await SendWithPortraitAsync(embed, c);
+    }
+
+    // Sends a text post with the character's picture as the thumbnail: the one the app shows for it
+    // (CharacterRow.PictureUrl). Forever's in-game portrait is a file on this PC, so it's uploaded with
+    // the message; the sender avatar has to be a web address, so that stays the standard picture.
+    async Task<bool> SendWithPortraitAsync(Dictionary<string, object> embed, CharacterRow c)
+    {
+        var picture = await PictureAsync(c);
+        if (c.PictureUrl is { } own && !own.StartsWith("http", StringComparison.OrdinalIgnoreCase) && File.Exists(own))
+        {
+            embed["thumbnail"] = new { url = "attachment://portrait.png" };
+            return await webhook.SendAsync(embed, await File.ReadAllBytesAsync(own), "portrait.png", picture);
+        }
+        if (picture is not null) embed["thumbnail"] = new { url = picture };
+        return await webhook.SendAsync(embed, null, "", picture);
+    }
+
+    string CharacterName(CharacterRow c) => Marked(Format.Name(c.Name, c.Surname, nameStyle), c.IsTest);
+
+    Task<string?> PictureAsync(CharacterRow c) =>
+        CharacterArt.PictureUrlAsync(flavor, c.Region, c.Realm, c.Name, c.RaceFile, c.Sex, c.ClassFile);
+
+    // What every post about a character has: the title, the class color stripe, the realm with the
+    // class icon on top, and the footer.
+    Dictionary<string, object> CharacterEmbed(CharacterRow c, string title, string description)
+    {
         var embed = new Dictionary<string, object>
         {
-            ["title"] = Marked(Format.Name(c.Name, c.Surname, nameStyle), c.IsTest) + (c.Dead ? " (dead)" : ""),
-            ["description"] = subtitle,
+            ["title"] = title,
+            ["description"] = description,
             ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
             ["footer"] = new { text = c.IsTest ? "Test character, Character Tracker" : $"Character Tracker, {flavor.Name}" },
         };
         if (CharacterArt.ClassColors.TryGetValue(c.ClassFile.ToUpperInvariant(), out var color)) embed["color"] = color;
         if (CharacterArt.ClassIconUrl(c.ClassFile) is { } classIcon)
             embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
-        var picture = await CharacterArt.PictureUrlAsync(flavor, c.Region, c.Realm, c.Name, c.RaceFile, c.Sex, c.ClassFile);
-
-        if (card is not null)
-        {
-            embed.Remove("description"); // the card says it already
-            embed["image"] = new { url = "attachment://card.png" };
-            return await webhook.SendAsync(embed, card, "card.png", picture);
-        }
-
-        if (picture is not null) embed["thumbnail"] = new { url = picture };
-        embed["fields"] = CardFields(c, Shows);
-        return await webhook.SendAsync(embed, null, "", picture);
+        return embed;
     }
 
     // The card as text fields, for when the picture couldn't be drawn.
