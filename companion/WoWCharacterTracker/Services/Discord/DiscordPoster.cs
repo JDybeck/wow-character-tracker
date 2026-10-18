@@ -75,18 +75,16 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         var subtitle = $"Level {c.Level} {c.Description}".Trim();
         if (Shows("guild") && c.HasGuild) subtitle += $"\n<{c.Guild}>";
         var embed = CharacterEmbed(c, CharacterName(c) + (c.Dead ? " (dead)" : ""), subtitle);
-        var picture = await PictureAsync(c);
 
         if (card is not null)
         {
             embed.Remove("description"); // the card says it already
             embed["image"] = new { url = "attachment://card.png" };
-            return await webhook.SendAsync(embed, card, "card.png", picture);
+            return await webhook.SendAsync(embed, card, "card.png", await PictureAsync(c));
         }
 
-        if (picture is not null) embed["thumbnail"] = new { url = picture };
         embed["fields"] = CardFields(c, Shows);
-        return await webhook.SendAsync(embed, null, "", picture);
+        return await SendWithPortraitAsync(embed, c);
     }
 
     // The character's talents: name, level, race and class, the points per tree, the talents picked
@@ -105,7 +103,20 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         if (picks.Length > 0) fields.Add(new { name = "Picked", value = picks, inline = false });
         if (url is not null) fields.Add(new { name = "Wowhead", value = $"[Open in the talent calculator]({url})", inline = false });
         if (fields.Count > 0) embed["fields"] = fields;
+        return await SendWithPortraitAsync(embed, c);
+    }
+
+    // Sends a text post with the character's picture as the thumbnail: the one the app shows for it
+    // (CharacterRow.PictureUrl). Forever's in-game portrait is a file on this PC, so it's uploaded with
+    // the message; the sender avatar has to be a web address, so that stays the standard picture.
+    async Task<bool> SendWithPortraitAsync(Dictionary<string, object> embed, CharacterRow c)
+    {
         var picture = await PictureAsync(c);
+        if (c.PictureUrl is { } own && !own.StartsWith("http", StringComparison.OrdinalIgnoreCase) && File.Exists(own))
+        {
+            embed["thumbnail"] = new { url = "attachment://portrait.png" };
+            return await webhook.SendAsync(embed, await File.ReadAllBytesAsync(own), "portrait.png", picture);
+        }
         if (picture is not null) embed["thumbnail"] = new { url = picture };
         return await webhook.SendAsync(embed, null, "", picture);
     }
