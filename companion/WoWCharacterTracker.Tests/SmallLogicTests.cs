@@ -131,6 +131,26 @@ public class ItemKindTests
         Assert.True(new SetBonus(0, "active, count not shown").IsActive(1));
         Assert.Equal(new GearEffect(7, 271473, "Equip: Something."), Assert.Single(Inventory.ParseEffects("7~271473~Equip: Something.\nx~y~z")));
     }
+
+    [Fact]
+    public void Tooltip_lines_lose_grammar_codes_and_get_their_line_breaks_back()
+    {
+        Assert.Equal("Use: Bite for 20 sec.\nWhile the hunger persists. (1 Min 30 Sec Cooldown)",
+            Format.TooltipLine("Use: Bite for 20 sec.    While the hunger persists. (1 |4Min:Min; 30 |4Sec:Sec; Cooldown)"));
+        Assert.Equal("2 charges, 1 charge", Format.TooltipLine("2 |4charge:charges;, 1 |4charge:charges;"));
+    }
+
+    [Fact]
+    public void Effects_of_one_item_share_a_row()
+    {
+        var inv = new Inventory("g", [new ItemSlot(Inventory.Equipped, 13, 5, 1)], [], new Dictionary<int, int>(), [], new Dictionary<int, int>(), 1, 0)
+        {
+            Effects = Inventory.ParseEffects("13~5~Equip: One.\n13~5~Use: Two.\n14~6~Equip: Three."),
+        };
+        var gear = CharacterGear.From(inv, id => new ItemInfo(id, ""), "WARRIOR", retail: true);
+        Assert.Equal(["Equip: One.\nUse: Two.", "Equip: Three."], gear.Effects.Select(e => e.Text));
+        Assert.False(gear.ShowsCatalystNote); // no sets
+    }
 }
 
 public class PlaceTests
