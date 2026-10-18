@@ -74,6 +74,7 @@ sealed class StreamViewModel : Observable
     public bool ShowToday { get => Options.ShowToday; set { Options.ShowToday = value; OptionsChanged(); } }
     public bool ShowDuels { get => Options.ShowDuels; set { Options.ShowDuels = value; OptionsChanged(); } }
     public bool ShowMakgora { get => Options.ShowMakgora; set { Options.ShowMakgora = value; OptionsChanged(); } }
+    public bool ShowBattlegrounds { get => Options.ShowBattlegrounds; set { Options.ShowBattlegrounds = value; OptionsChanged(); } }
     public bool ShowHighlights { get => Options.ShowHighlights; set { Options.ShowHighlights = value; OptionsChanged(); } }
 
     // Which highlights count, as on/off chips. Mythic+ and PvP rating are Retail only, so they're
@@ -81,8 +82,8 @@ sealed class StreamViewModel : Observable
     static readonly (string Kind, string Name, string Tip)[] KindNames =
     [
         ("loot", "Loot", "Rare, epic and legendary items looted"), ("boss", "Boss kills", "Dungeon and raid end bosses killed"),
-        ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won (losses only count in the record on the card)"),
-        ("makgora", "Mak'gora", "Mak'goras won"), ("death", "Deaths", "Hardcore deaths"),
+        ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won and lost"),
+        ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"), ("death", "Deaths", "Hardcore deaths"),
         ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
     ];
     static readonly string[] RetailOnly = ["mplus", "pvp"];
@@ -98,20 +99,16 @@ sealed class StreamViewModel : Observable
         ("boss", "Boss kills", "VICTORY! when an end boss dies"), ("legendary", "Legendary loot", "LEGENDARY! in orange"),
         ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
         ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"), ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"),
+        ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
         ("death", "Deaths", "R.I.P. when a hardcore character dies"),
         ("mplus", "Mythic+", "MILESTONE! for a Mythic+ rating step (Retail)"), ("pvp", "PvP rating", "MILESTONE! for a PvP rating step (Retail)"),
     ];
     ObservableCollection<ToggleOption>? alertKinds;
     public ObservableCollection<ToggleOption> AlertKinds => alertKinds ??= Chips(AlertNames, Options.AlertKinds);
 
-    // One on/off chip per kind this game offers; a click adds the kind to the list or takes it out.
+    // One on/off chip per kind this game offers.
     ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
-        new(names.Where(k => OffersKind(k.Kind)).Select(k => new ToggleOption(k.Name, picked.Contains(k.Kind), on =>
-        {
-            picked.Remove(k.Kind);
-            if (on) picked.Add(k.Kind);
-            OptionsChanged();
-        }, k.Tip)));
+        ToggleOption.Kinds(names.Where(k => OffersKind(k.Kind)), picked, OptionsChanged);
 
     // What the overlay counts: three choices, the one in use highlighted.
     public bool RangeAll => Options.RangeMode == "all";

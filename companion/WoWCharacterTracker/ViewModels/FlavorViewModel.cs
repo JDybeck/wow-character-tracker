@@ -173,6 +173,22 @@ sealed class FlavorViewModel : Observable
     public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
     public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
 
+    // Telling the guild and/or group in game chat (In game page; the addon's Announce.lua).
+    public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; Changed(); Raise(nameof(Announces)); } }
+    public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; Changed(); Raise(nameof(Announces)); } }
+    public bool Announces => AnnounceGuild || AnnounceParty;
+    static readonly (string Kind, string Name, string Tip)[] AnnounceNames =
+    [
+        ("level", "Level-ups", "\"Ding! Level 23. 22 to 23 took 41m 12s.\""), ("maxlevel", "Max level", "\"Reached max level 60! Total played 6d 4h 12m.\""),
+        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\" (without the group)"), ("loot", "Epic loot", "Epic and legendary items, as a link you can click"),
+        ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
+        ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
+        ("mplus", "Mythic+", "Mythic+ rating steps (Retail)"), ("pvp", "PvP rating", "PvP rating steps (Retail)"), ("death", "Deaths", "Hardcore deaths"),
+    ];
+    ObservableCollection<ToggleOption>? announceKinds;
+    public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
+        ToggleOption.Kinds(AnnounceNames.Where(k => IsRetail || k.Kind is not ("mplus" or "pvp")), Settings.AnnounceKinds, () => AddonSettingsChanged());
+
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
     public bool GridTopLeft { get => Corner == "TOPLEFT"; set { if (value) SetCorner("TOPLEFT"); } }
@@ -541,6 +557,23 @@ sealed class FlavorViewModel : Observable
     public ChipFilter Groups { get; }
     string GroupOf(CharacterRow r) => Flavor == Flavors.Forever ? r.Ruleset : r.Realm;
 
+    // The list's order: clicking a column header (or race, played, rating) sorts by it, again flips it.
+    CharacterSort? sort;
+    public CharacterSort Sort => sort ??= CharacterSort.Parse(main.Config.CharacterSort.GetValueOrDefault(Flavor.Key));
+    public ICommand SortCommand => sortCommand ??= new RelayCommand(p =>
+    {
+        if (p is not string key) return;
+        Sort.Click(key);
+        main.Config.CharacterSort[Flavor.Key] = Sort.ToString();
+        main.Config.Save();
+        ShowData(lastData);
+    });
+    ICommand? sortCommand;
+
+    // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
+    List<CharacterRow> allRows = [];
+    public CharacterRow? RowFor(string guid) => allRows.FirstOrDefault(r => r.Guid == guid);
+
     void ShowData(TrackerData data)
     {
         lastData = data;
@@ -565,10 +598,11 @@ sealed class FlavorViewModel : Observable
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
 
+        allRows = rows;
         Groups.Fill(rows, GroupOf);
 
         Characters.Clear();
-        foreach (var r in rows.Where(r => Groups.Matches(GroupOf(r))))
+        foreach (var r in Sort.Apply(rows.Where(r => Groups.Matches(GroupOf(r)))))
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
             r.SetPortraitChoice(main.Config.StandardPortraits.Contains(r.Guid), standard =>

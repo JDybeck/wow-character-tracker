@@ -191,6 +191,7 @@
       }
       if (look.duels && s.duels) row("Duels", record(s.duels));
       if (look.makgora && s.makgora) row("Mak'gora", record(s.makgora));
+      if (look.battlegrounds !== false && s.battlegrounds) row("Battlegrounds", record(s.battlegrounds));
       $("statsCol").style.display = st.childElementCount ? "" : "none";
 
       // Right: leveling. Without level times it's left out and the stats have the card.

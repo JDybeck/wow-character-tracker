@@ -11,7 +11,7 @@
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True"
         xmlns:views="clr-namespace:WoWCharacterTracker.Views">
 
-  <Grid Margin="28,22">
+  <Grid x:Name="Page" Margin="28,22">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>

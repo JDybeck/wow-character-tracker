@@ -200,6 +200,30 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
 
+  <!-- A column header that sorts the list (Content = the name, Tag = its arrow, "" when not in use). -->
+  <Style x:Key="SortHeader" TargetType="Button">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="ToolTip" Value="Sort by this (click again to flip)"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <StackPanel Orientation="Horizontal" Background="Transparent">
+            <TextBlock x:Name="Txt" Text="{TemplateBinding Content}" Style="{StaticResource ColumnHeader}"/>
+            <TextBlock Text="{TemplateBinding Tag}" FontSize="8" Foreground="{DynamicResource BlueTextBright}" Margin="5,0,0,0" VerticalAlignment="Center"/>
+          </StackPanel>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource Text}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style x:Key="Pill" TargetType="Border">
     <Setter Property="Background" Value="#CC1E293B"/>
     <Setter Property="BorderBrush" Value="#80334155"/>

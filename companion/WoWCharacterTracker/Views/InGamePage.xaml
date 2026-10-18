@@ -36,6 +36,31 @@
           </StackPanel>
         </Border>
 
+        <!-- Telling the guild and/or group in game chat (the addon's Announce.lua). -->
+        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+          <StackPanel>
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Tell your guild or group" Margin="0,0,0,4"/>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" TextWrapping="Wrap"
+                       Text="The addon writes one line in game chat when something happens, as you. Loot goes as a clickable item link. Messages wait until you're out of combat, and boss kills don't list the group."/>
+            <WrapPanel Margin="0,0,0,10">
+              <CheckBox Style="{StaticResource OptionChip}" Content="Guild chat" IsChecked="{Binding AnnounceGuild}" Margin="0,0,6,6"
+                        ToolTip="Write it in guild chat (when you're in a guild)"/>
+              <CheckBox Style="{StaticResource OptionChip}" Content="Party / raid chat" IsChecked="{Binding AnnounceParty}" Margin="0,0,6,6"
+                        ToolTip="Write it to your group: party, raid or instance chat (when you're in one)"/>
+            </WrapPanel>
+            <TextBlock Text="WHAT TO TELL" Style="{StaticResource SectionTitle}" FontSize="11" Margin="0,0,0,4"
+                       Visibility="{Binding Announces, Converter={StaticResource Visible}}"/>
+            <ItemsControl ItemsSource="{Binding AnnounceKinds}" ItemsPanel="{StaticResource Wrap}"
+                          Visibility="{Binding Announces, Converter={StaticResource Visible}}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" ToolTip="{Binding Tip}" Margin="0,0,6,6"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
         <!-- The data grid: the small black and white pattern the addon flashes for one frame per event. -->
         <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
           <StackPanel>

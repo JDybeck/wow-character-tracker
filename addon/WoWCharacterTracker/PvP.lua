@@ -125,6 +125,32 @@ function ns.onSystemMessage(text)
   end
 end
 
+-- Battlegrounds --------------------------------------------------------------
+
+-- When a battleground ends the game knows the winning team (GetBattlefieldWinner: 0 Horde, 1
+-- Alliance, nil while it's on). Recorded once per visit as kind "bg" with the battleground's name
+-- and lost when the other team won. Arenas don't count, and a draw records nothing.
+local bgRecorded = false
+function ns.checkBattleground()
+  local inInstance, instanceType = false, nil
+  if IsInInstance then inInstance, instanceType = IsInInstance() end
+  if not inInstance or instanceType ~= "pvp" then bgRecorded = false; return end
+  if bgRecorded or type(GetBattlefieldWinner) ~= "function" then return end
+  local winner = GetBattlefieldWinner()
+  if winner ~= 0 and winner ~= 1 then return end
+  -- Our team: GetBattlefieldArenaFaction follows retail's mercenary mode; else the faction.
+  local mine = type(GetBattlefieldArenaFaction) == "function" and GetBattlefieldArenaFaction() or nil
+  if mine ~= 0 and mine ~= 1 then mine = UnitFactionGroup("player") == "Horde" and 0 or 1 end
+  bgRecorded = true
+  local e = ns.characterInfo()
+  e.kind = "bg"
+  e.instance = GetInstanceInfo and GetInstanceInfo() or GetZoneText()
+  e.lost = winner ~= mine or nil
+  e.at = time()
+  e.id = string.format("%s:bg:%d", e.guid, e.at)
+  ns.addEvent(e)
+end
+
 -- Rating milestones (retail) -------------------------------------------------
 
 local PVP_BRACKETS = { [1] = "2v2", [2] = "3v3", [4] = "Rated Battlegrounds", [7] = "Solo Shuffle", [9] = "Battleground Blitz" }

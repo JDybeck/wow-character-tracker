@@ -72,6 +72,13 @@ class FlavorSettings
     public bool FlightReloadPrompt { get; set; } = true; // the addon offers a /reload on flight paths when bags changed
     public bool ChatReloadReminder { get; set; } = true; // and reminds in chat (good moments, every 30 minutes)
 
+    // The addon tells the guild and/or the group in game chat (Announce.lua), for these kinds:
+    // level, maxlevel, boss, loot (epic and better, as a link), mount, duel, makgora, bg, mplus, pvp, death.
+    public bool AnnounceGuild { get; set; }
+    public bool AnnounceParty { get; set; }
+    public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
+    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "mplus", "pvp"];
+
     // Where the addon draws its data grid for the instant posts (TOPLEFT, TOPRIGHT, BOTTOMLEFT,
     // BOTTOMRIGHT) and whether the small label shows next to it. The app reads every corner either way.
     public string GridCorner { get; set; } = "TOPLEFT";

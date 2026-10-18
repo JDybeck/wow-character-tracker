@@ -86,6 +86,8 @@
                       ToolTip="Duels won and lost"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Mak'gora record" IsChecked="{Binding ShowMakgora}" Margin="0,0,6,6"
                       ToolTip="Mak'goras won and lost (shown once there is one)"/>
+            <CheckBox Style="{StaticResource OptionChip}" Content="Battleground record" IsChecked="{Binding ShowBattlegrounds}" Margin="0,0,6,6"
+                      ToolTip="Battlegrounds won and lost (shown once there is one)"/>
           </WrapPanel>
 
           <DockPanel Margin="0,0,0,4">

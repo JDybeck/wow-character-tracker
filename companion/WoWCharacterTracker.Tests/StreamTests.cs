@@ -86,8 +86,22 @@ public class StreamTests
         var s = StreamSnapshot.Build(Ronnie, events, Now);
         Assert.Equal(new StreamRecord(2, 1), s.Duels);
         Assert.Equal(new StreamRecord(1, 0), s.Makgora);
-        // Losses count in the record but aren't highlights.
-        Assert.Equal(["Won a Mak'gora against Brandur", "Won a duel against Pellia", "Won a duel against Grimtusk"], s.Highlights);
+        // Wins and losses are both highlights (the newest three).
+        Assert.Equal(["Won a Mak'gora against Brandur", "Lost a duel to Grimtusk", "Won a duel against Pellia"], s.Highlights);
+    }
+
+    [Fact]
+    public void Battlegrounds_count_wins_and_losses_and_a_win_is_an_alert()
+    {
+        Entry[] events =
+        [
+            new() { Id = "bg1", Guid = Ronnie.Guid, Kind = "bg", Instance = "Warsong Gulch", At = Ago(TimeSpan.FromHours(1)) },
+            new() { Id = "bg2", Guid = Ronnie.Guid, Kind = "bg", Instance = "Arathi Basin", Lost = true, At = Ago(TimeSpan.FromMinutes(5)) },
+        ];
+        var s = StreamSnapshot.Build(Ronnie, events, Now);
+        Assert.Equal(new StreamRecord(1, 1), s.Battlegrounds);
+        Assert.Equal(["Lost Arathi Basin", "Won Warsong Gulch"], s.Highlights);
+        Assert.Equal("Won Warsong Gulch", s.Alert?.Line); // losses aren't alerts
     }
 
     [Fact]
@@ -109,7 +123,7 @@ public class StreamTests
         var s = StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { Since = Ago(TimeSpan.FromHours(1)) });
         Assert.Equal([22], s.Levels.Select(l => l.Level));
         Assert.Equal(new StreamRecord(0, 1), s.Duels);
-        Assert.Empty(s.Highlights); // the only win was before
+        Assert.Equal(["Lost a duel to Pellia"], s.Highlights); // the win was before
         Assert.StartsWith("Since ", s.SinceText);
     }
 

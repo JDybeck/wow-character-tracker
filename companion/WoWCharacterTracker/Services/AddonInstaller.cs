@@ -89,6 +89,7 @@ static partial class AddonInstaller
                   + $"  hideUI = {B(s.HideUiInShots)},\n"
                   + $"  flightReload = {B(s.FlightReloadPrompt)},\n"
                   + $"  chatReminder = {B(s.ChatReloadReminder)},\n"
+                  + $"  announce = {{ guild = {B(s.AnnounceGuild)}, party = {B(s.AnnounceParty)}, kinds = {{ {string.Join(", ", s.AnnounceKinds.Select(k => $"{k} = true"))} }} }},\n"
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")

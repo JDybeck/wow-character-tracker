@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace WoWCharacterTracker;
 
@@ -16,6 +18,23 @@ public partial class MainWindow : Window
         DiscordView.SizeChanged += (_, _) => FitRightColumn();
         StreamView.SizeChanged += (_, _) => FitRightColumn();
         if (ScreenshotMode.Target is { } shot) ScreenshotMode.Attach(this, vm, shot);
+        else if (Motion.Enabled) FadeInWhenReady();
+    }
+
+    // The window opens on its background and the content fades in once the first layout is done,
+    // so the short stall while the character list is built isn't seen as a stutter.
+    void FadeInWhenReady()
+    {
+        Page.Opacity = 0;
+        ContentRendered += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+        {
+            Page.Opacity = 1; // the base value the fade ends on (it holds 0 to 1 while it runs)
+            Page.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+                FillBehavior = FillBehavior.Stop,
+            });
+        });
     }
 
     // The right column scrolls as one: the console takes whatever height is left under Discord and

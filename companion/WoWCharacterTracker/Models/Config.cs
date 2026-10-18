@@ -43,6 +43,9 @@ class Config
     // The color theme picked per game tab (flavor key -> Theme option key); missing = the game's default.
     public Dictionary<string, string> Themes { get; set; } = [];
 
+    // How the character list is sorted, per game tab (flavor key -> "key:asc"/"key:desc", ViewModels/CharacterSort).
+    public Dictionary<string, string> CharacterSort { get; set; } = [];
+
     // Forever characters (GUIDs) shown with their standard race portrait instead of the in-game one.
     public List<string> StandardPortraits { get; set; } = [];
 
@@ -146,6 +149,15 @@ class Config
         {
             if (s.MPlusSteps.SequenceEqual(FlavorSettings.OldMPlusSteps)) { s.MPlusSteps = [.. FlavorSettings.DefaultMPlusSteps]; changed = true; }
             if (s.PvpSteps.SequenceEqual(FlavorSettings.OldPvpSteps)) { s.PvpSteps = [.. FlavorSettings.DefaultPvpSteps]; changed = true; }
+        }
+
+        var stream = config.StreamOptions;
+        if (!stream.HasBattlegrounds)
+        {
+            if (!stream.HighlightKinds.Contains("bg")) stream.HighlightKinds.Add("bg");
+            if (!stream.AlertKinds.Contains("bg")) stream.AlertKinds.Add("bg");
+            stream.HasBattlegrounds = true;
+            changed = true;
         }
 
         if (changed) config.Save();

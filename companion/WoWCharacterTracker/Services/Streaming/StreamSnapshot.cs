@@ -1,4 +1,4 @@
-﻿namespace WoWCharacterTracker.Services.Streaming;
+namespace WoWCharacterTracker.Services.Streaming;
 
 // What the stream overlay and the stream text files show, for the character played last. The card is
 // the character as it is now (item level, played, gold, keystone, ratings, duel and Mak'gora records) next to
@@ -12,7 +12,7 @@ sealed record StreamSnapshot(
     string Zone, string Played, string ItemLevel, IReadOnlyList<StreamLevel> Levels, string LastLevel, string Today,
     IReadOnlyList<string> Highlights, StreamAlert? Alert, long Now,
     StreamRecord? Duels = null, StreamRecord? Makgora = null, StreamLook? Look = null, string SinceText = "",
-    string Spec = "", string Gold = "", string Keystone = "", IReadOnlyList<StreamRating>? Ratings = null)
+    string Spec = "", string Gold = "", string Keystone = "", IReadOnlyList<StreamRating>? Ratings = null, StreamRecord? Battlegrounds = null)
 {
     public static readonly StreamSnapshot Empty = new("", "", 0, "", "#FFFFFF", "", "", "", "", "", [], "", "", [], null, 0, Look: StreamLook.From(new()));
 
@@ -68,7 +68,7 @@ sealed record StreamSnapshot(
             mine.Select(AlertFor).FirstOrDefault(a => a is not null && o.AlertKinds.Contains(a.Kind)),
             now.ToUnixTimeSeconds(),
             Record("duel"), Record("makgora"), StreamLook.From(o),
-            RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? []);
+            RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? [], Record("bg"));
     }
 
     // Under the card: what it counts, when it's not all time.
@@ -79,20 +79,9 @@ sealed record StreamSnapshot(
         _ => "",
     };
 
-    // One line per highlight, like the app's: "Looted Thunderfury...", "Won a duel against Grimtusk".
-    // Losses aren't highlights (they still count in the records).
-    public static string HighlightText(Entry e) => e.Kind switch
-    {
-        "loot" when e.Item.Length > 0 => $"Looted {e.Item}",
-        "boss" when e.Boss.Length > 0 => $"Killed {e.Boss}",
-        "mount" when e.Mount.Length > 0 => (e.Bought ? "Bought " : "Got ") + e.Mount,
-        "duel" when !e.Lost => e.Fled ? $"{e.Opponent} ran from a duel" : $"Won a duel against {e.Opponent}",
-        "makgora" when !e.Lost => $"Won a Mak'gora against {e.Opponent}",
-        "death" => $"Died at level {e.Level}",
-        "mplus" => $"Reached {e.Step} Mythic+ rating",
-        "pvp" => $"Reached {e.Step} in {e.Bracket}",
-        _ => "",
-    };
+    // One line per highlight, the same as the app's (Services.HighlightText): "Looted Thunderfury...",
+    // "Won a duel against Grimtusk", "Lost Warsong Gulch". Wins and losses both.
+    public static string HighlightText(Entry e) => Services.HighlightText.Text(e);
 
     // The overlay's alert for an event, the way Discord would post it, or null when it's not alert
     // material (a duel or Mak'gora lost, rare loot is its own kind). Tone picks the colors on the page.
@@ -107,6 +96,7 @@ sealed record StreamSnapshot(
         "mount" when e.Mount.Length > 0 => new(e.Id, "mount", "NEW MOUNT!", e.Mount, e.Bought ? "Bought" : "", "gold", e.At),
         "duel" when !e.Lost => new(e.Id, "duel", "VICTORY!", e.Fled ? $"{e.Opponent} ran from the duel" : $"Won a duel against {e.Opponent}", Capital(e.OpponentText), "duel", e.At),
         "makgora" when !e.Lost => new(e.Id, "makgora", "MAK'GORA!", $"{e.Opponent} fell to the death", Capital(e.OpponentText), "blood", e.At),
+        "bg" when !e.Lost => new(e.Id, "bg", "VICTORY!", e.Instance.Length > 0 ? $"Won {e.Instance}" : "Battleground won", "", "victory", e.At),
         "death" => new(e.Id, "death", "R.I.P.", $"{e.Char} fell at level {e.Level}", e.Played > 0 ? $"After {Format.Played(e.Played)} played" : "", "death", e.At),
         "mplus" => new(e.Id, "mplus", "MILESTONE!", $"{e.Step} Mythic+ rating", e.Rating > 0 ? $"Rating {e.Rating}" : "", "rating", e.At),
         "pvp" => new(e.Id, "pvp", "MILESTONE!", $"{e.Step} in {e.Bracket}", e.Rating > 0 ? $"Rating {e.Rating}" : "", "rating", e.At),
@@ -135,12 +125,12 @@ sealed record StreamRecord(int Won, int Lost)
 }
 
 // The newest alert-worthy moment; the overlay pops it up when it's new (Id) and recent (At).
-// Kind: level, maxlevel, boss, legendary, epic, rare, mount, duel, makgora, death, mplus, pvp.
+// Kind: level, maxlevel, boss, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
 // How the overlay looks: the card's background (0-100) and which parts it shows.
-sealed record StreamLook(int CardOpacity, bool Levels, bool Today, bool Duels, bool Makgora, bool Highlights, bool Stats = true)
+sealed record StreamLook(int CardOpacity, bool Levels, bool Today, bool Duels, bool Makgora, bool Highlights, bool Stats = true, bool Battlegrounds = true)
 {
     public static StreamLook From(StreamOptions o) =>
-        new(Math.Clamp(o.CardOpacity, 0, 100), o.ShowLevels, o.ShowToday, o.ShowDuels, o.ShowMakgora, o.ShowHighlights, o.ShowStats);
+        new(Math.Clamp(o.CardOpacity, 0, 100), o.ShowLevels, o.ShowToday, o.ShowDuels, o.ShowMakgora, o.ShowHighlights, o.ShowStats, o.ShowBattlegrounds);
 }

@@ -14,5 +14,6 @@ Inventory.lua
 LiveGrid.lua
 Events.lua
 PvP.lua
+Announce.lua
 Commands.lua
 WoWCharacterTracker.lua
