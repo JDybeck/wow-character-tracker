@@ -29,6 +29,7 @@ static class CardImage
         if (Shows("crests")) urls.AddRange(c.CrestList.Select(x => x.IconUrl));
         if (Shows("professions")) urls.AddRange(c.ProfessionList.Select(x => x.IconUrl));
         if (Shows("talents")) urls.AddRange(c.TalentPickList.Select(x => x.IconUrl));
+        if (Shows("stats")) urls.AddRange(c.StatChips.Select(x => x.IconUrl));
         urls.AddRange(highlights.Select(h => h.IconUrl));
         var images = new Dictionary<string, BitmapSource>();
         await Task.WhenAll(urls.OfType<string>().Distinct().Select(async url =>

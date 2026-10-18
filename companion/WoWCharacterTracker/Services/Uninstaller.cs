@@ -15,7 +15,9 @@ static class Uninstaller
         var parts = new List<Part>();
         if (CanRemoveApp && Environment.ProcessPath is { } exe)
         {
-            var files = new[] { exe, exe + ".old", exe + ".new", StartMenu.ShortcutPath }.Where(File.Exists).ToList();
+            // Test runs never make the Start menu shortcut, so they leave the real one alone.
+            var shortcut = Config.IsTest ? "" : StartMenu.ShortcutPath;
+            var files = new[] { exe, exe + ".old", exe + ".new", shortcut }.Where(File.Exists).ToList();
             parts.Add(new Part(Kind.App, "The app",
                 "The program, its Start menu shortcut and its entry in Windows startup (Open with World of Warcraft). It's removed a moment after the app closes.",
                 files, files.Sum(f => new FileInfo(f).Length)));

@@ -7,7 +7,7 @@ namespace WoWCharacterTracker.Ui;
 // For testing: CHARACTERTRACKER_SCREENSHOT=<png> renders the window to that file and quits, so
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
-//   extra:  rename | options (a webhook) | removehook | testchars | updating (the update banner mid-download) | updateready (a new version offered)
+//   extra:  rename | options (a webhook) | removehook | addhook (the Add form open) | testchars | updating (the update banner mid-download) | updateready (a new version offered)
 //           | stream (the Stream overlay panel on and open) | testall (every Test button) | addonupdate
 //           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
@@ -34,6 +34,7 @@ static class ScreenshotMode
             if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
             if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;
+            if (Part(2) == "addhook") vm.Discord.ShowAddWebhook = true;
             if (Part(2) == "testchars") { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             if (Part(2) == "testall")
                 foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "death", "duel", "makgora", "mplus", "pvp" })

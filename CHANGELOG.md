@@ -22,8 +22,9 @@ Alerts, a clearer card, and a pile of small things.
 - The Discord panel's webhook steps fold away behind **How do I make one?**.
 - README: a table of contents, and fresh pictures.
 - **Find it in Windows search**: the app adds itself to your Start menu, so typing "WoW Character Tracker" finds it. The Uninstall page removes the shortcut with the app.
-- **Icons for stats and places**: each stat in a character's overview has its icon (Strength, Agility, Crit...), and the last zone says what kind of place it is: dungeon, raid, battleground, city, town or the open world. The place kind comes with the updated addon; capital cities show right away.
+- **Icons for stats and places**: each stat in a character's overview and on the Discord character card has its icon (Strength, Agility, Crit...), and the last zone says what kind of place it is: dungeon, raid, battleground, city, town or the open world. The place kind comes with the updated addon; capital cities show right away.
 - **Your in-game portrait in Discord**: on Forever, talent posts and text character cards use the portrait you picked in the app (the one from the game) instead of the standard race picture.
+- The webhook help (the round **?**) also shows while you add another webhook, not only before the first one.
 - **A smaller download**: the exe is about 14 MB smaller (60 MB instead of 73). The tray icon no longer pulls in a whole second UI toolkit, and Windows' translations for languages the app doesn't use are left out.
 
 ## v0.19.0

@@ -197,8 +197,8 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
 
-      <!-- How to get a webhook, until there is one: one line, the steps folded away until asked for. -->
-      <StackPanel Visibility="{Binding HasWebhooks, Converter={StaticResource Hidden}}" Margin="0,8,0,4">
+      <!-- How to get a webhook, until there is one and while adding another: one line, the steps folded away until asked for. -->
+      <StackPanel Visibility="{Binding ShowWebhookHelp, Converter={StaticResource Visible}}" Margin="0,8,0,4">
         <DockPanel>
           <TextBlock DockPanel.Dock="Left" Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" Margin="0,0,8,0" VerticalAlignment="Center"
                      Text="A webhook is the link the app posts through."/>
