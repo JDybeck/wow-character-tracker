@@ -253,3 +253,26 @@ public class PlaceTests
             Assert.True(Wowhead.StatIcons.ContainsKey(stat), stat);
     }
 }
+
+public class DiscordCreditTests
+{
+    [Fact]
+    public void Credit_goes_under_the_main_embeds_text_without_changing_the_original()
+    {
+        var main = new Dictionary<string, object> { ["description"] = "Zeb just dinged level 40." };
+        var shot = new Dictionary<string, object> { ["image"] = new { url = "attachment://shot.jpg" } };
+        var sent = Services.Discord.DiscordWebhook.WithCredit([main, shot]);
+
+        Assert.Equal("Zeb just dinged level 40.\n" + Services.Discord.DiscordWebhook.Credit, sent[0]["description"]);
+        Assert.Contains("](https://github.com/JDybeck/wow-character-tracker)", Services.Discord.DiscordWebhook.Credit);
+        Assert.Same(shot, sent[1]);
+        Assert.Equal("Zeb just dinged level 40.", main["description"]); // the same embed goes to every webhook
+    }
+
+    [Fact]
+    public void Credit_alone_when_there_is_no_text()
+    {
+        var sent = Services.Discord.DiscordWebhook.WithCredit([new Dictionary<string, object>()]);
+        Assert.Equal(Services.Discord.DiscordWebhook.Credit, sent[0]["description"]);
+    }
+}

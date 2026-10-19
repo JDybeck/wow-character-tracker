@@ -40,6 +40,7 @@ public partial class App : Application
         base.OnStartup(e);
         Updater.CleanUp();
         StartMenu.Apply();
+        if (e.Args.Contains("--updated")) StartMenu.RefreshIcon();
 
         vm = new MainViewModel(backfill: e.Args.Contains("--backfill"), justUpdated: e.Args.Contains("--updated"));
         vm.Updates.UpdateStarted += QuitForUpdate;

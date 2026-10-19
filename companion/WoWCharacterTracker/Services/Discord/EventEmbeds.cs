@@ -63,7 +63,7 @@ sealed class EventEmbeds(Flavor flavor)
 
         // The thumbnail (the character's picture) is added by DiscordPoster, by CharacterPicture's rule.
 
-        var footer = isTest ? "Test message from Character Tracker" : e.Realm;
+        var footer = isTest ? "Test message" : e.Realm; // DiscordWebhook adds the app's name, linked
         if (footer.Length > 0) embed["footer"] = new { text = footer };
 
         return embed;
