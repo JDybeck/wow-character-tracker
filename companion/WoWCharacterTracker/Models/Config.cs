@@ -14,6 +14,9 @@ class Config
     public List<string> Tags { get; set; } = [];
     public Dictionary<string, List<string>> CharacterTags { get; set; } = [];
 
+    // The user's own notes per character (by GUID), written on the character's Notes tab.
+    public Dictionary<string, string> CharacterNotes { get; set; } = [];
+
     public IReadOnlyCollection<string> TagsOf(string guid) =>
         CharacterTags.TryGetValue(guid, out var t) ? t : [];
 

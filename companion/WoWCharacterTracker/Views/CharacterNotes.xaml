@@ -1,0 +1,12 @@
+<!-- The Notes tab of the character details: a plain notepad, kept per character in the app's config. -->
+<UserControl x:Class="WoWCharacterTracker.Views.CharacterNotes"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid Margin="0,12,0,0">
+    <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
+             MinHeight="160" MaxHeight="420" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" Padding="10,8" FontSize="13"/>
+    <TextBlock Text="Write down anything you want to keep track of for this character: gear to farm, quests, plans. Saved as you type."
+               Foreground="{StaticResource Faint}" FontSize="13" Margin="14,10,14,0" TextWrapping="Wrap" IsHitTestVisible="False"
+               VerticalAlignment="Top" Visibility="{Binding Note, Converter={StaticResource HiddenIfSet}}"/>
+  </Grid>
+</UserControl>

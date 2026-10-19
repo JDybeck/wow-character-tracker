@@ -599,6 +599,7 @@ sealed class FlavorViewModel : Observable
         foreach (var r in Sort.Apply(rows.Where(r => Groups.Matches(GroupOf(r)))))
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
+            r.SetNote(main.NoteFor(r.Guid), text => main.SaveNote(r.Guid, text));
             r.SetPortraitChoice(main.Config.StandardPortraits.Contains(r.Guid), standard =>
             {
                 main.Config.StandardPortraits.Remove(r.Guid);

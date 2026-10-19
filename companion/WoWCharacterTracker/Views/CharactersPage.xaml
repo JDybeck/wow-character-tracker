@@ -17,6 +17,7 @@
               <RadioButton Style="{StaticResource DetailTab}" Content="Overview" ToolTip="Who the character is, tags, posting and highlights" IsChecked="{Binding IsOverviewTab}" GroupName="{Binding Guid}"/>
               <RadioButton Style="{StaticResource DetailTab}" Content="Gear and bags" ToolTip="Equipped gear, bags and bank" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>
               <RadioButton Style="{StaticResource DetailTab}" Content="Leveling" ToolTip="Level times, the chart and the level history" IsChecked="{Binding IsLevelingTab}" GroupName="{Binding Guid}"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Notes" ToolTip="Your own notes for this character" IsChecked="{Binding IsNotesTab}" GroupName="{Binding Guid}"/>
             </StackPanel>
           </Border>
           <ContentControl Content="{Binding}" Focusable="False">
@@ -32,6 +33,13 @@
                     <Setter Property="ContentTemplate">
                       <Setter.Value>
                         <DataTemplate><views:CharacterGear ui:Motion.FadeIn="True"/></DataTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding DetailTab}" Value="notes">
+                    <Setter Property="ContentTemplate">
+                      <Setter.Value>
+                        <DataTemplate><views:CharacterNotes ui:Motion.FadeIn="True"/></DataTemplate>
                       </Setter.Value>
                     </Setter>
                   </DataTrigger>

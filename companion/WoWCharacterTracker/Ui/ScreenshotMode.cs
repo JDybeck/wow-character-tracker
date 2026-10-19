@@ -44,7 +44,7 @@ static class ScreenshotMode
             if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(c => c.Name == pick) ?? f.Characters.FirstOrDefault();
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
             if (Part(3) == "closed" && vm.SelectedFlavor is { } cf) cf.SelectedCharacter = null; // every row closed
-            if (Part(3) is "gear" or "leveling" && vm.SelectedFlavor?.SelectedCharacter is { } dc) dc.DetailTab = Part(3);
+            if (Part(3) is "gear" or "leveling" or "notes" && vm.SelectedFlavor?.SelectedCharacter is { } dc) dc.DetailTab = Part(3);
             if (Part(3) == "search" && vm.SelectedFlavor is { } sf) { await Task.Delay(2500); sf.Items.Search = "potion"; }
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);

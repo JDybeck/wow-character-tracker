@@ -289,6 +289,27 @@ sealed class MainViewModel : Observable
                 Log.Success($"[{tab.Name}] Posted {c.Name}'s talents to \"{w.Name}\".");
     }
 
+    // --- notes ---
+
+    public string NoteFor(string guid) => Config.CharacterNotes.TryGetValue(guid, out var n) ? n : "";
+
+    // Saved a moment after the last keystroke, not on every one.
+    readonly System.Windows.Threading.DispatcherTimer noteTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    bool noteTimerHooked;
+
+    public void SaveNote(string guid, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) Config.CharacterNotes.Remove(guid);
+        else Config.CharacterNotes[guid] = text;
+        if (!noteTimerHooked)
+        {
+            noteTimerHooked = true;
+            noteTimer.Tick += (_, _) => { noteTimer.Stop(); Config.Save(); };
+        }
+        noteTimer.Stop();
+        noteTimer.Start();
+    }
+
     // --- tags ---
 
     public IReadOnlyList<ToggleOption> TagOptionsFor(string guid) =>
