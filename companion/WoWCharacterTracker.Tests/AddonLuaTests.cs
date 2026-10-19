@@ -109,7 +109,6 @@ public class AddonLuaTests
                 WoWCharacterTrackerDB = {}
                 function UnitGUID() return "Player-1" end
                 function UnitName() return "Ronnie" end
-                function MouseIsOver() return mouseOver end
                 UIParent = {}
                 -- Any frame method does nothing, except the ones the box reads back.
                 local function widget()
@@ -123,6 +122,7 @@ public class AddonLuaTests
                     if k == "EnableMouse" then return function(s, on) s.mouse = on end end
                     if k == "SetColorTexture" then return function(s, r, g, b, a) s.alpha = a end end
                     if k == "GetStringHeight" then return function() return 40 end end
+                    if k == "IsMouseOver" then return function() return mouseOver end end
                     if k == "SetShown" then return function(s, on) s.shown = on end end
                     if k == "SetScript" then return function(s, ev, f) rawset(s, "on" .. ev, f) end end
                     if k == "CreateTexture" or k == "CreateFontString" then return function() return widget() end end

@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.25.1
+
+- **Fixed the note box erroring in game**: showing the box (or having it open at login) gave an "attempt to call a nil value" error every moment on newer clients, and its buttons never showed. Comes with the updated addon, so `/reload` once.
+
 ## v0.25.0
 
 - **Character notes, now in game too**: every character has a Notes tab in the app for anything you want to keep track of (gear to farm, quests, plans). Type `/wct note` in game to see it in a box on screen, and click **Edit** in the box to change it right there.
