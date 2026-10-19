@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.25.4
+
+- Discord posts show **WoW Character Tracker** small in the footer, with the app's logo, next to the time.
+- The posts' sender picture now shows the new logo (Discord had kept the old one cached).
+
 ## v0.25.3
 
 - **Clearer app icon at small sizes**: the taskbar, tray and title bar show a simpler WCT with the ring that's readable at those sizes; the full framed logo stays for large icons.

@@ -151,7 +151,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             ["title"] = title,
             ["description"] = description,
             ["timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
-            ["footer"] = new { text = c.IsTest ? "Test character" : flavor.Name }, // DiscordWebhook adds the app's name, linked
+            ["footer"] = new { text = c.IsTest ? "Test character" : flavor.Name }, // DiscordWebhook adds the app's name and logo
         };
         if (CharacterArt.ClassColor(c.ClassFile) is int color) embed["color"] = color;
         if (CharacterArt.ClassIconUrl(c.ClassFile) is { } classIcon)
