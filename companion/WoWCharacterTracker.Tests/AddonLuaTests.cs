@@ -102,7 +102,7 @@ public class AddonLuaTests
         try
         {
             var notes = new Dictionary<string, string> { ["Player-1"] = "Farm \"Sul'thraze\"\nthen | the bank", ["Player-2"] = "Other" };
-            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings { NoteBoxOpacity = 35 }, notes);
+            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings(), notes);
             var script = new Script();
             script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
             script.DoString("""
@@ -134,14 +134,64 @@ public class AddonLuaTests
 
             script.Call(ns.Get("toggleNoteBox"));
             Assert.Equal("Farm \"Sul'thraze\"\nthen || the bank", script.DoString("return WoWCharacterTrackerSettings.notes['Player-1']").String);
-            Assert.Equal(0.35, script.DoString("return WoWCharacterTrackerSettings.noteAlpha").Number);
             Assert.True(script.DoString("return WoWCharacterTrackerDB.noteBox.shown").Boolean);
 
             script.Call(ns.Get("lockNoteBox"), true);
             Assert.True(script.DoString("return WoWCharacterTrackerDB.noteBox.locked").Boolean);
+            Assert.Equal(0.6, script.Call(ns.Get("noteAlpha")).Number); // until set in the options
+            script.Call(ns.Get("setNoteAlpha"), 0.25);
+            Assert.Equal(0.25, script.DoString("return WoWCharacterTrackerDB.noteBox.alpha").Number);
 
             script.Call(ns.Get("toggleNoteBox"));
             Assert.False(script.DoString("return WoWCharacterTrackerDB.noteBox.shown").Boolean);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // Options.lua: registers a page under the game's AddOns options, and lists what the app set
+    // (from the Settings.lua it writes) when the page opens.
+    [Fact]
+    public void The_options_page_registers_and_lists_the_apps_settings()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-options-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings { AnnounceGuild = true, PostBosses = true });
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            script.DoString("""
+                WoWCharacterTrackerDB = { live = false }
+                UIParent = {}
+                frames, texts = {}, {}
+                registered = nil
+                Settings = {
+                  RegisterCanvasLayoutCategory = function(frame, name) return { name = name, GetID = function() return 1 end } end,
+                  RegisterAddOnCategory = function(c) registered = c.name end,
+                }
+                local function widget()
+                  local w = { scripts = {} }
+                  return setmetatable(w, { __index = function(_, k)
+                    if k == "SetScript" then return function(s, ev, f) s.scripts[ev] = f end end
+                    if k == "SetText" then return function(s, t) s.text = t; texts[#texts + 1] = t end end
+                    if k == "SetChecked" then return function(s, v) s.checked = v end end
+                    if k == "CreateTexture" or k == "CreateFontString" then return function() return widget() end end
+                    return function() end
+                  end })
+                end
+                function CreateFrame() local f = widget(); frames[#frames + 1] = f; return f end
+                """);
+            var ns = new Table(script);
+            ns["say"] = (Action<string>)(_ => { });
+            foreach (var file in new[] { "Shared.lua", "NoteBox.lua", "Options.lua" })
+                script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+            Assert.Equal("WoW Character Tracker", script.DoString("return registered").String);
+            script.DoString("frames[1].scripts.OnShow(frames[1])");
+            var summary = script.DoString("return texts[#texts]").String;
+            Assert.Contains("boss kills", summary);
+            Assert.Contains("Told in chat: guild", summary);
+            Assert.False(script.DoString("return frames[2].checked").Boolean); // instant posting, off in the saved file
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

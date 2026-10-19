@@ -82,21 +82,6 @@
           </StackPanel>
         </Border>
 
-        <!-- The /wct note box (the addon's NoteBox.lua): the character's note from its Notes tab. -->
-        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-          <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="Note box" Margin="0,0,0,4"/>
-            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" TextWrapping="Wrap"
-                       Text="Type /wct note in game to show the character's note (its Notes tab here) in a box. Drag it where you want it, then lock it with its Lock button or /wct note lock; a locked box lets clicks through. A changed note shows after a /reload."/>
-            <DockPanel MaxWidth="440" HorizontalAlignment="Left" Width="440">
-              <TextBlock DockPanel.Dock="Left" Text="Background" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
-              <TextBlock DockPanel.Dock="Right" Text="{Binding NoteBoxOpacity, StringFormat={}{0}%}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
-              <Slider Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Value="{Binding NoteBoxOpacity, Delay=300}" VerticalAlignment="Center"
-                      ToolTip="How solid the note box's background is: 0 is see-through (just the text), 100 is solid black"/>
-            </DockPanel>
-          </StackPanel>
-        </Border>
-
         <!-- Game settings the addon sets for you. -->
         <Border Style="{StaticResource PanelBorder}">
           <StackPanel>

@@ -17,5 +17,6 @@ Events.lua
 PvP.lua
 Announce.lua
 NoteBox.lua
+Options.lua
 Commands.lua
 WoWCharacterTracker.lua

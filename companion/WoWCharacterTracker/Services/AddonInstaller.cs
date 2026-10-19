@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -96,7 +95,6 @@ static partial class AddonInstaller
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")
-                  + $"  noteAlpha = {(Math.Clamp(s.NoteBoxOpacity, 0, 100) / 100.0).ToString("0.##", CultureInfo.InvariantCulture)},\n"
                   + "  notes = {\n"
                   + string.Concat((notes ?? new Dictionary<string, string>()).OrderBy(n => n.Key, StringComparer.Ordinal)
                       .Select(n => $"    [{LuaString(n.Key)}] = {LuaString(n.Value)},\n"))

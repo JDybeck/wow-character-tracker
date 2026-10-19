@@ -4,7 +4,9 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.25.0
 
-- **Your notes in game**: type `/wct note` to show the character's note (from its Notes tab in the app) in a box on screen. Drag it where you want it, then lock it with its Lock button or `/wct note lock` (a locked box lets clicks through, `/wct note unlock` to move it again). It stays open across reloads until you close it. The background's opacity is on the In game page. A changed note shows after a `/reload`. Comes with the updated addon.
+- **Your notes in game**: type `/wct note` to show the character's note (from its Notes tab in the app) in a box on screen. Drag it where you want it, then lock it with its Lock button or `/wct note lock` (a locked box lets clicks through, `/wct note unlock` to move it again). It stays open across reloads until you close it. A changed note shows after a `/reload`. Comes with the updated addon.
+- **The addon has its own page in the game's options**: Esc, Options, AddOns, WoW Character Tracker (or `/wct options`). Turn instant posting and the reload popup on or off, show or lock the note box and set its background opacity (it changes as you drag). What the app decides (what gets posted, screenshots, chat announcements, reminders) is listed there too, read-only.
+- **Notes tab says it shows in game**, with how to open it.
 - **Played time fits**: the last seen column is wider, so long played times (100+ days) aren't cut off.
 
 ## v0.24.5

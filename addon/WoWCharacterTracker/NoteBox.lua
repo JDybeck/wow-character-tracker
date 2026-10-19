@@ -1,7 +1,7 @@
 -- /wct note: the character's note from the app (its Notes tab), in a box on screen.
--- The app writes the notes into Settings.lua (`notes`, by GUID) with the box's background
--- opacity (`noteAlpha`, 0-1), so a new note shows after a /reload. Where the box sits, whether
--- it's locked and whether it's open are kept in WoWCharacterTrackerDB.noteBox.
+-- The app writes the notes into Settings.lua (`notes`, by GUID), so a new note shows after a
+-- /reload. Where the box sits, whether it's locked or open and its background opacity (`alpha`,
+-- 0-1, set in the game's AddOns options, Options.lua) are kept in WoWCharacterTrackerDB.noteBox.
 local ADDON, ns = ...
 
 local WIDTH, PAD = 280, 10
@@ -47,10 +47,9 @@ local function build()
   box:SetScript("OnDragStart", function(self) if not state().locked then self:StartMoving() end end)
   box:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); savePosition() end)
 
-  local alpha = tonumber(ns.setting("noteAlpha")) or 0.6
   box.bg = box:CreateTexture(nil, "BACKGROUND")
   box.bg:SetAllPoints()
-  box.bg:SetColorTexture(0, 0, 0, alpha)
+  box.bg:SetColorTexture(0, 0, 0, ns.noteAlpha())
 
   local title = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   title:SetPoint("TOPLEFT", PAD, -PAD + 2)
@@ -95,10 +94,23 @@ function ns.toggleNoteBox(show)
   box:Show()
 end
 
-function ns.lockNoteBox(locked)
+-- quiet: from the options panel, where the checkbox already says it.
+function ns.lockNoteBox(locked, quiet)
   state().locked = locked
   if box then applyLock() end
-  ns.say(locked and "Note box locked. /wct note unlock to move it again." or "Note box unlocked: drag it to move it.")
+  if not quiet then
+    ns.say(locked and "Note box locked. /wct note unlock to move it again." or "Note box unlocked: drag it to move it.")
+  end
+end
+
+function ns.noteBoxShown() return box ~= nil and box:IsShown() end
+function ns.noteBoxLocked() return state().locked == true end
+
+-- The background's opacity, 0 (see-through) to 1 (solid black); applied right away.
+function ns.noteAlpha() return tonumber(state().alpha) or 0.6 end
+function ns.setNoteAlpha(alpha)
+  state().alpha = alpha
+  if box then box.bg:SetColorTexture(0, 0, 0, alpha) end
 end
 
 -- At login: open again if it was open when the game last saved.

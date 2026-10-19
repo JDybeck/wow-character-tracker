@@ -187,7 +187,6 @@ sealed class FlavorViewModel : Observable
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
     public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
     public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
-    public int NoteBoxOpacity { get => Settings.NoteBoxOpacity; set { Settings.NoteBoxOpacity = value; Changed(); } }
 
     // A character's note changed: the addon gets it in Settings.lua for /wct note.
     public void NotesChanged()
