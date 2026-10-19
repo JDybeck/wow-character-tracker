@@ -39,11 +39,12 @@ local function savePosition()
 end
 
 -- With "buttons on hover" (the default) Edit, Lock and the X only show while the mouse is over the
--- box (or while editing). MouseIsOver works for a locked box too, which takes no mouse events.
+-- box (or while editing). The frame's own IsMouseOver works for a locked box too, which takes no
+-- mouse events (the old global MouseIsOver is gone on newer clients).
 local function hoverButtons() return state().hoverButtons ~= false end
 
 local function updateButtons()
-  local on = box.editing or not hoverButtons() or MouseIsOver(box)
+  local on = box.editing or not hoverButtons() or box:IsMouseOver()
   if on == box.buttonsShown then return end
   box.buttonsShown = on
   for _, b in ipairs(box.buttons) do b:SetShown(on) end
