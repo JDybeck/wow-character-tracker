@@ -78,7 +78,7 @@ sealed class CharacterRow : Observable
     public CharacterGear Gear => gear ??= MakeGear?.Invoke() ?? CharacterGear.Empty;
     public CharacterLeveling Leveling { get; init; } = new();
 
-    // The details are split into tabs: "overview", "gear" (gear and bags) and "leveling".
+    // The details are split into tabs: "overview", "gear" (gear and bags), "leveling" and "notes".
     string detailTab = "overview";
     public string DetailTab
     {
@@ -86,9 +86,20 @@ sealed class CharacterRow : Observable
         set
         {
             if (!Set(ref detailTab, value)) return;
-            Raise(nameof(IsOverviewTab)); Raise(nameof(IsGearTab)); Raise(nameof(IsLevelingTab));
+            Raise(nameof(IsOverviewTab)); Raise(nameof(IsGearTab)); Raise(nameof(IsLevelingTab)); Raise(nameof(IsNotesTab));
         }
     }
+    public bool IsNotesTab { get => DetailTab == "notes"; set { if (value) DetailTab = "notes"; } }
+
+    // The user's own notes for the character (the Notes tab), stored by the app's config.
+    string note = "";
+    Action<string>? saveNote;
+    public string Note
+    {
+        get => note;
+        set { if (Set(ref note, value)) saveNote?.Invoke(value); }
+    }
+    public void SetNote(string text, Action<string> save) { note = text; saveNote = save; }
     public bool IsOverviewTab { get => DetailTab == "overview"; set { if (value) DetailTab = "overview"; } }
     public bool IsGearTab { get => DetailTab == "gear"; set { if (value) DetailTab = "gear"; } }
     public bool IsLevelingTab { get => DetailTab == "leveling"; set { if (value) DetailTab = "leveling"; } }
@@ -151,6 +162,7 @@ sealed class CharacterRow : Observable
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
     public string PlayedText => Played > 0 ? Format.Played(Played) : "-";
+    public string PlayedLine => Played > 0 ? $"{Format.Played(Played)} played" : "";
     public string LastSeenText => Format.Ago(LastSeen) is { Length: > 0 } s ? s : "-";
     public string ProfessionsText => Professions is { Length: > 0 } and not "None" ? Professions : "None yet";
     public string TalentsText => Talents.Length > 0 ? Talents : "-";
