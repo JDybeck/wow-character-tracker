@@ -92,6 +92,134 @@ public class AddonLuaTests
         Assert.Empty(Announce("{ }", "{ kind = 'level', level = 5 }")); // Settings.lua from an older app
     }
 
+    // /wct note: the note comes from the Settings.lua the app writes (quotes, new lines and "|" kept
+    // as text), the box remembers open/locked, and a locked box lets clicks through.
+    [Fact]
+    public void The_note_box_shows_the_characters_note_from_the_apps_settings()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-note-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            GameNote[] notes = [new("Player-1", "Farm \"Sul'thraze\"\nthen | the bank", 1000), new("Player-2", "Other", 1000)];
+            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings(), notes);
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            script.DoString("""
+                WoWCharacterTrackerDB = {}
+                function UnitGUID() return "Player-1" end
+                function UnitName() return "Ronnie" end
+                function MouseIsOver() return mouseOver end
+                UIParent = {}
+                -- Any frame method does nothing, except the ones the box reads back.
+                local function widget()
+                  local w = { shown = false }
+                  return setmetatable(w, { __index = function(_, k)
+                    if k:sub(1, 1) == k:sub(1, 1):lower() then return nil end -- fields, not methods
+                    if k == "Show" then return function(s) s.shown = true end end
+                    if k == "Hide" then return function(s) s.shown = false end end
+                    if k == "IsShown" then return function(s) return s.shown end end
+                    if k == "SetText" then return function(s, t) s.text = t end end
+                    if k == "EnableMouse" then return function(s, on) s.mouse = on end end
+                    if k == "SetColorTexture" then return function(s, r, g, b, a) s.alpha = a end end
+                    if k == "GetStringHeight" then return function() return 40 end end
+                    if k == "SetShown" then return function(s, on) s.shown = on end end
+                    if k == "SetScript" then return function(s, ev, f) rawset(s, "on" .. ev, f) end end
+                    if k == "CreateTexture" or k == "CreateFontString" then return function() return widget() end end
+                    return function() end
+                  end })
+                end
+                local frames = {}
+                function CreateFrame() local f = widget(); frames[#frames + 1] = f; return f end
+                -- The box is the first frame, its X the second.
+                function WoWCharacterTrackerNoteBoxButtonsShown() return frames[2].shown end
+                function WoWCharacterTrackerNoteBoxTick() frames[1].onOnUpdate(frames[1], 1) end
+                """);
+            var ns = new Table(script);
+            ns["say"] = (Action<string>)(_ => { });
+            foreach (var file in new[] { "Shared.lua", "NoteBox.lua" })
+                script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+            script.Call(ns.Get("toggleNoteBox"));
+            // Buttons hidden until the mouse is over the box, or always shown with the option off.
+            Assert.False(script.DoString("return WoWCharacterTrackerNoteBoxButtonsShown()").Boolean);
+            script.DoString("mouseOver = true");
+            script.DoString("WoWCharacterTrackerNoteBoxTick()");
+            Assert.True(script.DoString("return WoWCharacterTrackerNoteBoxButtonsShown()").Boolean);
+            script.DoString("mouseOver = false");
+            script.Call(ns.Get("setNoteButtonsOnHover"), false);
+            Assert.True(script.DoString("return WoWCharacterTrackerNoteBoxButtonsShown()").Boolean);
+            Assert.Equal("Farm \"Sul'thraze\"\nthen || the bank", script.Call(ns.Get("currentNote")).String);
+
+            // Edited in game later: that one wins, until the app writes a newer one.
+            script.DoString("function time() return 2000 end");
+            script.Call(ns.Get("saveNote"), "Edited in game");
+            Assert.Equal("Edited in game", script.Call(ns.Get("currentNote")).String);
+            script.DoString("WoWCharacterTrackerSettings.notes['Player-1'] = { text = 'From the app', at = 3000 }");
+            Assert.Equal("From the app", script.Call(ns.Get("currentNote")).String);
+            Assert.True(script.DoString("return WoWCharacterTrackerDB.noteBox.shown").Boolean);
+
+            script.Call(ns.Get("lockNoteBox"), true);
+            Assert.True(script.DoString("return WoWCharacterTrackerDB.noteBox.locked").Boolean);
+            Assert.Equal(0.6, script.Call(ns.Get("noteAlpha")).Number); // until set in the options
+            script.Call(ns.Get("setNoteAlpha"), 0.25);
+            Assert.Equal(0.25, script.DoString("return WoWCharacterTrackerDB.noteBox.alpha").Number);
+
+            script.Call(ns.Get("toggleNoteBox"));
+            Assert.False(script.DoString("return WoWCharacterTrackerDB.noteBox.shown").Boolean);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // Options.lua: registers a page under the game's AddOns options, and lists what the app set
+    // (from the Settings.lua it writes) when the page opens.
+    [Fact]
+    public void The_options_page_registers_and_lists_the_apps_settings()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-options-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings { AnnounceGuild = true, PostBosses = true });
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            script.DoString("""
+                WoWCharacterTrackerDB = { live = false }
+                UIParent = {}
+                frames, texts = {}, {}
+                registered = nil
+                Settings = {
+                  RegisterCanvasLayoutCategory = function(frame, name) return { name = name, GetID = function() return 1 end } end,
+                  RegisterAddOnCategory = function(c) registered = c.name end,
+                }
+                local function widget()
+                  local w = { scripts = {} }
+                  return setmetatable(w, { __index = function(_, k)
+                    if k:sub(1, 1) == k:sub(1, 1):lower() then return nil end -- fields, not methods
+                    if k == "SetScript" then return function(s, ev, f) s.scripts[ev] = f end end
+                    if k == "SetText" then return function(s, t) s.text = t; texts[#texts + 1] = t end end
+                    if k == "SetChecked" then return function(s, v) s.checked = v end end
+                    if k == "CreateTexture" or k == "CreateFontString" then return function() return widget() end end
+                    return function() end
+                  end })
+                end
+                function CreateFrame() local f = widget(); frames[#frames + 1] = f; return f end
+                """);
+            var ns = new Table(script);
+            ns["say"] = (Action<string>)(_ => { });
+            foreach (var file in new[] { "Shared.lua", "NoteBox.lua", "Options.lua" })
+                script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+            Assert.Equal("WoW Character Tracker", script.DoString("return registered").String);
+            script.DoString("frames[1].scripts.OnShow(frames[1])");
+            var summary = script.DoString("return texts[#texts]").String;
+            Assert.Contains("boss kills", summary);
+            Assert.Contains("Told in chat: guild", summary);
+            Assert.False(script.DoString("return frames[2].checked").Boolean); // instant posting, off in the saved file
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // Inventory.lua's scanGearEffects over stubbed tooltips: head and legs are tier (the legs a
     // catalysted piece, which the game's tooltip counts all the same), the chest has an Equip line.
     [Fact]

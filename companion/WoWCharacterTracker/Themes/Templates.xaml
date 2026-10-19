@@ -167,7 +167,7 @@
   <GridLength x:Key="ColLevel">70</GridLength>
   <GridLength x:Key="ColIlvl">80</GridLength>
   <GridLength x:Key="ColGold">95</GridLength>
-  <GridLength x:Key="ColSeen">85</GridLength>
+  <GridLength x:Key="ColSeen">115</GridLength> <!-- room for "1234d 23h 59m played" under last seen -->
 
   <Style x:Key="CharacterItem" TargetType="ListBoxItem">
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>

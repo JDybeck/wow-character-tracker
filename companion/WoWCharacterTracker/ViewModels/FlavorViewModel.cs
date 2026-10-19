@@ -97,7 +97,7 @@ sealed class FlavorViewModel : Observable
     void WriteAddonSettings()
     {
         if (flavorDir is null) return;
-        try { AddonInstaller.WriteSettings(flavorDir, Settings); }
+        try { AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes()); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log.Warn($"[{Name}] Couldn't save the screenshot settings for the addon: {ex.Message}");
@@ -187,6 +187,15 @@ sealed class FlavorViewModel : Observable
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
     public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
     public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
+
+    // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
+    // for a note that came from the game: it has it already.
+    public void NotesChanged(bool hint = true)
+    {
+        if (!IsOn) return;
+        WriteAddonSettings();
+        if (hint) HintReload();
+    }
 
     // Telling the guild and/or group in game chat (In game page; the addon's Announce.lua).
     public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; Changed(); Raise(nameof(Announces)); } }
@@ -583,8 +592,10 @@ sealed class FlavorViewModel : Observable
                 Inventories = [.. data.Inventories, .. test.Inventories],
                 XpTable = data.XpTable.Count > 0 ? data.XpTable : test.XpTable,
                 ItemClasses = data.ItemClasses,
+                Notes = data.Notes,
             };
         }
+        main.TakeGameNotes(data.Notes); // notes edited in game, newer than the app's
         Lookup.SetItemClasses(data.ItemClasses);
         var keepTab = SelectedCharacter?.DetailTab;
         Motion.Quiet(); // the rows are rebuilt: what's open stays still

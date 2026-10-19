@@ -83,7 +83,7 @@ sealed class UpdatesViewModel : Observable
         UpdateButtonText = $"Update to v{latest.Version}";
         update = latest;
         BannerTitle = $"Version {latest.Version} is available (you have {Updater.Current}).";
-        BannerNotes = latest.Notes.Trim();
+        BannerNotes = Format.ReleaseNotes(latest.Notes);
         ShowNotes = false;
         ShowBanner = true;
         Raise(nameof(HasUpdate));
@@ -140,7 +140,7 @@ sealed class UpdatesViewModel : Observable
         Log.Success($"Updated to {VersionText}.");
         if (await Updater.ForVersionAsync(Updater.Current) is not { } release) return;
         BannerTitle = $"Updated to {VersionText}. Here's what's new:";
-        BannerNotes = release.Notes.Trim();
+        BannerNotes = Format.ReleaseNotes(release.Notes);
         ShowNotes = true;
         ShowBanner = true;
     }

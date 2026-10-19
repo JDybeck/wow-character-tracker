@@ -53,7 +53,11 @@ static class ScreenshotMode
             if (Part(2) == "updateready") // the update banner and header button for a new version
             {
                 var next = new Version(Updater.Current.Major, Updater.Current.Minor + 1, 0);
-                vm.Updates.Offer(new Updater.Release(next, $"v{next}", "- Something new", "", ""));
+                // CHARACTERTRACKER_SCREENSHOT_NOTES: a file with release notes to show, opened.
+                var notesFile = Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_NOTES");
+                var notes = notesFile is { Length: > 0 } && File.Exists(notesFile) ? File.ReadAllText(notesFile) : "- Something new";
+                vm.Updates.Offer(new Updater.Release(next, $"v{next}", notes, "", ""));
+                if (notesFile is { Length: > 0 }) vm.Updates.ShowNotes = true;
             }
             if (Part(2) == "stream") { vm.Stream.PanelOpen = true; vm.Stream.Enabled = true; }
             if (Part(3) == "exclude" && vm.SelectedFlavor is { } xf) // Items: Bags focused, then Bank left out (saved as <name>-only.png first)

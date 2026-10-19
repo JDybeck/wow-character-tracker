@@ -1,12 +1,19 @@
-<!-- The Notes tab of the character details: a plain notepad, kept per character in the app's config. -->
+<!-- The Notes tab of the character details: a plain notepad, kept per character in the app's config
+     and written into the addon's Settings.lua, so /wct note shows it in game. -->
 <UserControl x:Class="WoWCharacterTracker.Views.CharacterNotes"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <Grid Margin="0,12,0,0">
+  <StackPanel Margin="0,12,0,0">
+    <TextBlock Text="NOTES, ALSO SHOWN IN GAME" Foreground="{StaticResource Muted}" FontSize="11" FontWeight="SemiBold"/>
+    <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,10" TextWrapping="Wrap">
+      <Run Text="Anything you want to keep track of for this character: gear to farm, quests, plans. Saved as you type."/>
+      <LineBreak/>
+      <Run Text="In game, type"/>
+      <Run Text="/wct note" Foreground="{StaticResource TextSoft}" FontWeight="SemiBold"/>
+      <Run Text="to show it in a box, and click Edit there to change it in game. The newest edit wins: the game gets changes from here on /reload, and this tab gets the game's when you /reload or log out. Move, lock or set the box's opacity in game under Esc, Options, AddOns, WoW Character Tracker (or"/>
+      <Run Text="/wct options" Foreground="{StaticResource TextSoft}" FontWeight="SemiBold"/><Run Text=")."/>
+    </TextBlock>
     <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
-             MinHeight="160" MaxHeight="420" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" Padding="10,8" FontSize="13"/>
-    <TextBlock Text="Write down anything you want to keep track of for this character: gear to farm, quests, plans. Saved as you type."
-               Foreground="{StaticResource Faint}" FontSize="13" Margin="14,10,14,0" TextWrapping="Wrap" IsHitTestVisible="False"
-               VerticalAlignment="Top" Visibility="{Binding Note, Converter={StaticResource HiddenIfSet}}"/>
-  </Grid>
+             MinHeight="160" MaxHeight="420" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top"/>
+  </StackPanel>
 </UserControl>

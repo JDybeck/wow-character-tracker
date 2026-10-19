@@ -291,7 +291,17 @@ sealed class MainViewModel : Observable
 
     // --- notes ---
 
-    public string NoteFor(string guid) => Config.CharacterNotes.TryGetValue(guid, out var n) ? n : "";
+    public string NoteFor(string guid) => Config.NoteOf(guid);
+
+    // Notes edited in game (read from the saved file): the ones newer than the app's replace them.
+    public void TakeGameNotes(IEnumerable<GameNote> notes)
+    {
+        var taken = notes.Where(Config.TakeNewerNote).ToList();
+        if (taken.Count == 0) return;
+        Config.Save();
+        foreach (var tab in FlavorTabs) tab.NotesChanged(hint: false);
+        foreach (var n in taken) Log.Info($"Took the note for {FlavorTabs.Select(t => t.RowFor(n.Guid)?.Name).FirstOrDefault(s => s is not null) ?? "a character"} from the game.");
+    }
 
     // Saved a moment after the last keystroke, not on every one.
     readonly System.Windows.Threading.DispatcherTimer noteTimer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -299,12 +309,16 @@ sealed class MainViewModel : Observable
 
     public void SaveNote(string guid, string text)
     {
-        if (string.IsNullOrWhiteSpace(text)) Config.CharacterNotes.Remove(guid);
-        else Config.CharacterNotes[guid] = text;
+        Config.SetNote(guid, text, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         if (!noteTimerHooked)
         {
             noteTimerHooked = true;
-            noteTimer.Tick += (_, _) => { noteTimer.Stop(); Config.Save(); };
+            noteTimer.Tick += (_, _) =>
+            {
+                noteTimer.Stop();
+                Config.Save();
+                foreach (var tab in FlavorTabs) tab.NotesChanged(); // /wct note reads them from Settings.lua
+            };
         }
         noteTimer.Stop();
         noteTimer.Start();

@@ -87,7 +87,6 @@ class FlavorSettings
     public static readonly string[] Corners = ["TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"];
     public static string CornerOrDefault(string? corner) => Corners.Contains(corner) ? corner! : "TOPLEFT";
     public bool? AdvancedCombatLog { get; set; } // the game's Advanced Combat Logging; null = leave the player's setting alone
-
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
 

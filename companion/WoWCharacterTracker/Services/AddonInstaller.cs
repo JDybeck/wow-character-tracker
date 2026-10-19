@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace WoWCharacterTracker.Services;
@@ -69,8 +70,9 @@ static partial class AddonInstaller
         if (Directory.Exists(target)) Directory.Delete(target, recursive: true);
     }
 
-    // Settings.lua tells the addon which events get a screenshot. The game reads it on /reload or login.
-    public static void WriteSettings(string flavorDir, FlavorSettings s)
+    // Settings.lua tells the addon which events get a screenshot, and carries the characters' notes
+    // (by GUID, with when they were written) for /wct note. The game reads it on /reload or login.
+    public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -93,9 +95,34 @@ static partial class AddonInstaller
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")
+                  + "  notes = {\n"
+                  + string.Concat((notes ?? []).OrderBy(n => n.Guid, StringComparer.Ordinal)
+                      .Select(n => $"    [{LuaString(n.Guid)}] = {{ text = {LuaString(n.Text)}, at = {n.At} }},\n"))
+                  + "  },\n"
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
         if (!File.Exists(file) || File.ReadAllText(file) != lua) File.WriteAllText(file, lua);
+    }
+
+    // A Lua string literal for any text. "|" is doubled: in a game font string it starts a color or
+    // link code, and "||" shows a plain "|".
+    internal static string LuaString(string text)
+    {
+        var sb = new StringBuilder("\"");
+        foreach (var c in text)
+        {
+            switch (c)
+            {
+                case '\\': sb.Append(@"\\"); break;
+                case '"': sb.Append("\\\""); break;
+                case '\n': sb.Append(@"\n"); break;
+                case '\r': break;
+                case '\t': sb.Append(@"\t"); break;
+                case '|': sb.Append("||"); break;
+                default: if (!char.IsControl(c)) sb.Append(c); break;
+            }
+        }
+        return sb.Append('"').ToString();
     }
 
     public static void SetInterface(string flavorDir, int interfaceVersion)
