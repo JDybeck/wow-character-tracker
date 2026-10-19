@@ -257,22 +257,26 @@ public class PlaceTests
 public class DiscordCreditTests
 {
     [Fact]
-    public void Credit_goes_under_the_main_embeds_text_without_changing_the_original()
+    public void Credit_goes_after_the_main_embeds_footer_without_changing_the_original()
     {
-        var main = new Dictionary<string, object> { ["description"] = "Zeb just dinged level 40." };
+        var footer = new { text = "Forever" };
+        var main = new Dictionary<string, object> { ["description"] = "Zeb just dinged level 40.", ["footer"] = footer };
         var shot = new Dictionary<string, object> { ["image"] = new { url = "attachment://shot.jpg" } };
         var sent = Services.Discord.DiscordWebhook.WithCredit([main, shot]);
 
-        Assert.Equal("Zeb just dinged level 40.\n" + Services.Discord.DiscordWebhook.Credit, sent[0]["description"]);
-        Assert.Contains("](https://github.com/JDybeck/wow-character-tracker)", Services.Discord.DiscordWebhook.Credit);
+        var sentFooter = Assert.IsType<Dictionary<string, string>>(sent[0]["footer"]);
+        Assert.Equal("Forever • WoW Character Tracker", sentFooter["text"]);
+        Assert.Equal(Services.Discord.DiscordWebhook.LogoUrl, sentFooter["icon_url"]);
+        Assert.Equal("Zeb just dinged level 40.", sent[0]["description"]);
         Assert.Same(shot, sent[1]);
-        Assert.Equal("Zeb just dinged level 40.", main["description"]); // the same embed goes to every webhook
+        Assert.Same(footer, main["footer"]); // the same embed goes to every webhook
     }
 
     [Fact]
-    public void Credit_alone_when_there_is_no_text()
+    public void Credit_alone_when_there_is_no_footer()
     {
         var sent = Services.Discord.DiscordWebhook.WithCredit([new Dictionary<string, object>()]);
-        Assert.Equal(Services.Discord.DiscordWebhook.Credit, sent[0]["description"]);
+        var footer = Assert.IsType<Dictionary<string, string>>(sent[0]["footer"]);
+        Assert.Equal(Services.Discord.DiscordWebhook.Credit, footer["text"]);
     }
 }

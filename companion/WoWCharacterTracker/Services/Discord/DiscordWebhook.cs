@@ -18,21 +18,29 @@ sealed partial class DiscordWebhook(string url)
 
     public enum Result { Sent, Failed, TooLarge }
 
-    // The sender picture when there's no character portrait.
-    const string LogoUrl = "https://raw.githubusercontent.com/JDybeck/wow-character-tracker/main/companion/WoWCharacterTracker/Assets/logo.png";
+    // The sender picture. Discord caches avatars by URL, so the query changes whenever the logo does.
+    internal const string LogoUrl = "https://raw.githubusercontent.com/JDybeck/wow-character-tracker/main/companion/WoWCharacterTracker/Assets/logo.png?v=2";
 
-    // Every post ends with the app's name, linked to the repo, as small text (Discord's "-#" subtext)
-    // under the main embed's text. Not the footer: footers can't hold links.
-    internal const string Credit = "-# [WoW Character Tracker](https://github.com/JDybeck/wow-character-tracker)";
+    // Every post ends its footer with the app's name and logo, small, next to the time.
+    // Footers can't hold links, and Discord always puts the time last.
+    internal const string Credit = "WoW Character Tracker";
 
     internal static IReadOnlyList<Dictionary<string, object>> WithCredit(IReadOnlyList<Dictionary<string, object>> embeds)
     {
         if (embeds.Count == 0) return embeds;
         var main = new Dictionary<string, object>(embeds[0]); // a copy: the same embeds go to every webhook
-        var text = main.TryGetValue("description", out var d) ? d as string : null;
-        main["description"] = string.IsNullOrEmpty(text) ? Credit : $"{text}\n{Credit}";
+        var text = main.TryGetValue("footer", out var f) ? FooterText(f) : null;
+        main["footer"] = new Dictionary<string, string>
+        {
+            ["text"] = string.IsNullOrEmpty(text) ? Credit : $"{text} • {Credit}",
+            ["icon_url"] = LogoUrl,
+        };
         return [main, .. embeds.Skip(1)];
     }
+
+    // Footers are built as anonymous objects ({ text }), so read the text through JSON.
+    static string? FooterText(object footer) =>
+        JsonSerializer.SerializeToElement(footer).TryGetProperty("text", out var t) ? t.GetString() : null;
 
     public static bool LooksLikeWebhook(string url) => WebhookPattern().IsMatch(url.Trim());
 
