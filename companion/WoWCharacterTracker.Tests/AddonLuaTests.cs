@@ -109,6 +109,7 @@ public class AddonLuaTests
                 WoWCharacterTrackerDB = {}
                 function UnitGUID() return "Player-1" end
                 function UnitName() return "Ronnie" end
+                function MouseIsOver() return mouseOver end
                 UIParent = {}
                 -- Any frame method does nothing, except the ones the box reads back.
                 local function widget()
@@ -122,11 +123,17 @@ public class AddonLuaTests
                     if k == "EnableMouse" then return function(s, on) s.mouse = on end end
                     if k == "SetColorTexture" then return function(s, r, g, b, a) s.alpha = a end end
                     if k == "GetStringHeight" then return function() return 40 end end
+                    if k == "SetShown" then return function(s, on) s.shown = on end end
+                    if k == "SetScript" then return function(s, ev, f) rawset(s, "on" .. ev, f) end end
                     if k == "CreateTexture" or k == "CreateFontString" then return function() return widget() end end
                     return function() end
                   end })
                 end
-                function CreateFrame() return widget() end
+                local frames = {}
+                function CreateFrame() local f = widget(); frames[#frames + 1] = f; return f end
+                -- The box is the first frame, its X the second.
+                function WoWCharacterTrackerNoteBoxButtonsShown() return frames[2].shown end
+                function WoWCharacterTrackerNoteBoxTick() frames[1].onOnUpdate(frames[1], 1) end
                 """);
             var ns = new Table(script);
             ns["say"] = (Action<string>)(_ => { });
@@ -134,6 +141,14 @@ public class AddonLuaTests
                 script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
             script.Call(ns.Get("toggleNoteBox"));
+            // Buttons hidden until the mouse is over the box, or always shown with the option off.
+            Assert.False(script.DoString("return WoWCharacterTrackerNoteBoxButtonsShown()").Boolean);
+            script.DoString("mouseOver = true");
+            script.DoString("WoWCharacterTrackerNoteBoxTick()");
+            Assert.True(script.DoString("return WoWCharacterTrackerNoteBoxButtonsShown()").Boolean);
+            script.DoString("mouseOver = false");
+            script.Call(ns.Get("setNoteButtonsOnHover"), false);
+            Assert.True(script.DoString("return WoWCharacterTrackerNoteBoxButtonsShown()").Boolean);
             Assert.Equal("Farm \"Sul'thraze\"\nthen || the bank", script.Call(ns.Get("currentNote")).String);
 
             // Edited in game later: that one wins, until the app writes a newer one.

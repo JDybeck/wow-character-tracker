@@ -86,10 +86,21 @@ local lockNote = checkbox("Lock it in place", "Can't be dragged, and clicks go t
   function(on) ns.lockNoteBox(on, true) end)
 lockNote:SetPoint("TOPLEFT", showNote, "BOTTOMLEFT", 0, -18)
 
+local hoverNote = checkbox("Buttons only on mouseover", "Edit, Lock and the X show while your mouse is over the box.",
+  function() return ns.noteButtonsOnHover() end,
+  function(on) ns.setNoteButtonsOnHover(on) end)
+hoverNote:SetPoint("TOPLEFT", lockNote, "BOTTOMLEFT", 0, -18)
+
+local reset = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+reset:SetSize(150, 22)
+reset:SetText("Reset position")
+reset:SetPoint("TOPLEFT", hoverNote, "BOTTOMLEFT", 4, -20)
+reset:SetScript("OnClick", function() ns.resetNoteBox() end)
+
 local opacity = slider("Background opacity",
   function() return math.floor(ns.noteAlpha() * 100 + 0.5) end,
   function(v) ns.setNoteAlpha(v / 100) end)
-opacity:SetPoint("TOPLEFT", lockNote, "BOTTOMLEFT", 4, -36)
+opacity:SetPoint("TOPLEFT", reset, "BOTTOMLEFT", 0, -30)
 
 local appTitle = text(panel, "GameFontNormal", "Set in the Character Tracker app")
 appTitle:SetPoint("TOPLEFT", opacity, "BOTTOMLEFT", -4, -28)

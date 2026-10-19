@@ -38,6 +38,17 @@ local function savePosition()
   s.point, s.relPoint, s.x, s.y = point, relPoint, x, y
 end
 
+-- With "buttons on hover" (the default) Edit, Lock and the X only show while the mouse is over the
+-- box (or while editing). MouseIsOver works for a locked box too, which takes no mouse events.
+local function hoverButtons() return state().hoverButtons ~= false end
+
+local function updateButtons()
+  local on = box.editing or not hoverButtons() or MouseIsOver(box)
+  if on == box.buttonsShown then return end
+  box.buttonsShown = on
+  for _, b in ipairs(box.buttons) do b:SetShown(on) end
+end
+
 -- Locked: the box can't be dragged and clicks go through it to the game (only its buttons and
 -- the edit field take them).
 local function applyLock()
@@ -64,6 +75,7 @@ local function setEditing(on)
   box.edit:SetShown(on)
   box.editBg:SetShown(on)
   box.editButton:SetText(on and "Save" or "Edit")
+  updateButtons()
   if on then
     box.edit:SetText(ns.currentNote())
     box.edit:SetFocus()
@@ -119,6 +131,15 @@ local function build()
     setEditing(not box.editing)
   end)
 
+  box.buttons = { close, box.lock, box.editButton }
+  local sinceCheck = 0
+  box:SetScript("OnUpdate", function(_, elapsed)
+    sinceCheck = sinceCheck + elapsed
+    if sinceCheck < 0.1 then return end
+    sinceCheck = 0
+    updateButtons()
+  end)
+
   box.text = box:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   box.text:SetPoint("TOPLEFT", PAD, -PAD - 18)
   box.text:SetWidth(WIDTH - PAD * 2)
@@ -149,6 +170,22 @@ local function build()
   else box:SetPoint("CENTER", UIParent, "CENTER", 0, 120) end
 end
 
+-- Back to the middle of the screen (if it got lost off screen or behind something).
+function ns.resetNoteBox()
+  local s = state()
+  s.point, s.relPoint, s.x, s.y = nil, nil, nil, nil
+  if box then
+    box:ClearAllPoints()
+    box:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+  end
+end
+
+function ns.noteButtonsOnHover() return hoverButtons() end
+function ns.setNoteButtonsOnHover(on)
+  state().hoverButtons = on
+  if box then updateButtons() end
+end
+
 -- show: true/false, or nil to flip.
 function ns.toggleNoteBox(on)
   if on == nil then on = not (box and box:IsShown()) end
@@ -164,6 +201,7 @@ function ns.toggleNoteBox(on)
   show()
   applyLock()
   box:Show()
+  updateButtons()
 end
 
 -- quiet: from the options panel, where the checkbox already says it.
