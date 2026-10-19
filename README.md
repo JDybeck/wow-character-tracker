@@ -64,7 +64,7 @@ Each game has a **What gets posted** page, in three columns:
   - **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair. The post shows the item like its Wowhead tooltip, as a picture: icon, name in its quality color, item level, damage and speed, stats, green Equip lines and the sell price.
   - **New mounts**: bought from a vendor or learned.
 - **PvE**
-  - **End boss kills**: the last boss of a dungeon or raid, with the group. You can skip the post when someone in the group matches a regex, for friends who run the tracker too, so the same kill isn't posted twice.
+  - **End boss kills**: the last boss of a dungeon or raid, with the group. On by default, only each character's first kill of a boss is posted (turn off **First kill only** to post every kill). You can skip the post when someone in the group matches a regex, for friends who run the tracker too, so the same kill isn't posted twice.
   - **Hardcore deaths**: what killed the character, total played and the gold they had on them.
   - **Mythic+ rating** (Retail): when your rating climbs past one of your steps (2000, 2500, 3000, 3500 and 4000 by default). Going from 2800 to 3000 posts; going from 3000 to 3200 doesn't. Each step posts once per season.
 - **PvP**
@@ -98,6 +98,8 @@ The **In game** page has what the addon does in game besides posting:
 
 - **Instant posting**: the corner the small data grid is flashed in (top left, top right, bottom left or bottom right), and whether its small label shows.
 - **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
+- **Character notes in game**: `/wct note` shows this character's note in a box on screen, the same note as the app's Notes tab. Click **Edit** in the box to change it right there. The newest edit wins: the game takes the app's changes on `/reload`, and the app takes the game's when you `/reload` or log out. Drag the box where you want it, then **Lock** it (`/wct note lock`) so your clicks go through to the game. `/wct note unlock` moves it again, and `/wct note reset` puts it back in the middle of the screen. Its buttons only show while your mouse is over the box, unless you turn that off.
+- **Addon options**: Esc, Options, AddOns, WoW Character Tracker (or `/wct options`). Show, lock or reset the note box, set how see-through its background is, and turn instant posting and the reload popup on or off. What the app decides (what gets posted, screenshots, announcements, reminders) is listed there too, read-only.
 
 ### The app
 
@@ -108,6 +110,7 @@ The **In game** page has what the addon does in game besides posting:
     <img src="docs/images/gear-and-bags.png" alt="A character's gear and bags in the app" width="560">
 
   - **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew, your duel record, and the level history. On Forever also the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP too.
+  - **Notes**: a notepad for anything you want to keep track of (gear to farm, quests, plans). It's the same note as the note box in game, and the newest edit wins on either side.
 - **Items**: everything your characters carry (worn, bags and bank) in one list per server, with icons. Search by name to see who has what and where. Click **Equipped**, **Bags** or **Bank** to show only that place, click it again to leave that place out instead (it turns red and crossed out), and once more for everything. Or show only one type (gear, consumables, trade goods, quest items). Hover an item for its tooltip, colored like in game. Each server shows when and where every character was last saved, since items only update on `/reload` or logout.
 
   ![The Items page: every item with who has it and where, with place and type chips](docs/images/items.png)
@@ -188,7 +191,9 @@ Treat the link like a password: anyone with it can post in that channel. The app
 - `/wct test` checks that instant posting reaches the app.
 - `/wct live` turns instant posting on or off.
 - `/wct help` lists these in game.
-- `/wct popup` turns on a reload popup after a ding, if you'd rather not use instant posting.
+- `/wct popup` turns the reload popup after a ding on or off, if you'd rather not use instant posting.
+- `/wct note` shows or hides this character's note box. `/wct note lock` and `/wct note unlock` pin it in place or let you move it, and `/wct note reset` brings it back to the middle of the screen.
+- `/wct options` opens the addon's options page (also under Esc, Options, AddOns).
 - `/wct debug` saves what your client's talent, name and guild functions return, and the addon's recent `/played` requests and answers (for tracking down problems on new clients).
 
 ## How it works
