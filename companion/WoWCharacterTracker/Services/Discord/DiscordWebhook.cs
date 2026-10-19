@@ -21,6 +21,19 @@ sealed partial class DiscordWebhook(string url)
     // The sender picture when there's no character portrait.
     const string LogoUrl = "https://raw.githubusercontent.com/JDybeck/wow-character-tracker/main/companion/WoWCharacterTracker/Assets/logo.png";
 
+    // Every post ends with the app's name, linked to the repo, as small text (Discord's "-#" subtext)
+    // under the main embed's text. Not the footer: footers can't hold links.
+    internal const string Credit = "-# [WoW Character Tracker](https://github.com/JDybeck/wow-character-tracker)";
+
+    internal static IReadOnlyList<Dictionary<string, object>> WithCredit(IReadOnlyList<Dictionary<string, object>> embeds)
+    {
+        if (embeds.Count == 0) return embeds;
+        var main = new Dictionary<string, object>(embeds[0]); // a copy: the same embeds go to every webhook
+        var text = main.TryGetValue("description", out var d) ? d as string : null;
+        main["description"] = string.IsNullOrEmpty(text) ? Credit : $"{text}\n{Credit}";
+        return [main, .. embeds.Skip(1)];
+    }
+
     public static bool LooksLikeWebhook(string url) => WebhookPattern().IsMatch(url.Trim());
 
     // Asks Discord about the webhook. Returns its display name, or null with a reason.
@@ -66,7 +79,7 @@ sealed partial class DiscordWebhook(string url)
         var body = new Dictionary<string, object>
         {
             ["avatar_url"] = LogoUrl,
-            ["embeds"] = embeds,
+            ["embeds"] = WithCredit(embeds),
             ["allowed_mentions"] = new { parse = Array.Empty<string>() },
         };
         var json = JsonSerializer.Serialize(body);

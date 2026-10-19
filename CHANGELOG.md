@@ -2,6 +2,12 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.25.3
+
+- **Clearer app icon at small sizes**: the taskbar, tray and title bar show a simpler WCT with the ring that's readable at those sizes; the full framed logo stays for large icons.
+- Discord posts end with a small **WoW Character Tracker** line that links to the app's GitHub page.
+- After an update Windows is told the icon changed, so the taskbar and Start menu don't keep showing the old one.
+
 ## v0.25.2
 
 - **New logo**: the WCT logo in the app's header, a new icon for the app (taskbar, tray, Start menu) and a new picture for Discord posts.
