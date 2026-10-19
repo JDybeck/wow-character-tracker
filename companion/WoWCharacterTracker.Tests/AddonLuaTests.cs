@@ -101,7 +101,7 @@ public class AddonLuaTests
         Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
         try
         {
-            var notes = new Dictionary<string, string> { ["Player-1"] = "Farm \"Sul'thraze\"\nthen | the bank", ["Player-2"] = "Other" };
+            GameNote[] notes = [new("Player-1", "Farm \"Sul'thraze\"\nthen | the bank", 1000), new("Player-2", "Other", 1000)];
             WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings(), notes);
             var script = new Script();
             script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
@@ -114,6 +114,7 @@ public class AddonLuaTests
                 local function widget()
                   local w = { shown = false }
                   return setmetatable(w, { __index = function(_, k)
+                    if k:sub(1, 1) == k:sub(1, 1):lower() then return nil end -- fields, not methods
                     if k == "Show" then return function(s) s.shown = true end end
                     if k == "Hide" then return function(s) s.shown = false end end
                     if k == "IsShown" then return function(s) return s.shown end end
@@ -133,7 +134,14 @@ public class AddonLuaTests
                 script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
             script.Call(ns.Get("toggleNoteBox"));
-            Assert.Equal("Farm \"Sul'thraze\"\nthen || the bank", script.DoString("return WoWCharacterTrackerSettings.notes['Player-1']").String);
+            Assert.Equal("Farm \"Sul'thraze\"\nthen || the bank", script.Call(ns.Get("currentNote")).String);
+
+            // Edited in game later: that one wins, until the app writes a newer one.
+            script.DoString("function time() return 2000 end");
+            script.Call(ns.Get("saveNote"), "Edited in game");
+            Assert.Equal("Edited in game", script.Call(ns.Get("currentNote")).String);
+            script.DoString("WoWCharacterTrackerSettings.notes['Player-1'] = { text = 'From the app', at = 3000 }");
+            Assert.Equal("From the app", script.Call(ns.Get("currentNote")).String);
             Assert.True(script.DoString("return WoWCharacterTrackerDB.noteBox.shown").Boolean);
 
             script.Call(ns.Get("lockNoteBox"), true);
@@ -172,6 +180,7 @@ public class AddonLuaTests
                 local function widget()
                   local w = { scripts = {} }
                   return setmetatable(w, { __index = function(_, k)
+                    if k:sub(1, 1) == k:sub(1, 1):lower() then return nil end -- fields, not methods
                     if k == "SetScript" then return function(s, ev, f) s.scripts[ev] = f end end
                     if k == "SetText" then return function(s, t) s.text = t; texts[#texts + 1] = t end end
                     if k == "SetChecked" then return function(s, v) s.checked = v end end

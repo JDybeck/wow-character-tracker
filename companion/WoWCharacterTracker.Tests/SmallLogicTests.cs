@@ -28,6 +28,32 @@ public class RatingTests
     public void Ratings_text(int score, string pvp, string expected) => Assert.Equal(expected, Format.RatingsText(score, pvp));
 
     [Fact]
+    public void Release_notes_read_as_plain_text_in_the_banner() =>
+        Assert.Equal("• Notes in game: type /wct note.\n      ◦ Lock it.\n\nComes with the addon.",
+            Format.ReleaseNotes("- **Notes in game**: type `/wct note`.\r\n  - Lock it.\r\n\r\nComes with the addon.\r\n"));
+
+    // A note edited in game replaces the app's only when it's newer; clearing counts as an edit.
+    [Fact]
+    public void The_newer_note_wins()
+    {
+        var config = new Config();
+        config.SetNote("P-1", "From the app", 1000);
+        Assert.False(config.TakeNewerNote(new GameNote("P-1", "Old game edit", 900)));
+        Assert.True(config.TakeNewerNote(new GameNote("P-1", "", 1100)));
+        Assert.Equal("", config.NoteOf("P-1"));
+        Assert.Equal([new GameNote("P-1", "", 1100)], config.Notes().ToList()); // the clear still reaches the game
+    }
+
+    [Fact]
+    public void Notes_edited_in_game_are_read_from_the_saved_file()
+    {
+        var file = Path.Combine(Path.GetTempPath(), "wct-notes-" + Guid.NewGuid().ToString("N") + ".lua");
+        File.WriteAllText(file, "WoWCharacterTrackerDB = { notes = { [\"Player-1\"] = { text = \"a || b\\nc\", at = 1234 } } }");
+        try { Assert.Equal([new GameNote("Player-1", "a | b\nc", 1234)], SavedVariables.Read(file).Notes); }
+        finally { File.Delete(file); }
+    }
+
+    [Fact]
     public void Every_rating_has_an_icon()
     {
         var all = Format.Ratings(1, "1~1,2~1,4~1,7~1,9~1");

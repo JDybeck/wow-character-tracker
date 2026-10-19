@@ -14,8 +14,30 @@ class Config
     public List<string> Tags { get; set; } = [];
     public Dictionary<string, List<string>> CharacterTags { get; set; } = [];
 
-    // The user's own notes per character (by GUID), written on the character's Notes tab.
+    // The user's own notes per character (by GUID), written on the character's Notes tab or in game,
+    // and when each was last written (unix seconds; kept for a cleared note too, so clearing wins).
     public Dictionary<string, string> CharacterNotes { get; set; } = [];
+    public Dictionary<string, long> CharacterNotesAt { get; set; } = [];
+
+    public string NoteOf(string guid) => CharacterNotes.TryGetValue(guid, out var n) ? n : "";
+
+    public void SetNote(string guid, string text, long at)
+    {
+        if (string.IsNullOrWhiteSpace(text)) CharacterNotes.Remove(guid);
+        else CharacterNotes[guid] = text;
+        CharacterNotesAt[guid] = at;
+    }
+
+    // A note from the game counts only when it was written after the app's.
+    public bool TakeNewerNote(GameNote note)
+    {
+        if (note.At <= CharacterNotesAt.GetValueOrDefault(note.Guid)) return false;
+        SetNote(note.Guid, note.Text, note.At);
+        return true;
+    }
+
+    public IEnumerable<GameNote> Notes() =>
+        CharacterNotes.Keys.Union(CharacterNotesAt.Keys).Select(g => new GameNote(g, NoteOf(g), CharacterNotesAt.GetValueOrDefault(g)));
 
     public IReadOnlyCollection<string> TagsOf(string guid) =>
         CharacterTags.TryGetValue(guid, out var t) ? t : [];

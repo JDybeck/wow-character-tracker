@@ -4,10 +4,14 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.25.0
 
-- **Your notes in game**: type `/wct note` to show the character's note (from its Notes tab in the app) in a box on screen. Drag it where you want it, then lock it with its Lock button or `/wct note lock` (a locked box lets clicks through, `/wct note unlock` to move it again). It stays open across reloads until you close it. A changed note shows after a `/reload`. Comes with the updated addon.
-- **The addon has its own page in the game's options**: Esc, Options, AddOns, WoW Character Tracker (or `/wct options`). Turn instant posting and the reload popup on or off, show or lock the note box and set its background opacity (it changes as you drag). What the app decides (what gets posted, screenshots, chat announcements, reminders) is listed there too, read-only.
-- **Notes tab says it shows in game**, with how to open it.
+- **Character notes, now in game too**: every character has a Notes tab in the app for anything you want to keep track of (gear to farm, quests, plans). Type `/wct note` in game to see it in a box on screen, and click **Edit** in the box to change it right there.
+  - Write it wherever is handy: the newest edit wins. The game gets the app's changes on `/reload`, and the app gets the game's when you `/reload` or log out.
+  - Drag the box where you want it, then **Lock** it (its button, or `/wct note lock`). A locked box lets your clicks through to the game; `/wct note unlock` to move it again. It stays open across reloads until you close it.
+  - Set how see-through its background is in the addon's options (below).
+- **The addon has its own page in the game's options**: Esc, Options, AddOns, WoW Character Tracker (or `/wct options`). Show or lock the note box and set its background opacity (it changes as you drag), and turn instant posting and the reload popup after a ding on or off. What the app decides (what gets posted, screenshots, chat announcements, reminders) is listed there too, read-only.
 - **Played time fits**: the last seen column is wider, so long played times (100+ days) aren't cut off.
+
+Comes with the updated addon, so `/reload` once after the app updates.
 
 ## v0.24.5
 

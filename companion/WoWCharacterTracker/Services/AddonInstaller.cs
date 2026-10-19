@@ -71,8 +71,8 @@ static partial class AddonInstaller
     }
 
     // Settings.lua tells the addon which events get a screenshot, and carries the characters' notes
-    // (by GUID) for /wct note. The game reads it on /reload or login.
-    public static void WriteSettings(string flavorDir, FlavorSettings s, IReadOnlyDictionary<string, string>? notes = null)
+    // (by GUID, with when they were written) for /wct note. The game reads it on /reload or login.
+    public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -96,8 +96,8 @@ static partial class AddonInstaller
                   + $"  gridLabel = {B(s.GridLabel)},\n"
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")
                   + "  notes = {\n"
-                  + string.Concat((notes ?? new Dictionary<string, string>()).OrderBy(n => n.Key, StringComparer.Ordinal)
-                      .Select(n => $"    [{LuaString(n.Key)}] = {LuaString(n.Value)},\n"))
+                  + string.Concat((notes ?? []).OrderBy(n => n.Guid, StringComparer.Ordinal)
+                      .Select(n => $"    [{LuaString(n.Guid)}] = {{ text = {LuaString(n.Text)}, at = {n.At} }},\n"))
                   + "  },\n"
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");

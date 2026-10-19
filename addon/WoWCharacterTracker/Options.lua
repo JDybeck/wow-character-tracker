@@ -73,7 +73,7 @@ popup:SetPoint("TOPLEFT", live, "BOTTOMLEFT", 0, -18)
 
 local noteTitle = text(panel, "GameFontNormal", "Note box (/wct note)")
 noteTitle:SetPoint("TOPLEFT", popup, "BOTTOMLEFT", 2, -26)
-local noteHint = text(panel, "GameFontDisableSmall", "Write the note on the character's Notes tab in the app; a changed note shows after a /reload.")
+local noteHint = text(panel, "GameFontDisableSmall", "Edit it right in the box, or on the character's Notes tab in the app. The newest edit wins; each side gets the other's on /reload.")
 noteHint:SetPoint("TOPLEFT", noteTitle, "BOTTOMLEFT", 0, -4)
 
 local showNote = checkbox("Show the note box", "The character's note in a box on screen.",

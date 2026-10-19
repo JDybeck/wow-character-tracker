@@ -95,6 +95,16 @@ static partial class Format
         return Duration(seconds);
     }
 
+    // A release's notes (CHANGELOG markdown) as plain text for the update banner: no ** or `,
+    // bullets as dots, sub-bullets indented.
+    public static string ReleaseNotes(string markdown) => string.Join("\n", markdown.Trim().Split('\n').Select(line =>
+    {
+        line = line.TrimEnd('\r').Replace("**", "").Replace("`", "");
+        if (line.StartsWith("  - ")) return "      ◦ " + line[4..];
+        if (line.StartsWith("- ")) return "• " + line[2..];
+        return line;
+    }));
+
     // Copper as "12,345g 34s 56c", leaving out leading zero parts.
     public static string Money(long copper)
     {

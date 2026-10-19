@@ -100,7 +100,7 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     ns.say("/wct test checks that instant posting reaches the companion app.")
     ns.say("/wct live turns instant posting on or off.")
     ns.say("/wct popup turns the reload popup after a ding on or off.")
-    ns.say("/wct note shows or hides this character's note from the app. /wct note lock or unlock pins it in place.")
+    ns.say("/wct note shows or hides this character's note (Edit in the box to change it). /wct note lock or unlock pins it in place.")
     ns.say("/wct options opens the addon's settings (also under Esc, Options, AddOns).")
     ns.say("/wct debug saves details for tracking down problems.")
   else

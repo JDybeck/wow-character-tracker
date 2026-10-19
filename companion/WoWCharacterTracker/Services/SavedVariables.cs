@@ -25,7 +25,19 @@ static class SavedVariables
             Inventories = ReadInventories(db.Table.Get("items")),
             XpTable = ReadXpTable(db.Table.Get("xpTable")),
             ItemClasses = ReadItemClasses(db.Table.Get("itemClasses")),
+            Notes = ReadNotes(db.Table.Get("notes")),
         };
+    }
+
+    // notes[guid] = { text, at }: notes edited in game. The game keeps "|" as "||".
+    static List<GameNote> ReadNotes(DynValue table)
+    {
+        var notes = new List<GameNote>();
+        if (table.Type != DataType.Table) return notes;
+        foreach (var p in table.Table.Pairs)
+            if (p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
+                notes.Add(new GameNote(p.Key.String, S(p.Value.Table, "text").Replace("||", "|"), (long)N(p.Value.Table, "at")));
+        return notes;
     }
 
     // itemClasses[itemId] = the item's class (consumable, weapon, armor, trade goods...).

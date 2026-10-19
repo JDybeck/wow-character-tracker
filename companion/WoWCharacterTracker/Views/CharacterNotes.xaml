@@ -10,7 +10,7 @@
       <LineBreak/>
       <Run Text="In game, type"/>
       <Run Text="/wct note" Foreground="{StaticResource TextSoft}" FontWeight="SemiBold"/>
-      <Run Text="to show it in a box. The game picks up changes on /reload or login. Move, lock or set the box's opacity in game under Esc, Options, AddOns, WoW Character Tracker (or"/>
+      <Run Text="to show it in a box, and click Edit there to change it in game. The newest edit wins: the game gets changes from here on /reload, and this tab gets the game's when you /reload or log out. Move, lock or set the box's opacity in game under Esc, Options, AddOns, WoW Character Tracker (or"/>
       <Run Text="/wct options" Foreground="{StaticResource TextSoft}" FontWeight="SemiBold"/><Run Text=")."/>
     </TextBlock>
     <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
