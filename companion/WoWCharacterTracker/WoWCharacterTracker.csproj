@@ -11,7 +11,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>WoWCharacterTracker</AssemblyName>
     <RootNamespace>WoWCharacterTracker</RootNamespace>
-    <Version>0.25.1</Version>
+    <Version>0.25.2</Version>
     <!-- dotnet publish -c Release gives one WoWCharacterTracker.exe that runs without .NET installed. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
@@ -38,9 +38,10 @@
     <Using Include="System.Threading" />
   </ItemGroup>
 
-  <!-- The logo, for the header and the window/taskbar icon. -->
+  <!-- The logo: the wordmark in the header, the framed icon for the window/taskbar. logo.png (square)
+       stays in the repo for Discord's sender picture (DiscordWebhook.LogoUrl), it isn't built in. -->
   <ItemGroup>
-    <Resource Include="Assets\logo.png" />
+    <Resource Include="Assets\wordmark.png" />
     <Resource Include="Assets\app.ico" />
   </ItemGroup>
 
