@@ -87,11 +87,18 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     sendTest()
   elseif msg == "debug" then
     saveDebug()
+  elseif msg == "note" then
+    ns.toggleNoteBox()
+  elseif msg == "note lock" then
+    ns.lockNoteBox(true)
+  elseif msg == "note unlock" then
+    ns.lockNoteBox(false)
   elseif msg == "help" then
     ns.say("/wct shows your last 10 level times.")
     ns.say("/wct test checks that instant posting reaches the companion app.")
     ns.say("/wct live turns instant posting on or off.")
     ns.say("/wct popup turns the reload popup after a ding on or off.")
+    ns.say("/wct note shows or hides this character's note from the app. /wct note lock or unlock pins it in place.")
     ns.say("/wct debug saves details for tracking down problems.")
   else
     showHistory()

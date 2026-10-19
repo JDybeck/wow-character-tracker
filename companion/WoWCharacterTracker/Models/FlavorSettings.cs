@@ -88,6 +88,9 @@ class FlavorSettings
     public static string CornerOrDefault(string? corner) => Corners.Contains(corner) ? corner! : "TOPLEFT";
     public bool? AdvancedCombatLog { get; set; } // the game's Advanced Combat Logging; null = leave the player's setting alone
 
+    // The /wct note box's background in game, 0 (see-through) to 100 (solid).
+    public int NoteBoxOpacity { get; set; } = 60;
+
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
 

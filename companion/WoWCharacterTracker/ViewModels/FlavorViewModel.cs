@@ -97,7 +97,7 @@ sealed class FlavorViewModel : Observable
     void WriteAddonSettings()
     {
         if (flavorDir is null) return;
-        try { AddonInstaller.WriteSettings(flavorDir, Settings); }
+        try { AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.CharacterNotes); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log.Warn($"[{Name}] Couldn't save the screenshot settings for the addon: {ex.Message}");
@@ -187,6 +187,15 @@ sealed class FlavorViewModel : Observable
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
     public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
     public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
+    public int NoteBoxOpacity { get => Settings.NoteBoxOpacity; set { Settings.NoteBoxOpacity = value; Changed(); } }
+
+    // A character's note changed: the addon gets it in Settings.lua for /wct note.
+    public void NotesChanged()
+    {
+        if (!IsOn) return;
+        WriteAddonSettings();
+        HintReload();
+    }
 
     // Telling the guild and/or group in game chat (In game page; the addon's Announce.lua).
     public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; Changed(); Raise(nameof(Announces)); } }

@@ -304,7 +304,12 @@ sealed class MainViewModel : Observable
         if (!noteTimerHooked)
         {
             noteTimerHooked = true;
-            noteTimer.Tick += (_, _) => { noteTimer.Stop(); Config.Save(); };
+            noteTimer.Tick += (_, _) =>
+            {
+                noteTimer.Stop();
+                Config.Save();
+                foreach (var tab in FlavorTabs) tab.NotesChanged(); // /wct note reads them from Settings.lua
+            };
         }
         noteTimer.Stop();
         noteTimer.Start();

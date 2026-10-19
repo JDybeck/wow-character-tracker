@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.25.0
+
+- **Your notes in game**: type `/wct note` to show the character's note (from its Notes tab in the app) in a box on screen. Drag it where you want it, then lock it with its Lock button or `/wct note lock` (a locked box lets clicks through, `/wct note unlock` to move it again). It stays open across reloads until you close it. The background's opacity is on the In game page. A changed note shows after a `/reload`. Comes with the updated addon.
+- **Played time fits**: the last seen column is wider, so long played times (100+ days) aren't cut off.
+
 ## v0.24.5
 
 - **Played time in the character list**: each row shows the character's total time played in small text under the last seen time.

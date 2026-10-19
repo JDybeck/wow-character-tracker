@@ -92,6 +92,60 @@ public class AddonLuaTests
         Assert.Empty(Announce("{ }", "{ kind = 'level', level = 5 }")); // Settings.lua from an older app
     }
 
+    // /wct note: the note comes from the Settings.lua the app writes (quotes, new lines and "|" kept
+    // as text), the box remembers open/locked, and a locked box lets clicks through.
+    [Fact]
+    public void The_note_box_shows_the_characters_note_from_the_apps_settings()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-note-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            var notes = new Dictionary<string, string> { ["Player-1"] = "Farm \"Sul'thraze\"\nthen | the bank", ["Player-2"] = "Other" };
+            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings { NoteBoxOpacity = 35 }, notes);
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            script.DoString("""
+                WoWCharacterTrackerDB = {}
+                function UnitGUID() return "Player-1" end
+                function UnitName() return "Ronnie" end
+                UIParent = {}
+                -- Any frame method does nothing, except the ones the box reads back.
+                local function widget()
+                  local w = { shown = false }
+                  return setmetatable(w, { __index = function(_, k)
+                    if k == "Show" then return function(s) s.shown = true end end
+                    if k == "Hide" then return function(s) s.shown = false end end
+                    if k == "IsShown" then return function(s) return s.shown end end
+                    if k == "SetText" then return function(s, t) s.text = t end end
+                    if k == "EnableMouse" then return function(s, on) s.mouse = on end end
+                    if k == "SetColorTexture" then return function(s, r, g, b, a) s.alpha = a end end
+                    if k == "GetStringHeight" then return function() return 40 end end
+                    if k == "CreateTexture" or k == "CreateFontString" then return function() return widget() end end
+                    return function() end
+                  end })
+                end
+                function CreateFrame() return widget() end
+                """);
+            var ns = new Table(script);
+            ns["say"] = (Action<string>)(_ => { });
+            foreach (var file in new[] { "Shared.lua", "NoteBox.lua" })
+                script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+            script.Call(ns.Get("toggleNoteBox"));
+            Assert.Equal("Farm \"Sul'thraze\"\nthen || the bank", script.DoString("return WoWCharacterTrackerSettings.notes['Player-1']").String);
+            Assert.Equal(0.35, script.DoString("return WoWCharacterTrackerSettings.noteAlpha").Number);
+            Assert.True(script.DoString("return WoWCharacterTrackerDB.noteBox.shown").Boolean);
+
+            script.Call(ns.Get("lockNoteBox"), true);
+            Assert.True(script.DoString("return WoWCharacterTrackerDB.noteBox.locked").Boolean);
+
+            script.Call(ns.Get("toggleNoteBox"));
+            Assert.False(script.DoString("return WoWCharacterTrackerDB.noteBox.shown").Boolean);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // Inventory.lua's scanGearEffects over stubbed tooltips: head and legs are tier (the legs a
     // catalysted piece, which the game's tooltip counts all the same), the chest has an Equip line.
     [Fact]
