@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.25.2
+
+- **New logo**: the WCT logo in the app's header, a new icon for the app (taskbar, tray, Start menu) and a new picture for Discord posts.
+
 ## v0.25.1
 
 - **Fixed the note box erroring in game**: showing the box (or having it open at login) gave an "attempt to call a nil value" error every moment on newer clients, and its buttons never showed. Comes with the updated addon, so `/reload` once.
