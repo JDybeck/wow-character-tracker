@@ -75,7 +75,7 @@
         <StackPanel>
         <!-- Filter by realm (Retail) or ruleset (Forever). -->
         <views:ChipBar DataContext="{Binding Groups}" Margin="35,12,35,0"/>
-        <Grid Margin="35,14,35,14"> <!-- lines up with the rows: their frame margin (10) + border (1) + 24 -->
+        <Grid Margin="35,14,43,14"> <!-- lines up with the rows: their frame margin (10) + border (1) + 24, and the list's 8 px scrollbar lane on the right -->
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="{StaticResource ColClass}"/>
@@ -104,7 +104,7 @@
 
       <ListBox Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
                Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}" Padding="0,6"
-               ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True"
                VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"> <!-- only the rows on screen are built -->
         <ListBox.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:CharacterRow}">
@@ -171,7 +171,11 @@
                                 Visibility="{Binding HasMoney, Converter={StaticResource Visible}}"/>
                   <TextBlock Text="-" Foreground="{StaticResource Dim}" Visibility="{Binding HasMoney, Converter={StaticResource Hidden}}"/>
                 </Grid>
-                <TextBlock Grid.Column="5" Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="5" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13"/>
+                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0"
+                             Visibility="{Binding PlayedLine, Converter={StaticResource VisibleIfSet}}"/>
+                </StackPanel>
               </Grid>
 
               <!-- Details for the selected character, in tabs so it stays readable. They're only built

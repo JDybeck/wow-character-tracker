@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.24.5
+
+- **Played time in the character list**: each row shows the character's total time played in small text under the last seen time.
+- **Column names line up with the rows**: the headers (class, level, item level, gold, last seen) sat a few pixels to the right of what's below them, because the list reserves room for its scrollbar. They now match.
+
 ## v0.24.4
 
 - **Only the first boss kill per character**: an end boss is posted the first time each character kills it, not every run after (farming Stratholme or Molten Core no longer fills the channel). On by default; turn off "First kill only" under End boss kills on the What gets posted page to post every kill again. Every kill still shows in the app's highlights.

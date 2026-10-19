@@ -151,6 +151,7 @@ sealed class CharacterRow : Observable
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
     public string PlayedText => Played > 0 ? Format.Played(Played) : "-";
+    public string PlayedLine => Played > 0 ? $"{Format.Played(Played)} played" : "";
     public string LastSeenText => Format.Ago(LastSeen) is { Length: > 0 } s ? s : "-";
     public string ProfessionsText => Professions is { Length: > 0 } and not "None" ? Professions : "None yet";
     public string TalentsText => Talents.Length > 0 ? Talents : "-";
