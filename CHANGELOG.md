@@ -9,6 +9,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Stream overlay sliders save a moment after you let go, not on every step.
 - Equipping a whole equipment set in game saves the character once instead of once per item.
 - The addon's saved history no longer grows forever: it keeps every level-up, boss kill and everything else, but only the newest 300 loot, duels and battlegrounds per character. The duel and battleground records count those 300. Want it all? Tick **Keep everything** under **Saved history** on the In game page. Update the addon with the app (it does this by itself) and /reload.
+- The README is short now: what it is, how to install, and a quick tour. Every page and option is in the new [full guide](https://github.com/JDybeck/wow-character-tracker/blob/main/docs/GUIDE.md), with fresh pictures of this version.
 - Under the hood: one connection pool for everything the app downloads, one place for WoW's colors, and one cache helper for Wowhead and Raider.IO.
 - A settings file that can't be read (say, after editing it by hand) is kept as `config.json.broken` instead of being replaced, so your webhooks can be brought back. The console says where it is.
 - If the list of what was already posted can't be read, the app starts that list over (nothing old gets posted again) instead of stopping all syncing for that game.
