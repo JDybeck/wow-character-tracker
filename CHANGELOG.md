@@ -5,6 +5,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 ## v0.26.2
 
 - The app's Wowhead cache (`wowhead.json`) is about half the size, so it loads and saves quicker and the app uses a little less memory. It shrinks the next time the app looks something up.
+- The app download is about 7 MB smaller (63 to 56 MB): parts of .NET the app never uses are left out.
 
 ## v0.26.1
 
