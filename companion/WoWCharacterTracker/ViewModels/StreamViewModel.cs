@@ -85,7 +85,6 @@ sealed class StreamViewModel : Observable
     public bool ShowBattlegrounds { get => Options.ShowBattlegrounds; set { Options.ShowBattlegrounds = value; OptionsChanged(); } }
     public bool ShowHighlights { get => Options.ShowHighlights; set { Options.ShowHighlights = value; OptionsChanged(); } }
     public bool ShowBorder { get => Options.ShowBorder; set { Options.ShowBorder = value; OptionsChanged(); } }
-    public bool ShowBrand { get => Options.ShowBrand; set { Options.ShowBrand = value; OptionsChanged(); } }
 
     // Size: the whole overlay's scale, and the card's width and smallest height (0 = fits its text).
     public int Scale { get => Options.Scale; set { Options.Scale = value; Raise(nameof(Scale)); OptionsChanged(); } }

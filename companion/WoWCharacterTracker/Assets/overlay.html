@@ -39,11 +39,10 @@
   #card.on { display: flex; flex-direction: column; }
   #card.sized { max-width: none; }
   /* Who made it: the logo, the name and GitHub's mark, small and faint, quieter than any other text.
-     Scaled down the overlay would make it unreadable, so it never ends up under 6 px on screen (the
-     smallest stat text at 50% is 6.5 px, so it still stays below it). */
-  .brand { display: none; align-items: center; justify-content: flex-end; gap: .4em; margin-top: auto; padding-top: 6px;
-           font-size: max(8.5px, min(calc(6px / var(--scale)), 17px)); letter-spacing: .2px; color: #94a3b8; opacity: .5; white-space: nowrap; text-shadow: none; }
-  body.branded .brand { display: flex; }
+     Always shown. Scaled down the overlay would make it unreadable, so it never ends up under 4.8 px
+     on screen (the smallest stat text at 50% is 6.5 px, so it still stays below it). */
+  .brand { display: flex; align-items: center; justify-content: flex-end; gap: .4em; margin-top: auto; padding-top: 6px;
+           font-size: max(6.8px, min(calc(4.8px / var(--scale)), 13.6px)); letter-spacing: .2px; color: #94a3b8; opacity: .5; white-space: nowrap; text-shadow: none; }
   .brand img { width: 1.15em; height: 1.15em; }
   .brand svg { width: .95em; height: .95em; fill: currentColor; }
   .name { font-size: 22px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
@@ -208,7 +207,6 @@
     root.setProperty("--edge", look.accent || s.classColor || "#d97706");
     document.body.classList.toggle("accent", !!look.accent);
     document.body.classList.toggle("noborder", look.border === false);
-    document.body.classList.toggle("branded", look.brand !== false);
     if (!fitting && !q.get("scale")) root.setProperty("--scale", (look.scale || 100) / 100);
     const has = field => !look.fields || look.fields.includes(field); // configs from before 0.26.0 have no list
     const card = $("card"), hl = $("hl");

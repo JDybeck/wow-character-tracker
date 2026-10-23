@@ -170,15 +170,15 @@ sealed record StreamAlert(string Id, string Kind, string Title, string Line, str
 
 // How the overlay looks: the card's background (0-100), which parts and stats lines it shows, its
 // size (scale in percent, card width and smallest height, highlights width and fixed height, in px, 0 = fits), colors ("#rrggbb", empty =
-// default), the border and the brand line.
+// default) and the border. The brand line is always on.
 sealed record StreamLook(int CardOpacity, bool Levels, bool Today, bool Duels, bool Makgora, bool Highlights, bool Stats = true, bool Battlegrounds = true,
     IReadOnlyList<string>? Fields = null, int Scale = 100, int Width = 0, int Height = 0, string Accent = "", string Background = "",
-    bool Border = true, bool Brand = true, int HighlightsWidth = 0, int HighlightsHeight = 0)
+    bool Border = true, int HighlightsWidth = 0, int HighlightsHeight = 0)
 {
     public static StreamLook From(StreamOptions o) =>
         new(Math.Clamp(o.CardOpacity, 0, 100), o.ShowLevels, o.ShowToday, o.ShowDuels, o.ShowMakgora, o.ShowHighlights, o.ShowStats, o.ShowBattlegrounds,
             [.. o.CardFields], Math.Clamp(o.Scale, 50, 250), o.CardWidth <= 0 ? 0 : Math.Clamp(o.CardWidth, 260, 1000), Math.Clamp(o.CardHeight, 0, 1000),
-            Hex(o.Accent), Hex(o.Background), o.ShowBorder, o.ShowBrand,
+            Hex(o.Accent), Hex(o.Background), o.ShowBorder,
             o.HighlightsWidth <= 0 ? 0 : Math.Clamp(o.HighlightsWidth, 200, 1000), Math.Clamp(o.HighlightsHeight, 0, 1000));
 
     // "#rgb", "rrggbb" or "#RRGGBB" as "#rrggbb"; anything else is "" (the default color).
