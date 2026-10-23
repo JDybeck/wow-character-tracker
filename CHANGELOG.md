@@ -6,6 +6,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 - **Mount posts show the mount**: like loot, the Discord post has the mount's tooltip picture with its icon, and links to Wowhead. Works for mount items and for mounts learned straight into the mount journal (update the addon for those).
 - **Narrow windows**: the character list and details no longer cut things off. The RACE and PLAYED sort headers wrap instead of vanishing, the realm trims with the full name on hover (the tag moves under it), and long text in the details wraps or trims with a tooltip.
+- The Discord panel's **Test** button now posts "{character} sent a test message." instead of a made-up level-up.
 
 ## v0.25.4
 
