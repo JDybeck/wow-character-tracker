@@ -2,7 +2,7 @@ namespace WoWCharacterTracker.Services;
 
 // Alliance or Horde: what the addon recorded (UnitFactionGroup, from 0.26.0), else what the race
 // says for older data. "" when neither knows (a Pandaren, Dracthyr or Earthen without a recorded
-// faction, or a Pandaren who hasn't picked yet: "Neutral").
+// faction, a Pandaren who hasn't picked yet: "Neutral", or a Skyborne on a non-English client).
 static class Factions
 {
     public const string Alliance = "Alliance";
@@ -20,11 +20,17 @@ static class Factions
         "Nightborne", "HighmountainTauren", "MagharOrc", "ZandalariTroll", "Vulpera",
     };
 
-    public static string Of(string recorded, string raceFile) =>
+    // Forever's Skyborne (race file "Skyborne") come in one variant per side, told apart by the race's
+    // name (English client): "High Order Skyborne" (Alliance) and "Windshaper Skyborne" (Horde).
+    // High Order and Windshapers are their home reputations, like Darnassus or Thunder Bluff; the
+    // sides are still Alliance and Horde (UnitFactionGroup).
+    static readonly (string Prefix, string Faction)[] RaceNamePrefixes = [("High Order", Alliance), ("Windshaper", Horde)];
+
+    public static string Of(string recorded, string raceFile, string race = "") =>
         recorded is Alliance or Horde ? recorded
         : AllianceRaces.Contains(raceFile) ? Alliance
         : HordeRaces.Contains(raceFile) ? Horde
-        : "";
+        : RaceNamePrefixes.FirstOrDefault(p => race.StartsWith(p.Prefix, StringComparison.OrdinalIgnoreCase)).Faction ?? "";
 
     // The faction's crest as a Wowhead icon (fetched like every other icon, never shipped).
     public static string? CrestIcon(string faction) => faction switch

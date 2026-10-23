@@ -39,6 +39,16 @@ public class SharedRulesTests
         Assert.Equal(expected, Factions.Of(recorded, raceFile));
     }
 
+    // Forever's Skyborne have one race file for both sides; the race's name tells them apart.
+    [Theory]
+    [InlineData("Skyborne", "High Order Skyborne", "Alliance")]
+    [InlineData("Skyborne", "Windshaper Skyborne", "Horde")]
+    [InlineData("Skyborne", "Himmelsgeborener des Hohen Ordens", "")] // another language: wait for the recorded faction
+    public void Skyborne_side_comes_from_the_race_name(string raceFile, string race, string expected)
+    {
+        Assert.Equal(expected, Factions.Of("", raceFile, race));
+    }
+
     [Fact]
     public void Live_check_ins_and_rows_carry_the_faction()
     {

@@ -274,7 +274,7 @@ sealed class CharacterRow : Observable
                 ClassFile = Pick(s?.ClassFile, last?.ClassFile),
                 Race = Pick(s?.Race, last?.Race),
                 RaceFile = Pick(s?.RaceFile, last?.RaceFile),
-                Faction = Factions.Of(Pick(s?.Faction, last?.Faction), Pick(s?.RaceFile, last?.RaceFile)),
+                Faction = Factions.Of(Pick(s?.Faction, last?.Faction), Pick(s?.RaceFile, last?.RaceFile), Pick(s?.Race, last?.Race)),
                 Sex = Pick(s?.Sex, last?.Sex) is { Length: > 0 } sex ? sex : "male",
                 Spec = Pick(s?.Spec, last?.Spec) is var spec && spec != Pick(s?.Class, last?.Class) ? spec : "", // old Forever data had the class as spec
                 Role = s?.Role ?? "",
