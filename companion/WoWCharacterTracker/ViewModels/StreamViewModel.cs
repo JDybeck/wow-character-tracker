@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace WoWCharacterTracker.ViewModels;
 
@@ -32,6 +33,13 @@ sealed class StreamViewModel : Observable
         });
         TodayCommand = new RelayCommand(_ => { Options.Range = "today"; OptionsChanged(); });
         AllTimeCommand = new RelayCommand(_ => { Options.Range = "all"; OptionsChanged(); });
+        PresetCommand = new RelayCommand(p =>
+        {
+            if (p is not ColorPreset preset) return;
+            Options.Accent = preset.Accent;
+            Options.Background = preset.Background;
+            ColorsChanged();
+        });
     }
 
     StreamOptions Options => main.Config.StreamOptions;
@@ -76,6 +84,57 @@ sealed class StreamViewModel : Observable
     public bool ShowMakgora { get => Options.ShowMakgora; set { Options.ShowMakgora = value; OptionsChanged(); } }
     public bool ShowBattlegrounds { get => Options.ShowBattlegrounds; set { Options.ShowBattlegrounds = value; OptionsChanged(); } }
     public bool ShowHighlights { get => Options.ShowHighlights; set { Options.ShowHighlights = value; OptionsChanged(); } }
+    public bool ShowBorder { get => Options.ShowBorder; set { Options.ShowBorder = value; OptionsChanged(); } }
+    public bool ShowBrand { get => Options.ShowBrand; set { Options.ShowBrand = value; OptionsChanged(); } }
+
+    // Size: the whole overlay's scale, and the card's width and smallest height (0 = fits its text).
+    public int Scale { get => Options.Scale; set { Options.Scale = value; Raise(nameof(Scale)); OptionsChanged(); } }
+    public int CardWidth { get => Options.CardWidth; set { Options.CardWidth = value; Raise(nameof(CardWidth)); Raise(nameof(CardWidthText)); OptionsChanged(); } }
+    public int CardHeight { get => Options.CardHeight; set { Options.CardHeight = value; Raise(nameof(CardHeight)); Raise(nameof(CardHeightText)); OptionsChanged(); } }
+    public string CardWidthText => CardWidth > 0 ? $"{Math.Max(CardWidth, 260)}" : "Auto"; // narrower than its text it can't go (StreamLook)
+    public string CardHeightText => CardHeight > 0 ? $"{CardHeight}" : "Auto";
+    public int HighlightsWidth { get => Options.HighlightsWidth; set { Options.HighlightsWidth = value; Raise(nameof(HighlightsWidth)); Raise(nameof(HighlightsWidthText)); OptionsChanged(); } }
+    public int HighlightsHeight { get => Options.HighlightsHeight; set { Options.HighlightsHeight = value; Raise(nameof(HighlightsHeight)); Raise(nameof(HighlightsHeightText)); OptionsChanged(); } }
+    public string HighlightsWidthText => HighlightsWidth > 0 ? $"{Math.Max(HighlightsWidth, 200)}" : "Auto"; // narrowest it goes (StreamLook)
+    public string HighlightsHeightText => HighlightsHeight > 0 ? $"{HighlightsHeight}" : "Auto";
+
+    // Colors: a few presets, or any "#rrggbb" typed in. Accent empty = the class color.
+    public sealed record ColorPreset(string Name, string Accent, string Background)
+    {
+        public Brush Dot => Swatch(Accent, "#d97706");
+    }
+    public ColorPreset[] Presets { get; } =
+    [
+        new("Class", "", ""), new("Gold", "#ffd100", "#14100a"), new("Alliance", "#3c8cff", "#070d1c"), new("Horde", "#e03a2f", "#1a0606"),
+        new("Arcane", "#b866ff", "#100820"), new("Fel", "#5fd13a", "#071207"), new("Frost", "#69ccf0", "#06121a"), new("Mono", "#d0d0d0", "#000000"),
+    ];
+    public ICommand PresetCommand { get; }
+
+    public string Accent { get => Options.Accent; set { Options.Accent = value.Trim(); ColorsChanged(); } }
+    public string Background { get => Options.Background; set { Options.Background = value.Trim(); ColorsChanged(); } }
+    public Brush AccentBrush => Swatch(Options.Accent, "#d97706");
+    public Brush BackgroundBrush => Swatch(Options.Background, "#0a0806");
+
+    static Brush Swatch(string hex, string fallback) =>
+        new SolidColorBrush((Color)ColorConverter.ConvertFromString(StreamLook.Hex(hex) is { Length: > 0 } h ? h : fallback));
+
+    void ColorsChanged()
+    {
+        Raise(nameof(Accent)); Raise(nameof(Background)); Raise(nameof(AccentBrush)); Raise(nameof(BackgroundBrush));
+        OptionsChanged();
+    }
+
+    // Which lines the stats column shows. Keystone and ratings are Retail only.
+    static readonly (string Kind, string Name, string Tip)[] FieldNames =
+    [
+        ("ilvl", "Item level", "Average item level"), ("played", "Played", "Total time played"),
+        ("levelPlayed", "This level", "Time played since the last ding"), ("gold", "Gold", "Gold on the character"),
+        ("talents", "Talents", "Talent points per tree, numbers only (31/20/0)"), ("zone", "Zone", "Where the character is, under the name"),
+        ("keystone", "Keystone", "Your Mythic+ keystone (Retail)"), ("ratings", "Ratings", "Mythic+ score and PvP ratings (Retail)"),
+    ];
+    ObservableCollection<ToggleOption>? fields;
+    public ObservableCollection<ToggleOption> CardFields => fields ??=
+        ToggleOption.Kinds(FieldNames.Where(f => HasRatings || f.Kind is not ("keystone" or "ratings")), Options.CardFields, OptionsChanged);
 
     // Which highlights count, as on/off chips. Mythic+ and PvP rating are Retail only, so they're
     // only offered while the overlay shows a Retail character.
@@ -136,6 +195,7 @@ sealed class StreamViewModel : Observable
     {
         kinds = null;
         alertKinds = null;
+        fields = null;
         Raise(string.Empty);
         if (Enabled && server is null)
         {
@@ -170,18 +230,42 @@ sealed class StreamViewModel : Observable
     void Refresh()
     {
         var game = snapshot.Game;
-        snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options);
+        snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options, Item);
+        LookUpItems();
         if (snapshot.Game != game)
         {
             // Another game's character: the Retail-only chips come or go.
             kinds = null;
             alertKinds = null;
+            fields = null;
             Raise(nameof(HighlightKinds));
             Raise(nameof(AlertKinds));
+            Raise(nameof(CardFields));
         }
         if (server is null) return;
         server.Snapshot = snapshot;
         StreamFiles.Write(snapshot);
+    }
+
+    // The highlights' items (loot, mounts) as Wowhead knows them, for their icons and quality: each
+    // looked up once (Wowhead caches it on disk too), the overlay refreshed when new ones come in. A
+    // lookup that fails is forgotten, so a later refresh tries again; until then the kind's icon shows.
+    readonly Dictionary<int, Wowhead.Info?> items = [];
+    Wowhead.Info? Item(int id) => items.GetValueOrDefault(id);
+
+    async void LookUpItems()
+    {
+        if (Flavors.Named(snapshot.Game) is not { } flavor) return;
+        var missing = snapshot.Highlights.Select(h => h.ItemId).Where(id => id > 0 && !items.ContainsKey(id)).Distinct().ToList();
+        if (missing.Count == 0) return;
+        foreach (var id in missing) items[id] = null; // asked, so the next refresh doesn't ask again
+        var found = false;
+        foreach (var id in missing)
+        {
+            if (await Wowhead.GetAsync("item", id, flavor) is { } info) { items[id] = info; found = true; }
+            else items.Remove(id);
+        }
+        if (found) Refresh();
     }
 
     // Shows an alert on the overlay right now (OBS included), for setting it up without playing. Each
@@ -201,9 +285,9 @@ sealed class StreamViewModel : Observable
         var e = SampleEvents.For(kinds[testIndex++ % kinds.Length], Flavors.Forever, null, []);
         e = e with { Id = $"test-{now}-{testIndex}", Char = name, At = now, Level = e.MaxLevel ? e.Level : level };
         if (StreamSnapshot.AlertFor(e) is not { } sample) return;
-        var highlight = HighlightText.Text(e);
+        var highlight = StreamSnapshot.Highlight(e, Item);
         var test = snapshot.HasCharacter ? snapshot : snapshot with { Character = name, Level = level - 1, ClassName = "Warrior", ClassColor = "#C69B6D", Zone = "Scarlet Monastery" };
-        var highlights = highlight.Length > 0 ? [highlight, .. test.Highlights.Take(2)] : test.Highlights;
+        var highlights = highlight.Text.Length > 0 ? [highlight, .. test.Highlights.Take(2)] : test.Highlights;
         server.Snapshot = test with { Alert = sample, Highlights = highlights };
         Log.Info($"Test alert sent to the stream overlay: {sample.Title} (click again for the next kind; only the overlay shows it).");
         // Back to the real state a bit later, so the next real alert still counts as new.
@@ -223,5 +307,5 @@ sealed class StreamViewModel : Observable
         CharacterArt.ClassColor(r.ClassFile) is int color ? $"#{color:X6}" : "#FFFFFF",
         r.Race, r.RealmText, r.Zone, r.Played > 0 ? Format.Played(r.Played) : "", r.ItemLevel > 0 ? r.ItemLevel.ToString("0") : "",
         r.LastSeen, r.Spec, r.Money >= 10000 ? $"{r.Money / 10000:N0}g" : "", r.KeystoneText,
-        Format.Ratings(r.MplusScore, r.PvpRatings).Select(x => new StreamRating(x.Name, x.Rating)).ToList());
+        Format.Ratings(r.MplusScore, r.PvpRatings).Select(x => new StreamRating(x.Name, x.Rating)).ToList(), r.Talents, r.Played);
 }

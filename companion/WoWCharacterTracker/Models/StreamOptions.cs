@@ -16,6 +16,31 @@ class StreamOptions
     public bool ShowBattlegrounds { get; set; } = true; // battleground record, won and lost (once there is one)
     public bool ShowHighlights { get; set; } = true;
 
+    // Which lines the stats column shows (the Stats chips): item level, played, played at this level,
+    // gold, talents (numbers only, 31/20/0), zone, and on Retail the keystone and ratings.
+    public List<string> CardFields { get; set; } = [.. AllCardFields];
+    public static readonly string[] AllCardFields = ["ilvl", "played", "levelPlayed", "gold", "talents", "zone", "keystone", "ratings"];
+
+    // Size: the whole overlay in one source (percent, ?scale wins), and the card's own width and
+    // smallest height in px (0 = fits its text), so it can cover a chat box. A single part in its
+    // own source is still fitted to the source, these then set its shape.
+    public int Scale { get; set; } = 100;
+    public int CardWidth { get; set; }
+    public int CardHeight { get; set; }
+
+    // The highlights box's width and height in px (0 = fits its lines). With a height the box keeps
+    // that size and shows the newest lines that fit, so a source fitted to it never rescales.
+    public int HighlightsWidth { get; set; }
+    public int HighlightsHeight { get; set; }
+
+    // Colors as "#rrggbb": the boxes' edge and titles (empty = the character's class color) and
+    // their background (empty = the dark default). Presets in StreamViewModel.
+    public string Accent { get; set; } = "";
+    public string Background { get; set; } = "";
+
+    public bool ShowBorder { get; set; } = true;  // the thin colored edge around the card and highlights
+    public bool ShowBrand { get; set; } = true;   // the small "WoW Character Tracker" line under them
+
     // Which highlights the highlights box shows (Highlights.Kinds): loot, boss, mount, duel, makgora, bg, death, mplus, pvp.
     public List<string> HighlightKinds { get; set; } = [.. AllKinds];
     public static readonly string[] AllKinds = ["loot", "boss", "mount", "duel", "makgora", "bg", "death", "mplus", "pvp"];
