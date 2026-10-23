@@ -162,11 +162,12 @@
     </Setter>
   </Style>
 
-  <!-- Same column widths for the header row and every character row. -->
-  <GridLength x:Key="ColClass">130</GridLength>
-  <GridLength x:Key="ColLevel">70</GridLength>
-  <GridLength x:Key="ColIlvl">80</GridLength>
-  <GridLength x:Key="ColGold">95</GridLength>
+  <!-- Same column widths for the header row and every character row. Kept tight: the name column gets
+       what's left, and at the window's narrowest that's little. -->
+  <GridLength x:Key="ColClass">118</GridLength>
+  <GridLength x:Key="ColLevel">58</GridLength>
+  <GridLength x:Key="ColIlvl">74</GridLength>
+  <GridLength x:Key="ColGold">88</GridLength>
   <GridLength x:Key="ColSeen">115</GridLength> <!-- room for "1234d 23h 59m played" under last seen -->
 
   <Style x:Key="CharacterItem" TargetType="ListBoxItem">
@@ -331,6 +332,16 @@
     <Setter Property="Foreground" Value="{StaticResource TextSoft}"/>
     <Setter Property="FontSize" Value="13"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <!-- Narrow windows: nothing silently disappears. Text that may grow either wraps (FactValue) or,
+       where it has to stay on one line, trims with "..." and shows all of it on hover (TrimmedText).
+       Rows of chips, buttons or sort headers are WrapPanels (the Wrap panel), never horizontal
+       StackPanels, which cut off whatever doesn't fit; an icon beside text is a DockPanel, so the
+       text gets the width that's left and can wrap or trim. -->
+  <Style x:Key="TrimmedText" TargetType="TextBlock">
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
   </Style>
 
   <Style x:Key="SectionTitle" TargetType="TextBlock">

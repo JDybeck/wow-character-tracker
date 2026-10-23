@@ -93,14 +93,15 @@
             <ColumnDefinition Width="{StaticResource ColSeen}"/>
           </Grid.ColumnDefinitions>
           <!-- Click to sort, again to flip. Race, played time and rating have no column: they sit next to CHARACTER. -->
-          <StackPanel Orientation="Horizontal">
+          <!-- Wraps on narrow windows instead of cutting off RACE and PLAYED. -->
+          <WrapPanel Margin="0,0,8,0">
             <Button Style="{StaticResource SortHeader}" Content="CHARACTER" Tag="{Binding Sort[name]}" Command="{Binding SortCommand}" CommandParameter="name"/>
             <TextBlock Text="sort by" Style="{StaticResource ColumnHeader}" Foreground="{StaticResource Faint}" FontWeight="Normal" Margin="18,0,8,0"/>
             <Button Style="{StaticResource SortHeader}" Content="RACE" Tag="{Binding Sort[race]}" Command="{Binding SortCommand}" CommandParameter="race" Margin="0,0,10,0"/>
             <Button Style="{StaticResource SortHeader}" Content="PLAYED" Tag="{Binding Sort[played]}" Command="{Binding SortCommand}" CommandParameter="played" Margin="0,0,10,0"/>
             <Button Style="{StaticResource SortHeader}" Content="RATING" Tag="{Binding Sort[rating]}" Command="{Binding SortCommand}" CommandParameter="rating"
                     Visibility="{Binding IsRetail, Converter={StaticResource Visible}}"/>
-          </StackPanel>
+          </WrapPanel>
           <Button Grid.Column="1" Style="{StaticResource SortHeader}" Content="CLASS" Tag="{Binding Sort[class]}" Command="{Binding SortCommand}" CommandParameter="class"/>
           <Button Grid.Column="2" Style="{StaticResource SortHeader}" Content="LEVEL" Tag="{Binding Sort[level]}" Command="{Binding SortCommand}" CommandParameter="level"/>
           <Button Grid.Column="3" Style="{StaticResource SortHeader}" Content="ITEM LEVEL" Tag="{Binding Sort[ilvl]}" Command="{Binding SortCommand}" CommandParameter="ilvl"/>
@@ -141,16 +142,18 @@
                     <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5" Opacity="0.7"/>
                   </Grid>
                   <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
-                    <TextBlock Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"
-                               TextTrimming="CharacterEllipsis" ToolTip="{Binding FullName}"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                      <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
-                      <TextBlock Text="{Binding RealmText}" Foreground="{StaticResource Dim}" FontSize="12"/>
-                      <Border x:Name="TagBox" Margin="8,0,0,0" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
+                    <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
+                    <!-- On a narrow window the tag wraps under the realm, and the realm trims when even alone it doesn't fit. -->
+                    <WrapPanel Margin="0,2,0,0">
+                      <DockPanel Margin="0,0,8,0">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
+                        <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding RealmText}" Foreground="{StaticResource Dim}" FontSize="12"/>
+                      </DockPanel>
+                      <Border x:Name="TagBox" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
                       </Border>
-                    </StackPanel>
+                    </WrapPanel>
                   </StackPanel>
                 </DockPanel>
 

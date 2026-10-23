@@ -90,7 +90,7 @@
               </Grid.ColumnDefinitions>
               <TextBlock Text="{Binding LevelText}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource TextSoft}"/>
               <TextBlock Grid.Column="1" Text="{Binding Took}" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Green}"/>
-              <TextBlock Grid.Column="2" Text="{Binding Zone}" FontSize="12" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Grid.Column="2" Style="{StaticResource TrimmedText}" Text="{Binding Zone}" FontSize="12" Foreground="{StaticResource Muted}"/>
               <TextBlock Grid.Column="3" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0"/>
             </Grid>
           </DataTemplate>
