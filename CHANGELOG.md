@@ -4,28 +4,31 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.27.2
 
+A faster, lighter and safer release. Update the addon with the app (it does this by itself) and /reload in game.
+
+**Faster and lighter**
+
+- The app uses far less CPU while it waits in the tray (about a tenth of before): checking whether WoW is running now takes one look at the running programs instead of six, and with the game closed it no longer checks your Screenshots folder every second (new pictures are still noticed right away while you play).
+- The app cleans up after older versions: each update left about 8 MB of WPF files in your temp folder (`%TEMP%\.net\WoWCharacterTracker`). Those are removed now, and the Uninstall page removes the rest with the app.
+- Syncs that find nothing new (the check every minute while you play, most instant posts) no longer read your saved files again or rebuild the character list, and an open Gear and bags tab stays as it is when its bags haven't changed.
 - Wowhead icons and the tab logos are kept on your PC once downloaded, so the app starts quicker and shows them without a connection.
-- The item picture in loot and mount posts is drawn the same way as the app's own tooltips. Wowhead's drop-source lines are left out of it now too.
-- Stream overlay sliders save a moment after you let go, not on every step.
-- Equipping a whole equipment set in game saves the character once instead of once per item.
-- The addon's saved history no longer grows forever: it keeps every level-up, boss kill and everything else, but only the newest 300 loot, duels and battlegrounds per character. The duel and battleground records count those 300. Want it all? Tick **Keep everything** under **Saved history** on the In game page. Update the addon with the app (it does this by itself) and /reload.
-- The README is short now: what it is, how to install, and a quick tour. Every page and option is in the new [full guide](https://github.com/JDybeck/wow-character-tracker/blob/main/docs/GUIDE.md), with fresh pictures of this version.
-- Under the hood: one connection pool for everything the app downloads, one place for WoW's colors, and one cache helper for Wowhead and Raider.IO.
-- A settings file that can't be read (say, after editing it by hand) is kept as `config.json.broken` instead of being replaced, so your webhooks can be brought back. The console says where it is.
+- The stream overlay does nothing at all while it's off: no Wowhead lookups for its highlights and no building of what it would show. Its sliders save a moment after you let go, not on every step.
+- In game, the addon no longer reads all your gear's tooltips again after every bag change while looting: only when your gear, enchants or spec change (and every 5 minutes). Equipping a whole equipment set saves the character once instead of once per item.
+- The addon's saved history no longer grows forever: it keeps every level-up, boss kill and everything else, but only the newest 300 loot, duels and battlegrounds per character. The duel and battleground records count those 300. Want it all? Tick **Keep everything** under **Saved history** on the In game page.
+- Live data screenshots are read a little quicker (the picture is decoded once instead of twice for the login check-in).
+
+**Safer**
+
+- Settings, posted history and caches are saved so a crash or power cut can't leave them broken. A settings file that still can't be read (say, after editing it by hand) is kept as `config.json.broken` instead of being replaced, so your webhooks can be brought back; the console says where it is.
 - If the list of what was already posted can't be read, the app starts that list over (nothing old gets posted again) instead of stopping all syncing for that game.
 - A broken or half-downloaded picture no longer causes an error or a failed post: it's skipped and downloaded again.
 - The "/reload to use the new settings" banner also goes away when the game crashed instead of closing normally.
 
-## v0.27.1
+**Also**
 
-- The app uses far less CPU while it waits in the tray: checking whether WoW is running now takes one look at the running programs instead of six.
-- The app cleans up after older versions: each update left about 8 MB of WPF files in your temp folder (`%TEMP%\.net\WoWCharacterTracker`). Those are removed now, and the Uninstall page removes the rest with the app.
-- Syncs that find nothing new (the check every minute while you play, most instant posts) no longer read your saved files again or rebuild the character list, and an open Gear and bags tab stays as it is when its bags haven't changed.
-- Settings, posted history and caches are saved so a crash or power cut can't leave them broken. Before, a broken settings file meant your webhooks were gone.
-- With the game closed, the app no longer checks your Screenshots folder every second (it still notices new pictures right away while you play).
-- The stream overlay does nothing at all while it's off: no Wowhead lookups for its highlights and no building of what it would show.
-- In game, the addon no longer reads all your gear's tooltips again after every bag change while looting: only when your gear, enchants or spec change (and every 5 minutes). Update the addon with the app (it does this by itself) and /reload.
-- Live data screenshots are read a little quicker (the picture is decoded once instead of twice for the login check-in).
+- The item picture in loot and mount posts is drawn the same way as the app's own tooltips. Wowhead's drop-source lines are left out of it now too.
+- The README is short now: what it is, how to install, and a quick tour. Every page and option is in the new [full guide](https://github.com/JDybeck/wow-character-tracker/blob/main/docs/GUIDE.md), with fresh pictures of this version.
+- Under the hood: one connection pool for everything the app downloads, one place for WoW's colors, and one cache helper for Wowhead and Raider.IO.
 
 ## v0.27.0
 
