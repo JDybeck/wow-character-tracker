@@ -2,15 +2,16 @@ using System.Diagnostics;
 
 namespace WoWCharacterTracker.Services;
 
-// Which WoW clients are running, for everything that asks (GameWatcher, Wow.IsRunning). One list of
-// all processes is taken and shared for a moment: asking Windows per name lists every process each
-// time, and six names every 3 seconds kept the app at ~2% CPU with no game open.
+// Which WoW clients are running, for everything that asks (GameWatcher, Wow.IsRunning for the
+// trackers and the Screenshots poll). One list of all processes is taken and shared for a few
+// seconds: asking Windows per name lists every process each time, and six names every 3 seconds
+// kept the app at ~2% CPU with no game open.
 static class GameProcesses
 {
     // Every client's exe (Retail, Classic, Forever, betas and PTRs).
     public static readonly string[] Clients = ["Wow", "WowB", "WowT", "WowClassic", "WowClassicB", "WowClassicT"];
 
-    static readonly TimeSpan MaxAge = TimeSpan.FromSeconds(1);
+    static readonly TimeSpan MaxAge = TimeSpan.FromSeconds(3); // GameWatcher's tick
     static readonly object Lock = new();
     static HashSet<string> names = [];
     static DateTime takenAt = DateTime.MinValue;

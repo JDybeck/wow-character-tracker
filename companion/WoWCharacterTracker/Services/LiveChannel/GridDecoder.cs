@@ -22,20 +22,33 @@ static class GridDecoder
 
     public static GridResult Decode(byte[] image, out string? payload) => Decode(image, out payload, out _, out _);
 
+    public static GridResult Decode(byte[] image, out string? payload, out double cellSize, out string corner, string preferred = "TOPLEFT")
+    {
+        if (Load(image) is { } frame) return Decode(frame, out payload, out cellSize, out corner, preferred);
+        (payload, cellSize, corner) = (null, 0, preferred);
+        return GridResult.NotAGrid;
+    }
+
+    // The picture, decoded once for both the grid and the portrait (a screenshot is a full screen of pixels).
+    public static BitmapSource? Load(byte[] image)
+    {
+        try
+        {
+            using var ms = new MemoryStream(image);
+            var frame = BitmapDecoder.Create(ms, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+            frame.Freeze();
+            return frame;
+        }
+        catch (Exception) { return null; }
+    }
+
     // Finds the grid in one of the corners (the preferred one first) and reads its bytes.
     // cellSize: one grid cell in the picture's pixels (2 on screen, less if the picture is scaled).
-    public static GridResult Decode(byte[] image, out string? payload, out double cellSize, out string corner, string preferred = "TOPLEFT")
+    public static GridResult Decode(BitmapSource frame, out string? payload, out double cellSize, out string corner, string preferred = "TOPLEFT")
     {
         payload = null;
         cellSize = 0;
         corner = preferred;
-        BitmapSource frame;
-        try
-        {
-            using var ms = new MemoryStream(image);
-            frame = BitmapDecoder.Create(ms, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
-        }
-        catch (Exception) { return GridResult.NotAGrid; }
         if (frame.PixelWidth < 64 || frame.PixelHeight < 16) return GridResult.NotAGrid;
 
         var result = GridResult.NotAGrid;
@@ -64,8 +77,7 @@ static class GridDecoder
         // x and y count from the screen corner the grid is in.
         int Lum(int x, int y)
         {
-            var i = ((bottom ? h - 1 - y : y) * w + (right ? w - 1 - x : x)) * 4;
-            return (px[i + 2] * 299 + px[i + 1] * 587 + px[i] * 114) / 1000;
+            return Luminance(px, (bottom ? h - 1 - y : y) * w + (right ? w - 1 - x : x));
         }
 
         // Cell size from the clock row (white, black, white...). Cells are square (the picture is only
@@ -137,12 +149,10 @@ static class GridDecoder
     // a cell is 2 of them). Returns it as a PNG, or null when the spot is empty (an older addon, or
     // the portrait didn't draw).
     const int PortraitX = 160 * 2 + 4 + 230 + 4, PortraitSize = 64;
-    public static byte[]? CropPortrait(byte[] image, double cellSize, string corner = "TOPLEFT")
+    public static byte[]? CropPortrait(BitmapSource frame, double cellSize, string corner = "TOPLEFT")
     {
         try
         {
-            using var ms = new MemoryStream(image);
-            var frame = BitmapDecoder.Create(ms, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
             var scale = cellSize / 2;
             int x = (int)Math.Round(PortraitX * scale), size = (int)Math.Round(PortraitSize * scale);
             if (corner.Contains("RIGHT")) x = frame.PixelWidth - x - size;
@@ -154,7 +164,7 @@ static class GridDecoder
             // Something drawn there has some variety; a blank spot is one flat color.
             var px = new byte[size * size * 4];
             crop.CopyPixels(px, size * 4, 0);
-            var lums = Enumerable.Range(0, size * size).Select(i => (px[i * 4 + 2] * 299 + px[i * 4 + 1] * 587 + px[i * 4] * 114) / 1000).ToList();
+            var lums = Enumerable.Range(0, size * size).Select(i => Luminance(px, i)).ToList();
             var mean = lums.Average();
             if (lums.Average(l => Math.Abs(l - mean)) < 6) return null;
 
@@ -165,6 +175,13 @@ static class GridDecoder
             return outMs.ToArray();
         }
         catch (Exception) { return null; }
+    }
+
+    // Brightness 0-255 of pixel number index in BGRA bytes.
+    static int Luminance(byte[] bgra, int index)
+    {
+        var i = index * 4;
+        return (bgra[i + 2] * 299 + bgra[i + 1] * 587 + bgra[i] * 114) / 1000;
     }
 
     // Measures the alternating pattern along a line from the corner. Returns the average cell size

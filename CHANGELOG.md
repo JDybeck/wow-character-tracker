@@ -8,6 +8,10 @@ The app shows the notes for a new version when it finds an update. Each release 
 - The app cleans up after older versions: each update left about 8 MB of WPF files in your temp folder (`%TEMP%\.net\WoWCharacterTracker`). Those are removed now, and the Uninstall page removes the rest with the app.
 - Syncs that find nothing new (the check every minute while you play, most instant posts) no longer read your saved files again or rebuild the character list, and an open Gear and bags tab stays as it is when its bags haven't changed.
 - Settings, posted history and caches are saved so a crash or power cut can't leave them broken. Before, a broken settings file meant your webhooks were gone.
+- With the game closed, the app no longer checks your Screenshots folder every second (it still notices new pictures right away while you play).
+- The stream overlay does nothing at all while it's off: no Wowhead lookups for its highlights and no building of what it would show.
+- In game, the addon no longer reads all your gear's tooltips again after every bag change while looting: only when your gear, enchants or spec change (and every 5 minutes). Update the addon with the app (it does this by itself) and /reload.
+- Live data screenshots are read a little quicker (the picture is decoded once instead of twice for the login check-in).
 
 ## v0.27.0
 

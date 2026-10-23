@@ -41,9 +41,13 @@ sealed class CharacterRow : Observable
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
-    public IReadOnlyList<(string Name, string Value)> StatList => Stats.Split(',', StringSplitOptions.RemoveEmptyEntries)
+    // The lists below are made once per row (its data never changes; a sync builds new rows), not on
+    // every read: bindings, sorting and the card all read them.
+    IReadOnlyList<(string Name, string Value)>? statList;
+    public IReadOnlyList<(string Name, string Value)> StatList => statList ??= Stats.Split(',', StringSplitOptions.RemoveEmptyEntries)
         .Select(p => p.Split('~')).Where(p => p.Length == 2).Select(p => (p[0], p[1])).ToList();
-    public IReadOnlyList<IconChip> StatChips => StatList.Select(s => new IconChip($"{s.Name} {s.Value}",
+    IReadOnlyList<IconChip>? statChips;
+    public IReadOnlyList<IconChip> StatChips => statChips ??= StatList.Select(s => new IconChip($"{s.Name} {s.Value}",
         Wowhead.StatIcons.TryGetValue(s.Name, out var icon) ? Wowhead.IconUrl(icon, "small") : null, s.Name)).ToList();
     public bool HasStats => Stats.Length > 0;
     public string FullName => Surname.Length > 0 ? $"{Name} {Surname}" : Name;
@@ -58,13 +62,16 @@ sealed class CharacterRow : Observable
     public bool HasKeystone => KeystoneText.Length > 0;
     public int MplusScore { get; init; }            // retail: the Mythic+ score, 0 = none
     public string PvpRatings { get; init; } = "";   // retail: "bracket~rating,..."
-    public IReadOnlyList<IconChip> RatingChips => Format.Ratings(MplusScore, PvpRatings).Select(r => new IconChip($"{r.Name} {r.Rating}",
+    IReadOnlyList<IconChip>? ratingChips;
+    public IReadOnlyList<IconChip> RatingChips => ratingChips ??= Format.Ratings(MplusScore, PvpRatings).Select(r => new IconChip($"{r.Name} {r.Rating}",
         Wowhead.RatingIcons.TryGetValue(r.Name, out var icon) ? Wowhead.IconUrl(icon, "small") : null,
         r.Name == "Mythic+" ? "Mythic+ score" : $"{r.Name} rating")).ToList();
-    public string RatingsText => Format.RatingsText(MplusScore, PvpRatings);
+    string? ratingsText;
+    public string RatingsText => ratingsText ??= Format.RatingsText(MplusScore, PvpRatings);
     public bool HasRatings => RatingsText.Length > 0;
     // The highest of the Mythic+ score and the PvP ratings, for sorting by rating.
-    public int BestRating => Format.Ratings(MplusScore, PvpRatings).Select(r => r.Rating).DefaultIfEmpty(0).Max();
+    int? bestRating;
+    public int BestRating => bestRating ??= Format.Ratings(MplusScore, PvpRatings).Select(r => r.Rating).DefaultIfEmpty(0).Max();
     public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
     public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
     public bool HasProfessions => ProfessionList.Count > 0;
@@ -257,8 +264,9 @@ sealed class CharacterRow : Observable
         // A live check-in may carry the talent code before the saved file has it, or the other way round.
         // Some things only come with the saved file (talent picks, stats) or only with some check-ins
         // (the talent code), so each is taken from the newest snapshot that has it.
+        var snapsOf = data.Characters.ToLookup(c => c.Guid);
         string Newest(string guid, Func<Snapshot, string> field) =>
-            data.Characters.Where(c => c.Guid == guid && field(c).Length > 0).MaxBy(c => c.LastSeen) is { } n ? field(n) : "";
+            snapsOf[guid].Where(c => field(c).Length > 0).MaxBy(c => c.LastSeen) is { } n ? field(n) : "";
         Func<CharacterGear> MakeGear(Inventory? inv, string classFile, string spec) => () => CharacterGear.From(inv, lookup, flavor, classFile, spec);
 
         var rows = new List<CharacterRow>();

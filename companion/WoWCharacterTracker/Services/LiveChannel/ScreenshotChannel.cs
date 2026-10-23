@@ -29,8 +29,21 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
         if (Directory.Exists(dir))
             foreach (var f in Directory.EnumerateFiles(dir)) seen[f] = true;
         retry = new Timer(_ => Poll());
-        timer = new Timer(_ => { Watch(); Poll(); }, null, TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1));
+        timer = new Timer(_ => { Watch(); if (GameRunning()) Poll(); }, null, TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1));
         Watch();
+    }
+
+    // The steady poll only runs while the game does (only it writes data shots), so a closed game
+    // costs nothing; the folder watcher still reacts at any time. Asked every few seconds, not every tick.
+    static readonly TimeSpan RunningCheck = TimeSpan.FromSeconds(5);
+    bool gameRunning;
+    DateTime runningCheckedAt = DateTime.MinValue;
+
+    bool GameRunning()
+    {
+        if (DateTime.UtcNow - runningCheckedAt < RunningCheck) return gameRunning;
+        runningCheckedAt = DateTime.UtcNow;
+        return gameRunning = Wow.IsRunning(flavorDir);
     }
 
     // The game makes the Screenshots folder on its first screenshot, so the watcher starts once it's there.
@@ -65,14 +78,19 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
                 if (!TryRead(file, out var bytes)) { waiting = true; continue; }
 
                 var preferred = corner();
-                switch (GridDecoder.Decode(bytes, out var payload, out var cellSize, out var where, preferred))
+                var frame = GridDecoder.Load(bytes);
+                string? payload = null;
+                double cellSize = 0;
+                var where = preferred;
+                var result = frame is null ? GridResult.NotAGrid : GridDecoder.Decode(frame, out payload, out cellSize, out where, preferred);
+                switch (result)
                 {
                     case GridResult.Ok:
                         seen[file] = true;
                         var shotAt = File.GetCreationTime(file);
                         Files.TryDelete(file);
                         if (Payload.Parse(payload!) is { } entry)
-                            EntryReceived?.Invoke(entry, shotAt, entry.Kind == "snapshot" ? GridDecoder.CropPortrait(bytes, cellSize, where) : null);
+                            EntryReceived?.Invoke(entry, shotAt, entry.Kind == "snapshot" ? GridDecoder.CropPortrait(frame!, cellSize, where) : null);
                         break;
                     case GridResult.Damaged when age < Settle:
                         waiting = true; // maybe read half-written: once more in a moment

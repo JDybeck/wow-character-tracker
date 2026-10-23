@@ -257,6 +257,42 @@ public class AddonLuaTests
         Assert.Equal("5~1005~Crystalline Radiance~7980", result[2].String); // the enchant id from the item link
     }
 
+    // Bag changes while looting don't read the gear's tooltips again: only new gear (another link), a
+    // new spec, or five minutes passing does.
+    [Fact]
+    public void Gear_tooltips_are_only_read_again_when_the_gear_changes()
+    {
+        var script = new Script();
+        script.DoString("""
+            now, reads, chest = 1000, 0, "|Hitem:1005:7980|h"
+            function time() return now end
+            function UnitGUID() return "Player-1" end
+            function InCombatLockdown() return false end
+            function GetInventoryItemID(_, slot) return slot == 5 and 1005 or nil end
+            function GetInventoryItemLink(_, slot) return slot == 5 and chest or nil end
+            C_TooltipInfo = { GetInventoryItem = function() reads = reads + 1; return { lines = { { leftText = "Equip: Heals." } } } end }
+            WoWCharacterTrackerDB = {}
+            """);
+        var ns = new Table(script);
+        ns["doing"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Character.lua", "Inventory.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        double Reads() => script.Globals.Get("reads").Number;
+
+        script.Call(ns.Get("scanInventory"));
+        Assert.Equal(1, Reads());
+        script.DoString("now = now + 10");
+        script.Call(ns.Get("scanInventory")); // looting: same gear
+        Assert.Equal(1, Reads());
+        script.DoString("chest = '|Hitem:1005:9999|h'"); // a new enchant
+        script.Call(ns.Get("scanInventory"));
+        Assert.Equal(2, Reads());
+        script.DoString("now = now + 300");
+        script.Call(ns.Get("scanInventory"));
+        Assert.Equal(3, Reads());
+        Assert.Equal("5~1005~Equip: Heals.", script.DoString("return WoWCharacterTrackerDB.items['Player-1'].effects").String);
+    }
+
     // Inventory.lua's scanEquipSets over a stubbed C_EquipmentSet: where each piece is comes from the
     // location's bits (bank and bag items carry the player bit too), or the game's sentinels.
     [Fact]

@@ -198,11 +198,11 @@ sealed class StreamViewModel : Observable
         Raise(string.Empty);
         if (Enabled && server is null)
         {
-            server = new OverlayServer(main.Config.StreamPort) { Snapshot = snapshot };
+            server = new OverlayServer(main.Config.StreamPort);
             if (server.Start())
             {
                 Log.Success($"Stream overlay on: add {Url} as a Browser source in OBS. Text files: {StreamFiles.Dir}");
-                StreamFiles.Write(snapshot);
+                Refresh(); // built now: while off, only the game was kept
             }
             else { server.Dispose(); server = null; }
         }
@@ -229,8 +229,14 @@ sealed class StreamViewModel : Observable
     void Refresh()
     {
         var game = snapshot.Game;
-        snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options, Item);
-        LookUpItems();
+        if (server is null)
+            // Off: only which game it would show (the panel's Retail-only chips), no building, files or Wowhead lookups.
+            snapshot = StreamSnapshot.Empty with { Game = latest.Values.Select(v => v.Character).MaxBy(c => c.LastSeen)?.Game ?? "" };
+        else
+        {
+            snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options, Item);
+            LookUpItems();
+        }
         if (snapshot.Game != game)
         {
             // Another game's character: the Retail-only chips come or go.
