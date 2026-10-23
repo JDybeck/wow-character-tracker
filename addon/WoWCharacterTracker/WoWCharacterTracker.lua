@@ -95,6 +95,7 @@ function on.SCREENSHOT_FAILED() ns.shotDone(false) end
 -- Gear, bags and the bank (while it's open).
 on.BAG_UPDATE_DELAYED = ns.scanInventorySoon
 on.PLAYERBANKSLOTS_CHANGED = ns.scanInventorySoon
+on.EQUIPMENT_SETS_CHANGED = ns.scanInventorySoon
 function on.BANKFRAME_OPENED()
   ns.bankOpen = true
   C_Timer.After(0.5, ns.scanBank)

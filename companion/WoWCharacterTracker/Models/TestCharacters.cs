@@ -107,6 +107,9 @@ static class TestCharacters
                     + "Giantstalker Armor~3~8~8~Your normal ranged attacks have a 4% chance of restoring 200 mana."),
                 Effects = Inventory.ParseEffects("1~16846~Equip: Improves your chance to hit by 1%.\n5~16845~Equip: Improves your chance to get a critical strike by 1%."),
                 Enchants = Inventory.ParseEnchants("5~16845~+4 All Stats~1891\n18~18713~+7 Ranged Damage~664"),
+                // Equipment Manager sets (Inventory.lua scanEquipSets): one worn, one with pieces put away or lost.
+                EquipmentSets = Inventory.ParseEquipmentSets("132329~1~1:16846:equipped,3:16848:equipped,5:16845:equipped,18:18713:equipped,4:0:ignored~Raid\n"
+                    + "134400~0~1:16846:equipped,3:13358:bags,5:16845:equipped,7:15062:bank,18:2099:missing~Farming"),
             },
         };
         var xpTable = new Dictionary<int, long> { [20] = 23200, [21] = 25200, [39] = 85700, [40] = 90700 };
