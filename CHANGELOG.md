@@ -2,6 +2,11 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.26.0
+
+- **Alliance and Horde colors**: each character row gets a thin blue or red edge and a small faction crest on its portrait, and the open details glow faintly in the faction's color. The addon now records the faction; older characters get it from their race.
+- **Faction filter** on the Characters page (Alliance / Horde chips), shown when you have characters on both sides.
+
 ## v0.25.4
 
 - Discord posts show **WoW Character Tracker** small in the footer, with the app's logo, next to the time.

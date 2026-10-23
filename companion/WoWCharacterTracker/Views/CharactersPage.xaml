@@ -11,6 +11,9 @@
     <!-- The open character's details: the tab strip, then only the open tab's view. -->
     <DataTemplate x:Key="CharacterDetails" DataType="{x:Type vm:CharacterRow}">
       <Border Margin="24,0,24,16" Padding="18,2,18,16" CornerRadius="10" Background="#660F172A" BorderBrush="{DynamicResource Line}" BorderThickness="1" ui:Motion.Reveal="True">
+        <Grid>
+        <!-- A faint faction glow along the top, out to the frame (the negative margin undoes the padding). -->
+        <Border Height="70" Margin="-18,-2,-18,0" VerticalAlignment="Top" CornerRadius="9,9,0,0" Background="{Binding FactionGlow}" IsHitTestVisible="False"/>
         <StackPanel>
           <Border Margin="0,2,0,2">
             <StackPanel Orientation="Horizontal">
@@ -55,6 +58,7 @@
             </ContentControl.Style>
           </ContentControl>
         </StackPanel>
+        </Grid>
       </Border>
     </DataTemplate>
   </UserControl.Resources>
@@ -83,6 +87,7 @@
         <StackPanel>
         <!-- Filter by realm (Retail) or ruleset (Forever). -->
         <views:ChipBar DataContext="{Binding Groups}" Margin="35,12,35,0"/>
+        <views:ChipBar DataContext="{Binding FactionChips}" Margin="35,8,35,0"/>
         <Grid Margin="35,14,43,14"> <!-- lines up with the rows: their frame margin (10) + border (1) + 24, and the list's 8 px scrollbar lane on the right -->
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -117,6 +122,10 @@
         <ListBox.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:CharacterRow}">
             <StackPanel>
+              <Grid>
+              <!-- Faction edge: a short bar inside the frame's left side, clear of its rounded corners. -->
+              <Rectangle Width="3" Margin="0,14" RadiusX="1.5" RadiusY="1.5" HorizontalAlignment="Left" Fill="{Binding FactionBrush}"
+                         ToolTip="{Binding Faction}" Visibility="{Binding HasFaction, Converter={StaticResource Visible}}"/>
               <Grid Margin="24,12" Background="Transparent" PreviewMouseLeftButtonDown="CharacterHeader_MouseDown">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -139,6 +148,16 @@
                       </Image.Clip>
                     </Image>
                     <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5" Opacity="0.7"/>
+                    <!-- The faction crest as a small badge on the portrait's lower right, ringed in the row color. -->
+                    <Grid Width="18" Height="18" Margin="0,0,-5,-3" HorizontalAlignment="Right" VerticalAlignment="Bottom" ToolTip="{Binding Faction}"
+                          Visibility="{Binding FactionCrestUrl, Converter={StaticResource VisibleIfSet}}">
+                      <Image Source="{Binding FactionCrestUrl, Converter={StaticResource WebImage}}" RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Clip>
+                          <EllipseGeometry Center="9,9" RadiusX="9" RadiusY="9"/>
+                        </Image.Clip>
+                      </Image>
+                      <Ellipse Stroke="{DynamicResource RowBg}" StrokeThickness="1.5" Margin="-0.75"/>
+                    </Grid>
                   </Grid>
                   <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
                     <TextBlock Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"
@@ -184,6 +203,7 @@
                   <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0"
                              Visibility="{Binding PlayedLine, Converter={StaticResource VisibleIfSet}}"/>
                 </StackPanel>
+              </Grid>
               </Grid>
 
               <!-- Details for the selected character, in tabs so it stays readable. They're only built

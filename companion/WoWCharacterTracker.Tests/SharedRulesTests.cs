@@ -24,6 +24,31 @@ public class SharedRulesTests
         Assert.Equal(lua.OrderBy(p => p.Key), Payload.ShortKeys.OrderBy(p => p.Key));
     }
 
+    // The faction the addon recorded wins; older data (no faction) goes by the race, and races both
+    // sides can play stay unknown.
+    [Theory]
+    [InlineData("Horde", "Pandaren", "Horde")]
+    [InlineData("Alliance", "Dracthyr", "Alliance")]
+    [InlineData("", "NightElf", "Alliance")]
+    [InlineData("", "Scourge", "Horde")]
+    [InlineData("Neutral", "Pandaren", "")]
+    [InlineData("", "Earthen", "")]
+    [InlineData("", "", "")]
+    public void Faction_comes_from_the_addon_else_the_race(string recorded, string raceFile, string expected)
+    {
+        Assert.Equal(expected, Factions.Of(recorded, raceFile));
+    }
+
+    [Fact]
+    public void Live_check_ins_and_rows_carry_the_faction()
+    {
+        var e = Payload.Parse("i=:snapshot:1;g=1403-0A1B2C3D;k=snapshot;E=Pandaren;fa=Horde")!;
+        Assert.Equal("Horde", e.Faction);
+        Assert.Equal("Horde", Snapshot.Of(e).Faction);
+        var row = CharacterRow.Build(new TrackerData([], [Snapshot.Of(e)]), Flavors.Retail, new GameLookup(Flavors.Retail, () => { })).Single();
+        Assert.Equal("Horde", row.Faction);
+    }
+
     // Whether an event gets posted: the addon's wanted() (what it sends live and screenshots) and the
     // app's FlavorSettings.Wants, for the same settings.
     [Theory]

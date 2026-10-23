@@ -180,6 +180,13 @@ sealed class CharacterRow : Observable
     public SolidColorBrush ClassBrush => ClassColors.Brush(ClassColors.For(ClassFile));
     public SolidColorBrush ClassSoftBrush => ClassColors.Brush(ClassColors.For(ClassFile), 0x26);
 
+    // "Alliance", "Horde" or "" (Factions.Of): the row's edge, the crest on the portrait, the details' glow.
+    public string Faction { get; init; } = "";
+    public bool HasFaction => Faction.Length > 0;
+    public SolidColorBrush? FactionBrush => FactionColors.Edge(Faction);
+    public Brush? FactionGlow => FactionColors.Glow(Faction);
+    public string? FactionCrestUrl => Factions.CrestIcon(Faction) is { } icon ? Wowhead.IconUrl(icon, "small") : null;
+
     // Tank, healer, or melee/ranged/caster damage (Roles), as a small WoW icon with its name as the tooltip.
     public bool IsRetail { get; init; }
     public string RoleKind => Roles.Of(Role, ClassFile, Spec, IsRetail);
@@ -267,6 +274,7 @@ sealed class CharacterRow : Observable
                 ClassFile = Pick(s?.ClassFile, last?.ClassFile),
                 Race = Pick(s?.Race, last?.Race),
                 RaceFile = Pick(s?.RaceFile, last?.RaceFile),
+                Faction = Factions.Of(Pick(s?.Faction, last?.Faction), Pick(s?.RaceFile, last?.RaceFile)),
                 Sex = Pick(s?.Sex, last?.Sex) is { Length: > 0 } sex ? sex : "male",
                 Spec = Pick(s?.Spec, last?.Spec) is var spec && spec != Pick(s?.Class, last?.Class) ? spec : "", // old Forever data had the class as spec
                 Role = s?.Role ?? "",
