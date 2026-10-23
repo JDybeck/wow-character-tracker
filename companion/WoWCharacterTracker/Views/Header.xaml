@@ -164,6 +164,20 @@
               <TextBlock Text="Test characters" FontSize="13" Foreground="{StaticResource TextSoft}"/>
             </CheckBox>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,14"/>
+            <!-- Where the setup checks and update banner sit (Config.SetupPlacement). -->
+            <TextBlock Text="Setup checks" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="0,0,0,6"/>
+            <WrapPanel>
+              <RadioButton Style="{StaticResource ChoiceChip}" GroupName="SetupPlace" Margin="0,0,6,0" Content="Right"
+                           IsChecked="{Binding SetupRight, Mode=OneWay}" Command="{Binding PlaceSetupCommand}" CommandParameter="right"
+                           ToolTip="In the right column, above the Discord panel. Takes the least room."/>
+              <RadioButton Style="{StaticResource ChoiceChip}" GroupName="SetupPlace" Margin="0,0,6,0" Content="Top"
+                           IsChecked="{Binding SetupTop, Mode=OneWay}" Command="{Binding PlaceSetupCommand}" CommandParameter="top"
+                           ToolTip="Across the top of the window, over the pages"/>
+              <RadioButton Style="{StaticResource ChoiceChip}" GroupName="SetupPlace" Content="Bottom"
+                           IsChecked="{Binding SetupBottom, Mode=OneWay}" Command="{Binding PlaceSetupCommand}" CommandParameter="bottom"
+                           ToolTip="Across the bottom of the window, under the pages"/>
+            </WrapPanel>
+            <Border Height="1" Background="{DynamicResource Line}" Margin="0,14"/>
             <!-- Color themes for the open game tab (AppearanceViewModel). -->
             <TextBlock Text="{Binding Appearance.Title}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="0,0,0,6"/>
             <ItemsControl ItemsSource="{Binding Appearance.Choices}" Focusable="False">

@@ -16,10 +16,18 @@
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
     <views:Header/>
-    <views:SetupBar Grid.Row="1" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+    <!-- The setup checks sit where Settings says (Config.SetupPlacement): here, under the window
+         (last row) or in the right column above Discord (the default). -->
+    <Border Grid.Row="1" Visibility="{Binding SetupTop, Converter={StaticResource Visible}}">
+      <views:SetupBar Wide="True" Margin="0,0,0,14" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+    </Border>
+    <Border Grid.Row="3" Visibility="{Binding SetupBottom, Converter={StaticResource Visible}}">
+      <views:SetupBar Wide="True" Margin="0,14,0,0" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+    </Border>
 
     <!-- Main area: the page tabs on top (left), then the page and the right column side by side,
          so their top edges line up. -->
@@ -95,6 +103,9 @@
         <ScrollViewer x:Name="RightScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                       Margin="0,0,-14,0" Padding="0,0,14,0" Focusable="False">
         <StackPanel x:Name="RightColumn">
+          <Border x:Name="SetupRightView" Visibility="{Binding SetupRight, Converter={StaticResource Visible}}">
+            <views:SetupBar Margin="0,0,0,16" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+          </Border>
           <views:DiscordPanel x:Name="DiscordView" DataContext="{Binding Discord}"/>
           <views:StreamPanel x:Name="StreamView" Margin="0,16,0,0" DataContext="{Binding Stream}"/>
           <views:ConsolePanel x:Name="ConsoleView" Margin="0,16,0,0"/>

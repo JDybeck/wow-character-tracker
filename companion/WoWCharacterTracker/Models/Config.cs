@@ -60,6 +60,12 @@ class Config
     // Slides, fades and the tab orb (Ui/Motion). Off: everything switches instantly.
     public bool Animations { get; set; } = true;
 
+    // Where the setup checks and the update banner sit (Settings menu): "right" (above the Discord
+    // panel, the default), "top" (over the pages) or "bottom" (under them). Anything else reads as right.
+    public string SetupPlacement { get; set; } = "right";
+    public static readonly string[] SetupPlaces = ["right", "top", "bottom"];
+    public string SetupPlace => SetupPlaces.Contains(SetupPlacement) ? SetupPlacement : "right";
+
     // Stream overlay (a localhost page for OBS) and stream text files, off until turned on.
     public bool StreamEnabled { get; set; }
     public int StreamPort { get; set; } = 8721;

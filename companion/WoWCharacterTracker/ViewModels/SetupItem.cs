@@ -2,7 +2,7 @@ using System.Windows.Input;
 
 namespace WoWCharacterTracker.ViewModels;
 
-// One of the three setup checks at the top of the window.
+// One of the three setup checks (Views/SetupBar).
 sealed class SetupItem(string title) : Observable
 {
     public string Title { get; } = title;

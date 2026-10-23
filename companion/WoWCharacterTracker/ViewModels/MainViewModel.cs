@@ -78,6 +78,26 @@ sealed class MainViewModel : Observable
         set { Config.Animations = Motion.Enabled = value; Config.Save(); Raise(nameof(Animations)); }
     }
 
+    // Settings, Setup checks: right column (above Discord), top or bottom of the window.
+    public string SetupPlacement
+    {
+        get => Config.SetupPlace;
+        set
+        {
+            Config.SetupPlacement = value;
+            Config.Save();
+            RaiseSetupPlacement();
+        }
+    }
+    void RaiseSetupPlacement()
+    {
+        foreach (var name in new[] { nameof(SetupPlacement), nameof(SetupRight), nameof(SetupTop), nameof(SetupBottom) }) Raise(name);
+    }
+    public bool SetupRight => SetupPlacement == "right";
+    public bool SetupTop => SetupPlacement == "top";
+    public bool SetupBottom => SetupPlacement == "bottom";
+    public ICommand PlaceSetupCommand => new RelayCommand(p => SetupPlacement = (string)p!);
+
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
 
@@ -133,6 +153,7 @@ sealed class MainViewModel : Observable
     {
         Config = Config.Load();
         Motion.Enabled = Config.Animations;
+        RaiseSetupPlacement();
         Log.Info("Character Tracker started.");
         Discord.ShowAddWebhook = Config.Webhooks.Count == 0;
 

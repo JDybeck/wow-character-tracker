@@ -39,6 +39,7 @@ sealed class FlavorViewModel : Observable
             ActionCommand = new RelayCommand(_ => SetUpAddon(force: true)),
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
+        WatchSetup();
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
@@ -127,6 +128,20 @@ sealed class FlavorViewModel : Observable
     public SetupItem AddonStep { get; }
     public SetupItem DiscordStep { get; }
     public IReadOnlyList<SetupItem> Steps => [FolderStep, AddonStep, DiscordStep];
+    // The checks that need something done: the setup bar spells these out, all fine is one quiet line.
+    public IReadOnlyList<SetupItem> SetupProblems => Steps.Where(s => !s.Ok).ToList();
+    public bool SetupOk => Steps.All(s => s.Ok);
+
+    void WatchSetup()
+    {
+        foreach (var step in Steps)
+            step.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName != nameof(SetupItem.Ok)) return;
+                Raise(nameof(SetupProblems));
+                Raise(nameof(SetupOk));
+            };
+    }
 
     public ObservableCollection<CharacterRow> Characters { get; } = [];
     CharacterRow? selectedCharacter;
@@ -458,7 +473,7 @@ sealed class FlavorViewModel : Observable
         CommandManager.InvalidateRequerySuggested();
     }
 
-    // Installs the addon when the user clicks Install on the Addon card (force), since that adds
+    // Installs the addon when the user clicks Install in the setup checks (force), since that adds
     // something to their game folder. An installed addon that's older than the one in this app is
     // updated right away: the app and the addon have to speak the same version. Also keeps the
     // interface number in step with game patches, so the game doesn't call it out of date.
@@ -475,7 +490,7 @@ sealed class FlavorViewModel : Observable
             {
                 case null: // not installed: waits for the user's click
                     AddonStep.Set(ok: false, "Not installed in this game folder yet", action: "Install");
-                    Log.Info($"[{Name}] The addon isn't installed in this game folder yet. Click Install on the Addon card to add it.");
+                    Log.Info($"[{Name}] The addon isn't installed in this game folder yet. Click Install next to Addon in the setup checks to add it.");
                     return;
 
                 case > 0: // newer than this app's (a test build put there by hand): left alone

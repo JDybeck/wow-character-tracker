@@ -280,3 +280,15 @@ public class DiscordCreditTests
         Assert.Equal(Services.Discord.DiscordWebhook.Credit, footer["text"]);
     }
 }
+public class SetupPlacementTests
+{
+    // Older configs have no placement: the checks go to the right column. A value this version
+    // doesn't know (hand edited, or from a newer one) reads as right too, so the checks never vanish.
+    [Theory]
+    [InlineData("{}", "right")]
+    [InlineData("{\"SetupPlacement\":\"top\"}", "top")]
+    [InlineData("{\"SetupPlacement\":\"bottom\"}", "bottom")]
+    [InlineData("{\"SetupPlacement\":\"sideways\"}", "right")]
+    public void Placement_from_config(string json, string expected) =>
+        Assert.Equal(expected, System.Text.Json.JsonSerializer.Deserialize<Config>(json)!.SetupPlace);
+}
