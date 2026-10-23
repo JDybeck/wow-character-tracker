@@ -60,9 +60,20 @@ static class Wow
         return (null, $"That isn't a World of Warcraft folder. Pick your World of Warcraft folder (usually {LikelyRoot() ?? DefaultRoot}) or the {want} folder inside it.");
     }
 
-    // "_retail_", or for Forever "_classic_beta_" (what the beta uses) and the others it may become.
+    // "_retail_", or for Forever "_forever_" and the beta folders it used before.
     public static string FolderHint(Flavor flavor) =>
-        flavor.Folders.Length == 1 ? flavor.Folders[0] : $"{flavor.Folders[^1]} (or {string.Join(", ", flavor.Folders[..^1])})";
+        flavor.Folders.Length == 1 ? flavor.Folders[0] : $"{flavor.Folders[0]} (or {string.Join(", ", flavor.Folders[1..])})";
+
+    // A saved folder with an older name for this game gives way to a newer one next to it once that's
+    // installed, e.g. Forever's _classic_beta_ to _forever_ when it goes live. Otherwise the same folder.
+    public static string NewestFolder(string flavorDir, Flavor flavor)
+    {
+        var dir = flavorDir.TrimEnd('\\', '/');
+        var index = Array.FindIndex(flavor.Folders, f => f.Equals(Path.GetFileName(dir), StringComparison.OrdinalIgnoreCase));
+        if (index <= 0) return flavorDir;
+        var parent = Path.GetDirectoryName(dir)!;
+        return flavor.Folders[..index].Select(f => Path.Combine(parent, f)).FirstOrDefault(IsFlavorDir) ?? flavorDir;
+    }
 
     public const string DefaultRoot = @"C:\Program Files (x86)\World of Warcraft";
 

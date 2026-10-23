@@ -57,6 +57,25 @@ public sealed class WowFolderTests : IDisposable
         var (path, problem) = Wow.Resolve(Path.GetTempPath(), Flavors.Forever);
         Assert.Null(path);
         Assert.Contains("Pick your World of Warcraft folder", problem);
-        Assert.Contains("_classic_beta_", problem);
+        Assert.Contains("_forever_ (or _forever_beta_, _classic_beta_)", problem);
+    }
+
+    [Fact]
+    public void A_saved_beta_folder_stays_until_forever_is_installed()
+    {
+        var beta = Path.Combine(root, "_classic_beta_");
+        Assert.Equal(beta, Wow.NewestFolder(beta, Flavors.Forever));
+
+        Directory.CreateDirectory(Path.Combine(root, "_forever_", "WTF"));
+        Assert.Equal(Path.Combine(root, "_forever_"), Wow.NewestFolder(beta, Flavors.Forever));
+        Assert.Equal(Path.Combine(root, "_forever_"), Wow.Resolve(root, Flavors.Forever).Path); // live wins over beta
+    }
+
+    [Fact]
+    public void Newest_folder_leaves_the_newest_name_and_retail_alone()
+    {
+        Directory.CreateDirectory(Path.Combine(root, "_forever_", "WTF"));
+        Assert.Equal(Path.Combine(root, "_forever_"), Wow.NewestFolder(Path.Combine(root, "_forever_"), Flavors.Forever));
+        Assert.Equal(Path.Combine(root, "_retail_"), Wow.NewestFolder(Path.Combine(root, "_retail_"), Flavors.Retail));
     }
 }

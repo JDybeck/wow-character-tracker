@@ -389,7 +389,8 @@ sealed class FlavorViewModel : Observable
             StatusText = $"{Name} is turned off";
             return;
         }
-        var path = Wow.IsFlavorDir(Settings.Path) ? Settings.Path : Wow.Detect(Flavor);
+        var saved = Wow.IsFlavorDir(Settings.Path) ? Settings.Path : null;
+        var path = saved is not null ? Wow.NewestFolder(saved, Flavor) : Wow.Detect(Flavor);
         if (path is null)
         {
             FolderStep.Ok = false;
@@ -398,7 +399,10 @@ sealed class FlavorViewModel : Observable
             Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse on the Game folder card and pick your World of Warcraft folder, or the {Wow.FolderHint(Flavor)} folder inside it.");
             return;
         }
-        UseFolder(path);
+        // Moved on from a beta folder: the addon goes along when it was installed there (the user said yes once already).
+        var moved = saved is not null && path != saved;
+        if (moved) Log.Info($"[{Name}] Found {Path.GetFileName(path)} next to {Path.GetFileName(saved)}, using it from now on.");
+        UseFolder(path, installAddon: moved && AddonInstaller.InstalledVersion(saved!) is not null);
     }
 
     // The folder picker. Any of these work: the World of Warcraft folder, this game's folder in it, or
@@ -421,7 +425,7 @@ sealed class FlavorViewModel : Observable
         UseFolder(path);
     }
 
-    void UseFolder(string path)
+    void UseFolder(string path, bool installAddon = false)
     {
         flavorDir = path;
         if (Settings.Path != path)
@@ -437,7 +441,7 @@ sealed class FlavorViewModel : Observable
         FolderStep.Detail = version is null ? path : $"{version} ({product}) in {Path.GetFileName(path)}";
         Log.Success($"[{Name}] Game folder: {path}" + (version is null ? "" : $", version {version} ({product})."));
 
-        SetUpAddon(force: false);
+        SetUpAddon(force: installAddon && AddonInstaller.InstalledVersion(path) is null);
 
         tracker?.Dispose();
         tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings,

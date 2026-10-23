@@ -4,6 +4,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.26.0
 
+- **Forever is live**: the app looks for Forever in `_forever_` first. If you used the beta folder (`_classic_beta_`), the app switches to `_forever_` by itself once it's installed, and brings the addon along.
 - The Discord panel's **Test** button now posts "{character} sent a test message." instead of a made-up level-up.
 
 ## v0.25.4
