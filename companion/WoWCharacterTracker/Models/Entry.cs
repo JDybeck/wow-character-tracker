@@ -46,6 +46,7 @@ record Entry
     public long Gold { get; init; }      // copper, for deaths
     public string Killer { get; init; } = "";
     public string Mount { get; init; } = "";
+    public int SpellId { get; init; }    // mount: the mount's spell, when it was learned without an item (from 0.26.0)
     public bool Bought { get; init; }    // the mount showed up while a vendor was open
     public bool Shot { get; init; }      // the addon took a screenshot right after
     public string Group { get; init; } = ""; // boss kills: the other party members, see Members
@@ -128,6 +129,7 @@ record Entry
             Gold = (long)n("gold"),
             Killer = s("killer"),
             Mount = s("mount"),
+            SpellId = (int)n("spellId"),
             Bought = s("bought") is "true" or "1",
             Shot = s("shot") is "true" or "1",
             Group = s("group"),

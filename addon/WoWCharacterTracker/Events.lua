@@ -338,13 +338,14 @@ end
 
 local lastMountAt = 0
 
-function ns.recordMount(name, itemId)
+-- itemId when the mount came as an item, spellId when it was learned straight into the mount journal.
+function ns.recordMount(name, itemId, spellId)
   -- Buying a mount item and then learning it would count twice on clients with a mount journal.
   if time() - lastMountAt < 120 then return end
   lastMountAt = time()
 
   local now = time()
-  ns.record("mount", { mount = name, itemId = itemId, bought = ns.merchantOpen or nil, at = now },
+  ns.record("mount", { mount = name, itemId = itemId, spellId = spellId, bought = ns.merchantOpen or nil, at = now },
     string.format("mount:%s:%d", name, now))
   ns.say(string.format("New mount: %s.", name))
 end

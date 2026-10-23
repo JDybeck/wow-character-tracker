@@ -16,7 +16,7 @@
           <Border x:Name="Tint" Width="34" Height="34" Margin="0,0,3,3" CornerRadius="4" Background="#66E53935" IsHitTestVisible="False" Visibility="Collapsed"/>
         </Grid>
         <StackPanel Margin="6,0,0,3" VerticalAlignment="Center">
-          <TextBlock x:Name="Name" Text="{Binding Item.Name}" Foreground="{Binding Item.Brush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="Name" Style="{StaticResource TrimmedText}" Text="{Binding Item.Name}" Foreground="{Binding Item.Brush}" FontSize="12"/>
           <TextBlock Text="{Binding Enchant}" Foreground="#1EFF00" FontSize="11" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left"
                      ui:ItemTip.Info="{Binding EnchantInfo.Info}" Visibility="{Binding HasEnchant, Converter={StaticResource Visible}}"/>
           <TextBlock x:Name="Note" Text="{Binding PlaceNote}" Foreground="{StaticResource Faint}" FontSize="11"

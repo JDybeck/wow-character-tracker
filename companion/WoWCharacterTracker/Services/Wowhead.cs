@@ -23,7 +23,7 @@ static class Wowhead
     public static string IconUrl(string icon, string size = "medium") =>
         $"https://wow.zamimg.com/images/wow/icons/{size}/{icon}.jpg";
 
-    // type is "item" or "currency".
+    // type is "item", "currency" or "spell".
     public static Task<Info?> GetAsync(string type, int id, Flavor flavor)
     {
         if (id <= 0) return Task.FromResult<Info?>(null);

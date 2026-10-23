@@ -4,6 +4,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.26.0
 
+- **Mount posts show the mount**: like loot, the Discord post has the mount's tooltip picture with its icon, and links to Wowhead. Works for mount items and for mounts learned straight into the mount journal (update the addon for those).
+- **Narrow windows**: the character list and details no longer cut things off. The RACE and PLAYED sort headers wrap instead of vanishing, the realm trims with the full name on hover (the tag moves under it), and long text in the details wraps or trims with a tooltip.
 - **Alliance and Horde colors**: each character row gets a thin blue or red edge and a small faction crest on its portrait, and the open details glow faintly in the faction's color. The addon now records the faction; older characters get it from their race.
 - **New color themes**: Alliance (Stormwind blue and gold), Horde (Orgrimmar red and black iron), Darnassus, Undercity and Icecrown.
 - **Every theme in both games**: Retail and Forever now list all of them (this game's own first), so you can give Forever Midnight or Retail Classic gold. Each game keeps its own default and its own pick.
