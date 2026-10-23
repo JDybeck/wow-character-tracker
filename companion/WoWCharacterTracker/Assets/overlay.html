@@ -38,12 +38,14 @@
   #card { width: auto; min-width: 260px; max-width: 560px; }
   #card.on { display: flex; flex-direction: column; }
   #card.sized { max-width: none; }
-  /* Who made it: the logo, the name and GitHub's mark, small and faint. */
-  .brand { display: none; align-items: center; justify-content: flex-end; gap: 5px; margin-top: auto; padding-top: 8px;
-           font-size: 10px; letter-spacing: .3px; color: #94a3b8; opacity: .75; white-space: nowrap; }
+  /* Who made it: the logo, the name and GitHub's mark, small and faint, quieter than any other text.
+     Scaled down the overlay would make it unreadable, so it never ends up under 6 px on screen (the
+     smallest stat text at 50% is 6.5 px, so it still stays below it). */
+  .brand { display: none; align-items: center; justify-content: flex-end; gap: .4em; margin-top: auto; padding-top: 6px;
+           font-size: max(8.5px, calc(6px / var(--scale))); letter-spacing: .2px; color: #94a3b8; opacity: .5; white-space: nowrap; text-shadow: none; }
   body.branded .brand { display: flex; }
-  .brand img { width: 14px; height: 14px; }
-  .brand svg { width: 11px; height: 11px; fill: currentColor; }
+  .brand img { width: 1.15em; height: 1.15em; }
+  .brand svg { width: .95em; height: .95em; fill: currentColor; }
   .name { font-size: 22px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
   .sub { font-size: 13px; color: #cbd5e1; margin-top: 2px; }
   .cols { display: flex; gap: 22px; margin-top: 10px; }
