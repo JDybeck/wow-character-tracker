@@ -32,6 +32,13 @@ sealed class Tracker : IDisposable
     // When each character's saved file was last written (NoteSaves), and whether the first read is done.
     readonly Dictionary<string, long> savedAt = [];
     bool savesKnown;
+    // Each account's saved file as last read, kept until the game writes it again (Read): parsing it
+    // is the costly part of a sync, and most syncs (the safety net, live events) find it unchanged.
+    readonly Dictionary<string, (DateTime WrittenAt, long Length, TrackerData Data)> parsed = [];
+    // Bumped by every live event, so a sync knows there's something new without the saved file changing.
+    int liveVersion;
+    // What the last sync showed (saved files and live version); the same again means nothing to show.
+    string? shownStamp;
 
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
@@ -114,6 +121,7 @@ sealed class Tracker : IDisposable
             live[e.Id] = e;
             sentAt[e.Id] = shotAt;
         }
+        Interlocked.Increment(ref liveVersion);
         _ = SyncAsync();
     }
 
@@ -143,9 +151,15 @@ sealed class Tracker : IDisposable
                 ? []
                 : JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(statePath)) ?? [];
 
-            var data = ReadAll();
-            NoteSaves(data);
-            DataChanged?.Invoke(data);
+            // Nothing new since the last sync: the app already shows it, only posts that failed are tried again.
+            var (data, stamp) = ReadAll();
+            if (stamp != shownStamp || report)
+            {
+                shownStamp = stamp;
+                NoteSaves(data);
+                DataChanged?.Invoke(data);
+            }
+            var handled = posted.Count;
 
             // On the very first run, mark old entries as posted instead of flooding the channel.
             var skipPosting = !initialDone && firstRun && !backfill;
@@ -167,7 +181,8 @@ sealed class Tracker : IDisposable
                 sent = await PostPendingAsync(pending, data.Events, settings());
             }
 
-            File.WriteAllText(statePath, JsonSerializer.Serialize(posted));
+            if (posted.Count != handled || firstRun && !File.Exists(statePath)) // only ever grows
+                Files.WriteAtomic(statePath, JsonSerializer.Serialize(posted));
             if (report)
             {
                 var chars = data.Characters.Select(c => c.Guid).Concat(data.Events.Select(e => e.Guid)).Distinct().Count();
@@ -315,8 +330,9 @@ sealed class Tracker : IDisposable
     }
 
     // Merges every account's file plus anything that came in live. A character only lives on one
-    // account, and a live event later shows up in the file with the same id.
-    TrackerData ReadAll()
+    // account, and a live event later shows up in the file with the same id. Stamp: which file
+    // versions and live events went into it.
+    (TrackerData Data, string Stamp) ReadAll()
     {
         var events = new Dictionary<string, Entry>();
         var chars = new List<Snapshot>();
@@ -324,13 +340,16 @@ sealed class Tracker : IDisposable
         var xpTable = new Dictionary<int, long>();
         var itemClasses = new Dictionary<int, int>();
         var notes = new Dictionary<string, GameNote>();
+        var stamp = new System.Text.StringBuilder().Append(Volatile.Read(ref liveVersion));
         foreach (var account in Wow.Accounts(flavorDir))
         {
             var file = Wow.SavedVarsFile(flavorDir, account);
-            if (!File.Exists(file)) continue;
+            var info = new FileInfo(file);
+            if (!info.Exists) continue;
             try
             {
-                var d = SavedVariables.Read(file);
+                var d = Read(info);
+                stamp.Append('|').Append(file).Append(info.LastWriteTimeUtc.Ticks).Append(':').Append(info.Length);
                 foreach (var e in d.Events) events[e.Id] = e;
                 chars.AddRange(d.Characters);
                 inventories.AddRange(d.Inventories);
@@ -341,13 +360,25 @@ sealed class Tracker : IDisposable
             }
             catch (Exception ex)
             {
+                parsed.Remove(file);
                 Log.Warn($"{Tag}Couldn't read the data for account {account} ({ex.Message}). Will try again on the next change.");
             }
         }
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(Snapshot.Of));
-        return new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values] };
+        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values] },
+            stamp.ToString());
+    }
+
+    // One account's saved file, parsed again only when the game has written it since.
+    TrackerData Read(FileInfo file)
+    {
+        if (parsed.TryGetValue(file.FullName, out var known) && known.WrittenAt == file.LastWriteTimeUtc && known.Length == file.Length)
+            return known.Data;
+        var data = SavedVariables.Read(file.FullName);
+        parsed[file.FullName] = (file.LastWriteTimeUtc, file.Length, data);
+        return data;
     }
 
     public void Dispose()

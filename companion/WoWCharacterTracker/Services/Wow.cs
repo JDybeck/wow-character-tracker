@@ -190,7 +190,7 @@ static class Wow
         {
             return Directory.GetFiles(flavorDir, "Wow*.exe")
                 .Select(Path.GetFileNameWithoutExtension)
-                .Any(n => System.Diagnostics.Process.GetProcessesByName(n!).Length > 0);
+                .Any(n => GameProcesses.IsRunning(n!));
         }
         catch (IOException) { return false; }
     }

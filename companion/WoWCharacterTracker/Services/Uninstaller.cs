@@ -18,9 +18,11 @@ static class Uninstaller
             // Test runs never make the Start menu shortcut, so they leave the real one alone.
             var shortcut = Config.IsTest ? "" : StartMenu.ShortcutPath;
             var files = new[] { exe, exe + ".old", exe + ".new", shortcut }.Where(File.Exists).ToList();
+            // The parts .NET unpacked into %TEMP% (ExtractedFiles), gone with the exe.
+            var unpacked = ExtractedFiles.BaseDir();
             parts.Add(new Part(Kind.App, "The app",
-                "The program, its Start menu shortcut and its entry in Windows startup (Open with World of Warcraft). It's removed a moment after the app closes.",
-                files, files.Sum(f => new FileInfo(f).Length)));
+                "The program, its Start menu shortcut, the files Windows unpacked for it in your temp folder and its entry in Windows startup (Open with World of Warcraft). It's removed a moment after the app closes.",
+                unpacked is null ? files : [.. files, unpacked], files.Sum(f => new FileInfo(f).Length) + (unpacked is null ? 0 : Size(unpacked))));
         }
         foreach (var (flavor, dir) in games)
         {
@@ -58,7 +60,8 @@ static class Uninstaller
                 if (part.Kind == Kind.App)
                 {
                     Autostart.Apply(false);
-                    foreach (var leftover in part.Paths.Where(p => p != Environment.ProcessPath)) File.Delete(leftover);
+                    foreach (var leftover in part.Paths.Where(p => p != Environment.ProcessPath && File.Exists(p))) File.Delete(leftover);
+                    ExtractedFiles.CleanUp(); // the folder in use goes after exit (RemoveAppAfterExit)
                 }
                 else
                 {
@@ -85,8 +88,9 @@ static class Uninstaller
     public static void RemoveAppAfterExit()
     {
         if (!CanRemoveApp || Environment.ProcessPath is not { } exe) return;
+        var unpacked = ExtractedFiles.BaseDir() is { } dir ? $" & rmdir /s /q \"{dir}\"" : "";
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe",
-            $"/c ping 127.0.0.1 -n 4 >nul & del /f /q \"{exe}\"") { CreateNoWindow = true, UseShellExecute = false });
+            $"/c ping 127.0.0.1 -n 4 >nul & del /f /q \"{exe}\"{unpacked}") { CreateNoWindow = true, UseShellExecute = false });
     }
 
     static long Size(string dir)

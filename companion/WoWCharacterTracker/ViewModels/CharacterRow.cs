@@ -76,6 +76,16 @@ sealed class CharacterRow : Observable
     public Func<CharacterGear>? MakeGear { private get; init; }
     CharacterGear? gear;
     public CharacterGear Gear => gear ??= MakeGear?.Invoke() ?? CharacterGear.Empty;
+
+    // The list is rebuilt on every sync with new data; when this character's saved inventory is the
+    // same one (Tracker keeps unchanged files as they were read), the gear tab built for the old row
+    // is taken over instead of building every bag and bank slot again.
+    public void KeepGearFrom(CharacterRow old)
+    {
+        if (old.gear is { } built && Inventory is not null && ReferenceEquals(old.Inventory, Inventory)
+            && old.ClassFile == ClassFile && old.Spec == Spec)
+            gear = built;
+    }
     public CharacterLeveling Leveling { get; init; } = new();
 
     // The details are split into tabs: "overview", "gear" (gear and bags), "leveling" and "notes".

@@ -2,6 +2,13 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.27.1
+
+- The app uses far less CPU while it waits in the tray: checking whether WoW is running now takes one look at the running programs instead of six.
+- The app cleans up after older versions: each update left about 8 MB of WPF files in your temp folder (`%TEMP%\.net\WoWCharacterTracker`). Those are removed now, and the Uninstall page removes the rest with the app.
+- Syncs that find nothing new (the check every minute while you play, most instant posts) no longer read your saved files again or rebuild the character list, and an open Gear and bags tab stays as it is when its bags haven't changed.
+- Settings, posted history and caches are saved so a crash or power cut can't leave them broken. Before, a broken settings file meant your webhooks were gone.
+
 ## v0.27.0
 
 - The small **WoW Character Tracker** line under the stream overlay's card and highlights is now always shown, and 20% smaller so it stays out of the way. The **Our name** option is gone.

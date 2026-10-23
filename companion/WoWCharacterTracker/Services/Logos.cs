@@ -21,7 +21,7 @@ static class Logos
             {
                 var bytes = await Http.GetByteArrayAsync(flavor.LogoUrl);
                 Directory.CreateDirectory(dir);
-                await File.WriteAllBytesAsync(file, bytes);
+                Files.WriteAtomic(file, bytes); // a cut-off download would otherwise stay broken (the file counts as there)
             }
             var img = new BitmapImage();
             img.BeginInit();
