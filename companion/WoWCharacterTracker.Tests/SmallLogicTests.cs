@@ -340,4 +340,12 @@ public class DiscordCreditTests
         var footer = Assert.IsType<Dictionary<string, string>>(sent[0]["footer"]);
         Assert.Equal(Services.Discord.DiscordWebhook.Credit, footer["text"]);
     }
+
+    [Fact]
+    public void Webhook_test_says_test_message_not_a_ding()
+    {
+        var e = ViewModels.SampleEvents.For("test", Flavors.Forever, null, []);
+        var embed = new Services.Discord.EventEmbeds(Flavors.Forever).Build(e, isTest: true);
+        Assert.Equal("Testy sent a test message.", embed["title"]);
+    }
 }

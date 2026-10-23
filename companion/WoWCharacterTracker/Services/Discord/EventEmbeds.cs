@@ -25,6 +25,7 @@ sealed class EventEmbeds(Flavor flavor)
             "makgora" => MakgoraText(e),
             "mplus" => MPlusText(e),
             "pvp" => PvpText(e),
+            "test" => TestText(e),
             _ when e.MaxLevel => MaxLevelText(e),
             _ => LevelText(e),
         };
@@ -67,6 +68,14 @@ sealed class EventEmbeds(Flavor flavor)
         if (footer.Length > 0) embed["footer"] = new { text = footer };
 
         return embed;
+    }
+
+    // The Discord panel's Test button: checks the webhook without pretending something happened.
+    static (string, List<string>) TestText(Entry e)
+    {
+        var lines = new List<string> { "This webhook works. Level-ups, loot, boss kills and more will show up here." };
+        if (e.Zone.Length > 0) lines.Add($"Last seen in **{e.Zone}** at level {e.Level}.");
+        return ($"{e.Char} sent a test message.", lines);
     }
 
     // The owner's format: who dinged, how long it took, played, where, professions, talents.

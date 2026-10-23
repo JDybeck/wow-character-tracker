@@ -39,6 +39,7 @@ static class SampleEvents
             "makgora" => e with { Kind = "makgora", Opponent = "Grimtusk", OpponentInfo = $"{Math.Max(e.Level, 2)}~WARRIOR~Warrior~Orc", Hardcore = true },
             "mplus" => e with { Kind = "mplus", Step = 2000, Rating = 2034 },
             "pvp" => e with { Kind = "pvp", Step = 1800, Rating = 1812, Bracket = "3v3" },
+            "test" => e with { Kind = "test" },
             _ => e with { Kind = "level", Seconds = 18 * 60 + 4 },
         };
     }
