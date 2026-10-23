@@ -37,8 +37,14 @@ static class ImageCache
         if (isFile) foreach (var old in Shown.Keys.Where(k => k.StartsWith(source + "|", StringComparison.OrdinalIgnoreCase)).ToList()) Shown.Remove(old);
         try
         {
+            // Usually already loaded off the UI thread by LoadAsync (ItemInfo does that before it hands
+            // out its icon); this is for the few pictures bound straight from a URL.
             var kept = isFile ? null : KeptFile(source);
-            if (kept is not null && File.Exists(kept)) return Shown[key] = Decode(File.ReadAllBytes(kept));
+            if (kept is not null && File.Exists(kept))
+            {
+                try { return Shown[key] = Decode(File.ReadAllBytes(kept)); }
+                catch (Exception ex) when (IsBadPicture(ex)) { Files.TryDelete(kept); } // fetched again below
+            }
 
             var img = new BitmapImage();
             img.BeginInit();
@@ -51,39 +57,46 @@ static class ImageCache
             Shown[key] = img;
             return img;
         }
-        catch (Exception ex) when (ex is UriFormatException or IOException or NotSupportedException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is UriFormatException or IOException or UnauthorizedAccessException || IsBadPicture(ex))
         {
             return null;
         }
     }
 
+    // Data that isn't a picture WPF can read (an error page, a cut-off file): NotSupportedException for
+    // an unknown format, FileFormatException (a FormatException) for a broken one.
+    static bool IsBadPicture(Exception ex) => ex is NotSupportedException or FormatException or ArgumentException;
+
     // For drawing (the character card, the item picture) and the tab logos: decoded and frozen, so
     // any thread can use it. Null when it can't be had (offline, gone); a later call tries again.
     public static async Task<BitmapSource?> LoadAsync(string source)
     {
-        if (File.Exists(source)) return await Fetch(source); // portraits change, so files aren't kept
-        var img = await Loads.GetOrAdd(source, Fetch);
+        if (File.Exists(source)) return await Fetch(source).ConfigureAwait(false); // portraits change, so files aren't kept
+        var img = await Loads.GetOrAdd(source, Fetch).ConfigureAwait(false);
         if (img is null) Loads.TryRemove(source, out _);
         return img;
     }
 
+    // Reading, downloading and decoding all happen off the UI thread (ConfigureAwait). Only a picture
+    // that decodes is kept on disk, and a kept one that doesn't (damaged) is dropped and fetched again.
     static async Task<BitmapSource?> Fetch(string source)
     {
         try
         {
+            if (File.Exists(source)) return Decode(await File.ReadAllBytesAsync(source).ConfigureAwait(false));
             var kept = KeptFile(source);
-            byte[] bytes;
-            if (File.Exists(source)) bytes = await File.ReadAllBytesAsync(source);
-            else if (kept is not null && File.Exists(kept)) bytes = await File.ReadAllBytesAsync(kept);
-            else
+            if (kept is not null && File.Exists(kept))
             {
-                bytes = await Web.GetBytesAsync(source, Timeout);
-                if (kept is not null) Save(kept, bytes);
+                try { return Decode(await File.ReadAllBytesAsync(kept).ConfigureAwait(false)); }
+                catch (Exception ex) when (IsBadPicture(ex)) { Files.TryDelete(kept); }
             }
-            return Decode(bytes);
+            var bytes = await Web.GetBytesAsync(source, Timeout).ConfigureAwait(false);
+            var img = Decode(bytes);
+            if (kept is not null) Save(kept, bytes);
+            return img;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or NotSupportedException or IOException
-                                       or UnauthorizedAccessException or UriFormatException or ArgumentException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException
+                                       or UnauthorizedAccessException or UriFormatException || IsBadPicture(ex))
         {
             return null;
         }
@@ -107,8 +120,11 @@ static class ImageCache
         Save(file, ms.ToArray());
     }
 
+    // Never makes the data folder itself: after Uninstall removed it, a download that finishes in the
+    // moment before the app quits mustn't bring it back.
     static void Save(string file, byte[] bytes)
     {
+        if (!Directory.Exists(Config.Dir)) return;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);

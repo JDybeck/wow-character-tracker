@@ -9,6 +9,10 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Stream overlay sliders save a moment after you let go, not on every step.
 - Equipping a whole equipment set in game saves the character once instead of once per item.
 - Under the hood: one connection pool for everything the app downloads, one place for WoW's colors, and one cache helper for Wowhead and Raider.IO.
+- A settings file that can't be read (say, after editing it by hand) is kept as `config.json.broken` instead of being replaced, so your webhooks can be brought back. The console says where it is.
+- If the list of what was already posted can't be read, the app starts that list over (nothing old gets posted again) instead of stopping all syncing for that game.
+- A broken or half-downloaded picture no longer causes an error or a failed post: it's skipped and downloaded again.
+- The "/reload to use the new settings" banner also goes away when the game crashed instead of closing normally.
 
 ## v0.27.1
 

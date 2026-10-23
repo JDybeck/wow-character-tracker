@@ -481,6 +481,9 @@ sealed class FlavorViewModel : Observable
         tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings,
             e => main.Config.WebhooksFor(Flavor, e.Guid, e.Ruleset, e.Hardcore), w => main.PosterFor(this, w), main.Backfill);
         tracker.DataChanged += data => MainViewModel.OnUi(() => { ShowData(data); CheckReloaded(); });
+        // A sync that finds nothing new doesn't raise DataChanged, so a game that closed without
+        // writing its saved file (a crash) clears the reload banner this way.
+        tracker.GameClosed += () => MainViewModel.OnUi(CheckReloaded);
         tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
         // Logging in on a game switches the app to that game's tab, with the character picked.

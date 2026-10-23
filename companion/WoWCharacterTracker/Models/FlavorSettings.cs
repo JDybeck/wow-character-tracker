@@ -55,14 +55,26 @@ class FlavorSettings
     // The member that matches, or null.
     public GroupMember? SkipBossBecause(Entry e)
     {
-        if (string.IsNullOrWhiteSpace(SkipBossGroupRegex)) return null;
-        try
-        {
-            var re = new System.Text.RegularExpressions.Regex(SkipBossGroupRegex,
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(200));
-            return e.Members.FirstOrDefault(m => re.IsMatch(m.Name) || re.IsMatch(m.FullName));
-        }
-        catch (ArgumentException) { return null; } // invalid regex: the settings page says so
+        if (string.IsNullOrWhiteSpace(SkipBossGroupRegex) || SkipRegex() is not { } re) return null;
+        try { return e.Members.FirstOrDefault(m => re.IsMatch(m.Name) || re.IsMatch(m.FullName)); }
+        catch (System.Text.RegularExpressions.RegexMatchTimeoutException) { return null; }
+    }
+
+    // Built once per pattern (every sync asks for each waiting boss kill, several times), null when the
+    // pattern isn't valid (the settings page says so). Not saved: fields stay out of the config file.
+    // One object, so the tracker's thread never sees a new pattern with the old Regex.
+    sealed record CompiledPattern(string Pattern, System.Text.RegularExpressions.Regex? Re);
+    CompiledPattern? skipRegex;
+
+    System.Text.RegularExpressions.Regex? SkipRegex()
+    {
+        var pattern = SkipBossGroupRegex;
+        if (skipRegex is { } known && known.Pattern == pattern) return known.Re;
+        System.Text.RegularExpressions.Regex? re;
+        try { re = new(pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(200)); }
+        catch (ArgumentException) { re = null; }
+        skipRegex = new(pattern, re);
+        return re;
     }
 
     // Per kind of event: take a screenshot in game, and attach it to the Discord post.
