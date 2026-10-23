@@ -13,9 +13,9 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
     // Test characters' surname is TESTCHAR; when the tab's name style leaves the surname out, it's added.
     static string Marked(string name, bool test) => test && !name.Contains("TESTCHAR") ? name + " TESTCHAR" : name;
 
-    // Posts the event. Loot gets a picture of the item's tooltip (like Wowhead's) as the embed's
-    // image. A screenshot is uploaded with the message: the embed's image, or a second embed under
-    // the item picture.
+    // Posts the event. Loot and mounts get a picture of the item's (or mount spell's) tooltip, icon
+    // and all, like Wowhead's, as the embed's image. A screenshot is uploaded with the message: the
+    // embed's image, or a second embed under the item picture.
     public async Task<bool> PostAsync(Entry e, bool isTest = false, string? screenshot = null)
     {
         var picture = await CharacterPicture.StandardAsync(flavor, SubjectOf(e));
@@ -26,7 +26,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             Char = Marked(Format.Name(e.Char, e.Surname, nameStyle), testChar),
             Realm = testChar ? $"Test character, not a real one ({e.Realm})" : e.Realm,
         };
-        var item = e.Kind == "loot" && e.ItemId > 0 ? await ItemTooltipImage.RenderAsync(e.ItemId, flavor) : null;
+        var item = EventEmbeds.WowheadThing(e) is { } thing ? await ItemTooltipImage.RenderAsync(thing.Id, flavor, thing.Type) : null;
         var embed = embeds.Build(e, isTest, itemPicture: item is not null);
         if (picture is not null) embed["thumbnail"] = new { url = picture };
 

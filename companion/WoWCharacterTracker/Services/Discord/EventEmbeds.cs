@@ -9,9 +9,21 @@ sealed class EventEmbeds(Flavor flavor)
         [3] = 0x0070DD, [4] = 0xA335EE, [5] = 0xFF8000, [6] = 0xE6CC80,
     };
 
-    public string ItemUrl(int itemId) => $"https://www.wowhead.com/{flavor.WowheadPath}item={itemId}";
+    public string ItemUrl(int itemId) => WowheadUrl("item", itemId);
+    string WowheadUrl(string type, int id) => $"https://www.wowhead.com/{flavor.WowheadPath}{type}={id}";
 
-    // itemPicture: the post shows the item's tooltip as a picture, so the text leaves out the item line.
+    // What Wowhead knows an event's item by: loot's item, a mount's item or (learned without one) its
+    // spell. Null when there's none. The post's picture and links both use it.
+    public static (string Type, int Id)? WowheadThing(Entry e) => e.Kind switch
+    {
+        "loot" or "mount" when e.ItemId > 0 => ("item", e.ItemId),
+        "mount" when e.SpellId > 0 => ("spell", e.SpellId),
+        _ => null,
+    };
+
+    string? ThingUrl(Entry e) => WowheadThing(e) is { } t ? WowheadUrl(t.Type, t.Id) : null;
+
+    // itemPicture: the post shows the item's (or mount's) tooltip as a picture, so the text leaves out the item line.
     public Dictionary<string, object> Build(Entry e, bool isTest, bool itemPicture = false)
     {
         var (title, lines) = e.Kind switch
@@ -19,12 +31,13 @@ sealed class EventEmbeds(Flavor flavor)
             "boss" => BossText(e),
             "loot" when e.Quality >= 5 => LegendaryText(e),
             "loot" => LootText(e, itemPicture),
-            "mount" => MountText(e),
+            "mount" => MountText(e, itemPicture),
             "death" => DeathText(e),
             "duel" => DuelText(e),
             "makgora" => MakgoraText(e),
             "mplus" => MPlusText(e),
             "pvp" => PvpText(e),
+            "test" => TestText(e),
             _ when e.MaxLevel => MaxLevelText(e),
             _ => LevelText(e),
         };
@@ -49,8 +62,8 @@ sealed class EventEmbeds(Flavor flavor)
         else if (CharacterArt.ClassColor(e.ClassFile) is int color)
             embed["color"] = color;
 
-        if (e.Kind is "loot" or "mount" && e.ItemId > 0)
-            embed["url"] = ItemUrl(e.ItemId);
+        if (ThingUrl(e) is { } url)
+            embed["url"] = url;
 
         // "Human Fury Warrior", leaving out whatever we don't know.
         var who = string.Join(" ", new[] { e.Race, e.Spec, e.Class }.Where(s => s.Length > 0));
@@ -67,6 +80,14 @@ sealed class EventEmbeds(Flavor flavor)
         if (footer.Length > 0) embed["footer"] = new { text = footer };
 
         return embed;
+    }
+
+    // The Discord panel's Test button: checks the webhook without pretending something happened.
+    static (string, List<string>) TestText(Entry e)
+    {
+        var lines = new List<string> { "This webhook works. Level-ups, loot, boss kills and more will show up here." };
+        if (e.Zone.Length > 0) lines.Add($"Last seen in **{e.Zone}** at level {e.Level}.");
+        return ($"{e.Char} sent a test message.", lines);
     }
 
     // The owner's format: who dinged, how long it took, played, where, professions, talents.
@@ -148,9 +169,11 @@ sealed class EventEmbeds(Flavor flavor)
         return ($"\U0001F7E7 LEGENDARY! {e.Char} looted [{e.Item}]", lines);
     }
 
-    (string, List<string>) MountText(Entry e)
+    // Like loot: the mount links to Wowhead (its item, or its spell), and the picture shows the name already.
+    (string, List<string>) MountText(Entry e, bool itemPicture)
     {
-        var lines = new List<string> { e.ItemId > 0 ? $"**[{e.Mount}]({ItemUrl(e.ItemId)})**" : $"**{e.Mount}**" };
+        var lines = new List<string>();
+        if (!itemPicture) lines.Add(ThingUrl(e) is { } url ? $"**[{e.Mount}]({url})**" : $"**{e.Mount}**");
         if (e.Level > 0) lines.Add($"At level {e.Level}.");
         return (e.Bought ? $"{e.Char} bought a mount!" : $"{e.Char} got a new mount!", lines);
     }

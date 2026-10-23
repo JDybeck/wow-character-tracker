@@ -21,6 +21,9 @@ static partial class ItemTooltip
         ["q9"] = "#71D5FF", ["q10"] = "#FF4040",
     };
 
+    // An item quality's color ("#A335EE" for epic), null when it isn't one.
+    public static string? QualityColor(int quality) => quality is >= 0 and <= 8 ? Colors[$"q{quality}"] : null;
+
     public static List<Line> Parse(string html)
     {
         var lines = new List<Line>();

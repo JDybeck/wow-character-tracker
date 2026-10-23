@@ -4,7 +4,7 @@
      the app's Stream overlay panel. Options in the address:
        ?only=card        the character card (stats and records, next to its level times)
        ?only=highlights  the highlights box        ?only=alert  the alert (DING!, VICTORY!, EPIC LOOT!...; ?only=ding still works)
-       ?scale=1.5   bigger (or smaller)            ?side=right  boxes on the right
+       ?scale=1.5   bigger (or smaller; else the panel's Size)   ?side=right  boxes on the right
        ?preview=1   a dark backdrop, for looking at it in a normal browser (the app's Preview button)
      A single part (?only=...) fills its Browser source, keeping its shape: resize the source to resize it.  -->
 <html>
@@ -12,7 +12,7 @@
 <meta charset="utf-8">
 <title>Character Tracker overlay</title>
 <style>
-  :root { --scale: 1; --bg: .78; --edge: #d97706; }
+  :root { --scale: 1; --bg: .78; --bgc: 10, 8, 6; --edge: #d97706; }
   /* The body fills the source: it clips what's outside it, and a fitted part is scaled past its own
      layout size (transforms don't grow the body), so a content-high body would cut the card off. */
   html, body { margin: 0; background: transparent; overflow: hidden; height: 100%; }
@@ -24,14 +24,28 @@
   body.fit .wrap { padding: 0; transform-origin: top left; align-items: flex-start; }
   body.fit .box.solid { box-shadow: none; }
 
-  .box { width: 340px; padding: 14px 16px 12px; border-radius: 12px; background: rgba(10, 8, 6, var(--bg));
+  .box { width: 340px; padding: 14px 16px 12px; border-radius: 12px; background: rgba(var(--bgc), var(--bg));
          border: 1px solid color-mix(in srgb, var(--edge) 55%, transparent); display: none;
-         text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+         text-shadow: 0 1px 3px rgba(0, 0, 0, .8); box-sizing: border-box; }
   .box.solid { box-shadow: 0 6px 24px rgba(0, 0, 0, .45); }
   .box.on { display: block; }
+  body.noborder .box { border-color: transparent; }
+  /* A picked accent colors the titles too (the default keeps them gray, the edge in the class color). */
+  body.accent .col-title, body.accent .hl-title { color: var(--edge); }
   /* The card: who the character is (head), its stats on the left and its leveling on the right.
-     Without level times (or with them turned off) the stats get the card to themselves. */
+     Without level times (or with them turned off) the stats get the card to themselves. Its width
+     and height can be set (a chat cover), the brand line then stays at the bottom. */
   #card { width: auto; min-width: 260px; max-width: 560px; }
+  #card.on { display: flex; flex-direction: column; }
+  #card.sized { max-width: none; }
+  /* Who made it: the logo, the name and GitHub's mark, small and faint, quieter than any other text.
+     Scaled down the overlay would make it unreadable, so it never ends up under 6 px on screen (the
+     smallest stat text at 50% is 6.5 px, so it still stays below it). */
+  .brand { display: none; align-items: center; justify-content: flex-end; gap: .4em; margin-top: auto; padding-top: 6px;
+           font-size: max(8.5px, min(calc(6px / var(--scale)), 17px)); letter-spacing: .2px; color: #94a3b8; opacity: .5; white-space: nowrap; text-shadow: none; }
+  body.branded .brand { display: flex; }
+  .brand img { width: 1.15em; height: 1.15em; }
+  .brand svg { width: .95em; height: .95em; fill: currentColor; }
   .name { font-size: 22px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
   .sub { font-size: 13px; color: #cbd5e1; margin-top: 2px; }
   .cols { display: flex; gap: 22px; margin-top: 10px; }
@@ -49,8 +63,19 @@
   .levels span:nth-child(odd) { color: #94a3b8; }
   .today { margin-top: 6px; font-size: 13px; color: #fcd34d; white-space: nowrap; }
   .since { margin-top: 8px; font-size: 11px; color: #94a3b8; }
+  /* The highlights box as a column, so with a set height the brand line sits at its bottom; lines
+     keep their height (never squeezed) and what doesn't fit is dropped by show(). */
+  .hl.on { display: flex; flex-direction: column; }
+  .hl > * { flex: none; }
+  .hl.sized { overflow: hidden; }
   .hl-title { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
-  .hl div.line { font-size: 13px; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+  .hl div.line { font-size: 13px; color: #e2e8f0; line-height: 1.5; display: flex; align-items: center; gap: 6px; }
+  .hl div.line span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  /* Each line's icon, as tall as its text: the item's (framed in its quality color) or the kind's.
+     A line without one keeps an empty slot, so the text stays lined up. */
+  .hl .icon { flex: none; width: 1.25em; height: 1.25em; border-radius: 3px; box-sizing: border-box;
+              border: 1px solid rgba(255, 255, 255, .18); object-fit: cover; box-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+  .hl i.icon { border-color: transparent; box-shadow: none; }
 
   /* The alert (DING!, VICTORY!, EPIC LOOT!...): center of the canvas, a burst of light, then fades.
      WoW's look: Friz Quadrata when it's installed, else a classic serif, with a dark edge. The tone
@@ -68,21 +93,21 @@
   .ding.tone-rating { --t1: #e9fffb; --t2: #4fe0c8; --t3: #0b5a50; --glow: rgba(60, 220, 200, .7); --accent: #5ff0d8; }
   .ding.show { animation: ding 7s ease-out forwards; }
   .ding.show.tone-legendary, .ding.show.max { animation-duration: 9s; }
-  .ding.show.tone-death { animation: rip 8s ease-in-out forwards; }
+  .ding.show.tone-death { animation: rip 8s ease-out forwards; }
   body.fit .ding { top: 50%; }
   /* The alert on its own: the source's edges fade out, so the glow never ends in a hard box. */
   html.only-alert { -webkit-mask: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent), linear-gradient(180deg, transparent, #000 8%, #000 92%, transparent);
                     -webkit-mask-composite: source-in; mask-composite: intersect; min-height: 100vh; }
   .ding .orb { position: absolute; left: 50%; top: 50%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%;
                background: radial-gradient(circle, rgba(255, 255, 255, .9) 0%, color-mix(in srgb, var(--t2) 55%, transparent) 22%, color-mix(in srgb, var(--t2) 18%, transparent) 48%, transparent 70%); }
-  .ding.show .orb { animation: burst 1.6s ease-out forwards; }
+  .ding.show .orb { animation: burst 1.2s ease-out forwards; }
   .ding.tone-death .orb { display: none; }
   /* Max level: light rays turning behind it, and a second, bigger burst. */
   .ding .rays { position: absolute; left: 50%; top: 50%; width: 620px; height: 620px; margin: -310px 0 0 -310px; border-radius: 50%; display: none;
                 background: repeating-conic-gradient(color-mix(in srgb, var(--t2) 38%, transparent) 0deg 6deg, transparent 6deg 22deg);
                 -webkit-mask: radial-gradient(circle, #000 18%, transparent 68%); mask: radial-gradient(circle, #000 18%, transparent 68%); }
   .ding.max .rays { display: block; animation: spin 9s linear forwards; }
-  .ding.max.show .orb { animation: burst 1.6s ease-out forwards, burst 2s ease-out 0.5s forwards; }
+  .ding.max.show .orb { animation: burst 1.2s ease-out forwards, burst 1.8s ease-out 0.35s forwards; }
   .ding .big { position: relative; font-size: 80px; font-weight: 700; letter-spacing: 3px; line-height: 1; white-space: nowrap;
                background: linear-gradient(180deg, var(--t1) 0%, color-mix(in srgb, var(--t1) 40%, var(--t2)) 30%, var(--t2) 55%, color-mix(in srgb, var(--t2) 50%, var(--t3)) 85%, var(--t3) 100%);
                -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -95,11 +120,13 @@
   .ding .lvl { position: relative; font-size: 32px; font-weight: 700; color: var(--accent); letter-spacing: 1px; white-space: nowrap;
                text-shadow: 0 0 1px #000, 0 2px 3px #000, 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
   .ding .took { position: relative; font-size: 18px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 6px #000; margin-top: 6px; white-space: nowrap; }
-  @keyframes ding { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--scale) * .6)); }
-                    8% { opacity: 1; transform: translate(-50%, -50%) scale(calc(var(--scale) * 1.08)); }
-                    14% { transform: translate(-50%, -50%) scale(var(--scale)); }
+  /* The entrance is quick (a punch in about a quarter second, settled by half a second), the
+     leaving slow. Percentages of 7 s (9 s for max level). */
+  @keyframes ding { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--scale) * .7)); }
+                    3.5% { opacity: 1; transform: translate(-50%, -50%) scale(calc(var(--scale) * 1.1)); }
+                    7% { transform: translate(-50%, -50%) scale(var(--scale)); }
                     85% { opacity: 1; } 100% { opacity: 0; } }
-  @keyframes rip { 0% { opacity: 0; transform: translate(-50%, -50%) scale(var(--scale)); } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes rip { 0% { opacity: 0; transform: translate(-50%, -50%) scale(var(--scale)); } 7% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes burst { 0% { transform: scale(.2); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
   @keyframes spin { 0% { transform: rotate(0deg); opacity: 0; } 10% { opacity: 1; } 85% { opacity: 1; } 100% { transform: rotate(120deg); opacity: 0; } }</style>
 </head>
@@ -121,6 +148,9 @@
   </div>
   <div class="box hl" id="hl"></div>
 </div>
+<template id="brand">
+  <div class="brand"><img src="/logo.ico" alt="">WoW Character Tracker<svg viewBox="0 0 16 16" aria-label="GitHub"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></div>
+</template>
 <div class="ding" id="ding">
   <div class="rays"></div>
   <div class="orb"></div>
@@ -148,7 +178,7 @@
     if (!fitting) return;
     const el = $({ card: "card", highlights: "hl", alert: "ding" }[only]);
     let w = el.offsetWidth, h = el.offsetHeight;
-    if (!w || !h) return;
+    if (!w || !h || !innerWidth || !innerHeight) return; // a source with no size yet (or a hidden window) would scale to 0
     if (only === "alert") { const glow = el.classList.contains("max") ? 520 : 400; w = Math.max(w * 1.2, glow); h = Math.max(h * 1.4, glow); }
     document.documentElement.style.setProperty("--scale", Math.min(innerWidth / w, innerHeight / h));
   }
@@ -156,6 +186,8 @@
   const $ = id => document.getElementById(id);
   const text = (el, s) => { el.textContent = s || ""; el.style.display = s ? "" : "none"; };
   let seenAlert = null;
+  const brand = () => $("brand").content.firstElementChild.cloneNode(true);
+  $("card").append(brand()); // the card's stays, the highlights box is rebuilt each time
 
   function record(r) {
     const span = document.createElement("span");
@@ -165,29 +197,44 @@
     return span;
   }
 
+  // "#rrggbb" as "r, g, b" for rgba() with the background's see-through.
+  const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(", ");
+
   function show(s) {
     const look = s.look || { cardOpacity: 78, stats: true, levels: true, today: true, duels: true, makgora: true, highlights: true };
-    document.documentElement.style.setProperty("--bg", look.cardOpacity / 100);
-    document.documentElement.style.setProperty("--edge", s.classColor || "#d97706");
+    const root = document.documentElement.style;
+    root.setProperty("--bg", look.cardOpacity / 100);
+    root.setProperty("--bgc", look.background ? rgb(look.background) : "10, 8, 6");
+    root.setProperty("--edge", look.accent || s.classColor || "#d97706");
+    document.body.classList.toggle("accent", !!look.accent);
+    document.body.classList.toggle("noborder", look.border === false);
+    document.body.classList.toggle("branded", look.brand !== false);
+    if (!fitting && !q.get("scale")) root.setProperty("--scale", (look.scale || 100) / 100);
+    const has = field => !look.fields || look.fields.includes(field); // configs from before 0.26.0 have no list
     const card = $("card"), hl = $("hl");
     card.classList.toggle("solid", look.cardOpacity >= 50); hl.classList.toggle("solid", look.cardOpacity >= 50);
+    card.style.width = look.width ? look.width + "px" : "";
+    card.style.minHeight = look.height ? look.height + "px" : "";
+    card.classList.toggle("sized", !!look.width);
 
     card.classList.toggle("on", !!s.character && wants("card"));
     if (s.character) {
       $("name").textContent = s.character;
       $("name").style.color = s.classColor || "#fff";
-      text($("sub"), [`Level ${s.level} ${s.race || ""} ${s.spec || ""} ${s.className}`.replace(/\s+/g, " ").trim(), s.zone].filter(Boolean).join(" · "));
+      text($("sub"), [`Level ${s.level} ${s.race || ""} ${s.spec || ""} ${s.className}`.replace(/\s+/g, " ").trim(), has("zone") && s.zone].filter(Boolean).join(" · "));
 
       // Left: the character's stats and records.
       const st = $("stats"); st.innerHTML = "";
       const row = (label, value) => { const a = document.createElement("span"); a.textContent = label; st.append(a, value); };
       const plain = v => { const b = document.createElement("span"); b.textContent = v; return b; };
       if (look.stats !== false) {
-        if (s.itemLevel) row("Item level", plain(s.itemLevel));
-        if (s.played) row("Played", plain(s.played));
-        if (s.gold) row("Gold", plain(s.gold));
-        if (s.keystone) row("Keystone", plain(s.keystone));
-        (s.ratings || []).forEach(r => row(r.name, plain(r.rating)));
+        if (s.itemLevel && has("ilvl")) row("Item level", plain(s.itemLevel));
+        if (s.played && has("played")) row("Played", plain(s.played));
+        if (s.levelPlayed && has("levelPlayed")) row("This level", plain(s.levelPlayed));
+        if (s.gold && has("gold")) row("Gold", plain(s.gold));
+        if (s.talents && has("talents")) row("Talents", plain(s.talents));
+        if (s.keystone && has("keystone")) row("Keystone", plain(s.keystone));
+        if (has("ratings")) (s.ratings || []).forEach(r => row(r.name, plain(r.rating)));
       }
       if (look.duels && s.duels) row("Duels", record(s.duels));
       if (look.makgora && s.makgora) row("Mak'gora", record(s.makgora));
@@ -213,9 +260,28 @@
     const lines = look.highlights ? (s.highlights || []) : [];
     if (lines.length) {
       const t = document.createElement("div"); t.className = "hl-title"; t.textContent = "Highlights"; hl.append(t);
-      lines.forEach(h => { const d = document.createElement("div"); d.className = "line"; d.textContent = h; hl.append(d); });
+      lines.forEach(h => {
+        const d = document.createElement("div"); d.className = "line";
+        const icon = document.createElement(h.icon ? "img" : "i"); icon.className = "icon";
+        if (h.icon) {
+          icon.src = h.icon; icon.alt = ""; if (h.color) icon.style.borderColor = h.color;
+          icon.onerror = () => { const slot = document.createElement("i"); slot.className = "icon"; icon.replaceWith(slot); }; // offline: keep the line lined up
+        }
+        const t = document.createElement("span"); t.textContent = h.text;
+        d.append(icon, t); hl.append(d);
+      });
+      hl.append(brand());
     }
+    hl.style.width = look.highlightsWidth ? look.highlightsWidth + "px" : "";
+    hl.style.height = look.highlightsHeight ? look.highlightsHeight + "px" : "";
+    hl.classList.toggle("sized", !!look.highlightsHeight);
     hl.classList.toggle("on", lines.length > 0 && wants("highlights"));
+    // A set height: the box keeps its size and the oldest lines that don't fit go (the newest stays,
+    // the text never shrinks), so a source fitted to the box doesn't rescale when one comes in.
+    if (look.highlightsHeight && hl.classList.contains("on")) {
+      let shown = hl.querySelectorAll(".line");
+      while (shown.length > 1 && hl.scrollHeight > hl.clientHeight) { shown[shown.length - 1].remove(); shown = hl.querySelectorAll(".line"); }
+    }
 
     // An alert that's new and from the last 90 seconds pops up (not one from before the page loaded):
     // DING!, MAX LEVEL!, VICTORY!, EPIC LOOT!... with its tone's colors.

@@ -185,7 +185,7 @@ sealed class DiscordViewModel : Observable
     {
         if (main.SelectedFlavor is not { } tab) return;
         foreach (var w in Config.ActiveWebhooks(tab.Flavor))
-            if (await main.PosterFor(tab, w).PostAsync(tab.SampleEntry(), isTest: true))
+            if (await main.PosterFor(tab, w).PostAsync(tab.SampleEntry("test"), isTest: true))
                 Log.Success($"[{tab.Name}] Test post sent to \"{w.Name}\". Check your Discord channel.");
     }
 }

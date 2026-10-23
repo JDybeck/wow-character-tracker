@@ -37,6 +37,7 @@ local EVENTS = {
   "UPDATE_BATTLEFIELD_STATUS", "PVP_MATCH_COMPLETE",                     -- battleground results
   "SCREENSHOT_SUCCEEDED", "SCREENSHOT_FAILED",                           -- the shot queue
   "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", -- gear, bags and bank
+  "EQUIPMENT_SETS_CHANGED",                                             -- Equipment Manager sets saved or deleted
   "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED", "TAXIMAP_CLOSED",                 -- flight paths (the reload box)
   "MAIL_CLOSED", "AUCTION_HOUSE_CLOSED",                                          -- moments for the reload reminder
   -- Refresh the character snapshot when these change, while the game has the data.
