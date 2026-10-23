@@ -136,6 +136,7 @@ local function appSummary()
     "Told in chat: " .. (#where > 0 and (table.concat(where, " and ") .. " (" .. picked(announce.kinds, KINDS) .. ")") or "off"),
     "Reload offer on flight paths: " .. onOff(ns.setting("flightReload")) .. ", reminder in chat: " .. onOff(ns.setting("chatReminder")),
     "Instant post pattern: " .. tostring(ns.setting("gridCorner") or "TOPLEFT"):lower() .. " corner, label " .. onOff(ns.setting("gridLabel") ~= false),
+    "Saved history: " .. (ns.setting("keepAllHistory") and "everything" or "newest 300 loot, duels and battlegrounds per character"),
     " ",
     "Change these in the app (What gets posted and In game pages). They reach the game on your next /reload.",
   }, "\n")

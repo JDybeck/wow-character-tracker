@@ -32,7 +32,8 @@ end
 -- whole list on every /reload, logout and sync. Only the newest TRIM_KEEP of each are kept per
 -- character; level-ups, boss kills (level times and first kills depend on them) and everything else
 -- stay. Events are appended as they happen, so the end of the list is the newest.
--- (The duel and battleground records the app shows count what's kept.)
+-- (The duel and battleground records the app shows count what's kept.) Settings.lua keepAllHistory
+-- (the app's In game page) turns it off; ADDON_LOADED checks that.
 local TRIM_KINDS = { loot = true, duel = true, bg = true }
 local TRIM_KEEP = 300
 

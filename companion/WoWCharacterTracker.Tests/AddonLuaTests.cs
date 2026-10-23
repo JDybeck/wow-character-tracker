@@ -215,7 +215,28 @@ public class AddonLuaTests
             var summary = script.DoString("return texts[#texts]").String;
             Assert.Contains("boss kills", summary);
             Assert.Contains("Told in chat: guild", summary);
+            Assert.Contains("Saved history: newest 300", summary);
             Assert.False(script.DoString("return frames[2].checked").Boolean); // instant posting, off in the saved file
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // In game page, Keep everything: Settings.lua tells the addon not to trim its saved history.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Keep_all_history_reaches_the_addon(bool keepAll)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-history-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings { KeepAllHistory = keepAll });
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            var ns = new Table(script);
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+            Assert.Equal(keepAll, script.Call(ns.Get("setting"), "keepAllHistory").CastToBool());
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

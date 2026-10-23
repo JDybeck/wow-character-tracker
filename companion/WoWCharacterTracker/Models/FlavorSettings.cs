@@ -84,6 +84,9 @@ class FlavorSettings
     public bool HideUiInShots { get; set; } // the whole interface hidden for the shot, like Alt+Z
     public bool FlightReloadPrompt { get; set; } = true; // the addon offers a /reload on flight paths when bags changed
     public bool ChatReloadReminder { get; set; } = true; // and reminds in chat (good moments, every 30 minutes)
+    // The addon's saved history: off keeps only the newest 300 loot, duels and battlegrounds per
+    // character (Shared.lua trimEvents); on keeps everything.
+    public bool KeepAllHistory { get; set; }
 
     // The addon tells the guild and/or the group in game chat (Announce.lua), for these kinds:
     // level, maxlevel, boss, loot (epic and better, as a link), mount, duel, makgora, bg, mplus, pvp, death.

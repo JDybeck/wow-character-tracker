@@ -14,7 +14,8 @@ function on.ADDON_LOADED(name)
   db.start = db.start or {}               -- [guid] = total played at the start of the current level
   db.startLevel = db.startLevel or {}     -- [guid] = the level that start belongs to
   db.events = db.events or {}             -- level-ups and notable moments
-  ns.trimEvents(db.events)                -- only the newest loot, duels and battlegrounds (Shared.lua)
+  -- Only the newest loot, duels and battlegrounds (Shared.lua), unless the app's In game page says keep everything.
+  if not ns.setting("keepAllHistory") then ns.trimEvents(db.events) end
   db.chars = db.chars or {}               -- [guid] = latest snapshot of that character
   db.logoutPlayed = db.logoutPlayed or {} -- [guid] = total played at logout
   db.items = db.items or {}               -- [guid] = gear, bags and bank (Inventory.lua)
