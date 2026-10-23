@@ -95,6 +95,7 @@ static class ScreenshotMode
                 vm.PostCharacterCommand.Execute(c);
                 await Task.Delay(4000);
             }
+            if (Part(2) == "settings" && Part(3) == "themes") vm.Appearance.ShowAll = true; // the theme swatches unfolded
             if (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_THEME") is { Length: > 0 } theme) vm.Appearance.PickCommand.Execute(theme);
             if (Part(2) == "settings") vm.ShowSettings = true;
             await Task.Delay(2500);

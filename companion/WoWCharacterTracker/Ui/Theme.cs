@@ -49,8 +49,7 @@ static class Theme
             "#B91C1C", "#DC2626", "#F87171", "#FCA5A5", "#FEE2E2", "#7F1D1D")),
     ];
 
-    // Faction and city looks. Every theme is offered in both games: the game's own first (its first
-    // is the default), then the other game's, then these.
+    // Faction and city looks. Every theme is offered in both games (GroupsFor).
     static readonly Option[] SharedOptions =
     [
         new("alliance", "Alliance", "Stormwind blue and gold", new("#04070F", "#0A1122", "#0F182E", "#1C2A4A",
@@ -70,10 +69,18 @@ static class Theme
             "#475569", "#64748B", "#CBD5E1", "#E2E8F0", "#F8FAFC", "#1E293B")),
     ];
 
-    static readonly Option[] RetailAll = [.. RetailOptions, .. ForeverOptions, .. SharedOptions];
-    static readonly Option[] ForeverAll = [.. ForeverOptions, .. RetailOptions, .. SharedOptions];
+    public sealed record Group(string Title, IReadOnlyList<Option> Options);
 
-    public static IReadOnlyList<Option> OptionsFor(Flavor flavor) => flavor == Flavors.Retail ? RetailAll : ForeverAll;
+    // The picker's groups: this game's own looks (the first is its default), the faction and city
+    // looks, then the other game's.
+    public static IReadOnlyList<Group> GroupsFor(Flavor flavor)
+    {
+        var (own, other) = flavor == Flavors.Retail ? (RetailOptions, ForeverOptions) : (ForeverOptions, RetailOptions);
+        var otherName = flavor == Flavors.Retail ? Flavors.Forever.Name : Flavors.Retail.Name;
+        return [new($"{flavor.Name} looks", own), new("Factions and cities", SharedOptions), new($"{otherName} looks", other)];
+    }
+
+    public static IReadOnlyList<Option> OptionsFor(Flavor flavor) => GroupsFor(flavor).SelectMany(g => g.Options).ToList();
 
     // The picked option, or the game's default (the first) for an unknown or missing key.
     public static Option Find(Flavor flavor, string? key) =>
