@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.26.0
+
+- The Discord panel's **Test** button now posts "{character} sent a test message." instead of a made-up level-up.
+
 ## v0.25.4
 
 - Discord posts show **WoW Character Tracker** small in the footer, with the app's logo, next to the time.
