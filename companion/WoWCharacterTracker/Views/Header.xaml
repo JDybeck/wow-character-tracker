@@ -76,6 +76,22 @@
           <TextBlock Text="Feedback" FontSize="12" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
         </StackPanel>
       </Button>
+      <!-- The first-run tour (IntroViewModel), any time. Same size and look as the info icon next to it. -->
+      <Button x:Name="TourButton" Command="{Binding Intro.OpenCommand}" ToolTip="Show the tour" Cursor="Hand" Margin="0,0,6,0">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Border Width="26" Height="26" Background="Transparent">
+              <TextBlock x:Name="Glyph" Style="{StaticResource Icon}" Text="&#xE9CE;" FontSize="20" Foreground="{StaticResource Muted}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Glyph" Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
+      </Button>
       <Border Width="26" Height="26" Background="Transparent" Margin="0,0,10,0" Cursor="Help"
               ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
         <TextBlock Style="{StaticResource Icon}" Text="&#xE946;" FontSize="20" Foreground="{StaticResource Muted}"
@@ -218,13 +234,6 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,10,0,14"/>
-            <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,0,0,6" Padding="12,4"
-                    Command="{Binding Intro.OpenCommand}" ToolTip="A quick look around the app, the same one new installs get">
-              <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource Icon}" Text="&#xE82F;" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,7,0"/>
-                <TextBlock Text="Show the tour" FontSize="13" Foreground="{StaticResource TextSoft}"/>
-              </StackPanel>
-            </Button>
             <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,0,0,0" Padding="12,4"
                     Command="{Binding ShowUninstallCommand}" ToolTip="Pick what to remove: the app, the addon, your data, settings">
               <StackPanel Orientation="Horizontal">

@@ -7,7 +7,7 @@ namespace WoWCharacterTracker.ViewModels;
 sealed record IntroStep(string Title, string Text, string? Target);
 
 // The first-run tour: a few cards pointing at the parts of the window. Opens by itself for a new
-// install (Config.WantsIntro), and from Settings, Show the tour.
+// install (Config.WantsIntro), and from the ? button in the header.
 sealed class IntroViewModel(MainViewModel main) : Observable
 {
     public static readonly IReadOnlyList<IntroStep> Steps =
@@ -28,7 +28,7 @@ sealed class IntroViewModel(MainViewModel main) : Observable
             "Characters lists everyone you've logged in with, click one for gear, leveling and notes. What gets posted picks the moments that go to Discord, In game has the addon's options.",
             "pages"),
         new("Settings",
-            "Open with WoW, color themes, where the setup checks sit, and this tour again whenever you want it.",
+            "Open with WoW, color themes and where the setup checks sit. Want this tour again? The ? button next to the info icon starts it.",
             "settings"),
     ];
 

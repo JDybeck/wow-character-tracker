@@ -24,7 +24,7 @@
             <Button Style="{StaticResource PrimaryButton}" Content="{Binding NextText}" Command="{Binding NextCommand}" Padding="16,6"/>
           </StackPanel>
           <CheckBox IsChecked="{Binding DontShowAgain}" VerticalAlignment="Center"
-                    ToolTip="Ticked: closing the tour means it won't open by itself again. Settings, Show the tour brings it back.">
+                    ToolTip="Ticked: closing the tour means it won't open by itself again. The ? button in the header brings it back.">
             <TextBlock Text="Don't show again" FontSize="12" Foreground="{StaticResource Muted}"/>
           </CheckBox>
         </DockPanel>
