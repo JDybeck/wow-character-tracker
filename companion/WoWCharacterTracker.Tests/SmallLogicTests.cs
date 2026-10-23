@@ -19,6 +19,29 @@ public class TalentLinkTests
     }
 }
 
+public class WowheadCacheTests
+{
+    const string Html = "<table><tr><td><b class=\"q4\">Magic Broom</b></td></tr></table>";
+
+    [Fact]
+    public void Cache_keeps_the_html_unescaped_and_leaves_the_text_out()
+    {
+        var json = Wowhead.SerializeCache(new() { ["item/33176"] = new("Magic Broom", "inv_misc_broom", 4, "", Html) });
+        Assert.Contains("<b class=\\\"q4\\\">", json);
+        Assert.DoesNotContain("\\u003C", json);
+    }
+
+    [Fact]
+    public void Old_files_drop_the_text_when_there_is_html()
+    {
+        var old = """{"item/1":{"Name":"A","Icon":"a","Quality":3,"Tooltip":"A text","Html":"<b>A</b>"},"item/2":{"Name":"B","Icon":"b","Quality":2,"Tooltip":"B text","Html":null}}""";
+        var cache = Wowhead.DeserializeCache(old);
+        Assert.Equal("", cache["item/1"].Tooltip);
+        Assert.Equal("<b>A</b>", cache["item/1"].Html);
+        Assert.Equal("B text", cache["item/2"].Tooltip); // nothing to make it again from
+    }
+}
+
 public class MountPostTests
 {
     static readonly Entry Learned = new() { Kind = "mount", Char = "Snubbe", Mount = "Brown Horse", SpellId = 458, Level = 20 };

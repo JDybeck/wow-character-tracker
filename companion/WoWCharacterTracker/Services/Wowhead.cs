@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace WoWCharacterTracker.Services;
@@ -19,6 +20,9 @@ static class Wowhead
     static readonly SemaphoreSlim Parallel = new(6);
     static Dictionary<string, Info>? disk;
     static string CachePath => Path.Combine(Config.Dir, "wowhead.json");
+    // The cache is only read by us, so the tooltip HTML goes in as is: the default escaping
+    // (< as < and so on) about doubled the file.
+    static readonly JsonSerializerOptions CacheJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public static string IconUrl(string icon, string size = "medium") =>
         $"https://wow.zamimg.com/images/wow/icons/{size}/{icon}.jpg";
@@ -39,8 +43,7 @@ static class Wowhead
         {
             disk ??= LoadDisk();
             // Entries cached before the HTML was kept are fetched once more.
-            // The text is made again from the HTML, so cached entries get fixes to ToText too.
-            if (disk.TryGetValue(key, out var cached) && cached.Html is not null) return cached with { Tooltip = ToText(cached.Html) };
+            if (disk.TryGetValue(key, out var cached) && cached.Html is not null) return WithText(cached);
         }
         await Parallel.WaitAsync();
         try
@@ -59,14 +62,15 @@ static class Wowhead
             var quality = root.TryGetProperty("quality", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : -1;
             var info = new Info(Str("name"), Str("icon"), quality, ToText(Str("tooltip")), Str("tooltip"));
             if (info.Name.Length == 0) return null;
-            lock (DiskLock) disk![key] = info;
+            lock (DiskLock) disk![key] = WithoutText(info);
             SaveSoon();
             return info;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             Lookups.TryRemove(key, out _); // try again another time
-            lock (DiskLock) return disk!.GetValueOrDefault(key); // an older cached entry still beats nothing
+            // An older cached entry still beats nothing.
+            lock (DiskLock) return disk!.TryGetValue(key, out var old) ? WithText(old) : null;
         }
         finally { Parallel.Release(); }
     }
@@ -80,9 +84,21 @@ static class Wowhead
         if (mine != saveVersion) return;
         lock (DiskLock)
         {
-            try { File.WriteAllText(CachePath, JsonSerializer.Serialize(disk)); } catch (IOException) { }
+            try { File.WriteAllText(CachePath, SerializeCache(disk!)); } catch (IOException) { }
         }
     }
+
+    // The plain text isn't kept in the cache when there's HTML: it's made again from the HTML when
+    // read (so cached entries get fixes to ToText too), and it took a tenth of the file and memory.
+    static Info WithText(Info cached) => cached.Html is null ? cached : cached with { Tooltip = ToText(cached.Html) };
+    static Info WithoutText(Info info) => info.Html is null ? info : info with { Tooltip = "" };
+
+    internal static string SerializeCache(Dictionary<string, Info> cache) => JsonSerializer.Serialize(cache, CacheJson);
+
+    // Old files still carry the text; it's dropped here so it doesn't sit in memory.
+    internal static Dictionary<string, Info> DeserializeCache(string json) =>
+        (JsonSerializer.Deserialize<Dictionary<string, Info>>(json) ?? [])
+            .ToDictionary(kv => kv.Key, kv => WithoutText(kv.Value));
 
     // "classic/item/19019" -> "classic/tooltip/item/19019"
     static string TooltipPath(string key)
@@ -93,7 +109,7 @@ static class Wowhead
 
     static Dictionary<string, Info> LoadDisk()
     {
-        try { return File.Exists(CachePath) ? JsonSerializer.Deserialize<Dictionary<string, Info>>(File.ReadAllText(CachePath)) ?? [] : []; }
+        try { return File.Exists(CachePath) ? DeserializeCache(File.ReadAllText(CachePath)) : []; }
         catch (Exception) { return []; }
     }
 
