@@ -6,6 +6,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 - **Slimmer setup checks**: Game folder, Addon and Discord are now small chips in the right column, above the Discord panel. When everything is fine it's one quiet line; a check that needs something gets an amber row with its fix (Browse, Install...). Hover a chip for the details, click Game folder to change it.
 - **Pick where they sit**: Settings, Setup checks: Right (default), Top or Bottom. The update banner and the /reload reminder follow them.
+- **A quick tour for new installs**: six short steps pointing at the game tabs, setup checks, Discord, the pages and Settings. Next/Back (or the arrow keys), Esc closes, "Don't show again" keeps it closed. It only opens by itself while the app looks new (no webhook or no game folder yet); Settings, Show the tour brings it back any time.
 
 ## v0.25.4
 

@@ -11,6 +11,7 @@
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True"
         xmlns:views="clr-namespace:WoWCharacterTracker.Views">
 
+  <Grid>
   <Grid x:Name="Page" Margin="28,22">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
@@ -19,14 +20,14 @@
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <views:Header/>
+    <views:Header x:Name="HeaderView"/>
     <!-- The setup checks sit where Settings says (Config.SetupPlacement): here, under the window
          (last row) or in the right column above Discord (the default). -->
     <Border Grid.Row="1" Visibility="{Binding SetupTop, Converter={StaticResource Visible}}">
-      <views:SetupBar Wide="True" Margin="0,0,0,14" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+      <views:SetupBar x:Name="SetupAtTop" Wide="True" Margin="0,0,0,14" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
     </Border>
     <Border Grid.Row="3" Visibility="{Binding SetupBottom, Converter={StaticResource Visible}}">
-      <views:SetupBar Wide="True" Margin="0,14,0,0" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+      <views:SetupBar x:Name="SetupAtBottom" Wide="True" Margin="0,14,0,0" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
     </Border>
 
     <!-- Main area: the page tabs on top (left), then the page and the right column side by side,
@@ -44,7 +45,7 @@
 
       <DockPanel Margin="2,0,0,10">
         <!-- The pages, as boxed tabs: icon and name, the open one filled. -->
-        <StackPanel Orientation="Horizontal">
+        <StackPanel x:Name="PageTabs" Orientation="Horizontal">
           <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters}"
                   Command="{Binding ShowPageCommand}" CommandParameter="characters">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Characters"/></StackPanel>
@@ -104,7 +105,7 @@
                       Margin="0,0,-14,0" Padding="0,0,14,0" Focusable="False">
         <StackPanel x:Name="RightColumn">
           <Border x:Name="SetupRightView" Visibility="{Binding SetupRight, Converter={StaticResource Visible}}">
-            <views:SetupBar Margin="0,0,0,16" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+            <views:SetupBar x:Name="SetupAtRight" Margin="0,0,0,16" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
           </Border>
           <views:DiscordPanel x:Name="DiscordView" DataContext="{Binding Discord}"/>
           <views:StreamPanel x:Name="StreamView" Margin="0,16,0,0" DataContext="{Binding Stream}"/>
@@ -143,5 +144,8 @@
         </StackPanel>
       </Grid>
     </Grid>
+  </Grid>
+  <!-- The first-run tour, over everything (MainWindow.TourTarget says where each step points). -->
+  <views:IntroTour x:Name="Tour" DataContext="{Binding Intro}"/>
   </Grid>
 </Window>

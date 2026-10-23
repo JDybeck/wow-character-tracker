@@ -9,7 +9,8 @@ namespace WoWCharacterTracker.Ui;
 //   Motion.Reveal="True"      unfolds the element when it appears (character details): its height
 //                             grows from 0 while it fades in. The content inside keeps its measured
 //                             size, so only the frame's height changes each frame, not the content's layout.
-//   Motion.FadeIn="True"      fades and slides the element in a little when it appears (details tabs).
+//   Motion.FadeIn="True"      fades and slides the element in a little when it appears (details tabs);
+//                             Motion.Pop(el) does the same on demand (the tour's card).
 //   Motion.SlideGroup / SlideIndex
 //                             slides the element in from the side when its Visibility turns Visible,
 //                             from the right when its index is higher than the last one shown in the
@@ -57,10 +58,12 @@ static class Motion
     public static void SetFadeIn(DependencyObject d, bool value) => d.SetValue(FadeInProperty, value);
     public static bool GetFadeIn(DependencyObject d) => (bool)d.GetValue(FadeInProperty);
 
-    static void FadeOnLoaded(object sender, RoutedEventArgs e)
+    static void FadeOnLoaded(object sender, RoutedEventArgs e) => Pop((FrameworkElement)sender);
+
+    // The same fade and small slide, on demand (the tour's card on each step).
+    public static void Pop(FrameworkElement el)
     {
         if (!Animating) return;
-        var el = (FrameworkElement)sender;
         var move = Translate(el);
         move.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-6, 0, Quick) { EasingFunction = Ease });
         el.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, Quick));

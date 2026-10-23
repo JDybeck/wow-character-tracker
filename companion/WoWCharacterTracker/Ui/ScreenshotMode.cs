@@ -10,6 +10,7 @@ namespace WoWCharacterTracker.Ui;
 //   extra:  rename | options (a webhook) | removehook | addhook (the Add form open) | testchars | updating (the update banner mid-download) | updateready (a new version offered)
 //           | stream (the Stream overlay panel on and open) | testall (every Test button) | addonupdate
 //           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
+//           | intro (the first-run tour; extra2 = which step, 1 = the welcome)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
 //   extra2: gear | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
@@ -97,6 +98,11 @@ static class ScreenshotMode
             }
             if (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_THEME") is { Length: > 0 } theme) vm.Appearance.PickCommand.Execute(theme);
             if (Part(2) == "settings") vm.ShowSettings = true;
+            if (Part(2) == "intro")
+            {
+                vm.Intro.Open();
+                vm.Intro.Index = int.TryParse(Part(3), out var step) ? step - 1 : 0;
+            }
             await Task.Delay(2500);
             if (Part(2) == "orb" && vm.FlavorTabs.FirstOrDefault(t => t != vm.SelectedFlavor) is { } other)
             {
