@@ -8,10 +8,12 @@ namespace WoWCharacterTracker.Ui;
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
 //   extra:  rename | options (a webhook) | removehook | addhook (the Add form open) | testchars | updating (the update banner mid-download) | updateready (a new version offered)
-//           | stream (the Stream overlay panel on and open) | testall (every Test button) | addonupdate
+//           | stream (the Stream overlay panel on and open) | testall (every Test button; test characters on when Forever has none) | addonupdate
+//           | nofolder (the tab as if no game folder was found, faked: no detection runs)
 //           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
+//           | intro (the first-run tour; extra2 = which step, 1 = the welcome)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
-//   extra2: gear | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
+//   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
@@ -36,6 +38,8 @@ static class ScreenshotMode
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;
             if (Part(2) == "addhook") vm.Discord.ShowAddWebhook = true;
             if (Part(2) == "testchars") { vm.ShowTestCharacters = true; await Task.Delay(1500); }
+            // Test buttons need a character; without a game folder, the test characters stand in.
+            if (Part(2) == "testall" && vm.SelectedFlavor is { HasCharacters: false, Flavor.HasRulesets: true }) { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             if (Part(2) == "testall")
                 foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "death", "duel", "makgora", "mplus", "pvp" })
                     vm.TestKindCommand.Execute(kind);
@@ -45,10 +49,16 @@ static class ScreenshotMode
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
             if (Part(3) == "closed" && vm.SelectedFlavor is { } cf) cf.SelectedCharacter = null; // every row closed
             if (Part(3) is "gear" or "leveling" or "notes" && vm.SelectedFlavor?.SelectedCharacter is { } dc) dc.DetailTab = Part(3);
+            if (Part(3) == "gearset" && vm.SelectedFlavor?.SelectedCharacter is { } gc) // the gear tab showing the last Equipment Manager set
+            {
+                gc.DetailTab = "gear";
+                if (gc.Gear.Choices.Count > 0) gc.Gear.Show(gc.Gear.Choices[^1]);
+            }
             if (Part(3) == "search" && vm.SelectedFlavor is { } sf) { await Task.Delay(2500); sf.Items.Search = "potion"; }
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
+            if (Part(2) == "nofolder") vm.SelectedFlavor?.ShowFolderMissing();
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
             if (Part(2) == "updateready") // the update banner and header button for a new version
             {
@@ -95,8 +105,14 @@ static class ScreenshotMode
                 vm.PostCharacterCommand.Execute(c);
                 await Task.Delay(4000);
             }
+            if (Part(2) == "settings" && Part(3) == "themes") vm.Appearance.ShowAll = true; // the theme swatches unfolded
             if (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_THEME") is { Length: > 0 } theme) vm.Appearance.PickCommand.Execute(theme);
             if (Part(2) == "settings") vm.ShowSettings = true;
+            if (Part(2) == "intro")
+            {
+                vm.Intro.Open();
+                vm.Intro.Index = int.TryParse(Part(3), out var step) ? step - 1 : 0;
+            }
             await Task.Delay(2500);
             if (Part(2) == "orb" && vm.FlavorTabs.FirstOrDefault(t => t != vm.SelectedFlavor) is { } other)
             {

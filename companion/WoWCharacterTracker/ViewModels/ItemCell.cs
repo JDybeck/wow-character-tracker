@@ -79,6 +79,19 @@ sealed class ItemCell(ItemInfo? item, int count = 1, string slotName = "")
     public string Enchant { get; init; } = "";
     public PendingInfo? EnchantInfo { get; init; }
     public bool HasEnchant => Enchant.Length > 0;
+    // An Equipment Manager set's piece that isn't worn: "bags" or "bank" (tinted gray), "missing"
+    // (red), or "ignored" (the set leaves the slot as it is). "" = worn.
+    public string Place { get; init; } = "";
+    public bool IsAway => Place is "bags" or "bank";
+    public bool IsMissing => Place == "missing";
+    public string PlaceNote => Place switch
+    {
+        "bags" => "in bags",
+        "bank" => "in bank",
+        "missing" => "not found",
+        "ignored" => "not in set",
+        _ => "",
+    };
 }
 
 // One bag (or the bank's own slots or a bank tab): its items, and how many slots are free.

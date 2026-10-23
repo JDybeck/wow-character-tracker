@@ -164,9 +164,9 @@ What it shows:
 
 <img src="docs/images/stream-overlay.png" alt="The stream overlay: the card, the highlights box and an alert" width="640">
 
-In the panel you can also set the **Background** (from see-through, just the text, to solid) and switch the card's parts on or off. Under **Count** pick what the overlay counts (records, highlights, level times): **Start counting now** for a fresh stream (it then says since when, click it again to restart), **Today** (since midnight, starts over by itself every day) or **All**. The app keeps tracking everything either way.
+In the panel you can also set the **Background** (from see-through, just the text, to solid), the overlay's **Size**, the card's **width and height** (make it big to cover your chat box), its **colors** (a preset or your own hex codes), the border, and which stats the card shows (item level, played, played at this level, gold, talents as numbers like 31/20/0, zone, and on Retail keystone and ratings). Under **Count** pick what the overlay counts (records, highlights, level times): **Start counting now** for a fresh stream (it then says since when, click it again to restart), **Today** (since midnight, starts over by itself every day) or **All**. The app keeps tracking everything either way.
 
-Add these to an address to change it: `?scale=1.5` bigger (or `0.8` smaller), `?side=right` the boxes on the right. Combine them with `&`, like `http://localhost:8721/?only=card&scale=1.3`. (`?only=ding` from older versions still works for the alert.)
+Add these to an address to change it: `?scale=1.5` bigger (or `0.8` smaller, it overrides the panel's Size), `?side=right` the boxes on the right. Combine them with `&`, like `http://localhost:8721/?only=card&scale=1.3`. (`?only=ding` from older versions still works for the alert.)
 
 **Text files** opens a folder with the same info, one value per file, for OBS **Text** sources (tick **Read from file**): `character.txt`, `character_line.txt` (Ronnie Raket, level 22 Paladin), `level.txt`, `last_level.txt` (21 to 22 took 23m 11s), `levels.txt`, `today.txt`, `highlights.txt`, `duels.txt`, `makgora.txt` and `battlegrounds.txt` (like 12 won, 3 lost), `zone.txt`, `played.txt` and `item_level.txt`.
 

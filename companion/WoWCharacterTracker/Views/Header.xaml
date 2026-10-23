@@ -50,7 +50,7 @@
       </StackPanel>
     </DockPanel>
 
-    <Border Grid.Column="1" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+    <Border x:Name="GameTabs" Grid.Column="1" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
             CornerRadius="10" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16,0">
       <Grid>
         <ListBox x:Name="Tabs" ItemsSource="{Binding FlavorTabs}" SelectedItem="{Binding SelectedFlavor}" ItemContainerStyle="{StaticResource FlavorTab}"
@@ -75,6 +75,22 @@
           <TextBlock Style="{StaticResource Icon}" Text="&#xED15;" FontSize="15" Foreground="{StaticResource Muted}" Margin="0,0,6,0"/>
           <TextBlock Text="Feedback" FontSize="12" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
         </StackPanel>
+      </Button>
+      <!-- The first-run tour (IntroViewModel), any time. Same size and look as the info icon next to it. -->
+      <Button x:Name="TourButton" Command="{Binding Intro.OpenCommand}" ToolTip="Show the tour" Cursor="Hand" Margin="0,0,6,0">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Border Width="26" Height="26" Background="Transparent">
+              <TextBlock x:Name="Glyph" Style="{StaticResource Icon}" Text="&#xE9CE;" FontSize="20" Foreground="{StaticResource Muted}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Glyph" Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
       </Button>
       <Border Width="26" Height="26" Background="Transparent" Margin="0,0,10,0" Cursor="Help"
               ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">
@@ -164,42 +180,77 @@
               <TextBlock Text="Test characters" FontSize="13" Foreground="{StaticResource TextSoft}"/>
             </CheckBox>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,14"/>
+            <!-- Where the setup checks and update banner sit (Config.SetupPlacement). -->
+            <TextBlock Text="Setup checks" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="0,0,0,6"/>
+            <WrapPanel>
+              <RadioButton Style="{StaticResource ChoiceChip}" GroupName="SetupPlace" Margin="0,0,6,0" Content="Right"
+                           IsChecked="{Binding SetupRight, Mode=OneWay}" Command="{Binding PlaceSetupCommand}" CommandParameter="right"
+                           ToolTip="In the right column, above the Discord panel. Takes the least room."/>
+              <RadioButton Style="{StaticResource ChoiceChip}" GroupName="SetupPlace" Margin="0,0,6,0" Content="Top"
+                           IsChecked="{Binding SetupTop, Mode=OneWay}" Command="{Binding PlaceSetupCommand}" CommandParameter="top"
+                           ToolTip="Across the top of the window, over the pages"/>
+              <RadioButton Style="{StaticResource ChoiceChip}" GroupName="SetupPlace" Content="Bottom"
+                           IsChecked="{Binding SetupBottom, Mode=OneWay}" Command="{Binding PlaceSetupCommand}" CommandParameter="bottom"
+                           ToolTip="Across the bottom of the window, under the pages"/>
+            </WrapPanel>
+            <Border Height="1" Background="{DynamicResource Line}" Margin="0,14"/>
             <!-- Color themes for the open game tab (AppearanceViewModel). -->
             <TextBlock Text="{Binding Appearance.Title}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="0,0,0,6"/>
-            <ItemsControl ItemsSource="{Binding Appearance.Choices}" Focusable="False">
+            <!-- One row with the picked theme; clicking it unfolds every theme as small swatches, grouped
+                 (names on hover), so the menu stays short. -->
+            <Button Command="{Binding Appearance.ToggleCommand}" Cursor="Hand" ToolTip="{Binding Appearance.Current.Tip}">
+              <Button.Template>
+                <ControlTemplate TargetType="Button">
+                  <Border x:Name="Bd" Padding="6,5" CornerRadius="7" BorderThickness="1" BorderBrush="{DynamicResource BlueLine}" Background="Transparent">
+                    <DockPanel>
+                      <ContentPresenter DockPanel.Dock="Left" Content="{Binding Appearance.Current}" ContentTemplate="{StaticResource ThemeSwatch}" Margin="0,0,10,0"/>
+                      <TextBlock x:Name="Chevron" DockPanel.Dock="Right" Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="11"
+                                 Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Appearance.Current.Name}" FontSize="13" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/>
+                    </Trigger>
+                    <DataTrigger Binding="{Binding Appearance.ShowAll}" Value="True">
+                      <Setter TargetName="Chevron" Property="Text" Value="&#xE70E;"/>
+                    </DataTrigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Button.Template>
+            </Button>
+            <ItemsControl ItemsSource="{Binding Appearance.Groups}" Focusable="False" Margin="0,8,0,0"
+                          Visibility="{Binding Appearance.ShowAll, Converter={StaticResource Visible}}">
               <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type vm:ThemeChoice}">
-                  <Button Command="{Binding DataContext.Appearance.PickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                          CommandParameter="{Binding Key}" Cursor="Hand" ToolTip="{Binding Description}" Margin="0,0,0,4">
-                    <Button.Template>
-                      <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Padding="6,5" CornerRadius="7" BorderThickness="1" BorderBrush="Transparent" Background="Transparent">
-                          <DockPanel>
-                            <!-- Swatches: the card color with the accents on it. -->
-                            <Border DockPanel.Dock="Left" Width="44" Height="22" CornerRadius="5" Background="{Binding Bg}" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,10,0">
-                              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Ellipse Width="9" Height="9" Fill="{Binding Accent}" Margin="1,0"/>
-                                <Ellipse Width="9" Height="9" Fill="{Binding Second}" Margin="1,0"/>
-                                <Ellipse Width="9" Height="9" Fill="{Binding AccentText}" Margin="1,0"/>
-                              </StackPanel>
-                            </Border>
-                            <TextBlock x:Name="Check" DockPanel.Dock="Right" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="12"
-                                       Foreground="{DynamicResource BlueText}" VerticalAlignment="Center" Visibility="Collapsed"/>
-                            <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
-                          </DockPanel>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                          <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/>
-                          </Trigger>
-                          <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
-                            <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
-                          </DataTrigger>
-                        </ControlTemplate.Triggers>
-                      </ControlTemplate>
-                    </Button.Template>
-                  </Button>
+                <DataTemplate DataType="{x:Type vm:ThemeGroup}">
+                  <StackPanel Margin="0,0,0,4">
+                    <TextBlock Text="{Binding Title}" FontSize="11" Foreground="{StaticResource Dim}" Margin="2,0,0,4"/>
+                    <ItemsControl ItemsSource="{Binding Choices}" Focusable="False" ItemsPanel="{StaticResource Wrap}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ThemeChoice}">
+                          <Button Command="{Binding DataContext.Appearance.PickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"
+                                  CommandParameter="{Binding Key}" Cursor="Hand" ToolTip="{Binding Tip}" Margin="0,0,4,4">
+                            <Button.Template>
+                              <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Padding="1" CornerRadius="7" BorderThickness="1" BorderBrush="Transparent">
+                                  <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ThemeSwatch}"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                  <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Line}"/>
+                                  </Trigger>
+                                  <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueText}"/>
+                                  </DataTrigger>
+                                </ControlTemplate.Triggers>
+                              </ControlTemplate>
+                            </Button.Template>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>

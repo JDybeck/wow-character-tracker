@@ -17,12 +17,12 @@
       <!-- Forever: the in-game portrait from the login check-in, or the standard one. -->
       <StackPanel Visibility="{Binding HasGamePortrait, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="PORTRAIT"/>
-        <StackPanel Orientation="Horizontal">
+        <WrapPanel>
           <CheckBox Style="{StaticResource OptionChip}" Content="In-game" IsChecked="{Binding UseGamePortrait}" Margin="0,0,6,0"
                     ToolTip="The portrait your character has in game, captured when you log in"/>
           <CheckBox Style="{StaticResource OptionChip}" Content="Standard" IsChecked="{Binding UseStandardPortrait}"
                     ToolTip="The standard portrait for your race"/>
-        </StackPanel>
+        </WrapPanel>
       </StackPanel>
       <StackPanel Visibility="{Binding HasGuild, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="GUILD"/>
@@ -31,7 +31,7 @@
       <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL PLAYED"/>
       <TextBlock Style="{StaticResource FactValue}" Text="{Binding PlayedText}"/>
       <TextBlock Style="{StaticResource FactLabel}" Text="GOLD"/>
-      <ItemsControl ItemsSource="{Binding MoneyCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}"/>
+      <ItemsControl ItemsSource="{Binding MoneyCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Wrap}"/>
       <StackPanel Visibility="{Binding HasCrests, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="CRESTS"/>
         <ItemsControl ItemsSource="{Binding CrestList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
@@ -76,11 +76,11 @@
         <ItemsControl ItemsSource="{Binding StatChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
       </StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
-      <StackPanel Orientation="Horizontal">
-        <Image Source="{Binding ZoneIconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center"
+      <DockPanel>
+        <Image Source="{Binding ZoneIconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Top"
                ToolTip="{Binding ZoneKindName}" Visibility="{Binding ZoneIconUrl, Converter={StaticResource VisibleIfSet}}"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
-      </StackPanel>
+      </DockPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="TAGS"/>
       <ItemsControl ItemsSource="{Binding TagOptions}">
         <ItemsControl.ItemsPanel>
@@ -105,7 +105,7 @@
                    VerticalAlignment="Center" IsHitTestVisible="False"
                    Visibility="{Binding NewTag, Converter={StaticResource HiddenIfSet}}"/>
       </Grid>
-      <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+      <WrapPanel Margin="0,16,0,0">
         <Button Style="{StaticResource ButtonBase}" Padding="12,6"
                 ToolTip="Send a card with this character's info to Discord"
                 Command="{Binding DataContext.PostCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -119,7 +119,7 @@
                 Command="{Binding DataContext.ToggleCardOptionsCommand, RelativeSource={RelativeSource AncestorType=Window}}">
           <TextBlock Style="{StaticResource Icon}" Text="&#xE713;" FontSize="12" Foreground="{StaticResource TextSoft}"/>
         </Button>
-      </StackPanel>
+      </WrapPanel>
       <Border Margin="0,10,0,0" Padding="12,10,6,6" CornerRadius="8" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
               Visibility="{Binding DataContext.ShowCardOptions, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVis}}">
         <StackPanel>
@@ -193,7 +193,8 @@
                 <Image Source="{Binding IconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" HorizontalAlignment="Left"
                        Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
                 <StackPanel Grid.Column="1">
-                  <TextBlock FontSize="12" TextTrimming="CharacterEllipsis">
+                  <!-- Wraps rather than trims: the row's hover is the item's tooltip, so a cut name couldn't be read. -->
+                  <TextBlock FontSize="12" TextWrapping="Wrap">
                     <Run Text="{Binding Verb, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run Text="{Binding Subject, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/>
                   </TextBlock>
                   <!-- Who was at the boss kill, what the death cost. -->

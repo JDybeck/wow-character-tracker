@@ -87,7 +87,7 @@ public class StreamTests
         Assert.Equal(new StreamRecord(2, 1), s.Duels);
         Assert.Equal(new StreamRecord(1, 0), s.Makgora);
         // Wins and losses are both highlights (the newest three).
-        Assert.Equal(["Won a Mak'gora against Brandur", "Lost a duel to Grimtusk", "Won a duel against Pellia"], s.Highlights);
+        Assert.Equal(["Won a Mak'gora against Brandur", "Lost a duel to Grimtusk", "Won a duel against Pellia"], s.Highlights.Select(h => h.Text));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class StreamTests
         ];
         var s = StreamSnapshot.Build(Ronnie, events, Now);
         Assert.Equal(new StreamRecord(1, 1), s.Battlegrounds);
-        Assert.Equal(["Lost Arathi Basin", "Won Warsong Gulch"], s.Highlights);
+        Assert.Equal(["Lost Arathi Basin", "Won Warsong Gulch"], s.Highlights.Select(h => h.Text));
         Assert.Equal("Won Warsong Gulch", s.Alert?.Line); // losses aren't alerts
     }
 
@@ -109,7 +109,41 @@ public class StreamTests
     {
         Entry[] events = [Loot("Thunderfury, Blessed Blade of the Windseeker", TimeSpan.FromMinutes(10)), Duel("Pellia", false, TimeSpan.FromMinutes(1))];
         var s = StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { HighlightKinds = ["loot"] });
-        Assert.Equal(["Looted Thunderfury, Blessed Blade of the Windseeker"], s.Highlights);
+        Assert.Equal(["Looted Thunderfury, Blessed Blade of the Windseeker"], s.Highlights.Select(h => h.Text));
+    }
+
+    [Fact]
+    public void Highlights_carry_an_icon_items_their_own_once_known()
+    {
+        Entry[] events =
+        [
+            new() { Id = "l", Guid = "P-1", Kind = "loot", Item = "Verigan's Fist", ItemId = 6953, Quality = 3, At = Ago(TimeSpan.FromMinutes(4)) },
+            new() { Id = "m", Guid = "P-1", Kind = "mount", Mount = "Magic Broom", ItemId = 33176, At = Ago(TimeSpan.FromMinutes(3)) },
+            new() { Id = "r", Guid = "P-1", Kind = "mplus", Step = 3000, Rating = 3011, At = Ago(TimeSpan.FromMinutes(2)) },
+        ];
+        // Before Wowhead answers: the kind's icon, the loot's quality frame already known from the event.
+        var s = StreamSnapshot.Build(Ronnie, events, Now);
+        Assert.Equal(new StreamHighlight("Reached 3000 Mythic+ rating (3011)", Wowhead.IconUrl("inv_relics_hourglass", "small")), s.Highlights[0]);
+        Assert.Equal(new StreamHighlight("Got Magic Broom", Wowhead.IconUrl("ability_mount_ridinghorse", "small"), "", 33176), s.Highlights[1]);
+        Assert.Equal(("#0070DD", 6953), (s.Highlights[2].Color, s.Highlights[2].ItemId));
+
+        // Once it has: the item's own icon, the mount framed in its quality.
+        Wowhead.Info? Items(int id) => id == 33176 ? new("Magic Broom", "inv_misc_broom", 4, "") : null;
+        s = StreamSnapshot.Build(Ronnie, events, Now, items: Items);
+        Assert.Equal((Wowhead.IconUrl("inv_misc_broom", "small"), "#A335EE"), (s.Highlights[1].Icon, s.Highlights[1].Color));
+    }
+
+    [Fact]
+    public void A_fixed_highlights_box_gets_more_lines_to_fill_but_the_text_file_keeps_three()
+    {
+        var events = Enumerable.Range(1, 8).Select(i => Duel($"Foe{i}", false, TimeSpan.FromMinutes(i))).ToArray();
+        Assert.Equal(3, StreamSnapshot.Build(Ronnie, events, Now).Highlights.Count);
+
+        var s = StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { HighlightsWidth = 50, HighlightsHeight = 180 });
+        Assert.Equal(8, s.Highlights.Count); // the page shows the newest that fit
+        Assert.Equal((200, 180), (s.Look!.HighlightsWidth, s.Look.HighlightsHeight)); // narrowest 200
+        var file = StreamFiles.Contents(s).Single(f => f.File == "highlights.txt").Text;
+        Assert.Equal(3, file.Split(Environment.NewLine).Length);
     }
 
     [Fact]
@@ -123,7 +157,7 @@ public class StreamTests
         var s = StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { Since = Ago(TimeSpan.FromHours(1)) });
         Assert.Equal([22], s.Levels.Select(l => l.Level));
         Assert.Equal(new StreamRecord(0, 1), s.Duels);
-        Assert.Equal(["Lost a duel to Pellia"], s.Highlights); // the win was before
+        Assert.Equal(["Lost a duel to Pellia"], s.Highlights.Select(h => h.Text)); // the win was before
         Assert.StartsWith("Since ", s.SinceText);
     }
 
@@ -177,6 +211,49 @@ public class StreamTests
         var s = StreamSnapshot.Build(Ronnie, [], Now, new StreamOptions { CardOpacity = 140, ShowDuels = false });
         Assert.Equal(100, s.Look!.CardOpacity); // clamped
         Assert.False(s.Look.Duels);
+    }
+
+    [Fact]
+    public void Size_colors_and_fields_come_from_the_options()
+    {
+        var look = StreamSnapshot.Build(Ronnie, [], Now, new StreamOptions
+        {
+            Scale = 900, CardWidth = 100, CardHeight = 420, Accent = "3C8CFF", Background = "#abc", ShowBorder = false, CardFields = ["gold"],
+        }).Look!;
+        Assert.Equal((250, 260, 420), (look.Scale, look.Width, look.Height)); // clamped, a tiny width is the smallest
+        Assert.Equal(("#3c8cff", "#aabbcc"), (look.Accent, look.Background));
+        Assert.False(look.Border);
+        Assert.Equal(["gold"], look.Fields!);
+
+        var plain = StreamSnapshot.Build(Ronnie, [], Now).Look!;
+        Assert.Equal((0, 0, "", ""), (plain.Width, plain.Height, plain.Accent, plain.Background)); // auto size, default colors
+        Assert.Equal(StreamOptions.AllCardFields, plain.Fields!);
+    }
+
+    [Theory]
+    [InlineData("#FFD100", "#ffd100")]
+    [InlineData(" fd1 ", "#ffdd11")]
+    [InlineData("gold", "")]
+    [InlineData("#12345", "")]
+    [InlineData("", "")]
+    public void Hex_colors(string typed, string used) => Assert.Equal(used, StreamLook.Hex(typed));
+
+    [Theory]
+    [InlineData("Arms 31 / Fury 20 / Protection 0", "31/20/0")]
+    [InlineData("Class 15 / Fury 12 / Slayer 3", "15/12/3")]
+    [InlineData("", "")]
+    public void Talents_as_numbers(string talents, string shown) => Assert.Equal(shown, Format.TalentNumbers(talents));
+
+    [Fact]
+    public void Played_at_this_level_counts_from_the_ding()
+    {
+        Entry[] events = [Level(22, 1400, TimeSpan.FromHours(3)) with { Played = 100_000 }, Level(21, 1300, TimeSpan.FromHours(4)) with { Played = 98_000 }];
+        var s = StreamSnapshot.Build(Ronnie with { PlayedSeconds = 108_100, Talents = "Holy 5 / Protection 0 / Retribution 12" }, events, Now);
+        Assert.Equal("2h 15m", s.LevelPlayed);
+        Assert.Equal("5/0/12", s.Talents);
+        // Not known without the ding's played, or when the saved played is older than the ding.
+        Assert.Equal("", StreamSnapshot.Build(Ronnie with { PlayedSeconds = 108_100 }, [Level(22, 1400, TimeSpan.FromHours(3))], Now).LevelPlayed);
+        Assert.Equal("", StreamSnapshot.Build(Ronnie with { PlayedSeconds = 99_000 }, events, Now).LevelPlayed);
     }
 
     [Fact]

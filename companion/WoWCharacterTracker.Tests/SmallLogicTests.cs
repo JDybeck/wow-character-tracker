@@ -1,3 +1,5 @@
+using WoWCharacterTracker.Services.Discord;
+
 namespace WoWCharacterTracker.Tests;
 
 public class TalentLinkTests
@@ -14,6 +16,37 @@ public class TalentLinkTests
     public void No_code_opens_the_empty_calculator()
     {
         Assert.Equal("https://www.wowhead.com/forever/talent-calc/warrior", Wowhead.ForeverTalentUrl("WARRIOR", ""));
+    }
+}
+
+public class MountPostTests
+{
+    static readonly Entry Learned = new() { Kind = "mount", Char = "Snubbe", Mount = "Brown Horse", SpellId = 458, Level = 20 };
+
+    // A mount from an item is known by the item, one learned straight into the journal by its spell.
+    [Fact]
+    public void Mount_is_known_by_its_item_else_its_spell()
+    {
+        Assert.Equal(("item", 5864), EventEmbeds.WowheadThing(Learned with { ItemId = 5864 }));
+        Assert.Equal(("spell", 458), EventEmbeds.WowheadThing(Learned));
+        Assert.Null(EventEmbeds.WowheadThing(Learned with { SpellId = 0 }));
+        Assert.Null(EventEmbeds.WowheadThing(Learned with { Kind = "level" }));
+    }
+
+    [Fact]
+    public void Learned_mount_links_its_spell_and_leaves_the_name_to_the_picture()
+    {
+        var embeds = new EventEmbeds(Flavors.Retail);
+        Assert.Equal("https://www.wowhead.com/spell=458", embeds.Build(Learned, isTest: false)["url"]);
+        Assert.Contains("[Brown Horse](https://www.wowhead.com/spell=458)", (string)embeds.Build(Learned, isTest: false)["description"]);
+        Assert.DoesNotContain("Brown Horse", (string)embeds.Build(Learned, isTest: false, itemPicture: true)["description"]);
+    }
+
+    [Fact]
+    public void Spell_id_comes_through_the_live_channel()
+    {
+        var e = WoWCharacterTracker.Services.LiveChannel.Payload.Parse("i=:mount:1;g=1403-0A1B2C3D;k=mount;w=Brown Horse;sp=458")!;
+        Assert.Equal(458, e.SpellId);
     }
 }
 
@@ -185,6 +218,67 @@ public class ItemKindTests
     }
 
     [Fact]
+    public void Saved_equipment_sets_keep_their_items_and_a_name_with_a_tilde()
+    {
+        var sets = Inventory.ParseEquipmentSets("134400~1~1:100:equipped,4:0:ignored,7:0:empty~ret\n"
+            + "132624~0~5:200:bags,16:300:missing,x:1:bank~prot ~ tank\nbroken line\n0~0~~");
+        Assert.Equal(2, sets.Count);
+        Assert.Equal(("ret", 134400, true), (sets[0].Name, sets[0].Icon, sets[0].IsEquipped));
+        Assert.Equal([new EquipmentSetItem(1, 100, "equipped"), new EquipmentSetItem(4, 0, "ignored"), new EquipmentSetItem(7, 0, "empty")], sets[0].Items);
+        Assert.Equal("prot ~ tank", sets[1].Name);
+        Assert.False(sets[1].IsEquipped);
+        Assert.Equal([5, 16], sets[1].Items.Select(i => i.Slot)); // the broken piece is left out
+        Assert.Empty(Inventory.ParseEquipmentSets(""));
+    }
+
+    [Fact]
+    public void A_set_piece_the_game_lost_is_found_in_the_last_seen_bank()
+    {
+        var inv = new Inventory("g", [], [new ItemSlot(0, 1, 7, 1)], new Dictionary<int, int>(), [new ItemSlot(-1, 3, 8, 1)], new Dictionary<int, int>(), 1, 1);
+        Assert.Equal("bags", inv.PlaceOf(new EquipmentSetItem(1, 7, "missing")));
+        Assert.Equal("bank", inv.PlaceOf(new EquipmentSetItem(1, 8, "missing")));
+        Assert.Equal("missing", inv.PlaceOf(new EquipmentSetItem(1, 9, "missing")));
+        Assert.Equal("equipped", inv.PlaceOf(new EquipmentSetItem(1, 8, "equipped"))); // the game's word wins otherwise
+    }
+
+    [Fact]
+    public void Picking_an_equipment_set_shows_its_pieces_and_where_they_are()
+    {
+        var inv = new Inventory("g", [new ItemSlot(Inventory.Equipped, 1, 100, 1), new ItemSlot(Inventory.Equipped, 4, 50, 1), new ItemSlot(Inventory.Equipped, 11, 60, 1)],
+            [], new Dictionary<int, int>(), [new ItemSlot(-1, 1, 300, 1)], new Dictionary<int, int>(), 1, 1)
+        {
+            Enchants = Inventory.ParseEnchants("1~100~Stamina +2~41"),
+            EquipmentSets = Inventory.ParseEquipmentSets("1~1~1:100:equipped,4:0:ignored,11:0:empty~ret\n2~0~1:200:bags,16:300:missing,17:400:missing~prot"),
+        };
+        var gear = CharacterGear.From(inv, new GameLookup(Flavors.Forever, () => { }), Flavors.Forever, "PALADIN");
+        Assert.True(gear.HasChoices);
+        Assert.Equal(["Current gear", "ret", "prot"], gear.Choices.Select(c => c.Name));
+        Assert.Equal([false, true, false], gear.Choices.Select(c => c.IsEquipped));
+        Assert.True(gear.Choices[0].IsSelected); // the worn gear first
+        Assert.Equal(60, gear.Right.Single(c => c.SlotName == "Finger" && !c.IsEmpty).Item!.ItemId);
+
+        gear.Show(gear.Choices[1]);
+        Assert.Equal([false, true, false], gear.Choices.Select(c => c.IsSelected));
+        var head = gear.Left.Single(c => c.SlotName == "Head");
+        Assert.Equal((100, "", "Stamina +2"), (head.Item!.ItemId, head.Place, head.Enchant));
+        var shirt = gear.Left.Single(c => c.SlotName == "Shirt");
+        Assert.Equal((50, "not in set"), (shirt.Item!.ItemId, shirt.PlaceNote)); // ignored: what's worn stays
+        Assert.All(gear.Right.Where(c => c.SlotName == "Finger"), c => Assert.True(c.IsEmpty)); // the set empties the slot
+
+        gear.Show(gear.Choices[2]);
+        head = gear.Left.Single(c => c.SlotName == "Head");
+        Assert.Equal((200, "in bags", true, ""), (head.Item!.ItemId, head.PlaceNote, head.IsAway, head.Enchant)); // the enchant is on the worn one
+        var weapons = gear.Bottom.Take(2).ToList();
+        Assert.Equal(("in bank", false), (weapons[0].PlaceNote, weapons[0].IsMissing)); // found in the last bank visit
+        Assert.Equal(("not found", true), (weapons[1].PlaceNote, weapons[1].IsMissing));
+    }
+
+    [Fact]
+    public void No_equipment_sets_means_no_set_chips() =>
+        Assert.False(CharacterGear.From(new Inventory("g", [], [], new Dictionary<int, int>(), [], new Dictionary<int, int>(), 1, 0),
+            new GameLookup(Flavors.Forever, () => { }), Flavors.Forever, "PALADIN").HasChoices);
+
+    [Fact]
     public void Saved_enchant_lines_carry_their_id()
     {
         Assert.Equal(
@@ -286,5 +380,43 @@ public class DiscordCreditTests
         var e = ViewModels.SampleEvents.For("test", Flavors.Forever, null, []);
         var embed = new Services.Discord.EventEmbeds(Flavors.Forever).Build(e, isTest: true);
         Assert.Equal("Testy sent a test message.", embed["title"]);
+    }
+}
+public class SetupPlacementTests
+{
+    // Older configs have no placement: the checks go to the right column. A value this version
+    // doesn't know (hand edited, or from a newer one) reads as right too, so the checks never vanish.
+    [Theory]
+    [InlineData("{}", "right")]
+    [InlineData("{\"SetupPlacement\":\"top\"}", "top")]
+    [InlineData("{\"SetupPlacement\":\"bottom\"}", "bottom")]
+    [InlineData("{\"SetupPlacement\":\"sideways\"}", "right")]
+    public void Placement_from_config(string json, string expected) =>
+        Assert.Equal(expected, System.Text.Json.JsonSerializer.Deserialize<Config>(json)!.SetupPlace);
+}
+
+public class IntroTests
+{
+    // The tour opens by itself for a new install (no webhook, or no game folder yet), never once
+    // it's been finished or closed with "Don't show again", and not for people updating (both set).
+    [Theory]
+    [InlineData(false, false, false, true)]  // brand new
+    [InlineData(true, false, false, true)]   // webhook but no folder yet
+    [InlineData(false, true, false, true)]   // folder found, no webhook
+    [InlineData(true, true, false, false)]   // set up already (an update)
+    [InlineData(false, false, true, false)]  // tour done
+    public void Tour_opens_for_new_installs(bool webhook, bool folder, bool done, bool expected)
+    {
+        var config = new Config { IntroDone = done };
+        if (webhook) config.Webhooks.Add(new WebhookInfo { Name = "Guild", Url = "https://discord.com/api/webhooks/1/x" });
+        if (folder) config.Flavors["retail"] = new FlavorSettings { Path = @"C:\Games\World of Warcraft\_retail_" };
+        Assert.Equal(expected, config.WantsIntro);
+    }
+
+    [Fact]
+    public void Tour_steps_start_with_a_welcome_and_point_at_known_parts()
+    {
+        Assert.Null(IntroViewModel.Steps[0].Target);
+        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "setup", "discord", "pages", "settings" }));
     }
 }

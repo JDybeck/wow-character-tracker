@@ -23,7 +23,7 @@ static class Wowhead
     public static string IconUrl(string icon, string size = "medium") =>
         $"https://wow.zamimg.com/images/wow/icons/{size}/{icon}.jpg";
 
-    // type is "item" or "currency".
+    // type is "item", "currency" or "spell".
     public static Task<Info?> GetAsync(string type, int id, Flavor flavor)
     {
         if (id <= 0) return Task.FromResult<Info?>(null);
@@ -179,5 +179,14 @@ static class Wowhead
         ["Mythic+"] = "inv_relics_hourglass", ["2v2"] = "achievement_arena_2v2_7", ["3v3"] = "achievement_arena_3v3_7",
         ["RBG"] = "achievement_bg_killxenemies_generalsroom", ["Solo Shuffle"] = "achievement_featsofstrength_gladiator_10",
         ["Blitz"] = "achievement_bg_masterofallbgs",
+    };
+
+    // Highlight icons by event kind, for lines without a thing of their own (loot and mounts show the
+    // item's icon once it's looked up; these stand in until then). Ratings use RatingIcons.
+    public static readonly Dictionary<string, string> HighlightIcons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["boss"] = "achievement_dungeon_classicdungeonmaster", ["loot"] = "inv_misc_bag_10", ["mount"] = "ability_mount_ridinghorse",
+        ["duel"] = "ability_dualwield", ["makgora"] = "ability_warrior_challange", ["bg"] = "achievement_bg_winwsg",
+        ["death"] = "inv_misc_bone_humanskull_01",
     };
 }

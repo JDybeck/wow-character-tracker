@@ -16,6 +16,7 @@ sealed class MainViewModel : Observable
         Uninstall = new UninstallViewModel(this);
         Appearance = new AppearanceViewModel(this);
         Stream = new StreamViewModel(this);
+        Intro = new IntroViewModel(this);
         Log.Written += line => OnUi(() =>
         {
             Logs.Insert(0, line);
@@ -70,6 +71,7 @@ sealed class MainViewModel : Observable
     public UninstallViewModel Uninstall { get; }
     public AppearanceViewModel Appearance { get; }
     public StreamViewModel Stream { get; }
+    public IntroViewModel Intro { get; }
 
     // Settings, Animations: slides, fades and the tab orb (Ui/Motion), or everything instant.
     public bool Animations
@@ -77,6 +79,26 @@ sealed class MainViewModel : Observable
         get => Config.Animations;
         set { Config.Animations = Motion.Enabled = value; Config.Save(); Raise(nameof(Animations)); }
     }
+
+    // Settings, Setup checks: right column (above Discord), top or bottom of the window.
+    public string SetupPlacement
+    {
+        get => Config.SetupPlace;
+        set
+        {
+            Config.SetupPlacement = value;
+            Config.Save();
+            RaiseSetupPlacement();
+        }
+    }
+    void RaiseSetupPlacement()
+    {
+        foreach (var name in new[] { nameof(SetupPlacement), nameof(SetupRight), nameof(SetupTop), nameof(SetupBottom) }) Raise(name);
+    }
+    public bool SetupRight => SetupPlacement == "right";
+    public bool SetupTop => SetupPlacement == "top";
+    public bool SetupBottom => SetupPlacement == "bottom";
+    public ICommand PlaceSetupCommand => new RelayCommand(p => SetupPlacement = (string)p!);
 
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
@@ -133,6 +155,7 @@ sealed class MainViewModel : Observable
     {
         Config = Config.Load();
         Motion.Enabled = Config.Animations;
+        RaiseSetupPlacement();
         Log.Info("Character Tracker started.");
         Discord.ShowAddWebhook = Config.Webhooks.Count == 0;
 
@@ -152,6 +175,9 @@ sealed class MainViewModel : Observable
         SelectedFlavor = last.IsOn ? last : FlavorTabs.FirstOrDefault(t => t.IsOn) ?? last;
 
         Stream.Apply();
+        // A new install gets the tour (screenshot runs only when they ask for it). Checked before the
+        // tabs start, since finding the game saves its folder.
+        if (Config.WantsIntro && ScreenshotMode.Target is null) Intro.Open();
         foreach (var tab in FlavorTabs) tab.Start();
         if (Config.Webhooks.Count == 0)
             Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
