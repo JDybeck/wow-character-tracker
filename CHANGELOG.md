@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
@@ -9,6 +9,14 @@ The app shows the notes for a new version when it finds an update. Each release 
 - **Every theme in both games**: Retail and Forever now list all of them (this game's own first), so you can give Forever Midnight or Retail Classic gold. Each game keeps its own default and its own pick.
 - The settings menu shows just your current theme; click it to pick from small swatches, grouped into this game's looks, factions and cities, and the other game's (names on hover).
 - **Faction filter** on the Characters page (Alliance / Horde chips), shown when you have characters on both sides.
+- **Stream overlay, more ways to adjust it**: a Size slider for the whole overlay, and a width and height for the card, so it can cover your chat box.
+- The highlights box has its own width and height: with a height set it keeps that size and shows the newest lines that fit, so a highlights source in OBS no longer changes its text size when a highlight comes in.
+- **Overlay colors**: presets (Class, Gold, Alliance, Horde, Arcane, Fel, Frost, Mono) or your own accent and background as hex codes.
+- The card and highlights can drop their border, and show a small WoW Character Tracker line with the logo and GitHub's mark (on by default, you can turn it off).
+- Pick which stats the card shows: item level, played, **played at this level**, gold, **talents** (numbers only, like 31/20/0), zone, and on Retail the keystone and ratings.
+- The alert (DING!, VICTORY!...) pops in about twice as fast.
+- **Icons in the overlay's highlights**: the item's own icon for loot and mounts (framed in its quality color), and an icon per kind for boss kills, duels, Mak'gora, battlegrounds, deaths and rating milestones.
+- **Equipment Manager sets on the Gear tab**: your sets from the game's Equipment Manager show as chips above the gear (the one you wear marked *equipped*). Pick one to see its pieces in the slots: pieces in your bags or bank are grayed out with "in bags"/"in bank", pieces the game can't find are tinted red. Needs the updated addon and a /reload.
 - The Discord panel's **Test** button now posts "{character} sent a test message." instead of a made-up level-up.
 
 ## v0.25.4

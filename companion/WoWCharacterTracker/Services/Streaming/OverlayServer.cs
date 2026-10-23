@@ -19,6 +19,19 @@ sealed class OverlayServer : IDisposable
         s.CopyTo(m);
         return m.ToArray();
     });
+    // The brand line's logo: the app's own icon (already in the exe as a WPF resource), empty if it can't be read.
+    static readonly Lazy<byte[]> Logo = new(() =>
+    {
+        try
+        {
+            using var s = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"))?.Stream;
+            if (s is null) return [];
+            using var m = new MemoryStream();
+            s.CopyTo(m);
+            return m.ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UriFormatException) { return []; }
+    });
 
     public StreamSnapshot Snapshot { get; set; } = StreamSnapshot.Empty;
     public string Url { get; }
@@ -64,6 +77,7 @@ sealed class OverlayServer : IDisposable
         var (body, type, status) = ctx.Request.Url?.AbsolutePath switch
         {
             "/" or "/index.html" => (Page.Value, "text/html; charset=utf-8", 200),
+            "/logo.ico" when Logo.Value.Length > 0 => (Logo.Value, "image/x-icon", 200),
             "/state" => (JsonSerializer.SerializeToUtf8Bytes(Snapshot with { Now = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }, Json), "application/json", 200),
             _ => (Encoding.UTF8.GetBytes("Not found"), "text/plain", 404),
         };

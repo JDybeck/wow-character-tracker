@@ -7,20 +7,37 @@
              xmlns:ui="clr-namespace:WoWCharacterTracker.Ui">
   <UserControl.Resources>
     <!-- A gear slot: the item's icon, then its name in quality color (or the empty slot's name) and
-         its enchant under it in the game's green. -->
+         its enchant under it in the game's green. A set's piece that isn't worn is grayed out ("in bags",
+         "in bank") or tinted red ("not found"). -->
     <DataTemplate x:Key="GearSlot" DataType="{x:Type vm:ItemCell}">
       <DockPanel Margin="0,0,0,2" Background="Transparent">
-        <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ItemCellTemplate}" DockPanel.Dock="Left"/>
+        <Grid DockPanel.Dock="Left">
+          <ContentPresenter x:Name="Cell" Content="{Binding}" ContentTemplate="{StaticResource ItemCellTemplate}"/>
+          <Border x:Name="Tint" Width="34" Height="34" Margin="0,0,3,3" CornerRadius="4" Background="#66E53935" IsHitTestVisible="False" Visibility="Collapsed"/>
+        </Grid>
         <StackPanel Margin="6,0,0,3" VerticalAlignment="Center">
           <TextBlock x:Name="Name" Text="{Binding Item.Name}" Foreground="{Binding Item.Brush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
           <TextBlock Text="{Binding Enchant}" Foreground="#1EFF00" FontSize="11" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left"
                      ui:ItemTip.Info="{Binding EnchantInfo.Info}" Visibility="{Binding HasEnchant, Converter={StaticResource Visible}}"/>
+          <TextBlock x:Name="Note" Text="{Binding PlaceNote}" Foreground="{StaticResource Faint}" FontSize="11"
+                     Visibility="{Binding PlaceNote, Converter={StaticResource VisibleIfSet}}"/>
         </StackPanel>
       </DockPanel>
       <DataTemplate.Triggers>
         <DataTrigger Binding="{Binding IsEmpty}" Value="True">
           <Setter TargetName="Name" Property="Text" Value="{Binding SlotName}"/>
           <Setter TargetName="Name" Property="Foreground" Value="{StaticResource Faint}"/>
+        </DataTrigger>
+        <DataTrigger Binding="{Binding IsAway}" Value="True">
+          <Setter TargetName="Cell" Property="Opacity" Value="0.4"/>
+          <Setter TargetName="Name" Property="Opacity" Value="0.55"/>
+          <Setter TargetName="Note" Property="Foreground" Value="{StaticResource Dim}"/>
+        </DataTrigger>
+        <DataTrigger Binding="{Binding IsMissing}" Value="True">
+          <Setter TargetName="Tint" Property="Visibility" Value="Visible"/>
+          <Setter TargetName="Cell" Property="Opacity" Value="0.6"/>
+          <Setter TargetName="Name" Property="Opacity" Value="0.6"/>
+          <Setter TargetName="Note" Property="Foreground" Value="#FF6B6B"/>
         </DataTrigger>
       </DataTemplate.Triggers>
     </DataTemplate>
@@ -132,6 +149,24 @@
 
         <StackPanel>
           <TextBlock Style="{StaticResource FactLabel}" Text="EQUIPPED"/>
+          <!-- The game's Equipment Manager sets: pick one to see its pieces in the slots. -->
+          <ItemsControl ItemsSource="{Binding Gear.Choices}" Margin="0,4,0,2" Visibility="{Binding Gear.HasChoices, Converter={StaticResource Visible}}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type vm:GearChoice}">
+                <RadioButton Style="{StaticResource ChoiceChip}" Margin="0,0,6,6" IsChecked="{Binding IsSelected, Mode=OneWay}"
+                             Command="{Binding DataContext.Gear.ShowCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Name}"/>
+                    <TextBlock Text="equipped" Foreground="#1EFF00" Margin="6,0,0,0" Visibility="{Binding IsEquipped, Converter={StaticResource Visible}}"
+                               ToolTip="The game says this set is what the character wears"/>
+                  </StackPanel>
+                </RadioButton>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
           <Grid Margin="0,4,0,0">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>

@@ -5,6 +5,7 @@
 --   bags     "bag~slot~itemId~count,..."  bagSizes "bag~size,..."
 --   bank     the same for the bank        bankSizes, bankAt (when the bank was last open)
 --   sets, effects, enchants: the gear's set bonuses, Equip/Use lines and enchants (scanGearEffects), setsAt when read
+--   equipSets: the Equipment Manager's sets and where their items are (scanEquipSets)
 --   savedAt, savedZone: when and where the saved file was last written (/reload or logout)
 local ADDON, ns = ...
 
@@ -194,6 +195,50 @@ function ns.scanGearEffects()
   return table.concat(sets, "\n"), table.concat(effects, "\n"), table.concat(enchants, "\n")
 end
 
+-- Where an item of an equipment set is, from its location in C_EquipmentSet.GetItemLocations: the
+-- game's sentinels (-1 missing, 0 slot left empty, 1 slot ignored), else bit flags (bank, bags,
+-- player = equipped; bank and bag items carry the player flag too, so those come first).
+local function setItemPlace(loc)
+  if type(loc) ~= "number" then return nil end
+  if loc == (EQUIPMENT_SET_ITEM_MISSING or -1) then return "missing" end
+  if loc == (EQUIPMENT_SET_EMPTY_SLOT or 0) then return "empty" end
+  if loc == (EQUIPMENT_SET_IGNORED_SLOT or 1) then return "ignored" end
+  local function has(flag) return math.floor(loc / flag) % 2 == 1 end
+  if has(ITEM_INVENTORY_LOCATION_BANK or 0x00400000) then return "bank" end
+  if has(ITEM_INVENTORY_LOCATION_BAGS or 0x00200000) then return "bags" end
+  if has(ITEM_INVENTORY_LOCATION_PLAYER or 0x00100000) then return "equipped" end
+  return "missing"
+end
+
+-- The Equipment Manager's sets, one per line (saved file only):
+--   equipSets "icon~equipped (1/0)~slot:itemId:place,...~set name"
+-- place: equipped, bags, bank, missing, empty (the set leaves the slot empty) or ignored (the set
+-- doesn't touch it). The name goes last, so it may hold anything but a line break.
+-- nil on clients without C_EquipmentSet, "" for a character without sets.
+function ns.scanEquipSets()
+  local api = C_EquipmentSet
+  if not (api and api.GetEquipmentSetIDs and api.GetEquipmentSetInfo) then return nil end
+  local lines = {}
+  for _, id in ipairs(api.GetEquipmentSetIDs() or {}) do
+    local name, icon, _, isEquipped = api.GetEquipmentSetInfo(id)
+    if type(name) == "string" then
+      local ids = api.GetItemIDs and api.GetItemIDs(id) or {}
+      local locs = api.GetItemLocations and api.GetItemLocations(id) or {}
+      local items = {}
+      for slot = 1, 19 do
+        local place = setItemPlace(locs[slot])
+        local item = tonumber(ids[slot]) or 0
+        if place == "ignored" or place == "empty" or item <= 1 then item = 0 end -- the old API used 0/1 for empty/ignored
+        if place == "equipped" and item == 0 then item = GetInventoryItemID and GetInventoryItemID("player", slot) or 0 end
+        if place or item > 0 then items[#items + 1] = slot .. ":" .. item .. ":" .. (place or "missing") end
+      end
+      lines[#lines + 1] = table.concat({ tonumber(icon) or 0, isEquipped and 1 or 0, table.concat(items, ","),
+        (name:gsub("[\r\n]", " ")) }, "~")
+    end
+  end
+  return table.concat(lines, "\n")
+end
+
 -- What the saved file had when this session started, to tell whether anything changed since.
 local atLoad
 
@@ -227,6 +272,11 @@ function ns.scanInventory()
   if worn ~= "" and not (InCombatLockdown and InCombatLockdown()) then
     local ok, sets, effects, enchants = pcall(ns.scanGearEffects)
     if ok then e.sets, e.effects, e.enchants, e.setsAt = sets, effects, enchants, time() end
+  end
+  -- Equipment Manager sets, also out of combat only (a client without them keeps what it had: none).
+  if not (InCombatLockdown and InCombatLockdown()) then
+    local ok, equipSets = pcall(ns.scanEquipSets)
+    if ok and equipSets then e.equipSets = equipSets end
   end
   local bags, sizes = scanBags(carriedBags())
   if sizes ~= "" then e.bags, e.bagSizes = bags, sizes end
