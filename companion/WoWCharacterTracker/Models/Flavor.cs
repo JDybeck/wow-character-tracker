@@ -52,8 +52,8 @@ static class Flavors
         HasRenders = true, HasSpecs = true, HasRatings = true, MaxLevel = 90,
     };
 
-    // Forever is what this is really made for. Its final folder name isn't known yet, so the
-    // beta folder is the fallback.
+    // Forever is what this is really made for. Live is _forever_; the beta folders are the fallback,
+    // and a saved beta folder moves to _forever_ once that's installed (Wow.NewestFolder).
     public static readonly Flavor Forever = new("forever", "Forever", ["_forever_", "_forever_beta_", "_classic_beta_"], "forever/", () => new FlavorSettings
     {
         LevelSplit = 30, LevelEveryBefore = 5, LevelEveryAfter = 1,
