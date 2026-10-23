@@ -5,6 +5,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 ## v0.26.0
 
 - **Slimmer setup checks**: Game folder, Addon and Discord are now small chips in the right column, above the Discord panel. When everything is fine it's one quiet line; a check that needs something gets an amber row with its fix (Browse, Install...). Hover a chip for the details, click Game folder to change it.
+- **Can't miss a missing folder or addon**: without a game folder the app can't track anything, so it asks for one in a big amber card over the pages ("Choose your Forever folder", with Browse), wherever the checks sit. Once the folder is set, a missing addon gets the same card with Install.
 - **Pick where they sit**: Settings, Setup checks: Right (default), Top or Bottom. The update banner and the /reload reminder follow them.
 
 ## v0.25.4

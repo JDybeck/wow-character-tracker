@@ -39,6 +39,7 @@
       </Grid.ColumnDefinitions>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
 
@@ -64,9 +65,13 @@
         </StackPanel>
       </DockPanel>
 
+      <!-- No game folder or no addon: the app can't track anything yet, so that check sits big over the
+           pages, wherever the setup checks are placed. -->
+      <views:SetupCard Grid.Row="1"/>
+
       <!-- Characters and Items, once per game tab (their DataContext is the tab): the hidden tab's
            pages stay built, so switching tabs only swaps which one shows. -->
-      <ItemsControl Grid.Row="1" ItemsSource="{Binding FlavorTabs}" Focusable="False">
+      <ItemsControl Grid.Row="2" ItemsSource="{Binding FlavorTabs}" Focusable="False">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate><Grid/></ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
@@ -87,13 +92,13 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <views:PostingPage Grid.Row="1"/>
-      <views:InGamePage Grid.Row="1"/>
-      <views:UninstallPage Grid.Row="1"/>
+      <views:PostingPage Grid.Row="2"/>
+      <views:InGamePage Grid.Row="2"/>
+      <views:UninstallPage Grid.Row="2"/>
       <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
-      <views:GameOffPage Grid.Row="0" Grid.RowSpan="2"/>
+      <views:GameOffPage Grid.Row="0" Grid.RowSpan="3"/>
 
-      <Grid Grid.Row="1" Grid.Column="2">
+      <Grid Grid.Row="1" Grid.RowSpan="2" Grid.Column="2">
         <Grid.RowDefinitions>
           <RowDefinition Height="*"/>
           <RowDefinition Height="Auto"/>

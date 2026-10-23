@@ -32,11 +32,17 @@ sealed class FlavorViewModel : Observable
             ActionText = "Browse",
             ActionCommand = new RelayCommand(_ => Browse()),
             ActionTooltip = $"Pick your World of Warcraft folder (usually {Wow.DefaultRoot}), or the {Wow.FolderHint(flavor)} folder inside it. Anything inside those works too.",
+            Headline = $"Choose your {flavor.Name} folder",
+            Why = "The app reads your characters from the game folder and installs its addon there. Until it has one, nothing is tracked or posted.",
+            Icon = "",
         };
         AddonStep = new SetupItem("Addon")
         {
             Detail = "Waiting for the game folder",
             ActionCommand = new RelayCommand(_ => SetUpAddon(force: true)),
+            Headline = $"Install the addon for {flavor.Name}",
+            Why = "The addon notices your dings, kills, loot and mounts in game and hands them to the app. Nothing is written to the game folder until you click Install.",
+            Icon = "",
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
         WatchSetup();
@@ -128,9 +134,13 @@ sealed class FlavorViewModel : Observable
     public SetupItem AddonStep { get; }
     public SetupItem DiscordStep { get; }
     public IReadOnlyList<SetupItem> Steps => [FolderStep, AddonStep, DiscordStep];
-    // The checks that need something done: the setup bar spells these out, all fine is one quiet line.
-    public IReadOnlyList<SetupItem> SetupProblems => Steps.Where(s => !s.Ok).ToList();
-    public bool SetupOk => Steps.All(s => s.Ok);
+    // Without a game folder, or with the addon missing, the app can't track anything: that check gets
+    // the big card over the pages (Views/SetupCard), the folder first since the addon goes into it.
+    public SetupItem? Blocker => !FolderStep.Ok ? FolderStep : !AddonStep.Ok ? AddonStep : null;
+    // The other checks that need something done (Discord): the setup bar spells these out, all fine is
+    // one quiet line. The ones with a big card (a Headline) only show as chips there.
+    public IReadOnlyList<SetupItem> SetupProblems => Steps.Where(s => !s.Ok && s.Headline is null).ToList();
+    public bool HasSetupProblems => SetupProblems.Count > 0;
 
     void WatchSetup()
     {
@@ -138,8 +148,7 @@ sealed class FlavorViewModel : Observable
             step.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName != nameof(SetupItem.Ok)) return;
-                Raise(nameof(SetupProblems));
-                Raise(nameof(SetupOk));
+                foreach (var name in new[] { nameof(Blocker), nameof(SetupProblems), nameof(HasSetupProblems) }) Raise(name);
             };
     }
 
@@ -407,13 +416,20 @@ sealed class FlavorViewModel : Observable
         var path = Wow.IsFlavorDir(Settings.Path) ? Settings.Path : Wow.Detect(Flavor);
         if (path is null)
         {
-            FolderStep.Ok = false;
-            FolderStep.Detail = $"Not found. Click Browse and pick your World of Warcraft folder (usually {Wow.DefaultRoot}); the app finds {Wow.FolderHint(Flavor)} in it.";
-            StatusText = "Waiting for the game folder";
-            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse on the Game folder card and pick your World of Warcraft folder, or the {Wow.FolderHint(Flavor)} folder inside it.");
+            ShowFolderMissing();
+            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse and pick your World of Warcraft folder, or the {Wow.FolderHint(Flavor)} folder inside it.");
             return;
         }
         UseFolder(path);
+    }
+
+    // No game folder: the checks say so (the big card over the pages asks for one). Screenshot mode
+    // fakes this state with it, so test runs never go looking for the real game.
+    internal void ShowFolderMissing()
+    {
+        FolderStep.Set(ok: false, $"Not found. Click Browse and pick your World of Warcraft folder (usually {Wow.DefaultRoot}); the app finds {Wow.FolderHint(Flavor)} in it.", action: "Browse");
+        AddonStep.Set(ok: false, "Waiting for the game folder");
+        StatusText = "Waiting for the game folder";
     }
 
     // The folder picker. Any of these work: the World of Warcraft folder, this game's folder in it, or
