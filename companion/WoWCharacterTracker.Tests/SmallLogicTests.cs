@@ -1,3 +1,5 @@
+using WoWCharacterTracker.Services.Discord;
+
 namespace WoWCharacterTracker.Tests;
 
 public class TalentLinkTests
@@ -14,6 +16,37 @@ public class TalentLinkTests
     public void No_code_opens_the_empty_calculator()
     {
         Assert.Equal("https://www.wowhead.com/forever/talent-calc/warrior", Wowhead.ForeverTalentUrl("WARRIOR", ""));
+    }
+}
+
+public class MountPostTests
+{
+    static readonly Entry Learned = new() { Kind = "mount", Char = "Snubbe", Mount = "Brown Horse", SpellId = 458, Level = 20 };
+
+    // A mount from an item is known by the item, one learned straight into the journal by its spell.
+    [Fact]
+    public void Mount_is_known_by_its_item_else_its_spell()
+    {
+        Assert.Equal(("item", 5864), EventEmbeds.WowheadThing(Learned with { ItemId = 5864 }));
+        Assert.Equal(("spell", 458), EventEmbeds.WowheadThing(Learned));
+        Assert.Null(EventEmbeds.WowheadThing(Learned with { SpellId = 0 }));
+        Assert.Null(EventEmbeds.WowheadThing(Learned with { Kind = "level" }));
+    }
+
+    [Fact]
+    public void Learned_mount_links_its_spell_and_leaves_the_name_to_the_picture()
+    {
+        var embeds = new EventEmbeds(Flavors.Retail);
+        Assert.Equal("https://www.wowhead.com/spell=458", embeds.Build(Learned, isTest: false)["url"]);
+        Assert.Contains("[Brown Horse](https://www.wowhead.com/spell=458)", (string)embeds.Build(Learned, isTest: false)["description"]);
+        Assert.DoesNotContain("Brown Horse", (string)embeds.Build(Learned, isTest: false, itemPicture: true)["description"]);
+    }
+
+    [Fact]
+    public void Spell_id_comes_through_the_live_channel()
+    {
+        var e = WoWCharacterTracker.Services.LiveChannel.Payload.Parse("i=:mount:1;g=1403-0A1B2C3D;k=mount;w=Brown Horse;sp=458")!;
+        Assert.Equal(458, e.SpellId);
     }
 }
 

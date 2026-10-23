@@ -7,7 +7,7 @@ using System.Windows.Shapes;
 
 namespace WoWCharacterTracker.Ui;
 
-// Draws an item's tooltip as a PNG for loot posts, the way the game and Wowhead show it: icon on
+// Draws an item's tooltip as a PNG for loot and mount posts, the way the game and Wowhead show it: icon on
 // the left, then the dark tooltip with the name in its quality color, item level, binding, slot and
 // type, damage and speed, green Equip lines, required level and the sell price in coins.
 // The text and colors come from Wowhead's tooltip for the item (Wowhead.Info.Html).
@@ -23,11 +23,12 @@ static class ItemTooltipImage
     };
 
     // Null when Wowhead doesn't know the item (or can't be reached) or drawing fails; the post then
-    // goes out without the picture. Safe to call from any thread.
-    public static async Task<byte[]?> RenderAsync(int itemId, Flavor flavor)
+    // goes out without the picture. Safe to call from any thread. type "spell" draws a spell's tooltip
+    // the same way (mounts learned without an item).
+    public static async Task<byte[]?> RenderAsync(int id, Flavor flavor, string type = "item")
     {
-        if (itemId <= 0 || Application.Current is not { } app) return null;
-        var info = await Wowhead.GetAsync("item", itemId, flavor);
+        if (id <= 0 || Application.Current is not { } app) return null;
+        var info = await Wowhead.GetAsync(type, id, flavor);
         if (info?.Html is not { Length: > 0 } html) return null;
         var lines = ItemTooltip.Parse(html);
         if (lines.Count == 0) return null;

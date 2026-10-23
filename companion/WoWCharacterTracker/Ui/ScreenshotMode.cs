@@ -8,7 +8,7 @@ namespace WoWCharacterTracker.Ui;
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
 //   extra:  rename | options (a webhook) | removehook | addhook (the Add form open) | testchars | updating (the update banner mid-download) | updateready (a new version offered)
-//           | stream (the Stream overlay panel on and open) | testall (every Test button) | addonupdate
+//           | stream (the Stream overlay panel on and open) | testall (every Test button; test characters on when Forever has none) | addonupdate
 //           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
 //   extra2: gear | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
@@ -36,6 +36,8 @@ static class ScreenshotMode
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;
             if (Part(2) == "addhook") vm.Discord.ShowAddWebhook = true;
             if (Part(2) == "testchars") { vm.ShowTestCharacters = true; await Task.Delay(1500); }
+            // Test buttons need a character; without a game folder, the test characters stand in.
+            if (Part(2) == "testall" && vm.SelectedFlavor is { HasCharacters: false, Flavor.HasRulesets: true }) { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             if (Part(2) == "testall")
                 foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "death", "duel", "makgora", "mplus", "pvp" })
                     vm.TestKindCommand.Execute(kind);
