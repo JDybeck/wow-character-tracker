@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.26.0
+
+- **Equipment Manager sets on the Gear tab**: your sets from the game's Equipment Manager show as chips above the gear (the one you wear marked *equipped*). Pick one to see its pieces in the slots: pieces in your bags or bank are grayed out with "in bags"/"in bank", pieces the game can't find are tinted red. Needs the updated addon and a /reload.
+
 ## v0.25.4
 
 - Discord posts show **WoW Character Tracker** small in the footer, with the app's logo, next to the time.
