@@ -84,8 +84,10 @@ function on.MERCHANT_CLOSED()
   remindSoon()
 end
 function on.NEW_MOUNT_ADDED(mountID)
-  local name = C_MountJournal and C_MountJournal.GetMountInfoByID and C_MountJournal.GetMountInfoByID(mountID)
-  if name then ns.recordMount(name, nil) end
+  if not (C_MountJournal and C_MountJournal.GetMountInfoByID) then return end
+  -- The spell is what Wowhead knows a learned mount by (name and icon for the Discord post).
+  local name, spellID = C_MountJournal.GetMountInfoByID(mountID)
+  if name then ns.recordMount(name, nil, spellID) end
 end
 
 -- The shot queue
@@ -95,6 +97,7 @@ function on.SCREENSHOT_FAILED() ns.shotDone(false) end
 -- Gear, bags and the bank (while it's open).
 on.BAG_UPDATE_DELAYED = ns.scanInventorySoon
 on.PLAYERBANKSLOTS_CHANGED = ns.scanInventorySoon
+on.EQUIPMENT_SETS_CHANGED = ns.scanInventorySoon
 function on.BANKFRAME_OPENED()
   ns.bankOpen = true
   C_Timer.After(0.5, ns.scanBank)
