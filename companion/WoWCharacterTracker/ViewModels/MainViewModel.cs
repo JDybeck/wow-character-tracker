@@ -180,6 +180,8 @@ sealed class MainViewModel : Observable
         if (Config.WantsIntro && ScreenshotMode.Target is null) Intro.Open();
         foreach (var tab in FlavorTabs) tab.Start();
         _ = Task.Run(ExtractedFiles.CleanUp); // what older versions unpacked into %TEMP%
+        try { Directory.Delete(Path.Combine(Config.Dir, "logos"), recursive: true); } // before 0.27.2; ImageCache keeps them now
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         if (Config.Webhooks.Count == 0)
             Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
         await Task.WhenAll(FlavorTabs.Where(t => t.IsOn).Select(t => t.CheckDiscordAsync()));
@@ -191,6 +193,7 @@ sealed class MainViewModel : Observable
 
     public void Shutdown()
     {
+        SaveWaiting();
         foreach (var tab in FlavorTabs) tab.Shutdown();
         Stream.Shutdown();
     }
@@ -331,24 +334,38 @@ sealed class MainViewModel : Observable
     }
 
     // Saved a moment after the last keystroke, not on every one.
-    readonly System.Windows.Threading.DispatcherTimer noteTimer = new() { Interval = TimeSpan.FromSeconds(1) };
-    bool noteTimerHooked;
-
     public void SaveNote(string guid, string text)
     {
         Config.SetNote(guid, text, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-        if (!noteTimerHooked)
+        SaveSoon(notes: true);
+    }
+
+    // Settings that change many times a second (sliders, typing) are saved a moment after the last
+    // change instead of on every one. notes: the game's Settings.lua gets the notes then too (/wct note
+    // reads them from there). Shutdown saves what's still waiting.
+    System.Windows.Threading.DispatcherTimer? saveTimer;
+    bool notesWaiting;
+
+    public void SaveSoon(bool notes = false)
+    {
+        notesWaiting |= notes;
+        if (saveTimer is null)
         {
-            noteTimerHooked = true;
-            noteTimer.Tick += (_, _) =>
-            {
-                noteTimer.Stop();
-                Config.Save();
-                foreach (var tab in FlavorTabs) tab.NotesChanged(); // /wct note reads them from Settings.lua
-            };
+            saveTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+            saveTimer.Tick += (_, _) => SaveWaiting();
         }
-        noteTimer.Stop();
-        noteTimer.Start();
+        saveTimer.Stop();
+        saveTimer.Start();
+    }
+
+    void SaveWaiting()
+    {
+        if (saveTimer is not { IsEnabled: true }) return;
+        saveTimer.Stop();
+        Config.Save();
+        if (!notesWaiting) return;
+        notesWaiting = false;
+        foreach (var tab in FlavorTabs) tab.NotesChanged();
     }
 
     // --- tags ---

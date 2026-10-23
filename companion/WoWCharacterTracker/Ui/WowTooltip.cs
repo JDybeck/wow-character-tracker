@@ -19,22 +19,14 @@ sealed class WowTooltip : Border
     public string? Html { get => (string?)GetValue(HtmlProperty); set => SetValue(HtmlProperty, value); }
     public string? Text { get => (string?)GetValue(TextProperty); set => SetValue(TextProperty, value); }
 
-    // Wowhead's tooltip colors, by its class names.
-    static readonly Brush White = Frozen(0xFFFFFF);
-    static readonly Dictionary<string, Brush> Colors = new()
-    {
-        ["q0"] = Frozen(0x9D9D9D), ["q1"] = White, ["q2"] = Frozen(0x1EFF00), ["q3"] = Frozen(0x0070DD), ["q4"] = Frozen(0xA335EE),
-        ["q5"] = Frozen(0xFF8000), ["q6"] = Frozen(0xE6CC80), ["q7"] = Frozen(0x00CCFF), ["q"] = Frozen(0xFFD100), ["toycolor"] = Frozen(0x68CCEF),
-        ["c1"] = Frozen(0xC69B6D), ["c2"] = Frozen(0xF48CBA), ["c3"] = Frozen(0xAAD372), ["c4"] = Frozen(0xFFF468), ["c5"] = Frozen(0xFFFFFF),
-        ["c6"] = Frozen(0xC41E3A), ["c7"] = Frozen(0x0070DD), ["c8"] = Frozen(0x3FC7EB), ["c9"] = Frozen(0x8788EE), ["c10"] = Frozen(0x00FF98),
-        ["c11"] = Frozen(0xFF7C0A), ["c12"] = Frozen(0xA330C9), ["c13"] = Frozen(0x33937F),
-        ["moneygold"] = Frozen(0xFFD700), ["moneysilver"] = Frozen(0xC7C7CF), ["moneycopper"] = Frozen(0xC87533),
-    };
+    // Wowhead's tooltip colors, by its class names (GameColors.Wowhead).
+    static readonly Brush White = ClassColors.Hex(0xFFFFFF);
+    static Brush ColorOf(string wowheadClass) => GameColors.Wowhead.TryGetValue(wowheadClass, out var c) ? ClassColors.Hex(c) : White;
 
     public WowTooltip()
     {
-        Background = Frozen(0x070C1A, 0xF2);
-        BorderBrush = Frozen(0x5C6474);
+        Background = ClassColors.Hex(0x070C1A, 0xF2);
+        BorderBrush = ClassColors.Hex(0x5C6474);
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(4);
         Padding = new Thickness(9, 7, 9, 8);
@@ -49,7 +41,8 @@ sealed class WowTooltip : Border
         if (d is WowTooltip { IsLoaded: true } tip) tip.Build();
     }
 
-    void Build()
+    // Also called straight away when it's drawn off screen (ItemTooltipImage), where Loaded never comes.
+    internal void Build()
     {
         var lines = Html is { Length: > 0 } html
             ? TooltipHtml.Parse(html)
@@ -87,14 +80,7 @@ sealed class WowTooltip : Border
             text.FontSize = 14.5;
             text.Margin = new Thickness(0, 0, 0, 1);
         }
-        foreach (var p in parts) text.Inlines.Add(new Run(p.Text) { Foreground = Colors.GetValueOrDefault(p.Color, White) });
+        foreach (var p in parts) text.Inlines.Add(new Run(p.Text) { Foreground = ColorOf(p.Color) });
         return text;
-    }
-
-    static SolidColorBrush Frozen(int rgb, byte alpha = 0xFF)
-    {
-        var b = new SolidColorBrush(Color.FromArgb(alpha, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
-        b.Freeze();
-        return b;
     }
 }

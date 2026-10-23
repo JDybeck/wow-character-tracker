@@ -4,11 +4,6 @@ namespace WoWCharacterTracker.Services.Discord;
 // the owner's format; max level and legendary loot get extra flair.
 sealed class EventEmbeds(Flavor flavor)
 {
-    static readonly Dictionary<int, int> QualityColors = new()
-    {
-        [3] = 0x0070DD, [4] = 0xA335EE, [5] = 0xFF8000, [6] = 0xE6CC80,
-    };
-
     public string ItemUrl(int itemId) => WowheadUrl("item", itemId);
     string WowheadUrl(string type, int id) => $"https://www.wowhead.com/{flavor.WowheadPath}{type}={id}";
 
@@ -51,7 +46,7 @@ sealed class EventEmbeds(Flavor flavor)
 
         if (e.MaxLevel)
             embed["color"] = 0xFFD100; // gold, it's a big one
-        else if (e.Kind == "loot" && QualityColors.TryGetValue(e.Quality, out var qc))
+        else if (e.Kind == "loot" && e.Quality is >= 3 and <= 6 && GameColors.Quality(e.Quality) is int qc) // rare to artifact
             embed["color"] = qc;
         else if (e.Kind is "death" or "makgora")
             embed["color"] = 0x8B0000;
@@ -59,7 +54,7 @@ sealed class EventEmbeds(Flavor flavor)
             embed["color"] = 0xA335EE;
         else if (e.Kind == "pvp")
             embed["color"] = 0xC41E3A;
-        else if (CharacterArt.ClassColor(e.ClassFile) is int color)
+        else if (GameColors.Class(e.ClassFile) is int color)
             embed["color"] = color;
 
         if (ThingUrl(e) is { } url)

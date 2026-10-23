@@ -178,7 +178,7 @@ sealed class StreamViewModel : Observable
 
     void OptionsChanged()
     {
-        main.Config.Save();
+        main.SaveSoon(); // sliders change many times a second
         Raise(nameof(RangeAll));
         Raise(nameof(RangeToday));
         Raise(nameof(RangeNow));
@@ -309,7 +309,7 @@ sealed class StreamViewModel : Observable
 
     static StreamCharacter Character(CharacterRow r, Flavor flavor) => new(
         r.Guid, r.FullName, flavor.Name, r.Level, r.ClassName,
-        CharacterArt.ClassColor(r.ClassFile) is int color ? $"#{color:X6}" : "#FFFFFF",
+        GameColors.Class(r.ClassFile) is int color ? GameColors.Hex(color) : "#FFFFFF",
         r.Race, r.RealmText, r.Zone, r.Played > 0 ? Format.Played(r.Played) : "", r.ItemLevel > 0 ? r.ItemLevel.ToString("0") : "",
         r.LastSeen, r.Spec, r.Money >= 10000 ? $"{r.Money / 10000:N0}g" : "", r.KeystoneText,
         Format.Ratings(r.MplusScore, r.PvpRatings).Select(x => new StreamRating(x.Name, x.Rating)).ToList(), r.Talents, r.Played);

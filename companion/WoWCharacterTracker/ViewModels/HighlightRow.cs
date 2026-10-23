@@ -23,10 +23,8 @@ sealed class HighlightRow(string glyph, SolidColorBrush brush, string verb, stri
     public string Detail { get; set; } = "";
     public bool HasDetail => Detail.Length > 0;
 
-    // WoW's item quality colors: poor, common, uncommon, rare, epic, legendary, artifact, heirloom.
-    static readonly int[] QualityColors = [0x9D9D9D, 0xFFFFFF, 0x1EFF00, 0x0070DD, 0xA335EE, 0xFF8000, 0xE6CC80, 0x00CCFF];
-    public static SolidColorBrush? QualityBrush(int quality) =>
-        quality >= 0 && quality < QualityColors.Length ? ClassColors.Hex(QualityColors[quality]) : null;
+    // WoW's item quality colors (GameColors).
+    public static SolidColorBrush? QualityBrush(int quality) => GameColors.Quality(quality) is int c ? ClassColors.Hex(c) : null;
 
     string? iconUrl;
     public string? IconUrl { get => iconUrl; set { Set(ref iconUrl, value); Raise(nameof(HasIcon)); } }

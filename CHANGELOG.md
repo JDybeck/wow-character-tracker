@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.27.2
+
+- Wowhead icons and the tab logos are kept on your PC once downloaded, so the app starts quicker and shows them without a connection.
+- The item picture in loot and mount posts is drawn the same way as the app's own tooltips. Wowhead's drop-source lines are left out of it now too.
+- Stream overlay sliders save a moment after you let go, not on every step.
+- Equipping a whole equipment set in game saves the character once instead of once per item.
+- Under the hood: one connection pool for everything the app downloads, one place for WoW's colors, and one cache helper for Wowhead and Raider.IO.
+
 ## v0.27.1
 
 - The app uses far less CPU while it waits in the tray: checking whether WoW is running now takes one look at the running programs instead of six.

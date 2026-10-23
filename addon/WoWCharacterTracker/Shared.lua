@@ -17,6 +17,17 @@ function ns.formatPlayed(s)
   return string.format("%dd %dh %dm", math.floor(s / 86400), math.floor(s % 86400 / 3600), math.floor(s % 3600 / 60))
 end
 
+-- A function that runs fn once, delay seconds after it's first called; calls in the meantime belong
+-- to that same run (bag updates while looting, money ticks, a whole equipment set swapping in).
+function ns.debounce(delay, fn)
+  local pending = false
+  return function()
+    if pending then return end
+    pending = true
+    C_Timer.After(delay, function() pending = false; fn() end)
+  end
+end
+
 -- A setting from Settings.lua (written by the app), or nil when there's none (an older app).
 function ns.setting(key)
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]

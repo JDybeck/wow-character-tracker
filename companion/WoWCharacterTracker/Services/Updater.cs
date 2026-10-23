@@ -14,8 +14,6 @@ static class Updater
 
     public sealed record Release(Version Version, string Tag, string Notes, string DownloadUrl, string PageUrl);
 
-    static readonly HttpClient Http = Web.Client(TimeSpan.FromMinutes(5));
-
     // CHARACTERTRACKER_FAKE_VERSION (tests only) pretends to be an older version, to see the banner.
     public static Version Current =>
         Config.IsTest && Version.TryParse(Environment.GetEnvironmentVariable("CHARACTERTRACKER_FAKE_VERSION"), out var fake) ? fake
@@ -34,7 +32,7 @@ static class Updater
     {
         try
         {
-            using var doc = JsonDocument.Parse(await Http.GetStringAsync(url));
+            using var doc = JsonDocument.Parse(await Web.GetStringAsync(url, TimeSpan.FromSeconds(30)));
             var root = doc.RootElement;
             var tag = root.GetProperty("tag_name").GetString() ?? "";
             if (!Version.TryParse(tag.TrimStart('v'), out var version)) return null;
@@ -69,18 +67,19 @@ static class Updater
         try
         {
             progress?.Report(new Step(0, 0));
-            using (var res = await Http.GetAsync(release.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)); // the whole download
+            using (var res = await Web.Http.GetAsync(release.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token))
             {
                 res.EnsureSuccessStatusCode();
                 var total = res.Content.Headers.ContentLength;
-                await using (var from = await res.Content.ReadAsStreamAsync())
+                await using (var from = await res.Content.ReadAsStreamAsync(cts.Token))
                 await using (var to = File.Create(newExe))
                 {
                     var buffer = new byte[81920];
                     long done = 0;
                     var shown = DateTime.MinValue;
                     int n;
-                    while ((n = await from.ReadAsync(buffer)) > 0)
+                    while ((n = await from.ReadAsync(buffer, cts.Token)) > 0)
                     {
                         await to.WriteAsync(buffer.AsMemory(0, n));
                         done += n;

@@ -89,7 +89,6 @@ end
 -- ns.popupLevel a level waiting for the "post now" popup until combat ends
 -- ns.lastPlayed, ns.lastPlayedAt total played and when it was known, to work out played now
 -- ns.snapshotTicker refreshes the character snapshot every few minutes
--- ns.moneyPending a snapshot is already scheduled after a money/currency change
 ns.recentBosses = {} -- [name] = time, so one kill isn't recorded twice
 ns.merchantOpen = false -- a mount that shows up while a vendor is open was bought
 

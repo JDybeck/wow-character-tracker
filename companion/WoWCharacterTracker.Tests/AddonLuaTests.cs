@@ -248,13 +248,33 @@ public class AddonLuaTests
             end }
             """);
         var ns = new Table(script);
-        foreach (var file in new[] { "Character.lua", "Inventory.lua" })
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Inventory.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         var result = script.Call(ns.Get("scanGearEffects")).Tuple;
         Assert.Equal("Baleful Grave-Knight's Battlegear~2~5~0~Heart Strike deals 10% more damage.\n"
             + "Baleful Grave-Knight's Battlegear~2~5~4~Your Bone Shield lasts longer.", result[0].String);
         Assert.Equal("5~1005~Equip: Your attacks have a chance to heal you.", result[1].String);
         Assert.Equal("5~1005~Crystalline Radiance~7980", result[2].String); // the enchant id from the item link
+    }
+
+    // ns.debounce: many calls while it waits are one run, and it can run again after.
+    [Fact]
+    public void Debounce_runs_once_for_a_burst()
+    {
+        var script = new Script();
+        script.DoString("""
+            timers, runs = {}, 0
+            C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
+            """);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Globals["soon"] = script.Call(ns.Get("debounce"), 3, script.DoString("return function() runs = runs + 1 end"));
+        script.DoString("for _ = 1, 19 do soon() end"); // a whole equipment set
+        Assert.Equal(1, script.DoString("return #timers").Number);
+        script.DoString("timers[1]()");
+        Assert.Equal(1, script.DoString("return runs").Number);
+        script.DoString("soon()");
+        Assert.Equal(2, script.DoString("return #timers").Number);
     }
 
     // Bag changes while looting don't read the gear's tooltips again: only new gear (another link), a
@@ -275,7 +295,7 @@ public class AddonLuaTests
             """);
         var ns = new Table(script);
         ns["doing"] = (Action<string>)(_ => { });
-        foreach (var file in new[] { "Character.lua", "Inventory.lua" })
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Inventory.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         double Reads() => script.Globals.Get("reads").Number;
 
@@ -319,7 +339,8 @@ public class AddonLuaTests
             }
             """);
         var ns = new Table(script);
-        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Inventory.lua"))), "WoWCharacterTracker", ns);
+        foreach (var file in new[] { "Shared.lua", "Inventory.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         Assert.Equal("134400~1~1:1001:equipped,4:0:ignored~ret\n"
             + "132624~0~1:2001:bags,5:2005:bank,16:2016:bank,17:2017:missing,18:0:empty~prot line",
             script.Call(ns.Get("scanEquipSets")).String);

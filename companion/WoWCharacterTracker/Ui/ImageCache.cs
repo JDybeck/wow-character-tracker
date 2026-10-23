@@ -1,18 +1,28 @@
+using System.Collections.Concurrent;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace WoWCharacterTracker.Ui;
 
-// Pictures from the web (Wowhead icons, Raider.IO renders, class icons) and portrait files, each
-// decoded once and shared by every Image showing it. Binding a URL straight to Image.Source makes
-// WPF download and decode it again for every Image, which is hundreds of icons each time a page
-// is built (a tab switch, opening a character's gear).
+// Every picture the app shows or draws: Wowhead icons, Raider.IO renders, class icons, tab logos and
+// portrait files, each decoded once and shared. Binding a URL straight to Image.Source makes WPF
+// download and decode it again for every Image, which is hundreds of icons each time a page is built
+// (a tab switch, opening a character's gear).
+// Icons from Wowhead's CDN and the tab logos never change at their address, so they're also kept on
+// disk (<data dir>\images) and the next start doesn't download them again. Raider.IO renders do
+// change (same address, new gear), so those stay in memory only.
 static class ImageCache
 {
-    static readonly Dictionary<string, ImageSource> Cache = [];
+    static readonly Dictionary<string, ImageSource> Shown = []; // Get's, UI thread only
+    static readonly ConcurrentDictionary<string, Task<BitmapSource?>> Loads = new(); // LoadAsync's
+    static readonly string[] KeptHosts = ["wow.zamimg.com", "warcraft.wiki.gg"];
+    static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
 
+    // For bindings (WebImage): the picture now, or one that fills in when its download finishes.
     public static ImageSource? Get(string? source)
     {
         if (string.IsNullOrEmpty(source)) return null;
@@ -20,25 +30,102 @@ static class ImageCache
         var isFile = !source.StartsWith("http", StringComparison.OrdinalIgnoreCase);
         if (isFile && !File.Exists(source)) return null;
         var key = isFile ? $"{source}|{File.GetLastWriteTimeUtc(source).Ticks}" : source;
-        if (Cache.TryGetValue(key, out var cached)) return cached;
+        if (Shown.TryGetValue(key, out var cached)) return cached;
+        if (!isFile && Loads.TryGetValue(source, out var loaded) && loaded.IsCompletedSuccessfully && loaded.Result is { } done)
+            return Shown[key] = done;
         // A replaced portrait: the older picture of the same file goes.
-        if (isFile) foreach (var old in Cache.Keys.Where(k => k.StartsWith(source + "|", StringComparison.OrdinalIgnoreCase)).ToList()) Cache.Remove(old);
+        if (isFile) foreach (var old in Shown.Keys.Where(k => k.StartsWith(source + "|", StringComparison.OrdinalIgnoreCase)).ToList()) Shown.Remove(old);
         try
         {
+            var kept = isFile ? null : KeptFile(source);
+            if (kept is not null && File.Exists(kept)) return Shown[key] = Decode(File.ReadAllBytes(kept));
+
             var img = new BitmapImage();
             img.BeginInit();
             img.UriSource = new Uri(source, UriKind.Absolute);
             img.CacheOption = BitmapCacheOption.OnLoad; // files aren't kept open
-            img.DownloadFailed += (_, _) => Cache.Remove(key); // try again next time it's shown
+            img.DownloadFailed += (_, _) => Shown.Remove(key); // try again next time it's shown
+            if (kept is not null) img.DownloadCompleted += (_, _) => Keep(kept, img);
             img.EndInit();
             if (!img.IsDownloading && img.CanFreeze) img.Freeze();
-            Cache[key] = img;
+            Shown[key] = img;
             return img;
         }
-        catch (Exception ex) when (ex is UriFormatException or IOException or NotSupportedException)
+        catch (Exception ex) when (ex is UriFormatException or IOException or NotSupportedException or UnauthorizedAccessException)
         {
             return null;
         }
+    }
+
+    // For drawing (the character card, the item picture) and the tab logos: decoded and frozen, so
+    // any thread can use it. Null when it can't be had (offline, gone); a later call tries again.
+    public static async Task<BitmapSource?> LoadAsync(string source)
+    {
+        if (File.Exists(source)) return await Fetch(source); // portraits change, so files aren't kept
+        var img = await Loads.GetOrAdd(source, Fetch);
+        if (img is null) Loads.TryRemove(source, out _);
+        return img;
+    }
+
+    static async Task<BitmapSource?> Fetch(string source)
+    {
+        try
+        {
+            var kept = KeptFile(source);
+            byte[] bytes;
+            if (File.Exists(source)) bytes = await File.ReadAllBytesAsync(source);
+            else if (kept is not null && File.Exists(kept)) bytes = await File.ReadAllBytesAsync(kept);
+            else
+            {
+                bytes = await Web.GetBytesAsync(source, Timeout);
+                if (kept is not null) Save(kept, bytes);
+            }
+            return Decode(bytes);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or NotSupportedException or IOException
+                                       or UnauthorizedAccessException or UriFormatException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    // Where a picture that never changes at its address is kept, or null for the others.
+    static string? KeptFile(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || !KeptHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase)) return null;
+        var name = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..24].ToLowerInvariant();
+        return Path.Combine(Config.Dir, "images", name);
+    }
+
+    // A picture WPF downloaded for a binding, kept as PNG (WPF doesn't hand out the downloaded bytes).
+    static void Keep(string file, BitmapSource img)
+    {
+        var png = new PngBitmapEncoder();
+        png.Frames.Add(BitmapFrame.Create(img));
+        using var ms = new MemoryStream();
+        png.Save(ms);
+        Save(file, ms.ToArray());
+    }
+
+    static void Save(string file, byte[] bytes)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            Files.WriteAtomic(file, bytes);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { } // only a cache
+    }
+
+    static BitmapSource Decode(byte[] bytes)
+    {
+        var img = new BitmapImage();
+        img.BeginInit();
+        img.CacheOption = BitmapCacheOption.OnLoad;
+        img.StreamSource = new MemoryStream(bytes);
+        img.EndInit();
+        img.Freeze();
+        return img;
     }
 }
 

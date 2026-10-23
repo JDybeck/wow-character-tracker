@@ -33,7 +33,7 @@ static class CardImage
         var images = new Dictionary<string, BitmapSource>();
         await Task.WhenAll(urls.OfType<string>().Distinct().Select(async url =>
         {
-            if (await ImageRender.LoadAsync(url) is { } img) lock (images) images[url] = img;
+            if (await ImageCache.LoadAsync(url) is { } img) lock (images) images[url] = img;
         }));
         BitmapSource? Img(string? url) => url is not null && images.TryGetValue(url, out var i) ? i : null;
 

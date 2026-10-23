@@ -13,16 +13,15 @@ static class Wowhead
     // Tooltip is the plain text; Html the tooltip as Wowhead sends it (colors and layout, for the item picture).
     public sealed record Info(string Name, string Icon, int Quality, string Tooltip, string? Html = null);
 
-    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(10));
+    static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
     static readonly ConcurrentDictionary<string, Task<Info?>> Lookups = new();
-    static readonly object DiskLock = new();
     // Bags and banks mean hundreds of items at once; a few lookups at a time keeps Wowhead happy.
     static readonly SemaphoreSlim Parallel = new(6);
-    static Dictionary<string, Info>? disk;
-    static string CachePath => Path.Combine(Config.Dir, "wowhead.json");
     // The cache is only read by us, so the tooltip HTML goes in as is: the default escaping
-    // (< as < and so on) about doubled the file.
-    static readonly JsonSerializerOptions CacheJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    // (< as < and so on) about doubled the file. Old files still carry the text; it's dropped on
+    // load so it doesn't sit in memory (WithoutText).
+    static readonly JsonFileCache<Info> Cache = new("wowhead.json",
+        new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }, WithoutText);
 
     public static string IconUrl(string icon, string size = "medium") =>
         $"https://wow.zamimg.com/images/wow/icons/{size}/{icon}.jpg";
@@ -39,22 +38,18 @@ static class Wowhead
 
     static async Task<Info?> FetchAsync(string key)
     {
-        lock (DiskLock)
-        {
-            disk ??= LoadDisk();
-            // Entries cached before the HTML was kept are fetched once more.
-            if (disk.TryGetValue(key, out var cached) && cached.Html is not null) return WithText(cached);
-        }
+        // Entries cached before the HTML was kept are fetched once more.
+        if (Cache.TryGet(key, out var cached) && cached.Html is not null) return WithText(cached);
         await Parallel.WaitAsync();
         try
         {
             string json;
-            try { json = await Http.GetStringAsync($"https://nether.wowhead.com/{TooltipPath(key)}"); }
+            try { json = await Web.GetStringAsync($"https://nether.wowhead.com/{TooltipPath(key)}", Timeout); }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound && key.StartsWith("forever/"))
             {
                 // Wowhead's Forever database only has part of the items so far (no raid gear yet);
                 // Forever's items are mostly Classic's, so Classic's tooltip stands in.
-                json = await Http.GetStringAsync($"https://nether.wowhead.com/{TooltipPath("classic/" + key["forever/".Length..])}");
+                json = await Web.GetStringAsync($"https://nether.wowhead.com/{TooltipPath("classic/" + key["forever/".Length..])}", Timeout);
             }
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
@@ -62,30 +57,16 @@ static class Wowhead
             var quality = root.TryGetProperty("quality", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : -1;
             var info = new Info(Str("name"), Str("icon"), quality, ToText(Str("tooltip")), Str("tooltip"));
             if (info.Name.Length == 0) return null;
-            lock (DiskLock) disk![key] = WithoutText(info);
-            SaveSoon();
+            Cache.Set(key, WithoutText(info));
             return info;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             Lookups.TryRemove(key, out _); // try again another time
             // An older cached entry still beats nothing.
-            lock (DiskLock) return disk!.TryGetValue(key, out var old) ? WithText(old) : null;
+            return Cache.TryGet(key, out var old) ? WithText(old) : null;
         }
         finally { Parallel.Release(); }
-    }
-
-    // The cache file is written once lookups go quiet, not after each of hundreds of items.
-    static int saveVersion;
-    static async void SaveSoon()
-    {
-        var mine = Interlocked.Increment(ref saveVersion);
-        await Task.Delay(2000);
-        if (mine != saveVersion) return;
-        lock (DiskLock)
-        {
-            try { Files.WriteAtomic(CachePath, SerializeCache(disk!)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        }
     }
 
     // The plain text isn't kept in the cache when there's HTML: it's made again from the HTML when
@@ -93,24 +74,15 @@ static class Wowhead
     static Info WithText(Info cached) => cached.Html is null ? cached : cached with { Tooltip = ToText(cached.Html) };
     static Info WithoutText(Info info) => info.Html is null ? info : info with { Tooltip = "" };
 
-    internal static string SerializeCache(Dictionary<string, Info> cache) => JsonSerializer.Serialize(cache, CacheJson);
-
-    // Old files still carry the text; it's dropped here so it doesn't sit in memory.
-    internal static Dictionary<string, Info> DeserializeCache(string json) =>
-        (JsonSerializer.Deserialize<Dictionary<string, Info>>(json) ?? [])
-            .ToDictionary(kv => kv.Key, kv => WithoutText(kv.Value));
+    // The file's format, for the tests.
+    internal static string SerializeCache(Dictionary<string, Info> cache) => Cache.Serialize(cache);
+    internal static Dictionary<string, Info> DeserializeCache(string json) => Cache.Deserialize(json);
 
     // "classic/item/19019" -> "classic/tooltip/item/19019"
     static string TooltipPath(string key)
     {
         var parts = key.Split('/');
         return parts.Length == 3 ? $"{parts[0]}/tooltip/{parts[1]}/{parts[2]}" : $"tooltip/{key}";
-    }
-
-    static Dictionary<string, Info> LoadDisk()
-    {
-        try { return File.Exists(CachePath) ? DeserializeCache(File.ReadAllText(CachePath)) : []; }
-        catch (Exception) { return []; }
     }
 
     // An enchant's Wowhead page by its name ("Enchant Ring - Nature's Fury"): the game only gives the
@@ -127,7 +99,7 @@ static class Wowhead
         try
         {
             var url = $"https://www.wowhead.com/{flavor.WowheadPath}search/suggestions-template?q={Uri.EscapeDataString(name)}";
-            return PickByName(await Http.GetStringAsync(url), name);
+            return PickByName(await Web.GetStringAsync(url, Timeout), name);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {

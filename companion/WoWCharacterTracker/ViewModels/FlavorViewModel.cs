@@ -119,7 +119,8 @@ sealed class FlavorViewModel : Observable
     ImageSource? logo;
     public ImageSource? Logo { get => logo; private set { Set(ref logo, value); Raise(nameof(HasLogo)); } }
     public bool HasLogo => logo is not null;
-    async Task LoadLogoAsync() => Logo = await Logos.LoadAsync(Flavor);
+    // Blizzard's art, so it's never shipped: downloaded once and kept (ImageCache). Without a connection the tab shows its name.
+    async Task LoadLogoAsync() => Logo = Flavor.LogoUrl.Length > 0 ? await ImageCache.LoadAsync(Flavor.LogoUrl) : null;
     FlavorSettings Settings => main.Config.For(Flavor);
     public Tracker? Tracker => tracker;
     public string? FolderPath => flavorDir; // the game folder in use

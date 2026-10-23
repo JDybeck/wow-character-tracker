@@ -43,7 +43,7 @@ static class Uninstaller
         }
         if (Directory.Exists(Config.Dir))
             parts.Add(new Part(Kind.Settings, "App settings and caches",
-                "Your webhooks and settings, what has been posted, the Wowhead cache, portraits and tab logos.",
+                "Your webhooks and settings, what has been posted, the Wowhead cache, icons, portraits and tab logos.",
                 [Config.Dir], Size(Config.Dir)));
         return parts;
     }

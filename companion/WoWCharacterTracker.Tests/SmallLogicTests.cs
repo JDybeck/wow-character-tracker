@@ -42,6 +42,22 @@ public class WowheadCacheTests
     }
 }
 
+// The one table of WoW colors: Wowhead's c1-c13 are the classes in the game's id order.
+public class GameColorsTests
+{
+    [Fact]
+    public void Wowhead_classes_and_qualities_match_the_game()
+    {
+        Assert.Equal(0xC69B6D, GameColors.Wowhead["c1"]); // Warrior
+        Assert.Equal(GameColors.Class("PALADIN"), GameColors.Wowhead["c2"]);
+        Assert.Equal(GameColors.Class("evoker"), GameColors.Wowhead["c13"]); // any letter case
+        Assert.Equal("#A335EE", GameColors.QualityHex(4));
+        Assert.Equal(0xA335EE, GameColors.Wowhead["q4"]);
+        Assert.Null(GameColors.Quality(-1));
+        Assert.Null(GameColors.Class("NOTACLASS"));
+    }
+}
+
 public class MountPostTests
 {
     static readonly Entry Learned = new() { Kind = "mount", Char = "Snubbe", Mount = "Brown Horse", SpellId = 458, Level = 20 };
