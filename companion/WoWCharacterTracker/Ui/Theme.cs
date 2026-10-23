@@ -48,7 +48,30 @@ static class Theme
             "#B91C1C", "#DC2626", "#F87171", "#FCA5A5", "#FEE2E2", "#7F1D1D")),
     ];
 
-    public static IReadOnlyList<Option> OptionsFor(Flavor flavor) => flavor == Flavors.Retail ? RetailOptions : ForeverOptions;
+    // Faction and city looks, offered in both games after each game's own (whose first stays the default).
+    static readonly Option[] SharedOptions =
+    [
+        new("alliance", "Alliance", "Stormwind blue and gold", new("#04070F", "#0A1122", "#0F182E", "#1C2A4A",
+            "#1D4ED8", "#2563EB", "#93C5FD", "#DBEAFE",
+            "#B45309", "#CA8A04", "#FACC15", "#FDE68A", "#FEF9C3", "#713F12")),
+        new("horde", "Horde", "Orgrimmar red and black iron", new("#090606", "#120C0B", "#1A1110", "#2E201D",
+            "#B91C1C", "#DC2626", "#FCA5A5", "#FEE2E2",
+            "#57534E", "#78716C", "#A8A29E", "#D6D3D1", "#F5F5F4", "#292524")),
+        new("darnassus", "Darnassus", "Night elf moonlight, indigo and moonwell teal", new("#05060F", "#0B0D1C", "#111428", "#222645",
+            "#4F46E5", "#6366F1", "#A5B4FC", "#E0E7FF",
+            "#0F766E", "#0D9488", "#5EEAD4", "#99F6E4", "#CCFBF1", "#134E4A")),
+        new("undercity", "Undercity", "Plague green and Forsaken purple", new("#060805", "#0D110B", "#131910", "#232D1D",
+            "#4D7C0F", "#65A30D", "#BEF264", "#ECFCCB",
+            "#6B21A8", "#7E22CE", "#C084FC", "#D8B4FE", "#F3E8FF", "#3B0764")),
+        new("icecrown", "Icecrown", "The Lich King's frost and saronite silver", new("#04080C", "#0A121A", "#0F1A24", "#1E3244",
+            "#0369A1", "#0284C7", "#7DD3FC", "#E0F2FE",
+            "#475569", "#64748B", "#CBD5E1", "#E2E8F0", "#F8FAFC", "#1E293B")),
+    ];
+
+    static readonly Option[] RetailAll = [.. RetailOptions, .. SharedOptions];
+    static readonly Option[] ForeverAll = [.. ForeverOptions, .. SharedOptions];
+
+    public static IReadOnlyList<Option> OptionsFor(Flavor flavor) => flavor == Flavors.Retail ? RetailAll : ForeverAll;
 
     // The picked option, or the game's default (the first) for an unknown or missing key.
     public static Option Find(Flavor flavor, string? key) =>

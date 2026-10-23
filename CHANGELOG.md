@@ -5,6 +5,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 ## v0.26.0
 
 - **Alliance and Horde colors**: each character row gets a thin blue or red edge and a small faction crest on its portrait, and the open details glow faintly in the faction's color. The addon now records the faction; older characters get it from their race.
+- **New color themes for both games**: Alliance (Stormwind blue and gold), Horde (Orgrimmar red and black iron), Darnassus, Undercity and Icecrown, in the settings menu next to each game's own. Your game's default theme stays the same.
 - **Faction filter** on the Characters page (Alliance / Horde chips), shown when you have characters on both sides.
 - The Discord panel's **Test** button now posts "{character} sent a test message." instead of a made-up level-up.
 
