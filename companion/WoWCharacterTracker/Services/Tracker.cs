@@ -15,7 +15,7 @@ sealed class Tracker : IDisposable
     readonly Func<FlavorSettings> settings;
     readonly bool backfill;
     readonly string statePath;
-    readonly bool firstRun;
+    bool firstRun; // no posted state yet (or it was unreadable, ReadPosted): what's there is marked as handled
     readonly SemaphoreSlim gate = new(1, 1);
     readonly ConcurrentDictionary<string, Entry> live = new();
     readonly ScreenshotChannel shots;
@@ -45,6 +45,7 @@ sealed class Tracker : IDisposable
     public event Action<Entry>? Posted;
     public event Action<Entry>? LiveTest;
     public event Action<Entry>? CheckedIn; // a character just logged in (live check-in)
+    public event Action? GameClosed; // noticed by the minute check, so up to a minute late
 
     public Tracker(Flavor flavor, string flavorDir, Func<List<WebhookInfo>> webhooks, Func<FlavorSettings> settings,
         Func<Entry, List<WebhookInfo>> webhooksFor, Func<WebhookInfo, DiscordPoster> posterFor, bool backfill)
@@ -92,6 +93,7 @@ sealed class Tracker : IDisposable
         {
             var running = Wow.IsRunning(flavorDir);
             if (running || wasRunning) _ = SyncAsync();
+            if (wasRunning && !running) GameClosed?.Invoke(); // even when it closed without writing anything
             wasRunning = running;
         }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
 
@@ -147,9 +149,7 @@ sealed class Tracker : IDisposable
         var sent = 0;
         try
         {
-            posted ??= firstRun
-                ? []
-                : JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(statePath)) ?? [];
+            posted ??= ReadPosted();
 
             // Nothing new since the last sync: the app already shows it, only posts that failed are tried again.
             var (data, stamp) = ReadAll();
@@ -197,6 +197,22 @@ sealed class Tracker : IDisposable
         finally
         {
             gate.Release();
+        }
+    }
+
+    // What was handled before. A file that can't be read (damaged, edited by hand) is kept as
+    // posted-<key>.json.broken and this counts as a first run: what's there now is marked as handled
+    // instead of posted again, and the tab keeps working. (Before, every sync failed from then on.)
+    HashSet<string> ReadPosted()
+    {
+        if (firstRun) return [];
+        try { return JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(statePath)) ?? []; }
+        catch (JsonException)
+        {
+            File.Move(statePath, statePath + ".broken", overwrite: true);
+            firstRun = true;
+            Log.Warn($"{Tag}The list of what was already posted couldn't be read, so it starts over (the old file is {Path.GetFileName(statePath)}.broken). Nothing from before is posted again.");
+            return [];
         }
     }
 

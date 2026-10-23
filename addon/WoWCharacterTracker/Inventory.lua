@@ -320,9 +320,4 @@ function ns.noteSaved()
 end
 
 -- Bags change a lot while looting, so the scan waits for a quiet moment.
-local scanPending = false
-function ns.scanInventorySoon()
-  if scanPending then return end
-  scanPending = true
-  C_Timer.After(3, function() scanPending = false; ns.scanInventory() end)
-end
+ns.scanInventorySoon = ns.debounce(3, function() ns.scanInventory() end)

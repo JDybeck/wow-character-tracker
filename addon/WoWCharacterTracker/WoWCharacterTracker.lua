@@ -14,6 +14,8 @@ function on.ADDON_LOADED(name)
   db.start = db.start or {}               -- [guid] = total played at the start of the current level
   db.startLevel = db.startLevel or {}     -- [guid] = the level that start belongs to
   db.events = db.events or {}             -- level-ups and notable moments
+  -- Only the newest loot, duels and battlegrounds (Shared.lua), unless the app's In game page says keep everything.
+  if not ns.setting("keepAllHistory") then ns.trimEvents(db.events) end
   db.chars = db.chars or {}               -- [guid] = latest snapshot of that character
   db.logoutPlayed = db.logoutPlayed or {} -- [guid] = total played at logout
   db.items = db.items or {}               -- [guid] = gear, bags and bank (Inventory.lua)
@@ -116,8 +118,9 @@ on.PLAYER_CONTROL_LOST = flightMaybe
 on.TAXIMAP_CLOSED = flightMaybe
 function on.PLAYER_CONTROL_GAINED() ns.onFlightEnd() end
 
--- The character snapshot follows gear, spec, talent and guild changes...
-local function snapshotSoon() C_Timer.After(1, ns.saveSnapshot) end
+-- The character snapshot follows gear, spec, talent and guild changes (once for a whole set swap,
+-- which changes every slot)...
+local snapshotSoon = ns.debounce(1, function() ns.saveSnapshot() end)
 function on.PLAYER_EQUIPMENT_CHANGED()
   snapshotSoon()
   ns.scanInventorySoon()
@@ -128,11 +131,7 @@ on.CHARACTER_POINTS_CHANGED = snapshotSoon
 on.PLAYER_GUILD_UPDATE = snapshotSoon
 
 -- ...and money, which changes a lot (every loot and vendor), so at most every few seconds.
-local function moneyChanged()
-  if ns.moneyPending then return end
-  ns.moneyPending = true
-  C_Timer.After(3, function() ns.moneyPending = false; ns.saveSnapshot() end)
-end
+local moneyChanged = ns.debounce(3, function() ns.saveSnapshot() end)
 on.PLAYER_MONEY = moneyChanged
 on.CURRENCY_DISPLAY_UPDATE = moneyChanged
 

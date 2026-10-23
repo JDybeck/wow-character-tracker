@@ -157,7 +157,11 @@ class Config
         }
         catch (JsonException)
         {
-            config = new Config(); // a broken file just means we ask again
+            // Kept as config.json.broken, not overwritten by the next save: it has every webhook in it,
+            // and a hand edit with a typo is easy to fix and put back.
+            File.Move(FilePath, FilePath + ".broken", overwrite: true);
+            Log.Warn($"Your settings file couldn't be read, so the app started with default settings. The old one is saved as {FilePath}.broken: fix it and rename it back to config.json (with the app closed) to get your webhooks and settings back.");
+            config = new Config();
         }
 
         var changed = false;

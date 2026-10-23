@@ -82,6 +82,21 @@
           </StackPanel>
         </Border>
 
+        <!-- How much history the addon keeps in its saved file (Shared.lua trimEvents). -->
+        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+          <StackPanel>
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Saved history" Margin="0,0,0,4"/>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14" TextWrapping="Wrap"
+                       Text="Every level-up, boss kill, mount and death is always kept. Loot, duels and battlegrounds pile up fast, so by default only the newest 300 of each are kept per character, which keeps /reload, logout and the app quick."/>
+            <CheckBox ToolTip="Keep every loot, duel and battleground in the addon's saved file" IsChecked="{Binding KeepAllHistory}">
+              <StackPanel>
+                <TextBlock Text="Keep everything" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Nothing is ever trimmed, so duel and battleground records count every fight since the start. The saved file grows with every loot and fight, and what was already trimmed doesn't come back."/>
+              </StackPanel>
+            </CheckBox>
+          </StackPanel>
+        </Border>
+
         <!-- Game settings the addon sets for you. -->
         <Border Style="{StaticResource PanelBorder}">
           <StackPanel>

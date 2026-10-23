@@ -10,7 +10,7 @@ namespace WoWCharacterTracker.Services.Discord;
 // optional images (multipart upload), with retries when Discord rate limits.
 sealed partial class DiscordWebhook(string url)
 {
-    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(60)); // screenshots take a moment to upload
+    static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60); // screenshots take a moment to upload
 
     // Discord's upload limit without server boosts (boosted servers allow 50 or 100 MB, and webhooks
     // get the same, but there's no way to ask which). Bigger files are tried first anyway.
@@ -49,7 +49,7 @@ sealed partial class DiscordWebhook(string url)
     {
         try
         {
-            var res = await Http.GetAsync(url.Trim());
+            using var res = await Web.SendAsync(new HttpRequestMessage(HttpMethod.Get, url.Trim()), Timeout);
             if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
                 return (null, "Discord says this webhook doesn't exist. It may have been deleted, or the link was cut off when copying.");
             if (!res.IsSuccessStatusCode)
@@ -99,7 +99,8 @@ sealed partial class DiscordWebhook(string url)
             {
                 if (files.Count == 0)
                 {
-                    res = await Http.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"));
+                    using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+                    res = await Web.SendAsync(request, Timeout);
                 }
                 else
                 {
@@ -112,7 +113,8 @@ sealed partial class DiscordWebhook(string url)
                         file.Headers.ContentType = new MediaTypeHeaderValue(files[i].Name.EndsWith(".png") ? "image/png" : "image/jpeg");
                         form.Add(file, $"files[{i}]", files[i].Name);
                     }
-                    res = await Http.PostAsync(url, form);
+                    using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = form };
+                    res = await Web.SendAsync(request, Timeout);
                 }
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

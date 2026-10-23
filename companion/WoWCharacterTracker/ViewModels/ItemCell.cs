@@ -59,7 +59,9 @@ sealed class ItemInfo(int itemId, string url, string type = "item") : Observable
     {
         if (await Wowhead.GetAsync(Type, ItemId, flavor) is not { } info) return;
         Name = info.Name;
-        IconUrl = Wowhead.IconUrl(info.Icon, "medium");
+        var icon = Wowhead.IconUrl(info.Icon, "medium");
+        if (info.Icon.Length > 0) await ImageCache.LoadAsync(icon); // read and decoded off the UI thread, so the binding finds it ready
+        IconUrl = icon;
         Tooltip = info.Tooltip.Length > 0 ? info.Tooltip : info.Name;
         Html = info.Html;
         Quality = info.Quality;

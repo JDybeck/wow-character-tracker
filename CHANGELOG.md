@@ -2,6 +2,20 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.27.2
+
+- Wowhead icons and the tab logos are kept on your PC once downloaded, so the app starts quicker and shows them without a connection.
+- The item picture in loot and mount posts is drawn the same way as the app's own tooltips. Wowhead's drop-source lines are left out of it now too.
+- Stream overlay sliders save a moment after you let go, not on every step.
+- Equipping a whole equipment set in game saves the character once instead of once per item.
+- The addon's saved history no longer grows forever: it keeps every level-up, boss kill and everything else, but only the newest 300 loot, duels and battlegrounds per character. The duel and battleground records count those 300. Want it all? Tick **Keep everything** under **Saved history** on the In game page. Update the addon with the app (it does this by itself) and /reload.
+- The README is short now: what it is, how to install, and a quick tour. Every page and option is in the new [full guide](https://github.com/JDybeck/wow-character-tracker/blob/main/docs/GUIDE.md), with fresh pictures of this version.
+- Under the hood: one connection pool for everything the app downloads, one place for WoW's colors, and one cache helper for Wowhead and Raider.IO.
+- A settings file that can't be read (say, after editing it by hand) is kept as `config.json.broken` instead of being replaced, so your webhooks can be brought back. The console says where it is.
+- If the list of what was already posted can't be read, the app starts that list over (nothing old gets posted again) instead of stopping all syncing for that game.
+- A broken or half-downloaded picture no longer causes an error or a failed post: it's skipped and downloaded again.
+- The "/reload to use the new settings" banner also goes away when the game crashed instead of closing normally.
+
 ## v0.27.1
 
 - The app uses far less CPU while it waits in the tray: checking whether WoW is running now takes one look at the running programs instead of six.

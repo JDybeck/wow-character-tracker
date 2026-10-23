@@ -4,11 +4,9 @@ using System.Windows.Media.Imaging;
 
 namespace WoWCharacterTracker.Ui;
 
-// Pictures drawn for Discord (the character card, the item tooltip) and the pictures they need first.
+// Pictures drawn for Discord (the character card, the item tooltip). The pictures they need come from ImageCache.LoadAsync.
 static class ImageRender
 {
-    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(10));
-
     // Lays the element out at its own size and draws it as a PNG, scale times larger (2 stays sharp
     // when Discord scales it). Runs on the UI thread.
     public static byte[] ToPng(FrameworkElement element, Size available, double scale)
@@ -24,26 +22,5 @@ static class ImageRender
         using var ms = new MemoryStream();
         png.Save(ms);
         return ms.ToArray();
-    }
-
-    // A saved file (a Forever portrait) or a web picture, decoded and frozen so any thread can use it.
-    // Null when it can't be had.
-    public static async Task<BitmapSource?> LoadAsync(string url)
-    {
-        try
-        {
-            var bytes = File.Exists(url) ? await File.ReadAllBytesAsync(url) : await Http.GetByteArrayAsync(url);
-            var img = new BitmapImage();
-            img.BeginInit();
-            img.CacheOption = BitmapCacheOption.OnLoad;
-            img.StreamSource = new MemoryStream(bytes);
-            img.EndInit();
-            img.Freeze();
-            return img;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or NotSupportedException or IOException)
-        {
-            return null;
-        }
     }
 }

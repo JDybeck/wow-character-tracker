@@ -119,7 +119,8 @@ sealed class FlavorViewModel : Observable
     ImageSource? logo;
     public ImageSource? Logo { get => logo; private set { Set(ref logo, value); Raise(nameof(HasLogo)); } }
     public bool HasLogo => logo is not null;
-    async Task LoadLogoAsync() => Logo = await Logos.LoadAsync(Flavor);
+    // Blizzard's art, so it's never shipped: downloaded once and kept (ImageCache). Without a connection the tab shows its name.
+    async Task LoadLogoAsync() => Logo = Flavor.LogoUrl.Length > 0 ? await ImageCache.LoadAsync(Flavor.LogoUrl) : null;
     FlavorSettings Settings => main.Config.For(Flavor);
     public Tracker? Tracker => tracker;
     public string? FolderPath => flavorDir; // the game folder in use
@@ -213,6 +214,7 @@ sealed class FlavorViewModel : Observable
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
     public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
     public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
+    public bool KeepAllHistory { get => Settings.KeepAllHistory; set { Settings.KeepAllHistory = value; Changed(); } }
 
     // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
     // for a note that came from the game: it has it already.
@@ -480,6 +482,9 @@ sealed class FlavorViewModel : Observable
         tracker = new Tracker(Flavor, path, () => main.Config.ActiveWebhooks(Flavor), () => Settings,
             e => main.Config.WebhooksFor(Flavor, e.Guid, e.Ruleset, e.Hardcore), w => main.PosterFor(this, w), main.Backfill);
         tracker.DataChanged += data => MainViewModel.OnUi(() => { ShowData(data); CheckReloaded(); });
+        // A sync that finds nothing new doesn't raise DataChanged, so a game that closed without
+        // writing its saved file (a crash) clears the reload banner this way.
+        tracker.GameClosed += () => MainViewModel.OnUi(CheckReloaded);
         tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
         // Logging in on a game switches the app to that game's tab, with the character picked.

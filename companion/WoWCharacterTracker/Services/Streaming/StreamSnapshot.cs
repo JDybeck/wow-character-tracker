@@ -113,7 +113,7 @@ sealed record StreamSnapshot(
             };
         var quality = e.Kind == "loot" && e.Quality > 0 ? e.Quality : item?.Quality ?? -1;
         return new(HighlightText(e), icon is null ? "" : Wowhead.IconUrl(icon, "small"),
-            e.Kind is "loot" or "mount" ? ItemTooltip.QualityColor(quality) ?? "" : "", e.Kind is "loot" or "mount" ? e.ItemId : 0);
+            e.Kind is "loot" or "mount" ? GameColors.QualityHex(quality) ?? "" : "", e.Kind is "loot" or "mount" ? e.ItemId : 0);
     }
 
     // The overlay's alert for an event, the way Discord would post it, or null when it's not alert

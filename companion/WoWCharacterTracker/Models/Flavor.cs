@@ -5,7 +5,7 @@ namespace WoWCharacterTracker.Models;
 // "flavor.HasRatings" instead of "is this Retail".
 sealed record Flavor(string Key, string Name, string[] Folders, string WowheadPath, Func<FlavorSettings> Defaults)
 {
-    // Shown on the tab. Loaded from Warcraft Wiki at runtime and cached (Logos.cs), never shipped.
+    // Shown on the tab. Loaded from Warcraft Wiki at runtime and kept on disk (Ui/ImageCache), never shipped.
     public string LogoUrl { get; init; } = "";
 
     // Characters have a ruleset (hardcore, self-found...): the list is grouped by it instead of by

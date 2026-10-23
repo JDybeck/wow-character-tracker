@@ -27,6 +27,9 @@ static class StreamFiles
         ("battlegrounds.txt", s.Battlegrounds?.ToString() ?? ""),
     ];
 
+    // What each file was last written with, so an unchanged one isn't read back from disk every refresh.
+    static readonly Dictionary<string, string> Written = [];
+
     public static void Write(StreamSnapshot s)
     {
         try
@@ -35,9 +38,10 @@ static class StreamFiles
             foreach (var (file, text) in Contents(s))
             {
                 var path = Path.Combine(Dir, file);
-                if (File.Exists(path) && File.ReadAllText(path) == text) continue;
+                if (Written.GetValueOrDefault(file) == text && File.Exists(path)) continue;
                 // UTF-8 with a BOM: OBS reads it right, names like Fågelmannen included.
                 File.WriteAllText(path, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+                Written[file] = text;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

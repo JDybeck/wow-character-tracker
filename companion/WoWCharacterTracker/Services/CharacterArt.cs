@@ -2,24 +2,10 @@ using System.Collections.Concurrent;
 
 namespace WoWCharacterTracker.Services;
 
-// Class colors and the pictures that stand for a character: the race portrait, with the class
-// icon as the fallback. Both come from Wowhead's icon CDN.
+// The pictures that stand for a character: the race portrait, with the class icon as the fallback.
+// Both come from Wowhead's icon CDN. (Class colors are in Models/GameColors.)
 static class CharacterArt
 {
-    static readonly HttpClient Http = Web.Client(TimeSpan.FromSeconds(15));
-
-    // Class colors as the game uses them (RAID_CLASS_COLORS).
-    public static readonly Dictionary<string, int> ClassColors = new()
-    {
-        ["WARRIOR"] = 0xC69B6D, ["PALADIN"] = 0xF48CBA, ["HUNTER"] = 0xAAD372, ["ROGUE"] = 0xFFF468,
-        ["PRIEST"] = 0xFFFFFF, ["DEATHKNIGHT"] = 0xC41E3A, ["SHAMAN"] = 0x0070DD, ["MAGE"] = 0x3FC7EB,
-        ["WARLOCK"] = 0x8788EE, ["MONK"] = 0x00FF98, ["DRUID"] = 0xFF7C0A, ["DEMONHUNTER"] = 0xA330C9,
-        ["EVOKER"] = 0x33937F,
-    };
-
-    // A class's color as 0xRRGGBB, or null for an unknown class. Any letter case works.
-    public static int? ClassColor(string classFile) => ClassColors.TryGetValue(classFile.ToUpperInvariant(), out var c) ? c : null;
-
     const string IconBase = "https://wow.zamimg.com/images/wow/icons/large/";
 
     // Remembers which portrait URLs exist so a new race we don't know falls back to the class icon.
@@ -66,7 +52,7 @@ static class CharacterArt
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Head, url);
-            using var res = await Http.SendAsync(req);
+            using var res = await Web.SendAsync(req, TimeSpan.FromSeconds(15));
             return UrlExists[url] = res.IsSuccessStatusCode;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

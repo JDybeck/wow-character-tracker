@@ -215,7 +215,28 @@ public class AddonLuaTests
             var summary = script.DoString("return texts[#texts]").String;
             Assert.Contains("boss kills", summary);
             Assert.Contains("Told in chat: guild", summary);
+            Assert.Contains("Saved history: newest 300", summary);
             Assert.False(script.DoString("return frames[2].checked").Boolean); // instant posting, off in the saved file
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // In game page, Keep everything: Settings.lua tells the addon not to trim its saved history.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Keep_all_history_reaches_the_addon(bool keepAll)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-history-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings { KeepAllHistory = keepAll });
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            var ns = new Table(script);
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+            Assert.Equal(keepAll, script.Call(ns.Get("setting"), "keepAllHistory").CastToBool());
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
@@ -248,13 +269,72 @@ public class AddonLuaTests
             end }
             """);
         var ns = new Table(script);
-        foreach (var file in new[] { "Character.lua", "Inventory.lua" })
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Inventory.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         var result = script.Call(ns.Get("scanGearEffects")).Tuple;
         Assert.Equal("Baleful Grave-Knight's Battlegear~2~5~0~Heart Strike deals 10% more damage.\n"
             + "Baleful Grave-Knight's Battlegear~2~5~4~Your Bone Shield lasts longer.", result[0].String);
         Assert.Equal("5~1005~Equip: Your attacks have a chance to heal you.", result[1].String);
         Assert.Equal("5~1005~Crystalline Radiance~7980", result[2].String); // the enchant id from the item link
+    }
+
+    // ns.trimEvents: the newest 300 loot, duels and battlegrounds per character stay, in order; level-ups,
+    // boss kills and other characters' events aren't touched.
+    [Fact]
+    public void Saved_events_keep_the_newest_300_loot_duels_and_battlegrounds_per_character()
+    {
+        var script = new Script();
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Globals["trim"] = ns.Get("trimEvents");
+        var result = script.DoString("""
+            local events = {}
+            local function add(guid, kind, at) events[#events + 1] = { guid = guid, kind = kind, at = at } end
+            for i = 1, 350 do add("A", "loot", i) end
+            for i = 1, 310 do add("A", "duel", 1000 + i) end
+            for i = 1, 20 do add("A", "level", 2000 + i) end
+            for i = 1, 400 do add("A", "boss", 3000 + i) end
+            for i = 1, 5 do add("B", "loot", 4000 + i) end
+            add("A", "loot", 5000) -- the newest loot
+            local removed = trim(events)
+            local count, inOrder, oldestLoot = {}, true, nil
+            for i, e in ipairs(events) do
+              local key = e.guid .. e.kind
+              count[key] = (count[key] or 0) + 1
+              if i > 1 and e.at < events[i - 1].at then inOrder = false end
+              if e.guid == "A" and e.kind == "loot" and not oldestLoot then oldestLoot = e.at end
+            end
+            return removed, count.Aloot, count.Aduel, count.Alevel, count.Aboss, count.Bloot, inOrder, oldestLoot, trim(events)
+            """).Tuple;
+        Assert.Equal(51 + 10, result[0].Number); // 351 loot and 310 duels down to 300 each
+        Assert.Equal(300, result[1].Number);
+        Assert.Equal(300, result[2].Number);
+        Assert.Equal(20, result[3].Number);
+        Assert.Equal(400, result[4].Number); // boss kills are all kept
+        Assert.Equal(5, result[5].Number);
+        Assert.True(result[6].Boolean);
+        Assert.Equal(52, result[7].Number); // loot 1-51 went, the newest stayed
+        Assert.Equal(0, result[8].Number); // nothing more to trim the next time
+    }
+
+    // ns.debounce: many calls while it waits are one run, and it can run again after.
+    [Fact]
+    public void Debounce_runs_once_for_a_burst()
+    {
+        var script = new Script();
+        script.DoString("""
+            timers, runs = {}, 0
+            C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
+            """);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Globals["soon"] = script.Call(ns.Get("debounce"), 3, script.DoString("return function() runs = runs + 1 end"));
+        script.DoString("for _ = 1, 19 do soon() end"); // a whole equipment set
+        Assert.Equal(1, script.DoString("return #timers").Number);
+        script.DoString("timers[1]()");
+        Assert.Equal(1, script.DoString("return runs").Number);
+        script.DoString("soon()");
+        Assert.Equal(2, script.DoString("return #timers").Number);
     }
 
     // Bag changes while looting don't read the gear's tooltips again: only new gear (another link), a
@@ -275,7 +355,7 @@ public class AddonLuaTests
             """);
         var ns = new Table(script);
         ns["doing"] = (Action<string>)(_ => { });
-        foreach (var file in new[] { "Character.lua", "Inventory.lua" })
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Inventory.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         double Reads() => script.Globals.Get("reads").Number;
 
@@ -319,7 +399,8 @@ public class AddonLuaTests
             }
             """);
         var ns = new Table(script);
-        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Inventory.lua"))), "WoWCharacterTracker", ns);
+        foreach (var file in new[] { "Shared.lua", "Inventory.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         Assert.Equal("134400~1~1:1001:equipped,4:0:ignored~ret\n"
             + "132624~0~1:2001:bags,5:2005:bank,16:2016:bank,17:2017:missing,18:0:empty~prot line",
             script.Call(ns.Get("scanEquipSets")).String);
