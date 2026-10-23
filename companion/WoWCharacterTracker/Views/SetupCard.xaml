@@ -1,0 +1,27 @@
+<!-- The check the app can't work without (FlavorViewModel.Blocker: no game folder, else no addon), as a
+     big card over the pages wherever the setup checks sit: what to do, why, and the button for it. -->
+<UserControl x:Class="WoWCharacterTracker.Views.SetupCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid DataContext="{Binding SelectedFlavor}" Visibility="{Binding IsOn, Converter={StaticResource Visible}}">
+    <Border DataContext="{Binding Blocker}" Visibility="{Binding Converter={StaticResource VisibleIfSet}}"
+            Margin="0,0,0,12" Padding="20,16" CornerRadius="12" BorderThickness="2"
+            Background="{StaticResource AmberSoft}" BorderBrush="{StaticResource Amber}">
+      <DockPanel>
+        <Border DockPanel.Dock="Left" Width="48" Height="48" CornerRadius="24" Background="#33FBBF24" Margin="0,0,16,0" VerticalAlignment="Top">
+          <TextBlock Style="{StaticResource Icon}" Text="{Binding Icon}" FontSize="22" Foreground="{StaticResource Amber}" HorizontalAlignment="Center"/>
+        </Border>
+        <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Margin="16,0,0,0" Padding="22,10" VerticalAlignment="Center"
+                Command="{Binding ActionCommand}" ToolTip="{Binding ActionTooltip}"
+                Visibility="{Binding ActionText, Converter={StaticResource VisibleIfSet}}">
+          <TextBlock Text="{Binding ActionText}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+        </Button>
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Text="{Binding Headline}" FontSize="18" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding Why}" FontSize="13" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" LineHeight="19" Margin="0,4,0,0"/>
+          <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{StaticResource Amber}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+  </Grid>
+</UserControl>

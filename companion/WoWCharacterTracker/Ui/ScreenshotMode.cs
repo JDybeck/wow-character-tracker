@@ -9,6 +9,7 @@ namespace WoWCharacterTracker.Ui;
 // to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
 //   extra:  rename | options (a webhook) | removehook | addhook (the Add form open) | testchars | updating (the update banner mid-download) | updateready (a new version offered)
 //           | stream (the Stream overlay panel on and open) | testall (every Test button; test characters on when Forever has none) | addonupdate
+//           | nofolder (the tab as if no game folder was found, faked: no detection runs)
 //           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
 //   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
@@ -56,6 +57,7 @@ static class ScreenshotMode
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
+            if (Part(2) == "nofolder") vm.SelectedFlavor?.ShowFolderMissing();
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
             if (Part(2) == "updateready") // the update banner and header button for a new version
             {

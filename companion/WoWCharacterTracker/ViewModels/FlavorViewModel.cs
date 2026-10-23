@@ -32,13 +32,20 @@ sealed class FlavorViewModel : Observable
             ActionText = "Browse",
             ActionCommand = new RelayCommand(_ => Browse()),
             ActionTooltip = $"Pick your World of Warcraft folder (usually {Wow.DefaultRoot}), or the {Wow.FolderHint(flavor)} folder inside it. Anything inside those works too.",
+            Headline = $"Choose your {flavor.Name} folder",
+            Why = "The app reads your characters from the game folder and installs its addon there. Until it has one, nothing is tracked or posted.",
+            Icon = "",
         };
         AddonStep = new SetupItem("Addon")
         {
             Detail = "Waiting for the game folder",
             ActionCommand = new RelayCommand(_ => SetUpAddon(force: true)),
+            Headline = $"Install the addon for {flavor.Name}",
+            Why = "The addon notices your dings, kills, loot and mounts in game and hands them to the app. Nothing is written to the game folder until you click Install.",
+            Icon = "",
         };
         DiscordStep = new SetupItem("Discord") { Detail = "Add a webhook" };
+        WatchSetup();
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
@@ -128,6 +135,23 @@ sealed class FlavorViewModel : Observable
     public SetupItem AddonStep { get; }
     public SetupItem DiscordStep { get; }
     public IReadOnlyList<SetupItem> Steps => [FolderStep, AddonStep, DiscordStep];
+    // Without a game folder, or with the addon missing, the app can't track anything: that check gets
+    // the big card over the pages (Views/SetupCard), the folder first since the addon goes into it.
+    public SetupItem? Blocker => !FolderStep.Ok ? FolderStep : !AddonStep.Ok ? AddonStep : null;
+    // The other checks that need something done (Discord): the setup bar spells these out, all fine is
+    // one quiet line. The ones with a big card (a Headline) only show as chips there.
+    public IReadOnlyList<SetupItem> SetupProblems => Steps.Where(s => !s.Ok && s.Headline is null).ToList();
+    public bool HasSetupProblems => SetupProblems.Count > 0;
+
+    void WatchSetup()
+    {
+        foreach (var step in Steps)
+            step.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName != nameof(SetupItem.Ok)) return;
+                foreach (var name in new[] { nameof(Blocker), nameof(SetupProblems), nameof(HasSetupProblems) }) Raise(name);
+            };
+    }
 
     public ObservableCollection<CharacterRow> Characters { get; } = [];
     CharacterRow? selectedCharacter;
@@ -394,13 +418,20 @@ sealed class FlavorViewModel : Observable
         var path = Wow.IsFlavorDir(Settings.Path) ? Settings.Path : Wow.Detect(Flavor);
         if (path is null)
         {
-            FolderStep.Ok = false;
-            FolderStep.Detail = $"Not found. Click Browse and pick your World of Warcraft folder (usually {Wow.DefaultRoot}); the app finds {Wow.FolderHint(Flavor)} in it.";
-            StatusText = "Waiting for the game folder";
-            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse on the Game folder card and pick your World of Warcraft folder, or the {Wow.FolderHint(Flavor)} folder inside it.");
+            ShowFolderMissing();
+            Log.Warn($"[{Name}] Couldn't find the game folder. Click Browse and pick your World of Warcraft folder, or the {Wow.FolderHint(Flavor)} folder inside it.");
             return;
         }
         UseFolder(path);
+    }
+
+    // No game folder: the checks say so (the big card over the pages asks for one). Screenshot mode
+    // fakes this state with it, so test runs never go looking for the real game.
+    internal void ShowFolderMissing()
+    {
+        FolderStep.Set(ok: false, $"Not found. Click Browse and pick your World of Warcraft folder (usually {Wow.DefaultRoot}); the app finds {Wow.FolderHint(Flavor)} in it.", action: "Browse");
+        AddonStep.Set(ok: false, "Waiting for the game folder");
+        StatusText = "Waiting for the game folder";
     }
 
     // The folder picker. Any of these work: the World of Warcraft folder, this game's folder in it, or
@@ -460,7 +491,7 @@ sealed class FlavorViewModel : Observable
         CommandManager.InvalidateRequerySuggested();
     }
 
-    // Installs the addon when the user clicks Install on the Addon card (force), since that adds
+    // Installs the addon when the user clicks Install in the setup checks (force), since that adds
     // something to their game folder. An installed addon that's older than the one in this app is
     // updated right away: the app and the addon have to speak the same version. Also keeps the
     // interface number in step with game patches, so the game doesn't call it out of date.
@@ -477,7 +508,7 @@ sealed class FlavorViewModel : Observable
             {
                 case null: // not installed: waits for the user's click
                     AddonStep.Set(ok: false, "Not installed in this game folder yet", action: "Install");
-                    Log.Info($"[{Name}] The addon isn't installed in this game folder yet. Click Install on the Addon card to add it.");
+                    Log.Info($"[{Name}] The addon isn't installed in this game folder yet. Click Install next to Addon in the setup checks to add it.");
                     return;
 
                 case > 0: // newer than this app's (a test build put there by hand): left alone

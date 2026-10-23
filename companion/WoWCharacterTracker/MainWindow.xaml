@@ -16,10 +16,18 @@
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
     <views:Header/>
-    <views:SetupBar Grid.Row="1" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+    <!-- The setup checks sit where Settings says (Config.SetupPlacement): here, under the window
+         (last row) or in the right column above Discord (the default). -->
+    <Border Grid.Row="1" Visibility="{Binding SetupTop, Converter={StaticResource Visible}}">
+      <views:SetupBar Wide="True" Margin="0,0,0,14" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+    </Border>
+    <Border Grid.Row="3" Visibility="{Binding SetupBottom, Converter={StaticResource Visible}}">
+      <views:SetupBar Wide="True" Margin="0,14,0,0" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+    </Border>
 
     <!-- Main area: the page tabs on top (left), then the page and the right column side by side,
          so their top edges line up. -->
@@ -30,6 +38,7 @@
         <ColumnDefinition Width="*" MinWidth="300"/>
       </Grid.ColumnDefinitions>
       <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
@@ -56,9 +65,13 @@
         </StackPanel>
       </DockPanel>
 
+      <!-- No game folder or no addon: the app can't track anything yet, so that check sits big over the
+           pages, wherever the setup checks are placed. -->
+      <views:SetupCard Grid.Row="1"/>
+
       <!-- Characters and Items, once per game tab (their DataContext is the tab): the hidden tab's
            pages stay built, so switching tabs only swaps which one shows. -->
-      <ItemsControl Grid.Row="1" ItemsSource="{Binding FlavorTabs}" Focusable="False">
+      <ItemsControl Grid.Row="2" ItemsSource="{Binding FlavorTabs}" Focusable="False">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate><Grid/></ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
@@ -79,13 +92,13 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <views:PostingPage Grid.Row="1"/>
-      <views:InGamePage Grid.Row="1"/>
-      <views:UninstallPage Grid.Row="1"/>
+      <views:PostingPage Grid.Row="2"/>
+      <views:InGamePage Grid.Row="2"/>
+      <views:UninstallPage Grid.Row="2"/>
       <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
-      <views:GameOffPage Grid.Row="0" Grid.RowSpan="2"/>
+      <views:GameOffPage Grid.Row="0" Grid.RowSpan="3"/>
 
-      <Grid Grid.Row="1" Grid.Column="2">
+      <Grid Grid.Row="1" Grid.RowSpan="2" Grid.Column="2">
         <Grid.RowDefinitions>
           <RowDefinition Height="*"/>
           <RowDefinition Height="Auto"/>
@@ -95,6 +108,9 @@
         <ScrollViewer x:Name="RightScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                       Margin="0,0,-14,0" Padding="0,0,14,0" Focusable="False">
         <StackPanel x:Name="RightColumn">
+          <Border x:Name="SetupRightView" Visibility="{Binding SetupRight, Converter={StaticResource Visible}}">
+            <views:SetupBar Margin="0,0,0,16" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
+          </Border>
           <views:DiscordPanel x:Name="DiscordView" DataContext="{Binding Discord}"/>
           <views:StreamPanel x:Name="StreamView" Margin="0,16,0,0" DataContext="{Binding Stream}"/>
           <views:ConsolePanel x:Name="ConsoleView" Margin="0,16,0,0"/>

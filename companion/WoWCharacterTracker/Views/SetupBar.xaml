@@ -1,39 +1,43 @@
-<!-- Update banner and the three setup checks (game folder, addon, Discord) for the selected game. -->
+<!-- Update banner, reload reminder and the three setup checks (game folder, addon, Discord) for the
+     selected game. Where it sits is a setting (Config.SetupPlacement): in the right column it's narrow,
+     at the top or bottom of the window Wide puts the checks and what needs doing side by side.
+     All fine = one quiet line of chips; a check that needs something done gets its own amber row,
+     except a missing game folder or addon, which gets the big card over the pages (SetupCard). -->
 <UserControl x:Class="WoWCharacterTracker.Views.SetupBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WoWCharacterTracker"
              xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
              xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:views="clr-namespace:WoWCharacterTracker.Views"
              xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure">
   <StackPanel>
-  <Border Visibility="{Binding Updates.ShowBanner, Converter={StaticResource Visible}}" Margin="0,0,0,14" Padding="16,12" CornerRadius="10"
-          Background="{DynamicResource IndigoPanel}" BorderBrush="{DynamicResource Indigo}" BorderThickness="2">
+  <Border Visibility="{Binding Updates.ShowBanner, Converter={StaticResource Visible}}" Margin="0,0,0,10" Padding="12,10" CornerRadius="10"
+          Background="{DynamicResource IndigoPanel}" BorderBrush="{DynamicResource Indigo}" BorderThickness="1">
     <StackPanel>
       <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Hidden}}">
-          <Button Style="{StaticResource GhostButton}" ToolTip="See what changed in the new version" Content="What's new" Command="{Binding Updates.ToggleNotesCommand}" Margin="0,0,6,0" Padding="10,4"
-                  Visibility="{Binding Updates.BannerNotes, Converter={StaticResource VisibleIfSet}}"/>
-          <Button Style="{StaticResource IndigoButton}" Command="{Binding Updates.InstallUpdateCommand}" Margin="0,0,6,0" Padding="16,7"
-                  ToolTip="Downloads the new version, swaps it in and restarts the app (a few seconds)"
-                  Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Visible}}">
-            <StackPanel Orientation="Horizontal">
-              <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
-              <TextBlock Text="Update now" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
-            </StackPanel>
-          </Button>
-          <Button Style="{StaticResource GhostButton}" Padding="8,4" Command="{Binding Updates.CloseBannerCommand}" ToolTip="Hide this banner">
-            <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="11" Foreground="{StaticResource Muted}"/>
-          </Button>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" Foreground="{DynamicResource Indigo}" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top"/>
-          <StackPanel>
-            <TextBlock Text="{Binding Updates.BannerTitle}" FontSize="14" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap"/>
-            <TextBlock Text="One click: it downloads, swaps itself and restarts in a few seconds. Your settings, characters and webhooks stay."
-                       FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" Margin="0,2,0,0"
-                       Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Visible}}"/>
-          </StackPanel>
+        <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="6,3" VerticalAlignment="Top" Command="{Binding Updates.CloseBannerCommand}"
+                ToolTip="Hide this banner" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Hidden}}">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="10" Foreground="{StaticResource Muted}"/>
+        </Button>
+        <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE896;" Foreground="{DynamicResource Indigo}" FontSize="15" Margin="0,1,10,0" VerticalAlignment="Top"/>
+        <StackPanel>
+          <TextBlock Text="{Binding Updates.BannerTitle}" FontSize="13" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap"/>
+          <TextBlock Text="One click: it downloads, swaps itself and restarts in a few seconds. Your settings, characters and webhooks stay."
+                     FontSize="11" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" Margin="0,2,0,0"
+                     Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Visible}}"/>
+          <WrapPanel Margin="0,6,0,0" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Hidden}}">
+            <Button Style="{StaticResource IndigoButton}" Command="{Binding Updates.InstallUpdateCommand}" Margin="0,2,6,0" Padding="12,5"
+                    ToolTip="Downloads the new version, swaps it in and restarts the app (a few seconds)"
+                    Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Visible}}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="11" Foreground="White" Margin="0,0,6,0"/>
+                <TextBlock Text="Update now" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+              </StackPanel>
+            </Button>
+            <Button Style="{StaticResource GhostButton}" ToolTip="See what changed in the new version" Content="What's new" Command="{Binding Updates.ToggleNotesCommand}"
+                    Margin="0,2,0,0" Padding="8,4" FontSize="12" Visibility="{Binding Updates.BannerNotes, Converter={StaticResource VisibleIfSet}}"/>
+          </WrapPanel>
         </StackPanel>
       </DockPanel>
       <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" Margin="25,8,0,0"
@@ -42,7 +46,7 @@
       </ScrollViewer>
 
       <!-- Updating: each step as it happens, the download with its progress. -->
-      <StackPanel Margin="25,10,0,2" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Visible}}">
+      <StackPanel Margin="25,8,0,2" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Visible}}">
         <ItemsControl ItemsSource="{Binding Updates.InstallSteps}">
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:UpdateStepRow}">
@@ -74,69 +78,154 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <StackPanel Orientation="Horizontal" Margin="20,6,0,0">
-          <ProgressBar Width="260" Height="6" Minimum="0" Maximum="100" Value="{Binding Updates.DownloadPercent}"
+        <DockPanel Margin="20,6,0,0" MaxWidth="380" HorizontalAlignment="Left" LastChildFill="True">
+          <TextBlock DockPanel.Dock="Right" Text="{Binding Updates.DownloadText}" FontSize="11" Foreground="{StaticResource Dim}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+          <ProgressBar Height="6" MinWidth="120" Minimum="0" Maximum="100" Value="{Binding Updates.DownloadPercent}"
                        Foreground="{DynamicResource Indigo}" Background="#33FFFFFF" BorderThickness="0"/>
-          <TextBlock Text="{Binding Updates.DownloadText}" FontSize="11" Foreground="{StaticResource Dim}" Margin="10,0,0,0" VerticalAlignment="Center"/>
-        </StackPanel>
+        </DockPanel>
         <TextBlock Text="After the restart, the new version updates the addon in your game folders and shows what's new here."
                    FontSize="11" Foreground="{StaticResource Dim}" Margin="20,8,0,0" TextWrapping="Wrap"/>
       </StackPanel>
     </StackPanel>
   </Border>
   <!-- Settings changed while the game runs: the addon only reads them on /reload or login. -->
-  <Border Visibility="{Binding SelectedFlavor.ReloadNeeded, Converter={StaticResource Visible}}" Margin="0,0,0,14" Padding="16,10" CornerRadius="10"
+  <Border Visibility="{Binding SelectedFlavor.ReloadNeeded, Converter={StaticResource Visible}}" Margin="0,0,0,10" Padding="12,8" CornerRadius="10"
           Background="{StaticResource AmberSoft}" BorderBrush="{StaticResource Amber}" BorderThickness="1">
     <DockPanel>
-      <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,4" Command="{Binding SelectedFlavor.DismissReloadCommand}" ToolTip="Hide this reminder">
-        <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="11" Foreground="{StaticResource Muted}"/>
+      <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="6,3" VerticalAlignment="Top" Command="{Binding SelectedFlavor.DismissReloadCommand}" ToolTip="Hide this reminder">
+        <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="10" Foreground="{StaticResource Muted}"/>
       </Button>
-      <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" Foreground="{StaticResource Amber}" FontSize="15" Margin="0,0,10,0"/>
-      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="13" Foreground="White">
+      <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" Foreground="{StaticResource Amber}" FontSize="13" Margin="0,2,10,0" VerticalAlignment="Top"/>
+      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12" Foreground="White">
         <Run Text="Type" /> <Run Text="/reload" FontFamily="{StaticResource Mono}" FontWeight="SemiBold" Foreground="{StaticResource Amber}"/> <Run Text="in game to use your new settings."/>
-        <Run Text="Until then the game keeps the old ones for screenshots and instant posts." Foreground="{StaticResource TextSoft}" FontSize="12"/>
+        <Run Text="Until then the game keeps the old ones for screenshots and instant posts." Foreground="{StaticResource TextSoft}" FontSize="11"/>
       </TextBlock>
     </DockPanel>
   </Border>
-  <ItemsControl ItemsSource="{Binding SelectedFlavor.Steps}" Margin="0,0,0,18">
-    <ItemsControl.ItemsPanel>
-      <ItemsPanelTemplate>
-        <UniformGrid Rows="1"/>
-      </ItemsPanelTemplate>
-    </ItemsControl.ItemsPanel>
-    <ItemsControl.ItemTemplate>
-      <DataTemplate DataType="{x:Type vm:SetupItem}">
-        <Border Style="{StaticResource CardBorder}" Padding="14,12" Margin="0,0,12,0">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto"/>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Border x:Name="Dot" Width="30" Height="30" CornerRadius="15" Background="{StaticResource GreenSoft}" Margin="0,0,12,0">
-              <TextBlock x:Name="DotIcon" Style="{StaticResource Icon}" Text="&#xE73E;" Foreground="{StaticResource Green}"
-                         FontSize="14" HorizontalAlignment="Center"/>
+
+  <!-- The checks: a chip each (hover for the detail, click for its action, like changing the folder),
+       and a row with the fix for each one that needs something done. -->
+  <Border Style="{StaticResource CardBorder}" CornerRadius="10" Padding="8,6">
+    <DockPanel>
+      <ItemsControl ItemsSource="{Binding SelectedFlavor.Steps}" Focusable="False" VerticalAlignment="Center">
+        <ItemsControl.Style>
+          <Style TargetType="ItemsControl">
+            <Setter Property="DockPanel.Dock" Value="Top"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Wide, RelativeSource={RelativeSource AncestorType=views:SetupBar}}" Value="True">
+                <Setter Property="DockPanel.Dock" Value="Left"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </ItemsControl.Style>
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:SetupItem}">
+            <Button Focusable="False" Margin="0,0,6,0">
+              <Button.ToolTip>
+                <StackPanel MaxWidth="320">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Detail}" Foreground="{StaticResource TextSoft}" Margin="0,2,0,0"/>
+                  <TextBlock Text="{Binding ActionTooltip}" Foreground="{StaticResource Muted}" Margin="0,6,0,0"
+                             Visibility="{Binding ActionTooltip, Converter={StaticResource VisibleIfSet}}"/>
+                </StackPanel>
+              </Button.ToolTip>
+              <!-- Clickable only when the check offers something (Browse, Change, Install...). -->
+              <Button.Style>
+                <Style TargetType="Button">
+                  <Setter Property="Command" Value="{Binding ActionCommand}"/>
+                  <Setter Property="Cursor" Value="Hand"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding ActionText}" Value="{x:Null}">
+                      <Setter Property="Command" Value="{x:Null}"/>
+                      <Setter Property="Cursor" Value="Arrow"/>
+                      <Setter Property="Tag" Value="static"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Button.Style>
+              <Button.Template>
+                <ControlTemplate TargetType="Button">
+                  <Border x:Name="Bd" CornerRadius="13" Padding="10,4" Margin="0,1" BorderThickness="1" BorderBrush="Transparent" Background="{StaticResource GreenSoft}">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock x:Name="Ico" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="12" Foreground="{StaticResource Green}" Margin="0,0,7,0"/>
+                      <TextBlock x:Name="Txt" Text="{Binding Title}" FontSize="13" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <!-- Needs something: amber all over (fill, frame, icon, text), so it can't pass for fine. -->
+                    <DataTrigger Binding="{Binding Ok}" Value="False">
+                      <Setter TargetName="Bd" Property="Background" Value="{StaticResource AmberSoft}"/>
+                      <Setter TargetName="Bd" Property="BorderBrush" Value="#99FBBF24"/>
+                      <Setter TargetName="Ico" Property="Text" Value="&#xE7BA;"/>
+                      <Setter TargetName="Ico" Property="Foreground" Value="{StaticResource Amber}"/>
+                      <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource Amber}"/>
+                    </DataTrigger>
+                    <MultiTrigger>
+                      <MultiTrigger.Conditions>
+                        <Condition Property="IsMouseOver" Value="True"/>
+                        <Condition Property="Tag" Value="{x:Null}"/>
+                      </MultiTrigger.Conditions>
+                      <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoMid}"/>
+                    </MultiTrigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Button.Template>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <ItemsControl ItemsSource="{Binding SelectedFlavor.SetupProblems}" Focusable="False"
+                    Visibility="{Binding SelectedFlavor.HasSetupProblems, Converter={StaticResource Visible}}">
+        <ItemsControl.Style>
+          <Style TargetType="ItemsControl">
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="ItemContainerStyle">
+              <Setter.Value>
+                <Style TargetType="ContentPresenter"><Setter Property="Margin" Value="0,4,0,0"/></Style>
+              </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+              <!-- Wide: the fixes side by side, next to the chips. -->
+              <DataTrigger Binding="{Binding Wide, RelativeSource={RelativeSource AncestorType=views:SetupBar}}" Value="True">
+                <Setter Property="Margin" Value="2,0,-4,0"/>
+                <Setter Property="ItemContainerStyle">
+                  <Setter.Value>
+                    <Style TargetType="ContentPresenter"><Setter Property="Margin" Value="0,0,4,0"/></Style>
+                  </Setter.Value>
+                </Setter>
+                <Setter Property="ItemsPanel">
+                  <Setter.Value>
+                    <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                  </Setter.Value>
+                </Setter>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </ItemsControl.Style>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:SetupItem}">
+            <Border Padding="12,7" CornerRadius="8" Background="{StaticResource AmberSoft}" BorderBrush="{StaticResource Amber}" BorderThickness="1">
+              <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Margin="8,0,0,0" Padding="10,3" VerticalAlignment="Center"
+                        Content="{Binding ActionText}" Command="{Binding ActionCommand}" ToolTip="{Binding ActionTooltip}"
+                        Visibility="{Binding ActionText, Converter={StaticResource VisibleIfSet}}"/>
+                <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE7BA;" FontSize="14" Foreground="{StaticResource Amber}" Margin="0,0,9,0"/>
+                <!-- Up to two lines, so narrow windows still show most of it; the rest is in the tooltip. -->
+                <TextBlock FontSize="13" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" LineHeight="18" LineStackingStrategy="BlockLineHeight"
+                           MaxHeight="36" VerticalAlignment="Center" ToolTip="{Binding Detail}">
+                  <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource Amber}"/>
+                  <Run Text="{Binding Detail, Mode=OneWay}" Foreground="{StaticResource TextSoft}"/>
+                </TextBlock>
+              </DockPanel>
             </Border>
-            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"/>
-              <!-- Up to two lines, so narrow windows still show most of it; the rest is in the tooltip. -->
-              <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"
-                         TextTrimming="CharacterEllipsis" LineHeight="16" LineStackingStrategy="BlockLineHeight" MaxHeight="32"
-                         ToolTip="{Binding Detail}"/>
-            </StackPanel>
-            <Button Grid.Column="2" Style="{StaticResource ButtonBase}" Content="{Binding ActionText}" Command="{Binding ActionCommand}" ToolTip="{Binding ActionTooltip}"
-                    Visibility="{Binding ActionText, Converter={StaticResource VisibleIfSet}}" Margin="10,0,0,0" Padding="10,4"/>
-          </Grid>
-        </Border>
-        <DataTemplate.Triggers>
-          <DataTrigger Binding="{Binding Ok}" Value="False">
-            <Setter TargetName="Dot" Property="Background" Value="{StaticResource AmberSoft}"/>
-            <Setter TargetName="DotIcon" Property="Text" Value="&#xE7BA;"/>
-            <Setter TargetName="DotIcon" Property="Foreground" Value="{StaticResource Amber}"/>
-          </DataTrigger>
-        </DataTemplate.Triggers>
-      </DataTemplate>
-    </ItemsControl.ItemTemplate>
-  </ItemsControl>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </DockPanel>
+  </Border>
   </StackPanel>
 </UserControl>
