@@ -256,4 +256,39 @@ public class AddonLuaTests
         Assert.Equal("5~1005~Equip: Your attacks have a chance to heal you.", result[1].String);
         Assert.Equal("5~1005~Crystalline Radiance~7980", result[2].String); // the enchant id from the item link
     }
+
+    // Inventory.lua's scanEquipSets over a stubbed C_EquipmentSet: where each piece is comes from the
+    // location's bits (bank and bag items carry the player bit too), or the game's sentinels.
+    [Fact]
+    public void Equipment_sets_are_saved_with_where_each_piece_is()
+    {
+        var script = new Script();
+        script.DoString("""
+            local PLAYER, BAGS, BANK = 0x00100000, 0x00200000, 0x00400000
+            function GetInventoryItemID(_, slot) return slot == 1 and 1001 or nil end
+            C_EquipmentSet = {
+              GetEquipmentSetIDs = function() return { 3, 7 } end,
+              GetEquipmentSetInfo = function(id)
+                if id == 3 then return "ret", 134400, 3, true end
+                return "prot\nline", 132624, 7, false
+              end,
+              GetItemIDs = function(id)
+                if id == 3 then return { [1] = 1001, [4] = 1 } end
+                return { [1] = 2001, [5] = 2005, [16] = 2016, [17] = 2017, [18] = 0 }
+              end,
+              GetItemLocations = function(id)
+                if id == 3 then return { [1] = PLAYER + 1, [4] = 1 } end
+                return { [1] = PLAYER + BAGS + 2 * 256 + 4, [5] = PLAYER + BANK + 12, [16] = PLAYER + BANK + BAGS + 6 * 256 + 1, [17] = -1, [18] = 0 }
+              end,
+            }
+            """);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Inventory.lua"))), "WoWCharacterTracker", ns);
+        Assert.Equal("134400~1~1:1001:equipped,4:0:ignored~ret\n"
+            + "132624~0~1:2001:bags,5:2005:bank,16:2016:bank,17:2017:missing,18:0:empty~prot line",
+            script.Call(ns.Get("scanEquipSets")).String);
+
+        script.DoString("C_EquipmentSet = nil");
+        Assert.True(script.Call(ns.Get("scanEquipSets")).IsNil()); // keeps what the saved file had
+    }
 }

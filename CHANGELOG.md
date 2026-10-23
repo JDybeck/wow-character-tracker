@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
@@ -11,6 +11,8 @@ The app shows the notes for a new version when it finds an update. Each release 
 - Pick which stats the card shows: item level, played, **played at this level**, gold, **talents** (numbers only, like 31/20/0), zone, and on Retail the keystone and ratings.
 - The alert (DING!, VICTORY!...) pops in about twice as fast.
 - **Icons in the overlay's highlights**: the item's own icon for loot and mounts (framed in its quality color), and an icon per kind for boss kills, duels, Mak'gora, battlegrounds, deaths and rating milestones.
+- **Equipment Manager sets on the Gear tab**: your sets from the game's Equipment Manager show as chips above the gear (the one you wear marked *equipped*). Pick one to see its pieces in the slots: pieces in your bags or bank are grayed out with "in bags"/"in bank", pieces the game can't find are tinted red. Needs the updated addon and a /reload.
+- The Discord panel's **Test** button now posts "{character} sent a test message." instead of a made-up level-up.
 
 ## v0.25.4
 

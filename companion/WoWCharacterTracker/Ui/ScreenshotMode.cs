@@ -11,7 +11,7 @@ namespace WoWCharacterTracker.Ui;
 //           | stream (the Stream overlay panel on and open) | testall (every Test button) | addonupdate
 //           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
-//   extra2: gear | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
+//   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
@@ -45,6 +45,11 @@ static class ScreenshotMode
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
             if (Part(3) == "closed" && vm.SelectedFlavor is { } cf) cf.SelectedCharacter = null; // every row closed
             if (Part(3) is "gear" or "leveling" or "notes" && vm.SelectedFlavor?.SelectedCharacter is { } dc) dc.DetailTab = Part(3);
+            if (Part(3) == "gearset" && vm.SelectedFlavor?.SelectedCharacter is { } gc) // the gear tab showing the last Equipment Manager set
+            {
+                gc.DetailTab = "gear";
+                if (gc.Gear.Choices.Count > 0) gc.Gear.Show(gc.Gear.Choices[^1]);
+            }
             if (Part(3) == "search" && vm.SelectedFlavor is { } sf) { await Task.Delay(2500); sf.Items.Search = "potion"; }
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
