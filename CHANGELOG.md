@@ -4,6 +4,11 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 ## v0.26.0
 
+- **Alliance and Horde colors**: each character row gets a thin blue or red edge and a small faction crest on its portrait, and the open details glow faintly in the faction's color. The addon now records the faction; older characters get it from their race.
+- **New color themes**: Alliance (Stormwind blue and gold), Horde (Orgrimmar red and black iron), Darnassus, Undercity and Icecrown.
+- **Every theme in both games**: Retail and Forever now list all of them (this game's own first), so you can give Forever Midnight or Retail Classic gold. Each game keeps its own default and its own pick.
+- The settings menu shows just your current theme; click it to pick from small swatches, grouped into this game's looks, factions and cities, and the other game's (names on hover).
+- **Faction filter** on the Characters page (Alliance / Horde chips), shown when you have characters on both sides.
 - **Stream overlay, more ways to adjust it**: a Size slider for the whole overlay, and a width and height for the card, so it can cover your chat box.
 - The highlights box has its own width and height: with a height set it keeps that size and shows the newest lines that fit, so a highlights source in OBS no longer changes its text size when a highlight comes in.
 - **Overlay colors**: presets (Class, Gold, Alliance, Horde, Arcane, Fel, Frost, Mono) or your own accent and background as hex codes.

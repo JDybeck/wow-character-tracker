@@ -43,6 +43,7 @@ sealed class FlavorViewModel : Observable
         Items = new ItemsViewModel(Lookup.Item);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
+        FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
         _ = LoadLogoAsync();
         Shots = EventKinds.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
@@ -145,6 +146,7 @@ sealed class FlavorViewModel : Observable
         {
             SelectedCharacter = null;
             Groups.Reset();
+            FactionChips.Reset();
             ShowData(lastData);
         }
         else if (page == "items") Items.Reset();
@@ -560,6 +562,8 @@ sealed class FlavorViewModel : Observable
     // The realm (Retail) or ruleset (Forever) chips over the character list.
     public ChipFilter Groups { get; }
     string GroupOf(CharacterRow r) => Flavor.HasRulesets ? r.Ruleset : r.Realm;
+    // Alliance / Horde chips under them.
+    public ChipFilter FactionChips { get; }
 
     // The list's order: clicking a column header (or race, played, rating) sorts by it, again flips it.
     CharacterSort? sort;
@@ -605,9 +609,10 @@ sealed class FlavorViewModel : Observable
 
         allRows = rows;
         Groups.Fill(rows, GroupOf);
+        FactionChips.Fill(rows, r => r.Faction);
 
         Characters.Clear();
-        foreach (var r in Sort.Apply(rows.Where(r => Groups.Matches(GroupOf(r)))))
+        foreach (var r in Sort.Apply(rows.Where(r => Groups.Matches(GroupOf(r)) && FactionChips.Matches(r.Faction))))
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
             r.SetNote(main.NoteFor(r.Guid), text => main.SaveNote(r.Guid, text));
@@ -638,8 +643,9 @@ sealed class FlavorViewModel : Observable
         get
         {
             var where = Groups.Key.Length > 0 ? $" on {Groups.Key}" : "";
+            var side = FactionChips.Key.Length > 0 ? $" {FactionChips.Key}" : ""; // "Total Horde gold on Tarren Mill"
             var count = Characters.Count;
-            return $"Total gold{where} ({Format.Count(count, "character")}):";
+            return $"Total{side} gold{where} ({Format.Count(count, "character")}):";
         }
     }
 

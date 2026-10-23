@@ -197,6 +197,18 @@
     </Setter>
   </Style>
 
+  <!-- A color theme's swatch (ThemeChoice): the card color with the accents on it. The settings
+       menu's theme row and its picker grid both use it. -->
+  <DataTemplate x:Key="ThemeSwatch">
+    <Border Width="44" Height="22" CornerRadius="5" Background="{Binding Bg}" BorderBrush="#33FFFFFF" BorderThickness="1">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Ellipse Width="9" Height="9" Fill="{Binding Accent}" Margin="1,0"/>
+        <Ellipse Width="9" Height="9" Fill="{Binding Second}" Margin="1,0"/>
+        <Ellipse Width="9" Height="9" Fill="{Binding AccentText}" Margin="1,0"/>
+      </StackPanel>
+    </Border>
+  </DataTemplate>
+
   <!-- Game version tabs (Retail / Forever) as pills in the header. -->
   <Style x:Key="FlavorTab" TargetType="ListBoxItem">
     <Setter Property="Cursor" Value="Hand"/>
