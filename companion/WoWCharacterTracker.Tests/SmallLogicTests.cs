@@ -394,3 +394,29 @@ public class SetupPlacementTests
     public void Placement_from_config(string json, string expected) =>
         Assert.Equal(expected, System.Text.Json.JsonSerializer.Deserialize<Config>(json)!.SetupPlace);
 }
+
+public class IntroTests
+{
+    // The tour opens by itself for a new install (no webhook, or no game folder yet), never once
+    // it's been finished or closed with "Don't show again", and not for people updating (both set).
+    [Theory]
+    [InlineData(false, false, false, true)]  // brand new
+    [InlineData(true, false, false, true)]   // webhook but no folder yet
+    [InlineData(false, true, false, true)]   // folder found, no webhook
+    [InlineData(true, true, false, false)]   // set up already (an update)
+    [InlineData(false, false, true, false)]  // tour done
+    public void Tour_opens_for_new_installs(bool webhook, bool folder, bool done, bool expected)
+    {
+        var config = new Config { IntroDone = done };
+        if (webhook) config.Webhooks.Add(new WebhookInfo { Name = "Guild", Url = "https://discord.com/api/webhooks/1/x" });
+        if (folder) config.Flavors["retail"] = new FlavorSettings { Path = @"C:\Games\World of Warcraft\_retail_" };
+        Assert.Equal(expected, config.WantsIntro);
+    }
+
+    [Fact]
+    public void Tour_steps_start_with_a_welcome_and_point_at_known_parts()
+    {
+        Assert.Null(IntroViewModel.Steps[0].Target);
+        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "setup", "discord", "pages", "settings" }));
+    }
+}

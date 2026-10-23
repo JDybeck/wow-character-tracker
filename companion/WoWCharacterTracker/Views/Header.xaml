@@ -50,7 +50,7 @@
       </StackPanel>
     </DockPanel>
 
-    <Border Grid.Column="1" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+    <Border x:Name="GameTabs" Grid.Column="1" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
             CornerRadius="10" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16,0">
       <Grid>
         <ListBox x:Name="Tabs" ItemsSource="{Binding FlavorTabs}" SelectedItem="{Binding SelectedFlavor}" ItemContainerStyle="{StaticResource FlavorTab}"
@@ -75,6 +75,22 @@
           <TextBlock Style="{StaticResource Icon}" Text="&#xED15;" FontSize="15" Foreground="{StaticResource Muted}" Margin="0,0,6,0"/>
           <TextBlock Text="Feedback" FontSize="12" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
         </StackPanel>
+      </Button>
+      <!-- The first-run tour (IntroViewModel), any time. Same size and look as the info icon next to it. -->
+      <Button x:Name="TourButton" Command="{Binding Intro.OpenCommand}" ToolTip="Show the tour" Cursor="Hand" Margin="0,0,6,0">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Border Width="26" Height="26" Background="Transparent">
+              <TextBlock x:Name="Glyph" Style="{StaticResource Icon}" Text="&#xE9CE;" FontSize="20" Foreground="{StaticResource Muted}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Glyph" Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
       </Button>
       <Border Width="26" Height="26" Background="Transparent" Margin="0,0,10,0" Cursor="Help"
               ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="60000">

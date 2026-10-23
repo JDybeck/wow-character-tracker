@@ -21,6 +21,7 @@ public partial class MainWindow : Window
         StreamView.SizeChanged += (_, _) => FitRightColumn();
         SetupRightView.SizeChanged += (_, _) => FitRightColumn();
         vm.PageReset += () => Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ScrollPagesToTop);
+        Tour.FindTarget = TourTarget;
         if (ScreenshotMode.Target is { } shot) ScreenshotMode.Attach(this, vm, shot);
         else if (Motion.Enabled) FadeInWhenReady();
     }
@@ -51,6 +52,17 @@ public partial class MainWindow : Window
         var others = SetupRightView.ActualHeight + DiscordView.ActualHeight + StreamView.ActualHeight + StreamView.Margin.Top + ConsoleView.Margin.Top;
         ConsoleView.Height = Math.Max(ConsoleMin, RightScroll.ActualHeight - others);
     }
+
+    // What each tour step (IntroViewModel.Steps) points at. The setup checks are wherever Settings put them.
+    FrameworkElement? TourTarget(string key) => key switch
+    {
+        "tabs" => HeaderView.GameTabs,
+        "settings" => HeaderView.SettingsButton,
+        "pages" => PageTabs,
+        "setup" => new[] { SetupAtRight, SetupAtTop, SetupAtBottom }.FirstOrDefault(s => s.IsVisible),
+        "discord" => DiscordView,
+        _ => null,
+    };
 
     // A page started over (its tab clicked again): every list and scroll area on it back to the top.
     // The right column is not part of the page and stays where it is.
