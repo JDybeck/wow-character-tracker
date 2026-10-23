@@ -28,6 +28,33 @@ function ns.debounce(delay, fn)
   end
 end
 
+-- Loot, duels and battlegrounds pile up over months of play, and the game and the app handle the
+-- whole list on every /reload, logout and sync. Only the newest TRIM_KEEP of each are kept per
+-- character; level-ups, boss kills (level times and first kills depend on them) and everything else
+-- stay. Events are appended as they happen, so the end of the list is the newest.
+-- (The duel and battleground records the app shows count what's kept.)
+local TRIM_KINDS = { loot = true, duel = true, bg = true }
+local TRIM_KEEP = 300
+
+-- Trims the saved list in place. Returns how many events went.
+function ns.trimEvents(events)
+  local counts, keep, removed = {}, {}, 0
+  for i = #events, 1, -1 do
+    local e = events[i]
+    if type(e) == "table" and TRIM_KINDS[e.kind] then
+      local key = tostring(e.guid) .. "~" .. e.kind
+      counts[key] = (counts[key] or 0) + 1
+      if counts[key] <= TRIM_KEEP then keep[#keep + 1] = e else removed = removed + 1 end
+    else
+      keep[#keep + 1] = e
+    end
+  end
+  if removed == 0 then return 0 end
+  for i = 1, #events do events[i] = nil end
+  for i = #keep, 1, -1 do events[#events + 1] = keep[i] end -- back in time order
+  return removed
+end
+
 -- A setting from Settings.lua (written by the app), or nil when there's none (an older app).
 function ns.setting(key)
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]

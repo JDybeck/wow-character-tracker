@@ -257,6 +257,45 @@ public class AddonLuaTests
         Assert.Equal("5~1005~Crystalline Radiance~7980", result[2].String); // the enchant id from the item link
     }
 
+    // ns.trimEvents: the newest 300 loot, duels and battlegrounds per character stay, in order; level-ups,
+    // boss kills and other characters' events aren't touched.
+    [Fact]
+    public void Saved_events_keep_the_newest_300_loot_duels_and_battlegrounds_per_character()
+    {
+        var script = new Script();
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Globals["trim"] = ns.Get("trimEvents");
+        var result = script.DoString("""
+            local events = {}
+            local function add(guid, kind, at) events[#events + 1] = { guid = guid, kind = kind, at = at } end
+            for i = 1, 350 do add("A", "loot", i) end
+            for i = 1, 310 do add("A", "duel", 1000 + i) end
+            for i = 1, 20 do add("A", "level", 2000 + i) end
+            for i = 1, 400 do add("A", "boss", 3000 + i) end
+            for i = 1, 5 do add("B", "loot", 4000 + i) end
+            add("A", "loot", 5000) -- the newest loot
+            local removed = trim(events)
+            local count, inOrder, oldestLoot = {}, true, nil
+            for i, e in ipairs(events) do
+              local key = e.guid .. e.kind
+              count[key] = (count[key] or 0) + 1
+              if i > 1 and e.at < events[i - 1].at then inOrder = false end
+              if e.guid == "A" and e.kind == "loot" and not oldestLoot then oldestLoot = e.at end
+            end
+            return removed, count.Aloot, count.Aduel, count.Alevel, count.Aboss, count.Bloot, inOrder, oldestLoot, trim(events)
+            """).Tuple;
+        Assert.Equal(51 + 10, result[0].Number); // 351 loot and 310 duels down to 300 each
+        Assert.Equal(300, result[1].Number);
+        Assert.Equal(300, result[2].Number);
+        Assert.Equal(20, result[3].Number);
+        Assert.Equal(400, result[4].Number); // boss kills are all kept
+        Assert.Equal(5, result[5].Number);
+        Assert.True(result[6].Boolean);
+        Assert.Equal(52, result[7].Number); // loot 1-51 went, the newest stayed
+        Assert.Equal(0, result[8].Number); // nothing more to trim the next time
+    }
+
     // ns.debounce: many calls while it waits are one run, and it can run again after.
     [Fact]
     public void Debounce_runs_once_for_a_burst()
