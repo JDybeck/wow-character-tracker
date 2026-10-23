@@ -147,17 +147,20 @@
               </Button.Style>
               <Button.Template>
                 <ControlTemplate TargetType="Button">
-                  <Border x:Name="Bd" CornerRadius="11" Padding="8,3" Margin="0,1" BorderThickness="1" BorderBrush="Transparent" Background="{StaticResource GreenSoft}">
+                  <Border x:Name="Bd" CornerRadius="13" Padding="10,4" Margin="0,1" BorderThickness="1" BorderBrush="Transparent" Background="{StaticResource GreenSoft}">
                     <StackPanel Orientation="Horizontal">
-                      <TextBlock x:Name="Ico" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="10" Foreground="{StaticResource Green}" Margin="0,0,6,0"/>
-                      <TextBlock Text="{Binding Title}" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+                      <TextBlock x:Name="Ico" Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="12" Foreground="{StaticResource Green}" Margin="0,0,7,0"/>
+                      <TextBlock x:Name="Txt" Text="{Binding Title}" FontSize="13" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Border>
                   <ControlTemplate.Triggers>
+                    <!-- Needs something: amber all over (fill, frame, icon, text), so it can't pass for fine. -->
                     <DataTrigger Binding="{Binding Ok}" Value="False">
                       <Setter TargetName="Bd" Property="Background" Value="{StaticResource AmberSoft}"/>
+                      <Setter TargetName="Bd" Property="BorderBrush" Value="#99FBBF24"/>
                       <Setter TargetName="Ico" Property="Text" Value="&#xE7BA;"/>
                       <Setter TargetName="Ico" Property="Foreground" Value="{StaticResource Amber}"/>
+                      <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource Amber}"/>
                     </DataTrigger>
                     <MultiTrigger>
                       <MultiTrigger.Conditions>
@@ -204,14 +207,15 @@
         </ItemsControl.Style>
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:SetupItem}">
-            <Border Padding="10,5" CornerRadius="8" Background="{StaticResource AmberSoft}" BorderBrush="#66FBBF24" BorderThickness="1">
+            <Border Padding="12,7" CornerRadius="8" Background="{StaticResource AmberSoft}" BorderBrush="{StaticResource Amber}" BorderThickness="1">
               <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Margin="8,0,0,0" Padding="9,2" VerticalAlignment="Center"
+                <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Margin="8,0,0,0" Padding="10,3" VerticalAlignment="Center"
                         Content="{Binding ActionText}" Command="{Binding ActionCommand}" ToolTip="{Binding ActionTooltip}"
                         Visibility="{Binding ActionText, Converter={StaticResource VisibleIfSet}}"/>
+                <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE7BA;" FontSize="14" Foreground="{StaticResource Amber}" Margin="0,0,9,0"/>
                 <!-- Up to two lines, so narrow windows still show most of it; the rest is in the tooltip. -->
-                <TextBlock FontSize="12" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" LineHeight="16" LineStackingStrategy="BlockLineHeight"
-                           MaxHeight="32" VerticalAlignment="Center" ToolTip="{Binding Detail}">
+                <TextBlock FontSize="13" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" LineHeight="18" LineStackingStrategy="BlockLineHeight"
+                           MaxHeight="36" VerticalAlignment="Center" ToolTip="{Binding Detail}">
                   <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource Amber}"/>
                   <Run Text="{Binding Detail, Mode=OneWay}" Foreground="{StaticResource TextSoft}"/>
                 </TextBlock>
