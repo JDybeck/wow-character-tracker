@@ -28,6 +28,11 @@ class StreamOptions
     public int CardWidth { get; set; }
     public int CardHeight { get; set; }
 
+    // The highlights box's width and height in px (0 = fits its lines). With a height the box keeps
+    // that size and shows the newest lines that fit, so a source fitted to it never rescales.
+    public int HighlightsWidth { get; set; }
+    public int HighlightsHeight { get; set; }
+
     // Colors as "#rrggbb": the boxes' edge and titles (empty = the character's class color) and
     // their background (empty = the dark default). Presets in StreamViewModel.
     public string Accent { get; set; } = "";

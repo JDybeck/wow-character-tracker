@@ -93,6 +93,10 @@ sealed class StreamViewModel : Observable
     public int CardHeight { get => Options.CardHeight; set { Options.CardHeight = value; Raise(nameof(CardHeight)); Raise(nameof(CardHeightText)); OptionsChanged(); } }
     public string CardWidthText => CardWidth > 0 ? $"{Math.Max(CardWidth, 260)}" : "Auto"; // narrower than its text it can't go (StreamLook)
     public string CardHeightText => CardHeight > 0 ? $"{CardHeight}" : "Auto";
+    public int HighlightsWidth { get => Options.HighlightsWidth; set { Options.HighlightsWidth = value; Raise(nameof(HighlightsWidth)); Raise(nameof(HighlightsWidthText)); OptionsChanged(); } }
+    public int HighlightsHeight { get => Options.HighlightsHeight; set { Options.HighlightsHeight = value; Raise(nameof(HighlightsHeight)); Raise(nameof(HighlightsHeightText)); OptionsChanged(); } }
+    public string HighlightsWidthText => HighlightsWidth > 0 ? $"{Math.Max(HighlightsWidth, 200)}" : "Auto"; // narrowest it goes (StreamLook)
+    public string HighlightsHeightText => HighlightsHeight > 0 ? $"{HighlightsHeight}" : "Auto";
 
     // Colors: a few presets, or any "#rrggbb" typed in. Accent empty = the class color.
     public sealed record ColorPreset(string Name, string Accent, string Background)

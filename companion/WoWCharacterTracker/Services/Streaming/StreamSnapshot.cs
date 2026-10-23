@@ -23,7 +23,9 @@ sealed record StreamSnapshot(
     public string CharacterLine => HasCharacter ? $"{Character}, level {Level} {ClassName}".TrimEnd() : "";
 
     const int LevelsShown = 5;
-    const int HighlightsShown = 3;
+    // Highlights: 3, or with a fixed box height up to 12 for the page to show the newest that fit.
+    public const int HighlightsShown = 3;
+    const int HighlightsToFit = 12;
 
     // The character played last of each game's candidates (Empty when there are none: MaxBy on an
     // empty list of tuples would throw).
@@ -61,7 +63,8 @@ sealed record StreamSnapshot(
         }
 
         var kinds = o.HighlightKinds.ToHashSet();
-        var highlights = mine.Where(e => kinds.Contains(e.Kind)).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0).Take(HighlightsShown).ToList();
+        var highlights = mine.Where(e => kinds.Contains(e.Kind)).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0)
+            .Take(o.HighlightsHeight > 0 ? HighlightsToFit : HighlightsShown).ToList();
 
         return new StreamSnapshot(
             c.Name, c.Game, c.Level, c.ClassName, c.ClassColor, c.Race, c.Realm, c.Zone, c.Played, c.ItemLevel,
@@ -166,16 +169,17 @@ sealed record StreamRecord(int Won, int Lost)
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
 // How the overlay looks: the card's background (0-100), which parts and stats lines it shows, its
-// size (scale in percent, card width and smallest height in px, 0 = fits), colors ("#rrggbb", empty =
+// size (scale in percent, card width and smallest height, highlights width and fixed height, in px, 0 = fits), colors ("#rrggbb", empty =
 // default), the border and the brand line.
 sealed record StreamLook(int CardOpacity, bool Levels, bool Today, bool Duels, bool Makgora, bool Highlights, bool Stats = true, bool Battlegrounds = true,
     IReadOnlyList<string>? Fields = null, int Scale = 100, int Width = 0, int Height = 0, string Accent = "", string Background = "",
-    bool Border = true, bool Brand = true)
+    bool Border = true, bool Brand = true, int HighlightsWidth = 0, int HighlightsHeight = 0)
 {
     public static StreamLook From(StreamOptions o) =>
         new(Math.Clamp(o.CardOpacity, 0, 100), o.ShowLevels, o.ShowToday, o.ShowDuels, o.ShowMakgora, o.ShowHighlights, o.ShowStats, o.ShowBattlegrounds,
             [.. o.CardFields], Math.Clamp(o.Scale, 50, 250), o.CardWidth <= 0 ? 0 : Math.Clamp(o.CardWidth, 260, 1000), Math.Clamp(o.CardHeight, 0, 1000),
-            Hex(o.Accent), Hex(o.Background), o.ShowBorder, o.ShowBrand);
+            Hex(o.Accent), Hex(o.Background), o.ShowBorder, o.ShowBrand,
+            o.HighlightsWidth <= 0 ? 0 : Math.Clamp(o.HighlightsWidth, 200, 1000), Math.Clamp(o.HighlightsHeight, 0, 1000));
 
     // "#rgb", "rrggbb" or "#RRGGBB" as "#rrggbb"; anything else is "" (the default color).
     public static string Hex(string? s)

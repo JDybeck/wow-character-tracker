@@ -42,7 +42,7 @@
      Scaled down the overlay would make it unreadable, so it never ends up under 6 px on screen (the
      smallest stat text at 50% is 6.5 px, so it still stays below it). */
   .brand { display: none; align-items: center; justify-content: flex-end; gap: .4em; margin-top: auto; padding-top: 6px;
-           font-size: max(8.5px, calc(6px / var(--scale))); letter-spacing: .2px; color: #94a3b8; opacity: .5; white-space: nowrap; text-shadow: none; }
+           font-size: max(8.5px, min(calc(6px / var(--scale)), 17px)); letter-spacing: .2px; color: #94a3b8; opacity: .5; white-space: nowrap; text-shadow: none; }
   body.branded .brand { display: flex; }
   .brand img { width: 1.15em; height: 1.15em; }
   .brand svg { width: .95em; height: .95em; fill: currentColor; }
@@ -63,6 +63,11 @@
   .levels span:nth-child(odd) { color: #94a3b8; }
   .today { margin-top: 6px; font-size: 13px; color: #fcd34d; white-space: nowrap; }
   .since { margin-top: 8px; font-size: 11px; color: #94a3b8; }
+  /* The highlights box as a column, so with a set height the brand line sits at its bottom; lines
+     keep their height (never squeezed) and what doesn't fit is dropped by show(). */
+  .hl.on { display: flex; flex-direction: column; }
+  .hl > * { flex: none; }
+  .hl.sized { overflow: hidden; }
   .hl-title { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
   .hl div.line { font-size: 13px; color: #e2e8f0; line-height: 1.5; display: flex; align-items: center; gap: 6px; }
   .hl div.line span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -173,7 +178,7 @@
     if (!fitting) return;
     const el = $({ card: "card", highlights: "hl", alert: "ding" }[only]);
     let w = el.offsetWidth, h = el.offsetHeight;
-    if (!w || !h) return;
+    if (!w || !h || !innerWidth || !innerHeight) return; // a source with no size yet (or a hidden window) would scale to 0
     if (only === "alert") { const glow = el.classList.contains("max") ? 520 : 400; w = Math.max(w * 1.2, glow); h = Math.max(h * 1.4, glow); }
     document.documentElement.style.setProperty("--scale", Math.min(innerWidth / w, innerHeight / h));
   }
@@ -267,7 +272,16 @@
       });
       hl.append(brand());
     }
+    hl.style.width = look.highlightsWidth ? look.highlightsWidth + "px" : "";
+    hl.style.height = look.highlightsHeight ? look.highlightsHeight + "px" : "";
+    hl.classList.toggle("sized", !!look.highlightsHeight);
     hl.classList.toggle("on", lines.length > 0 && wants("highlights"));
+    // A set height: the box keeps its size and the oldest lines that don't fit go (the newest stays,
+    // the text never shrinks), so a source fitted to the box doesn't rescale when one comes in.
+    if (look.highlightsHeight && hl.classList.contains("on")) {
+      let shown = hl.querySelectorAll(".line");
+      while (shown.length > 1 && hl.scrollHeight > hl.clientHeight) { shown[shown.length - 1].remove(); shown = hl.querySelectorAll(".line"); }
+    }
 
     // An alert that's new and from the last 90 seconds pops up (not one from before the page loaded):
     // DING!, MAX LEVEL!, VICTORY!, EPIC LOOT!... with its tone's colors.

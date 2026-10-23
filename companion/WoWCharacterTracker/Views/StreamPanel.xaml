@@ -78,17 +78,32 @@
             <Slider Minimum="50" Maximum="250" SmallChange="10" LargeChange="25" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding Scale, Delay=150}" VerticalAlignment="Center"
                     ToolTip="How big the whole overlay is when it's one Browser source (Copy all). A part on its own (Card, Highlights, Alert) fills its source instead: resize the source in OBS."/>
           </DockPanel>
-          <DockPanel Margin="0,0,0,8">
-            <TextBlock DockPanel.Dock="Left" Text="Card width" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
+          <!-- Size of each box: the card and the highlights separately (Auto = fits its text). -->
+          <TextBlock Text="Card" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSoft}" Margin="0,0,0,4"/>
+          <DockPanel Margin="0,0,0,6">
+            <TextBlock DockPanel.Dock="Left" Text="Width" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78" Margin="10,0,0,0"/>
             <TextBlock DockPanel.Dock="Right" Text="{Binding CardWidthText}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
             <Slider Minimum="0" Maximum="1000" SmallChange="20" LargeChange="100" TickFrequency="20" IsSnapToTickEnabled="True" Value="{Binding CardWidth, Delay=150}" VerticalAlignment="Center"
                     ToolTip="The card's width in pixels (Auto fits its text). Make it wide and tall to cover your chat."/>
           </DockPanel>
-          <DockPanel Margin="0,0,0,8">
-            <TextBlock DockPanel.Dock="Left" Text="Card height" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
+          <DockPanel Margin="0,0,0,6">
+            <TextBlock DockPanel.Dock="Left" Text="Height" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78" Margin="10,0,0,0"/>
             <TextBlock DockPanel.Dock="Right" Text="{Binding CardHeightText}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
             <Slider Minimum="0" Maximum="1000" SmallChange="20" LargeChange="100" TickFrequency="20" IsSnapToTickEnabled="True" Value="{Binding CardHeight, Delay=150}" VerticalAlignment="Center"
                     ToolTip="The card's smallest height in pixels (Auto fits its text); the background fills the rest"/>
+          </DockPanel>
+          <TextBlock Text="Highlights" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSoft}" Margin="0,2,0,4"/>
+          <DockPanel Margin="0,0,0,6">
+            <TextBlock DockPanel.Dock="Left" Text="Width" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78" Margin="10,0,0,0"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding HighlightsWidthText}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
+            <Slider Minimum="0" Maximum="1000" SmallChange="20" LargeChange="100" TickFrequency="20" IsSnapToTickEnabled="True" Value="{Binding HighlightsWidth, Delay=150}" VerticalAlignment="Center"
+                    ToolTip="The highlights box's width in pixels (Auto: 340). Long lines end in ..."/>
+          </DockPanel>
+          <DockPanel Margin="0,0,0,6">
+            <TextBlock DockPanel.Dock="Left" Text="Height" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78" Margin="10,0,0,0"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding HighlightsHeightText}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
+            <Slider Minimum="0" Maximum="1000" SmallChange="20" LargeChange="100" TickFrequency="20" IsSnapToTickEnabled="True" Value="{Binding HighlightsHeight, Delay=150}" VerticalAlignment="Center"
+                    ToolTip="The highlights box's height in pixels. Set, the box keeps that size and shows the newest lines that fit, so its Browser source never rescales. Auto: it grows with its lines (up to 3)."/>
           </DockPanel>
 
           <!-- Colors: a preset, or any hex color typed in. -->

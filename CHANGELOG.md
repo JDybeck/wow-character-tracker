@@ -5,6 +5,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 ## v0.26.0
 
 - **Stream overlay, more ways to adjust it**: a Size slider for the whole overlay, and a width and height for the card, so it can cover your chat box.
+- The highlights box has its own width and height: with a height set it keeps that size and shows the newest lines that fit, so a highlights source in OBS no longer changes its text size when a highlight comes in.
 - **Overlay colors**: presets (Class, Gold, Alliance, Horde, Arcane, Fel, Frost, Mono) or your own accent and background as hex codes.
 - The card and highlights can drop their border, and show a small WoW Character Tracker line with the logo and GitHub's mark (on by default, you can turn it off).
 - Pick which stats the card shows: item level, played, **played at this level**, gold, **talents** (numbers only, like 31/20/0), zone, and on Retail the keystone and ratings.

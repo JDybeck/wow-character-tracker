@@ -134,6 +134,19 @@ public class StreamTests
     }
 
     [Fact]
+    public void A_fixed_highlights_box_gets_more_lines_to_fill_but_the_text_file_keeps_three()
+    {
+        var events = Enumerable.Range(1, 8).Select(i => Duel($"Foe{i}", false, TimeSpan.FromMinutes(i))).ToArray();
+        Assert.Equal(3, StreamSnapshot.Build(Ronnie, events, Now).Highlights.Count);
+
+        var s = StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { HighlightsWidth = 50, HighlightsHeight = 180 });
+        Assert.Equal(8, s.Highlights.Count); // the page shows the newest that fit
+        Assert.Equal((200, 180), (s.Look!.HighlightsWidth, s.Look.HighlightsHeight)); // narrowest 200
+        var file = StreamFiles.Contents(s).Single(f => f.File == "highlights.txt").Text;
+        Assert.Equal(3, file.Split(Environment.NewLine).Length);
+    }
+
+    [Fact]
     public void Start_from_now_only_counts_what_came_after()
     {
         Entry[] events =
