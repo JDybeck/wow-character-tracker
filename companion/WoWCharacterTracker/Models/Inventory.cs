@@ -18,6 +18,13 @@ record GearEffect(int Slot, int ItemId, string Text);
 // "Stamina +2") and its id from the item link (0 when saved before 0.24.1).
 record GearEnchant(int Slot, int ItemId, string Text, int EnchantId);
 
+// A set from the game's Equipment Manager: its name, icon (a file id), whether it's what the character
+// wears, and per slot the item and where the game last saw it.
+record EquipmentSet(string Name, int Icon, bool IsEquipped, IReadOnlyList<EquipmentSetItem> Items);
+// Place: "equipped", "bags", "bank", "missing", "empty" (the set leaves the slot empty) or "ignored"
+// (the set doesn't touch the slot, ItemId 0).
+record EquipmentSetItem(int Slot, int ItemId, string Place);
+
 // What a character carries, from the addon's items[guid] (Inventory.lua): equipped gear, bags, and
 // the bank as of the last time it was open (BankAt, 0 = never seen). SavedAt and SavedZone: when and
 // where the game last wrote the saved file (/reload or logout), which is how fresh this is.
@@ -29,6 +36,7 @@ record Inventory(string Guid, IReadOnlyList<ItemSlot> Gear, IReadOnlyList<ItemSl
     public IReadOnlyList<GearSet> Sets { get; init; } = [];
     public IReadOnlyList<GearEffect> Effects { get; init; } = [];
     public IReadOnlyList<GearEnchant> Enchants { get; init; } = [];
+    public IReadOnlyList<EquipmentSet> EquipmentSets { get; init; } = [];
     // Whether the addon has read the sets and effects at all (0.23.0 and later): none read is not "no sets".
     public bool HasGearScan { get; init; }
 
@@ -44,6 +52,7 @@ record Inventory(string Guid, IReadOnlyList<ItemSlot> Gear, IReadOnlyList<ItemSl
         Sets = ParseSets(s("sets")),
         Effects = ParseEffects(s("effects")),
         Enchants = ParseEnchants(s("enchants")),
+        EquipmentSets = ParseEquipmentSets(s("equipSets")),
         HasGearScan = n("setsAt") > 0 || s("sets").Length > 0 || s("effects").Length > 0,
     };
 
@@ -74,6 +83,28 @@ record Inventory(string Guid, IReadOnlyList<ItemSlot> Gear, IReadOnlyList<ItemSl
                 : new GearEnchant(e.Slot, e.ItemId, e.Text, 0);
         })
         .ToList();
+
+    // "icon~equipped (1/0)~slot:itemId:place,...~set name", one set per line, the name last (it may hold a ~).
+    public static List<EquipmentSet> ParseEquipmentSets(string text) => Lines(text)
+        .Select(l => l.Split('~', 4))
+        .Where(p => p.Length == 4 && p[3].Length > 0 && int.TryParse(p[0], out _))
+        .Select(p => new EquipmentSet(p[3], int.Parse(p[0]), p[1] == "1", p[2]
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(i => i.Split(':'))
+            .Where(f => f.Length == 3 && int.TryParse(f[0], out _) && int.TryParse(f[1], out _))
+            .Select(f => new EquipmentSetItem(int.Parse(f[0]), int.Parse(f[1]), f[2]))
+            .ToList()))
+        .ToList();
+
+    // Where a set's item is: the game's word for it, except that an item it couldn't find may be in
+    // the bank as of the last visit (the game only knows the bank while it's open) or in the bags.
+    public string PlaceOf(EquipmentSetItem item)
+    {
+        if (item.Place != "missing" || item.ItemId <= 0) return item.Place;
+        if (Bags.Any(s => s.ItemId == item.ItemId)) return "bags";
+        if (Bank.Any(s => s.ItemId == item.ItemId)) return "bank";
+        return "missing";
+    }
 
     static IEnumerable<string> Lines(string text) => text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 

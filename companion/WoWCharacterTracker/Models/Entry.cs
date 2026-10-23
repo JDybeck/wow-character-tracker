@@ -19,6 +19,7 @@ record Entry
     public string ClassFile { get; init; } = "";
     public string Race { get; init; } = "";
     public string RaceFile { get; init; } = "";
+    public string Faction { get; init; } = ""; // "Alliance", "Horde", "Neutral"; "" before 0.26.0 (Factions.Of guesses from the race)
     public string Sex { get; init; } = "male";
     public double ItemLevel { get; init; }
     public bool Hardcore { get; init; }
@@ -102,6 +103,7 @@ record Entry
             ClassFile = s("classFile"),
             Race = s("race"),
             RaceFile = s("raceFile"),
+            Faction = s("faction"),
             Sex = s("sex") == "female" ? "female" : "male",
             ItemLevel = n("ilvl"),
             Hardcore = s("hardcore") is "true" or "1",

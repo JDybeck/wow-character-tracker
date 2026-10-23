@@ -434,7 +434,8 @@ function ns.characterInfo()
     classFile = classFile,
     race = raceName,
     raceFile = raceFile,
-    sex = (sex == 3) and "female" or "male",
+    faction = safe(UnitFactionGroup, "player"), -- "Alliance", "Horde", or "Neutral" (a Pandaren before picking)
+    sex =(sex == 3) and "female" or "male",
     hardcore = safe(ns.isHardcore) or nil,
     ruleset = safe(getRuleset),
     money = safe(GetMoney), -- copper

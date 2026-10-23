@@ -5,7 +5,7 @@ namespace WoWCharacterTracker.ViewModels;
 
 // The Gear and bags tab of the character details: equipped gear laid out like the character window,
 // the bags, and the bank as of the last time it was open.
-sealed class CharacterGear
+sealed class CharacterGear : Observable
 {
     // Inventory slots down the left and right of the character window, and the weapons below.
     static readonly (int Slot, string Name)[] LeftSlots = [(1, "Head"), (2, "Neck"), (3, "Shoulder"), (15, "Back"), (5, "Chest"), (4, "Shirt"), (19, "Tabard"), (9, "Wrist")];
@@ -16,9 +16,27 @@ sealed class CharacterGear
     static (int, string)[] BottomSlots(string classFile, bool retail) =>
         retail ? Weapons : [.. Weapons, (18, classFile.ToUpperInvariant() is "PALADIN" or "DRUID" or "SHAMAN" ? "Relic" : "Ranged")];
 
-    public IReadOnlyList<ItemCell> Left { get; init; } = [];
-    public IReadOnlyList<ItemCell> Right { get; init; } = [];
-    public IReadOnlyList<ItemCell> Bottom { get; init; } = [];
+    // What the gear slots show: the gear as worn, or one of the game's Equipment Manager sets, picked
+    // with the chips above the gear (only shown when the character has sets).
+    public IReadOnlyList<GearChoice> Choices { get; private init; } = [];
+    public bool HasChoices => Choices.Count > 1;
+    GearChoice? shown;
+    public RelayCommand ShowCommand { get; }
+
+    public CharacterGear() => ShowCommand = new RelayCommand(p => { if (p is GearChoice c) Show(c); });
+
+    public void Show(GearChoice choice)
+    {
+        shown = choice;
+        foreach (var c in Choices) c.IsSelected = c == choice;
+        Raise(nameof(Left));
+        Raise(nameof(Right));
+        Raise(nameof(Bottom));
+    }
+
+    public IReadOnlyList<ItemCell> Left => shown?.Left ?? [];
+    public IReadOnlyList<ItemCell> Right => shown?.Right ?? [];
+    public IReadOnlyList<ItemCell> Bottom => shown?.Bottom ?? [];
     public IReadOnlyList<BagView> Bags { get; init; } = [];
     public string BankText { get; init; } = "";
     // "Saved 12m ago, in Stormwind City": when the game last wrote the file this comes from.
@@ -71,22 +89,35 @@ sealed class CharacterGear
         var worn = inv.Gear.ToDictionary(g => g.Slot, g => g.ItemId);
         var wornInfos = worn.Values.Distinct().Select(item).ToList();
         var enchants = inv.Enchants.GroupBy(e => e.Slot).ToDictionary(g => g.Key, g => g.First()); // an item holds one
-        ItemCell Slot((int Slot, string Name) s)
+        // A slot holding itemId (0 = empty), placed as a set has it ("" = worn).
+        ItemCell Cell((int Slot, string Name) s, int itemId, string place = "")
         {
-            var enchant = enchants.GetValueOrDefault(s.Slot);
-            return new ItemCell(worn.TryGetValue(s.Slot, out var id) ? item(id) : null, 1, s.Name)
+            // The enchant is on the worn item, so only that item shows it.
+            var enchant = worn.GetValueOrDefault(s.Slot) == itemId ? enchants.GetValueOrDefault(s.Slot) : null;
+            return new ItemCell(itemId > 0 ? item(itemId) : null, 1, s.Name)
             {
                 Enchant = enchant is null ? "" : Format.EnchantName(enchant.Text),
                 EnchantInfo = enchant is null ? null : lookup.Enchant(enchant.EnchantId, enchant.Text),
+                Place = place,
             };
         }
-        IReadOnlyList<ItemCell> Slots((int Slot, string Name)[] slots) => slots.Select(Slot).ToList();
+        ItemCell Worn((int Slot, string Name) s) => Cell(s, worn.GetValueOrDefault(s.Slot));
+        // A set's slot: its item where the game saw it; a slot it doesn't touch keeps what's worn.
+        ItemCell InSet((int Slot, string Name) s, EquipmentSet set)
+        {
+            var piece = set.Items.FirstOrDefault(i => i.Slot == s.Slot);
+            if (piece is null || piece.Place == "ignored") return Cell(s, worn.GetValueOrDefault(s.Slot), worn.ContainsKey(s.Slot) ? "ignored" : "");
+            if (piece.Place == "empty") return Cell(s, 0);
+            var place = inv.PlaceOf(piece);
+            return Cell(s, piece.ItemId, place == "equipped" ? "" : place);
+        }
+        var bottom = BottomSlots(classFile, retail);
+        GearChoice Choice(string name, bool equipped, Func<(int Slot, string Name), ItemCell> slot) =>
+            new(name, equipped, LeftSlots.Select(slot).ToList(), RightSlots.Select(slot).ToList(), bottom.Select(slot).ToList());
 
         var gear = new CharacterGear
         {
-            Left = Slots(LeftSlots),
-            Right = Slots(RightSlots),
-            Bottom = Slots(BottomSlots(classFile, retail)),
+            Choices = [Choice("Current gear", false, Worn), .. inv.EquipmentSets.Select(set => Choice(set.Name, set.IsEquipped, s => InSet(s, set)))],
             Bags = Grids(inv.Bags, inv.BagSizes, item, bag => bag switch { 0 => "Backpack", 5 => "Reagent bag", _ => $"Bag {bag}" }), // 5: retail's reagent bag slot
             bankTabs = Grids(inv.Bank, inv.BankSizes, item, bag => bag < 0 ? "Bank" : $"Bank bag {bag - 4}"),
             NeedsGearScan = !inv.HasGearScan,
@@ -97,6 +128,7 @@ sealed class CharacterGear
             Effects = EffectRows(inv.Effects, item),
             IsRetail = retail,
         };
+        gear.Show(gear.Choices[0]);
         gear.FillBank();
         return gear;
     }
@@ -122,6 +154,19 @@ sealed class CharacterGear
             .Select(b => new BagView(b.Title, b.Items.Select(i => new ItemCell(item(i.ItemId), i.Count)).ToList(), b.Size - b.Items.Count))
             .ToList();
     }
+}
+
+// A chip above the gear: the gear as worn, or an Equipment Manager set (IsEquipped: the game says
+// it's what the character wears), and its slots laid out like the character window.
+sealed class GearChoice(string name, bool isEquipped, IReadOnlyList<ItemCell> left, IReadOnlyList<ItemCell> right, IReadOnlyList<ItemCell> bottom) : Observable
+{
+    public string Name { get; } = name;
+    public bool IsEquipped { get; } = isEquipped;
+    public IReadOnlyList<ItemCell> Left { get; } = left;
+    public IReadOnlyList<ItemCell> Right { get; } = right;
+    public IReadOnlyList<ItemCell> Bottom { get; } = bottom;
+    bool isSelected;
+    public bool IsSelected { get => isSelected; set => Set(ref isSelected, value); }
 }
 
 // A set on the gear tab: "Giantstalker Armor 3/8" and its bonuses, the active ones lit like in game.
