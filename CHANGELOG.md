@@ -6,6 +6,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 
 - **Alliance and Horde colors**: each character row gets a thin blue or red edge and a small faction crest on its portrait, and the open details glow faintly in the faction's color. The addon now records the faction; older characters get it from their race.
 - **Faction filter** on the Characters page (Alliance / Horde chips), shown when you have characters on both sides.
+- The Discord panel's **Test** button now posts "{character} sent a test message." instead of a made-up level-up.
 
 ## v0.25.4
 
