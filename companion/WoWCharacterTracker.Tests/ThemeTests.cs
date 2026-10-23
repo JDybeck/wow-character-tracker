@@ -9,18 +9,22 @@ public class ThemeTests
     {
         Assert.Equal("midnight", Theme.Find(Flavors.Retail, null).Key);
         Assert.Equal("classic", Theme.Find(Flavors.Forever, "no-such-theme").Key);
-        // A Retail theme picked for Forever (a hand-edited config) doesn't leak across games.
-        Assert.Equal("classic", Theme.Find(Flavors.Forever, "midnight").Key);
     }
 
+    // Every theme in both games, the game's own first, so saved picks of either game keep working.
     [Fact]
-    public void Shared_themes_are_offered_in_both_games()
+    public void Every_theme_is_offered_in_both_games()
     {
-        foreach (var key in new[] { "alliance", "horde", "darnassus", "undercity", "icecrown" })
+        var retail = Theme.OptionsFor(Flavors.Retail).Select(o => o.Key).ToList();
+        var forever = Theme.OptionsFor(Flavors.Forever).Select(o => o.Key).ToList();
+        Assert.Equal(retail.Order(), forever.Order());
+        foreach (var key in new[] { "midnight", "arcane", "silvermoon", "classic", "wisp", "emerald", "ember", "alliance", "horde", "darnassus", "undercity", "icecrown" })
         {
             Assert.Equal(key, Theme.Find(Flavors.Retail, key).Key);
             Assert.Equal(key, Theme.Find(Flavors.Forever, key).Key);
         }
+        Assert.Equal(["midnight", "arcane", "silvermoon"], retail.Take(3));
+        Assert.Equal(["classic", "wisp", "emerald", "ember"], forever.Take(4));
     }
 
     [Fact]
