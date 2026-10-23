@@ -101,7 +101,7 @@ static partial class AddonInstaller
                   + "  },\n"
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
-        if (!File.Exists(file) || File.ReadAllText(file) != lua) File.WriteAllText(file, lua);
+        if (!File.Exists(file) || File.ReadAllText(file) != lua) Files.WriteAtomic(file, lua);
     }
 
     // A Lua string literal for any text. "|" is doubled: in a game font string it starts a color or

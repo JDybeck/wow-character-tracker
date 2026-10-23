@@ -239,6 +239,18 @@ function ns.scanEquipSets()
   return table.concat(lines, "\n")
 end
 
+-- The equipped items' links (enchants and gems are in them) and the spec, as of the last tooltip
+-- read: bag changes while looting don't change the gear, so its 19 tooltips aren't read again for
+-- them. Read again anyway after a while, in case an item's tooltip wasn't loaded yet the first time.
+local GEAR_REREAD = 300
+local lastGearKey, lastGearAt
+
+local function gearKey()
+  local links = { ns.specName and ns.specName() or "" }
+  for slot = 1, 19 do links[#links + 1] = GetInventoryItemLink and GetInventoryItemLink("player", slot) or "" end
+  return table.concat(links, ",")
+end
+
 -- What the saved file had when this session started, to tell whether anything changed since.
 local atLoad
 
@@ -270,8 +282,14 @@ function ns.scanInventory()
   if worn ~= "" then e.gear = worn end
   -- Tooltips can come back secret in combat, so the set bonuses wait for the next scan out of it.
   if worn ~= "" and not (InCombatLockdown and InCombatLockdown()) then
-    local ok, sets, effects, enchants = pcall(ns.scanGearEffects)
-    if ok then e.sets, e.effects, e.enchants, e.setsAt = sets, effects, enchants, time() end
+    local key = gearKey()
+    if key ~= lastGearKey or not e.setsAt or time() - (lastGearAt or 0) >= GEAR_REREAD then
+      local ok, sets, effects, enchants = pcall(ns.scanGearEffects)
+      if ok then
+        e.sets, e.effects, e.enchants, e.setsAt = sets, effects, enchants, time()
+        lastGearKey, lastGearAt = key, time()
+      end
+    end
   end
   -- Equipment Manager sets, also out of combat only (a client without them keeps what it had: none).
   if not (InCombatLockdown and InCombatLockdown()) then

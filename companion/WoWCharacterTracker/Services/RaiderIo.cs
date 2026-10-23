@@ -58,7 +58,7 @@ static class RaiderIo
         lock (DiskLock)
         {
             disk![key] = new Cached(url, DateTimeOffset.UtcNow);
-            try { File.WriteAllText(CachePath, JsonSerializer.Serialize(disk)); } catch (IOException) { }
+            try { Files.WriteAtomic(CachePath, JsonSerializer.Serialize(disk)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
         return url;
     }

@@ -179,6 +179,7 @@ sealed class MainViewModel : Observable
         // tabs start, since finding the game saves its folder.
         if (Config.WantsIntro && ScreenshotMode.Target is null) Intro.Open();
         foreach (var tab in FlavorTabs) tab.Start();
+        _ = Task.Run(ExtractedFiles.CleanUp); // what older versions unpacked into %TEMP%
         if (Config.Webhooks.Count == 0)
             Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
         await Task.WhenAll(FlavorTabs.Where(t => t.IsOn).Select(t => t.CheckDiscordAsync()));

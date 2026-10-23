@@ -84,7 +84,7 @@ static class Wowhead
         if (mine != saveVersion) return;
         lock (DiskLock)
         {
-            try { File.WriteAllText(CachePath, SerializeCache(disk!)); } catch (IOException) { }
+            try { Files.WriteAtomic(CachePath, SerializeCache(disk!)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 

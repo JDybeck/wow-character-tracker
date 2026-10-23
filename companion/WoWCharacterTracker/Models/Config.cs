@@ -213,5 +213,5 @@ class Config
         return config;
     }
 
-    public void Save() => File.WriteAllText(FilePath, JsonSerializer.Serialize(this, Json));
+    public void Save() => Files.WriteAtomic(FilePath, JsonSerializer.Serialize(this, Json));
 }

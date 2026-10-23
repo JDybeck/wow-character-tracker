@@ -620,7 +620,8 @@ sealed class FlavorViewModel : Observable
     void ShowData(TrackerData data)
     {
         lastData = data;
-        var keep = SelectedCharacter?.Guid;
+        var keepRow = SelectedCharacter;
+        var keep = keepRow?.Guid;
         var removed = Settings.Removed;
         // The made-up characters, when switched on (Forever only). They're only shown, never posted.
         if (main.ShowTestCharacters && Flavor.HasRulesets)
@@ -643,6 +644,7 @@ sealed class FlavorViewModel : Observable
             .ToList();
 
         allRows = rows;
+        if (keepRow is not null) rows.FirstOrDefault(r => r.Guid == keep)?.KeepGearFrom(keepRow);
         Groups.Fill(rows, GroupOf);
         FactionChips.Fill(rows, r => r.Faction);
 
