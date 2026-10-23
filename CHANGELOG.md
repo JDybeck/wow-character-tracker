@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.26.2
+
+- The app's Wowhead cache (`wowhead.json`) is about half the size, so it loads and saves quicker and the app uses a little less memory. It shrinks the next time the app looks something up.
+
 ## v0.26.1
 
 - The **ON** tag on a Discord webhook now sits centered in its row, in line with the buttons next to it.
