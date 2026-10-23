@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.26.1
+
+- The **ON** tag on a Discord webhook now sits centered in its row, in line with the buttons next to it.
+
 ## v0.26.0
 
 Update the addon with the app (it does this by itself) and /reload in game: equipment sets, factions and mount icons need it.

@@ -47,6 +47,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
 
                   <!-- Name and summary (click to turn on/off for this tab), or the rename box -->
@@ -57,13 +58,7 @@
                                     Command="{Binding DataContext.SelectWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}"/>
                     </StackPanel.InputBindings>
-                    <DockPanel LastChildFill="True">
-                      <Border x:Name="ActiveTag" DockPanel.Dock="Right" Visibility="Collapsed" Margin="8,0,4,0" Padding="7,1" CornerRadius="9"
-                              Background="{DynamicResource IndigoSoft}" BorderBrush="{DynamicResource IndigoLineSoft}" BorderThickness="1" VerticalAlignment="Center">
-                        <TextBlock Text="ON" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource IndigoText}"/>
-                      </Border>
-                      <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                    </DockPanel>
+                    <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis"/>
                     <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
                   </StackPanel>
                   <TextBox ToolTip="New name for the webhook. Enter saves, Esc cancels." Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Padding="8,4" Margin="0,0,8,0"
@@ -77,29 +72,35 @@
                     </TextBox.InputBindings>
                   </TextBox>
 
-                  <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Options: which games and rulesets"
+                  <!-- ON for this tab, centered on the row like the buttons next to it -->
+                  <Border x:Name="ActiveTag" Grid.Column="1" Visibility="Collapsed" Margin="8,0,4,0" Padding="7,1" CornerRadius="9"
+                          Background="{DynamicResource IndigoSoft}" BorderBrush="{DynamicResource IndigoLineSoft}" BorderThickness="1" VerticalAlignment="Center">
+                    <TextBlock Text="ON" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource IndigoText}"/>
+                  </Border>
+
+                  <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Options: which games and rulesets"
                           Command="{Binding DataContext.ToggleWebhookOptionsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
                     <TextBlock x:Name="Gear" Style="{StaticResource Icon}" Text="&#xE713;" FontSize="13" Foreground="{StaticResource Dim}"/>
                   </Button>
-                  <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename this webhook"
+                  <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Rename this webhook"
                           Visibility="{Binding IsEditing, Converter={StaticResource Hidden}}"
                           Command="{Binding DataContext.RenameWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="13" Foreground="{StaticResource Dim}"/>
                   </Button>
-                  <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Save name (Enter)"
+                  <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Save name (Enter)"
                           Visibility="{Binding IsEditing, Converter={StaticResource Visible}}"
                           Command="{Binding DataContext.SaveRenameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="13" Foreground="{StaticResource Green}"/>
                   </Button>
-                  <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
+                  <Button Grid.Column="4" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,8,0" ToolTip="Remove this webhook"
                           Command="{Binding DataContext.AskRemoveWebhookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                           CommandParameter="{Binding}">
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="13" Foreground="{StaticResource Dim}"/>
                   </Button>
-                  <Border x:Name="Radio" Grid.Column="4" Width="20" Height="20" CornerRadius="5" BorderThickness="1" BorderBrush="#475569"
+                  <Border x:Name="Radio" Grid.Column="5" Width="20" Height="20" CornerRadius="5" BorderThickness="1" BorderBrush="#475569"
                           Background="Transparent" Cursor="Hand" VerticalAlignment="Center" ToolTip="Turn this webhook on or off for this game tab">
                     <Border.InputBindings>
                       <MouseBinding MouseAction="LeftClick"
