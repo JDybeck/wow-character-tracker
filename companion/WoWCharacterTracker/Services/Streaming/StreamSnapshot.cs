@@ -12,7 +12,8 @@ sealed record StreamSnapshot(
     string Zone, string Played, string ItemLevel, IReadOnlyList<StreamLevel> Levels, string LastLevel, string Today,
     IReadOnlyList<string> Highlights, StreamAlert? Alert, long Now,
     StreamRecord? Duels = null, StreamRecord? Makgora = null, StreamLook? Look = null, string SinceText = "",
-    string Spec = "", string Gold = "", string Keystone = "", IReadOnlyList<StreamRating>? Ratings = null, StreamRecord? Battlegrounds = null)
+    string Spec = "", string Gold = "", string Keystone = "", IReadOnlyList<StreamRating>? Ratings = null, StreamRecord? Battlegrounds = null,
+    string Talents = "", string LevelPlayed = "")
 {
     public static readonly StreamSnapshot Empty = new("", "", 0, "", "#FFFFFF", "", "", "", "", "", [], "", "", [], null, 0, Look: StreamLook.From(new()));
 
@@ -68,7 +69,16 @@ sealed record StreamSnapshot(
             mine.Select(AlertFor).FirstOrDefault(a => a is not null && o.AlertKinds.Contains(a.Kind)),
             now.ToUnixTimeSeconds(),
             Record("duel"), Record("makgora"), StreamLook.From(o),
-            RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? [], Record("bg"));
+            RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? [], Record("bg"),
+            Format.TalentNumbers(c.Talents), PlayedThisLevel(c, events));
+    }
+
+    // Played since the ding to the character's level ("2h 14m"): its played now minus the played
+    // the ding was recorded with. All time, whatever the range; empty when either isn't known.
+    static string PlayedThisLevel(StreamCharacter c, IEnumerable<Entry> events)
+    {
+        var ding = events.Where(e => e.Guid == c.Guid && e.Kind == "level" && e.Level == c.Level && e.Played > 0).MaxBy(e => e.At);
+        return ding is not null && c.PlayedSeconds >= ding.Played ? Format.Played(c.PlayedSeconds - ding.Played) : "";
     }
 
     // Under the card: what it counts, when it's not all time.
@@ -111,7 +121,7 @@ sealed record StreamSnapshot(
 // The character as the stream sees it (filled in from the character list).
 sealed record StreamCharacter(string Guid, string Name, string Game, int Level, string ClassName, string ClassColor, string Race,
     string Realm, string Zone, string Played, string ItemLevel, long LastSeen, string Spec = "", string Gold = "", string Keystone = "",
-    IReadOnlyList<StreamRating>? Ratings = null);
+    IReadOnlyList<StreamRating>? Ratings = null, string Talents = "", long PlayedSeconds = 0);
 
 sealed record StreamLevel(int Level, string Took);
 
@@ -128,9 +138,23 @@ sealed record StreamRecord(int Won, int Lost)
 // Kind: level, maxlevel, boss, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
-// How the overlay looks: the card's background (0-100) and which parts it shows.
-sealed record StreamLook(int CardOpacity, bool Levels, bool Today, bool Duels, bool Makgora, bool Highlights, bool Stats = true, bool Battlegrounds = true)
+// How the overlay looks: the card's background (0-100), which parts and stats lines it shows, its
+// size (scale in percent, card width and smallest height in px, 0 = fits), colors ("#rrggbb", empty =
+// default), the border and the brand line.
+sealed record StreamLook(int CardOpacity, bool Levels, bool Today, bool Duels, bool Makgora, bool Highlights, bool Stats = true, bool Battlegrounds = true,
+    IReadOnlyList<string>? Fields = null, int Scale = 100, int Width = 0, int Height = 0, string Accent = "", string Background = "",
+    bool Border = true, bool Brand = true)
 {
     public static StreamLook From(StreamOptions o) =>
-        new(Math.Clamp(o.CardOpacity, 0, 100), o.ShowLevels, o.ShowToday, o.ShowDuels, o.ShowMakgora, o.ShowHighlights, o.ShowStats, o.ShowBattlegrounds);
+        new(Math.Clamp(o.CardOpacity, 0, 100), o.ShowLevels, o.ShowToday, o.ShowDuels, o.ShowMakgora, o.ShowHighlights, o.ShowStats, o.ShowBattlegrounds,
+            [.. o.CardFields], Math.Clamp(o.Scale, 50, 250), o.CardWidth <= 0 ? 0 : Math.Clamp(o.CardWidth, 260, 1000), Math.Clamp(o.CardHeight, 0, 1000),
+            Hex(o.Accent), Hex(o.Background), o.ShowBorder, o.ShowBrand);
+
+    // "#rgb", "rrggbb" or "#RRGGBB" as "#rrggbb"; anything else is "" (the default color).
+    public static string Hex(string? s)
+    {
+        var h = (s ?? "").Trim().TrimStart('#').ToLowerInvariant();
+        if (h.Length == 3) h = string.Concat(h.Select(ch => $"{ch}{ch}"));
+        return h.Length == 6 && h.All(char.IsAsciiHexDigit) ? "#" + h : "";
+    }
 }

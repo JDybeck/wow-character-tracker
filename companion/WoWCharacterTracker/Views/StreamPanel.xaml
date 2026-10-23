@@ -72,6 +72,56 @@
             <Slider Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Value="{Binding CardOpacity, Delay=150}" VerticalAlignment="Center"
                     ToolTip="How solid the boxes' background is: 0 is see-through (just the text), 100 is solid"/>
           </DockPanel>
+          <DockPanel Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Left" Text="Size" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding Scale, StringFormat={}{0}%}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
+            <Slider Minimum="50" Maximum="250" SmallChange="10" LargeChange="25" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding Scale, Delay=150}" VerticalAlignment="Center"
+                    ToolTip="How big the whole overlay is when it's one Browser source (Copy all). A part on its own (Card, Highlights, Alert) fills its source instead: resize the source in OBS."/>
+          </DockPanel>
+          <DockPanel Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Left" Text="Card width" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding CardWidthText}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
+            <Slider Minimum="0" Maximum="1000" SmallChange="20" LargeChange="100" TickFrequency="20" IsSnapToTickEnabled="True" Value="{Binding CardWidth, Delay=150}" VerticalAlignment="Center"
+                    ToolTip="The card's width in pixels (Auto fits its text). Make it wide and tall to cover your chat."/>
+          </DockPanel>
+          <DockPanel Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Left" Text="Card height" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding CardHeightText}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
+            <Slider Minimum="0" Maximum="1000" SmallChange="20" LargeChange="100" TickFrequency="20" IsSnapToTickEnabled="True" Value="{Binding CardHeight, Delay=150}" VerticalAlignment="Center"
+                    ToolTip="The card's smallest height in pixels (Auto fits its text); the background fills the rest"/>
+          </DockPanel>
+
+          <!-- Colors: a preset, or any hex color typed in. -->
+          <TextBlock Text="COLORS" Style="{StaticResource SectionTitle}" FontSize="11" Margin="0,0,0,4"
+                     ToolTip="The boxes' edge and titles (accent) and their background. Pick a preset or type a hex color like #3c8cff."/>
+          <ItemsControl ItemsSource="{Binding Presets}" ItemsPanel="{StaticResource Wrap}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Style="{StaticResource SmallButton}" Padding="8,3" Command="{Binding DataContext.PresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal">
+                    <Border Width="10" Height="10" CornerRadius="5" Background="{Binding Dot}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Name}"/>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <WrapPanel Margin="0,0,0,8">
+            <TextBlock Text="Accent" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <Border Width="14" Height="14" CornerRadius="3" Background="{Binding AccentBrush}" BorderBrush="#475569" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <TextBox Text="{Binding Accent}" Width="76" Padding="6,3" FontSize="12" Margin="0,0,14,0" FontFamily="{StaticResource Mono}"
+                     ToolTip="The edge and title color as a hex code, like #ffd100. Empty: the character's class color."/>
+            <TextBlock Text="Background" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <Border Width="14" Height="14" CornerRadius="3" Background="{Binding BackgroundBrush}" BorderBrush="#475569" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <TextBox Text="{Binding Background}" Width="76" Padding="6,3" FontSize="12" FontFamily="{StaticResource Mono}"
+                     ToolTip="The background color as a hex code, like #0a0806 (how solid it is: Background above). Empty: dark."/>
+          </WrapPanel>
+          <WrapPanel Margin="0,0,0,6">
+            <CheckBox Style="{StaticResource OptionChip}" Content="Border" IsChecked="{Binding ShowBorder}" Margin="0,0,6,6"
+                      ToolTip="The thin colored edge around the card and the highlights"/>
+            <CheckBox Style="{StaticResource OptionChip}" Content="Our name" IsChecked="{Binding ShowBrand}" Margin="0,0,6,6"
+                      ToolTip="A small WoW Character Tracker line with the logo under the card and highlights. Thanks for leaving it on!"/>
+          </WrapPanel>
 
           <TextBlock Text="CARD" Style="{StaticResource SectionTitle}" FontSize="11" Margin="0,0,0,4"
                      ToolTip="The card is the character as it is now: its stats on the left, its leveling on the right"/>
@@ -89,6 +139,14 @@
             <CheckBox Style="{StaticResource OptionChip}" Content="Battleground record" IsChecked="{Binding ShowBattlegrounds}" Margin="0,0,6,6"
                       ToolTip="Battlegrounds won and lost (shown once there is one)"/>
           </WrapPanel>
+          <ItemsControl ItemsSource="{Binding CardFields}" ItemsPanel="{StaticResource Wrap}" Margin="0,0,0,6"
+                        Visibility="{Binding ShowStats, Converter={StaticResource Visible}}" ToolTip="Which stats the card shows">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type vm:ToggleOption}">
+                <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" ToolTip="{Binding Tip}" Margin="0,0,6,6"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
 
           <DockPanel Margin="0,0,0,4">
             <CheckBox DockPanel.Dock="Right" Style="{StaticResource OptionChip}" Content="Show" IsChecked="{Binding ShowHighlights}"

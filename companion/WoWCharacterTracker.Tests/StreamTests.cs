@@ -180,6 +180,49 @@ public class StreamTests
     }
 
     [Fact]
+    public void Size_colors_and_fields_come_from_the_options()
+    {
+        var look = StreamSnapshot.Build(Ronnie, [], Now, new StreamOptions
+        {
+            Scale = 900, CardWidth = 100, CardHeight = 420, Accent = "3C8CFF", Background = "#abc", ShowBorder = false, CardFields = ["gold"],
+        }).Look!;
+        Assert.Equal((250, 260, 420), (look.Scale, look.Width, look.Height)); // clamped, a tiny width is the smallest
+        Assert.Equal(("#3c8cff", "#aabbcc"), (look.Accent, look.Background));
+        Assert.False(look.Border);
+        Assert.Equal(["gold"], look.Fields!);
+
+        var plain = StreamSnapshot.Build(Ronnie, [], Now).Look!;
+        Assert.Equal((0, 0, "", ""), (plain.Width, plain.Height, plain.Accent, plain.Background)); // auto size, default colors
+        Assert.Equal(StreamOptions.AllCardFields, plain.Fields!);
+    }
+
+    [Theory]
+    [InlineData("#FFD100", "#ffd100")]
+    [InlineData(" fd1 ", "#ffdd11")]
+    [InlineData("gold", "")]
+    [InlineData("#12345", "")]
+    [InlineData("", "")]
+    public void Hex_colors(string typed, string used) => Assert.Equal(used, StreamLook.Hex(typed));
+
+    [Theory]
+    [InlineData("Arms 31 / Fury 20 / Protection 0", "31/20/0")]
+    [InlineData("Class 15 / Fury 12 / Slayer 3", "15/12/3")]
+    [InlineData("", "")]
+    public void Talents_as_numbers(string talents, string shown) => Assert.Equal(shown, Format.TalentNumbers(talents));
+
+    [Fact]
+    public void Played_at_this_level_counts_from_the_ding()
+    {
+        Entry[] events = [Level(22, 1400, TimeSpan.FromHours(3)) with { Played = 100_000 }, Level(21, 1300, TimeSpan.FromHours(4)) with { Played = 98_000 }];
+        var s = StreamSnapshot.Build(Ronnie with { PlayedSeconds = 108_100, Talents = "Holy 5 / Protection 0 / Retribution 12" }, events, Now);
+        Assert.Equal("2h 15m", s.LevelPlayed);
+        Assert.Equal("5/0/12", s.Talents);
+        // Not known without the ding's played, or when the saved played is older than the ding.
+        Assert.Equal("", StreamSnapshot.Build(Ronnie with { PlayedSeconds = 108_100 }, [Level(22, 1400, TimeSpan.FromHours(3))], Now).LevelPlayed);
+        Assert.Equal("", StreamSnapshot.Build(Ronnie with { PlayedSeconds = 99_000 }, events, Now).LevelPlayed);
+    }
+
+    [Fact]
     public void No_characters_at_all_is_an_empty_overlay_not_a_crash()
     {
         // A fresh install (no characters on any tab) used to throw "Sequence contains no elements".
