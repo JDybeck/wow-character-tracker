@@ -87,7 +87,7 @@ public class StreamTests
         Assert.Equal(new StreamRecord(2, 1), s.Duels);
         Assert.Equal(new StreamRecord(1, 0), s.Makgora);
         // Wins and losses are both highlights (the newest three).
-        Assert.Equal(["Won a Mak'gora against Brandur", "Lost a duel to Grimtusk", "Won a duel against Pellia"], s.Highlights);
+        Assert.Equal(["Won a Mak'gora against Brandur", "Lost a duel to Grimtusk", "Won a duel against Pellia"], s.Highlights.Select(h => h.Text));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class StreamTests
         ];
         var s = StreamSnapshot.Build(Ronnie, events, Now);
         Assert.Equal(new StreamRecord(1, 1), s.Battlegrounds);
-        Assert.Equal(["Lost Arathi Basin", "Won Warsong Gulch"], s.Highlights);
+        Assert.Equal(["Lost Arathi Basin", "Won Warsong Gulch"], s.Highlights.Select(h => h.Text));
         Assert.Equal("Won Warsong Gulch", s.Alert?.Line); // losses aren't alerts
     }
 
@@ -109,7 +109,28 @@ public class StreamTests
     {
         Entry[] events = [Loot("Thunderfury, Blessed Blade of the Windseeker", TimeSpan.FromMinutes(10)), Duel("Pellia", false, TimeSpan.FromMinutes(1))];
         var s = StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { HighlightKinds = ["loot"] });
-        Assert.Equal(["Looted Thunderfury, Blessed Blade of the Windseeker"], s.Highlights);
+        Assert.Equal(["Looted Thunderfury, Blessed Blade of the Windseeker"], s.Highlights.Select(h => h.Text));
+    }
+
+    [Fact]
+    public void Highlights_carry_an_icon_items_their_own_once_known()
+    {
+        Entry[] events =
+        [
+            new() { Id = "l", Guid = "P-1", Kind = "loot", Item = "Verigan's Fist", ItemId = 6953, Quality = 3, At = Ago(TimeSpan.FromMinutes(4)) },
+            new() { Id = "m", Guid = "P-1", Kind = "mount", Mount = "Magic Broom", ItemId = 33176, At = Ago(TimeSpan.FromMinutes(3)) },
+            new() { Id = "r", Guid = "P-1", Kind = "mplus", Step = 3000, Rating = 3011, At = Ago(TimeSpan.FromMinutes(2)) },
+        ];
+        // Before Wowhead answers: the kind's icon, the loot's quality frame already known from the event.
+        var s = StreamSnapshot.Build(Ronnie, events, Now);
+        Assert.Equal(new StreamHighlight("Reached 3000 Mythic+ rating (3011)", Wowhead.IconUrl("inv_relics_hourglass", "small")), s.Highlights[0]);
+        Assert.Equal(new StreamHighlight("Got Magic Broom", Wowhead.IconUrl("ability_mount_ridinghorse", "small"), "", 33176), s.Highlights[1]);
+        Assert.Equal(("#0070DD", 6953), (s.Highlights[2].Color, s.Highlights[2].ItemId));
+
+        // Once it has: the item's own icon, the mount framed in its quality.
+        Wowhead.Info? Items(int id) => id == 33176 ? new("Magic Broom", "inv_misc_broom", 4, "") : null;
+        s = StreamSnapshot.Build(Ronnie, events, Now, items: Items);
+        Assert.Equal((Wowhead.IconUrl("inv_misc_broom", "small"), "#A335EE"), (s.Highlights[1].Icon, s.Highlights[1].Color));
     }
 
     [Fact]
@@ -123,7 +144,7 @@ public class StreamTests
         var s = StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { Since = Ago(TimeSpan.FromHours(1)) });
         Assert.Equal([22], s.Levels.Select(l => l.Level));
         Assert.Equal(new StreamRecord(0, 1), s.Duels);
-        Assert.Equal(["Lost a duel to Pellia"], s.Highlights); // the win was before
+        Assert.Equal(["Lost a duel to Pellia"], s.Highlights.Select(h => h.Text)); // the win was before
         Assert.StartsWith("Since ", s.SinceText);
     }
 

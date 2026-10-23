@@ -226,7 +226,8 @@ sealed class StreamViewModel : Observable
     void Refresh()
     {
         var game = snapshot.Game;
-        snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options);
+        snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options, Item);
+        LookUpItems();
         if (snapshot.Game != game)
         {
             // Another game's character: the Retail-only chips come or go.
@@ -240,6 +241,27 @@ sealed class StreamViewModel : Observable
         if (server is null) return;
         server.Snapshot = snapshot;
         StreamFiles.Write(snapshot);
+    }
+
+    // The highlights' items (loot, mounts) as Wowhead knows them, for their icons and quality: each
+    // looked up once (Wowhead caches it on disk too), the overlay refreshed when new ones come in. A
+    // lookup that fails is forgotten, so a later refresh tries again; until then the kind's icon shows.
+    readonly Dictionary<int, Wowhead.Info?> items = [];
+    Wowhead.Info? Item(int id) => items.GetValueOrDefault(id);
+
+    async void LookUpItems()
+    {
+        if (Flavors.Named(snapshot.Game) is not { } flavor) return;
+        var missing = snapshot.Highlights.Select(h => h.ItemId).Where(id => id > 0 && !items.ContainsKey(id)).Distinct().ToList();
+        if (missing.Count == 0) return;
+        foreach (var id in missing) items[id] = null; // asked, so the next refresh doesn't ask again
+        var found = false;
+        foreach (var id in missing)
+        {
+            if (await Wowhead.GetAsync("item", id, flavor) is { } info) { items[id] = info; found = true; }
+            else items.Remove(id);
+        }
+        if (found) Refresh();
     }
 
     // Shows an alert on the overlay right now (OBS included), for setting it up without playing. Each
@@ -259,9 +281,9 @@ sealed class StreamViewModel : Observable
         var e = SampleEvents.For(kinds[testIndex++ % kinds.Length], Flavors.Forever, null, []);
         e = e with { Id = $"test-{now}-{testIndex}", Char = name, At = now, Level = e.MaxLevel ? e.Level : level };
         if (StreamSnapshot.AlertFor(e) is not { } sample) return;
-        var highlight = HighlightText.Text(e);
+        var highlight = StreamSnapshot.Highlight(e, Item);
         var test = snapshot.HasCharacter ? snapshot : snapshot with { Character = name, Level = level - 1, ClassName = "Warrior", ClassColor = "#C69B6D", Zone = "Scarlet Monastery" };
-        var highlights = highlight.Length > 0 ? [highlight, .. test.Highlights.Take(2)] : test.Highlights;
+        var highlights = highlight.Text.Length > 0 ? [highlight, .. test.Highlights.Take(2)] : test.Highlights;
         server.Snapshot = test with { Alert = sample, Highlights = highlights };
         Log.Info($"Test alert sent to the stream overlay: {sample.Title} (click again for the next kind; only the overlay shows it).");
         // Back to the real state a bit later, so the next real alert still counts as new.

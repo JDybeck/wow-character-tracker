@@ -18,7 +18,7 @@ static class StreamFiles
         ("last_level.txt", s.LastLevel),
         ("levels.txt", string.Join(Environment.NewLine, s.Levels.Select(l => $"Level {l.Level}: {l.Took}"))),
         ("today.txt", s.HasCharacter ? s.Today : ""),
-        ("highlights.txt", string.Join(Environment.NewLine, s.Highlights)),
+        ("highlights.txt", string.Join(Environment.NewLine, s.Highlights.Select(h => h.Text))),
         ("zone.txt", s.Zone),
         ("played.txt", s.Played),
         ("item_level.txt", s.ItemLevel),

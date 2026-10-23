@@ -64,7 +64,13 @@
   .today { margin-top: 6px; font-size: 13px; color: #fcd34d; white-space: nowrap; }
   .since { margin-top: 8px; font-size: 11px; color: #94a3b8; }
   .hl-title { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
-  .hl div.line { font-size: 13px; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+  .hl div.line { font-size: 13px; color: #e2e8f0; line-height: 1.5; display: flex; align-items: center; gap: 6px; }
+  .hl div.line span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  /* Each line's icon, as tall as its text: the item's (framed in its quality color) or the kind's.
+     A line without one keeps an empty slot, so the text stays lined up. */
+  .hl .icon { flex: none; width: 1.25em; height: 1.25em; border-radius: 3px; box-sizing: border-box;
+              border: 1px solid rgba(255, 255, 255, .18); object-fit: cover; box-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+  .hl i.icon { border-color: transparent; box-shadow: none; }
 
   /* The alert (DING!, VICTORY!, EPIC LOOT!...): center of the canvas, a burst of light, then fades.
      WoW's look: Friz Quadrata when it's installed, else a classic serif, with a dark edge. The tone
@@ -249,7 +255,16 @@
     const lines = look.highlights ? (s.highlights || []) : [];
     if (lines.length) {
       const t = document.createElement("div"); t.className = "hl-title"; t.textContent = "Highlights"; hl.append(t);
-      lines.forEach(h => { const d = document.createElement("div"); d.className = "line"; d.textContent = h; hl.append(d); });
+      lines.forEach(h => {
+        const d = document.createElement("div"); d.className = "line";
+        const icon = document.createElement(h.icon ? "img" : "i"); icon.className = "icon";
+        if (h.icon) {
+          icon.src = h.icon; icon.alt = ""; if (h.color) icon.style.borderColor = h.color;
+          icon.onerror = () => { const slot = document.createElement("i"); slot.className = "icon"; icon.replaceWith(slot); }; // offline: keep the line lined up
+        }
+        const t = document.createElement("span"); t.textContent = h.text;
+        d.append(icon, t); hl.append(d);
+      });
       hl.append(brand());
     }
     hl.classList.toggle("on", lines.length > 0 && wants("highlights"));

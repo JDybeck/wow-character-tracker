@@ -10,7 +10,7 @@ namespace WoWCharacterTracker.Services.Streaming;
 sealed record StreamSnapshot(
     string Character, string Game, int Level, string ClassName, string ClassColor, string Race, string Realm,
     string Zone, string Played, string ItemLevel, IReadOnlyList<StreamLevel> Levels, string LastLevel, string Today,
-    IReadOnlyList<string> Highlights, StreamAlert? Alert, long Now,
+    IReadOnlyList<StreamHighlight> Highlights, StreamAlert? Alert, long Now,
     StreamRecord? Duels = null, StreamRecord? Makgora = null, StreamLook? Look = null, string SinceText = "",
     string Spec = "", string Gold = "", string Keystone = "", IReadOnlyList<StreamRating>? Ratings = null, StreamRecord? Battlegrounds = null,
     string Talents = "", string LevelPlayed = "")
@@ -27,15 +27,18 @@ sealed record StreamSnapshot(
 
     // The character played last of each game's candidates (Empty when there are none: MaxBy on an
     // empty list of tuples would throw).
-    public static StreamSnapshot Latest(IEnumerable<(StreamCharacter Character, IReadOnlyList<Entry> Events)> candidates, DateTimeOffset now, StreamOptions? options = null)
+    public static StreamSnapshot Latest(IEnumerable<(StreamCharacter Character, IReadOnlyList<Entry> Events)> candidates, DateTimeOffset now, StreamOptions? options = null,
+        Func<int, Wowhead.Info?>? items = null)
     {
         var list = candidates.ToList();
         if (list.Count == 0) return Empty with { Look = StreamLook.From(options ?? new()) };
         var (character, events) = list.MaxBy(v => v.Character.LastSeen);
-        return Build(character, events, now, options);
+        return Build(character, events, now, options, items);
     }
 
-    public static StreamSnapshot Build(StreamCharacter c, IEnumerable<Entry> events, DateTimeOffset now, StreamOptions? options = null)
+    // items: what Wowhead knows of an item id so far (its icon and quality), for loot and mount lines.
+    public static StreamSnapshot Build(StreamCharacter c, IEnumerable<Entry> events, DateTimeOffset now, StreamOptions? options = null,
+        Func<int, Wowhead.Info?>? items = null)
     {
         var o = options ?? new();
         var from = o.From(now);
@@ -58,7 +61,7 @@ sealed record StreamSnapshot(
         }
 
         var kinds = o.HighlightKinds.ToHashSet();
-        var highlights = mine.Where(e => kinds.Contains(e.Kind)).Select(HighlightText).Where(t => t.Length > 0).Take(HighlightsShown).ToList();
+        var highlights = mine.Where(e => kinds.Contains(e.Kind)).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0).Take(HighlightsShown).ToList();
 
         return new StreamSnapshot(
             c.Name, c.Game, c.Level, c.ClassName, c.ClassColor, c.Race, c.Realm, c.Zone, c.Played, c.ItemLevel,
@@ -93,6 +96,23 @@ sealed record StreamSnapshot(
     // "Won a duel against Grimtusk", "Lost Warsong Gulch". Wins and losses both.
     public static string HighlightText(Entry e) => Services.HighlightText.Text(e);
 
+    // A highlight line with its icon: the item's own for loot and mounts once Wowhead has it (with its
+    // quality's color as the frame), the rating's for milestones, else one per kind (Wowhead.HighlightIcons).
+    public static StreamHighlight Highlight(Entry e, Func<int, Wowhead.Info?>? items = null)
+    {
+        var item = e.Kind is "loot" or "mount" && e.ItemId > 0 ? items?.Invoke(e.ItemId) : null;
+        var icon = item is { Icon.Length: > 0 } ? item.Icon
+            : e.Kind switch
+            {
+                "mplus" => Wowhead.RatingIcons["Mythic+"],
+                "pvp" => Wowhead.RatingIcons.GetValueOrDefault(e.Bracket) ?? Wowhead.RatingIcons["2v2"],
+                _ => Wowhead.HighlightIcons.GetValueOrDefault(e.Kind),
+            };
+        var quality = e.Kind == "loot" && e.Quality > 0 ? e.Quality : item?.Quality ?? -1;
+        return new(HighlightText(e), icon is null ? "" : Wowhead.IconUrl(icon, "small"),
+            e.Kind is "loot" or "mount" ? ItemTooltip.QualityColor(quality) ?? "" : "", e.Kind is "loot" or "mount" ? e.ItemId : 0);
+    }
+
     // The overlay's alert for an event, the way Discord would post it, or null when it's not alert
     // material (a duel or Mak'gora lost, rare loot is its own kind). Tone picks the colors on the page.
     public static StreamAlert? AlertFor(Entry e) => e.Kind switch
@@ -124,6 +144,13 @@ sealed record StreamCharacter(string Guid, string Name, string Game, int Level, 
     IReadOnlyList<StreamRating>? Ratings = null, string Talents = "", long PlayedSeconds = 0);
 
 sealed record StreamLevel(int Level, string Took);
+
+// A highlights line: its text, the icon's address ("" = none) and, for items, the quality color for its frame.
+// ItemId is the item still to look up for its icon (loot and mounts).
+sealed record StreamHighlight(string Text, string Icon = "", string Color = "", int ItemId = 0)
+{
+    public override string ToString() => Text;
+}
 
 // A Retail rating on the card: "Mythic+" 2850, "3v3" 1850 (Format.Ratings).
 sealed record StreamRating(string Name, int Rating);

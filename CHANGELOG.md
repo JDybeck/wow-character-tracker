@@ -9,6 +9,7 @@ The app shows the notes for a new version when it finds an update. Each release 
 - The card and highlights can drop their border, and show a small WoW Character Tracker line with the logo and GitHub's mark (on by default, you can turn it off).
 - Pick which stats the card shows: item level, played, **played at this level**, gold, **talents** (numbers only, like 31/20/0), zone, and on Retail the keystone and ratings.
 - The alert (DING!, VICTORY!...) pops in about twice as fast.
+- **Icons in the overlay's highlights**: the item's own icon for loot and mounts (framed in its quality color), and an icon per kind for boss kills, duels, Mak'gora, battlegrounds, deaths and rating milestones.
 
 ## v0.25.4
 
