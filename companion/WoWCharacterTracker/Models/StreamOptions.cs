@@ -39,7 +39,6 @@ class StreamOptions
     public string Background { get; set; } = "";
 
     public bool ShowBorder { get; set; } = true;  // the thin colored edge around the card and highlights
-    public bool ShowBrand { get; set; } = true;   // the small "WoW Character Tracker" line under them
 
     // Which highlights the highlights box shows (Highlights.Kinds): loot, boss, mount, duel, makgora, bg, death, mplus, pvp.
     public List<string> HighlightKinds { get; set; } = [.. AllKinds];

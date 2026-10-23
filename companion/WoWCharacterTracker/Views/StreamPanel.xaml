@@ -134,8 +134,6 @@
           <WrapPanel Margin="0,0,0,6">
             <CheckBox Style="{StaticResource OptionChip}" Content="Border" IsChecked="{Binding ShowBorder}" Margin="0,0,6,6"
                       ToolTip="The thin colored edge around the card and the highlights"/>
-            <CheckBox Style="{StaticResource OptionChip}" Content="Our name" IsChecked="{Binding ShowBrand}" Margin="0,0,6,6"
-                      ToolTip="A small WoW Character Tracker line with the logo under the card and highlights. Thanks for leaving it on!"/>
           </WrapPanel>
 
           <TextBlock Text="CARD" Style="{StaticResource SectionTitle}" FontSize="11" Margin="0,0,0,4"
