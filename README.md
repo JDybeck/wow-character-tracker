@@ -8,7 +8,7 @@ Made for WoW Forever (Classic+), and works for Retail too. An addon in the game 
 
 - **Every character at a glance**: level, item level, gold, talents, professions, gear, bags and bank, and how long every level took.
 - **Find any item** across all your characters, with Wowhead tooltips.
-- **Discord posts** (optional): level-ups, end boss kills, epic loot, new mounts, hardcore deaths and more, the moment they happen, with an in-game screenshot if you like.
+- **Discord posts** (optional): level-ups, end boss kills (Mythic+ runs on Retail), epic loot, new mounts, hardcore deaths and more, the moment they happen, with an in-game screenshot if you like.
 - **Stream overlay** (optional): your character, records and big **DING!** alerts in OBS or Streamlabs.
 - **Stays out of the way**: waits in the tray, opens with WoW, updates itself, and uninstalls everything it added.
 
@@ -40,6 +40,10 @@ From then on the app waits in the tray and opens when you start WoW.
 **What gets posted**: pick what goes to Discord, per game, with a Test button for each. Posts come with the item's tooltip as a picture, or your in-game screenshot.
 
 ![What gets posted, in General, PvE and PvP columns](docs/images/what-gets-posted.png)
+
+In Discord: a level-up with the screenshot the addon took in game, and a character card posted from the app.
+
+<img src="docs/images/level-up-post.png" alt="A level-up post in Discord with an in-game screenshot" width="420"> <img src="docs/images/character-card.png" alt="A character card as posted to Discord" width="300">
 
 **Stream overlay**: turn it on in its panel, copy the address into OBS as a Browser source.
 

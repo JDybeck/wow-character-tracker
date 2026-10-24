@@ -8,6 +8,7 @@ Mythic+ runs on Retail. Update the addon with the app (it does this by itself) a
 
 - **Mythic+ runs** take the place of end boss kills on Retail's What gets posted page: a finished key posts the dungeon, the time, how far the key goes up (or that it went over time), your new rating and the group. Pick the lowest key level that gets a post (+10 by default) and tick **Timed only** to skip keys that went over the timer. Screenshots work like the other kinds.
 - Every run is a highlight in the app and on the stream overlay, a timed key pops up as **TIMED!**, and guild/group chat can announce them (from the same key level).
+- When a post should have had a screenshot but the game took none (the box was ticked after your last /reload, and the game only reads those settings then), the console now says so instead of posting quietly without it.
 - End boss kills are no longer recorded on Retail. The list is Classic's dungeons and raids, so there it only ever caught old raids soloed for transmog. Forever keeps them as before.
 
 ## v0.27.2
