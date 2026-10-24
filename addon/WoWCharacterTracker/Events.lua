@@ -270,8 +270,54 @@ function ns.recordLevel(guid, level, seconds, played)
   ns.record("level", fields, tostring(level))
 end
 
--- The other people in the party: "Name~level~CLASSFILE~Class~Race~Realm" per member, joined by
--- commas. Raids list only how many there are, since 40 names don't fit a post.
+-- Party members' specs (Retail), by name: other players' spec needs an inspect, so the party is
+-- inspected when a key starts (everyone is close then), one at a time. GetInspectSpecialization also
+-- answers from what the client already knows, so it's asked again when the group is recorded.
+local groupSpecs, inspectQueue, inspecting = {}, {}, nil
+
+local function specName(unit)
+  if not GetInspectSpecialization then return nil end
+  local ok, id = pcall(GetInspectSpecialization, unit)
+  id = ok and ns.plain(id)
+  if type(id) ~= "number" or id <= 0 or not GetSpecializationInfoByID then return nil end
+  return ns.plain((select(2, GetSpecializationInfoByID(id))))
+end
+
+local function inspectNext()
+  inspecting = nil
+  while #inspectQueue > 0 do
+    local unit = table.remove(inspectQueue, 1)
+    if UnitExists(unit) and CanInspect and CanInspect(unit) then
+      inspecting = unit
+      ns.doing("NotifyInspect")
+      NotifyInspect(unit)
+      C_Timer.After(2, function() if inspecting == unit then inspectNext() end end) -- no answer: go on
+      return
+    end
+  end
+end
+
+function ns.inspectGroup()
+  if not (NotifyInspect and IsInGroup and IsInGroup()) or (IsInRaid and IsInRaid()) then return end
+  inspectQueue = {}
+  for i = 1, 4 do
+    local unit = "party" .. i
+    local name = UnitExists(unit) and ns.plain(UnitName(unit))
+    if name and not groupSpecs[name] then table.insert(inspectQueue, unit) end
+  end
+  if not inspecting then inspectNext() end
+end
+
+function ns.onInspectReady()
+  local unit = inspecting
+  if not unit then return end
+  local name, spec = ns.plain(UnitName(unit)), specName(unit)
+  if name and spec then groupSpecs[name] = spec end
+  C_Timer.After(1.5, inspectNext) -- the server limits how quickly inspects may follow
+end
+
+-- The other people in the party: "Name~level~CLASSFILE~Class~Race~Realm~Spec" per member (spec on
+-- Retail when known), joined by commas. Raids list only how many there are, since 40 names don't fit a post.
 getGroup = function()
   if not IsInGroup or not IsInGroup() then return nil, 1 end
   local size = GetNumGroupMembers and GetNumGroupMembers() or 1
@@ -287,8 +333,9 @@ getGroup = function()
       end
       local className, classFile = UnitClass(unit)
       local raceName = UnitRace(unit)
+      local spec = (name and groupSpecs[name]) or specName(unit)
       table.insert(members, table.concat({ name or "?", UnitLevel(unit) or 0, classFile or "", className or "",
-        raceName or "", (realm and realm ~= "") and realm or "" }, "~"))
+        raceName or "", (realm and realm ~= "") and realm or "", spec or "" }, "~"))
     end
   end
   return table.concat(members, ","), size

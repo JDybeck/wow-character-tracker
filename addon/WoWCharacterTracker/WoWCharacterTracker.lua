@@ -74,6 +74,8 @@ function on.CHAT_MSG_LOOT(text) ns.recordLoot(text) end
 function on.PLAYER_DEAD() ns.recordDeath() end
 function on.CHAT_MSG_SYSTEM(text) ns.onSystemMessage(text) end -- duels and Mak'gora
 function on.DUEL_REQUESTED(name) ns.onDuelRequested(name) end -- remembers the challenger's class and level
+function on.CHALLENGE_MODE_START() C_Timer.After(1, ns.inspectGroup) end -- the party's specs, for the run's group
+function on.INSPECT_READY() ns.onInspectReady() end
 function on.CHALLENGE_MODE_COMPLETED()
   ns.recordKeyRun()
   C_Timer.After(5, ns.checkRatings) -- the new score takes a moment

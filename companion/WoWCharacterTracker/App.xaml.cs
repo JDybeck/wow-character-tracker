@@ -37,6 +37,8 @@ public partial class App : Application
         // long enough to read.
         ToolTipService.InitialShowDelayProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(300));
         ToolTipService.ShowDurationProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(20000));
+        ScrollChaining.Register(); // the wheel over a list inside a page scrolls the page once the list can't
+
         base.OnStartup(e);
         Updater.CleanUp();
         StartMenu.Apply();

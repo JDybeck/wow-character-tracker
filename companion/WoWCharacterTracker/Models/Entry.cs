@@ -78,11 +78,11 @@ record Entry
     public string TalentExport { get; init; } = ""; // check-ins: the talent loadout code
     public string TalentCalc { get; init; } = "";   // check-ins (Forever): Wowhead talent calculator code
 
-    // "Name~level~CLASSFILE~Class~Race~Realm,..." as the addon writes it.
+    // "Name~level~CLASSFILE~Class~Race~Realm~Spec,..." as the addon writes it (Spec from 0.28.0, Retail, when known).
     public IReadOnlyList<GroupMember> Members => Group.Length == 0 ? [] : Group.Split(',')
         .Select(m => m.Split('~'))
         .Where(p => p.Length >= 5)
-        .Select(p => new GroupMember(p[0], int.TryParse(p[1], out var l) ? l : 0, p[2], p[3], p[4], p.Length > 5 ? p[5] : ""))
+        .Select(p => new GroupMember(p[0], int.TryParse(p[1], out var l) ? l : 0, p[2], p[3], p[4], p.Length > 5 ? p[5] : "", p.Length > 6 ? p[6] : ""))
         .ToList();
 
     // Builds an entry from the addon's key/value data, wherever it came from.
@@ -156,7 +156,10 @@ record Entry
     static string GuidFromId(string id) => id.IndexOf(':') is var i and > 0 ? id[..i] : id;
 }
 
-record GroupMember(string Name, int Level, string ClassFile, string Class, string Race, string Realm)
+record GroupMember(string Name, int Level, string ClassFile, string Class, string Race, string Realm, string Spec = "")
 {
     public string FullName => Realm.Length > 0 ? $"{Name}-{Realm}" : Name;
+
+    // "Havoc" when the spec is known, else "Demon Hunter" (the name's class color tells specs apart).
+    public string SpecOrClass => Spec.Length > 0 ? Spec : Class;
 }

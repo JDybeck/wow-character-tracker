@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Windows.Media;
 using MoonSharp.Interpreter;
 using WoWCharacterTracker.Services.LiveChannel;
 using WoWCharacterTracker.Services.Streaming;
@@ -176,6 +177,17 @@ public class SharedRulesTests
         Assert.False(EventKinds.OfferedIn("boss", Flavors.Retail.HasRatings));
         Assert.False(EventKinds.OfferedIn("keyrun", Flavors.Forever.HasRatings));
         Assert.True(EventKinds.OfferedIn("keyrun", Flavors.Retail.HasRatings));
+    }
+
+    // The group on a highlight: each name in its class color, then the spec, or the class for groups
+    // recorded before the addon knew specs.
+    [Fact]
+    public void Group_members_show_their_spec_when_known()
+    {
+        var e = new Entry { Group = "Dreadus~90~DEMONHUNTER~Demon Hunter~Night Elf~ArgentDawn~Havoc,Renniz~90~PRIEST~Priest~Troll~Stormscale" };
+        var parts = GroupPart.Of(e.Members);
+        Assert.Equal(["With Dreadus (90 Havoc),", "Renniz (90 Priest)"], parts.Select(p => p.Lead + p.Name + p.Rest));
+        Assert.Equal(Color.FromRgb(0xA3, 0x30, 0xC9), parts[0].Brush.Color);
     }
 
     [Fact]
