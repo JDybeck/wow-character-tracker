@@ -51,15 +51,16 @@
     <EmbeddedResource Include="Assets\enchant-spells.json" LogicalName="Data/enchant-spells.json" />
   </ItemGroup>
 
-  <!-- Runtime parts the app never loads, left out of the published exe (~7 MB). Trimming isn't
+  <!-- Runtime parts the app never loads, left out of the published exe (~10 MB). Trimming isn't
        supported for WPF, so this is a fixed list: debugger and dump helpers, other GCs, features
-       we don't use (VB, DataSet, LDAP, mail, HTTP/3, PLINQ, Dataflow, tar) and the XP themes plus
+       we don't use (VB, DataSet, LDAP, mail, HTTP/3, PLINQ, Dataflow, tar, async LINQ, XML/CMS
+       signatures (only signed XPS packages need them), event log message texts) and the XP themes plus
        Fluent (Windows 10/11 use Aero2; Aero, AeroLite and Classic stay for older or high contrast
        setups). Ribbon looks unused but WPF loads it at startup: without it the window never shows.
        A missing one only fails when its code is reached, so render every page (screenshot mode)
        after a .NET upgrade. -->
   <PropertyGroup>
-    <UnusedRuntimeFiles>;Microsoft.DiaSymReader.Native.amd64.dll;mscordaccore.dll;mscordbi.dll;createdump.exe;clrgc.dll;clrgcexp.dll;Microsoft.VisualBasic.Core.dll;System.Data.Common.dll;PresentationFramework-SystemData.dll;System.Transactions.Local.dll;System.DirectoryServices.dll;System.Diagnostics.PerformanceCounter.dll;System.Net.Mail.dll;msquic.dll;System.Linq.Parallel.dll;System.Threading.Tasks.Dataflow.dll;System.Formats.Tar.dll;PresentationFramework.Luna.dll;PresentationFramework.Royale.dll;PresentationFramework.Fluent.dll;</UnusedRuntimeFiles>
+    <UnusedRuntimeFiles>;Microsoft.DiaSymReader.Native.amd64.dll;mscordaccore.dll;mscordbi.dll;createdump.exe;clrgc.dll;clrgcexp.dll;Microsoft.VisualBasic.Core.dll;System.Data.Common.dll;PresentationFramework-SystemData.dll;System.Transactions.Local.dll;System.DirectoryServices.dll;System.Diagnostics.PerformanceCounter.dll;System.Net.Mail.dll;msquic.dll;System.Linq.Parallel.dll;System.Threading.Tasks.Dataflow.dll;System.Formats.Tar.dll;System.Linq.AsyncEnumerable.dll;System.Security.Cryptography.Xml.dll;System.Security.Cryptography.Pkcs.dll;System.Diagnostics.EventLog.Messages.dll;PresentationFramework.Luna.dll;PresentationFramework.Royale.dll;PresentationFramework.Fluent.dll;</UnusedRuntimeFiles>
   </PropertyGroup>
   <Target Name="LeaveOutUnusedRuntime" AfterTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>

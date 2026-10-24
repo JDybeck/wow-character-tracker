@@ -99,13 +99,16 @@ static class TestCharacters
         {
             Carrying(zeb, "1~7719,3~7718,5~6125,7~6087,8~7351,16~7717", "6948~1,2589~20,4306~32,2772~14,3575~8,929~5,4599~12,159~20", "4306~40,2772~20,7718~1,6125~1", now),
             Carrying(fagel, "7~10410,1~6505,16~1238", "6948~1,2589~11,2452~14,785~22,118~6,159~10", "", 0),
-            Carrying(goggo, "1~16846,3~16848,5~16845,18~18713", "6948~1,13444~8,13446~12,12662~4,14047~60", "14047~120,12809~4,16846~1", now - 3 * 86400) with
+            // Every slot filled (the README's gear picture): the full Giantstalker set plus Molten Core and Blackrock pieces.
+            Carrying(goggo, "1~16846,2~18404,3~16848,4~2587,5~16845,6~16851,7~16847,8~16849,9~16850,10~16852,11~17063,12~18821,13~13965,14~11815,15~17102,16~18832,17~18805,18~18713,19~5976",
+                "6948~1,13444~8,13446~12,12662~4,14047~60", "14047~120,12809~4,16846~1", now - 3 * 86400) with
             {
-                // As the addon saves them (Inventory.lua scanGearEffects), for the gear tab's side column.
-                Sets = Inventory.ParseSets("Giantstalker Armor~3~8~3~Increases the range of your Mend Pet spell by 50% and the effect by 10%.\n"
-                    + "Giantstalker Armor~3~8~5~Increases the damage of Multi-Shot and Volley by 15%.\n"
-                    + "Giantstalker Armor~3~8~8~Your normal ranged attacks have a 4% chance of restoring 200 mana."),
-                Effects = Inventory.ParseEffects("1~16846~Equip: Improves your chance to hit by 1%.\n5~16845~Equip: Improves your chance to get a critical strike by 1%."),
+                // As the addon saves them (Inventory.lua scanGearEffects), for the gear tab's side column; the game drops "(N)" from active bonuses.
+                Sets = Inventory.ParseSets("Giantstalker Armor~8~8~0~Increases the range of your Mend Pet spell by 50% and the effect by 10%.\n"
+                    + "Giantstalker Armor~8~8~0~Increases the damage of Multi-Shot and Volley by 15%.\n"
+                    + "Giantstalker Armor~8~8~0~Your normal ranged attacks have a 4% chance of restoring 200 mana."),
+                Effects = Inventory.ParseEffects("1~16846~Equip: Improves your chance to hit by 1%.\n5~16845~Equip: Improves your chance to get a critical strike by 1%.\n"
+                    + "13~13965~Equip: Improves your chance to get a critical strike by 2%.\n14~11815~Equip: 2% chance on melee hit to gain 1 extra attack."),
                 Enchants = Inventory.ParseEnchants("5~16845~+4 All Stats~1891\n18~18713~+7 Ranged Damage~664"),
                 // Equipment Manager sets (Inventory.lua scanEquipSets): one worn, one with pieces put away or lost.
                 EquipmentSets = Inventory.ParseEquipmentSets("132329~1~1:16846:equipped,3:16848:equipped,5:16845:equipped,18:18713:equipped,4:0:ignored~Raid\n"
