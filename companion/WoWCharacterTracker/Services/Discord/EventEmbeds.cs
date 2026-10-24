@@ -144,8 +144,8 @@ sealed class EventEmbeds(Flavor flavor)
         {
             lines.Add("");
             lines.Add("**Group:**");
-            lines.Add($"{e.Char}, {e.Level} {e.Race} {e.Class}".TrimEnd());
-            lines.AddRange(members.Select(m => $"{m.Name}, {m.Level} {m.Race} {m.Class}".TrimEnd()));
+            lines.Add($"{e.Char}, {e.Level} {e.Race} {e.Spec} {e.Class}".Replace("  ", " ").TrimEnd());
+            lines.AddRange(members.Select(m => $"{m.Name}, {m.Level} {m.Race} {m.Spec} {m.Class}".Replace("  ", " ").TrimEnd()));
         }
         else if (e.GroupSize > 5)
         {

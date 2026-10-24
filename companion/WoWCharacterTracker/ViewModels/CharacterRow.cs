@@ -344,9 +344,9 @@ sealed class CharacterRow : Observable
     {
         var row = Row(e);
         row.Source = e;
+        if (e.Kind is "boss" or "keyrun") row.Group = GroupPart.Of(e.Members);
         row.Detail = e.Kind switch
         {
-            "boss" or "keyrun" when e.Members.Count > 0 => "With " + string.Join(", ", e.Members.Select(m => $"{m.Name} ({m.Level} {m.Class})".Replace(" ()", ""))),
             "boss" when e.GroupSize > 5 => $"With a raid of {e.GroupSize}",
             "duel" or "makgora" when e.OpponentText.Length > 0 => char.ToUpperInvariant(e.OpponentText[0]) + e.OpponentText[1..],
             "death" => string.Join(", ", new[] { e.Played > 0 ? $"{Format.Played(e.Played)} played" : "", $"lost {Format.Money(e.Gold)}", e.Zone }.Where(p => p.Length > 0)),

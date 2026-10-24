@@ -103,7 +103,16 @@ public class AddonLuaTests
         var script = new Script();
         script.DoString("""
             function time() return 5000 end
-            function IsInGroup() return false end
+            -- One party member, whose spec the client knows (else the group says only the class).
+            function IsInGroup() return true end
+            function GetNumGroupMembers() return 2 end
+            function UnitExists(u) return u == 'party1' end
+            function UnitName(u) return 'Dreadus', 'ArgentDawn' end
+            function UnitLevel() return 90 end
+            function UnitClass() return 'Demon Hunter', 'DEMONHUNTER' end
+            function UnitRace() return 'Night Elf' end
+            function GetInspectSpecialization(u) return 577 end
+            function GetSpecializationInfoByID(id) return id, 'Havoc' end
             C_ChallengeMode = { GetMapUIInfo = function(id) return id == 503 and 'Ara-Kara, City of Echoes' or nil end }
             """);
         script.DoString(tableApi
@@ -131,6 +140,7 @@ public class AddonLuaTests
         Assert.Equal(tableApi ? 2 : 0, e.Get("upgrades").Number);
         Assert.Equal(tableApi ? 1601 : 2400, e.Get("seconds").Number);
         Assert.Equal(tableApi ? 2847 : 2810, e.Get("rating").Number);
+        Assert.Equal("Dreadus~90~DEMONHUNTER~Demon Hunter~Night Elf~ArgentDawn~Havoc", e.Get("group").String);
     }
 
     [Fact]
