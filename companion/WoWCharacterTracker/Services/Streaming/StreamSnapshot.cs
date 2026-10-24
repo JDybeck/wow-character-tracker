@@ -107,7 +107,7 @@ sealed record StreamSnapshot(
         var icon = item is { Icon.Length: > 0 } ? item.Icon
             : e.Kind switch
             {
-                "mplus" => Wowhead.RatingIcons["Mythic+"],
+                "mplus" or "keyrun" => Wowhead.RatingIcons["Mythic+"],
                 "pvp" => Wowhead.RatingIcons.GetValueOrDefault(e.Bracket) ?? Wowhead.RatingIcons["2v2"],
                 _ => Wowhead.HighlightIcons.GetValueOrDefault(e.Kind),
             };
@@ -117,12 +117,13 @@ sealed record StreamSnapshot(
     }
 
     // The overlay's alert for an event, the way Discord would post it, or null when it's not alert
-    // material (a duel or Mak'gora lost, rare loot is its own kind). Tone picks the colors on the page.
+    // material (a duel or Mak'gora lost, a key over time; rare loot is its own kind). Tone picks the colors on the page.
     public static StreamAlert? AlertFor(Entry e) => e.Kind switch
     {
         "level" when e.MaxLevel => new(e.Id, "maxlevel", "MAX LEVEL!", $"Level {e.Level}", e.Played > 0 ? $"Total played {Format.Played(e.Played)}" : "", "legendary", e.At),
         "level" => new(e.Id, "level", "DING!", $"Level {e.Level}", e.Seconds > 0 ? $"{e.Level - 1} to {e.Level} took {Took(e)}" : "", "gold", e.At),
         "boss" when e.Boss.Length > 0 => new(e.Id, "boss", "VICTORY!", $"{e.Boss} defeated", e.Instance, "victory", e.At),
+        "keyrun" when e.Timed => new(e.Id, "keyrun", "TIMED!", Format.KeyRun(e), $"+{e.Upgrades}" + (e.Seconds > 0 ? $" in {Format.Clock(e.Seconds)}" : ""), "victory", e.At),
         "loot" when e.Quality >= 5 => new(e.Id, "legendary", "LEGENDARY!", e.Item, "", "legendary", e.At),
         "loot" when e.Quality == 4 => new(e.Id, "epic", "EPIC LOOT!", e.Item, "", "epic", e.At),
         "loot" when e.Quality == 3 => new(e.Id, "rare", "RARE LOOT!", e.Item, "", "rare", e.At),
@@ -165,7 +166,7 @@ sealed record StreamRecord(int Won, int Lost)
 }
 
 // The newest alert-worthy moment; the overlay pops it up when it's new (Id) and recent (At).
-// Kind: level, maxlevel, boss, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
+// Kind: level, maxlevel, boss, keyrun, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
 // How the overlay looks: the card's background (0-100), which parts and stats lines it shows, its

@@ -24,6 +24,7 @@ sealed class EventEmbeds(Flavor flavor)
         var (title, lines) = e.Kind switch
         {
             "boss" => BossText(e),
+            "keyrun" => KeyRunText(e),
             "loot" when e.Quality >= 5 => LegendaryText(e),
             "loot" => LootText(e, itemPicture),
             "mount" => MountText(e, itemPicture),
@@ -50,7 +51,7 @@ sealed class EventEmbeds(Flavor flavor)
             embed["color"] = qc;
         else if (e.Kind is "death" or "makgora")
             embed["color"] = 0x8B0000;
-        else if (e.Kind == "mplus")
+        else if (e.Kind == "mplus" || (e.Kind == "keyrun" && e.Timed))
             embed["color"] = 0xA335EE;
         else if (e.Kind == "pvp")
             embed["color"] = 0xC41E3A;
@@ -120,8 +121,24 @@ sealed class EventEmbeds(Flavor flavor)
     {
         var lines = new List<string>();
         if (e.Instance.Length > 0) lines.Add($"Final boss of **{e.Instance}** is down.");
+        AddGroup(e, lines);
+        return ($"{e.Char} killed {e.Boss}!", lines);
+    }
 
-        // The team: this character first, then the rest of the party.
+    // A finished Mythic+ run (Retail's end boss kill): the key, how it went, the score and the group.
+    static (string, List<string>) KeyRunText(Entry e)
+    {
+        var lines = new List<string>();
+        var time = e.Seconds > 0 ? $" in **{Format.Clock(e.Seconds)}**" : "";
+        lines.Add(e.Timed ? $"Timed{time}, the key goes up **+{e.Upgrades}**." : $"Finished{time}, over the timer.");
+        if (e.Rating > 0) lines.Add($"Mythic+ rating: **{e.Rating}**.");
+        AddGroup(e, lines);
+        return (e.Timed ? $"\U0001F5DD️ {e.Char} timed {Format.KeyRun(e)}!" : $"{e.Char} finished {Format.KeyRun(e)}", lines);
+    }
+
+    // The team: this character first, then the rest of the party.
+    static void AddGroup(Entry e, List<string> lines)
+    {
         var members = e.Members;
         if (members.Count > 0)
         {
@@ -138,7 +155,6 @@ sealed class EventEmbeds(Flavor flavor)
         {
             lines.Add($"Solo at level {e.Level}.");
         }
-        return ($"{e.Char} killed {e.Boss}!", lines);
     }
 
     // The item links to Wowhead, in the title (the embed's url) and in the text (unless the item's

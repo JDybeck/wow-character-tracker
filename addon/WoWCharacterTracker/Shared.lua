@@ -28,13 +28,13 @@ function ns.debounce(delay, fn)
   end
 end
 
--- Loot, duels and battlegrounds pile up over months of play, and the game and the app handle the
--- whole list on every /reload, logout and sync. Only the newest TRIM_KEEP of each are kept per
--- character; level-ups, boss kills (level times and first kills depend on them) and everything else
--- stay. Events are appended as they happen, so the end of the list is the newest.
+-- Loot, duels, battlegrounds and Mythic+ runs pile up over months of play, and the game and the app
+-- handle the whole list on every /reload, logout and sync. Only the newest TRIM_KEEP of each are kept
+-- per character; level-ups, boss kills (level times and first kills depend on them) and everything
+-- else stay. Events are appended as they happen, so the end of the list is the newest.
 -- (The duel and battleground records the app shows count what's kept.) Settings.lua keepAllHistory
 -- (the app's In game page) turns it off; ADDON_LOADED checks that.
-local TRIM_KINDS = { loot = true, duel = true, bg = true }
+local TRIM_KINDS = { loot = true, duel = true, bg = true, keyrun = true }
 local TRIM_KEEP = 300
 
 -- Trims the saved list in place. Returns how many events went.
@@ -59,6 +59,12 @@ end
 -- A setting from Settings.lua (written by the app), or nil when there's none (an older app).
 function ns.setting(key)
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]
+end
+
+-- The value, or nil when the game hides it from addons (a secret value on Midnight-era clients).
+function ns.plain(v)
+  if v == nil or (issecretvalue and issecretvalue(v)) then return nil end
+  return v
 end
 
 -- "Grimtusk-Stormrage" -> "Grimtusk".

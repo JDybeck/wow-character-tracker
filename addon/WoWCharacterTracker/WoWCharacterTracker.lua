@@ -74,7 +74,10 @@ function on.CHAT_MSG_LOOT(text) ns.recordLoot(text) end
 function on.PLAYER_DEAD() ns.recordDeath() end
 function on.CHAT_MSG_SYSTEM(text) ns.onSystemMessage(text) end -- duels and Mak'gora
 function on.DUEL_REQUESTED(name) ns.onDuelRequested(name) end -- remembers the challenger's class and level
-function on.CHALLENGE_MODE_COMPLETED() C_Timer.After(5, ns.checkRatings) end -- the new score takes a moment
+function on.CHALLENGE_MODE_COMPLETED()
+  ns.recordKeyRun()
+  C_Timer.After(5, ns.checkRatings) -- the new score takes a moment
+end
 function on.PVP_RATED_STATS_UPDATE() ns.checkRatings() end
 function on.UPDATE_BATTLEFIELD_STATUS() ns.checkBattleground() end
 function on.PVP_MATCH_COMPLETE() ns.checkBattleground() end -- retail

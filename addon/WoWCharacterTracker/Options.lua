@@ -117,7 +117,7 @@ local function picked(t, names)
 end
 local KINDS = { { "level", "level-ups" }, { "maxLevel", "max level" }, { "maxlevel", "max level" }, { "rare", "rare loot" }, { "epic", "epic loot" },
   { "loot", "loot" }, { "mount", "mounts" }, { "boss", "boss kills" }, { "death", "deaths" }, { "duel", "duels" }, { "makgora", "Mak'gora" },
-  { "bg", "battlegrounds" }, { "mplus", "Mythic+" }, { "pvp", "PvP rating" } }
+  { "bg", "battlegrounds" }, { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
 
 local function appSummary()
   if not WoWCharacterTrackerSettings or not WoWCharacterTrackerSettings.post then

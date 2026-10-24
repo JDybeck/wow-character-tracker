@@ -11,7 +11,7 @@ local SHORT = {
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
   maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V", keystone = "W", zoneType = "f",
-  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", -- single letters are used up, so new keys get two
+  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", -- single letters are used up, so new keys get two
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
@@ -363,7 +363,7 @@ end
 
 -- How long to wait before a normal screenshot, so the moment is on screen (the ding glow, the
 -- boss corpse, the death screen).
-local SHOT_DELAY = { level = 1.0, boss = 1.5, loot = 0.3, mount = 0.5, death = 0.2 }
+local SHOT_DELAY = { level = 1.0, boss = 1.5, keyrun = 2.0, loot = 0.3, mount = 0.5, death = 0.2 }
 
 -- Will the app post this event? Settings.lua carries the app's "What gets posted" choices, so
 -- the addon only sends events live (and screenshots them) when they'll actually be posted.
@@ -381,6 +381,10 @@ local function wanted(e)
   elseif e.kind == "loot" then
     if (e.quality or 0) >= 4 then return post.epic and true or false end
     return post.rare and true or false
+  elseif e.kind == "keyrun" then -- Mythic+ runs: from a key level, maybe only timed ones
+    local k = post.keyrun
+    if not k or not k.on or (e.keyLevel or 0) < (k.min or 0) then return false end
+    return not k.timed or (e.upgrades or 0) > 0
   end
   if e.lost then return false end -- duels and Mak'gora: only wins are posted
   return post[e.kind] and true or false

@@ -40,16 +40,17 @@ class StreamOptions
 
     public bool ShowBorder { get; set; } = true;  // the thin colored edge around the card and highlights
 
-    // Which highlights the highlights box shows (Highlights.Kinds): loot, boss, mount, duel, makgora, bg, death, mplus, pvp.
+    // Which highlights the highlights box shows (Highlights.Kinds): loot, boss, keyrun, mount, duel, makgora, bg, death, mplus, pvp.
     public List<string> HighlightKinds { get; set; } = [.. AllKinds];
-    public static readonly string[] AllKinds = ["loot", "boss", "mount", "duel", "makgora", "bg", "death", "mplus", "pvp"];
+    public static readonly string[] AllKinds = ["loot", "boss", "keyrun", "mount", "duel", "makgora", "bg", "death", "mplus", "pvp"];
 
     // Which moments pop up as the big alert (StreamAlert kinds). Rare loot is off by default (it's often).
-    public List<string> AlertKinds { get; set; } = ["level", "maxlevel", "boss", "legendary", "epic", "mount", "duel", "makgora", "bg", "death", "mplus", "pvp"];
-    public static readonly string[] AllAlertKinds = ["level", "maxlevel", "boss", "legendary", "epic", "rare", "mount", "duel", "makgora", "bg", "death", "mplus", "pvp"];
+    public List<string> AlertKinds { get; set; } = ["level", "maxlevel", "boss", "keyrun", "legendary", "epic", "mount", "duel", "makgora", "bg", "death", "mplus", "pvp"];
+    public static readonly string[] AllAlertKinds = ["level", "maxlevel", "boss", "keyrun", "legendary", "epic", "rare", "mount", "duel", "makgora", "bg", "death", "mplus", "pvp"];
 
-    // Battlegrounds came in 0.21.2: older configs get them switched on once (Config.Load).
+    // Battlegrounds came in 0.21.2, Mythic+ runs in 0.28.0: older configs get them switched on once (Config.Load).
     public bool HasBattlegrounds { get; set; }
+    public bool HasKeyRuns { get; set; }
 
     // What the overlay counts (records, highlights, level times): "all" (all time), "today" (since
     // local midnight) or "now" (since Since, the moment "Start counting now" was clicked). Empty in

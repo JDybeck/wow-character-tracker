@@ -34,6 +34,7 @@ static class SampleEvents
             "max" => e with { Kind = "level", Level = flavor.MaxLevel, Seconds = 2 * 3600 + 14 * 60, MaxLevel = true, Group = group, GroupSize = 5 },
             "mount" => e with { Kind = "mount", Mount = "Pinto Bridle", ItemId = 2414, Bought = true },
             "boss" => e with { Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", Group = group, GroupSize = 5 },
+            "keyrun" => e with { Kind = "keyrun", Instance = "Ara-Kara, City of Echoes", KeyLevel = 12, Upgrades = 2, Seconds = 26 * 60 + 41, Rating = 2847, Group = group, GroupSize = 5 },
             "death" => e with { Kind = "death", Killer = "Defias Pillager", Gold = 123456, Hardcore = true },
             "duel" => e with { Kind = "duel", Opponent = "Grimtusk", OpponentInfo = $"{Math.Max(e.Level, 2)}~WARRIOR~Warrior~Orc" },
             "makgora" => e with { Kind = "makgora", Opponent = "Grimtusk", OpponentInfo = $"{Math.Max(e.Level, 2)}~WARRIOR~Warrior~Orc", Hardcore = true },

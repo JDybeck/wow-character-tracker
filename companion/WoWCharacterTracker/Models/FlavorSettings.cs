@@ -28,6 +28,13 @@ class FlavorSettings
     public bool PostDeaths { get; set; }
     public bool FirstBossKillOnly { get; set; } = true; // each character's first kill of each end boss, not the farming after
 
+    // Finished Mythic+ runs (Retail, in place of end boss kills): from this key level up, and
+    // optionally only the ones in time.
+    public bool PostKeyRuns { get; set; } = true;
+    public int KeyRunMinLevel { get; set; } = 10;
+    public bool KeyRunTimedOnly { get; set; }
+    public const int KeyLevelMin = 2, KeyLevelMax = 40; // what the box takes (keys start at +2)
+
     // Duels, hardcore Mak'gora, and retail rating milestones (posted when a step is passed).
     public bool PostDuels { get; set; }
     public bool PostMakgora { get; set; } = true;
@@ -89,7 +96,7 @@ class FlavorSettings
     public bool KeepAllHistory { get; set; }
 
     // The addon tells the guild and/or the group in game chat (Announce.lua), for these kinds:
-    // level, maxlevel, boss, loot (epic and better, as a link), mount, duel, makgora, bg, mplus, pvp, death.
+    // level, maxlevel, boss, keyrun, loot (epic and better, as a link), mount, duel, makgora, bg, mplus, pvp, death.
     public bool AnnounceGuild { get; set; }
     public bool AnnounceParty { get; set; }
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
@@ -112,6 +119,7 @@ class FlavorSettings
         (PostLevels, LevelSplit, LevelEveryBefore, LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
         (PostRare, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
         FirstBossKillOnly = d.FirstBossKillOnly;
+        (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostMPlus, d.PostPvp);
         (MPlusSteps, PvpSteps) = ([.. d.MPlusSteps], [.. d.PvpSteps]);
         Screenshot = new(d.Screenshot);
@@ -142,6 +150,7 @@ class FlavorSettings
         "loot" => e.Quality >= 5 || (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare),
         "mount" => PostMounts,
         "boss" => PostBosses && SkipBossBecause(e) is null,
+        "keyrun" => PostKeyRuns && e.KeyLevel >= KeyRunMinLevel && (e.Timed || !KeyRunTimedOnly),
         "death" => PostDeaths,
         "duel" => PostDuels && !e.Lost, // only wins are posted
         "makgora" => PostMakgora && !e.Lost,

@@ -91,6 +91,16 @@ static partial class Format
         return $"{ts.Seconds}s";
     }
 
+    // A run's time the way the game's timer shows it: "32:15", "1:02:09".
+    public static string Clock(long seconds)
+    {
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalHours >= 1 ? $"{(int)ts.TotalHours}:{ts.Minutes:00}:{ts.Seconds:00}" : $"{ts.Minutes}:{ts.Seconds:00}";
+    }
+
+    // "+12 Ara-Kara, City of Echoes" for a Mythic+ run.
+    public static string KeyRun(Entry e) => $"+{e.KeyLevel} {(e.Instance.Length > 0 ? e.Instance : "Mythic+")}";
+
     // Longer form for total /played, e.g. "2d 3h 10m".
     public static string Played(long seconds)
     {

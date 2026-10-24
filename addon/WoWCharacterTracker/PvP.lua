@@ -63,10 +63,7 @@ end
 -- (target, focus, mouseover, party, nameplates), else from when they challenged us. Other players'
 -- spec would need an inspect, so it isn't here.
 local seenOpponents = {}
-local function plain(v)
-  if v == nil or (issecretvalue and issecretvalue(v)) then return nil end
-  return v
-end
+local plain = ns.plain
 local function opponentInfo(name)
   if not name then return nil end
   name = ns.withoutRealm(name)

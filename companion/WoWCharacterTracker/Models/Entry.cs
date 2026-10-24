@@ -1,7 +1,8 @@
 namespace WoWCharacterTracker.Models;
 
-// One thing that happened: a level-up ("level"), an end boss kill ("boss"), rare loot ("loot"),
-// a new mount ("mount"), a hardcore death ("death") or a live-channel check ("test").
+// One thing that happened: a level-up ("level"), an end boss kill ("boss"), a Mythic+ run
+// ("keyrun"), rare loot ("loot"), a new mount ("mount"), a hardcore death ("death") or a
+// live-channel check ("test").
 record Entry
 {
     public string Id { get; init; } = "";
@@ -49,7 +50,7 @@ record Entry
     public int SpellId { get; init; }    // mount: the mount's spell, when it was learned without an item (from 0.26.0)
     public bool Bought { get; init; }    // the mount showed up while a vendor was open
     public bool Shot { get; init; }      // the addon took a screenshot right after
-    public string Group { get; init; } = ""; // boss kills: the other party members, see Members
+    public string Group { get; init; } = ""; // boss kills, Mythic+ runs, max level: the other party members, see Members
     public int GroupSize { get; init; }
     public string Opponent { get; init; } = ""; // duel / makgora
     public bool Fled { get; init; }              // duel: the loser ran away (the opponent, or this character when Lost)
@@ -71,6 +72,9 @@ record Entry
     public int Rating { get; init; }             // mplus / pvp: the rating now
     public int Step { get; init; }               // mplus / pvp: the milestone passed
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
+    public int KeyLevel { get; init; }           // keyrun: the keystone's level (the dungeon is Instance, the run's time Seconds)
+    public int Upgrades { get; init; }           // keyrun: 1-3 when timed, 0 over time
+    public bool Timed => Upgrades > 0;
     public string TalentExport { get; init; } = ""; // check-ins: the talent loadout code
     public string TalentCalc { get; init; } = "";   // check-ins (Forever): Wowhead talent calculator code
 
@@ -141,6 +145,8 @@ record Entry
             Rating = (int)n("rating"),
             Step = (int)n("step"),
             Bracket = s("bracket"),
+            KeyLevel = (int)n("keyLevel"),
+            Upgrades = (int)n("upgrades"),
             TalentExport = s("talentExport"),
             TalentCalc = s("talentCalc"),
         };

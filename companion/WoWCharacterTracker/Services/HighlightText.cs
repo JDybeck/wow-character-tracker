@@ -8,6 +8,7 @@ static class HighlightText
     public static (string Verb, string Subject) Of(Entry e) => e.Kind switch
     {
         "boss" => ("Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : "")),
+        "keyrun" => (e.Timed ? "Timed " : "Finished ", Format.KeyRun(e) + (e.Timed ? $" (+{e.Upgrades})" : " (over time)")),
         "loot" => ("Looted ", e.Item),
         "mount" => (e.Bought ? "Bought " : "Got ", e.Mount),
         "duel" when e.Lost => (e.Fled ? "Ran from a duel with " : "Lost a duel to ", e.Opponent),

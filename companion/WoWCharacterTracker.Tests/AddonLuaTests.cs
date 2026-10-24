@@ -84,6 +84,56 @@ public class AddonLuaTests
                 "{ kind = 'boss', boss = 'Edwin VanCleef', instance = 'The Deadmines', group = 'Zeb~40~WARRIOR~Warrior~Orc~' }", inGroup: true, inRaid: true));
 
     [Fact]
+    public void Key_runs_go_out_from_the_posts_key_level()
+    {
+        const string settings = "{ announce = { guild = true, kinds = { keyrun = true } }, post = { keyrun = { on = true, min = 10 } } }";
+        Assert.Equal(["GUILD: Timed +12 Ara-Kara, City of Echoes (+2)!", "GUILD: Finished +11 The Rookery."],
+            [.. Announce(settings, "{ kind = 'keyrun', instance = 'Ara-Kara, City of Echoes', keyLevel = 12, upgrades = 2 }"),
+             .. Announce(settings, "{ kind = 'keyrun', instance = 'The Rookery', keyLevel = 11, upgrades = 0 }"),
+             .. Announce(settings, "{ kind = 'keyrun', instance = 'The Rookery', keyLevel = 7, upgrades = 1 }")]);
+    }
+
+    // Events.lua on Retail: a finished key is recorded from the completion info (the table API, or
+    // the older one with separate values), practice runs aren't, and end boss kills aren't either.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_finished_key_is_recorded_as_a_key_run(bool tableApi)
+    {
+        var script = new Script();
+        script.DoString("""
+            function time() return 5000 end
+            function IsInGroup() return false end
+            C_ChallengeMode = { GetMapUIInfo = function(id) return id == 503 and 'Ara-Kara, City of Echoes' or nil end }
+            """);
+        script.DoString(tableApi
+            ? "C_ChallengeMode.GetChallengeCompletionInfo = function() return { mapChallengeModeID = 503, level = 12, time = 1601500, onTime = true, keystoneUpgradeLevels = 2, practiceRun = practice, newOverallDungeonScore = 2847.6 } end"
+            : "C_ChallengeMode.GetCompletionInfo = function() return 503, 12, 2400000, false, 0, practice, 2800, 2810 end");
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 90 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        ns["HAS_KEYSTONES"] = true;
+        foreach (var file in new[] { "Shared.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+        script.Call(ns.Get("recordKeyRun"));
+        script.Call(ns.Get("recordBoss"), "Ragnaros"); // an old raid soloed on Retail: not a moment there
+        script.DoString("practice = true");
+        script.Call(ns.Get("recordKeyRun"));
+
+        var e = Assert.Single(recorded);
+        Assert.Equal("keyrun", e.Get("kind").String);
+        Assert.Equal("Player-1:keyrun:503:5000", e.Get("id").String);
+        Assert.Equal("Ara-Kara, City of Echoes", e.Get("instance").String);
+        Assert.Equal(12, e.Get("keyLevel").Number);
+        Assert.Equal(tableApi ? 2 : 0, e.Get("upgrades").Number);
+        Assert.Equal(tableApi ? 1601 : 2400, e.Get("seconds").Number);
+        Assert.Equal(tableApi ? 2847 : 2810, e.Get("rating").Number);
+    }
+
+    [Fact]
     public void Nothing_for_losses_kinds_left_out_or_no_channel()
     {
         Assert.Empty(Announce(GuildOnly, "{ kind = 'duel', opponent = 'Grimtusk', lost = true }"));

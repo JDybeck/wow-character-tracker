@@ -140,6 +140,7 @@ sealed class StreamViewModel : Observable
     static readonly (string Kind, string Name, string Tip)[] KindNames =
     [
         ("loot", "Loot", "Rare, epic and legendary items looted"), ("boss", "Boss kills", "Dungeon and raid end bosses killed"),
+        ("keyrun", "Mythic+ runs", "Keys finished, timed or over time (Retail)"),
         ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won and lost"),
         ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"), ("death", "Deaths", "Hardcore deaths"),
         ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
@@ -154,7 +155,7 @@ sealed class StreamViewModel : Observable
     static readonly (string Kind, string Name, string Tip)[] AlertNames =
     [
         ("level", "Level-ups", "DING! with the level and how long it took"), ("maxlevel", "Max level", "MAX LEVEL! with light rays, when you reach the cap"),
-        ("boss", "Boss kills", "VICTORY! when an end boss dies"), ("legendary", "Legendary loot", "LEGENDARY! in orange"),
+        ("boss", "Boss kills", "VICTORY! when an end boss dies"), ("keyrun", "Mythic+ runs", "TIMED! when a key is beaten in time (Retail)"), ("legendary", "Legendary loot", "LEGENDARY! in orange"),
         ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
         ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"), ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"),
         ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
@@ -286,7 +287,7 @@ sealed class StreamViewModel : Observable
         // The same sample events as the Test post buttons (SampleEvents), shown the way a real one
         // would be: its alert and the highlight line it adds (level-ups aren't highlights), so the
         // highlights source can be set up too.
-        string[] kinds = ["level", "max", "boss", "legendary", "epic", "duel", "makgora", "mount", "death"];
+        string[] kinds = ["level", "max", HasRatings ? "keyrun" : "boss", "legendary", "epic", "duel", "makgora", "mount", "death"];
         var e = SampleEvents.For(kinds[testIndex++ % kinds.Length], Flavors.Forever, null, []);
         e = e with { Id = $"test-{now}-{testIndex}", Char = name, At = now, Level = e.MaxLevel ? e.Level : level };
         if (StreamSnapshot.AlertFor(e) is not { } sample) return;
