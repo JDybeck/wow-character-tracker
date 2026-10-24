@@ -12,6 +12,7 @@ Mythic+ runs on Retail. Update the addon with the app (it does this by itself) a
 - The mouse wheel over a character's highlights scrolls the page again (a short list used to swallow it). The same goes for every list inside a page.
 - When a post should have had a screenshot but the game took none (the box was ticked after your last /reload, and the game only reads those settings then), the console now says so instead of posting quietly without it.
 - End boss kills are no longer recorded on Retail. The list is Classic's dungeons and raids, so there it only ever caught old raids soloed for transmog. Forever keeps them as before.
+- The app is 1 MB smaller: a few more .NET parts it never uses are left out.
 
 ## v0.27.2
 
