@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using MoonSharp.Interpreter;
 using WoWCharacterTracker.Services.LiveChannel;
+using WoWCharacterTracker.Services.Streaming;
 
 namespace WoWCharacterTracker.Tests;
 
@@ -87,6 +88,22 @@ public class SharedRulesTests
         }
     }
 
+    // Mythic+ runs: from the lowest key level, and with "Timed only" just the keys beaten in time.
+    [Theory]
+    [InlineData(9, 1, false, false)]
+    [InlineData(10, 0, false, true)]
+    [InlineData(10, 0, true, false)]
+    [InlineData(15, 2, true, true)]
+    public void Addon_and_app_agree_on_which_key_runs_are_posted(int keyLevel, int upgrades, bool timedOnly, bool posted)
+    {
+        var s = new FlavorSettings { KeyRunMinLevel = 10, KeyRunTimedOnly = timedOnly };
+        var e = new Entry { Kind = "keyrun", Level = 90, KeyLevel = keyLevel, Upgrades = upgrades };
+        Assert.Equal(posted, s.Wants(e));
+        Assert.Equal(posted, AddonWants(s, e));
+        s.PostKeyRuns = false;
+        Assert.False(AddonWants(s, e));
+    }
+
     // Runs LiveGrid.lua's wanted() through ns.addEvent with the Settings.lua the app would write.
     static bool AddonWants(FlavorSettings s, Entry e)
     {
@@ -101,7 +118,7 @@ public class SharedRulesTests
             var ns = new Table(script);
             foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
                 script.Call(script.LoadString(AddonFile(file)), "WoWCharacterTracker", ns);
-            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")} }}");
+            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades} }}");
             return script.Call(ns.Get("wanted"), ev).Boolean;
         }
         finally { Directory.Delete(dir, recursive: true); }
@@ -153,5 +170,24 @@ public class SharedRulesTests
         Assert.False(EventKinds.OfferedIn("mplus", Flavors.Forever.HasRatings));
         Assert.True(EventKinds.OfferedIn("mplus", Flavors.Retail.HasRatings));
         Assert.True(EventKinds.OfferedIn("legendary", hasRatings: false)); // an alert kind, not an event kind
+        Assert.True(EventKinds.OfferedIn("legendary", hasRatings: true));
+        // Retail swaps end boss kills for Mythic+ runs.
+        Assert.True(EventKinds.OfferedIn("boss", Flavors.Forever.HasRatings));
+        Assert.False(EventKinds.OfferedIn("boss", Flavors.Retail.HasRatings));
+        Assert.False(EventKinds.OfferedIn("keyrun", Flavors.Forever.HasRatings));
+        Assert.True(EventKinds.OfferedIn("keyrun", Flavors.Retail.HasRatings));
+    }
+
+    [Fact]
+    public void Key_runs_read_from_the_live_channel_and_say_how_they_went()
+    {
+        var e = Payload.Parse("i=:keyrun:503:1000;g=1403-0A1B2C3D;k=keyrun;n=Zeb;I=Ara-Kara%2C City of Echoes;kl=12;ku=2;d=1601;T=2847")!;
+        Assert.Equal((12, 2, 1601L, 2847), (e.KeyLevel, e.Upgrades, e.Seconds, e.Rating));
+        Assert.Equal("Zeb timed +12 Ara-Kara, City of Echoes (+2)", Tracker.Describe(e));
+        Assert.Equal("Zeb finished +12 Ara-Kara, City of Echoes (over time)", Tracker.Describe(e with { Upgrades = 0 }));
+        Assert.Equal("26:41", Format.Clock(1601));
+        Assert.Equal("1:02:09", Format.Clock(3729));
+        Assert.Equal("TIMED!", StreamSnapshot.AlertFor(e)!.Title);
+        Assert.Null(StreamSnapshot.AlertFor(e with { Upgrades = 0 }));
     }
 }

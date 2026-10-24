@@ -266,6 +266,10 @@ sealed class Tracker : IDisposable
         {
             var forThis = webhooksFor(e);
             var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
+            // The game only reads its screenshot settings on /reload or login, so a box ticked
+            // since then posts without a picture. Say so, instead of leaving it a mystery.
+            if (forThis.Count > 0 && !e.Shot && s.PostsShot(e.Kind))
+                Log.Warn($"{Tag}No screenshot for {Describe(e)}: the game didn't take one. Screenshot settings reach the game on your next /reload.");
             var allSent = true;
             foreach (var w in forThis)
             {

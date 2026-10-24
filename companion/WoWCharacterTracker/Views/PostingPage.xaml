@@ -152,7 +152,29 @@
           <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
             <StackPanel>
               <TextBlock Style="{StaticResource SectionTitle}" Text="PvE" Margin="0,0,0,14"/>
-              <StackPanel Style="{StaticResource PostOption}">
+              <!-- Retail: finished Mythic+ runs in place of end boss kills (the addon doesn't record those there). -->
+              <StackPanel Style="{StaticResource PostOption}" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}">
+                <CheckBox ToolTip="Post to Discord when you finish a Mythic+ dungeon" IsChecked="{Binding PostKeyRuns}">
+                  <StackPanel>
+                    <TextBlock Text="Mythic+ runs" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="A finished key: the dungeon, the time, how far the key goes up, your new rating and the group."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="keyrun"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" ToolTip="Take a screenshot in game a moment after it happens" IsChecked="{Binding Shots[keyrun].Take}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" ToolTip="Attach that screenshot to the Discord post" IsChecked="{Binding Shots[keyrun].Post}" Visibility="{Binding Shots[keyrun].Take, Converter={StaticResource Visible}}"/>
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Timed only" ToolTip="Only keys beaten in time. Every run still shows in the app's highlights." IsChecked="{Binding KeyRunTimedOnly}" IsEnabled="{Binding PostKeyRuns}"/>
+                </WrapPanel>
+                <Grid Margin="30,8,0,0" IsEnabled="{Binding PostKeyRuns}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="From key level" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <TextBox Grid.Column="1" Style="{StaticResource GridNumberBox}" ToolTip="Keys below this level aren't posted (2 = every key)" Text="{Binding KeyRunMinLevel, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="and up" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+              </StackPanel>
+
+              <StackPanel Style="{StaticResource PostOption}" Visibility="{Binding IsRetail, Converter={StaticResource Hidden}}">
                 <CheckBox ToolTip="Post to Discord when you kill the last boss of a dungeon or raid" IsChecked="{Binding PostBosses}">
                   <StackPanel>
                     <TextBlock Text="End boss kills" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>

@@ -1,5 +1,5 @@
 -- Tells your guild and/or group about a moment, in the game's own chat: level-ups, max level, end
--- bosses, epic loot (as an item link), new mounts, PvP wins, rating milestones, hardcore deaths.
+-- bosses, Mythic+ runs, epic loot (as an item link), new mounts, PvP wins, rating milestones, hardcore deaths.
 -- What and where come from Settings.lua `announce` (the app's In game page). Messages wait until
 -- you're out of combat, and boss kills don't list the group (they're right there).
 local ADDON, ns = ...
@@ -29,6 +29,12 @@ local function message(e)
     return string.format("Won a Mak'gora against %s!", e.opponent or "someone")
   elseif k == "bg" and not e.lost then
     return string.format("Won %s!", e.instance or "a battleground")
+  elseif k == "keyrun" then
+    local rule = (ns.setting("post") or {}).keyrun -- the same lowest key level as the Discord posts
+    if rule and (e.keyLevel or 0) < (rule.min or 0) then return nil end
+    local dungeon = (e.instance and e.instance ~= "") and (" " .. e.instance) or ""
+    if (e.upgrades or 0) > 0 then return string.format("Timed +%d%s (+%d)!", e.keyLevel or 0, dungeon, e.upgrades) end
+    return string.format("Finished +%d%s.", e.keyLevel or 0, dungeon)
   elseif k == "mplus" then
     return string.format("Reached %d Mythic+ rating!", e.step or 0)
   elseif k == "pvp" then

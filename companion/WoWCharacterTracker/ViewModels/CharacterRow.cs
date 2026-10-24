@@ -338,15 +338,15 @@ sealed class CharacterRow : Observable
         return rows.OrderByDescending(r => r.LastSeen).ToList();
     }
 
-    // A highlight row, keeping its event so it can be posted from the details. Boss kills say who
-    // was there, deaths what was lost.
+    // A highlight row, keeping its event so it can be posted from the details. Boss kills and Mythic+
+    // runs say who was there, deaths what was lost.
     static HighlightRow Highlight(Entry e)
     {
         var row = Row(e);
         row.Source = e;
         row.Detail = e.Kind switch
         {
-            "boss" when e.Members.Count > 0 => "With " + string.Join(", ", e.Members.Select(m => $"{m.Name} ({m.Level} {m.Class})".Replace(" ()", ""))),
+            "boss" or "keyrun" when e.Members.Count > 0 => "With " + string.Join(", ", e.Members.Select(m => $"{m.Name} ({m.Level} {m.Class})".Replace(" ()", ""))),
             "boss" when e.GroupSize > 5 => $"With a raid of {e.GroupSize}",
             "duel" or "makgora" when e.OpponentText.Length > 0 => char.ToUpperInvariant(e.OpponentText[0]) + e.OpponentText[1..],
             "death" => string.Join(", ", new[] { e.Played > 0 ? $"{Format.Played(e.Played)} played" : "", $"lost {Format.Money(e.Gold)}", e.Zone }.Where(p => p.Length > 0)),
@@ -368,7 +368,7 @@ sealed class CharacterRow : Observable
             "bg" when e.Lost => ("", 0x94A3B8),
             "bg" => ("", 0x93C5FD),
             "makgora" when e.Lost => ("", 0x94A3B8),
-            "mplus" => ("", 0xC084FC),
+            "mplus" or "keyrun" => ("", 0xC084FC),
             "pvp" => ("", 0xF87171),
             "mount" => ("", 0x4ADE80),
             _ => ("", 0xF87171), // Mak'gora wins, deaths

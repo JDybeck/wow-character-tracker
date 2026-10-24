@@ -203,6 +203,9 @@ end
 -- Forever has surnames: UnitName gives the surname where other clients give the realm.
 ns.HAS_SURNAMES = C_PlayerInfo and C_PlayerInfo.ShouldDisplaySurname ~= nil
 
+-- Retail has Mythic+ keystones: finished runs are recorded there instead of end boss kills.
+ns.HAS_KEYSTONES = C_MythicPlus ~= nil
+
 local function getSurname()
   if not ns.HAS_SURNAMES then return nil end
   local _, surname = UnitName("player")

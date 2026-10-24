@@ -212,6 +212,13 @@ class Config
             stream.HasBattlegrounds = true;
             changed = true;
         }
+        if (!stream.HasKeyRuns)
+        {
+            if (!stream.HighlightKinds.Contains("keyrun")) stream.HighlightKinds.Add("keyrun");
+            if (!stream.AlertKinds.Contains("keyrun")) stream.AlertKinds.Add("keyrun");
+            stream.HasKeyRuns = true;
+            changed = true;
+        }
 
         if (changed) config.Save();
         return config;

@@ -197,7 +197,10 @@ sealed class FlavorViewModel : Observable
     public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; Changed(); } }
     public bool PostMPlus { get => Settings.PostMPlus; set { Settings.PostMPlus = value; Changed(); } }
     public bool PostPvp { get => Settings.PostPvp; set { Settings.PostPvp = value; Changed(); } }
-    public bool IsRetail => Flavor.HasRatings; // the Mythic+ and PvP rating options
+    public bool PostKeyRuns { get => Settings.PostKeyRuns; set { Settings.PostKeyRuns = value; Changed(); } }
+    public int KeyRunMinLevel { get => Settings.KeyRunMinLevel; set { Settings.KeyRunMinLevel = Math.Clamp(value, FlavorSettings.KeyLevelMin, FlavorSettings.KeyLevelMax); Changed(); } }
+    public bool KeyRunTimedOnly { get => Settings.KeyRunTimedOnly; set { Settings.KeyRunTimedOnly = value; Changed(); } }
+    public bool IsRetail => Flavor.HasRatings; // Mythic+ runs (instead of end boss kills) and the rating options
 
     // Rating milestones as "1500, 2000, 2500": whole numbers, sorted, typos ignored.
     public string MPlusStepsText { get => string.Join(", ", Settings.MPlusSteps); set { Settings.MPlusSteps = ParseSteps(value, Settings.MPlusSteps); Changed(); } }
@@ -232,7 +235,8 @@ sealed class FlavorViewModel : Observable
     static readonly (string Kind, string Name, string Tip)[] AnnounceNames =
     [
         ("level", "Level-ups", "\"Ding! Level 23. 22 to 23 took 41m 12s.\""), ("maxlevel", "Max level", "\"Reached max level 60! Total played 6d 4h 12m.\""),
-        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\" (without the group)"), ("loot", "Epic loot", "Epic and legendary items, as a link you can click"),
+        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\" (without the group)"),
+        ("keyrun", "Mythic+ runs", "\"Timed +12 Ara-Kara, City of Echoes (+2)!\" (from the lowest key level set for Discord)"), ("loot", "Epic loot", "Epic and legendary items, as a link you can click"),
         ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
         ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
         ("mplus", "Mythic+", "Mythic+ rating steps (Retail)"), ("pvp", "PvP rating", "PvP rating steps (Retail)"), ("death", "Deaths", "Hardcore deaths"),

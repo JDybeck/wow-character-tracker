@@ -41,7 +41,7 @@ static class ScreenshotMode
             // Test buttons need a character; without a game folder, the test characters stand in.
             if (Part(2) == "testall" && vm.SelectedFlavor is { HasCharacters: false, Flavor.HasRulesets: true }) { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             if (Part(2) == "testall")
-                foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "death", "duel", "makgora", "mplus", "pvp" })
+                foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "keyrun", "death", "duel", "makgora", "mplus", "pvp" })
                     vm.TestKindCommand.Execute(kind);
             // show the details panel too, for CHARACTERTRACKER_SCREENSHOT_CHARACTER (a name) or the first character
             var pick = Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_CHARACTER");

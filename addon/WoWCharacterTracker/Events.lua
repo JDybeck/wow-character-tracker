@@ -1,4 +1,5 @@
--- Recording what happens: level-ups (with /played), end boss kills, loot, mounts and hardcore deaths.
+-- Recording what happens: level-ups (with /played), end boss kills (Mythic+ runs on Retail), loot,
+-- mounts and hardcore deaths.
 local ADDON, ns = ...
 
 -- Last boss of each dungeon and raid (English names, as ENCOUNTER_END reports them). Killing one
@@ -294,6 +295,9 @@ getGroup = function()
 end
 
 function ns.recordBoss(name)
+  -- END_BOSSES is Classic's list; on Retail it only matched old raids soloed for transmog. Retail
+  -- records finished Mythic+ runs instead (ns.recordKeyRun).
+  if ns.HAS_KEYSTONES then return end
   local instance = END_BOSSES[name]
   if not instance then return end
   local now = time()
@@ -304,6 +308,55 @@ function ns.recordBoss(name)
   ns.record("boss", { boss = name, instance = (GetInstanceInfo and GetInstanceInfo()) or instance,
     group = group, groupSize = groupSize, at = now }, string.format("boss:%s:%d", name, now))
   ns.say(string.format("End boss down: %s.", name))
+end
+
+-- Mythic+ runs (Retail) --------------------------------------------------------
+-- CHALLENGE_MODE_COMPLETED fires for every finished keystone, in time or not (an abandoned key
+-- never finishes). Recorded as kind "keyrun": the dungeon (instance), keyLevel, upgrades (1-3 when
+-- timed, 0 over time), seconds (the run's time), rating (the overall score after it) and the group.
+-- The app decides what gets posted (a lowest key level, timed only).
+
+-- The finished run, from whichever completion API the client has (a table since 11.0).
+local function completionInfo()
+  local cm = C_ChallengeMode
+  if not cm then return nil end
+  if cm.GetChallengeCompletionInfo then
+    local ok, info = pcall(cm.GetChallengeCompletionInfo)
+    if ok and type(info) == "table" then return info end
+  end
+  if cm.GetCompletionInfo then
+    local ok, mapID, level, ms, onTime, upgrades, practice, _, newScore = pcall(cm.GetCompletionInfo)
+    if ok then
+      return { mapChallengeModeID = mapID, level = level, time = ms, onTime = onTime,
+        keystoneUpgradeLevels = upgrades, practiceRun = practice, newOverallDungeonScore = newScore }
+    end
+  end
+  return nil
+end
+
+function ns.recordKeyRun()
+  local info = completionInfo()
+  local plain = ns.plain
+  if not info or plain(info.practiceRun) then return end
+  local mapID, keyLevel = plain(info.mapChallengeModeID), plain(info.level)
+  if type(mapID) ~= "number" or type(keyLevel) ~= "number" or keyLevel <= 0 then return end
+
+  local dungeon = C_ChallengeMode.GetMapUIInfo and plain((C_ChallengeMode.GetMapUIInfo(mapID)))
+  local up = plain(info.keystoneUpgradeLevels) or 0
+  local timed = plain(info.onTime)
+  if timed == nil then timed = up > 0 end
+  local ms, score = plain(info.time), plain(info.newOverallDungeonScore)
+  local group, groupSize = getGroup()
+  local now = time()
+  ns.record("keyrun", {
+    instance = dungeon or (GetInstanceInfo and GetInstanceInfo()) or nil,
+    keyLevel = keyLevel,
+    upgrades = timed and math.max(1, up) or 0,
+    seconds = type(ms) == "number" and math.floor(ms / 1000) or nil,
+    rating = (type(score) == "number" and score > 0) and math.floor(score) or nil,
+    group = group, groupSize = groupSize, at = now,
+  }, string.format("keyrun:%d:%d", mapID, now))
+  ns.say(string.format("Mythic+ done: +%d %s, %s.", keyLevel, dungeon or "?", timed and ("timed +" .. math.max(1, up)) or "over time"))
 end
 
 -- LOOT_ITEM_SELF is "You receive loot: %s." (and a "%sx%d." variant for stacks). Turned into
