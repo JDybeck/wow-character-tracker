@@ -33,7 +33,9 @@ class FlavorSettings
     public bool PostKeyRuns { get; set; } = true;
     public int KeyRunMinLevel { get; set; } = 10;
     public bool KeyRunTimedOnly { get; set; }
-    public const int KeyLevelMin = 2, KeyLevelMax = 40; // what the box takes (keys start at +2)
+    // What the box takes. Keys start at +2, but 1 is allowed (same as 2): the box saves per
+    // keystroke, so a minimum of 2 turned a typed "1" into 2 before the next digit came.
+    public const int KeyLevelMin = 1, KeyLevelMax = 40;
 
     // Duels, hardcore Mak'gora, and retail rating milestones (posted when a step is passed).
     public bool PostDuels { get; set; }

@@ -164,7 +164,7 @@
 
   <!-- Same column widths for the header row and every character row. Kept tight: the name column gets
        what's left, and at the window's narrowest that's little. -->
-  <GridLength x:Key="ColClass">118</GridLength>
+  <GridLength x:Key="ColClass">132</GridLength> <!-- spec icon + "Demon Hunter" -->
   <GridLength x:Key="ColLevel">58</GridLength>
   <GridLength x:Key="ColIlvl">74</GridLength>
   <GridLength x:Key="ColGold">88</GridLength>
