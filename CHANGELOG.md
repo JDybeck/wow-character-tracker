@@ -2,6 +2,10 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.28.1
+
+- The Mythic+ **From key level** box no longer jumps while you type: a `1` used to turn into 2 before the next digit came (so typing 15 gave 25, or 40). It takes 1 now, which posts every key just like 2.
+
 ## v0.28.0
 
 Mythic+ runs on Retail. Update the addon with the app (it does this by itself) and /reload in game.

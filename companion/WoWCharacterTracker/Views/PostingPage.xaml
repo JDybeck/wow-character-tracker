@@ -169,7 +169,7 @@
                 <Grid Margin="30,8,0,0" IsEnabled="{Binding PostKeyRuns}">
                   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock Text="From key level" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                  <TextBox Grid.Column="1" Style="{StaticResource GridNumberBox}" ToolTip="Keys below this level aren't posted (2 = every key)" Text="{Binding KeyRunMinLevel, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBox Grid.Column="1" Style="{StaticResource GridNumberBox}" ToolTip="Keys below this level aren't posted (2 or less = every key)" Text="{Binding KeyRunMinLevel, UpdateSourceTrigger=PropertyChanged}"/>
                   <TextBlock Grid.Column="2" Text="and up" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
                 </Grid>
               </StackPanel>
