@@ -176,17 +176,18 @@
                   </StackPanel>
                 </DockPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- DockPanel, not a horizontal StackPanel: it keeps the texts inside the column (long ones trim) instead of running into the level. -->
+                <DockPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,6,0">
                   <Border Width="22" Height="22" CornerRadius="4" ClipToBounds="True" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding SpecIconTip}"
                           Visibility="{Binding SpecIconUrl, Converter={StaticResource VisibleIfSet}}">
                     <Image Source="{Binding SpecIconUrl, Converter={StaticResource WebImage}}" RenderOptions.BitmapScalingMode="HighQuality"/>
                   </Border>
-                  <StackPanel>
-                    <TextBlock Text="{Binding ClassName}" Foreground="{Binding ClassBrush}" FontWeight="Medium" FontSize="13"/>
-                    <TextBlock Text="{Binding Spec}" Foreground="{StaticResource Dim}" FontSize="11"
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ClassName}" Foreground="{Binding ClassBrush}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Spec}" Foreground="{StaticResource Dim}" FontSize="11" TextTrimming="CharacterEllipsis"
                                Visibility="{Binding Spec, Converter={StaticResource VisibleIfSet}}"/>
                   </StackPanel>
-                </StackPanel>
+                </DockPanel>
 
                 <Border Grid.Column="2" Style="{StaticResource Pill}">
                   <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
