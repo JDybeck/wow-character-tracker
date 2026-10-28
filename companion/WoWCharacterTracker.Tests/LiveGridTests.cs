@@ -82,10 +82,18 @@ public class LiveGridTests(ITestOutputHelper output)
             Assert.Equal(GridResult.Ok, GridDecoder.Decode(Shot(Level, corner, 90, width, height), out _, out _, out _, corner));
     }
 
-    [Fact]
-    public void Jpeg_quality_60_still_reads()
+    // Grid shots use the game's screenshotQuality 3 (its default), measured at about JPEG quality 81,
+    // so this leaves a wide margin (quality 10 is where it breaks).
+    [Theory]
+    [InlineData(85)]
+    [InlineData(81)]
+    [InlineData(60)]
+    [InlineData(40)]
+    [InlineData(20)]
+    public void Lower_jpeg_qualities_still_read(int quality)
     {
-        Assert.Equal(GridResult.Ok, GridDecoder.Decode(Shot(Level, "TOPLEFT", quality: 60), out _));
+        foreach (var corner in GridDecoder.Corners)
+            Assert.Equal(GridResult.Ok, GridDecoder.Decode(Shot(Level, corner, quality, 2568, 1360), out _, out _, out _, corner));
     }
 
     [Fact]

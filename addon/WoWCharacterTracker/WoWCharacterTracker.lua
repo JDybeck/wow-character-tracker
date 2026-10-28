@@ -42,7 +42,7 @@ function on.PLAYER_ENTERING_WORLD()
   C_Timer.After(10, ns.scanInventory)
   C_Timer.After(12, ns.checkRatings)
   C_Timer.After(15, ns.checkIn)
-  if type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
+  if ns.IS_RETAIL and type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
   if not ns.snapshotTicker and C_Timer.NewTicker then ns.snapshotTicker = C_Timer.NewTicker(300, ns.saveSnapshot) end
   -- The chat reminder to /reload: every 30 minutes (checked every 5), and when leaving a dungeon.
   if not ns.reminderTicker and C_Timer.NewTicker then ns.reminderTicker = C_Timer.NewTicker(300, function() ns.remindReload(false) end) end

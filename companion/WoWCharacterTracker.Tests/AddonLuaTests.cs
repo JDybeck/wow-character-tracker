@@ -123,7 +123,7 @@ public class AddonLuaTests
         ns["say"] = (Action<string>)(_ => { });
         ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 90 }").Table);
         ns["addEvent"] = (Action<Table>)recorded.Add;
-        ns["HAS_KEYSTONES"] = true;
+        ns["IS_RETAIL"] = true;
         foreach (var file in new[] { "Shared.lua", "Events.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
@@ -141,6 +141,37 @@ public class AddonLuaTests
         Assert.Equal(tableApi ? 1601 : 2400, e.Get("seconds").Number);
         Assert.Equal(tableApi ? 2847 : 2810, e.Get("rating").Number);
         Assert.Equal("Dreadus~90~DEMONHUNTER~Demon Hunter~Night Elf~ArgentDawn~Havoc", e.Get("group").String);
+    }
+
+    // Retail is told by the interface number, not by C_MythicPlus: Forever (16001) has that API too,
+    // and must still record end boss kills; Retail (120105) records key runs instead.
+    [Theory]
+    [InlineData(16001, true)]
+    [InlineData(120105, false)]
+    public void End_boss_kills_are_recorded_on_forever_but_not_on_retail(int interfaceNumber, bool recorded)
+    {
+        var script = new Script();
+        script.DoString($$"""
+            function time() return 5000 end
+            function GetBuildInfo() return "x", "1", "Oct 1 2026", {{interfaceNumber}} end
+            C_MythicPlus = { GetOwnedKeystoneChallengeMapID = function() return nil end }
+            """);
+        var ns = new Table(script);
+        var events = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        ns["recentBosses"] = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 20 }").Table);
+        ns["addEvent"] = (Action<Table>)events.Add;
+
+        script.Call(ns.Get("recordBoss"), "Edwin VanCleef");
+
+        Assert.Equal(!recorded, ns.Get("IS_RETAIL").Boolean);
+        if (!recorded) { Assert.Empty(events); return; }
+        var e = Assert.Single(events);
+        Assert.Equal("boss", e.Get("kind").String);
+        Assert.Equal("The Deadmines", e.Get("instance").String);
     }
 
     [Fact]
@@ -375,6 +406,34 @@ public class AddonLuaTests
         Assert.True(result[6].Boolean);
         Assert.Equal(52, result[7].Number); // loot 1-51 went, the newest stayed
         Assert.Equal(0, result[8].Number); // nothing more to trim the next time
+    }
+
+    // ns.saveSnapshot at logout, where the game reports 0 of 0 XP: the saved bar stays, but only one
+    // from the same level; a fresh level's 0 XP with a real bar is saved as it is.
+    [Theory]
+    [InlineData(11, 0, 0, 3000, 7600)] // logout: keep the bar
+    [InlineData(12, 0, 0, 0, 0)] // dinged since: the old level's bar doesn't carry over
+    [InlineData(11, 0, 7600, 0, 7600)] // just dinged: 0 XP is real
+    public void Logout_keeps_the_xp_bar_of_the_same_level(int level, int xp, int xpMax, int savedXp, int savedXpMax)
+    {
+        var script = new Script();
+        script.DoString("""
+            function time() return 1000 end
+            function UnitGUID() return "Player-1" end
+            WoWCharacterTrackerDB = { xpTable = {}, chars = { ["Player-1"] = { level = 11, xp = 3000, xpMax = 7600 } } }
+            """);
+        var ns = new Table(script);
+        ns["doing"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Character.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["playedNow"] = (Func<double>)(() => 5000);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString($"return {{ guid = 'Player-1', level = {level}, xp = {xp}, xpMax = {xpMax} }}").Table);
+
+        script.Call(ns.Get("saveSnapshot"));
+
+        var saved = script.DoString("return WoWCharacterTrackerDB.chars['Player-1']").Table;
+        Assert.Equal(savedXp, saved.Get("xp").Number);
+        Assert.Equal(savedXpMax, saved.Get("xpMax").Number);
     }
 
     // ns.debounce: many calls while it waits are one run, and it can run again after.
