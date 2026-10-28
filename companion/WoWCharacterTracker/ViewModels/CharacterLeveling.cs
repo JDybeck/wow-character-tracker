@@ -31,8 +31,11 @@ sealed class CharacterLeveling
         var bars = shown.Select(l => new LevelBar(l.Number, Math.Max(3, ChartHeight * l.Seconds / slowest),
             $"{l.Number - 1} to {l.Number}: {Format.Duration(l.Seconds)}", l == summary?.Fastest || l == summary?.Slowest)).ToList();
 
+        // A bar saved at an earlier level (dinged since, the saved file not written yet) says nothing
+        // about this one, so then the whole level counts.
+        var sameLevel = xp is not null && xp.Level == level;
         var toMax = estimate && xp is not null
-            ? LevelStats.TimeToMax(timed, xpTable, level, xp.Xp, xp.XpMax, xp.MaxLevel > 0 ? xp.MaxLevel : 60)
+            ? LevelStats.TimeToMax(timed, xpTable, level, sameLevel ? xp.Xp : 0, sameLevel ? xp.XpMax : 0, xp.MaxLevel > 0 ? xp.MaxLevel : 60)
             : null;
 
         return new CharacterLeveling

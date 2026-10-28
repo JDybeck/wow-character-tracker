@@ -488,6 +488,9 @@ function ns.saveSnapshot()
     end
     -- Guild: "" means no guild (keep that), nil means not known yet.
     if info.guild == nil then info.guild = old.guild end
+    -- XP: during logout the game reports 0 of 0, so keep the last known bar, but only one from this
+    -- level (0 XP with a real bar is a fresh level and stays).
+    if (info.xpMax or 0) == 0 and old.level == info.level then info.xp, info.xpMax = old.xp, old.xpMax end
   end
   -- Older versions stored the class as Forever's "spec" and a role that means nothing there.
   if info.spec == info.class then info.spec = nil end

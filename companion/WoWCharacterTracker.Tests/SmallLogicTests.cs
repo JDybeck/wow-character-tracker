@@ -459,3 +459,33 @@ public class IntroTests
         Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "setup", "discord", "pages", "settings" }));
     }
 }
+
+// The Leveling tab's time-to-max estimate (Forever) from the saved XP bar.
+public class LevelingEstimateTests
+{
+    // Levels 2 to 11, ten minutes each.
+    static readonly List<Entry> Dings = [.. Enumerable.Range(2, 10).Select(l => new Entry { Kind = "level", Guid = "Player-1", Level = l, Seconds = 600, At = 1000 + l })];
+
+    static Snapshot Saved(int level, long xp, long xpMax) => new("Player-1", "Zeb", "Realm", level, "Warrior", "WARRIOR", "Orc", "Orc", "male",
+        "", "", 0, 0, "", "", "", 5000, false, "Normal", Xp: xp, XpMax: xpMax, MaxLevel: 60);
+
+    static string Estimate(Snapshot saved) =>
+        CharacterRow.Build(new TrackerData(Dings, [saved]), Flavors.Forever, new GameLookup(Flavors.Forever, () => { })).Single().Leveling.EstimateText;
+
+    [Fact]
+    public void A_saved_bar_gives_an_estimate_but_zeros_from_a_logout_give_none()
+    {
+        Assert.StartsWith("About ", Estimate(Saved(11, 3000, 7600)));
+        Assert.Equal("", Estimate(Saved(11, 0, 0))); // what the addon saved at logout before it kept the old bar
+    }
+
+    // Dinged since the saved file was written: the old level's bar doesn't count for the new level.
+    [Fact]
+    public void A_bar_from_an_earlier_level_counts_the_whole_level()
+    {
+        var stale = CharacterLeveling.From(Dings, 11, Saved(10, 7068, 7600), new Dictionary<int, long>(), estimate: true).EstimateText;
+        var whole = CharacterLeveling.From(Dings, 11, Saved(11, 0, 0), new Dictionary<int, long>(), estimate: true).EstimateText;
+        Assert.StartsWith("About ", stale);
+        Assert.Equal(whole, stale);
+    }
+}

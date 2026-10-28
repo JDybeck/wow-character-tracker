@@ -408,6 +408,34 @@ public class AddonLuaTests
         Assert.Equal(0, result[8].Number); // nothing more to trim the next time
     }
 
+    // ns.saveSnapshot at logout, where the game reports 0 of 0 XP: the saved bar stays, but only one
+    // from the same level; a fresh level's 0 XP with a real bar is saved as it is.
+    [Theory]
+    [InlineData(11, 0, 0, 3000, 7600)] // logout: keep the bar
+    [InlineData(12, 0, 0, 0, 0)] // dinged since: the old level's bar doesn't carry over
+    [InlineData(11, 0, 7600, 0, 7600)] // just dinged: 0 XP is real
+    public void Logout_keeps_the_xp_bar_of_the_same_level(int level, int xp, int xpMax, int savedXp, int savedXpMax)
+    {
+        var script = new Script();
+        script.DoString("""
+            function time() return 1000 end
+            function UnitGUID() return "Player-1" end
+            WoWCharacterTrackerDB = { xpTable = {}, chars = { ["Player-1"] = { level = 11, xp = 3000, xpMax = 7600 } } }
+            """);
+        var ns = new Table(script);
+        ns["doing"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Character.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["playedNow"] = (Func<double>)(() => 5000);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString($"return {{ guid = 'Player-1', level = {level}, xp = {xp}, xpMax = {xpMax} }}").Table);
+
+        script.Call(ns.Get("saveSnapshot"));
+
+        var saved = script.DoString("return WoWCharacterTrackerDB.chars['Player-1']").Table;
+        Assert.Equal(savedXp, saved.Get("xp").Number);
+        Assert.Equal(savedXpMax, saved.Get("xpMax").Number);
+    }
+
     // ns.debounce: many calls while it waits are one run, and it can run again after.
     [Fact]
     public void Debounce_runs_once_for_a_burst()
