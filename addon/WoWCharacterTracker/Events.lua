@@ -344,7 +344,7 @@ end
 function ns.recordBoss(name)
   -- END_BOSSES is Classic's list; on Retail it only matched old raids soloed for transmog. Retail
   -- records finished Mythic+ runs instead (ns.recordKeyRun).
-  if ns.HAS_KEYSTONES then return end
+  if ns.IS_RETAIL then return end
   local instance = END_BOSSES[name]
   if not instance then return end
   local now = time()

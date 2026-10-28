@@ -160,6 +160,7 @@ end
 -- The first reading per character only sets the baseline, so nothing is posted for ratings that
 -- were already there before the addon.
 function ns.checkRatings()
+  if not ns.IS_RETAIL then return end -- Forever has the APIs, but no ratings
   local guid = UnitGUID("player")
   if not guid or not WoWCharacterTrackerDB then return end
   local post = ns.setting("post") or {}

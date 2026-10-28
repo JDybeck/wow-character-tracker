@@ -203,8 +203,11 @@ end
 -- Forever has surnames: UnitName gives the surname where other clients give the realm.
 ns.HAS_SURNAMES = C_PlayerInfo and C_PlayerInfo.ShouldDisplaySurname ~= nil
 
--- Retail has Mythic+ keystones: finished runs are recorded there instead of end boss kills.
-ns.HAS_KEYSTONES = C_MythicPlus ~= nil
+-- Retail (Mythic+ keystones, M+ score, rated PvP; key runs are recorded there instead of end boss
+-- kills), told by the interface number: Retail is 100000+ since Dragonflight, Classic clients stay
+-- far below (Forever 16001, Era 11500s). Not by API: Forever runs on the modern engine and has
+-- C_MythicPlus too.
+ns.IS_RETAIL = ((GetBuildInfo and select(4, GetBuildInfo())) or 0) >= 100000
 
 local function getSurname()
   if not ns.HAS_SURNAMES then return nil end
@@ -346,9 +349,9 @@ local function getCrests()
 end
 
 -- Retail: the Mythic Keystone in your bags as "level~mapID~dungeon", "none" without one, nil on
--- clients without Mythic+ (Forever).
+-- other clients (Forever).
 local function getKeystone()
-  if not (C_MythicPlus and C_MythicPlus.GetOwnedKeystoneChallengeMapID) then return nil end
+  if not (ns.IS_RETAIL and C_MythicPlus and C_MythicPlus.GetOwnedKeystoneChallengeMapID) then return nil end
   local mapID = C_MythicPlus.GetOwnedKeystoneChallengeMapID()
   local level = C_MythicPlus.GetOwnedKeystoneLevel and C_MythicPlus.GetOwnedKeystoneLevel()
   if not mapID or not level or level == 0 then return "none" end
@@ -356,9 +359,9 @@ local function getKeystone()
   return string.format("%d~%d~%s", level, mapID, ((name or "?"):gsub("[~,;=]", " ")))
 end
 
--- Retail: the current Mythic+ score, nil without one or on clients without Mythic+ (Forever).
+-- Retail: the current Mythic+ score, nil without one or on other clients (Forever).
 local function getMplusScore()
-  if not (C_MythicPlus and C_ChallengeMode and C_ChallengeMode.GetOverallDungeonScore) then return nil end
+  if not (ns.IS_RETAIL and C_ChallengeMode and C_ChallengeMode.GetOverallDungeonScore) then return nil end
   local score = C_ChallengeMode.GetOverallDungeonScore()
   if type(score) ~= "number" or score <= 0 then return nil end
   return math.floor(score)
@@ -367,7 +370,7 @@ end
 -- Retail: rated PvP as "bracket~rating,..." (brackets as GetPersonalRatedInfo numbers them,
 -- the same as PVP_BRACKETS in PvP.lua), only brackets with a rating, nil when there are none.
 local function getPvpRatings()
-  if not (C_MythicPlus and type(GetPersonalRatedInfo) == "function") then return nil end
+  if not (ns.IS_RETAIL and type(GetPersonalRatedInfo) == "function") then return nil end
   local parts = {}
   for _, index in ipairs({ 1, 2, 4, 7, 9 }) do
     local ok, rating = pcall(GetPersonalRatedInfo, index)
