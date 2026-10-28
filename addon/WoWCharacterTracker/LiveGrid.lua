@@ -206,13 +206,14 @@ local lastShotSecond = 0
 local getCVar = (C_CVar and C_CVar.GetCVar) or GetCVar
 local setCVar = (C_CVar and C_CVar.SetCVar) or SetCVar
 
--- JPEG at the best quality while the grid is captured: much faster for the game to write than PNG,
--- and the black and white 2 px cells read back cleanly (tested down to quality 60). TGA can't be
--- read by the app. The player's own settings come back right after.
+-- JPEG while the grid is captured: much faster for the game to write than PNG. screenshotQuality
+-- 10 is the game's best quality (about JPEG 100, ~4 MB at 2568x1360); 3 is its default (about
+-- JPEG 81, ~0.7 MB), and the black and white 2 px cells read back cleanly far below that (tested
+-- down to JPEG 20). TGA can't be read by the app. The player's own settings come back right after.
 local function useGridShotSettings()
   savedCVars = { format = getCVar("screenshotFormat"), quality = getCVar("screenshotQuality") }
   pcall(setCVar, "screenshotFormat", "jpeg")
-  pcall(setCVar, "screenshotQuality", "10")
+  pcall(setCVar, "screenshotQuality", "3")
   if ActionStatus and ActionStatus.UnregisterEvent then ActionStatus:UnregisterEvent("SCREENSHOT_SUCCEEDED") end
 end
 
