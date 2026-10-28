@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.28.2
+
+Ready for Forever's launch. Update the addon with the app (it does this by itself) and /reload in game.
+
+- End boss kills are recorded on Forever again. Since 0.28.0 the addon took Forever for Retail (the Forever game has Retail's Mythic+ functions under the hood) and skipped them. Mythic+, keystones and ratings now only run on Retail.
+- The addon's data screenshots are about 0.7 MB instead of 4 MB, so the game spends less time writing them at a ding or check-in. Quality 10 turned out to be the game's best quality, not its smallest; they now use the game's default.
+- The Leveling tab's time to max level no longer disappears after you log out. The game reports 0 XP while logging out, which used to overwrite your real XP bar.
+
 ## v0.28.1
 
 - The Mythic+ **From key level** box no longer jumps while you type: a `1` used to turn into 2 before the next digit came (so typing 15 gave 25, or 40). It takes 1 now, which posts every key just like 2.
