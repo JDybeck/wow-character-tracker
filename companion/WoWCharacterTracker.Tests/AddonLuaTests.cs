@@ -185,6 +185,46 @@ public class AddonLuaTests
         Assert.Equal("profession", recorded[0].Get("kind").String);
     }
 
+    // Shared.lua's stepPassed (profession and rating milestones): a step counts when the value goes
+    // from below it to it or past it. Starting on a step, staying put or going down never counts.
+    [Theory]
+    [InlineData(199, 200, 200)]  // reaching the step
+    [InlineData(150, 200, 200)]  // from the step below
+    [InlineData(190, 210, 200)]  // jumping past it
+    [InlineData(74, 75, 75)]
+    [InlineData(0, 75, 75)]
+    [InlineData(140, 310, 300)]  // past several: the highest
+    [InlineData(200, 201, 0)]    // already on the step
+    [InlineData(200, 200, 0)]
+    [InlineData(201, 250, 0)]    // between steps
+    [InlineData(199, 199, 0)]
+    [InlineData(75, 76, 0)]
+    [InlineData(210, 190, 0)]    // going down
+    [InlineData(300, 400, 0)]    // past the last step
+    public void A_step_counts_only_when_crossed_from_below(int from, int to, int expected)
+    {
+        var script = new Script();
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        var step = script.Call(ns.Get("stepPassed"), from, to, script.DoString("return { 75, 150, 200, 300 }"));
+        Assert.Equal(expected, step.IsNil() ? 0 : (int)step.Number);
+    }
+
+    // The same through the profession check, skill-up by skill-up: one post per step reached,
+    // nothing for the skill-ups after it.
+    [Fact]
+    public void Profession_skill_ups_post_only_when_a_step_is_reached()
+    {
+        var (script, ns, recorded) = ProfessionScript();
+        script.DoString("WoWCharacterTrackerSettings.post.professionSteps = { 200, 300 }");
+        foreach (var skill in new[] { 190, 199, 200, 201, 202, 250, 299, 300, 301, 310 })
+        {
+            script.DoString($"skills = {{ {{ 'Mining', {skill} }} }}");
+            script.Call(ns.Get("checkProfessions"));
+        }
+        Assert.Equal(["200 at 200", "300 at 300"], recorded.Select(e => $"{e.Get("step").Number} at {e.Get("rating").Number}"));
+    }
+
     // Loot remembers whether the item binds when equipped (GetItemInfo's 14th value), for the
     // "Bind on Equip only" rare rule.
     [Theory]
