@@ -128,6 +128,8 @@
                   <Button Grid.Row="2" Grid.Column="1" Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="legendary"/>
                 </Grid>
                 <WrapPanel Margin="30,8,0,0">
+                  <CheckBox Style="{StaticResource ChipCheck}" Content="Rares: Bind on Equip only" IsChecked="{Binding RareBoeOnly}" IsEnabled="{Binding PostRare}"
+                            ToolTip="Only rare items that bind when equipped: world drops worth a shout, not every dungeon blue. Every rare still shows in the app's highlights."/>
                   <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" ToolTip="Take a screenshot in game a moment after it happens" IsChecked="{Binding Shots[loot].Take}"/>
                   <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" ToolTip="Attach that screenshot to the Discord post" IsChecked="{Binding Shots[loot].Post}" Visibility="{Binding Shots[loot].Take, Converter={StaticResource Visible}}"/>
                 </WrapPanel>
@@ -144,6 +146,22 @@
                   <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" ToolTip="Take a screenshot in game a moment after it happens" IsChecked="{Binding Shots[mount].Take}"/>
                   <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" ToolTip="Attach that screenshot to the Discord post" IsChecked="{Binding Shots[mount].Post}" Visibility="{Binding Shots[mount].Take, Converter={StaticResource Visible}}"/>
                 </WrapPanel>
+              </StackPanel>
+              <StackPanel Style="{StaticResource PostOption}">
+                <CheckBox ToolTip="Post to Discord when a profession's skill passes a step" IsChecked="{Binding PostProfessions}">
+                  <StackPanel>
+                    <TextBlock Text="Profession milestones" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="When a main profession's skill passes one of these steps."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="profession"/>
+                </WrapPanel>
+                <Grid Margin="30,6,0,0" IsEnabled="{Binding PostProfessions}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Steps" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <TextBox Grid.Column="1" ToolTip="Skill levels that trigger a post, separated by commas" Text="{Binding ProfessionStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
+                </Grid>
               </StackPanel>
             </StackPanel>
           </Border>
@@ -261,6 +279,18 @@
                   <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="makgora"/>
                   <CheckBox Style="{StaticResource ChipCheck}" Content="Screenshot" ToolTip="Take a screenshot in game a moment after it happens" IsChecked="{Binding Shots[makgora].Take}"/>
                   <CheckBox Style="{StaticResource ChipCheck}" Content="Post screenshot" ToolTip="Attach that screenshot to the Discord post" IsChecked="{Binding Shots[makgora].Post}" Visibility="{Binding Shots[makgora].Take, Converter={StaticResource Visible}}"/>
+                </WrapPanel>
+              </StackPanel>
+
+              <StackPanel Style="{StaticResource PostOption}">
+                <CheckBox ToolTip="Post to Discord when your team wins a battleground" IsChecked="{Binding PostBattlegrounds}">
+                  <StackPanel>
+                    <TextBlock Text="Battleground wins" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="Which battleground you won. Losses only show in the app."/>
+                  </StackPanel>
+                </CheckBox>
+                <WrapPanel Margin="30,8,0,0">
+                  <Button Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="bg"/>
                 </WrapPanel>
               </StackPanel>
 

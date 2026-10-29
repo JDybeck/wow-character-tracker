@@ -2,6 +2,16 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.29.0
+
+More to post, from feedback on Reddit. Update the addon with the app (it does this by itself) and /reload in game.
+
+- **Profession milestones**: a post when a main profession passes 75, 150, 225 or 300 skill on Forever, or reaches 100 on Retail (pick your own steps). They're highlights in the app and on the stream overlay too, and guild chat can announce them.
+- **Battleground wins** can be posted to Discord (off by default, in the PvP column).
+- **Rares: Bind on Equip only**, on by default: rare loot posts are now the world drops worth a shout, not every blue from a dungeon. Turn it off to post every rare like before.
+- Enchant names on Retail's Gear tab no longer start with a code like `|cnIQ4:`.
+- The addon no longer misses loot on a game client that lacks the stacked-loot message.
+
 ## v0.28.2
 
 Ready for Forever's launch. Update the addon with the app (it does this by itself) and /reload in game.

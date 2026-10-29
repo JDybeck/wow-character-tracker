@@ -15,9 +15,12 @@ local CLASSIC_PROFESSIONS = {
   Alchemy = true, Blacksmithing = true, Enchanting = true, Engineering = true,
   Herbalism = true, Leatherworking = true, Mining = true, Skinning = true, Tailoring = true,
 }
--- Returns e.g. "Mining 150, Herbalism 75", or "" when there are none (the post then skips the line).
-local function getProfessions()
+-- The primary professions as { name = "Mining", rank = 150 } (rank 0 when the game hides it).
+function ns.professionRanks()
   local found = {}
+  local function add(name, rank)
+    if name then found[#found + 1] = { name = name, rank = num(rank) or 0 } end
+  end
 
   if type(GetProfessions) == "function" then
     -- Retail: the two main professions are the first two return values.
@@ -25,20 +28,24 @@ local function getProfessions()
     for _, idx in ipairs({ p1 or 0, p2 or 0 }) do
       if idx > 0 then
         local name, _, rank = GetProfessionInfo(idx)
-        if name then table.insert(found, string.format("%s %d", name, rank or 0)) end
+        add(name, rank)
       end
     end
   elseif type(GetNumSkillLines) == "function" then
     -- Classic: scan the skill list for primary professions.
     for i = 1, GetNumSkillLines() do
       local name, isHeader, _, rank = GetSkillLineInfo(i)
-      if name and not isHeader and CLASSIC_PROFESSIONS[name] then
-        table.insert(found, string.format("%s %d", name, rank or 0))
-      end
+      if name and not isHeader and CLASSIC_PROFESSIONS[name] then add(name, rank) end
     end
   end
+  return found
+end
 
-  return table.concat(found, ", ")
+-- Returns e.g. "Mining 150, Herbalism 75", or "" when there are none (the post then skips the line).
+local function getProfessions()
+  local parts = {}
+  for _, p in ipairs(ns.professionRanks()) do parts[#parts + 1] = string.format("%s %d", p.name, p.rank) end
+  return table.concat(parts, ", ")
 end
 
 -- Retail point split, e.g. "Class 15 / Fury 12 / Slayer 3".

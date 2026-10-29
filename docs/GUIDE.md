@@ -35,8 +35,9 @@ Each game has a **What gets posted** page, in three columns:
 
 - **General**
   - **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level. **Max level** has its own switch: on, it's posted with extra flair even when the level rule would skip it.
-  - **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair. The post shows the item like its Wowhead tooltip, as a picture: icon, name in its quality color, item level, damage and speed, stats, green Equip lines and the sell price.
+  - **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair. **Rares: Bind on Equip only** (on by default) posts just the rares that bind when equipped, the world drops people farm and trade, and skips the dungeon blues that bind when picked up. Every rare still shows in the app's highlights. The post shows the item like its Wowhead tooltip, as a picture: icon, name in its quality color, item level, damage and speed, stats, green Equip lines and the sell price.
   - **New mounts**: bought from a vendor or learned.
+  - **Profession milestones**: when a main profession's skill climbs past one of your steps (on Forever 75, 150, 225 and 300 by default, the Classic rank caps; on Retail 100, the max of each expansion's skill). Going from 140 to 151 Mining posts "reached 150 Mining"; a jump past several steps posts the highest one. Each step posts once per character and profession.
 - **PvE**
   - **Mythic+ runs** (Retail, in place of end boss kills): a finished key, with the dungeon, the time, how far the key goes up (or that it went over time), your new Mythic+ rating and the group. Set the lowest key level that gets a post (**From key level**, 10 by default; 2 posts every key) and tick **Timed only** to skip keys that went over the timer. Every run still shows in the app's highlights.
   - **End boss kills** (Forever): the last boss of a dungeon or raid, with the group. On by default, only each character's first kill of a boss is posted (turn off **First kill only** to post every kill). You can skip the post when someone in the group matches a regex, for friends who run the tracker too, so the same kill isn't posted twice.
@@ -45,6 +46,7 @@ Each game has a **What gets posted** page, in three columns:
 - **PvP**
   - **Duels won**: who you beat, or who ran away.
   - **Mak'gora won** (Forever): the hardcore duel to the death.
+  - **Battleground wins**: which battleground your team won. Off by default. Losses only show in the app.
   - **PvP rating** (Retail): the same for each rated bracket (2v2, 3v3, Rated Battlegrounds, Solo Shuffle, Blitz), with 1800, 2100, 2400 and 2700 as the default steps.
 
 Every option has a **Test** button that posts a sample, using the selected character. Most have **Screenshot** (the addon takes one in game a moment after it happens) and **Post screenshot** (attach it to the Discord post). Screenshot settings reach the game on your next `/reload` or login; while the game runs, a banner at the top reminds you until it has loaded them. On Forever you can also pick the **Name in posts**: full name (Ronnie Raket), first name or surname.
@@ -73,7 +75,7 @@ The **In game** page has what the addon does in game besides posting:
 
 - **Offer a reload on flight paths**: when you take a flight and your bags or gear changed since the last save, a small box in game offers a `/reload` (you keep flying), so the Items page gets up to date.
 - **Remind me in chat to /reload**: one line in chat when your bags or gear changed since the last save, after the bank, mailbox, a vendor or the auction house, when you leave a dungeon, and every 30 minutes.
-- **Tell your guild or group**: the addon writes one line in guild chat and/or party (or raid) chat, as you, when something happens: level-ups ("Ding! Level 23. 22 to 23 took 41m 12s."), max level, end boss kills (Mythic+ runs on Retail, from the same lowest key level as the posts: "Timed +12 Ara-Kara, City of Echoes (+2)!"), epic and legendary loot as a clickable item link, new mounts, duel, Mak'gora and battleground wins, rating steps (Retail) and hardcore deaths. Pick which. Messages wait until you're out of combat, and boss kills don't list the group. Off until you tick Guild chat or Party / raid chat.
+- **Tell your guild or group**: the addon writes one line in guild chat and/or party (or raid) chat, as you, when something happens: level-ups ("Ding! Level 23. 22 to 23 took 41m 12s."), max level, end boss kills (Mythic+ runs on Retail, from the same lowest key level as the posts: "Timed +12 Ara-Kara, City of Echoes (+2)!"), epic and legendary loot as a clickable item link, new mounts, duel, Mak'gora and battleground wins, profession milestones ("Reached 150 Mining!"), rating steps (Retail) and hardcore deaths. Pick which. Messages wait until you're out of combat, and boss kills don't list the group. Off until you tick Guild chat or Party / raid chat.
 - **Instant posting**: the corner the small data grid is flashed in (top left, top right, bottom left or bottom right), and whether its small label shows.
 - **Saved history**: every level-up, boss kill, mount and death is always kept. Loot, duels, battlegrounds and Mythic+ runs pile up fast, so by default the addon keeps the newest 300 of each per character, which keeps `/reload`, logout and the app quick. Tick **Keep everything** to never trim anything (duel and battleground records then count every fight since the start).
 - **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
@@ -138,8 +140,8 @@ Optional, and off until you turn it on: show your character, your records, your 
 What it shows:
 
 - **The card**: who the character is right now. Its name, level, race, spec and class and zone on top, then its stats on the left (item level, played, gold, your Mythic Keystone and ratings on Retail, and your duel, Mak'gora and battleground records) and its leveling on the right (how long the last level took, the levels before that, today's levels and their average). Without level times, like at max level, the stats get the card to themselves.
-- **Highlights**: what happened lately, as a short list. Pick which kinds count: loot, boss kills (Forever), mounts, duels, Mak'gora, battlegrounds (wins and losses), deaths, and on Retail Mythic+ runs and Mythic+ and PvP rating milestones.
-- **Alerts**: the big moments pop up in the middle for a few seconds, styled like the game, each in its own colors: **DING!** with the level and its time, **MAX LEVEL!** with light rays, **VICTORY!** for an end boss, a duel or a battleground win, **LEGENDARY!**, **EPIC LOOT!** and **RARE LOOT!**, **NEW MOUNT!**, **MAK'GORA!** in blood red, a calm gray **R.I.P.** for a hardcore death, and on Retail **TIMED!** for a key beaten in time and **MILESTONE!** for rating steps. Pick which ones pop up under **Alerts** (rare loot is off by default, it happens a lot).
+- **Highlights**: what happened lately, as a short list. Pick which kinds count: loot, boss kills (Forever), mounts, duels, Mak'gora, battlegrounds (wins and losses), profession milestones, deaths, and on Retail Mythic+ runs and Mythic+ and PvP rating milestones.
+- **Alerts**: the big moments pop up in the middle for a few seconds, styled like the game, each in its own colors: **DING!** with the level and its time, **MAX LEVEL!** with light rays, **VICTORY!** for an end boss, a duel or a battleground win, **LEGENDARY!**, **EPIC LOOT!** and **RARE LOOT!**, **NEW MOUNT!**, **MAK'GORA!** in blood red, a calm gray **R.I.P.** for a hardcore death, **MILESTONE!** for a profession step, and on Retail **TIMED!** for a key beaten in time and **MILESTONE!** for rating steps. Pick which ones pop up under **Alerts** (rare loot is off by default, it happens a lot).
 
 <img src="images/stream-alerts.png" alt="Alerts: MAX LEVEL!, EPIC LOOT!, MAK'GORA! and R.I.P." width="640">
 
@@ -206,11 +208,12 @@ Not built yet, roughly in order:
 
 - Talents: Forever shows points in its three trees plus each pick. Retail shows points in the class, spec and hero trees.
 - Professions and end bosses are matched by English name, so a non-English client won't show them.
-- Battlegrounds count when the game says who won (arenas and draws don't). Results are tracked and shown, not posted to Discord.
+- Battlegrounds count when the game says who won (arenas and draws don't). Wins can be posted to Discord, losses are only tracked and shown.
 - Bags and gear reach the app on `/reload` or logout (they're too much for the live channel). The bank only updates when you open it in game.
 - Set bonuses are read from the game's own tooltips, so catalysted pieces and others that count for a set are counted the way the game counts them. The game doesn't say how many pieces an active bonus needed, so that number comes from Wowhead's tooltip of a piece you wear. For a set Wowhead doesn't list yet, active bonuses show a ✓ instead of "(2)". Sets and effects aren't read in combat; they update on the next bag or gear change after it.
 - Clicking the page tab you're on (Characters, Items...) starts that page over: the open character closes, filters and search reset, and it scrolls to the top.
-- Rating milestones start counting from the first time the addon sees your rating, so ratings you already had aren't posted.
+- Rating and profession milestones start counting from the first time the addon sees your rating or skill, so what you already had isn't posted.
+- Bind on Equip is read from the game when you loot. Loot from before 0.29.0 doesn't know it, and an item the game hasn't loaded yet counts as not BoE.
 - Retail portraits are the character's own render, found through Raider.IO (after the next login with the updated addon). Forever characters show their own portrait in the app: the addon puts it next to the data grid in the check-in shot after you log in, and the app cuts it out. Posts upload it with the message as their picture (unless you picked Standard for that character). One rule picks the picture everywhere: the app, posts and character cards.
 - Screenshots go out at full size first (boosted servers allow bigger uploads). If Discord says one is too big, a smaller JPEG copy is sent instead, and only if that's still too big does the post go out without it.
 - On the first run, events already saved are marked as posted so the channel isn't flooded. Start the app with `--backfill` to post them instead.

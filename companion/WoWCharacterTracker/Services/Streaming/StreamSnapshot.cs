@@ -109,6 +109,7 @@ sealed record StreamSnapshot(
             {
                 "mplus" or "keyrun" => Wowhead.RatingIcons["Mythic+"],
                 "pvp" => Wowhead.RatingIcons.GetValueOrDefault(e.Bracket) ?? Wowhead.RatingIcons["2v2"],
+                "profession" => Wowhead.ProfessionIcons.GetValueOrDefault(e.Profession) ?? Wowhead.HighlightIcons["profession"],
                 _ => Wowhead.HighlightIcons.GetValueOrDefault(e.Kind),
             };
         var quality = e.Kind == "loot" && e.Quality > 0 ? e.Quality : item?.Quality ?? -1;
@@ -132,6 +133,7 @@ sealed record StreamSnapshot(
         "makgora" when !e.Lost => new(e.Id, "makgora", "MAK'GORA!", $"{e.Opponent} fell to the death", Capital(e.OpponentText), "blood", e.At),
         "bg" when !e.Lost => new(e.Id, "bg", "VICTORY!", e.Instance.Length > 0 ? $"Won {e.Instance}" : "Battleground won", "", "victory", e.At),
         "death" => new(e.Id, "death", "R.I.P.", $"{e.Char} fell at level {e.Level}", e.Played > 0 ? $"After {Format.Played(e.Played)} played" : "", "death", e.At),
+        "profession" => new(e.Id, "profession", "MILESTONE!", $"{e.Step} {e.Profession}", e.Rating > 0 ? $"Skill {e.Rating}" : "", "rating", e.At),
         "mplus" => new(e.Id, "mplus", "MILESTONE!", $"{e.Step} Mythic+ rating", e.Rating > 0 ? $"Rating {e.Rating}" : "", "rating", e.At),
         "pvp" => new(e.Id, "pvp", "MILESTONE!", $"{e.Step} in {e.Bracket}", e.Rating > 0 ? $"Rating {e.Rating}" : "", "rating", e.At),
         _ => null,

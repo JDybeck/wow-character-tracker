@@ -142,7 +142,8 @@ sealed class StreamViewModel : Observable
         ("loot", "Loot", "Rare, epic and legendary items looted"), ("boss", "Boss kills", "Dungeon and raid end bosses killed"),
         ("keyrun", "Mythic+ runs", "Keys finished, timed or over time (Retail)"),
         ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won and lost"),
-        ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"), ("death", "Deaths", "Hardcore deaths"),
+        ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"),
+        ("profession", "Professions", "Profession milestones (the steps set for Discord)"), ("death", "Deaths", "Hardcore deaths"),
         ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
     ];
 
@@ -159,6 +160,7 @@ sealed class StreamViewModel : Observable
         ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
         ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"), ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"),
         ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
+        ("profession", "Professions", "MILESTONE! when a profession passes a step"),
         ("death", "Deaths", "R.I.P. when a hardcore character dies"),
         ("mplus", "Mythic+", "MILESTONE! for a Mythic+ rating step (Retail)"), ("pvp", "PvP rating", "MILESTONE! for a PvP rating step (Retail)"),
     ];

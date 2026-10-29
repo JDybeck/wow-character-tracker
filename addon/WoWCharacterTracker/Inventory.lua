@@ -133,10 +133,10 @@ local EQUIP = plain(ITEM_SPELL_TRIGGER_ONEQUIP or "Equip:")
 local USE = plain(ITEM_SPELL_TRIGGER_ONUSE or "Use:")
 local ENCHANTED = "^" .. plain(((ENCHANTED_TOOLTIP_LINE or "Enchanted: %s"):match("^(.-)%%s")) or "Enchanted: ") .. "(.+)$"
 
--- Color codes and icons (the enchant's quality star) out, and the characters the saved lines use
--- as separators.
+-- Color codes ("|cffRRGGBB" and Retail's named "|cnIQ4:"), icons (the enchant's quality star) out,
+-- and the characters the saved lines use as separators.
 local function clean(text)
-  text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|A.-|a", ""):gsub("|T.-|t", ""):gsub("[~\r\n]", " ")
+  text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|cn[^:|]*:", ""):gsub("|r", ""):gsub("|A.-|a", ""):gsub("|T.-|t", ""):gsub("[~\r\n]", " ")
   return (text:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 

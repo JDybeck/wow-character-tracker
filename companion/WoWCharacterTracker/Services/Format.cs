@@ -155,6 +155,11 @@ static partial class Format
     // item, the slot goes without saying. Enchants without that prefix ("+41 Agility") stay as they are.
     public static string EnchantName(string text) => EnchantSlot().Replace(text, "");
 
+    // The game's text codes out of a saved tooltip line: colors ("|cffRRGGBB", Retail's named
+    // "|cnIQ4:"), "|r", icons ("|A...|a", "|T...|t"). The addon cleans its lines since 0.29.0, older
+    // saved files still have Retail's named colors in them.
+    public static string GameText(string text) => GameCode().Replace(text, "");
+
     public static string Quality(int q) => q switch { 3 => "Rare", 4 => "Epic", 5 => "Legendary", 6 => "Artifact", _ => "" };
 
     public static string Ago(long unixSeconds)
@@ -177,4 +182,7 @@ static partial class Format
 
     [GeneratedRegex("^Enchant [^-]+ - ")]
     private static partial Regex EnchantSlot();
+
+    [GeneratedRegex(@"\|c[0-9a-fA-F]{8}|\|cn[^:|]*:|\|r|\|A.*?\|a|\|T.*?\|t")]
+    private static partial Regex GameCode();
 }

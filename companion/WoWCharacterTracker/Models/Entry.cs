@@ -69,9 +69,11 @@ record Entry
         }
     }
     public string OpponentClassFile => OpponentInfo.Split('~') is { Length: >= 2 } p ? p[1] : "";
-    public int Rating { get; init; }             // mplus / pvp: the rating now
-    public int Step { get; init; }               // mplus / pvp: the milestone passed
+    public int Rating { get; init; }             // mplus / pvp: the rating now; profession: the skill now
+    public int Step { get; init; }               // mplus / pvp / profession: the milestone passed
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
+    public string Profession { get; init; } = ""; // profession: "Mining" (from 0.29.0)
+    public bool Boe { get; init; }               // loot: binds when equipped (from 0.29.0; older loot reads as not)
     public int KeyLevel { get; init; }           // keyrun: the keystone's level (the dungeon is Instance, the run's time Seconds)
     public int Upgrades { get; init; }           // keyrun: 1-3 when timed, 0 over time
     public bool Timed => Upgrades > 0;
@@ -145,6 +147,8 @@ record Entry
             Rating = (int)n("rating"),
             Step = (int)n("step"),
             Bracket = s("bracket"),
+            Profession = s("profession"),
+            Boe = s("boe") is "true" or "1",
             KeyLevel = (int)n("keyLevel"),
             Upgrades = (int)n("upgrades"),
             TalentExport = s("talentExport"),

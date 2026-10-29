@@ -11,7 +11,7 @@ local SHORT = {
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
   maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V", keystone = "W", zoneType = "f",
-  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", -- single letters are used up, so new keys get two
+  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", -- single letters are used up, so new keys get two
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
@@ -381,7 +381,7 @@ local function wanted(e)
     return e.level % math.max(1, every) == 0
   elseif e.kind == "loot" then
     if (e.quality or 0) >= 4 then return post.epic and true or false end
-    return post.rare and true or false
+    return (post.rare and (e.boe or not post.rareBoe)) and true or false -- rareBoe: Bind on Equip only
   elseif e.kind == "keyrun" then -- Mythic+ runs: from a key level, maybe only timed ones
     local k = post.keyrun
     if not k or not k.on or (e.keyLevel or 0) < (k.min or 0) then return false end

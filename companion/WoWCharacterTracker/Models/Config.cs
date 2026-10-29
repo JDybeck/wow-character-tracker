@@ -198,10 +198,16 @@ class Config
             changed = true;
         }
 
-        foreach (var s in config.Flavors.Values)
+        foreach (var (key, s) in config.Flavors)
         {
             if (s.MPlusSteps.SequenceEqual(FlavorSettings.OldMPlusSteps)) { s.MPlusSteps = [.. FlavorSettings.DefaultMPlusSteps]; changed = true; }
             if (s.PvpSteps.SequenceEqual(FlavorSettings.OldPvpSteps)) { s.PvpSteps = [.. FlavorSettings.DefaultPvpSteps]; changed = true; }
+            // Profession steps came in 0.29.0 and differ per game: configs from before get the game's.
+            if (s.ProfessionSteps.Count == 0 && WoWCharacterTracker.Models.Flavors.All.FirstOrDefault(f => f.Key == key) is { } flavor)
+            {
+                s.ProfessionSteps = flavor.Defaults().ProfessionSteps;
+                changed = true;
+            }
         }
 
         var stream = config.StreamOptions;
@@ -217,6 +223,13 @@ class Config
             if (!stream.HighlightKinds.Contains("keyrun")) stream.HighlightKinds.Add("keyrun");
             if (!stream.AlertKinds.Contains("keyrun")) stream.AlertKinds.Add("keyrun");
             stream.HasKeyRuns = true;
+            changed = true;
+        }
+        if (!stream.HasProfessions)
+        {
+            if (!stream.HighlightKinds.Contains("profession")) stream.HighlightKinds.Add("profession");
+            if (!stream.AlertKinds.Contains("profession")) stream.AlertKinds.Add("profession");
+            stream.HasProfessions = true;
             changed = true;
         }
 

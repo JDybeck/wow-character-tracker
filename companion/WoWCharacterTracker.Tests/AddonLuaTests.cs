@@ -143,6 +143,116 @@ public class AddonLuaTests
         Assert.Equal("Dreadus~90~DEMONHUNTER~Demon Hunter~Night Elf~ArgentDawn~Havoc", e.Get("group").String);
     }
 
+    // Events.lua with the game's skill list stubbed (Classic style); the recorded events come back.
+    static (Script Script, Table Ns, List<Table> Recorded) ProfessionScript()
+    {
+        var script = new Script();
+        script.DoString("""
+            function time() return 5000 end
+            function UnitGUID() return 'Player-1' end
+            skills = { { 'Mining', 140 }, { 'Herbalism', 70 } }
+            function GetNumSkillLines() return #skills end
+            function GetSkillLineInfo(i) return skills[i][1], false, nil, skills[i][2] end
+            WoWCharacterTrackerDB = {}
+            WoWCharacterTrackerSettings = { post = { professionSteps = { 75, 150, 225, 300 } } }
+            """);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 30 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        return (script, ns, recorded);
+    }
+
+    // The first reading is only the baseline; after that, passing a step records it once, with the
+    // highest step passed when several were.
+    [Fact]
+    public void Profession_milestones_post_a_passed_step_once()
+    {
+        var (script, ns, recorded) = ProfessionScript();
+        script.Call(ns.Get("checkProfessions")); // baseline: Mining 140, Herbalism 70
+        Assert.Empty(recorded);
+
+        script.DoString("skills = { { 'Mining', 151 }, { 'Herbalism', 230 }, { 'Skinning', 1 } }");
+        script.Call(ns.Get("checkProfessions"));
+        script.Call(ns.Get("checkProfessions")); // nothing new
+
+        Assert.Equal(["Mining:150:151", "Herbalism:225:230"],
+            recorded.Select(e => $"{e.Get("profession").String}:{e.Get("step").Number}:{e.Get("rating").Number}"));
+        Assert.Equal("Player-1:profession:Mining:150", recorded[0].Get("id").String);
+        Assert.Equal("profession", recorded[0].Get("kind").String);
+    }
+
+    // Shared.lua's stepPassed (profession and rating milestones): a step counts when the value goes
+    // from below it to it or past it. Starting on a step, staying put or going down never counts.
+    [Theory]
+    [InlineData(199, 200, 200)]  // reaching the step
+    [InlineData(150, 200, 200)]  // from the step below
+    [InlineData(190, 210, 200)]  // jumping past it
+    [InlineData(74, 75, 75)]
+    [InlineData(0, 75, 75)]
+    [InlineData(140, 310, 300)]  // past several: the highest
+    [InlineData(200, 201, 0)]    // already on the step
+    [InlineData(200, 200, 0)]
+    [InlineData(201, 250, 0)]    // between steps
+    [InlineData(199, 199, 0)]
+    [InlineData(75, 76, 0)]
+    [InlineData(210, 190, 0)]    // going down
+    [InlineData(300, 400, 0)]    // past the last step
+    public void A_step_counts_only_when_crossed_from_below(int from, int to, int expected)
+    {
+        var script = new Script();
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        var step = script.Call(ns.Get("stepPassed"), from, to, script.DoString("return { 75, 150, 200, 300 }"));
+        Assert.Equal(expected, step.IsNil() ? 0 : (int)step.Number);
+    }
+
+    // The same through the profession check, skill-up by skill-up: one post per step reached,
+    // nothing for the skill-ups after it.
+    [Fact]
+    public void Profession_skill_ups_post_only_when_a_step_is_reached()
+    {
+        var (script, ns, recorded) = ProfessionScript();
+        script.DoString("WoWCharacterTrackerSettings.post.professionSteps = { 200, 300 }");
+        foreach (var skill in new[] { 190, 199, 200, 201, 202, 250, 299, 300, 301, 310 })
+        {
+            script.DoString($"skills = {{ {{ 'Mining', {skill} }} }}");
+            script.Call(ns.Get("checkProfessions"));
+        }
+        Assert.Equal(["200 at 200", "300 at 300"], recorded.Select(e => $"{e.Get("step").Number} at {e.Get("rating").Number}"));
+    }
+
+    // Loot remembers whether the item binds when equipped (GetItemInfo's 14th value), for the
+    // "Bind on Equip only" rare rule.
+    [Theory]
+    [InlineData(2, true)]
+    [InlineData(1, false)]
+    public void Looted_rares_say_whether_they_bind_on_equip(int bindType, bool boe)
+    {
+        var script = new Script();
+        script.DoString($$"""
+            LOOT_ITEM_SELF = "You receive loot: %s."
+            function time() return 5000 end
+            function GetItemInfo(link) return 'Thrash Blade', link, 3, 53, 48, 'Weapon', 'Swords', 1, 'INVTYPE_WEAPON', 0, 0, 2, 7, {{bindType}} end
+            """);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+
+        script.Call(ns.Get("recordLoot"), "You receive loot: |cff0070dd|Hitem:17705::::::::50:::::|h[Thrash Blade]|h|r.");
+
+        var e = Assert.Single(recorded);
+        Assert.Equal(3, e.Get("quality").Number);
+        Assert.Equal(boe, e.Get("boe").CastToBool());
+    }
+
     // Retail is told by the interface number, not by C_MythicPlus: Forever (16001) has that API too,
     // and must still record end boss kills; Retail (120105) records key runs instead.
     [Theory]

@@ -22,6 +22,9 @@ class FlavorSettings
     public int LevelEveryAfter { get; set; } = 1;
 
     public bool PostRare { get; set; }
+    // Only rares that bind when equipped: the world drops worth a shout, not every dungeon blue.
+    // On for configs from before 0.29.0 too, so posted rares get quieter for everyone.
+    public bool RareBoeOnly { get; set; } = true;
     public bool PostEpic { get; set; }   // epic and legendary
     public bool PostMounts { get; set; } = true;
     public bool PostBosses { get; set; }
@@ -37,9 +40,18 @@ class FlavorSettings
     // keystroke, so a minimum of 2 turned a typed "1" into 2 before the next digit came.
     public const int KeyLevelMin = 1, KeyLevelMax = 40;
 
-    // Duels, hardcore Mak'gora, and retail rating milestones (posted when a step is passed).
+    // Profession milestones: a primary profession's skill passing one of the steps. The defaults
+    // depend on the game (Flavor.Defaults: the Classic rank caps on Forever, the max of 100 on
+    // Retail); empty means not set yet, which Config.Load fills in from the game's defaults.
+    public bool PostProfessions { get; set; } = true;
+    public List<int> ProfessionSteps { get; set; } = [];
+    public static readonly int[] ClassicProfessionSteps = [75, 150, 225, 300];
+    public static readonly int[] RetailProfessionSteps = [100];
+
+    // Duels, hardcore Mak'gora, battleground wins, and retail rating milestones (posted when a step is passed).
     public bool PostDuels { get; set; }
     public bool PostMakgora { get; set; } = true;
+    public bool PostBattlegrounds { get; set; }
     public bool PostMPlus { get; set; } = true;
     public bool PostPvp { get; set; } = true;
     public List<int> MPlusSteps { get; set; } = [.. DefaultMPlusSteps];
@@ -98,11 +110,11 @@ class FlavorSettings
     public bool KeepAllHistory { get; set; }
 
     // The addon tells the guild and/or the group in game chat (Announce.lua), for these kinds:
-    // level, maxlevel, boss, keyrun, loot (epic and better, as a link), mount, duel, makgora, bg, mplus, pvp, death.
+    // level, maxlevel, boss, keyrun, loot (epic and better, as a link), mount, duel, makgora, bg, profession, mplus, pvp, death.
     public bool AnnounceGuild { get; set; }
     public bool AnnounceParty { get; set; }
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
-    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "mplus", "pvp"];
+    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "mplus", "pvp"];
 
     // Where the addon draws its data grid for the instant posts (TOPLEFT, TOPRIGHT, BOTTOMLEFT,
     // BOTTOMRIGHT) and whether the small label shows next to it. The app reads every corner either way.
@@ -119,10 +131,11 @@ class FlavorSettings
     public void CopyPostingFrom(FlavorSettings d)
     {
         (PostLevels, LevelSplit, LevelEveryBefore, LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
-        (PostRare, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
+        (PostRare, RareBoeOnly, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.RareBoeOnly, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
         FirstBossKillOnly = d.FirstBossKillOnly;
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
-        (PostMaxLevel, PostDuels, PostMakgora, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostMPlus, d.PostPvp);
+        (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
+        (PostProfessions, ProfessionSteps) = (d.PostProfessions, [.. d.ProfessionSteps]);
         (MPlusSteps, PvpSteps) = ([.. d.MPlusSteps], [.. d.PvpSteps]);
         Screenshot = new(d.Screenshot);
         PostScreenshot = new(d.PostScreenshot);
@@ -149,13 +162,15 @@ class FlavorSettings
     public bool Wants(Entry e) => e.Kind switch
     {
         "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),
-        "loot" => e.Quality >= 5 || (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare),
+        "loot" => e.Quality >= 5 || (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && (e.Boe || !RareBoeOnly)),
         "mount" => PostMounts,
         "boss" => PostBosses && SkipBossBecause(e) is null,
         "keyrun" => PostKeyRuns && e.KeyLevel >= KeyRunMinLevel && (e.Timed || !KeyRunTimedOnly),
         "death" => PostDeaths,
         "duel" => PostDuels && !e.Lost, // only wins are posted
         "makgora" => PostMakgora && !e.Lost,
+        "bg" => PostBattlegrounds && !e.Lost,
+        "profession" => PostProfessions,
         "mplus" => PostMPlus,
         "pvp" => PostPvp,
         _ => false,

@@ -371,6 +371,7 @@ sealed class CharacterRow : Observable
             "mplus" or "keyrun" => ("", 0xC084FC),
             "pvp" => ("", 0xF87171),
             "mount" => ("", 0x4ADE80),
+            "profession" => ("", 0xFCD34D), // a wrench
             _ => ("", 0xF87171), // Mak'gora wins, deaths
         };
         var brush = e.Kind == "loot" ? HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD) : ClassColors.Hex(color);

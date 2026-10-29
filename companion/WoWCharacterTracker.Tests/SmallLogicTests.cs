@@ -356,6 +356,16 @@ public class ItemKindTests
     [InlineData("+41 Agility/Strength & +115 Stamina", "+41 Agility/Strength & +115 Stamina")]
     [InlineData("Rune of Sanguination", "Rune of Sanguination")]
     public void Enchant_names_lose_the_slot_prefix(string saved, string shown) => Assert.Equal(shown, Format.EnchantName(saved));
+
+    [Fact]
+    public void Saved_enchants_lose_the_games_color_codes()
+    {
+        var enchants = Inventory.ParseEnchants("15~244020~|cnIQ4:Ancient Hash'ey Battle Art: Falco Strikes|r~7655\n5~1~|cff00ff00+4 All Stats|r");
+        Assert.Equal("Ancient Hash'ey Battle Art: Falco Strikes", enchants[0].Text);
+        Assert.Equal(7655, enchants[0].EnchantId);
+        Assert.Equal("+4 All Stats", enchants[1].Text);
+        Assert.Equal("Use: Heal  now", Format.GameText("Use: Heal |A:star:0:0|a now"));
+    }
 }
 
 public class PlaceTests

@@ -46,6 +46,7 @@ static class Flavors
     {
         LevelSplit = 80, LevelEveryBefore = 10, LevelEveryAfter = 1,
         PostRare = false, PostEpic = false, PostMounts = true, PostBosses = false, PostDeaths = false,
+        ProfessionSteps = [.. FlavorSettings.RetailProfessionSteps], // each expansion's skill line tops out at 100
     })
     {
         LogoUrl = "https://warcraft.wiki.gg/images/thumb/Midnight_2024_logo.png/250px-Midnight_2024_logo.png",
@@ -58,6 +59,7 @@ static class Flavors
     {
         LevelSplit = 30, LevelEveryBefore = 5, LevelEveryAfter = 1,
         PostRare = true, PostEpic = true, PostMounts = true, PostBosses = true, PostDeaths = true,
+        ProfessionSteps = [.. FlavorSettings.ClassicProfessionSteps],
         Screenshot = new() { ["level"] = true, ["mount"] = true, ["boss"] = true, ["death"] = true },
         PostScreenshot = new() { ["level"] = true, ["mount"] = true, ["boss"] = true, ["death"] = true },
     })

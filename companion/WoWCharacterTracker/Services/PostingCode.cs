@@ -17,7 +17,8 @@ static class PostingCode
         bool PostDuels, bool PostMakgora, bool PostMPlus, bool PostPvp,
         List<int> MPlusSteps, List<int> PvpSteps, string SkipBossGroupRegex, string NameStyle,
         bool HideChatInShots, Dictionary<string, bool> Screenshot, Dictionary<string, bool> PostScreenshot, bool HideUiInShots = false, bool FirstBossKillOnly = true,
-        bool PostKeyRuns = true, int KeyRunMinLevel = 10, bool KeyRunTimedOnly = false);
+        bool PostKeyRuns = true, int KeyRunMinLevel = 10, bool KeyRunTimedOnly = false,
+        bool RareBoeOnly = true, bool PostBattlegrounds = false, bool PostProfessions = true, List<int>? ProfessionSteps = null);
 
     public static string Export(FlavorSettings s, Flavor flavor)
     {
@@ -27,7 +28,8 @@ static class PostingCode
             s.PostDuels, s.PostMakgora, s.PostMPlus, s.PostPvp,
             s.MPlusSteps, s.PvpSteps, s.SkipBossGroupRegex, s.NameStyle,
             s.HideChatInShots, s.Screenshot, s.PostScreenshot, s.HideUiInShots, s.FirstBossKillOnly,
-            s.PostKeyRuns, s.KeyRunMinLevel, s.KeyRunTimedOnly);
+            s.PostKeyRuns, s.KeyRunMinLevel, s.KeyRunTimedOnly,
+            s.RareBoeOnly, s.PostBattlegrounds, s.PostProfessions, s.ProfessionSteps);
         return Prefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(dto)));
     }
 
@@ -54,9 +56,11 @@ static class PostingCode
             LevelEveryBefore = Math.Clamp(d.LevelEveryBefore, 1, 100),
             LevelEveryAfter = Math.Clamp(d.LevelEveryAfter, 1, 100),
             PostMaxLevel = d.PostMaxLevel,
-            PostRare = d.PostRare, PostEpic = d.PostEpic, PostMounts = d.PostMounts, PostBosses = d.PostBosses, PostDeaths = d.PostDeaths, FirstBossKillOnly = d.FirstBossKillOnly,
+            PostRare = d.PostRare, RareBoeOnly = d.RareBoeOnly, PostEpic = d.PostEpic, PostMounts = d.PostMounts, PostBosses = d.PostBosses, PostDeaths = d.PostDeaths, FirstBossKillOnly = d.FirstBossKillOnly,
             PostKeyRuns = d.PostKeyRuns, KeyRunMinLevel = Math.Clamp(d.KeyRunMinLevel, FlavorSettings.KeyLevelMin, FlavorSettings.KeyLevelMax), KeyRunTimedOnly = d.KeyRunTimedOnly,
-            PostDuels = d.PostDuels, PostMakgora = d.PostMakgora, PostMPlus = d.PostMPlus, PostPvp = d.PostPvp,
+            PostDuels = d.PostDuels, PostMakgora = d.PostMakgora, PostBattlegrounds = d.PostBattlegrounds, PostMPlus = d.PostMPlus, PostPvp = d.PostPvp,
+            PostProfessions = d.PostProfessions,
+            ProfessionSteps = Steps(d.ProfessionSteps, target.ProfessionSteps),
             MPlusSteps = Steps(d.MPlusSteps, target.MPlusSteps),
             PvpSteps = Steps(d.PvpSteps, target.PvpSteps),
             Screenshot = d.Screenshot ?? [],

@@ -20,6 +20,7 @@ static class EventKinds
         new("duel", "Duels", Shot: true, Highlight: true),
         new("makgora", "Mak'gora", Shot: true, Highlight: true),
         new("bg", "Battlegrounds", Highlight: true),
+        new("profession", "Professions", Highlight: true),
         new("mplus", "Mythic+", Highlight: true, RatingsOnly: true),
         new("pvp", "PvP rating", Highlight: true, RatingsOnly: true),
     ];

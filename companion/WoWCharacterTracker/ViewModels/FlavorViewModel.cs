@@ -187,6 +187,9 @@ sealed class FlavorViewModel : Observable
     public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); Changed(); } }
     public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); Changed(); } }
     public bool PostRare { get => Settings.PostRare; set { Settings.PostRare = value; Changed(); } }
+    public bool RareBoeOnly { get => Settings.RareBoeOnly; set { Settings.RareBoeOnly = value; Changed(); } }
+    public bool PostBattlegrounds { get => Settings.PostBattlegrounds; set { Settings.PostBattlegrounds = value; Changed(); } }
+    public bool PostProfessions { get => Settings.PostProfessions; set { Settings.PostProfessions = value; Changed(); } }
     public bool PostEpic { get => Settings.PostEpic; set { Settings.PostEpic = value; Changed(); } }
     public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; Changed(); } }
     public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
@@ -202,7 +205,8 @@ sealed class FlavorViewModel : Observable
     public bool KeyRunTimedOnly { get => Settings.KeyRunTimedOnly; set { Settings.KeyRunTimedOnly = value; Changed(); } }
     public bool IsRetail => Flavor.HasRatings; // Mythic+ runs (instead of end boss kills) and the rating options
 
-    // Rating milestones as "1500, 2000, 2500": whole numbers, sorted, typos ignored.
+    // Rating and profession milestones as "1500, 2000, 2500": whole numbers, sorted, typos ignored.
+    public string ProfessionStepsText { get => string.Join(", ", Settings.ProfessionSteps); set { Settings.ProfessionSteps = ParseSteps(value, Settings.ProfessionSteps); Changed(); } }
     public string MPlusStepsText { get => string.Join(", ", Settings.MPlusSteps); set { Settings.MPlusSteps = ParseSteps(value, Settings.MPlusSteps); Changed(); } }
     public string PvpStepsText { get => string.Join(", ", Settings.PvpSteps); set { Settings.PvpSteps = ParseSteps(value, Settings.PvpSteps); Changed(); } }
     static List<int> ParseSteps(string text, List<int> fallback)
@@ -239,6 +243,7 @@ sealed class FlavorViewModel : Observable
         ("keyrun", "Mythic+ runs", "\"Timed +12 Ara-Kara, City of Echoes (+2)!\" (from the lowest key level set for Discord)"), ("loot", "Epic loot", "Epic and legendary items, as a link you can click"),
         ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
         ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
+        ("profession", "Professions", "\"Reached 150 Mining!\" (the steps set for Discord)"),
         ("mplus", "Mythic+", "Mythic+ rating steps (Retail)"), ("pvp", "PvP rating", "PvP rating steps (Retail)"), ("death", "Deaths", "Hardcore deaths"),
     ];
     ObservableCollection<ToggleOption>? announceKinds;

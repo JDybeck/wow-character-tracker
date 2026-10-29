@@ -41,6 +41,7 @@ function on.PLAYER_ENTERING_WORLD()
   C_Timer.After(10, ns.saveSnapshot)
   C_Timer.After(10, ns.scanInventory)
   C_Timer.After(12, ns.checkRatings)
+  C_Timer.After(12, ns.checkProfessions) -- the baseline, and anything learned while logged out
   C_Timer.After(15, ns.checkIn)
   if ns.IS_RETAIL and type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
   if not ns.snapshotTicker and C_Timer.NewTicker then ns.snapshotTicker = C_Timer.NewTicker(300, ns.saveSnapshot) end
@@ -83,6 +84,10 @@ end
 function on.PVP_RATED_STATS_UPDATE() ns.checkRatings() end
 function on.UPDATE_BATTLEFIELD_STATUS() ns.checkBattleground() end
 function on.PVP_MATCH_COMPLETE() ns.checkBattleground() end -- retail
+-- Skill-ups (weapon skills too, in a stream while fighting), so once per burst.
+local professionsSoon = ns.debounce(2, function() ns.checkProfessions() end)
+on.SKILL_LINES_CHANGED = professionsSoon
+on.CHAT_MSG_SKILL = professionsSoon
 
 -- Mounts: bought while a vendor is open, or learned
 function on.MERCHANT_SHOW() ns.merchantOpen = true end
