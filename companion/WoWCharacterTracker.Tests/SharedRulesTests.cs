@@ -78,15 +78,37 @@ public class SharedRulesTests
     [InlineData("duel", 20, 0, false, true)]
     [InlineData("makgora", 20, 0, false, true)]
     [InlineData("bg", 20, 0, false, false)]
+    [InlineData("bg", 20, 0, false, true)]
+    [InlineData("profession", 20, 0, false, false)]
     [InlineData("mplus", 70, 0, false, false)]
     [InlineData("pvp", 70, 0, false, false)]
     public void Addon_and_app_agree_on_what_is_posted(string kind, int level, int quality, bool maxLevel, bool lost)
     {
-        foreach (var settings in new[] { Flavors.Forever.Defaults(), Flavors.Retail.Defaults(), new FlavorSettings { PostDuels = true, PostRare = true, PostMaxLevel = false } })
+        foreach (var settings in new[]
         {
-            var e = new Entry { Kind = kind, Level = level, Quality = quality, MaxLevel = maxLevel, Lost = lost };
-            Assert.Equal(settings.Wants(e), AddonWants(settings, e));
+            Flavors.Forever.Defaults(), Flavors.Retail.Defaults(),
+            new FlavorSettings { PostDuels = true, PostRare = true, PostMaxLevel = false, PostBattlegrounds = true, PostProfessions = false },
+        })
+        {
+            foreach (var boe in new[] { false, true })
+            {
+                var e = new Entry { Kind = kind, Level = level, Quality = quality, MaxLevel = maxLevel, Lost = lost, Boe = boe };
+                Assert.Equal(settings.Wants(e), AddonWants(settings, e));
+            }
         }
+    }
+
+    // Rare loot with "Bind on Equip only": world drops that bind when equipped, not the dungeon blues.
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, false, true)]
+    public void Rares_can_be_limited_to_bind_on_equip(bool boeOnly, bool boe, bool posted)
+    {
+        var s = new FlavorSettings { PostRare = true, RareBoeOnly = boeOnly };
+        var e = new Entry { Kind = "loot", Level = 30, Quality = 3, Boe = boe };
+        Assert.Equal(posted, s.Wants(e));
+        Assert.Equal(posted, AddonWants(s, e));
     }
 
     // Mythic+ runs: from the lowest key level, and with "Timed only" just the keys beaten in time.
@@ -119,7 +141,7 @@ public class SharedRulesTests
             var ns = new Table(script);
             foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
                 script.Call(script.LoadString(AddonFile(file)), "WoWCharacterTracker", ns);
-            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades} }}");
+            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades} }}");
             return script.Call(ns.Get("wanted"), ev).Boolean;
         }
         finally { Directory.Delete(dir, recursive: true); }

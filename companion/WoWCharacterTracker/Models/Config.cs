@@ -219,6 +219,13 @@ class Config
             stream.HasKeyRuns = true;
             changed = true;
         }
+        if (!stream.HasProfessions)
+        {
+            if (!stream.HighlightKinds.Contains("profession")) stream.HighlightKinds.Add("profession");
+            if (!stream.AlertKinds.Contains("profession")) stream.AlertKinds.Add("profession");
+            stream.HasProfessions = true;
+            changed = true;
+        }
 
         if (changed) config.Save();
         return config;

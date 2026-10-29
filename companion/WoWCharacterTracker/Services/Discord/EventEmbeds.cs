@@ -31,6 +31,8 @@ sealed class EventEmbeds(Flavor flavor)
             "death" => DeathText(e),
             "duel" => DuelText(e),
             "makgora" => MakgoraText(e),
+            "bg" => BattlegroundText(e),
+            "profession" => ProfessionText(e),
             "mplus" => MPlusText(e),
             "pvp" => PvpText(e),
             "test" => TestText(e),
@@ -219,6 +221,23 @@ sealed class EventEmbeds(Flavor flavor)
         if (e.OpponentText.Length > 0) lines.Add($"Opponent: {e.OpponentText}.");
         if (e.Zone.Length > 0) lines.Add($"Fought in **{e.Zone}**, at level {e.Level}.");
         return ($"\U0001FA78 {e.Char} won a Mak'gora against {e.Opponent}!", lines);
+    }
+
+    // A battleground won (losses aren't posted).
+    static (string, List<string>) BattlegroundText(Entry e)
+    {
+        var where = e.Instance.Length > 0 ? e.Instance : "a battleground";
+        var lines = new List<string> { $"Victory in **{where}**" + (e.Level > 0 ? $", at level {e.Level}." : ".") };
+        return ($"\U0001F6A9 {e.Char} won {where}!", lines);
+    }
+
+    // A profession's skill passing a step: "⛏️ Mining is now **152**."
+    static (string, List<string>) ProfessionText(Entry e)
+    {
+        var lines = new List<string>();
+        if (e.Rating > 0) lines.Add($"{Format.ProfessionsWithEmoji(e.Profession)} is now **{e.Rating}**.");
+        if (e.Level > 0) lines.Add($"At level {e.Level}.");
+        return ($"\U0001F6E0️ {e.Char} reached {e.Step} {e.Profession}!", lines);
     }
 
     static (string, List<string>) MPlusText(Entry e)

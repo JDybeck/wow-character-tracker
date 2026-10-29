@@ -140,15 +140,6 @@ local PVP_BRACKETS = { [1] = "2v2", [2] = "3v3", [4] = "Rated Battlegrounds", [7
 local DEFAULT_MPLUS_STEPS = { 2000, 2500, 3000, 3500, 4000 }
 local DEFAULT_PVP_STEPS = { 1800, 2100, 2400, 2700 }
 
--- The highest step passed going from old to new (only upward), or nil.
-local function stepPassed(old, new, steps)
-  local best
-  for _, s in ipairs(steps) do
-    if old < s and new >= s and (not best or s > best) then best = s end
-  end
-  return best
-end
-
 local function recordRating(kind, rating, step, bracket)
   -- Once per step and season: a new season can post the same step again.
   local season = (kind == "mplus" and C_MythicPlus and C_MythicPlus.GetCurrentSeason and C_MythicPlus.GetCurrentSeason())
@@ -171,7 +162,7 @@ function ns.checkRatings()
   if C_ChallengeMode and C_ChallengeMode.GetOverallDungeonScore then
     local score = C_ChallengeMode.GetOverallDungeonScore() or 0
     if known.mplus then
-      local step = stepPassed(known.mplus, score, post.mplusSteps or DEFAULT_MPLUS_STEPS)
+      local step = ns.stepPassed(known.mplus, score, post.mplusSteps or DEFAULT_MPLUS_STEPS)
       if step then recordRating("mplus", score, step) end
     end
     known.mplus = score
@@ -182,7 +173,7 @@ function ns.checkRatings()
       if ok and type(rating) == "number" then
         local key = "pvp" .. index
         if known[key] then
-          local step = stepPassed(known[key], rating, post.pvpSteps or DEFAULT_PVP_STEPS)
+          local step = ns.stepPassed(known[key], rating, post.pvpSteps or DEFAULT_PVP_STEPS)
           if step then recordRating("pvp", rating, step, name) end
         end
         known[key] = rating

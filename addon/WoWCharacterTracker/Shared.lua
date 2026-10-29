@@ -56,6 +56,15 @@ function ns.trimEvents(events)
   return removed
 end
 
+-- The highest step passed going from old to new (only upward), or nil. Rating and profession milestones.
+function ns.stepPassed(old, new, steps)
+  local best
+  for _, s in ipairs(steps) do
+    if old < s and new >= s and (not best or s > best) then best = s end
+  end
+  return best
+end
+
 -- A setting from Settings.lua (written by the app), or nil when there's none (an older app).
 function ns.setting(key)
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]

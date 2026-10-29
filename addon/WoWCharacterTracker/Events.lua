@@ -414,10 +414,11 @@ local function lootPattern(fmt)
   p = p:gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
   return "^" .. p .. "$"
 end
+-- (By count, not ipairs: a client without the first string would otherwise lose them all.)
 local function patterns(...)
   local list = {}
-  for _, fmt in ipairs({ ... }) do
-    local p = lootPattern(fmt)
+  for i = 1, select("#", ...) do
+    local p = lootPattern((select(i, ...)))
     if p then table.insert(list, p) end
   end
   return list
@@ -477,7 +478,13 @@ function ns.recordLoot(text)
   end
   if pushed then return end -- rare loot means looted, not bought or handed out
 
-  local quality = GetItemInfo and select(3, GetItemInfo(link))
+  -- Quality is the 3rd value, the bind type the 14th (2 = Bind on Equip). Both nil while the game
+  -- doesn't have the item yet: the quality then comes from the link's color, and it doesn't count as BoE.
+  local quality, bindType
+  if GetItemInfo then
+    local info = { GetItemInfo(link) }
+    quality, bindType = info[3], info[14]
+  end
   if not quality then
     local color = link:match("|c(%x%x%x%x%x%x%x%x)")
     quality = color and QUALITY_BY_COLOR[color:lower()]
@@ -485,7 +492,33 @@ function ns.recordLoot(text)
   if not quality or quality < 3 then return end -- rare (blue) and better only
 
   local now = time()
-  ns.record("loot", { item = name, itemId = itemId, quality = quality, at = now }, string.format("loot:%d:%d", itemId, now))
+  ns.record("loot", { item = name, itemId = itemId, quality = quality, boe = bindType == 2 or nil, at = now },
+    string.format("loot:%d:%d", itemId, now))
+end
+
+-- Profession milestones: a primary profession's skill passing one of Settings.lua's
+-- professionSteps. The first reading of a profession only sets its baseline (like the rating
+-- milestones), so skill from before the addon, or a profession just learned, posts nothing.
+-- Once per character, profession and step (the id).
+local DEFAULT_PROFESSION_STEPS = { 75, 150, 225, 300 }
+function ns.checkProfessions()
+  local guid = UnitGUID("player")
+  if not guid or not WoWCharacterTrackerDB then return end
+  local steps = (ns.setting("post") or {}).professionSteps or DEFAULT_PROFESSION_STEPS
+  WoWCharacterTrackerDB.professions = WoWCharacterTrackerDB.professions or {}
+  local known = WoWCharacterTrackerDB.professions[guid] or {}
+  WoWCharacterTrackerDB.professions[guid] = known
+  for _, p in ipairs(ns.professionRanks()) do
+    local old = known[p.name]
+    if p.rank <= 0 then -- hidden right now: keep the baseline
+    elseif old then
+      local step = ns.stepPassed(old, p.rank, steps)
+      if step then
+        ns.record("profession", { profession = p.name, step = step, rating = p.rank }, string.format("profession:%s:%d", p.name, step))
+      end
+    end
+    if p.rank > 0 then known[p.name] = p.rank end
+  end
 end
 
 function ns.recordDeath()

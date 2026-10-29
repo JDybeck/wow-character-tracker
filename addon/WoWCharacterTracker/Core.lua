@@ -35,6 +35,7 @@ local EVENTS = {
   "MERCHANT_SHOW", "MERCHANT_CLOSED", "NEW_MOUNT_ADDED",                 -- mounts (bought or learned)
   "CHAT_MSG_SYSTEM", "DUEL_REQUESTED", "CHALLENGE_MODE_COMPLETED", "PVP_RATED_STATS_UPDATE", -- duels, Mak'gora, ratings
   "UPDATE_BATTLEFIELD_STATUS", "PVP_MATCH_COMPLETE",                     -- battleground results
+  "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL",                               -- profession milestones
   "CHALLENGE_MODE_START", "INSPECT_READY",                               -- party specs for Mythic+ runs
   "SCREENSHOT_SUCCEEDED", "SCREENSHOT_FAILED",                           -- the shot queue
   "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", -- gear, bags and bank
