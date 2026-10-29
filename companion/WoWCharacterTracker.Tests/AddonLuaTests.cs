@@ -15,7 +15,7 @@ public class AddonLuaTests
         }
     }
 
-    public static TheoryData<string> LuaFiles() => [.. Directory.GetFiles(AddonDir, "*.lua").Select(Path.GetFileName)!];
+    public static TheoryData<string> LuaFiles() => [.. Directory.GetFiles(AddonDir, "*.lua").Select(f => Path.GetFileName(f)!)];
 
     [Theory]
     [MemberData(nameof(LuaFiles))]
