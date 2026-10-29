@@ -69,7 +69,7 @@ record Inventory(string Guid, IReadOnlyList<ItemSlot> Gear, IReadOnlyList<ItemSl
     public static List<GearEffect> ParseEffects(string text) => Lines(text)
         .Select(l => l.Split('~', 3))
         .Where(p => p.Length == 3 && int.TryParse(p[0], out _) && int.TryParse(p[1], out _))
-        .Select(p => new GearEffect(int.Parse(p[0]), int.Parse(p[1]), p[2]))
+        .Select(p => new GearEffect(int.Parse(p[0]), int.Parse(p[1]), Format.GameText(p[2]).Trim()))
         .ToList();
 
     // "slot~itemId~enchant~enchantId", one per line (the id came in 0.24.1, older lines have none).
