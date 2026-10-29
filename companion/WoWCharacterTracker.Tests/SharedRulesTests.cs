@@ -98,6 +98,24 @@ public class SharedRulesTests
         }
     }
 
+    // Profession steps per game: Forever has the Classic rank caps, Retail only its max of 100.
+    // The steps reach the addon through Settings.lua.
+    [Fact]
+    public void Profession_steps_follow_the_game()
+    {
+        Assert.Equal([75, 150, 225, 300], Flavors.Forever.Defaults().ProfessionSteps);
+        Assert.Equal([100], Flavors.Retail.Defaults().ProfessionSteps);
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-steps-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, Flavors.Retail.Defaults());
+            Assert.Contains("professionSteps = { 100 }", File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // Rare loot with "Bind on Equip only": world drops that bind when equipped, not the dungeon blues.
     [Theory]
     [InlineData(true, true, true)]

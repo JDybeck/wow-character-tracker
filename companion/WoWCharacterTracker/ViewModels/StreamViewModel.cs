@@ -143,7 +143,7 @@ sealed class StreamViewModel : Observable
         ("keyrun", "Mythic+ runs", "Keys finished, timed or over time (Retail)"),
         ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won and lost"),
         ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"),
-        ("profession", "Professions", "Profession milestones (75, 150, 225, 300 skill)"), ("death", "Deaths", "Hardcore deaths"),
+        ("profession", "Professions", "Profession milestones (the steps set for Discord)"), ("death", "Deaths", "Hardcore deaths"),
         ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
     ];
 

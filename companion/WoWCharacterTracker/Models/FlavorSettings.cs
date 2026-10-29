@@ -40,11 +40,13 @@ class FlavorSettings
     // keystroke, so a minimum of 2 turned a typed "1" into 2 before the next digit came.
     public const int KeyLevelMin = 1, KeyLevelMax = 40;
 
-    // Profession milestones: a primary profession's skill passing one of the steps (the Classic
-    // rank caps by default).
+    // Profession milestones: a primary profession's skill passing one of the steps. The defaults
+    // depend on the game (Flavor.Defaults: the Classic rank caps on Forever, the max of 100 on
+    // Retail); empty means not set yet, which Config.Load fills in from the game's defaults.
     public bool PostProfessions { get; set; } = true;
-    public List<int> ProfessionSteps { get; set; } = [.. DefaultProfessionSteps];
-    public static readonly int[] DefaultProfessionSteps = [75, 150, 225, 300];
+    public List<int> ProfessionSteps { get; set; } = [];
+    public static readonly int[] ClassicProfessionSteps = [75, 150, 225, 300];
+    public static readonly int[] RetailProfessionSteps = [100];
 
     // Duels, hardcore Mak'gora, battleground wins, and retail rating milestones (posted when a step is passed).
     public bool PostDuels { get; set; }
