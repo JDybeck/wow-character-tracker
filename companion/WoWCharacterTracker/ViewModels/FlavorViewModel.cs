@@ -251,22 +251,7 @@ sealed class FlavorViewModel : Observable
     ];
     ObservableCollection<ToggleOption>? announceKinds;
     public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
-        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, () => { AddonSettingsChanged(); Raise(nameof(AnnounceFollowed)); });
-
-    // The Followed items tab's switch for the same chip. Off unless picked: chat is other people's.
-    public bool AnnounceFollowed
-    {
-        get => Settings.AnnounceKinds.Contains("followed");
-        set
-        {
-            Settings.AnnounceKinds.Remove("followed");
-            if (value) Settings.AnnounceKinds.Add("followed");
-            announceKinds = null;
-            AddonSettingsChanged();
-            Raise(nameof(AnnounceKinds));
-            Raise(nameof(AnnounceFollowed));
-        }
-    }
+        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, AddonSettingsChanged);
 
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
@@ -624,7 +609,7 @@ sealed class FlavorViewModel : Observable
     // The Items page: everything the tab's characters carry, searchable, per server.
     public ItemsViewModel Items { get; }
 
-    // The Followed items page, and its switches: the post here, the overlay alert in the stream's options.
+    // The Followed items page, and the switch for its post (What gets posted).
     public FollowedItemsViewModel FollowedItems { get; }
     public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
     public StreamViewModel Stream => main.Stream;

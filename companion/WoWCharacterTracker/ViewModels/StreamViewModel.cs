@@ -191,20 +191,6 @@ sealed class StreamViewModel : Observable
     public bool RareAlertBoeOnly { get => Options.RareAlertBoeOnly; set { Options.RareAlertBoeOnly = value; OptionsChanged(); } }
     public bool RareHighlightBoeOnly { get => Options.RareHighlightBoeOnly; set { Options.RareHighlightBoeOnly = value; OptionsChanged(); } }
 
-    // The Followed items tab's switch for the same alert as the chip above, so both show the same.
-    public bool FollowedAlert
-    {
-        get => Options.AlertKinds.Contains("followed");
-        set
-        {
-            Options.AlertKinds.Remove("followed");
-            if (value) Options.AlertKinds.Add("followed");
-            alertKinds = null;
-            Raise(nameof(AlertKinds));
-            OptionsChanged();
-        }
-    }
-
     ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
         ToggleOption.Kinds(names, picked, OptionsChanged);
 
@@ -246,7 +232,6 @@ sealed class StreamViewModel : Observable
         Raise(nameof(RangeToday));
         Raise(nameof(RangeNow));
         Raise(nameof(NowText));
-        Raise(nameof(FollowedAlert));
         Refresh();
     }
 
