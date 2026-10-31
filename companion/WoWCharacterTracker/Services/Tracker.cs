@@ -157,7 +157,7 @@ sealed class Tracker : IDisposable
             {
                 shownStamp = stamp;
                 NoteSaves(data);
-                DataChanged?.Invoke(data);
+                DataChanged?.Invoke(data with { Events = [.. data.Events.Where(e => !e.IsAsk)] }); // a request to post, not a moment of its own
             }
             var handled = posted.Count;
 
@@ -275,17 +275,17 @@ sealed class Tracker : IDisposable
             {
                 var key = $"{e.Id}@{w.Id}";
                 if (posted!.Contains(key)) continue;
-                if (await posterFor(w).PostAsync(s.PostsAsFollowed(e) ? e with { Followed = true } : e, screenshot: shot))
+                if (await posterFor(w).PostAsync(s.PostsAsFollowed(e) ? e with { Followed = true } : e.Moment, screenshot: shot))
                 {
                     posted.Add(key);
                     sent++;
-                    Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.{Timing(e)}");
+                    Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e.Moment)}.{Timing(e)}");
                 }
                 else allSent = false;
             }
             if (!allSent) break; // keep order, retry the rest on the next sync
             posted!.Add(e.Id);
-            Posted?.Invoke(e);
+            Posted?.Invoke(e.Moment);
         }
         return sent;
     }
@@ -360,6 +360,7 @@ sealed class Tracker : IDisposable
         var xpTable = new Dictionary<int, long>();
         var itemClasses = new Dictionary<int, int>();
         var notes = new Dictionary<string, GameNote>();
+        InGameSettings? inGame = null;
         var stamp = new System.Text.StringBuilder().Append(Volatile.Read(ref liveVersion));
         foreach (var account in Wow.Accounts(flavorDir))
         {
@@ -377,6 +378,7 @@ sealed class Tracker : IDisposable
                 foreach (var (id, c) in d.ItemClasses) itemClasses[id] = c;
                 foreach (var n in d.Notes)
                     if (!notes.TryGetValue(n.Guid, out var had) || n.At > had.At) notes[n.Guid] = n;
+                if (d.InGame is { } g && g.At > (inGame?.At ?? 0)) inGame = g;
             }
             catch (Exception ex)
             {
@@ -387,7 +389,7 @@ sealed class Tracker : IDisposable
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(Snapshot.Of));
-        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values] },
+        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values], InGame = inGame },
             stamp.ToString());
     }
 

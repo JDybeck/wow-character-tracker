@@ -22,11 +22,53 @@ public class AddonLuaTests
     public void Addon_file_compiles(string file) =>
         new Script().LoadString(File.ReadAllText(Path.Combine(AddonDir, file)), codeFriendlyName: file);
 
+    // A clock and C_Timer for Announce.lua: runTimers() runs what's due, moving the clock as it goes.
+    const string FakeTimers = """
+        clock = 1000
+        function GetTime() return clock end
+        timers = {}
+        C_Timer = { After = function(delay, fn) table.insert(timers, { at = clock + delay, fn = fn }) end }
+        function runTimers(untilClock)
+          while true do
+            table.sort(timers, function(a, b) return a.at < b.at end)
+            local t = timers[1]
+            if not t or t.at > untilClock then break end
+            table.remove(timers, 1)
+            clock = math.max(clock, t.at)
+            t.fn()
+          end
+          clock = untilClock
+        end
+        """;
+
+    // Lines go out at most every 2 seconds and 8 a minute; the rest wait, none are lost.
+    [Fact]
+    public void A_burst_of_lines_is_spaced_out_and_none_are_lost()
+    {
+        var sent = new List<double>();
+        var script = new Script();
+        script.DoString(FakeTimers);
+        script.Globals["SendChatMessage"] = (Action<string, string>)((_, _) => sent.Add(script.Globals.Get("clock").Number));
+        script.Globals["IsInGuild"] = (Func<bool>)(() => true);
+        script.DoString("WoWCharacterTrackerSettings = { announce = { guild = true, kinds = { level = true } } }");
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Announce.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+        for (var i = 1; i <= 10; i++) script.Call(ns.Get("announce"), script.DoString($"return {{ kind = 'level', level = {i} }}"));
+        script.DoString("runTimers(1200)");
+
+        Assert.Equal(10, sent.Count);
+        Assert.All(sent.Zip(sent.Skip(1)), p => Assert.True(p.Second - p.First >= 2));
+        Assert.True(sent[8] - sent[0] >= 60); // the 9th waits until the first is a minute old
+    }
+
     // Runs Announce.lua with WoW's chat functions stubbed; returns what it sent ("CHANNEL: text").
     static List<string> Announce(string settings, string eventLua, bool inGuild = true, bool inGroup = false, bool inRaid = false)
     {
         var sent = new List<string>();
         var script = new Script();
+        script.DoString(FakeTimers);
         script.Globals["SendChatMessage"] = (Action<string, string>)((msg, channel) => sent.Add($"{channel}: {msg}"));
         script.Globals["IsInGuild"] = (Func<bool>)(() => inGuild);
         script.Globals["IsInGroup"] = (Func<bool>)(() => inGroup);
@@ -38,6 +80,7 @@ public class AddonLuaTests
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         script.Call(ns.Get("announce"), script.DoString("return " + eventLua));
+        script.DoString("runTimers(1100)");
         return sent;
     }
 
@@ -124,6 +167,7 @@ public class AddonLuaTests
         ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 90 }").Table);
         ns["addEvent"] = (Action<Table>)recorded.Add;
         ns["IS_RETAIL"] = true;
+        ns["recentBosses"] = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Events.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
@@ -252,6 +296,221 @@ public class AddonLuaTests
         Assert.Equal(3, e.Get("quality").Number);
         Assert.Equal(boe, e.Get("boe").CastToBool());
     }
+
+    // Ask.lua with a stand-in for the game's frames: offers, then answers. Returns what was recorded.
+    static List<Table> Ask(string settings, string eventLua, bool post, bool inCombat = false)
+    {
+        var script = new Script();
+        script.DoString("""
+            function time() return 7000 end
+            local function frame()
+              return setmetatable({}, { __index = function(_, k)
+                if k == 'CreateFontString' or k == 'CreateTexture' then return function() return frame() end end
+                return function() end
+              end })
+            end
+            CreateFrame = frame
+            UIParent = {}
+            WoWCharacterTrackerDB = {}
+            C_Timer = { After = function() end }
+            """);
+        script.Globals["InCombatLockdown"] = (Func<bool>)(() => inCombat);
+        script.DoString("WoWCharacterTrackerSettings = " + settings);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Announce.lua", "Ask.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        script.Call(ns.Get("offerAsk"), script.DoString("return " + eventLua));
+        script.Call(ns.Get("answerAsk"), post);
+        return recorded;
+    }
+
+    const string AskAll = "{ post = {}, discord = true, ask = { boss = true, rare = true, epic = true } }";
+    const string ABoss = "{ kind = 'boss', boss = 'Rethilgore', midBoss = true, instance = 'Shadowfang Keep', at = 6000 }";
+
+    [Fact]
+    public void Clicking_post_records_a_request_carrying_the_moment()
+    {
+        var e = Assert.Single(Ask(AskAll, ABoss, post: true));
+        Assert.Equal("ask", e.Get("kind").String);
+        Assert.Equal("boss", e.Get("askedKind").String);
+        Assert.Equal("Rethilgore", e.Get("boss").String);
+        Assert.Equal(6000, e.Get("at").Number);
+        Assert.Equal("Player-1:ask:Rethilgore:6000", e.Get("id").String);
+    }
+
+    [Fact]
+    public void Skipping_records_nothing() => Assert.Empty(Ask(AskAll, ABoss, post: false));
+
+    // Nothing to post to, or switched off: no box, so even an answer records nothing.
+    [Theory]
+    [InlineData("{ discord = true, ask = { boss = true } }")] // no app
+    [InlineData("{ post = {}, discord = false, ask = { boss = true } }")] // no webhook
+    [InlineData("{ post = {}, discord = true, ask = {} }")] // not asked for
+    public void No_box_without_somewhere_to_post_or_when_off(string settings) => Assert.Empty(Ask(settings, ABoss, post: true));
+
+    [Theory]
+    [InlineData("{ kind = 'loot', item = 'X', itemId = 1, quality = 3, at = 6000 }", 1)]
+    [InlineData("{ kind = 'loot', item = 'X', itemId = 1, quality = 4, at = 6000 }", 1)]
+    [InlineData("{ kind = 'loot', item = 'Recipe', itemId = 1, quality = 3, mat = true, at = 6000 }", 0)] // not gear
+    [InlineData("{ kind = 'loot', item = 'X', itemId = 1, quality = 2, at = 6000 }", 0)]
+    [InlineData("{ kind = 'mount', mount = 'X', at = 6000 }", 0)]
+    public void Only_gear_and_bosses_are_offered(string eventLua, int offered) => Assert.Equal(offered, Ask(AskAll, eventLua, post: true).Count);
+
+    // In combat the box waits, so there's nothing to answer yet.
+    [Fact]
+    public void The_box_waits_for_combat_to_end() => Assert.Empty(Ask(AskAll, ABoss, post: true, inCombat: true));
+
+    // Shared.lua: a change in game applies right away and carries a time; a later change in the app
+    // (Settings.lua inGameAt) wins over it.
+    static (Script Script, Table Ns) InGameSettingsScript(string settings)
+    {
+        var script = new Script();
+        script.DoString("function time() return 5000 end\nWoWCharacterTrackerDB = {}\nWoWCharacterTrackerSettings = " + settings);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        return (script, ns);
+    }
+
+    [Fact]
+    public void A_change_in_game_applies_right_away_and_keeps_the_rest()
+    {
+        var (script, ns) = InGameSettingsScript("{ inGameAt = 100, gridLabel = false, announce = { guild = false, kinds = { level = true } } }");
+        script.Call(ns.Get("editSettings"), script.DoString("return function(s) s.announce.guild = true end"));
+
+        var announce = script.Call(ns.Get("setting"), "announce").Table;
+        Assert.True(announce.Get("guild").Boolean);
+        Assert.True(announce.Get("kinds").Table.Get("level").Boolean);
+        Assert.False(script.Call(ns.Get("setting"), "gridLabel").Boolean);
+        Assert.Equal(5000, script.DoString("return WoWCharacterTrackerDB.gameSettings.at").Number);
+    }
+
+    [Fact]
+    public void A_newer_change_in_the_app_wins_over_the_one_in_game()
+    {
+        var (script, ns) = InGameSettingsScript("{ inGameAt = 100, gridLabel = false }");
+        script.Call(ns.Get("editSettings"), script.DoString("return function(s) s.gridLabel = true end"));
+        Assert.True(script.Call(ns.Get("setting"), "gridLabel").Boolean);
+
+        script.DoString("WoWCharacterTrackerSettings.inGameAt = 6000");
+        Assert.False(script.Call(ns.Get("setting"), "gridLabel").Boolean);
+    }
+
+    // A clock behind the app's last change still counts as newer, or the change would do nothing.
+    [Fact]
+    public void A_change_in_game_is_always_after_the_apps_last_one()
+    {
+        var (script, ns) = InGameSettingsScript("{ inGameAt = 9000, gridLabel = false }");
+        script.Call(ns.Get("editSettings"), script.DoString("return function(s) s.gridLabel = true end"));
+        Assert.True(script.Call(ns.Get("setting"), "gridLabel").Boolean);
+    }
+
+    // The addon on its own (from an addon site): no app, so no live screenshots for nobody to read,
+    // and its bundled settings give guild lines to turn on.
+    [Fact]
+    public void Without_the_app_the_addon_takes_no_data_screenshots()
+    {
+        var script = new Script();
+        script.DoString("WoWCharacterTrackerDB = { events = {} }\nfunction Screenshot() shots = (shots or 0) + 1 end\nCreateFrame = function() return {} end");
+        script.DoString(File.ReadAllText(Path.Combine(AddonDir, "Settings.lua")));
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+        Assert.False(script.Call(ns.Get("hasApp")).Boolean);
+        script.Call(ns.Get("sendLive"), script.DoString("return { kind = 'level', id = 'x' }"));
+        Assert.True(script.Globals.Get("shots").IsNil());
+        Assert.True(script.DoString("return WoWCharacterTrackerSettings.announce.kinds.level").Boolean);
+    }
+
+    // Loads Events.lua after the test's own Lua setup; recorded collects what it records.
+    static (Script Script, Table Ns, List<Table> Recorded) LoadEvents(string setup)
+    {
+        var script = new Script();
+        script.DoString("LOOT_ITEM_SELF = 'You receive loot: %s'\nfunction time() return now or 5000 end\n" + setup);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        return (script, ns, recorded);
+    }
+
+    // Forever's links name the quality ("|cnIQ4:") and a new drop isn't known to the game yet: it gets
+    // a second look, and without an answer the quality comes from the link.
+    [Fact]
+    public void A_new_drop_on_forever_is_kept_with_the_quality_from_its_link()
+    {
+        var (script, ns, recorded) = LoadEvents("""
+            function GetItemInfo() return nil end
+            timers = {}
+            C_Timer = { After = function(_, fn) table.insert(timers, fn) end }
+            """);
+
+        script.Call(ns.Get("recordLoot"), "You receive loot: |cnIQ4:|Hitem:17069::::::::|h[Sul'thraze]|h|r");
+        Assert.Empty(recorded);
+        script.DoString("timers[1]()");
+
+        Assert.Equal(4, Assert.Single(recorded).Get("quality").Number);
+    }
+
+    // During a boss fight the client hands addons secret text, which can't be used at all.
+    [Fact]
+    public void Secret_chat_text_is_skipped()
+    {
+        var (script, ns, recorded) = LoadEvents("function issecretvalue() return true end");
+        script.Call(ns.Get("recordLoot"), "You receive loot: |cnIQ4:|Hitem:17069::::::::|h[Sul'thraze]|h|r");
+        Assert.Empty(recorded);
+    }
+
+    const string HardcoreDeath = """
+        function GetMoney() return 7 end
+        C_Timer = { After = function(_, fn) fn() end }
+        """;
+
+    static Table[] Die(string setup, int times = 1)
+    {
+        var (script, ns, recorded) = LoadEvents(HardcoreDeath + "\n" + setup);
+        ns["isHardcore"] = (Func<bool>)(() => true);
+        ns["playedNow"] = (Func<int>)(() => 100);
+        ns["saveSnapshot"] = (Action)(() => { });
+        for (var i = 0; i < times; i++) script.Call(ns.Get("recordDeath"));
+        return [.. recorded];
+    }
+
+    [Fact]
+    public void A_death_names_the_last_attacker_from_the_recap() =>
+        Assert.Equal("Clattering Scorpid", Assert.Single(Die("""
+            function DeathRecap_HasEvents() return true end
+            function DeathRecap_GetEvents() return { { sourceName = 'Young Wolf' }, { sourceName = 'Clattering Scorpid' } } end
+            """)).Get("killer").String);
+
+    [Fact]
+    public void A_death_to_the_world_says_what_it_was() =>
+        Assert.Equal("Falling", Assert.Single(Die("""
+            function DeathRecap_HasEvents() return true end
+            function DeathRecap_GetEvents() return { { environmentalType = 'FALLING' } } end
+            """)).Get("killer").String);
+
+    [Fact]
+    public void A_death_without_a_recap_still_counts() =>
+        Assert.True(Assert.Single(Die("")).Get("killer").IsNil());
+
+    [Fact]
+    public void One_death_firing_twice_is_one_death() => Assert.Single(Die("", times: 2));
+
+    [Fact]
+    public void Feign_death_is_no_death() => Assert.Empty(Die("function UnitIsFeignDeath() return true end"));
+
+    [Fact]
+    public void A_death_line_names_the_killer() =>
+        Assert.Equal(["GUILD: Fell at level 34 to Hogger. Rest in peace."],
+            Announce("{ announce = { guild = true, kinds = { death = true } } }", "{ kind = 'death', level = 34, killer = 'Hogger' }"));
 
     // Loot that isn't a weapon (class 2) or armor (4) is marked, so a legendary one isn't always
     // posted. An unknown class counts as gear.
@@ -470,9 +729,8 @@ public class AddonLuaTests
             script.DoString("frames[1].scripts.OnShow(frames[1])");
             var summary = script.DoString("return texts[#texts]").String;
             Assert.Contains("boss kills", summary);
-            Assert.Contains("Told in chat: guild", summary);
-            Assert.Contains("Saved history: newest 300", summary);
-            Assert.False(script.DoString("return frames[2].checked").Boolean); // instant posting, off in the saved file
+            Assert.False(script.DoString("return frames[4].checked").Boolean); // instant posting, off in the saved file (after the panel, its scroll frame and the page)
+            Assert.True(script.DoString("return frames[6].checked").Boolean); // guild chat, on in Settings.lua
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

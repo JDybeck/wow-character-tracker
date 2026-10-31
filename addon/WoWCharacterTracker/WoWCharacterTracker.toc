@@ -1,10 +1,10 @@
-## Interface: 120105
+## Interface: 120105, 16001
 ## Title: WoW Character Tracker
-## Notes: Records how long each character level takes, for the companion app to post to Discord.
+## Notes: Tells your guild or group about your big moments, and with the free app posts them to Discord and tracks all your characters.
 ## Author: JDybeck
 ## X-License: GPL-3.0
 ## X-Website: https://github.com/JDybeck/wow-character-tracker
-## Version: 0.30.0
+## Version: 0.31.0
 ## SavedVariables: WoWCharacterTrackerDB
 
 Settings.lua
@@ -16,6 +16,7 @@ LiveGrid.lua
 Events.lua
 PvP.lua
 Announce.lua
+Ask.lua
 NoteBox.lua
 Options.lua
 Commands.lua

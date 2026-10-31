@@ -11,7 +11,7 @@ local SHORT = {
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
   maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V", keystone = "W", zoneType = "f",
-  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", mat = "mt", -- single letters are used up, so new keys get two
+  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", mat = "mt", askedKind = "ak", midBoss = "mb", -- single letters are used up, so new keys get two
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
@@ -357,7 +357,8 @@ ns.processShots = function()
 end
 
 function ns.sendLive(e)
-  if WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
+  -- Without the app, nobody reads the grid and its screenshots would just pile up.
+  if not ns.hasApp() or WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
   table.insert(shotQueue, { bits = toBits(encode(e)), portrait = e.kind == "snapshot" })
   ns.processShots()
 end
@@ -372,6 +373,7 @@ local SHOT_DELAY = { level = 1.0, boss = 1.5, keyrun = 2.0, loot = 0.3, mount = 
 local function wanted(e)
   local post = ns.setting("post")
   if not post then return true end
+  if e.kind == "ask" then return true end -- the player clicked Post (Ask.lua)
   if post.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then return true end
   if e.kind == "loot" and (e.quality or 0) >= 5 then return not e.mat end -- legendary gear: always worth a post, materials never
   if e.maxLevel and post.maxLevel ~= false then return true end -- max level has its own switch
@@ -413,6 +415,7 @@ function ns.addEvent(e)
     table.insert(shotQueue, { delay = SHOT_DELAY[e.kind] or 0.5, kind = e.kind })
     ns.processShots()
   end
+  if not posted and ns.offerAsk then ns.offerAsk(e) end -- not posted by itself: maybe on request
 end
 
 -- One live check-in per login, so the app shows the character (level, gear, zone) right away.

@@ -1,0 +1,23 @@
+# BigWigs packager: builds the addon-only zip for CurseForge and Wago Addons.
+# The addon lives in addon/WoWCharacterTracker; nothing else in the repo goes into the zip. The app
+# ships on GitHub Releases. Ignore rules run first, so never ignore addon/ itself here.
+package-as: WoWCharacterTracker
+
+move-folders:
+  WoWCharacterTracker/addon/WoWCharacterTracker: WoWCharacterTracker
+
+ignore:
+  - companion
+  - docs
+  - .claude
+  - .github
+  - .editorconfig
+  - .gitattributes
+  - .gitignore
+  - CLAUDE.md
+  - README.md
+  - CHANGELOG.md
+  - LICENSE
+  - build.cmd
+  - release.cmd
+  - release.ps1

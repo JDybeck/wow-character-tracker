@@ -106,7 +106,7 @@ sealed class FlavorViewModel : Observable
     void WriteAddonSettings()
     {
         if (flavorDir is null) return;
-        try { AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes()); }
+        try { AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log.Warn($"[{Name}] Couldn't save the screenshot settings for the addon: {ex.Message}");
@@ -221,9 +221,42 @@ sealed class FlavorViewModel : Observable
     public bool HideChatInShots { get => Settings.HideChatInShots; set { Settings.HideChatInShots = value; Changed(); } }
     public bool HideUiInShots { get => Settings.HideUiInShots; set { Settings.HideUiInShots = value; Changed(); } }
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
-    public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
-    public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
-    public bool KeepAllHistory { get => Settings.KeepAllHistory; set { Settings.KeepAllHistory = value; Changed(); } }
+    public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; InGameChanged(); } }
+    public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; InGameChanged(); } }
+    public bool KeepAllHistory { get => Settings.KeepAllHistory; set { Settings.KeepAllHistory = value; InGameChanged(); } }
+
+    // A setting that can be changed in game too changed here: the newest change wins (FlavorSettings.TakeInGame).
+    void InGameChanged([CallerMemberName] string? name = null)
+    {
+        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Changed(name);
+    }
+
+    // The In game settings as changed in the addon's options page, when that's the newest change.
+    void TakeInGameSettings(InGameSettings? game)
+    {
+        if (!Settings.TakeInGame(game)) return;
+        main.Config.Save();
+        WriteAddonSettings();
+        announceKinds = null;
+        askKinds = null;
+        foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces), nameof(AnnounceKinds), nameof(AskKinds),
+            nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
+            nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight) })
+            Raise(name);
+        Log.Info($"[{Name}] Took the In game settings you changed in the game.");
+    }
+
+    // Offering to post a highlight no setting posts (In game page; the addon's Ask.lua).
+    static readonly (string Kind, string Name, string Tip)[] AskNames =
+    [
+        ("boss", "Boss kills", "Any boss, not only the last one of a dungeon or raid."),
+        ("rare", "Rare gear", "Blue weapons and armor you loot."),
+        ("epic", "Epic gear", "Purple weapons and armor you loot."),
+    ];
+    ObservableCollection<ToggleOption>? askKinds;
+    public ObservableCollection<ToggleOption> AskKinds => askKinds ??=
+        ToggleOption.Kinds(AskNames, Settings.AskKinds ??= [], () => InGameChanged());
 
     // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
     // for a note that came from the game: it has it already.
@@ -235,8 +268,8 @@ sealed class FlavorViewModel : Observable
     }
 
     // Telling the guild and/or group in game chat (In game page; the addon's Announce.lua).
-    public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; Changed(); Raise(nameof(Announces)); } }
-    public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; Changed(); Raise(nameof(Announces)); } }
+    public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; InGameChanged(); Raise(nameof(Announces)); } }
+    public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; InGameChanged(); Raise(nameof(Announces)); } }
     public bool Announces => AnnounceGuild || AnnounceParty;
     // Tip is shown on the page: a sample of the line the addon writes (Announce.lua's message).
     static readonly (string Kind, string Name, string Tip)[] AnnounceNames =
@@ -248,14 +281,14 @@ sealed class FlavorViewModel : Observable
         ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
         ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
         ("profession", "Professions", "\"Reached 150 Mining!\" At the steps set for Discord."),
-        ("mplus", "Mythic+", "\"Reached 2500 Mythic+ rating!\""), ("pvp", "PvP rating", "\"Reached 1800 rating in 3v3!\""), ("death", "Deaths", "\"Fell at level 34. Rest in peace.\""),
+        ("mplus", "Mythic+", "\"Reached 2500 Mythic+ rating!\""), ("pvp", "PvP rating", "\"Reached 1800 rating in 3v3!\""), ("death", "Deaths", "\"Fell at level 34 to Hogger. Rest in peace.\""),
     ];
     ObservableCollection<ToggleOption>? announceKinds;
     public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
-        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, AddonSettingsChanged);
+        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, () => InGameChanged());
 
     // The data grid's corner (four radio buttons) and its label (In game page).
-    public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
+    public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; InGameChanged(); } }
     public bool GridTopLeft { get => Corner == "TOPLEFT"; set { if (value) SetCorner("TOPLEFT"); } }
     public bool GridTopRight { get => Corner == "TOPRIGHT"; set { if (value) SetCorner("TOPRIGHT"); } }
     public bool GridBottomLeft { get => Corner == "BOTTOMLEFT"; set { if (value) SetCorner("BOTTOMLEFT"); } }
@@ -265,7 +298,7 @@ sealed class FlavorViewModel : Observable
     {
         if (Corner == corner) return;
         Settings.GridCorner = corner;
-        Changed();
+        InGameChanged();
         Raise(nameof(GridTopLeft)); Raise(nameof(GridTopRight)); Raise(nameof(GridBottomLeft)); Raise(nameof(GridBottomRight));
     }
 
@@ -666,6 +699,7 @@ sealed class FlavorViewModel : Observable
             };
         }
         main.TakeGameNotes(data.Notes); // notes edited in game, newer than the app's
+        TakeInGameSettings(data.InGame); // and the same for the In game settings
         Lookup.SetItemClasses(data.ItemClasses);
         var keepTab = SelectedCharacter?.DetailTab;
         Motion.Quiet(); // the rows are rebuilt: what's open stays still

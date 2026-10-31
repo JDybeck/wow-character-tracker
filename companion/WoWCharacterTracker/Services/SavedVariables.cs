@@ -26,7 +26,30 @@ static class SavedVariables
             XpTable = ReadXpTable(db.Table.Get("xpTable")),
             ItemClasses = ReadItemClasses(db.Table.Get("itemClasses")),
             Notes = ReadNotes(db.Table.Get("notes")),
+            InGame = ReadInGame(db.Table.Get("gameSettings")),
         };
+    }
+
+    // gameSettings: the In game settings as changed in the addon's options page (Shared.lua editSettings).
+    internal static InGameSettings? ReadInGame(DynValue value)
+    {
+        if (value.Type != DataType.Table) return null;
+        var t = value.Table;
+        var at = (long)N(t, "at");
+        if (at <= 0) return null;
+        static List<string> On(DynValue kinds) => kinds.Type != DataType.Table ? [] :
+            [.. kinds.Table.Pairs.Where(p => p.Key.Type == DataType.String && p.Value.CastToBool()).Select(p => p.Key.String)];
+        var announce = t.Get("announce");
+        var a = announce.Type == DataType.Table ? announce.Table : null;
+        // A setting missing means on, as the addon reads flightReload, chatReminder and gridLabel.
+        return new InGameSettings(at,
+            a?.Get("guild").CastToBool() ?? false, a?.Get("party").CastToBool() ?? false,
+            On(a?.Get("kinds") ?? DynValue.Nil), On(t.Get("ask")),
+            t.Get("flightReload").Type != DataType.Boolean || t.Get("flightReload").Boolean,
+            t.Get("chatReminder").Type != DataType.Boolean || t.Get("chatReminder").Boolean,
+            S(t, "gridCorner"),
+            t.Get("gridLabel").Type != DataType.Boolean || t.Get("gridLabel").Boolean,
+            t.Get("keepAllHistory").CastToBool());
     }
 
     // notes[guid] = { text, at }: notes edited in game. The game keeps "|" as "||".

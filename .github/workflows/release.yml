@@ -12,6 +12,27 @@ permissions:
   contents: write
 
 jobs:
+  # The addon alone, for the addon sites, through the BigWigs packager (.pkgmeta says what goes in).
+  # Only runs once the repo variable and secret for a site exist, so until then nothing is uploaded:
+  # CurseForge: variable CURSEFORGE_PROJECT_ID, secret CF_API_KEY.
+  # Wago Addons: variable WAGO_PROJECT_ID, secret WAGO_API_TOKEN.
+  addon-sites:
+    if: vars.CURSEFORGE_PROJECT_ID != '' || vars.WAGO_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the packager writes its changelog from the history
+
+      - uses: BigWigsMods/packager@v2
+        with:
+          args: >-
+            ${{ vars.CURSEFORGE_PROJECT_ID != '' && format('-p {0}', vars.CURSEFORGE_PROJECT_ID) || '' }}
+            ${{ vars.WAGO_PROJECT_ID != '' && format('-a {0}', vars.WAGO_PROJECT_ID) || '' }}
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+
   release:
     runs-on: windows-latest
     steps:

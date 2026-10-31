@@ -127,7 +127,7 @@ sealed class EventEmbeds(Flavor flavor)
     static (string, List<string>) BossText(Entry e)
     {
         var lines = new List<string>();
-        if (e.Instance.Length > 0) lines.Add($"Final boss of **{e.Instance}** is down.");
+        if (e.Instance.Length > 0) lines.Add(e.MidBoss ? $"Down in **{e.Instance}**." : $"Final boss of **{e.Instance}** is down.");
         AddGroup(e, lines);
         return ($"{e.Char} killed {e.Boss}!", lines);
     }

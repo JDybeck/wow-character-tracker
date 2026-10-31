@@ -116,6 +116,69 @@ public class RatingTests
         Assert.Equal([new GameNote("P-1", "", 1100)], config.Notes().ToList()); // the clear still reaches the game
     }
 
+    static InGameSettings GameChange(long at) => new(at, true, false, ["level"], ["boss"], false, true, "BOTTOMLEFT", false, true);
+
+    // In game settings changed in game replace the app's only when that was the newest change.
+    [Fact]
+    public void The_newest_in_game_settings_win()
+    {
+        var s = new FlavorSettings { InGameAt = 1000, AnnounceGuild = false };
+        Assert.False(s.TakeInGame(null));
+        Assert.False(s.TakeInGame(GameChange(1000)));
+        Assert.False(s.AnnounceGuild);
+
+        Assert.True(s.TakeInGame(GameChange(1100)));
+        Assert.Equal(1100, s.InGameAt);
+        Assert.True(s.AnnounceGuild);
+        Assert.Equal(["level"], s.AnnounceKinds);
+        Assert.Equal(["boss"], s.AskKinds);
+        Assert.False(s.FlightReloadPrompt);
+        Assert.Equal("BOTTOMLEFT", s.GridCorner);
+        Assert.False(s.GridLabel);
+        Assert.True(s.KeepAllHistory);
+    }
+
+    [Fact]
+    public void In_game_settings_are_read_from_the_saved_file()
+    {
+        var script = new MoonSharp.Interpreter.Script();
+        var read = SavedVariables.ReadInGame(script.DoString("""
+            return { at = 1234, announce = { guild = true, kinds = { level = true, boss = true } },
+              ask = { rare = true }, chatReminder = false, gridCorner = 'TOPRIGHT', keepAllHistory = true }
+            """));
+
+        Assert.NotNull(read);
+        Assert.Equal(1234, read.At);
+        Assert.True(read.AnnounceGuild);
+        Assert.False(read.AnnounceParty);
+        Assert.Equal(["boss", "level"], read.AnnounceKinds.Order());
+        Assert.Equal(["rare"], read.AskKinds);
+        Assert.True(read.FlightReload); // missing means on, as the addon reads it
+        Assert.False(read.ChatReminder);
+        Assert.Equal("TOPRIGHT", read.GridCorner);
+        Assert.True(read.KeepAllHistory);
+        Assert.Null(SavedVariables.ReadInGame(MoonSharp.Interpreter.DynValue.Nil));
+    }
+
+    // Clicking Post in game: always wanted, whatever the rules say, and posted as the moment it carries.
+    [Fact]
+    public void A_request_to_post_is_posted_as_its_moment()
+    {
+        var ask = new Entry { Id = "x", Kind = "ask", AskedKind = "boss", Boss = "Rethilgore", MidBoss = true };
+        Assert.True(new FlavorSettings { PostBosses = false }.Wants(ask));
+        Assert.True(ask.IsAsk);
+        Assert.Equal("boss", ask.Moment.Kind);
+        Assert.False(ask.Moment.IsAsk);
+    }
+
+    // Asking is on by default where moments are rare enough, and old configs get their game's.
+    [Fact]
+    public void Asking_defaults_differ_per_game()
+    {
+        Assert.Equal(FlavorSettings.AllAskKinds, Flavors.Forever.Defaults().AskKinds);
+        Assert.Empty(Flavors.Retail.Defaults().AskKinds!);
+    }
+
     [Fact]
     public void Notes_edited_in_game_are_read_from_the_saved_file()
     {

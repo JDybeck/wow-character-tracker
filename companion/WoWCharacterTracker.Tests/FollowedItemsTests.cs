@@ -301,6 +301,8 @@ public class FollowedItemsTests
             sent = {}
             function IsInGuild() return true end
             function SendChatMessage(msg) table.insert(sent, msg) end
+            function GetTime() return 0 end
+            C_Timer = { After = function(_, fn) fn() end }
             WoWCharacterTrackerSettings = { followed = { [2589] = true }, announce = { guild = true, kinds = { {{kinds}} } } }
             """);
         var ns = new Table(script);

@@ -18,6 +18,10 @@ record Snapshot(string Guid, string Char, string Realm, int Level, string Class,
         Region: e.Region, Keystone: e.Keystone, ZoneType: e.ZoneType, MplusScore: e.MplusScore, PvpRatings: e.PvpRatings, Faction: e.Faction);
 }
 
+// The In game page's settings as last changed in game (the addon's options page), and when.
+record InGameSettings(long At, bool AnnounceGuild, bool AnnounceParty, List<string> AnnounceKinds, List<string> AskKinds,
+    bool FlightReload, bool ChatReminder, string GridCorner, bool GridLabel, bool KeepAllHistory);
+
 // Everything read for one game tab: events, character snapshots, what each character carries, and
 // the XP each level needs on that client ([level] = XP).
 record TrackerData(List<Entry> Events, List<Snapshot> Characters)
@@ -26,6 +30,7 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
     public Dictionary<int, long> XpTable { get; init; } = [];
     public Dictionary<int, int> ItemClasses { get; init; } = []; // itemId -> the game's item class (Inventory.lua)
     public List<GameNote> Notes { get; init; } = []; // notes edited in game (NoteBox.lua)
+    public InGameSettings? InGame { get; init; } // In game page settings changed in game (Shared.lua)
 
     public static TrackerData Empty { get; } = new([], []);
 }

@@ -129,6 +129,7 @@ sealed class DiscordViewModel : Observable
                 Config.SetActive(tab.Flavor, info, true);
         Config.Save();
         Refresh();
+        foreach (var tab in main.FlavorTabs) tab.NotesChanged(hint: false); // Settings.lua says whether there's a webhook
 
         NewWebhookName = "";
         NewWebhookUrl = "";
@@ -147,6 +148,7 @@ sealed class DiscordViewModel : Observable
         Config.SetActive(tab.Flavor, row.Info, on);
         Config.Save();
         Refresh();
+        tab.NotesChanged(hint: false); // Settings.lua says whether there's a webhook
         Log.Info($"[{tab.Name}] " + (on ? $"Now also posting to \"{row.Name}\"." : $"Stopped posting to \"{row.Name}\"."));
         _ = tab.CheckDiscordAsync();
     }
