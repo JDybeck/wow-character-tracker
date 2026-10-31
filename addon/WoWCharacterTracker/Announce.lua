@@ -70,8 +70,10 @@ end
 function ns.announce(e)
   local a = ns.setting("announce")
   if not a or not (a.guild or a.party) or not a.kinds then return end
-  if not a.kinds[e.maxLevel and "maxlevel" or e.kind] then return end
-  local msg = message(e)
+  -- A followed item says so, instead of (not as well as) its usual line.
+  local followed = a.kinds.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId)
+  if not followed and not a.kinds[e.maxLevel and "maxlevel" or e.kind] then return end
+  local msg = followed and string.format("Got %s from my followed items!", itemLink(e.itemId, e.item or e.mount)) or message(e)
   if not msg then return end
   table.insert(pending, msg)
   -- A moment later, so it follows the game's own lines (the level-up, the loot), or after combat.

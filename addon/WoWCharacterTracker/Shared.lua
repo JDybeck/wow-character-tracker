@@ -77,6 +77,12 @@ function ns.plain(v)
 end
 
 -- "Grimtusk-Stormrage" -> "Grimtusk".
+-- On the app's Followed items list (Settings.lua `followed`, read at /reload or login).
+function ns.isFollowed(itemId)
+  local list = ns.setting("followed")
+  return (list and itemId and list[itemId]) and true or false
+end
+
 function ns.withoutRealm(name)
   return name and (name:gsub("%-.*$", "")) or nil
 end
