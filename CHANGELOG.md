@@ -2,6 +2,19 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.31.0
+
+Post a highlight when you feel like it, and change the in-game settings in the game. Update the addon with the app (it does this by itself) and /reload in game.
+
+- **Ask before a highlight goes unposted**: when What gets posted doesn't post a boss kill or rare or epic gear, a small box in game offers to, with **Post** and **Skip**. It covers every boss, not only the last one. On by default on Forever, off on Retail, with switches on the **In game** page.
+- **Change the In game settings in game**: guild and group lines, the box above, reload reminders, the instant post pattern and saved history can now be changed under Esc, Options, AddOns (or `/wct options`). They apply right away and reach the app on your next /reload or logout. The newest change wins.
+- **Hardcore deaths name the killer** again, from the game's death recap (or say falling, drowning and so on), in posts and in chat.
+- Guild and group lines go out at most one every 2 seconds and 8 a minute, so a backlog after combat doesn't flood chat. None are lost.
+- Forever: a new rare or epic drop the game hadn't loaded yet no longer goes missing.
+- Forever: chat text hidden during a boss fight no longer risks errors from the addon. Loot from the fight itself still isn't seen, the game doesn't allow it.
+- A hardcore death firing twice, or feign death, no longer counts as a death.
+- The addon works on its own (guild and group lines), ready for addon sites. Without the app it takes no data screenshots.
+
 ## v0.30.0
 
 Followed items and more stream overlay options. Update the addon with the app (it does this by itself) and /reload in game.
