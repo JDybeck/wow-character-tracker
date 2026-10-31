@@ -22,11 +22,53 @@ public class AddonLuaTests
     public void Addon_file_compiles(string file) =>
         new Script().LoadString(File.ReadAllText(Path.Combine(AddonDir, file)), codeFriendlyName: file);
 
+    // A clock and C_Timer for Announce.lua: runTimers() runs what's due, moving the clock as it goes.
+    const string FakeTimers = """
+        clock = 1000
+        function GetTime() return clock end
+        timers = {}
+        C_Timer = { After = function(delay, fn) table.insert(timers, { at = clock + delay, fn = fn }) end }
+        function runTimers(untilClock)
+          while true do
+            table.sort(timers, function(a, b) return a.at < b.at end)
+            local t = timers[1]
+            if not t or t.at > untilClock then break end
+            table.remove(timers, 1)
+            clock = math.max(clock, t.at)
+            t.fn()
+          end
+          clock = untilClock
+        end
+        """;
+
+    // Lines go out at most every 2 seconds and 8 a minute; the rest wait, none are lost.
+    [Fact]
+    public void A_burst_of_lines_is_spaced_out_and_none_are_lost()
+    {
+        var sent = new List<double>();
+        var script = new Script();
+        script.DoString(FakeTimers);
+        script.Globals["SendChatMessage"] = (Action<string, string>)((_, _) => sent.Add(script.Globals.Get("clock").Number));
+        script.Globals["IsInGuild"] = (Func<bool>)(() => true);
+        script.DoString("WoWCharacterTrackerSettings = { announce = { guild = true, kinds = { level = true } } }");
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Announce.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+        for (var i = 1; i <= 10; i++) script.Call(ns.Get("announce"), script.DoString($"return {{ kind = 'level', level = {i} }}"));
+        script.DoString("runTimers(1200)");
+
+        Assert.Equal(10, sent.Count);
+        Assert.All(sent.Zip(sent.Skip(1)), p => Assert.True(p.Second - p.First >= 2));
+        Assert.True(sent[8] - sent[0] >= 60); // the 9th waits until the first is a minute old
+    }
+
     // Runs Announce.lua with WoW's chat functions stubbed; returns what it sent ("CHANNEL: text").
     static List<string> Announce(string settings, string eventLua, bool inGuild = true, bool inGroup = false, bool inRaid = false)
     {
         var sent = new List<string>();
         var script = new Script();
+        script.DoString(FakeTimers);
         script.Globals["SendChatMessage"] = (Action<string, string>)((msg, channel) => sent.Add($"{channel}: {msg}"));
         script.Globals["IsInGuild"] = (Func<bool>)(() => inGuild);
         script.Globals["IsInGroup"] = (Func<bool>)(() => inGroup);
@@ -38,6 +80,7 @@ public class AddonLuaTests
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         script.Call(ns.Get("announce"), script.DoString("return " + eventLua));
+        script.DoString("runTimers(1100)");
         return sent;
     }
 

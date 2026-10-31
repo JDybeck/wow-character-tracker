@@ -48,7 +48,12 @@ local function message(e)
   return nil
 end
 
+-- Guild chat is shared, and the game can throttle a burst: one line every 2 seconds, at most 8 a
+-- minute. What's over that waits its turn, nothing is dropped.
+local SPACING, PER_MINUTE = 2, 8
 local pending = {}
+local sentAt = {}
+local flushWaiting = false
 
 local function send(msg)
   local a = ns.setting("announce")
@@ -62,9 +67,29 @@ local function send(msg)
   end
 end
 
+-- How long until another line may go: 0 for now.
+local function waitBeforeNext()
+  local now = GetTime()
+  while sentAt[1] and now - sentAt[1] >= 60 do table.remove(sentAt, 1) end
+  local wait = #sentAt >= PER_MINUTE and 60 - (now - sentAt[1]) or 0
+  local last = sentAt[#sentAt]
+  return math.max(wait, last and SPACING - (now - last) or 0, 0)
+end
+
 function ns.flushAnnouncements()
-  if InCombatLockdown and InCombatLockdown() then return end
-  while #pending > 0 do send(table.remove(pending, 1)) end
+  if flushWaiting or #pending == 0 or (InCombatLockdown and InCombatLockdown()) then return end
+  local wait = waitBeforeNext()
+  if wait <= 0 then
+    send(table.remove(pending, 1))
+    table.insert(sentAt, GetTime())
+    if #pending == 0 then return end
+    wait = waitBeforeNext()
+  end
+  flushWaiting = true
+  C_Timer.After(wait, function()
+    flushWaiting = false
+    ns.flushAnnouncements()
+  end)
 end
 
 -- Called for every recorded event (ns.addEvent).
@@ -78,5 +103,5 @@ function ns.announce(e)
   if not msg then return end
   table.insert(pending, msg)
   -- A moment later, so it follows the game's own lines (the level-up, the loot), or after combat.
-  if C_Timer then C_Timer.After(1, ns.flushAnnouncements) else ns.flushAnnouncements() end
+  C_Timer.After(1, ns.flushAnnouncements)
 end
