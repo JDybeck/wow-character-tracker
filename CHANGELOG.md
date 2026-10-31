@@ -11,6 +11,7 @@ Followed items and more stream overlay options. Update the addon with the app (i
 - Stream overlay: options only one game has now sit in their own **Forever only** and **Retail only** boxes, and your settings carry over.
 - Stream overlay: rare alerts and highlights can be limited to Bind on Equip, like the Discord option. Rare alerts are limited by default.
 - Stream overlay: the highlights box has its own background slider (**Highlights bg**), separate from the card's (**Card bg**). It starts at the value you already had.
+- Legendary loot is only always posted when it can be worn. Materials like Elementium Bar no longer post, pop up or go to chat, unless you follow them.
 - The **In game** page is tidier, and **Tell your guild or group** now always lists what can be written, each with a sample of its line.
 
 ## v0.29.0

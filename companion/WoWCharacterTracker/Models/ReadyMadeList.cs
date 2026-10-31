@@ -1,8 +1,8 @@
 namespace WoWCharacterTracker.Models;
 
 // A ready-made followed list a game offers (Flavor.ReadyMadeLists), switched on by its key in
-// FlavorSettings.ReadyMadeLists. Tag marks its items in the list. Legendaries stay out of these,
-// they're always posted anyway. Every id was checked against Wowhead's Forever tooltips on
+// FlavorSettings.ReadyMadeLists. Tag marks its items in the list. Legendary gear stays out of these,
+// it's always posted anyway. Every id was checked against Wowhead's Forever tooltips on
 // 2026-10-31; see the launch todo in backlog.md.
 sealed record ReadyMadeList(string Key, string Name, string Tag, string Hint, IReadOnlyList<FollowedItem> Items)
 {
@@ -29,6 +29,8 @@ sealed record ReadyMadeList(string Key, string Name, string Tag, string Hint, IR
         new(6975, "Whirlwind Axe"), new(6976, "Whirlwind Warhammer"), new(6977, "Whirlwind Sword"), new(6953, "Verigan's Fist"),
         new(6220, "Meteor Shard"), new(1482, "Shadowfang"), new(6909, "Strike of the Hydra"), new(1155, "Rod of the Sleepwalker"),
         new(7683, "Bloody Brass Knuckles"), new(9449, "Manual Crowd Pummeler"),
+        new(11000, "Shadowforge Key"), new(9394, "Horned Viking Helmet"), new(9425, "Pendulum of Doom"), new(9431, "Papal Fez"),
+        new(9426, "Monolithic Bow"), new(9416, "Grimlok's Charge"), new(9415, "Grimlok's Tribal Vestments"), new(9380, "Jang'thraze the Protector"),
         new(2933, "Seal of Wrynn"), new(6469, "Venomstrike"), new(6463, "Deep Fathom Ring"), new(6472, "Stinging Viper"),
         new(7713, "Illusionary Rod"), new(7714, "Hypnotic Blade"), new(10410, "Leggings of the Fang"), new(9624, "Triprunner Dungarees"),
         new(7689, "Morbid Dawn"), new(7690, "Ebon Vise"), new(7688, "Ironspine's Ribcage"), new(7686, "Ironspine's Eye"),
@@ -45,6 +47,17 @@ sealed record ReadyMadeList(string Key, string Name, string Tag, string Hint, IR
         // Classic's ids, not in Wowhead's Forever database yet (ids are shared, the tooltip falls back to Classic's).
         new(6802, "Sword of Omen"), new(10823, "Vanquisher's Sword"), new(10758, "X'caliboar"), new(10768, "Boar Champion's Belt"),
         new(10761, "Coldrage Dagger"), new(6830, "Bonebiter"), new(15411, "Mark of Fordring"),
+        new(22234, "Mantle of Lost Hope"), new(11803, "Force of Magma"), new(11802, "Lavacrest Leggings"), new(11623, "Spritecaster Cape"),
+        new(11626, "Blackveil Cape"), new(11624, "Kentic Amice"), new(22240, "Greaves of Withering Despair"), new(11726, "Savage Gladiator Chain"),
+        new(11686, "Girdle of Beastial Fury"), new(11662, "Ban'thok Sash"), new(11816, "Angerforge's Battle Axe"), new(11819, "Second Wind"),
+        new(11822, "Omnicast Boots"), new(11742, "Wayfarer's Knapsack"), new(11735, "Ragefury Eyepatch"), new(11841, "Senior Designer's Pantaloons"),
+        new(22241, "Dark Warder's Pauldrons"), new(11832, "Burst of Knowledge"), new(11925, "Ghostshroud"), new(11926, "Deathdealer Breastplate"),
+        new(12553, "Swiftwalker Boots"), new(12554, "Hands of the Exalted Herald"), new(11815, "Hand of Justice"), new(22204, "Wristguards of Renown"),
+        new(11933, "Imperial Jewel"), new(11928, "Thaurissan's Royal Scepter"), new(11932, "Guiding Stave of Wisdom"), new(11931, "Dreadforge Retaliator"),
+        new(11924, "Robes of the Royal Crown"), new(9379, "Sang'thraze the Deflector"), new(9470, "Bad Mojo Mask"), new(9476, "Big Bad Pauldrons"),
+        new(9477, "The Chief's Enforcer"), new(9478, "Ripsaw"), new(9479, "Embrace of the Lycan"), new(9480, "Eyegouger"),
+        new(12470, "Sandstalker Ankleguards"), new(18082, "Zum'rah's Vexing Cane"),
+        new(17713, "Blackstone Ring"), new(17719, "Inventor's Focal Sword"), new(17730, "Gatorbite Axe"), new(17732, "Rotgrip Mantle"),
     ]);
 
     public static readonly IReadOnlyList<ReadyMadeList> All = [RareAndFun, LevelingLegends];

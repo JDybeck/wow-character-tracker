@@ -166,7 +166,8 @@ class FlavorSettings
         return level % every == 0;
     }
 
-    // Whether this tab posts the event. Legendary loot is always posted, with extra flair.
+    // Whether this tab posts the event. Legendary gear is always posted, with extra flair; legendary
+    // materials (Elementium Bar) aren't, unless followed.
     // Wants, plus what needs the character's history: a boss this character killed before isn't posted
     // again when only first kills are. history: every event known for the tab.
     public bool Wants(Entry e, IEnumerable<Entry> history) => Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
@@ -189,7 +190,7 @@ class FlavorSettings
     public bool Wants(Entry e) => PostsAsFollowed(e) || e.Kind switch
     {
         "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),
-        "loot" => e.Quality >= 5 || (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly)),
+        "loot" => e.Quality >= 5 ? !e.Mat : (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly)),
         "mount" => PostMounts,
         "boss" => PostBosses && SkipBossBecause(e) is null,
         "keyrun" => PostKeyRuns && e.KeyLevel >= KeyRunMinLevel && (e.Timed || !KeyRunTimedOnly),

@@ -11,7 +11,7 @@ local SHORT = {
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
   maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V", keystone = "W", zoneType = "f",
-  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", -- single letters are used up, so new keys get two
+  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", mat = "mt", -- single letters are used up, so new keys get two
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
@@ -373,7 +373,7 @@ local function wanted(e)
   local post = ns.setting("post")
   if not post then return true end
   if post.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then return true end
-  if e.kind == "loot" and (e.quality or 0) >= 5 then return true end -- legendary: always worth a post
+  if e.kind == "loot" and (e.quality or 0) >= 5 then return not e.mat end -- legendary gear: always worth a post, materials never
   if e.maxLevel and post.maxLevel ~= false then return true end -- max level has its own switch
   if e.kind == "level" then
     local l = post.level

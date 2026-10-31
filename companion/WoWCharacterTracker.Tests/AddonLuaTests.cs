@@ -253,6 +253,35 @@ public class AddonLuaTests
         Assert.Equal(boe, e.Get("boe").CastToBool());
     }
 
+    // Loot that isn't a weapon (class 2) or armor (4) is marked, so a legendary one isn't always
+    // posted. An unknown class counts as gear.
+    [Theory]
+    [InlineData("2", false)]
+    [InlineData("4", false)]
+    [InlineData("7", true)]
+    [InlineData("nil", false)]
+    public void Looted_items_that_cant_be_worn_are_marked(string classId, bool mat)
+    {
+        var script = new Script();
+        script.DoString($$"""
+            LOOT_ITEM_SELF = "You receive loot: %s."
+            function time() return 5000 end
+            function GetItemInfo(link) return 'Elementium Bar', link, 5 end
+            function GetItemInfoInstant(link) return 17771, 'x', 'y', 'z', 'i', {{classId}}, 0 end
+            """);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+
+        script.Call(ns.Get("recordLoot"), "You receive loot: |cffff8000|Hitem:17771::::::::50:::::|h[Elementium Bar]|h|r.");
+
+        Assert.Equal(mat, Assert.Single(recorded).Get("mat").CastToBool());
+    }
+
     // Retail is told by the interface number, not by C_MythicPlus: Forever (16001) has that API too,
     // and must still record end boss kills; Retail (120105) records key runs instead.
     [Theory]

@@ -72,7 +72,7 @@ Each game has its own look, and under Settings you can pick a color theme per ga
 
 The **Followed items** tab (right of In game) is your own wish list or BiS list, kept per game. Search by name (it asks Wowhead as you type), or paste an item's Wowhead address or id, and click **Follow**. On Forever the search also shows Classic's items, since Wowhead's Forever database isn't complete yet. Wowhead's search gives about ten results of all kinds, so be specific. The list is sorted into **Weapons**, **Armor**, **Jewelry and trinkets**, **Mounts** and **Other**.
 
-On Forever you can also switch on ready-made lists (both off by default): **Exceedingly rare and fun items** has famous drops and fun finds like Deathcharger's Reins, Teebu's Blazing Longsword and Baby Crocolisk, and **Leveling legends** has the items people remember from leveling, like Cruel Barb, Ravager and the Whirlwind Axe. Legendaries aren't on them, since those are always posted.
+On Forever you can also switch on ready-made lists (both off by default): **Exceedingly rare and fun items** has famous drops and fun finds like Deathcharger's Reins, Teebu's Blazing Longsword and Baby Crocolisk, and **Leveling legends** has the items people remember from leveling, like Cruel Barb, Ravager and the Whirlwind Axe. Legendary gear isn't on them, since that's always posted. Legendary materials that can't be worn, like Elementium Bar, aren't posted unless you follow them.
 
 **Copy list** puts the items you added yourself on the clipboard as a code to share, and **Paste list** adds the items from a code to your list. What you already follow stays. A code only works on the game it was made for, since items differ between games.
 

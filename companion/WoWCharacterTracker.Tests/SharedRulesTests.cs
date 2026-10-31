@@ -129,6 +129,29 @@ public class SharedRulesTests
         Assert.Equal(posted, AddonWants(s, e));
     }
 
+    // Legendary gear is always posted, legendary materials never, also with epics and rares on.
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void Legendaries_are_only_always_posted_when_they_can_be_worn(bool mat, bool posted)
+    {
+        var s = new FlavorSettings { PostRare = true, PostEpic = true };
+        var e = new Entry { Kind = "loot", Level = 60, Quality = 5, Mat = mat };
+        Assert.Equal(posted, s.Wants(e));
+        Assert.Equal(posted, AddonWants(s, e));
+        Assert.Equal(posted, StreamSnapshot.AlertFor(e) is not null);
+    }
+
+    [Fact]
+    public void A_followed_legendary_material_still_posts()
+    {
+        var s = new FlavorSettings { FollowedItems = [new(17771, "Elementium Bar")] };
+        var e = new Entry { Kind = "loot", Level = 60, Quality = 5, Mat = true, ItemId = 17771 };
+        Assert.True(s.Wants(e));
+        Assert.True(AddonWants(s, e));
+        Assert.Equal("followed", StreamSnapshot.AlertFor(e with { Item = "Elementium Bar", Followed = true })!.Kind);
+    }
+
     // Mythic+ runs: from the lowest key level, and with "Timed only" just the keys beaten in time.
     [Theory]
     [InlineData(9, 1, false, false)]
@@ -159,7 +182,7 @@ public class SharedRulesTests
             var ns = new Table(script);
             foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
                 script.Call(script.LoadString(AddonFile(file)), "WoWCharacterTracker", ns);
-            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades}, itemId = {e.ItemId} }}");
+            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, mat = {(e.Mat ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades}, itemId = {e.ItemId} }}");
             return script.Call(ns.Get("wanted"), ev).Boolean;
         }
         finally { Directory.Delete(dir, recursive: true); }

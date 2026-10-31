@@ -142,6 +142,7 @@ sealed record StreamSnapshot(
         "level" => new(e.Id, "level", "DING!", $"Level {e.Level}", e.Seconds > 0 ? $"{e.Level - 1} to {e.Level} took {Took(e)}" : "", "gold", e.At),
         "boss" when e.Boss.Length > 0 => BossAlert(e),
         "keyrun" when e.Timed => new(e.Id, "keyrun", "TIMED!", Format.KeyRun(e), $"+{e.Upgrades}" + (e.Seconds > 0 ? $" in {Format.Clock(e.Seconds)}" : ""), "victory", e.At),
+        "loot" when e.Quality >= 5 && e.Mat => null, // legendary materials aren't a moment, unless followed
         "loot" when e.Quality >= 5 => new(e.Id, "legendary", "LEGENDARY!", e.Item, "", "legendary", e.At),
         "loot" when e.Quality == 4 => new(e.Id, "epic", "EPIC LOOT!", e.Item, "", "epic", e.At),
         "loot" when e.Quality == 3 => new(e.Id, "rare", "RARE LOOT!", e.Item, "", "rare", e.At),

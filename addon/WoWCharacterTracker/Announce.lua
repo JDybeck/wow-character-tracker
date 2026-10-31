@@ -19,7 +19,7 @@ local function message(e)
     return string.format("Ding! Level %d.", e.level) .. (e.seconds and string.format(" %d to %d took %s.", e.level - 1, e.level, ns.formatDuration(e.seconds)) or "")
   elseif k == "boss" then
     return string.format("Killed %s%s!", e.boss, (e.instance and e.instance ~= "") and (" in " .. e.instance) or "")
-  elseif k == "loot" and (e.quality or 0) >= 4 then
+  elseif k == "loot" and (e.quality or 0) >= 4 and not ((e.quality or 0) >= 5 and e.mat) then -- not legendary materials
     return "Looted " .. itemLink(e.itemId, e.item) .. "!"
   elseif k == "mount" then
     return (e.bought and "Bought a new mount: " or "Got a new mount: ") .. (e.itemId and itemLink(e.itemId, e.mount) or e.mount) .. "!"

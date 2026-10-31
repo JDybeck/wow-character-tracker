@@ -124,7 +124,7 @@
                   <Button Grid.Column="1" Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="rare"/>
                   <CheckBox Grid.Row="1" ToolTip="Post to Discord when you loot an epic item" IsChecked="{Binding PostEpic}" VerticalAlignment="Center"><TextBlock Text="Epic items" Foreground="#C084FC" FontWeight="SemiBold" FontSize="13"/></CheckBox>
                   <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="epic"/>
-                  <TextBlock Grid.Row="2" Margin="30,0,0,0" VerticalAlignment="Center" Style="{StaticResource Hint}" Foreground="#FB923C" Text="Legendary: always posted"/>
+                  <TextBlock Grid.Row="2" Margin="30,0,0,0" VerticalAlignment="Center" Style="{StaticResource Hint}" Foreground="#FB923C" Text="Legendary gear: always posted"/>
                   <Button Grid.Row="2" Grid.Column="1" Style="{StaticResource ChipButton}" Content="Test" Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Send a sample post of this kind to Discord, to see how it looks" CommandParameter="legendary"/>
                 </Grid>
                 <Grid>
