@@ -1,0 +1,14 @@
+# Keeps the actions in release.yml current, including the ones pinned to a commit.
+# All in one PR a month. NuGet only gets security updates, those need no config here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns:
+          - "*"
