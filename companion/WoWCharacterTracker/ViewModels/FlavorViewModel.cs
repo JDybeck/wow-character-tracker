@@ -48,6 +48,7 @@ sealed class FlavorViewModel : Observable
         WatchSetup();
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
+        FollowedItems = new FollowedItemsViewModel(flavor, Lookup, () => Settings, FollowedChanged);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
@@ -175,6 +176,7 @@ sealed class FlavorViewModel : Observable
             ShowData(lastData);
         }
         else if (page == "items") Items.Reset();
+        else if (page == "followed") FollowedItems.Reset();
     }
 
     string statusText = "Starting up...";
@@ -236,19 +238,21 @@ sealed class FlavorViewModel : Observable
     public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; Changed(); Raise(nameof(Announces)); } }
     public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; Changed(); Raise(nameof(Announces)); } }
     public bool Announces => AnnounceGuild || AnnounceParty;
+    // Tip is shown on the page: a sample of the line the addon writes (Announce.lua's message).
     static readonly (string Kind, string Name, string Tip)[] AnnounceNames =
     [
         ("level", "Level-ups", "\"Ding! Level 23. 22 to 23 took 41m 12s.\""), ("maxlevel", "Max level", "\"Reached max level 60! Total played 6d 4h 12m.\""),
-        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\" (without the group)"),
-        ("keyrun", "Mythic+ runs", "\"Timed +12 Ara-Kara, City of Echoes (+2)!\" (from the lowest key level set for Discord)"), ("loot", "Epic loot", "Epic and legendary items, as a link you can click"),
+        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\""),
+        ("keyrun", "Mythic+ runs", "\"Timed +12 Ara-Kara, City of Echoes (+2)!\" From the lowest key level set for Discord."), ("loot", "Epic loot", "\"Looted [Item]!\" For epic and legendary items."),
+        ("followed", "Followed items", "\"Got [Item] from my followed items!\" For anything on your Followed items tab."),
         ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
         ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
-        ("profession", "Professions", "\"Reached 150 Mining!\" (the steps set for Discord)"),
-        ("mplus", "Mythic+", "Mythic+ rating steps (Retail)"), ("pvp", "PvP rating", "PvP rating steps (Retail)"), ("death", "Deaths", "Hardcore deaths"),
+        ("profession", "Professions", "\"Reached 150 Mining!\" At the steps set for Discord."),
+        ("mplus", "Mythic+", "\"Reached 2500 Mythic+ rating!\""), ("pvp", "PvP rating", "\"Reached 1800 rating in 3v3!\""), ("death", "Deaths", "\"Fell at level 34. Rest in peace.\""),
     ];
     ObservableCollection<ToggleOption>? announceKinds;
     public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
-        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, () => AddonSettingsChanged());
+        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, AddonSettingsChanged);
 
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
@@ -606,6 +610,18 @@ sealed class FlavorViewModel : Observable
     // The Items page: everything the tab's characters carry, searchable, per server.
     public ItemsViewModel Items { get; }
 
+    // The Followed items page, and the switch for its post (What gets posted).
+    public FollowedItemsViewModel FollowedItems { get; }
+    public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
+    public StreamViewModel Stream => main.Stream;
+
+    // The addon needs the list (it only records rare and better otherwise), the overlay its marks.
+    void FollowedChanged()
+    {
+        AddonSettingsChanged();
+        main.Stream.Update(Flavor, allRows, Settings.MarkFollowed(lastData.Events));
+    }
+
     public void Refresh() => ShowData(lastData);
 
     // The realm (Retail) or ruleset (Forever) chips over the character list.
@@ -679,7 +695,7 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
-        main.Stream.Update(Flavor, rows, data.Events);
+        main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
         Raise(nameof(TotalGoldText));

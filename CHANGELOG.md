@@ -2,6 +2,18 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.30.0
+
+Followed items and more stream overlay options. Update the addon with the app (it does this by itself) and /reload in game.
+
+- **Followed items**: a new tab to search Wowhead (or paste an address or id) and keep your own wish or BiS list per game. Getting one gives a Discord post, an ITEM FOUND! overlay alert and optionally a guild or group chat line, once each, at any quality. Switches sit in What gets posted, In game and the stream overlay. The list is sorted into categories, you can share it as a code with **Copy list** and **Paste list**, and on Forever you can also turn on the ready-made lists **Exceedingly rare and fun items** and **Leveling legends**.
+- Stream overlay: new **DUNGEON COMPLETE!** alert on Forever when a dungeon's end boss dies, with its own on/off option.
+- Stream overlay: options only one game has now sit in their own **Forever only** and **Retail only** boxes, and your settings carry over.
+- Stream overlay: rare alerts and highlights can be limited to Bind on Equip, like the Discord option. Rare alerts are limited by default.
+- Stream overlay: the highlights box has its own background slider (**Highlights bg**), separate from the card's (**Card bg**). It starts at the value you already had.
+- Legendary loot is only always posted when it can be worn. Materials like Elementium Bar no longer post, pop up or go to chat, unless you follow them.
+- The **In game** page is tidier, and **Tell your guild or group** now always lists what can be written, each with a sample of its line.
+
 ## v0.29.0
 
 More to post, from feedback on Reddit. Update the addon with the app (it does this by itself) and /reload in game.

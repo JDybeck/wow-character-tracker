@@ -1,0 +1,128 @@
+<!-- The Followed items page: search Wowhead and mark items, see and remove what's followed.
+     DataContext: the game tab (FlavorViewModel). -->
+<UserControl x:Class="WoWCharacterTracker.Views.FollowedItemsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui">
+  <UserControl.Resources>
+    <!-- An item: icon in its quality color and name (Wowhead's tooltip on hover, its page on click), and Follow or Remove. -->
+    <DataTemplate DataType="{x:Type vm:FollowedRow}">
+      <DockPanel Margin="0,3">
+        <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="{Binding ActionText}" VerticalAlignment="Center" Margin="10,0,0,0"
+                Command="{Binding DataContext.FollowCommand, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" CommandParameter="{Binding}"
+                Visibility="{Binding IsListed, Converter={StaticResource Hidden}}"/>
+        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Hint}" Text="{Binding ListTag}" VerticalAlignment="Center" Margin="10,0,0,0"
+                   Visibility="{Binding IsListed, Converter={StaticResource Visible}}"/>
+        <Grid Background="Transparent" ui:ItemTip.Info="{Binding Info}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border Width="34" Height="34" CornerRadius="4" BorderThickness="1" BorderBrush="{Binding Info.Brush}" Background="#33000000" Margin="0,0,10,0">
+            <Image Source="{Binding Info.IconUrl, Converter={StaticResource WebImage}}" Margin="1"/>
+          </Border>
+          <TextBlock Grid.Column="1" Text="{Binding Info.Name}" Foreground="{Binding Info.Brush}" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        </Grid>
+      </DockPanel>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Border Style="{StaticResource CardBorder}">
+    <Grid Margin="26,22">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <StackPanel Margin="0,0,0,14">
+        <TextBlock FontSize="18" FontWeight="SemiBold" Foreground="White">
+          <Run Text="Followed items for"/>
+          <Run Text="{Binding Name, Mode=OneWay}"/>
+        </TextBlock>
+        <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,2,0,10"
+                   Text="Your own wish list or BiS list: get one of these, however it comes and whatever its quality, and you hear about it once. Rare and better work right away, anything below reaches the game on your next /reload or login. What happens then is set under What gets posted, In game and the stream overlay."/>
+      </StackPanel>
+
+      <Grid Grid.Row="1" DataContext="{Binding FollowedItems}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="14"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Finding items -->
+        <Border Style="{StaticResource PanelBorder}">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+              <TextBlock Style="{StaticResource SectionTitle}" Text="Find on Wowhead" Margin="0,0,0,8"/>
+              <Grid>
+                <TextBox x:Name="QueryBox" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged, Delay=350}" Padding="10,7" ToolTip="An item's name, its Wowhead address or its id. Searches as you type.">
+                  <TextBox.InputBindings>
+                    <KeyBinding Key="Return" Command="{Binding SearchCommand}"/>
+                  </TextBox.InputBindings>
+                </TextBox>
+                <!-- Follows the box itself, not Query: that one waits for a pause in the typing. -->
+                <TextBlock Text="Item name, Wowhead address or id" Foreground="{StaticResource Faint}" FontSize="13" Margin="23,0,0,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding Text, ElementName=QueryBox, Converter={StaticResource HiddenIfSet}}"/>
+              </Grid>
+              <TextBlock Text="{Binding Status}" Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"
+                         Visibility="{Binding Failed, Converter={StaticResource Hidden}}"/>
+              <TextBlock Text="{Binding Status}" Foreground="{StaticResource Red}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
+                         Visibility="{Binding Failed, Converter={StaticResource Visible}}"/>
+            </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+              <ItemsControl ItemsSource="{Binding Results}" Focusable="False"/>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+
+        <!-- The list -->
+        <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
+          <DockPanel>
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+              <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="Paste list" Command="{Binding PasteListCommand}" Margin="6,0,0,0" VerticalAlignment="Center"
+                      ToolTip="Add the items from a list code on your clipboard. What you already follow stays."/>
+              <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="Copy list" Command="{Binding CopyListCommand}" Margin="0" VerticalAlignment="Center"
+                      ToolTip="Copy the items you added yourself as a code to share"/>
+              <TextBlock Style="{StaticResource SectionTitle}" Text="Following" VerticalAlignment="Center"/>
+            </DockPanel>
+            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Hint}" Text="{Binding ListStatus}" Margin="0,0,0,8"
+                       Visibility="{Binding ListStatus, Converter={StaticResource VisibleIfSet}}"/>
+            <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding ReadyMadeLists}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <CheckBox IsChecked="{Binding IsOn}" ToolTip="Also follow this ready-made list. Legendary gear isn't on it, that's always posted." Margin="0,0,0,8">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                      <TextBlock Style="{StaticResource Hint}" Text="{Binding Tip}"/>
+                    </StackPanel>
+                  </CheckBox>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Grid>
+              <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                <ItemsControl ItemsSource="{Binding Groups}" Focusable="False">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Margin="0,0,0,10">
+                        <TextBlock Style="{StaticResource FactLabel}" Text="{Binding Title}" Margin="0,0,0,4"/>
+                        <ItemsControl ItemsSource="{Binding Rows}" Focusable="False"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="300"
+                          Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE734;" FontSize="34" Foreground="{StaticResource Faint}" HorizontalAlignment="Center"/>
+                <TextBlock Text="Nothing followed yet. Search for an item and click Follow." Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/>
+              </StackPanel>
+            </Grid>
+          </DockPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

@@ -39,6 +39,11 @@ sealed class EventEmbeds(Flavor flavor)
             _ when e.MaxLevel => MaxLevelText(e),
             _ => LevelText(e),
         };
+        if (e.Followed && e.Kind is "loot" or "mount")
+        {
+            title = "⭐ " + title;
+            lines.Insert(0, "On their followed items list!");
+        }
 
         var embed = new Dictionary<string, object>
         {
@@ -166,8 +171,11 @@ sealed class EventEmbeds(Flavor flavor)
         var quality = Format.Quality(e.Quality);
         var lines = new List<string>();
         if (e.ItemId > 0 && !itemPicture) lines.Add($"**[{e.Item}]({ItemUrl(e.ItemId)})**");
-        lines.Add(e.Zone.Length > 0 ? $"{quality} item, looted in **{e.Zone}**." : $"{quality} item.");
-        return ($"{e.Char} looted [{e.Item}]", lines);
+        // A followed item can be of any quality, and bought, crafted or a quest reward.
+        var what = quality.Length > 0 ? $"{quality} item" : "Item";
+        var how = e.Followed ? "got" : "looted";
+        lines.Add(e.Zone.Length > 0 ? $"{what}, {how} in **{e.Zone}**." : $"{what}.");
+        return ($"{e.Char} {how} [{e.Item}]", lines);
     }
 
     (string, List<string>) LegendaryText(Entry e)

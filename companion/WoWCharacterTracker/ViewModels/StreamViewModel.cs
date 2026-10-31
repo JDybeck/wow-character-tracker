@@ -77,11 +77,11 @@ sealed class StreamViewModel : Observable
     // --- how it looks and what it shows ---
 
     public int CardOpacity { get => Options.CardOpacity; set { Options.CardOpacity = value; Raise(nameof(CardOpacity)); OptionsChanged(); } }
+    public int HighlightsOpacity { get => Options.HighlightsOpacity; set { Options.HighlightsOpacity = value; Raise(nameof(HighlightsOpacity)); OptionsChanged(); } }
     public bool ShowStats { get => Options.ShowStats; set { Options.ShowStats = value; OptionsChanged(); } }
     public bool ShowLevels { get => Options.ShowLevels; set { Options.ShowLevels = value; OptionsChanged(); } }
     public bool ShowToday { get => Options.ShowToday; set { Options.ShowToday = value; OptionsChanged(); } }
     public bool ShowDuels { get => Options.ShowDuels; set { Options.ShowDuels = value; OptionsChanged(); } }
-    public bool ShowMakgora { get => Options.ShowMakgora; set { Options.ShowMakgora = value; OptionsChanged(); } }
     public bool ShowBattlegrounds { get => Options.ShowBattlegrounds; set { Options.ShowBattlegrounds = value; OptionsChanged(); } }
     public bool ShowHighlights { get => Options.ShowHighlights; set { Options.ShowHighlights = value; OptionsChanged(); } }
     public bool ShowBorder { get => Options.ShowBorder; set { Options.ShowBorder = value; OptionsChanged(); } }
@@ -123,53 +123,99 @@ sealed class StreamViewModel : Observable
         OptionsChanged();
     }
 
-    // Which lines the stats column shows. Keystone and ratings are Retail only.
-    static readonly (string Kind, string Name, string Tip)[] FieldNames =
+    // The on/off chips, each table in three parts: both games (the panel's Card, Highlights and Alerts
+    // parts), Forever only and Retail only (the panel's game sections, GameSections). A new option goes
+    // in the table for the games that can have it. The config keeps one list per chip type, so moving
+    // a chip between tables never touches what's saved.
+
+    // Which lines the stats column shows.
+    internal static readonly (string Kind, string Name, string Tip)[] FieldNames =
     [
         ("ilvl", "Item level", "Average item level"), ("played", "Played", "Total time played"),
         ("levelPlayed", "This level", "Time played since the last ding"), ("gold", "Gold", "Gold on the character"),
         ("talents", "Talents", "Talent points per tree, numbers only (31/20/0)"), ("zone", "Zone", "Where the character is, under the name"),
-        ("keystone", "Keystone", "Your Mythic+ keystone (Retail)"), ("ratings", "Ratings", "Mythic+ score and PvP ratings (Retail)"),
     ];
-    ObservableCollection<ToggleOption>? fields;
-    public ObservableCollection<ToggleOption> CardFields => fields ??=
-        ToggleOption.Kinds(FieldNames.Where(f => HasRatings || f.Kind is not ("keystone" or "ratings")), Options.CardFields, OptionsChanged);
-
-    // Which highlights count, as on/off chips. Mythic+ and PvP rating are Retail only, so they're
-    // only offered while the overlay shows a Retail character.
-    static readonly (string Kind, string Name, string Tip)[] KindNames =
+    internal static readonly (string Kind, string Name, string Tip)[] RetailFieldNames =
     [
-        ("loot", "Loot", "Rare, epic and legendary items looted"), ("boss", "Boss kills", "Dungeon and raid end bosses killed"),
-        ("keyrun", "Mythic+ runs", "Keys finished, timed or over time (Retail)"),
+        ("keystone", "Keystone", "Your Mythic+ keystone"), ("ratings", "Ratings", "Mythic+ score and PvP ratings"),
+    ];
+
+    // Which highlights count.
+    internal static readonly (string Kind, string Name, string Tip)[] KindNames =
+    [
+        ("loot", "Loot", "Rare, epic and legendary items looted"),
         ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won and lost"),
-        ("makgora", "Mak'gora", "Mak'goras won and lost"), ("bg", "Battlegrounds", "Battlegrounds won and lost"),
-        ("profession", "Professions", "Profession milestones (the steps set for Discord)"), ("death", "Deaths", "Hardcore deaths"),
-        ("mplus", "Mythic+", "Mythic+ rating milestones (Retail)"), ("pvp", "PvP rating", "PvP rating milestones (Retail)"),
+        ("bg", "Battlegrounds", "Battlegrounds won and lost"),
+        ("profession", "Professions", "Profession milestones (the steps set for Discord)"),
+    ];
+    internal static readonly (string Kind, string Name, string Tip)[] ForeverKindNames =
+    [
+        ("boss", "Boss kills", "Dungeon and raid end bosses killed"), ("makgora", "Mak'gora", "Mak'goras won and lost"), ("death", "Deaths", "Hardcore deaths"),
+    ];
+    internal static readonly (string Kind, string Name, string Tip)[] RetailKindNames =
+    [
+        ("keyrun", "Mythic+ runs", "Keys finished, timed or over time"),
+        ("mplus", "Mythic+", "Mythic+ rating milestones"), ("pvp", "PvP rating", "PvP rating milestones"),
+    ];
+
+    // Which moments pop up as the big alert.
+    internal static readonly (string Kind, string Name, string Tip)[] AlertNames =
+    [
+        ("level", "Level-ups", "DING! with the level and how long it took"), ("maxlevel", "Max level", "MAX LEVEL! with light rays, when you reach the cap"),
+        ("legendary", "Legendary loot", "LEGENDARY! in orange"),
+        ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
+        ("followed", "Followed items", "ITEM FOUND! when you get an item from your Followed items tab, whatever its quality"),
+        ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"),
+        ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
+        ("profession", "Professions", "MILESTONE! when a profession passes a step"),
+    ];
+    internal static readonly (string Kind, string Name, string Tip)[] ForeverAlertNames =
+    [
+        ("dungeon", "Dungeon complete", "DUNGEON COMPLETE! when a dungeon's end boss dies"),
+        ("boss", "Boss kills", "VICTORY! when an end boss dies. With Dungeon complete on too, dungeons get that alert and this one is for raids."),
+        ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"), ("death", "Deaths", "R.I.P. when a hardcore character dies"),
+    ];
+    internal static readonly (string Kind, string Name, string Tip)[] RetailAlertNames =
+    [
+        ("keyrun", "Mythic+ runs", "TIMED! when a key is beaten in time"),
+        ("mplus", "Mythic+", "MILESTONE! for a Mythic+ rating step"), ("pvp", "PvP rating", "MILESTONE! for a PvP rating step"),
     ];
 
     bool HasRatings => Flavors.Named(snapshot.Game)?.HasRatings == true;
 
-    ObservableCollection<ToggleOption>? kinds;
+    ObservableCollection<ToggleOption>? fields, kinds, alertKinds;
+    public ObservableCollection<ToggleOption> CardFields => fields ??= Chips(FieldNames, Options.CardFields);
     public ObservableCollection<ToggleOption> HighlightKinds => kinds ??= Chips(KindNames, Options.HighlightKinds);
-
-    // Which moments pop up as the big alert, as on/off chips.
-    static readonly (string Kind, string Name, string Tip)[] AlertNames =
-    [
-        ("level", "Level-ups", "DING! with the level and how long it took"), ("maxlevel", "Max level", "MAX LEVEL! with light rays, when you reach the cap"),
-        ("boss", "Boss kills", "VICTORY! when an end boss dies"), ("keyrun", "Mythic+ runs", "TIMED! when a key is beaten in time (Retail)"), ("legendary", "Legendary loot", "LEGENDARY! in orange"),
-        ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
-        ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"), ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"),
-        ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
-        ("profession", "Professions", "MILESTONE! when a profession passes a step"),
-        ("death", "Deaths", "R.I.P. when a hardcore character dies"),
-        ("mplus", "Mythic+", "MILESTONE! for a Mythic+ rating step (Retail)"), ("pvp", "PvP rating", "MILESTONE! for a PvP rating step (Retail)"),
-    ];
-    ObservableCollection<ToggleOption>? alertKinds;
     public ObservableCollection<ToggleOption> AlertKinds => alertKinds ??= Chips(AlertNames, Options.AlertKinds);
 
-    // One on/off chip per kind this game offers.
+    public bool RareAlertBoeOnly { get => Options.RareAlertBoeOnly; set { Options.RareAlertBoeOnly = value; OptionsChanged(); } }
+    public bool RareHighlightBoeOnly { get => Options.RareHighlightBoeOnly; set { Options.RareHighlightBoeOnly = value; OptionsChanged(); } }
+
     ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
-        ToggleOption.Kinds(EventKinds.Offered(names, HasRatings), picked, OptionsChanged);
+        ToggleOption.Kinds(names, picked, OptionsChanged);
+
+    // A labelled box of the options only one game has, a chip group per part of the overlay. Both
+    // boxes always show: the options are shared across games, so they can be set from either, whichever
+    // character the overlay is following right now.
+    public sealed record ChipGroup(string Title, IReadOnlyList<ToggleOption> Chips);
+    public sealed record GameSection(string Title, string Tip, IReadOnlyList<ChipGroup> Groups);
+
+    IReadOnlyList<GameSection>? gameSections;
+    public IReadOnlyList<GameSection> GameSections => gameSections ??=
+    [
+        new("FOREVER ONLY", "Moments only WoW Forever has: end boss kills and hardcore. Card and Highlights chips need those parts on.",
+        [
+            new("Card", [new ToggleOption("Mak'gora record", Options.ShowMakgora, on => { Options.ShowMakgora = on; OptionsChanged(); }, "Mak'goras won and lost (shown once there is one)")]),
+            new("Highlights", Chips(ForeverKindNames, Options.HighlightKinds)),
+            new("Alerts", Chips(ForeverAlertNames, Options.AlertKinds)),
+        ]),
+        new("RETAIL ONLY", "What only Retail has: keystones, Mythic+ and PvP ratings. Card and Highlights chips need those parts on.",
+        [
+            new("Card", Chips(RetailFieldNames, Options.CardFields)),
+            new("Highlights", Chips(RetailKindNames, Options.HighlightKinds)),
+            new("Alerts", Chips(RetailAlertNames, Options.AlertKinds)),
+        ]),
+    ];
 
     // What the overlay counts: three choices, the one in use highlighted.
     public bool RangeAll => Options.RangeMode == "all";
@@ -198,6 +244,7 @@ sealed class StreamViewModel : Observable
         kinds = null;
         alertKinds = null;
         fields = null;
+        gameSections = null;
         Raise(string.Empty);
         if (Enabled && server is null)
         {
@@ -231,26 +278,9 @@ sealed class StreamViewModel : Observable
 
     void Refresh()
     {
-        var game = snapshot.Game;
-        if (server is null)
-            // Off: only which game it would show (the panel's Retail-only chips), no building, files or Wowhead lookups.
-            snapshot = StreamSnapshot.Empty with { Game = latest.Values.Select(v => v.Character).MaxBy(c => c.LastSeen)?.Game ?? "" };
-        else
-        {
-            snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options, Item);
-            LookUpItems();
-        }
-        if (snapshot.Game != game)
-        {
-            // Another game's character: the Retail-only chips come or go.
-            kinds = null;
-            alertKinds = null;
-            fields = null;
-            Raise(nameof(HighlightKinds));
-            Raise(nameof(AlertKinds));
-            Raise(nameof(CardFields));
-        }
-        if (server is null) return;
+        if (server is null) return; // off: no building, files or Wowhead lookups
+        snapshot = StreamSnapshot.Latest(latest.Values, DateTimeOffset.Now, Options, Item);
+        LookUpItems();
         server.Snapshot = snapshot;
         StreamFiles.Write(snapshot);
     }
@@ -289,7 +319,9 @@ sealed class StreamViewModel : Observable
         // The same sample events as the Test post buttons (SampleEvents), shown the way a real one
         // would be: its alert and the highlight line it adds (level-ups aren't highlights), so the
         // highlights source can be set up too.
-        string[] kinds = ["level", "max", HasRatings ? "keyrun" : "boss", "legendary", "epic", "duel", "makgora", "mount", "death"];
+        string[] kinds = HasRatings
+            ? ["level", "max", "keyrun", "legendary", "epic", "followed", "duel", "mount"]
+            : ["level", "max", "boss", "dungeon", "legendary", "epic", "followed", "duel", "makgora", "mount", "death"];
         var e = SampleEvents.For(kinds[testIndex++ % kinds.Length], Flavors.Forever, null, []);
         e = e with { Id = $"test-{now}-{testIndex}", Char = name, At = now, Level = e.MaxLevel ? e.Level : level };
         if (StreamSnapshot.AlertFor(e) is not { } sample) return;

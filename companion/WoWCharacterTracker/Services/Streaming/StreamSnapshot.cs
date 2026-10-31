@@ -63,7 +63,7 @@ sealed record StreamSnapshot(
         }
 
         var kinds = o.HighlightKinds.ToHashSet();
-        var highlights = mine.Where(e => kinds.Contains(e.Kind)).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0)
+        var highlights = mine.Where(e => kinds.Contains(e.Kind) && (e.Kind != "loot" || e.Followed || e.PassesRareRule(o.RareHighlightBoeOnly))).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0)
             .Take(o.HighlightsHeight > 0 ? HighlightsToFit : HighlightsShown).ToList();
 
         return new StreamSnapshot(
@@ -72,7 +72,7 @@ sealed record StreamSnapshot(
             newest is null ? "" : $"{newest.Level - 1} to {newest.Level} took {Took(newest)}",
             todayText,
             highlights,
-            mine.Select(AlertFor).FirstOrDefault(a => a is not null && o.AlertKinds.Contains(a.Kind)),
+            mine.Select(e => WantedAlert(e, o)).FirstOrDefault(a => a is not null),
             now.ToUnixTimeSeconds(),
             Record("duel"), Record("makgora"), StreamLook.From(o),
             RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? [], Record("bg"),
@@ -119,12 +119,30 @@ sealed record StreamSnapshot(
 
     // The overlay's alert for an event, the way Discord would post it, or null when it's not alert
     // material (a duel or Mak'gora lost, a key over time; rare loot is its own kind). Tone picks the colors on the page.
-    public static StreamAlert? AlertFor(Entry e) => e.Kind switch
+    public static StreamAlert? AlertFor(Entry e) => (e.Followed ? FollowedAlert(e) : null) ?? MomentAlert(e);
+
+    // The alert this event pops up with these options: a followed item as itself when that's on, else
+    // as any other loot. One event, one alert either way.
+    static StreamAlert? WantedAlert(Entry e, StreamOptions o)
     {
+        if (e.Followed && o.AlertKinds.Contains("followed") && FollowedAlert(e) is { } followed) return followed;
+        return e.Kind == "loot" && !e.PassesRareRule(o.RareAlertBoeOnly) ? null : ChosenAlert(e, o.AlertKinds);
+    }
+
+    // In its quality's colors; below rare it's gold, there's no tone for those.
+    static StreamAlert? FollowedAlert(Entry e) => (e.Kind == "loot" ? e.Item : e.Kind == "mount" ? e.Mount : "") is { Length: > 0 } thing
+        ? new(e.Id, "followed", "ITEM FOUND!", thing, "From your followed items", e.Quality switch { >= 5 => "legendary", 4 => "epic", 3 => "rare", _ => "gold" }, e.At)
+        : null;
+
+    // A dungeon is completed when its end boss dies: the same boss event, recorded inside a dungeon.
+    static StreamAlert? MomentAlert(Entry e) => e.Kind switch
+    {
+        "boss" when e.Boss.Length > 0 && e.ZoneType == "dungeon" => new(e.Id, "dungeon", "DUNGEON COMPLETE!", e.Instance.Length > 0 ? e.Instance : e.Zone, $"{e.Boss} defeated", "victory", e.At),
         "level" when e.MaxLevel => new(e.Id, "maxlevel", "MAX LEVEL!", $"Level {e.Level}", e.Played > 0 ? $"Total played {Format.Played(e.Played)}" : "", "legendary", e.At),
         "level" => new(e.Id, "level", "DING!", $"Level {e.Level}", e.Seconds > 0 ? $"{e.Level - 1} to {e.Level} took {Took(e)}" : "", "gold", e.At),
-        "boss" when e.Boss.Length > 0 => new(e.Id, "boss", "VICTORY!", $"{e.Boss} defeated", e.Instance, "victory", e.At),
+        "boss" when e.Boss.Length > 0 => BossAlert(e),
         "keyrun" when e.Timed => new(e.Id, "keyrun", "TIMED!", Format.KeyRun(e), $"+{e.Upgrades}" + (e.Seconds > 0 ? $" in {Format.Clock(e.Seconds)}" : ""), "victory", e.At),
+        "loot" when e.Quality >= 5 && e.Mat => null, // legendary materials aren't a moment, unless followed
         "loot" when e.Quality >= 5 => new(e.Id, "legendary", "LEGENDARY!", e.Item, "", "legendary", e.At),
         "loot" when e.Quality == 4 => new(e.Id, "epic", "EPIC LOOT!", e.Item, "", "epic", e.At),
         "loot" when e.Quality == 3 => new(e.Id, "rare", "RARE LOOT!", e.Item, "", "rare", e.At),
@@ -138,6 +156,17 @@ sealed record StreamSnapshot(
         "pvp" => new(e.Id, "pvp", "MILESTONE!", $"{e.Step} in {e.Bracket}", e.Rating > 0 ? $"Rating {e.Rating}" : "", "rating", e.At),
         _ => null,
     };
+
+    static StreamAlert BossAlert(Entry e) => new(e.Id, "boss", "VICTORY!", $"{e.Boss} defeated", e.Instance, "victory", e.At);
+
+    // The event's alert if its kind is picked. With the dungeon alert off, a dungeon's end boss is
+    // still a boss kill, so "Boss kills" keeps its VICTORY!.
+    static StreamAlert? ChosenAlert(Entry e, List<string> picked)
+    {
+        var alert = MomentAlert(e);
+        if (alert is null || picked.Contains(alert.Kind)) return alert;
+        return alert.Kind == "dungeon" && picked.Contains("boss") ? BossAlert(e) : null;
+    }
 
     static string Capital(string s) => s.Length > 0 ? char.ToUpperInvariant(s[0]) + s[1..] : s;
 
@@ -168,21 +197,22 @@ sealed record StreamRecord(int Won, int Lost)
 }
 
 // The newest alert-worthy moment; the overlay pops it up when it's new (Id) and recent (At).
-// Kind: level, maxlevel, boss, keyrun, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
+// Kind: level, maxlevel, boss, dungeon, keyrun, legendary, epic, rare, followed, mount, duel, makgora, bg, death, mplus, pvp.
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
-// How the overlay looks: the card's background (0-100), which parts and stats lines it shows, its
+// How the overlay looks: the card's and the highlights' backgrounds (0-100), which parts and stats lines it shows, its
 // size (scale in percent, card width and smallest height, highlights width and fixed height, in px, 0 = fits), colors ("#rrggbb", empty =
 // default) and the border. The brand line is always on.
 sealed record StreamLook(int CardOpacity, bool Levels, bool Today, bool Duels, bool Makgora, bool Highlights, bool Stats = true, bool Battlegrounds = true,
     IReadOnlyList<string>? Fields = null, int Scale = 100, int Width = 0, int Height = 0, string Accent = "", string Background = "",
-    bool Border = true, int HighlightsWidth = 0, int HighlightsHeight = 0)
+    bool Border = true, int HighlightsWidth = 0, int HighlightsHeight = 0, int HighlightsOpacity = 78)
 {
     public static StreamLook From(StreamOptions o) =>
         new(Math.Clamp(o.CardOpacity, 0, 100), o.ShowLevels, o.ShowToday, o.ShowDuels, o.ShowMakgora, o.ShowHighlights, o.ShowStats, o.ShowBattlegrounds,
             [.. o.CardFields], Math.Clamp(o.Scale, 50, 250), o.CardWidth <= 0 ? 0 : Math.Clamp(o.CardWidth, 260, 1000), Math.Clamp(o.CardHeight, 0, 1000),
             Hex(o.Accent), Hex(o.Background), o.ShowBorder,
-            o.HighlightsWidth <= 0 ? 0 : Math.Clamp(o.HighlightsWidth, 200, 1000), Math.Clamp(o.HighlightsHeight, 0, 1000));
+            o.HighlightsWidth <= 0 ? 0 : Math.Clamp(o.HighlightsWidth, 200, 1000), Math.Clamp(o.HighlightsHeight, 0, 1000),
+            Math.Clamp(o.HighlightsOpacity, 0, 100));
 
     // "#rgb", "rrggbb" or "#RRGGBB" as "#rrggbb"; anything else is "" (the default color).
     public static string Hex(string? s)

@@ -35,6 +35,9 @@ sealed record Flavor(string Key, string Name, string[] Folders, string WowheadPa
     // The XP table has gaps, so time to max is estimated from Classic's table (CharacterLeveling).
     public bool EstimatesXp { get; init; }
 
+    // The ready-made lists of items it offers to follow.
+    public IReadOnlyList<ReadyMadeList> ReadyMadeLists { get; init; } = [];
+
     // The level cap, for the max level sample post.
     public int MaxLevel { get; init; }
 }
@@ -66,7 +69,7 @@ static class Flavors
     {
         LogoUrl = "https://warcraft.wiki.gg/images/thumb/WoW_Forever_Logo.png/250px-WoW_Forever_Logo.png",
         HasRulesets = true, HasSurnames = true, HasInGamePortraits = true, HasClassicTalents = true,
-        HasRangedSlot = true, EstimatesXp = true, MaxLevel = 60,
+        HasRangedSlot = true, EstimatesXp = true, ReadyMadeLists = ReadyMadeList.All, MaxLevel = 60,
     };
 
     public static readonly IReadOnlyList<Flavor> All = [Retail, Forever];

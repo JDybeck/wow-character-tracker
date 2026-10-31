@@ -232,6 +232,20 @@ class Config
             stream.HasProfessions = true;
             changed = true;
         }
+        if (!stream.HasDungeonAlerts)
+        {
+            if (!stream.AlertKinds.Contains("dungeon")) stream.AlertKinds.Add("dungeon");
+            stream.HasDungeonAlerts = true;
+            changed = true;
+        }
+        if (!stream.HasFollowed)
+        {
+            if (!stream.AlertKinds.Contains("followed")) stream.AlertKinds.Add("followed");
+            stream.HasFollowed = true;
+            changed = true;
+        }
+
+        if (stream.SplitHighlightsOpacity()) changed = true;
 
         if (changed) config.Save();
         return config;

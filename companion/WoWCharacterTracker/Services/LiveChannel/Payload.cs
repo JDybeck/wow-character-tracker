@@ -16,7 +16,7 @@ static class Payload
         ["u"] = "ruleset", ["d"] = "seconds", ["y"] = "played", ["b"] = "boss", ["I"] = "instance", ["m"] = "item",
         ["M"] = "itemId", ["q"] = "quality", ["G"] = "gold", ["K"] = "killer", ["w"] = "mount", ["B"] = "bought",
         ["S"] = "shot", ["P"] = "group", ["Z"] = "groupSize", ["N"] = "money", ["R"] = "crests", ["X"] = "maxLevel", ["U"] = "guild", ["L"] = "surname", ["O"] = "opponent", ["F"] = "fled", ["T"] = "rating", ["H"] = "step", ["D"] = "bracket", ["J"] = "talentExport", ["Q"] = "talentCalc", ["A"] = "region", ["Y"] = "lost", ["V"] = "opponentInfo", ["W"] = "keystone", ["f"] = "zoneType",
-        ["j"] = "mplusScore", ["pr"] = "pvpRatings", ["fa"] = "faction", ["sp"] = "spellId", ["kl"] = "keyLevel", ["ku"] = "upgrades", ["pf"] = "profession", ["be"] = "boe", // single letters are used up, so new keys get two
+        ["j"] = "mplusScore", ["pr"] = "pvpRatings", ["fa"] = "faction", ["sp"] = "spellId", ["kl"] = "keyLevel", ["ku"] = "upgrades", ["pf"] = "profession", ["be"] = "boe", ["mt"] = "mat", // single letters are used up, so new keys get two
     };
 
     public static Entry? Parse(string data)

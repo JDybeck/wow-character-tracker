@@ -74,6 +74,12 @@ record Entry
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
     public string Profession { get; init; } = ""; // profession: "Mining" (from 0.29.0)
     public bool Boe { get; init; }               // loot: binds when equipped (from 0.29.0; older loot reads as not)
+    public bool Mat { get; init; }               // loot: can't be worn, so legendary doesn't mean always posted (from 0.30.0; older loot reads as gear)
+    // On the tab's followed list. Not from the addon: the app marks it from the list as it is now
+    // (FlavorSettings.Followed), so an item followed after the last /reload counts too.
+    public bool Followed { get; init; }
+    // The "Bind on Equip only" rule for rares, the one copy Discord posts and the overlay both use.
+    public bool PassesRareRule(bool boeOnly) => Quality != 3 || Boe || !boeOnly;
     public int KeyLevel { get; init; }           // keyrun: the keystone's level (the dungeon is Instance, the run's time Seconds)
     public int Upgrades { get; init; }           // keyrun: 1-3 when timed, 0 over time
     public bool Timed => Upgrades > 0;
@@ -149,6 +155,7 @@ record Entry
             Bracket = s("bracket"),
             Profession = s("profession"),
             Boe = s("boe") is "true" or "1",
+            Mat = s("mat") is "true" or "1",
             KeyLevel = (int)n("keyLevel"),
             Upgrades = (int)n("upgrades"),
             TalentExport = s("talentExport"),

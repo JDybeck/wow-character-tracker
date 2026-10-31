@@ -424,10 +424,10 @@ local function patterns(...)
   return list
 end
 local LOOT_PATTERNS = patterns(LOOT_ITEM_SELF_MULTIPLE, LOOT_ITEM_SELF)
--- "You receive item: %s." covers vendor purchases and quest rewards.
-local PUSHED_PATTERNS = patterns(LOOT_ITEM_PUSHED_SELF_MULTIPLE, LOOT_ITEM_PUSHED_SELF)
+-- "You receive item: %s." covers vendor purchases and quest rewards, "You create: %s." crafting.
+local PUSHED_PATTERNS = patterns(LOOT_ITEM_PUSHED_SELF_MULTIPLE, LOOT_ITEM_PUSHED_SELF, LOOT_ITEM_CREATED_SELF_MULTIPLE, LOOT_ITEM_CREATED_SELF)
 
-local QUALITY_BY_COLOR = { ["ff0070dd"] = 3, ["ffa335ee"] = 4, ["ffff8000"] = 5, ["ffe6cc80"] = 6 }
+local QUALITY_BY_COLOR = { ["ff9d9d9d"] = 0, ["ffffffff"] = 1, ["ff1eff00"] = 2, ["ff0070dd"] = 3, ["ffa335ee"] = 4, ["ffff8000"] = 5, ["ffe6cc80"] = 6 }
 
 local function matchAny(list, text)
   for _, p in ipairs(list) do
@@ -451,12 +451,25 @@ function ns.recordMount(name, itemId, spellId)
   ns.say(string.format("New mount: %s.", name))
 end
 
+-- The item's class and subclass. Needs no item cache, so it answers right away.
+local function itemClass(link)
+  local getInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  if not getInstant then return nil end
+  local _, _, _, _, _, classID, subclassID = getInstant(link)
+  return classID, subclassID
+end
+
 -- Mount items are class 15 (miscellaneous), subclass 5 (mount).
 local function isMountItem(link)
-  local getInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
-  if not getInstant then return false end
-  local _, _, _, _, _, classID, subclassID = getInstant(link)
+  local classID, subclassID = itemClass(link)
   return classID == 15 and subclassID == 5
+end
+
+-- Anything but weapons (2) and armor (4): can't be worn, so a legendary one (Elementium Bar) isn't
+-- worth the always-posted treatment. Not known counts as gear.
+local function isNotGear(link)
+  local classID = itemClass(link)
+  return classID ~= nil and classID ~= 2 and classID ~= 4
 end
 
 function ns.recordLoot(text)
@@ -476,7 +489,9 @@ function ns.recordLoot(text)
     ns.recordMount(name, itemId)
     return
   end
-  if pushed then return end -- rare loot means looted, not bought or handed out
+  -- Items on the app's followed list count at any quality and however they came.
+  local followed = ns.isFollowed(itemId)
+  if pushed and not followed then return end -- rare loot means looted, not bought or handed out
 
   -- Quality is the 3rd value, the bind type the 14th (2 = Bind on Equip). Both nil while the game
   -- doesn't have the item yet: the quality then comes from the link's color, and it doesn't count as BoE.
@@ -489,10 +504,10 @@ function ns.recordLoot(text)
     local color = link:match("|c(%x%x%x%x%x%x%x%x)")
     quality = color and QUALITY_BY_COLOR[color:lower()]
   end
-  if not quality or quality < 3 then return end -- rare (blue) and better only
+  if not followed and (not quality or quality < 3) then return end -- rare (blue) and better only
 
   local now = time()
-  ns.record("loot", { item = name, itemId = itemId, quality = quality, boe = bindType == 2 or nil, at = now },
+  ns.record("loot", { item = name, itemId = itemId, quality = quality, boe = bindType == 2 or nil, mat = isNotGear(link) or nil, at = now },
     string.format("loot:%d:%d", itemId, now))
 end
 

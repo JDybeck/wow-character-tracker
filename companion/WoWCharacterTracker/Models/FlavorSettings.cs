@@ -26,6 +26,20 @@ class FlavorSettings
     // On for configs from before 0.29.0 too, so posted rares get quieter for everyone.
     public bool RareBoeOnly { get; set; } = true;
     public bool PostEpic { get; set; }   // epic and legendary
+    // The Followed items tab: this game's list (ids differ per game) and whether getting one posts.
+    // The list is replaced, never changed in place, since the tracker's thread reads it.
+    public bool PostFollowed { get; set; } = true;
+    public List<FollowedItem> FollowedItems { get; set; } = [];
+    // The keys of the ready-made lists switched on (only those the game offers: Flavor.ReadyMadeLists).
+    public List<string> ReadyMadeLists { get; set; } = [];
+    IEnumerable<ReadyMadeList> ListsOn => ReadyMadeList.All.Where(l => ReadyMadeLists.Contains(l.Key));
+    // The user's own items, then the ready-made ones not among them, each item once.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<FollowedItem> AllFollowed => ReadyMadeLists.Count == 0
+        ? FollowedItems
+        : [.. FollowedItems.Concat(ListsOn.SelectMany(l => l.Items)).DistinctBy(i => i.Id)];
+    // The list that follows an item the user didn't add themselves, for its mark on the page.
+    public ReadyMadeList? ListWith(int id) => FollowedItems.Any(i => i.Id == id) ? null : ListsOn.FirstOrDefault(l => l.Contains(id));
     public bool PostMounts { get; set; } = true;
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
@@ -110,7 +124,7 @@ class FlavorSettings
     public bool KeepAllHistory { get; set; }
 
     // The addon tells the guild and/or the group in game chat (Announce.lua), for these kinds:
-    // level, maxlevel, boss, keyrun, loot (epic and better, as a link), mount, duel, makgora, bg, profession, mplus, pvp, death.
+    // level, maxlevel, boss, keyrun, loot (epic and better, as a link), followed, mount, duel, makgora, bg, profession, mplus, pvp, death.
     public bool AnnounceGuild { get; set; }
     public bool AnnounceParty { get; set; }
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
@@ -132,6 +146,7 @@ class FlavorSettings
     {
         (PostLevels, LevelSplit, LevelEveryBefore, LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
         (PostRare, RareBoeOnly, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.RareBoeOnly, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
+        PostFollowed = d.PostFollowed; // the list itself is the user's own, not a posting setting
         FirstBossKillOnly = d.FirstBossKillOnly;
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
@@ -151,7 +166,8 @@ class FlavorSettings
         return level % every == 0;
     }
 
-    // Whether this tab posts the event. Legendary loot is always posted, with extra flair.
+    // Whether this tab posts the event. Legendary gear is always posted, with extra flair; legendary
+    // materials (Elementium Bar) aren't, unless followed.
     // Wants, plus what needs the character's history: a boss this character killed before isn't posted
     // again when only first kills are. history: every event known for the tab.
     public bool Wants(Entry e, IEnumerable<Entry> history) => Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
@@ -159,10 +175,22 @@ class FlavorSettings
     public bool IsRepeatKill(Entry e, IEnumerable<Entry> history) =>
         FirstBossKillOnly && history.Any(o => o.Kind == "boss" && o.Guid == e.Guid && o.Boss == e.Boss && o.At < e.At);
 
-    public bool Wants(Entry e) => e.Kind switch
+    // An item on this game's followed list: loot, or a mount that came as an item.
+    public bool Follows(Entry e) => e.Kind is "loot" or "mount" && e.ItemId > 0
+        && (FollowedItems.Any(i => i.Id == e.ItemId) || ListsOn.Any(l => l.Contains(e.ItemId)));
+
+    // This event posted as a followed item, whatever the other loot rules say. It stays one event, so
+    // one post, when another rule wants it too.
+    public bool PostsAsFollowed(Entry e) => PostFollowed && Follows(e);
+
+    // The events with the followed ones marked, for the overlay.
+    public IReadOnlyList<Entry> MarkFollowed(IReadOnlyList<Entry> events) =>
+        AllFollowed.Count == 0 ? events : [.. events.Select(e => Follows(e) ? e with { Followed = true } : e)];
+
+    public bool Wants(Entry e) => PostsAsFollowed(e) || e.Kind switch
     {
         "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),
-        "loot" => e.Quality >= 5 || (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && (e.Boe || !RareBoeOnly)),
+        "loot" => e.Quality >= 5 ? !e.Mat : (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly)),
         "mount" => PostMounts,
         "boss" => PostBosses && SkipBossBecause(e) is null,
         "keyrun" => PostKeyRuns && e.KeyLevel >= KeyRunMinLevel && (e.Timed || !KeyRunTimedOnly),

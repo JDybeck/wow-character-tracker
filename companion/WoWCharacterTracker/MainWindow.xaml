@@ -63,6 +63,10 @@
                   Command="{Binding ShowPageCommand}" CommandParameter="ingame">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7FC;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="In game"/></StackPanel>
           </Button>
+          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=followed}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="followed">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE734;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Followed items"/></StackPanel>
+          </Button>
         </StackPanel>
       </DockPanel>
 
@@ -89,6 +93,7 @@
             <Grid>
               <views:CharactersPage/>
               <views:ItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="1" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
+              <views:FollowedItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="4" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=followed}"/>
             </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

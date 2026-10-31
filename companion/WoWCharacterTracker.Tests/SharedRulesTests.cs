@@ -9,7 +9,7 @@ namespace WoWCharacterTracker.Tests;
 // Rules that live in one place in the app, and the ones the addon has to keep the same in Lua.
 public class SharedRulesTests
 {
-    static string AddonFile(string name)
+    internal static string AddonFile(string name)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "addon", "WoWCharacterTracker"))) dir = dir.Parent;
@@ -129,6 +129,29 @@ public class SharedRulesTests
         Assert.Equal(posted, AddonWants(s, e));
     }
 
+    // Legendary gear is always posted, legendary materials never, also with epics and rares on.
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void Legendaries_are_only_always_posted_when_they_can_be_worn(bool mat, bool posted)
+    {
+        var s = new FlavorSettings { PostRare = true, PostEpic = true };
+        var e = new Entry { Kind = "loot", Level = 60, Quality = 5, Mat = mat };
+        Assert.Equal(posted, s.Wants(e));
+        Assert.Equal(posted, AddonWants(s, e));
+        Assert.Equal(posted, StreamSnapshot.AlertFor(e) is not null);
+    }
+
+    [Fact]
+    public void A_followed_legendary_material_still_posts()
+    {
+        var s = new FlavorSettings { FollowedItems = [new(17771, "Elementium Bar")] };
+        var e = new Entry { Kind = "loot", Level = 60, Quality = 5, Mat = true, ItemId = 17771 };
+        Assert.True(s.Wants(e));
+        Assert.True(AddonWants(s, e));
+        Assert.Equal("followed", StreamSnapshot.AlertFor(e with { Item = "Elementium Bar", Followed = true })!.Kind);
+    }
+
     // Mythic+ runs: from the lowest key level, and with "Timed only" just the keys beaten in time.
     [Theory]
     [InlineData(9, 1, false, false)]
@@ -146,7 +169,7 @@ public class SharedRulesTests
     }
 
     // Runs LiveGrid.lua's wanted() through ns.addEvent with the Settings.lua the app would write.
-    static bool AddonWants(FlavorSettings s, Entry e)
+    internal static bool AddonWants(FlavorSettings s, Entry e)
     {
         var dir = Path.Combine(Path.GetTempPath(), "wct-wanted-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
@@ -159,7 +182,7 @@ public class SharedRulesTests
             var ns = new Table(script);
             foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
                 script.Call(script.LoadString(AddonFile(file)), "WoWCharacterTracker", ns);
-            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades} }}");
+            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, mat = {(e.Mat ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades}, itemId = {e.ItemId} }}");
             return script.Call(ns.Get("wanted"), ev).Boolean;
         }
         finally { Directory.Delete(dir, recursive: true); }
@@ -215,6 +238,10 @@ public class SharedRulesTests
         // Retail swaps end boss kills for Mythic+ runs.
         Assert.True(EventKinds.OfferedIn("boss", Flavors.Forever.HasRatings));
         Assert.False(EventKinds.OfferedIn("boss", Flavors.Retail.HasRatings));
+        Assert.False(EventKinds.OfferedIn("death", Flavors.Retail.HasRatings));
+        Assert.False(EventKinds.OfferedIn("makgora", Flavors.Retail.HasRatings));
+        Assert.True(EventKinds.OfferedIn("death", Flavors.Forever.HasRatings));
+        Assert.True(EventKinds.OfferedIn("makgora", Flavors.Forever.HasRatings));
         Assert.False(EventKinds.OfferedIn("keyrun", Flavors.Forever.HasRatings));
         Assert.True(EventKinds.OfferedIn("keyrun", Flavors.Retail.HasRatings));
     }
