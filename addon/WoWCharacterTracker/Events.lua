@@ -342,16 +342,23 @@ getGroup = function()
 end
 
 function ns.recordBoss(name)
-  -- END_BOSSES is Classic's list; on Retail it only matched old raids soloed for transmog. Retail
-  -- records finished Mythic+ runs instead (ns.recordKeyRun).
-  if ns.IS_RETAIL then return end
-  local instance = END_BOSSES[name]
-  if not instance then return end
   local now = time()
   if ns.recentBosses[name] and now - ns.recentBosses[name] < 600 then return end
   ns.recentBosses[name] = now
 
   local group, groupSize = getGroup()
+  -- END_BOSSES is Classic's list; on Retail it only matched old raids soloed for transmog. Retail
+  -- records finished Mythic+ runs instead (ns.recordKeyRun). Any other boss isn't a recorded moment
+  -- (first kills and the stream's dungeon alert count end bosses), but can be posted on request.
+  local instance = END_BOSSES[name]
+  if ns.IS_RETAIL or not instance then
+    if ns.offerAsk then
+      ns.offerAsk({ kind = "boss", boss = name, midBoss = true, instance = GetInstanceInfo and GetInstanceInfo() or nil,
+        group = group, groupSize = groupSize, at = now })
+    end
+    return
+  end
+
   ns.record("boss", { boss = name, instance = (GetInstanceInfo and GetInstanceInfo()) or instance,
     group = group, groupSize = groupSize, at = now }, string.format("boss:%s:%d", name, now))
   ns.say(string.format("End boss down: %s.", name))

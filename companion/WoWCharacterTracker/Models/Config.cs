@@ -208,6 +208,12 @@ class Config
                 s.ProfessionSteps = flavor.Defaults().ProfessionSteps;
                 changed = true;
             }
+            // Asking in game came in 0.31.0, and is on by default only where moments are rare enough.
+            if (s.AskKinds is null && WoWCharacterTracker.Models.Flavors.All.FirstOrDefault(f => f.Key == key) is { } askFlavor)
+            {
+                s.AskKinds = askFlavor.Defaults().AskKinds;
+                changed = true;
+            }
         }
 
         var stream = config.StreamOptions;

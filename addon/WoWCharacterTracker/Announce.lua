@@ -9,6 +9,7 @@ local function itemLink(id, name)
   local link = id and GetItemInfo and select(2, GetItemInfo(id))
   return link or string.format("[%s]", name or "?")
 end
+ns.itemLink = itemLink
 
 -- The line for an event, or nil when it's nothing to tell (losses, rare loot...).
 local function message(e)

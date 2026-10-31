@@ -17,6 +17,10 @@ local function showHistory()
 end
 
 local function sendTest()
+  if not ns.hasApp() then
+    ns.say("The app isn't set up for this game. Discord posts need the free Character Tracker app. /wct options has what works without it.")
+    return
+  end
   if WoWCharacterTrackerDB.live == false then
     ns.say("Instant posting is off. Type /wct live to turn it on.")
     return

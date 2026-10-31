@@ -80,6 +80,12 @@ record Entry
     public bool Followed { get; init; }
     // The "Bind on Equip only" rule for rares, the one copy Discord posts and the overlay both use.
     public bool PassesRareRule(bool boeOnly) => Quality != 3 || Boe || !boeOnly;
+    // kind "ask": the player clicked Post on a moment no setting posts (the addon's Ask.lua). It carries
+    // the moment, as AskedKind, and is its own event so the moment isn't counted twice in the history.
+    public string AskedKind { get; init; } = "";
+    public bool IsAsk => Kind == "ask";
+    public Entry Moment => IsAsk ? this with { Kind = AskedKind } : this;
+    public bool MidBoss { get; init; }           // boss, on request only: not the instance's last boss
     public int KeyLevel { get; init; }           // keyrun: the keystone's level (the dungeon is Instance, the run's time Seconds)
     public int Upgrades { get; init; }           // keyrun: 1-3 when timed, 0 over time
     public bool Timed => Upgrades > 0;
@@ -156,6 +162,8 @@ record Entry
             Profession = s("profession"),
             Boe = s("boe") is "true" or "1",
             Mat = s("mat") is "true" or "1",
+            AskedKind = s("askedKind"),
+            MidBoss = s("midBoss") is "true" or "1",
             KeyLevel = (int)n("keyLevel"),
             Upgrades = (int)n("upgrades"),
             TalentExport = s("talentExport"),

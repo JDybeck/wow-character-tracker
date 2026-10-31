@@ -56,6 +56,7 @@ end
 function on.PLAYER_REGEN_ENABLED()
   ns.processShots() -- data grids held back during combat
   ns.flushAnnouncements() -- guild/group messages held back during combat
+  ns.showNextAsk() -- and the box offering to post a highlight
   if ns.popupLevel then
     local level = ns.popupLevel
     ns.popupLevel = nil

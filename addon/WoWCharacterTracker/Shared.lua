@@ -34,7 +34,7 @@ end
 -- else stay. Events are appended as they happen, so the end of the list is the newest.
 -- (The duel and battleground records the app shows count what's kept.) Settings.lua keepAllHistory
 -- (the app's In game page) turns it off; ADDON_LOADED checks that.
-local TRIM_KINDS = { loot = true, duel = true, bg = true, keyrun = true }
+local TRIM_KINDS = { loot = true, duel = true, bg = true, keyrun = true, ask = true }
 local TRIM_KEEP = 300
 
 -- Trims the saved list in place. Returns how many events went.
@@ -65,9 +65,54 @@ function ns.stepPassed(old, new, steps)
   return best
 end
 
--- A setting from Settings.lua (written by the app), or nil when there's none (an older app).
+-- The settings of the app's In game page, which can be changed in game too. Like notes, the newest
+-- edit wins: a change in game goes to WoWCharacterTrackerDB.gameSettings with its time and applies
+-- right away, the app takes it from the saved file, and a later change in the app (Settings.lua
+-- inGameAt) wins over it.
+local IN_GAME = { announce = true, ask = true, flightReload = true, chatReminder = true,
+  gridCorner = true, gridLabel = true, keepAllHistory = true }
+
+local function changedInGame()
+  local changed = WoWCharacterTrackerDB and WoWCharacterTrackerDB.gameSettings
+  local fromApp = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.inGameAt or 0
+  return changed and (changed.at or 0) > fromApp and changed or nil
+end
+
+-- A setting: changed in game when that's newest, else from Settings.lua (written by the app), or nil
+-- when there's none (an older app).
 function ns.setting(key)
+  local changed = IN_GAME[key] and changedInGame()
+  if changed then return changed[key] end
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]
+end
+
+local function copy(v)
+  if type(v) ~= "table" then return v end
+  local out = {}
+  for k, inner in pairs(v) do out[k] = copy(inner) end
+  return out
+end
+
+-- Changes In game settings: edit gets a full table of them to change, and they apply right away.
+function ns.editSettings(edit)
+  local changed = changedInGame()
+  if not changed then
+    changed = {}
+    for key in pairs(IN_GAME) do changed[key] = copy(ns.setting(key)) end
+  end
+  changed.announce = changed.announce or {}
+  changed.announce.kinds = changed.announce.kinds or {}
+  changed.ask = changed.ask or {}
+  edit(changed)
+  local fromApp = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.inGameAt or 0
+  changed.at = math.max(time(), fromApp + 1)
+  WoWCharacterTrackerDB.gameSettings = changed
+end
+
+-- Is the app there? It writes `post` into Settings.lua; the addon on its own (from an addon site)
+-- has only the bundled defaults, and nobody to send live events to.
+function ns.hasApp()
+  return ns.setting("post") ~= nil
 end
 
 -- The value, or nil when the game hides it from addons (a secret value on Midnight-era clients).

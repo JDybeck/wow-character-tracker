@@ -26,7 +26,7 @@
           <Run Text="{Binding Name, Mode=OneWay}"/>
         </TextBlock>
         <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,18"
-                   Text="What the addon does in game. Discord has its own page, What gets posted. Changes here reach the game on your next /reload or login."/>
+                   Text="What the addon does in game. Discord has its own page, What gets posted. Changes here reach the game on your next /reload or login. You can change them in game too (/wct options): those reach the app on your next /reload or logout, and the newest change wins."/>
 
         <!-- Telling the guild and/or group in game chat (the addon's Announce.lua). The lines always
              show, so you can see what would be written before turning a chat on. -->
@@ -46,6 +46,32 @@
                        Visibility="{Binding Announces, Converter={StaticResource Hidden}}"/>
             <TextBlock Style="{StaticResource FactLabel}" Text="WHAT" Margin="0,10,0,8"/>
             <ItemsControl ItemsSource="{Binding AnnounceKinds}" Focusable="False">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="2"/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <CheckBox IsChecked="{Binding IsOn}" ToolTip="{Binding Tip}" Margin="0,0,14,12" VerticalAlignment="Top">
+                    <StackPanel>
+                      <TextBlock Style="{StaticResource OptionTitle}" Text="{Binding Name}"/>
+                      <TextBlock Style="{StaticResource Hint}" Text="{Binding Tip}"/>
+                    </StackPanel>
+                  </CheckBox>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <!-- The small box that offers to post a highlight (the addon's Ask.lua). -->
+        <Border Style="{StaticResource Section}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Ask before a highlight goes unposted"/>
+            <TextBlock Style="{StaticResource SectionHint}"
+                       Text="When What gets posted doesn't post one of these, a small box in game offers to: Post or Skip. It waits until you're out of combat and goes away by itself after 30 seconds. It needs a webhook on this tab."/>
+            <ItemsControl ItemsSource="{Binding AskKinds}" Focusable="False">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <UniformGrid Columns="2"/>

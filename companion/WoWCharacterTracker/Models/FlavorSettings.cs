@@ -130,6 +130,11 @@ class FlavorSettings
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
     public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "mplus", "pvp"];
 
+    // Highlights no setting posts that the addon offers to post (Ask.lua): boss, rare, epic. Null until
+    // chosen; Config.Load fills it from the game's defaults.
+    public List<string>? AskKinds { get; set; }
+    public static readonly string[] AllAskKinds = ["boss", "rare", "epic"];
+
     // Where the addon draws its data grid for the instant posts (TOPLEFT, TOPRIGHT, BOTTOMLEFT,
     // BOTTOMRIGHT) and whether the small label shows next to it. The app reads every corner either way.
     public string GridCorner { get; set; } = "TOPLEFT";
@@ -137,6 +142,22 @@ class FlavorSettings
     public static readonly string[] Corners = ["TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"];
     public static string CornerOrDefault(string? corner) => Corners.Contains(corner) ? corner! : "TOPLEFT";
     public bool? AdvancedCombatLog { get; set; } // the game's Advanced Combat Logging; null = leave the player's setting alone
+
+    // When the In game settings last changed in the app, or came from the game. They can be changed in
+    // both, and the newest change wins (like notes). Goes to the addon as Settings.lua inGameAt.
+    public long InGameAt { get; set; }
+
+    // Settings changed in game count only when that was after the app's last change.
+    public bool TakeInGame(InGameSettings? game)
+    {
+        if (game is null || game.At <= InGameAt) return false;
+        InGameAt = game.At;
+        (AnnounceGuild, AnnounceParty) = (game.AnnounceGuild, game.AnnounceParty);
+        (AnnounceKinds, AskKinds) = (game.AnnounceKinds, game.AskKinds);
+        (FlightReloadPrompt, ChatReloadReminder, KeepAllHistory) = (game.FlightReload, game.ChatReminder, game.KeepAllHistory);
+        (GridCorner, GridLabel) = (CornerOrDefault(game.GridCorner), game.GridLabel);
+        return true;
+    }
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
 
@@ -189,6 +210,8 @@ class FlavorSettings
 
     public bool Wants(Entry e) => PostsAsFollowed(e) || e.Kind switch
     {
+        "ask" => true, // the player clicked Post in game
+
         "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),
         "loot" => e.Quality >= 5 ? !e.Mat : (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly)),
         "mount" => PostMounts,
