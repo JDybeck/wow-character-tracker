@@ -12,7 +12,7 @@
         <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="{Binding ActionText}" VerticalAlignment="Center" Margin="10,0,0,0"
                 Command="{Binding DataContext.FollowCommand, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" CommandParameter="{Binding}"
                 Visibility="{Binding IsListed, Converter={StaticResource Hidden}}"/>
-        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Hint}" Text="Rare and fun" VerticalAlignment="Center" Margin="10,0,0,0"
+        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Hint}" Text="{Binding ListTag}" VerticalAlignment="Center" Margin="10,0,0,0"
                    Visibility="{Binding IsListed, Converter={StaticResource Visible}}"/>
         <Grid Background="Transparent" ui:ItemTip.Info="{Binding Info}">
           <Grid.ColumnDefinitions>
@@ -80,15 +80,27 @@
         <!-- The list -->
         <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
           <DockPanel>
-            <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionTitle}" Text="Following" Margin="0,0,0,8"/>
-            <CheckBox DockPanel.Dock="Top" IsChecked="{Binding FollowNotable}" Margin="0,0,0,10"
-                      ToolTip="Also follow a ready-made list of items the community knows as rare or fun"
-                      Visibility="{Binding HasNotableItems, Converter={StaticResource Visible}}">
-              <StackPanel>
-                <TextBlock Text="Exceedingly rare and fun items" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                <TextBlock Style="{StaticResource Hint}" Text="A ready-made list of famous drops and fun finds. Legendaries aren't on it, those are always posted."/>
-              </StackPanel>
-            </CheckBox>
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+              <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="Paste list" Command="{Binding PasteListCommand}" Margin="6,0,0,0" VerticalAlignment="Center"
+                      ToolTip="Add the items from a list code on your clipboard. What you already follow stays."/>
+              <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="Copy list" Command="{Binding CopyListCommand}" VerticalAlignment="Center"
+                      ToolTip="Copy the items you added yourself as a code to share"/>
+              <TextBlock Style="{StaticResource SectionTitle}" Text="Following" VerticalAlignment="Center"/>
+            </DockPanel>
+            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Hint}" Text="{Binding ListStatus}" Margin="0,0,0,8"
+                       Visibility="{Binding ListStatus, Converter={StaticResource VisibleIfSet}}"/>
+            <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding ReadyMadeLists}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <CheckBox IsChecked="{Binding IsOn}" ToolTip="Also follow this ready-made list. Legendaries aren't on it, those are always posted." Margin="0,0,0,8">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                      <TextBlock Style="{StaticResource Hint}" Text="{Binding Tip}"/>
+                    </StackPanel>
+                  </CheckBox>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
             <Grid>
               <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                 <ItemsControl ItemsSource="{Binding Groups}" Focusable="False">

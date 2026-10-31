@@ -65,9 +65,11 @@ public class FollowedItemsTests
     public void An_item_without_a_tooltip_is_other() => Assert.Equal(ItemCategories.Other, ItemCategories.Of(null));
 
     [Fact]
-    public void The_ready_made_list_only_counts_when_on_and_adds_to_your_own()
+    public void A_ready_made_list_only_counts_when_on_and_adds_to_your_own()
     {
+        var rareAndFun = ReadyMadeList.RareAndFun;
         var deathcharger = new Entry { Kind = "mount", ItemId = 13335 };
+        var cruelBarb = new Entry { Kind = "loot", ItemId = 5191 };
         var mine = Following(13335, Followed);
         Assert.Equal(2, mine.AllFollowed.Count);
 
@@ -75,21 +77,69 @@ public class FollowedItemsTests
         Assert.False(off.Follows(deathcharger));
         Assert.Empty(off.AllFollowed);
 
-        var on = new FlavorSettings { FollowNotable = true };
+        var on = new FlavorSettings { ReadyMadeLists = [rareAndFun.Key] };
         Assert.True(on.Follows(deathcharger));
-        Assert.Equal(NotableItems.All.Count, on.AllFollowed.Count);
+        Assert.False(on.Follows(cruelBarb)); // that's on the other list
+        Assert.Equal(rareAndFun.Items.Count, on.AllFollowed.Count);
+        Assert.Same(rareAndFun, on.ListWith(13335));
 
-        mine.FollowNotable = true; // one of them is on both: listed once
-        Assert.Equal(NotableItems.All.Count + 1, mine.AllFollowed.Count);
+        mine.ReadyMadeLists = [rareAndFun.Key]; // one of them is on both: listed once, as your own
+        Assert.Equal(rareAndFun.Items.Count + 1, mine.AllFollowed.Count);
         Assert.Single(mine.AllFollowed, i => i.Id == 13335);
+        Assert.Null(mine.ListWith(13335));
     }
 
     [Fact]
-    public void The_ready_made_list_has_no_repeats_and_only_forever_offers_it()
+    public void Ready_made_lists_have_no_repeats_and_only_forever_offers_them()
     {
-        Assert.Equal(NotableItems.All.Count, NotableItems.All.DistinctBy(i => i.Id).Count());
-        Assert.True(Flavors.Forever.HasNotableItems);
-        Assert.False(Flavors.Retail.HasNotableItems);
+        var items = ReadyMadeList.All.SelectMany(l => l.Items).ToList();
+        Assert.Equal(items.Count, items.DistinctBy(i => i.Id).Count());
+        Assert.Equal(ReadyMadeList.All.Count, ReadyMadeList.All.DistinctBy(l => l.Key).Count());
+        Assert.Equal(ReadyMadeList.All, Flavors.Forever.ReadyMadeLists);
+        Assert.Empty(Flavors.Retail.ReadyMadeLists);
+    }
+
+    [Fact]
+    public void A_list_code_comes_back_as_the_same_items()
+    {
+        var code = FollowedListCode.Export([new(19019, "Thunderfury"), new(5191, "Cruel Barb")], Flavors.Forever);
+        var (items, problem) = FollowedListCode.Import($"my list: {code} enjoy", Flavors.Forever);
+        Assert.Null(problem);
+        Assert.Equal([new FollowedItem(19019, "Thunderfury"), new FollowedItem(5191, "Cruel Barb")], items);
+    }
+
+    [Fact]
+    public void A_list_code_only_goes_in_on_its_own_game()
+    {
+        var (items, problem) = FollowedListCode.Import(FollowedListCode.Export([new(1, "x")], Flavors.Forever), Flavors.Retail);
+        Assert.Empty(items);
+        Assert.Contains("Forever", problem);
+    }
+
+    [Theory]
+    [InlineData("hello", "isn't a list code")]
+    [InlineData("WCT1:abc", "isn't a list code")] // a settings code
+    [InlineData("WCTL1:not base64!", "damaged")]
+    [InlineData("WCTL1:bm90IGpzb24=", "damaged")]
+    public void A_bad_list_code_says_why(string text, string why)
+    {
+        var (items, problem) = FollowedListCode.Import(text, Flavors.Forever);
+        Assert.Empty(items);
+        Assert.Contains(why, problem);
+    }
+
+    [Fact]
+    public void A_list_code_is_cleaned_up_and_merged_without_losing_anything()
+    {
+        var code = FollowedListCode.Export([new(0, "bad"), new(5, new string('x', 500)), new(5, "again"), new(7, "seven")], Flavors.Forever);
+        var (items, _) = FollowedListCode.Import(code, Flavors.Forever);
+        Assert.Equal([5, 7], items.Select(i => i.Id));
+        Assert.Equal(200, items[0].Name.Length);
+
+        var s = Following(7, 9);
+        Assert.Equal(1, FollowedListCode.Merge(s, items));
+        Assert.Equal([5, 7, 9], s.FollowedItems.Select(i => i.Id));
+        Assert.Equal(0, FollowedListCode.Merge(s, items));
     }
 
     [Fact]

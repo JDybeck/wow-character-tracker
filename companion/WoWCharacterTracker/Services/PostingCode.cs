@@ -1,6 +1,3 @@
-using System.Text;
-using System.Text.Json;
-
 namespace WoWCharacterTracker.Services;
 
 // "What gets posted" as a short text code, so friends can share and sync their settings:
@@ -30,20 +27,15 @@ static class PostingCode
             s.HideChatInShots, s.Screenshot, s.PostScreenshot, s.HideUiInShots, s.FirstBossKillOnly,
             s.PostKeyRuns, s.KeyRunMinLevel, s.KeyRunTimedOnly,
             s.RareBoeOnly, s.PostBattlegrounds, s.PostProfessions, s.ProfessionSteps, s.PostFollowed);
-        return Prefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(dto)));
+        return ShareCode.Encode(Prefix, dto);
     }
 
     // Applies a code to the settings. Returns the game the code was made for, or null with a
     // reason when the text isn't a settings code.
     public static (string? Game, string? Problem) Import(string text, FlavorSettings target)
     {
-        text = text.Trim();
-        var start = text.IndexOf(Prefix, StringComparison.Ordinal);
-        if (start < 0) return (null, "That isn't a settings code. Codes start with WCT1:");
-        var b64 = new string(text[(start + Prefix.Length)..].TakeWhile(c => char.IsLetterOrDigit(c) || c is '+' or '/' or '=').ToArray());
-        Settings? d;
-        try { d = JsonSerializer.Deserialize<Settings>(Encoding.UTF8.GetString(Convert.FromBase64String(b64))); }
-        catch (Exception ex) when (ex is FormatException or JsonException or ArgumentException) { d = null; }
+        if (!ShareCode.Has(Prefix, text)) return (null, "That isn't a settings code. Codes start with WCT1:");
+        var d = ShareCode.Decode<Settings>(Prefix, text);
         if (d is null) return (null, "The settings code is damaged. Copy it again, the whole line.");
 
         // The code's settings, checked, then taken over the same way Reset does (FlavorSettings.CopyPostingFrom).

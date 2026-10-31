@@ -30,13 +30,16 @@ class FlavorSettings
     // The list is replaced, never changed in place, since the tracker's thread reads it.
     public bool PostFollowed { get; set; } = true;
     public List<FollowedItem> FollowedItems { get; set; } = [];
-    // Also follow the ready-made list (NotableItems). Only offered where Flavor.HasNotableItems.
-    public bool FollowNotable { get; set; }
-    // The user's own items, then the ready-made ones not among them.
+    // The keys of the ready-made lists switched on (only those the game offers: Flavor.ReadyMadeLists).
+    public List<string> ReadyMadeLists { get; set; } = [];
+    IEnumerable<ReadyMadeList> ListsOn => ReadyMadeList.All.Where(l => ReadyMadeLists.Contains(l.Key));
+    // The user's own items, then the ready-made ones not among them, each item once.
     [System.Text.Json.Serialization.JsonIgnore]
-    public IReadOnlyList<FollowedItem> AllFollowed => FollowNotable
-        ? [.. FollowedItems, .. NotableItems.All.Where(n => FollowedItems.All(i => i.Id != n.Id))]
-        : FollowedItems;
+    public IReadOnlyList<FollowedItem> AllFollowed => ReadyMadeLists.Count == 0
+        ? FollowedItems
+        : [.. FollowedItems.Concat(ListsOn.SelectMany(l => l.Items)).DistinctBy(i => i.Id)];
+    // The list that follows an item the user didn't add themselves, for its mark on the page.
+    public ReadyMadeList? ListWith(int id) => FollowedItems.Any(i => i.Id == id) ? null : ListsOn.FirstOrDefault(l => l.Contains(id));
     public bool PostMounts { get; set; } = true;
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
@@ -173,7 +176,7 @@ class FlavorSettings
 
     // An item on this game's followed list: loot, or a mount that came as an item.
     public bool Follows(Entry e) => e.Kind is "loot" or "mount" && e.ItemId > 0
-        && (FollowedItems.Any(i => i.Id == e.ItemId) || (FollowNotable && NotableItems.Contains(e.ItemId)));
+        && (FollowedItems.Any(i => i.Id == e.ItemId) || ListsOn.Any(l => l.Contains(e.ItemId)));
 
     // This event posted as a followed item, whatever the other loot rules say. It stays one event, so
     // one post, when another rule wants it too.

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using System.Windows.Input;
 
 namespace WoWCharacterTracker.ViewModels;
@@ -22,6 +23,8 @@ sealed class FollowedItemsViewModel : Observable
         this.changed = changed;
         SearchCommand = new RelayCommand(_ => _ = SearchAsync(1));
         FollowCommand = new RelayCommand(p => { if (p is FollowedRow row) Toggle(row); });
+        CopyListCommand = new RelayCommand(_ => CopyList());
+        PasteListCommand = new RelayCommand(_ => PasteList());
         BuildList();
     }
 
@@ -34,18 +37,50 @@ sealed class FollowedItemsViewModel : Observable
     public IReadOnlyList<FollowedGroup> Groups { get => groups; private set { Set(ref groups, value); Raise(nameof(IsEmpty)); } }
     public bool IsEmpty => Groups.Count == 0;
 
-    // The ready-made list of rare and fun items, where the game has one.
-    public bool HasNotableItems => flavor.HasNotableItems;
-    public bool FollowNotable
+    // The ready-made lists the game offers, as switches.
+    IReadOnlyList<ToggleOption>? readyMade;
+    public IReadOnlyList<ToggleOption> ReadyMadeLists => readyMade ??=
+        [.. flavor.ReadyMadeLists.Select(l => new ToggleOption(l.Name, settings().ReadyMadeLists.Contains(l.Key), on => SwitchList(l, on), l.Hint))];
+
+    void SwitchList(ReadyMadeList list, bool on)
     {
-        get => settings().FollowNotable;
-        set
+        var keys = settings().ReadyMadeLists;
+        keys.Remove(list.Key);
+        if (on) keys.Add(list.Key);
+        BuildList();
+        changed();
+    }
+
+    // Your own items as a code to share, and a shared code added to them.
+    public ICommand CopyListCommand { get; }
+    public ICommand PasteListCommand { get; }
+    string listStatus = "";
+    public string ListStatus { get => listStatus; private set => Set(ref listStatus, value); }
+
+    void CopyList()
+    {
+        var own = settings().FollowedItems;
+        if (own.Count == 0) { ListStatus = "Nothing to copy yet: the code holds the items you added yourself."; return; }
+        try
         {
-            settings().FollowNotable = value;
-            Raise(nameof(FollowNotable));
-            BuildList();
-            changed();
+            Clipboard.SetText(FollowedListCode.Export(own, flavor));
+            ListStatus = $"Copied {own.Count} {(own.Count == 1 ? "item" : "items")} as a code. Share it; others click Paste list.";
         }
+        catch (System.Runtime.InteropServices.ExternalException) { ListStatus = "The clipboard was busy. Try again."; }
+    }
+
+    void PasteList()
+    {
+        string text;
+        try { text = Clipboard.ContainsText() ? Clipboard.GetText() : ""; }
+        catch (System.Runtime.InteropServices.ExternalException) { ListStatus = "The clipboard was busy. Try again."; return; }
+        var (items, problem) = FollowedListCode.Import(text, flavor);
+        if (problem is not null) { ListStatus = problem; return; }
+        var added = FollowedListCode.Merge(settings(), items);
+        ListStatus = added > 0 ? $"Added {added} {(added == 1 ? "item" : "items")} to your list." : "You already follow everything in that list.";
+        if (added == 0) return;
+        BuildList();
+        changed();
     }
 
     string query = "";
@@ -82,9 +117,8 @@ sealed class FollowedItemsViewModel : Observable
     void BuildList()
     {
         var number = ++listNumber;
-        var own = settings().FollowedItems;
         var rows = settings().AllFollowed
-            .Select(i => own.Any(o => o.Id == i.Id) ? Row(i.Id, i.Name) : new FollowedRow(ListedInfo(i), i.Name, false) { IsReadyMade = true })
+            .Select(i => settings().ListWith(i.Id) is { } list ? new FollowedRow(ListedInfo(i), i.Name, false) { ListTag = list.Tag } : Row(i.Id, i.Name))
             .ToList();
         Groups = Grouped(rows);
         _ = GroupWhenLoadedAsync(rows, number);
@@ -173,7 +207,7 @@ sealed class FollowedRow(ItemInfo info, string name, bool followed) : Observable
         set { if (Set(ref isFollowed, value)) { Raise(nameof(ActionText)); Raise(nameof(IsListed)); } }
     }
     // In the list only through the ready-made list: nothing to remove, that list has its own switch.
-    public bool IsReadyMade { get; init; }
-    public bool IsListed => IsReadyMade && !IsFollowed;
+    public string ListTag { get; init; } = "";
+    public bool IsListed => ListTag.Length > 0 && !IsFollowed;
     public string ActionText => IsFollowed ? "Remove" : "Follow";
 }
