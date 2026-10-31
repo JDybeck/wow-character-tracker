@@ -238,6 +238,12 @@ class Config
             stream.HasDungeonAlerts = true;
             changed = true;
         }
+        if (!stream.HasFollowed)
+        {
+            if (!stream.AlertKinds.Contains("followed")) stream.AlertKinds.Add("followed");
+            stream.HasFollowed = true;
+            changed = true;
+        }
 
         if (stream.SplitHighlightsOpacity()) changed = true;
 

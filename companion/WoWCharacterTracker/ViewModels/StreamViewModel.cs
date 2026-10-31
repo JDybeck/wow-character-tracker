@@ -164,6 +164,7 @@ sealed class StreamViewModel : Observable
         ("level", "Level-ups", "DING! with the level and how long it took"), ("maxlevel", "Max level", "MAX LEVEL! with light rays, when you reach the cap"),
         ("legendary", "Legendary loot", "LEGENDARY! in orange"),
         ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
+        ("followed", "Followed items", "ITEM FOUND! when you get an item from your Followed items tab, whatever its quality"),
         ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"),
         ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
         ("profession", "Professions", "MILESTONE! when a profession passes a step"),
@@ -186,6 +187,23 @@ sealed class StreamViewModel : Observable
     public ObservableCollection<ToggleOption> CardFields => fields ??= Chips(FieldNames, Options.CardFields);
     public ObservableCollection<ToggleOption> HighlightKinds => kinds ??= Chips(KindNames, Options.HighlightKinds);
     public ObservableCollection<ToggleOption> AlertKinds => alertKinds ??= Chips(AlertNames, Options.AlertKinds);
+
+    public bool RareAlertBoeOnly { get => Options.RareAlertBoeOnly; set { Options.RareAlertBoeOnly = value; OptionsChanged(); } }
+    public bool RareHighlightBoeOnly { get => Options.RareHighlightBoeOnly; set { Options.RareHighlightBoeOnly = value; OptionsChanged(); } }
+
+    // The Followed items tab's switch for the same alert as the chip above, so both show the same.
+    public bool FollowedAlert
+    {
+        get => Options.AlertKinds.Contains("followed");
+        set
+        {
+            Options.AlertKinds.Remove("followed");
+            if (value) Options.AlertKinds.Add("followed");
+            alertKinds = null;
+            Raise(nameof(AlertKinds));
+            OptionsChanged();
+        }
+    }
 
     ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
         ToggleOption.Kinds(names, picked, OptionsChanged);
@@ -228,6 +246,7 @@ sealed class StreamViewModel : Observable
         Raise(nameof(RangeToday));
         Raise(nameof(RangeNow));
         Raise(nameof(NowText));
+        Raise(nameof(FollowedAlert));
         Refresh();
     }
 
@@ -316,8 +335,8 @@ sealed class StreamViewModel : Observable
         // would be: its alert and the highlight line it adds (level-ups aren't highlights), so the
         // highlights source can be set up too.
         string[] kinds = HasRatings
-            ? ["level", "max", "keyrun", "legendary", "epic", "duel", "mount"]
-            : ["level", "max", "boss", "dungeon", "legendary", "epic", "duel", "makgora", "mount", "death"];
+            ? ["level", "max", "keyrun", "legendary", "epic", "followed", "duel", "mount"]
+            : ["level", "max", "boss", "dungeon", "legendary", "epic", "followed", "duel", "makgora", "mount", "death"];
         var e = SampleEvents.For(kinds[testIndex++ % kinds.Length], Flavors.Forever, null, []);
         e = e with { Id = $"test-{now}-{testIndex}", Char = name, At = now, Level = e.MaxLevel ? e.Level : level };
         if (StreamSnapshot.AlertFor(e) is not { } sample) return;

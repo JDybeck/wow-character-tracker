@@ -48,6 +48,7 @@ sealed class FlavorViewModel : Observable
         WatchSetup();
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
+        FollowedItems = new FollowedItemsViewModel(flavor, Lookup, () => Settings, FollowedChanged);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
@@ -175,6 +176,7 @@ sealed class FlavorViewModel : Observable
             ShowData(lastData);
         }
         else if (page == "items") Items.Reset();
+        else if (page == "followed") FollowedItems.Reset();
     }
 
     string statusText = "Starting up...";
@@ -241,6 +243,7 @@ sealed class FlavorViewModel : Observable
         ("level", "Level-ups", "\"Ding! Level 23. 22 to 23 took 41m 12s.\""), ("maxlevel", "Max level", "\"Reached max level 60! Total played 6d 4h 12m.\""),
         ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\" (without the group)"),
         ("keyrun", "Mythic+ runs", "\"Timed +12 Ara-Kara, City of Echoes (+2)!\" (from the lowest key level set for Discord)"), ("loot", "Epic loot", "Epic and legendary items, as a link you can click"),
+        ("followed", "Followed items", "\"Got [Item] from my followed items!\" for anything on your Followed items tab, as a link you can click"),
         ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
         ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
         ("profession", "Professions", "\"Reached 150 Mining!\" (the steps set for Discord)"),
@@ -248,7 +251,22 @@ sealed class FlavorViewModel : Observable
     ];
     ObservableCollection<ToggleOption>? announceKinds;
     public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
-        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, () => AddonSettingsChanged());
+        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, () => { AddonSettingsChanged(); Raise(nameof(AnnounceFollowed)); });
+
+    // The Followed items tab's switch for the same chip. Off unless picked: chat is other people's.
+    public bool AnnounceFollowed
+    {
+        get => Settings.AnnounceKinds.Contains("followed");
+        set
+        {
+            Settings.AnnounceKinds.Remove("followed");
+            if (value) Settings.AnnounceKinds.Add("followed");
+            announceKinds = null;
+            AddonSettingsChanged();
+            Raise(nameof(AnnounceKinds));
+            Raise(nameof(AnnounceFollowed));
+        }
+    }
 
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
@@ -606,6 +624,18 @@ sealed class FlavorViewModel : Observable
     // The Items page: everything the tab's characters carry, searchable, per server.
     public ItemsViewModel Items { get; }
 
+    // The Followed items page, and its switches: the post here, the overlay alert in the stream's options.
+    public FollowedItemsViewModel FollowedItems { get; }
+    public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
+    public StreamViewModel Stream => main.Stream;
+
+    // The addon needs the list (it only records rare and better otherwise), the overlay its marks.
+    void FollowedChanged()
+    {
+        AddonSettingsChanged();
+        main.Stream.Update(Flavor, allRows, Settings.MarkFollowed(lastData.Events));
+    }
+
     public void Refresh() => ShowData(lastData);
 
     // The realm (Retail) or ruleset (Forever) chips over the character list.
@@ -679,7 +709,7 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
-        main.Stream.Update(Flavor, rows, data.Events);
+        main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
         Raise(nameof(TotalGoldText));

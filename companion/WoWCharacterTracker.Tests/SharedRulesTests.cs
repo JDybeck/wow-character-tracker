@@ -9,7 +9,7 @@ namespace WoWCharacterTracker.Tests;
 // Rules that live in one place in the app, and the ones the addon has to keep the same in Lua.
 public class SharedRulesTests
 {
-    static string AddonFile(string name)
+    internal static string AddonFile(string name)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "addon", "WoWCharacterTracker"))) dir = dir.Parent;
@@ -146,7 +146,7 @@ public class SharedRulesTests
     }
 
     // Runs LiveGrid.lua's wanted() through ns.addEvent with the Settings.lua the app would write.
-    static bool AddonWants(FlavorSettings s, Entry e)
+    internal static bool AddonWants(FlavorSettings s, Entry e)
     {
         var dir = Path.Combine(Path.GetTempPath(), "wct-wanted-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
@@ -159,7 +159,7 @@ public class SharedRulesTests
             var ns = new Table(script);
             foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
                 script.Call(script.LoadString(AddonFile(file)), "WoWCharacterTracker", ns);
-            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades} }}");
+            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades}, itemId = {e.ItemId} }}");
             return script.Call(ns.Get("wanted"), ev).Boolean;
         }
         finally { Directory.Delete(dir, recursive: true); }

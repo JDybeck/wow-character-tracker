@@ -98,8 +98,7 @@ static class Wowhead
         await Parallel.WaitAsync();
         try
         {
-            var url = $"https://www.wowhead.com/{flavor.WowheadPath}search/suggestions-template?q={Uri.EscapeDataString(name)}";
-            return PickByName(await Web.GetStringAsync(url, Timeout), name);
+            return PickByName(await Web.GetStringAsync(SearchUrl(flavor.WowheadPath, name), Timeout), name);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -122,6 +121,50 @@ static class Wowhead
         foreach (var (type, label) in new[] { (3, "item"), (6, "spell") })
             if (named.FirstOrDefault(r => r.Type == type) is { Id: > 0 } hit) return (label, hit.Id);
         return null;
+    }
+
+    static string SearchUrl(string path, string query) => $"https://www.wowhead.com/{path}search/suggestions-template?q={Uri.EscapeDataString(query)}";
+
+    // An item found by the Followed items tab's search.
+    public sealed record ItemHit(int Id, string Name, string Icon, int Quality);
+
+    // The items among the search box's suggestions (Wowhead gives about ten results of all types). On
+    // Forever, Classic's are added: Wowhead's Forever database only has part of the items so far, and
+    // ids are shared (same as the tooltips above). Null when Wowhead can't be reached, so the page can
+    // tell that from nothing found.
+    public static Task<IReadOnlyList<ItemHit>?> SearchItemsAsync(string query, Flavor flavor) => Task.Run(async () =>
+    {
+        await Parallel.WaitAsync();
+        try
+        {
+            var hits = ParseItemHits(await Web.GetStringAsync(SearchUrl(flavor.WowheadPath, query), Timeout));
+            if (!flavor.WowheadPath.StartsWith("forever/")) return hits;
+            try { return [.. hits.Concat(ParseItemHits(await Web.GetStringAsync(SearchUrl("classic/", query), Timeout))).DistinctBy(h => h.Id)]; }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { return hits; }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { return null; }
+        finally { Parallel.Release(); }
+    });
+
+    // Type 3 is an item. Anything else in the answer (spells, quests, news) is left out.
+    internal static IReadOnlyList<ItemHit> ParseItemHits(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array) return [];
+        static string Text(JsonElement r, string name) => r.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+        static int Number(JsonElement r, string name, int none) => r.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : none;
+        return [.. results.EnumerateArray()
+            .Where(r => Number(r, "type", 0) == 3 && Number(r, "id", 0) > 0 && Text(r, "name").Length > 0)
+            .Select(r => new ItemHit(r.GetProperty("id").GetInt32(), Text(r, "name"), Text(r, "icon"), Number(r, "quality", -1)))];
+    }
+
+    // The item id in a pasted Wowhead address (".../item=19019/thunderfury") or a plain id, else null.
+    internal static int? ItemIdFrom(string text)
+    {
+        var t = text.Trim();
+        var match = System.Text.RegularExpressions.Regex.Match(t, @"(?:^|[/?&])item[=/](\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var digits = match.Success ? match.Groups[1].Value : t;
+        return digits.Length > 0 && digits.All(char.IsAsciiDigit) && int.TryParse(digits, out var id) && id > 0 ? id : null;
     }
 
     // A Forever build in Wowhead's talent calculator: talent-calc/<class>/v2<ranks per talent, per tree>

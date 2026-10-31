@@ -63,7 +63,7 @@ sealed record StreamSnapshot(
         }
 
         var kinds = o.HighlightKinds.ToHashSet();
-        var highlights = mine.Where(e => kinds.Contains(e.Kind)).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0)
+        var highlights = mine.Where(e => kinds.Contains(e.Kind) && (e.Kind != "loot" || e.Followed || e.PassesRareRule(o.RareHighlightBoeOnly))).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0)
             .Take(o.HighlightsHeight > 0 ? HighlightsToFit : HighlightsShown).ToList();
 
         return new StreamSnapshot(
@@ -72,7 +72,7 @@ sealed record StreamSnapshot(
             newest is null ? "" : $"{newest.Level - 1} to {newest.Level} took {Took(newest)}",
             todayText,
             highlights,
-            mine.Select(e => ChosenAlert(e, o.AlertKinds)).FirstOrDefault(a => a is not null),
+            mine.Select(e => WantedAlert(e, o)).FirstOrDefault(a => a is not null),
             now.ToUnixTimeSeconds(),
             Record("duel"), Record("makgora"), StreamLook.From(o),
             RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? [], Record("bg"),
@@ -119,8 +119,23 @@ sealed record StreamSnapshot(
 
     // The overlay's alert for an event, the way Discord would post it, or null when it's not alert
     // material (a duel or Mak'gora lost, a key over time; rare loot is its own kind). Tone picks the colors on the page.
+    public static StreamAlert? AlertFor(Entry e) => (e.Followed ? FollowedAlert(e) : null) ?? MomentAlert(e);
+
+    // The alert this event pops up with these options: a followed item as itself when that's on, else
+    // as any other loot. One event, one alert either way.
+    static StreamAlert? WantedAlert(Entry e, StreamOptions o)
+    {
+        if (e.Followed && o.AlertKinds.Contains("followed") && FollowedAlert(e) is { } followed) return followed;
+        return e.Kind == "loot" && !e.PassesRareRule(o.RareAlertBoeOnly) ? null : ChosenAlert(e, o.AlertKinds);
+    }
+
+    // In its quality's colors; below rare it's gold, there's no tone for those.
+    static StreamAlert? FollowedAlert(Entry e) => (e.Kind == "loot" ? e.Item : e.Kind == "mount" ? e.Mount : "") is { Length: > 0 } thing
+        ? new(e.Id, "followed", "ITEM FOUND!", thing, "From your followed items", e.Quality switch { >= 5 => "legendary", 4 => "epic", 3 => "rare", _ => "gold" }, e.At)
+        : null;
+
     // A dungeon is completed when its end boss dies: the same boss event, recorded inside a dungeon.
-    public static StreamAlert? AlertFor(Entry e) => e.Kind switch
+    static StreamAlert? MomentAlert(Entry e) => e.Kind switch
     {
         "boss" when e.Boss.Length > 0 && e.ZoneType == "dungeon" => new(e.Id, "dungeon", "DUNGEON COMPLETE!", e.Instance.Length > 0 ? e.Instance : e.Zone, $"{e.Boss} defeated", "victory", e.At),
         "level" when e.MaxLevel => new(e.Id, "maxlevel", "MAX LEVEL!", $"Level {e.Level}", e.Played > 0 ? $"Total played {Format.Played(e.Played)}" : "", "legendary", e.At),
@@ -147,7 +162,7 @@ sealed record StreamSnapshot(
     // still a boss kill, so "Boss kills" keeps its VICTORY!.
     static StreamAlert? ChosenAlert(Entry e, List<string> picked)
     {
-        var alert = AlertFor(e);
+        var alert = MomentAlert(e);
         if (alert is null || picked.Contains(alert.Kind)) return alert;
         return alert.Kind == "dungeon" && picked.Contains("boss") ? BossAlert(e) : null;
     }
@@ -181,7 +196,7 @@ sealed record StreamRecord(int Won, int Lost)
 }
 
 // The newest alert-worthy moment; the overlay pops it up when it's new (Id) and recent (At).
-// Kind: level, maxlevel, boss, dungeon, keyrun, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
+// Kind: level, maxlevel, boss, dungeon, keyrun, legendary, epic, rare, followed, mount, duel, makgora, bg, death, mplus, pvp.
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
 // How the overlay looks: the card's and the highlights' backgrounds (0-100), which parts and stats lines it shows, its

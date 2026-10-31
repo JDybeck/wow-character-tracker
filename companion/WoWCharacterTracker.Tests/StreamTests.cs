@@ -126,7 +126,7 @@ public class StreamTests
         Entry[] events = [Level(22, 1400, TimeSpan.FromMinutes(5)), Loot("Coarse Stone", TimeSpan.FromMinutes(1)) with { Quality = 3 }];
         // Rare loot is off by default, so the level-up is still the alert.
         Assert.Equal("level", StreamSnapshot.Build(Ronnie, events, Now).Alert!.Kind);
-        Assert.Equal("rare", StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { AlertKinds = ["level", "rare"] }).Alert!.Kind);
+        Assert.Equal("rare", StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { AlertKinds = ["level", "rare"], RareAlertBoeOnly = false }).Alert!.Kind);
         Assert.Null(StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { AlertKinds = ["boss"] }).Alert);
     }
 

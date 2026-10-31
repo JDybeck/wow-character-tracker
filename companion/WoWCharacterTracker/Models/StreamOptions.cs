@@ -46,8 +46,17 @@ class StreamOptions
     public static readonly string[] AllKinds = ["loot", "boss", "keyrun", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
 
     // Which moments pop up as the big alert (StreamAlert kinds). Rare loot is off by default (it's often).
-    public List<string> AlertKinds { get; set; } = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
-    public static readonly string[] AllAlertKinds = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "rare", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
+    public List<string> AlertKinds { get; set; } = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "followed", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
+    public static readonly string[] AllAlertKinds = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
+
+    // Bind on Equip only, like the Discord rule (Entry.PassesRareRule): for the RARE LOOT! alert (on,
+    // as on Discord; those alerts are off by default anyway) and the highlights' rare lines (off, the
+    // box has always listed every rare). Followed items don't care.
+    public bool RareAlertBoeOnly { get; set; } = true;
+    public bool RareHighlightBoeOnly { get; set; }
+
+    // Followed item alerts came after 0.29.0: older configs get them switched on once (Config.Load).
+    public bool HasFollowed { get; set; }
 
     // Battlegrounds came in 0.21.2, Mythic+ runs in 0.28.0, profession milestones in 0.29.0, the dungeon
     // alert after that: older configs get them switched on once (Config.Load).

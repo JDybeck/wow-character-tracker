@@ -372,6 +372,7 @@ local SHOT_DELAY = { level = 1.0, boss = 1.5, keyrun = 2.0, loot = 0.3, mount = 
 local function wanted(e)
   local post = ns.setting("post")
   if not post then return true end
+  if post.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then return true end
   if e.kind == "loot" and (e.quality or 0) >= 5 then return true end -- legendary: always worth a post
   if e.maxLevel and post.maxLevel ~= false then return true end -- max level has its own switch
   if e.kind == "level" then

@@ -68,9 +68,9 @@ public class FilesAndProcessesTests
         try
         {
             File.WriteAllText(file, """{ "StreamOptions": { "AlertKinds": ["level"] } }""");
-            Assert.Equal(["level", "bg", "keyrun", "profession", "dungeon"], Config.Load().StreamOptions.AlertKinds);
+            Assert.Equal(["level", "bg", "keyrun", "profession", "dungeon", "followed"], Config.Load().StreamOptions.AlertKinds);
 
-            File.WriteAllText(file, """{ "StreamOptions": { "AlertKinds": ["level"], "HasBattlegrounds": true, "HasKeyRuns": true, "HasProfessions": true, "HasDungeonAlerts": true } }""");
+            File.WriteAllText(file, """{ "StreamOptions": { "AlertKinds": ["level"], "HasBattlegrounds": true, "HasKeyRuns": true, "HasProfessions": true, "HasDungeonAlerts": true, "HasFollowed": true } }""");
             Assert.Equal(["level"], Config.Load().StreamOptions.AlertKinds);
         }
         finally
