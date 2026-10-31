@@ -5,8 +5,9 @@ class StreamOptions
 {
     public bool PanelOpen { get; set; } = true;
 
-    // The card's background, 0 (see-through) to 100 (solid).
+    // The card's and the highlights box's backgrounds, 0 (see-through) to 100 (solid).
     public int CardOpacity { get; set; } = 78;
+    public int HighlightsOpacity { get; set; } = 78;
 
     public bool ShowStats { get; set; } = true;      // the card's character column: item level, played, gold, records
     public bool ShowLevels { get; set; } = true;     // the card's leveling column: the last level's time and the ones before
@@ -53,6 +54,17 @@ class StreamOptions
     public bool HasBattlegrounds { get; set; }
     public bool HasKeyRuns { get; set; }
     public bool HasProfessions { get; set; }
+
+    // The highlights box used to share the card's background: older configs start with the
+    // value they already see. True when it changed something to save (Config.Load).
+    public bool HasHighlightsOpacity { get; set; }
+    public bool SplitHighlightsOpacity()
+    {
+        if (HasHighlightsOpacity) return false;
+        HighlightsOpacity = CardOpacity;
+        HasHighlightsOpacity = true;
+        return true;
+    }
 
     // What the overlay counts (records, highlights, level times): "all" (all time), "today" (since
     // local midnight) or "now" (since Since, the moment "Start counting now" was clicked). Empty in

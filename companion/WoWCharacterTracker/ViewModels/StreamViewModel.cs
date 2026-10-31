@@ -77,6 +77,7 @@ sealed class StreamViewModel : Observable
     // --- how it looks and what it shows ---
 
     public int CardOpacity { get => Options.CardOpacity; set { Options.CardOpacity = value; Raise(nameof(CardOpacity)); OptionsChanged(); } }
+    public int HighlightsOpacity { get => Options.HighlightsOpacity; set { Options.HighlightsOpacity = value; Raise(nameof(HighlightsOpacity)); OptionsChanged(); } }
     public bool ShowStats { get => Options.ShowStats; set { Options.ShowStats = value; OptionsChanged(); } }
     public bool ShowLevels { get => Options.ShowLevels; set { Options.ShowLevels = value; OptionsChanged(); } }
     public bool ShowToday { get => Options.ShowToday; set { Options.ShowToday = value; OptionsChanged(); } }

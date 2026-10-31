@@ -171,18 +171,19 @@ sealed record StreamRecord(int Won, int Lost)
 // Kind: level, maxlevel, boss, keyrun, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
-// How the overlay looks: the card's background (0-100), which parts and stats lines it shows, its
+// How the overlay looks: the card's and the highlights' backgrounds (0-100), which parts and stats lines it shows, its
 // size (scale in percent, card width and smallest height, highlights width and fixed height, in px, 0 = fits), colors ("#rrggbb", empty =
 // default) and the border. The brand line is always on.
 sealed record StreamLook(int CardOpacity, bool Levels, bool Today, bool Duels, bool Makgora, bool Highlights, bool Stats = true, bool Battlegrounds = true,
     IReadOnlyList<string>? Fields = null, int Scale = 100, int Width = 0, int Height = 0, string Accent = "", string Background = "",
-    bool Border = true, int HighlightsWidth = 0, int HighlightsHeight = 0)
+    bool Border = true, int HighlightsWidth = 0, int HighlightsHeight = 0, int HighlightsOpacity = 78)
 {
     public static StreamLook From(StreamOptions o) =>
         new(Math.Clamp(o.CardOpacity, 0, 100), o.ShowLevels, o.ShowToday, o.ShowDuels, o.ShowMakgora, o.ShowHighlights, o.ShowStats, o.ShowBattlegrounds,
             [.. o.CardFields], Math.Clamp(o.Scale, 50, 250), o.CardWidth <= 0 ? 0 : Math.Clamp(o.CardWidth, 260, 1000), Math.Clamp(o.CardHeight, 0, 1000),
             Hex(o.Accent), Hex(o.Background), o.ShowBorder,
-            o.HighlightsWidth <= 0 ? 0 : Math.Clamp(o.HighlightsWidth, 200, 1000), Math.Clamp(o.HighlightsHeight, 0, 1000));
+            o.HighlightsWidth <= 0 ? 0 : Math.Clamp(o.HighlightsWidth, 200, 1000), Math.Clamp(o.HighlightsHeight, 0, 1000),
+            Math.Clamp(o.HighlightsOpacity, 0, 100));
 
     // "#rgb", "rrggbb" or "#RRGGBB" as "#rrggbb"; anything else is "" (the default color).
     public static string Hex(string? s)

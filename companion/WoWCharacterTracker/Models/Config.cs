@@ -233,6 +233,8 @@ class Config
             changed = true;
         }
 
+        if (stream.SplitHighlightsOpacity()) changed = true;
+
         if (changed) config.Save();
         return config;
     }

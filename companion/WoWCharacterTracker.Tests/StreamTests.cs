@@ -206,6 +206,27 @@ public class StreamTests
     public void Keystone_text(string saved, string shown) => Assert.Equal(shown, Format.Keystone(saved));
 
     [Fact]
+    public void The_highlights_have_their_own_background()
+    {
+        var look = StreamLook.From(new StreamOptions { CardOpacity = 40, HighlightsOpacity = 140 });
+        Assert.Equal(40, look.CardOpacity);
+        Assert.Equal(100, look.HighlightsOpacity); // clamped
+    }
+
+    // Configs from before the split keep what they see: the highlights start at the card's value, once.
+    [Fact]
+    public void An_old_config_keeps_its_highlights_background()
+    {
+        var old = System.Text.Json.JsonSerializer.Deserialize<StreamOptions>("""{ "CardOpacity": 35 }""")!;
+        Assert.True(old.SplitHighlightsOpacity());
+        Assert.Equal(35, old.HighlightsOpacity);
+
+        old.HighlightsOpacity = 90;
+        Assert.False(old.SplitHighlightsOpacity());
+        Assert.Equal(90, old.HighlightsOpacity);
+    }
+
+    [Fact]
     public void The_look_comes_from_the_options()
     {
         var s = StreamSnapshot.Build(Ronnie, [], Now, new StreamOptions { CardOpacity = 140, ShowDuels = false });
