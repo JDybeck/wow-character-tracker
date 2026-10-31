@@ -64,18 +64,16 @@
           <DockPanel>
             <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
               <TextBlock Style="{StaticResource SectionTitle}" Text="Find on Wowhead" Margin="0,0,0,8"/>
-              <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="Search" Command="{Binding SearchCommand}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                <Grid>
-                  <TextBox Text="{Binding Query, UpdateSourceTrigger=PropertyChanged, Delay=350}" Padding="10,7" ToolTip="An item's name, its Wowhead address or its id. Searches as you type.">
-                    <TextBox.InputBindings>
-                      <KeyBinding Key="Return" Command="{Binding SearchCommand}"/>
-                    </TextBox.InputBindings>
-                  </TextBox>
-                  <TextBlock Text="Item name, Wowhead address or id" Foreground="{StaticResource Faint}" FontSize="13" Margin="23,0,0,0"
-                             VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding Query, Converter={StaticResource HiddenIfSet}}"/>
-                </Grid>
-              </DockPanel>
+              <Grid>
+                <TextBox x:Name="QueryBox" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged, Delay=350}" Padding="10,7" ToolTip="An item's name, its Wowhead address or its id. Searches as you type.">
+                  <TextBox.InputBindings>
+                    <KeyBinding Key="Return" Command="{Binding SearchCommand}"/>
+                  </TextBox.InputBindings>
+                </TextBox>
+                <!-- Follows the box itself, not Query: that one waits for a pause in the typing. -->
+                <TextBlock Text="Item name, Wowhead address or id" Foreground="{StaticResource Faint}" FontSize="13" Margin="23,0,0,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding Text, ElementName=QueryBox, Converter={StaticResource HiddenIfSet}}"/>
+              </Grid>
               <TextBlock Text="{Binding Status}" Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"
                          Visibility="{Binding Failed, Converter={StaticResource Hidden}}"/>
               <TextBlock Text="{Binding Status}" Foreground="{StaticResource Red}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
