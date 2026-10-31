@@ -8,8 +8,10 @@ on:
     tags:
       - "v*"
 
+# Read by default, only the job that creates the release gets write.
+# Third-party actions are pinned to a commit because a tag can be moved; Dependabot bumps them.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # The addon alone, for the addon sites, through the BigWigs packager (.pkgmeta says what goes in).
@@ -24,7 +26,7 @@ jobs:
         with:
           fetch-depth: 0 # the packager writes its changelog from the history
 
-      - uses: BigWigsMods/packager@v2
+      - uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
         with:
           args: >-
             ${{ vars.CURSEFORGE_PROJECT_ID != '' && format('-p {0}', vars.CURSEFORGE_PROJECT_ID) || '' }}
@@ -35,6 +37,10 @@ jobs:
 
   release:
     runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +52,7 @@ jobs:
       - name: Build WoWCharacterTracker.exe
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
+          $version = $env:TAG.TrimStart("v")
           dotnet publish companion/WoWCharacterTracker -c Release -o dist -nologo -p:Version=$version
 
       # Code signing through SignPath (free for open source, certificate by the SignPath Foundation).
@@ -62,7 +68,7 @@ jobs:
 
       - name: Sign with SignPath
         if: vars.SIGNPATH_ORGANIZATION_ID != ''
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@ced31329c0317e779dad2eec2a7c3bb46ea1343e # v1
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
@@ -81,7 +87,7 @@ jobs:
       - name: Release notes from CHANGELOG.md
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = $env:TAG
           $lines = Get-Content CHANGELOG.md
           $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^##\s+$([regex]::Escape($tag))\b" })
           if ($start -lt 0) { "See the commits for what changed." | Set-Content notes.md; exit 0 }
@@ -93,4 +99,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" dist/WoWCharacterTracker.exe --title "${{ github.ref_name }}" --notes-file notes.md
+        run: gh release create $env:TAG dist/WoWCharacterTracker.exe --title $env:TAG --notes-file notes.md
