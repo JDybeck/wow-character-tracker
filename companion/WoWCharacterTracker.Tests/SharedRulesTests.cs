@@ -215,6 +215,10 @@ public class SharedRulesTests
         // Retail swaps end boss kills for Mythic+ runs.
         Assert.True(EventKinds.OfferedIn("boss", Flavors.Forever.HasRatings));
         Assert.False(EventKinds.OfferedIn("boss", Flavors.Retail.HasRatings));
+        Assert.False(EventKinds.OfferedIn("death", Flavors.Retail.HasRatings));
+        Assert.False(EventKinds.OfferedIn("makgora", Flavors.Retail.HasRatings));
+        Assert.True(EventKinds.OfferedIn("death", Flavors.Forever.HasRatings));
+        Assert.True(EventKinds.OfferedIn("makgora", Flavors.Forever.HasRatings));
         Assert.False(EventKinds.OfferedIn("keyrun", Flavors.Forever.HasRatings));
         Assert.True(EventKinds.OfferedIn("keyrun", Flavors.Retail.HasRatings));
     }

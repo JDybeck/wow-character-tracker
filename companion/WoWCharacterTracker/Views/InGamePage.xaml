@@ -1,9 +1,22 @@
-<!-- In game: what the addon does in game besides posting. Reminders to /reload (so the app's items
-     stay up to date) and game settings the app can switch. -->
+<!-- In game: what the addon does in game besides posting to Discord. Telling the guild or group,
+     reminders to /reload (so the app's items stay up to date) and the settings it works with. -->
 <UserControl x:Class="WoWCharacterTracker.Views.InGamePage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:WoWCharacterTracker.Ui">
+  <UserControl.Resources>
+    <Style x:Key="OptionTitle" TargetType="TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style x:Key="Section" TargetType="Border" BasedOn="{StaticResource PanelBorder}">
+      <Setter Property="Margin" Value="0,0,0,14"/>
+    </Style>
+    <Style x:Key="SectionHint" TargetType="TextBlock" BasedOn="{StaticResource Hint}">
+      <Setter Property="Margin" Value="0,4,0,14"/>
+    </Style>
+  </UserControl.Resources>
   <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="3" DataContext="{Binding SelectedFlavor}"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=ingame}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -13,60 +26,72 @@
           <Run Text="{Binding Name, Mode=OneWay}"/>
         </TextBlock>
         <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,18"
-                   Text="What the addon does in game besides posting. Changes reach the game on your next /reload or login."/>
+                   Text="What the addon does in game. Discord has its own page, What gets posted. Changes here reach the game on your next /reload or login."/>
 
-        <!-- Reloads: the game only writes the addon's saved file on /reload or logout. -->
-        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+        <!-- Telling the guild and/or group in game chat (the addon's Announce.lua). The lines always
+             show, so you can see what would be written before turning a chat on. -->
+        <Border Style="{StaticResource Section}">
           <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="Keeping the app up to date" Margin="0,0,0,4"/>
-            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14"
-                       Text="Gear, bags and bank only reach the app when you /reload or log out (loading screens don't count). These remind you when they changed."/>
-            <CheckBox ToolTip="On a flight path, offer a /reload when your bags or gear changed" IsChecked="{Binding FlightReloadPrompt}" Margin="0,0,0,14">
-              <StackPanel>
-                <TextBlock Text="Offer a reload on flight paths" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                <TextBlock Style="{StaticResource Hint}" Text="When you take a flight and your bags or gear changed since the last save, a small box offers a /reload. You keep flying through it."/>
-              </StackPanel>
-            </CheckBox>
-            <CheckBox ToolTip="Put a line in chat reminding you to /reload when your bags or gear changed" IsChecked="{Binding ChatReloadReminder}">
-              <StackPanel>
-                <TextBlock Text="Remind me in chat to /reload" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                <TextBlock Style="{StaticResource Hint}" Text="One line in chat when your bags or gear changed since the last save: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes."/>
-              </StackPanel>
-            </CheckBox>
-          </StackPanel>
-        </Border>
-
-        <!-- Telling the guild and/or group in game chat (the addon's Announce.lua). -->
-        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-          <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="Tell your guild or group" Margin="0,0,0,4"/>
-            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" TextWrapping="Wrap"
-                       Text="The addon writes one line in game chat when something happens, as you. Loot goes as a clickable item link. Messages wait until you're out of combat, and boss kills don't list the group."/>
-            <WrapPanel Margin="0,0,0,10">
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Tell your guild or group"/>
+            <TextBlock Style="{StaticResource SectionHint}"
+                       Text="The addon writes one line in chat as you when something happens. Items are links people can click. Lines wait until you're out of combat."/>
+            <TextBlock Style="{StaticResource FactLabel}" Text="WHERE" Margin="0,0,0,6"/>
+            <WrapPanel>
               <CheckBox Style="{StaticResource OptionChip}" Content="Guild chat" IsChecked="{Binding AnnounceGuild}" Margin="0,0,6,6"
                         ToolTip="Write it in guild chat (when you're in a guild)"/>
               <CheckBox Style="{StaticResource OptionChip}" Content="Party / raid chat" IsChecked="{Binding AnnounceParty}" Margin="0,0,6,6"
                         ToolTip="Write it to your group: party, raid or instance chat (when you're in one)"/>
             </WrapPanel>
-            <TextBlock Text="WHAT TO TELL" Style="{StaticResource SectionTitle}" FontSize="11" Margin="0,0,0,4"
-                       Visibility="{Binding Announces, Converter={StaticResource Visible}}"/>
-            <ItemsControl ItemsSource="{Binding AnnounceKinds}" ItemsPanel="{StaticResource Wrap}"
-                          Visibility="{Binding Announces, Converter={StaticResource Visible}}">
+            <TextBlock Style="{StaticResource Hint}" Text="Both are off, so nothing is written yet." Margin="0,0,0,6"
+                       Visibility="{Binding Announces, Converter={StaticResource Hidden}}"/>
+            <TextBlock Style="{StaticResource FactLabel}" Text="WHAT" Margin="0,10,0,8"/>
+            <ItemsControl ItemsSource="{Binding AnnounceKinds}" Focusable="False">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="2"/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" ToolTip="{Binding Tip}" Margin="0,0,6,6"/>
+                  <CheckBox IsChecked="{Binding IsOn}" ToolTip="{Binding Tip}" Margin="0,0,14,12" VerticalAlignment="Top">
+                    <StackPanel>
+                      <TextBlock Style="{StaticResource OptionTitle}" Text="{Binding Name}"/>
+                      <TextBlock Style="{StaticResource Hint}" Text="{Binding Tip}"/>
+                    </StackPanel>
+                  </CheckBox>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
         </Border>
 
-        <!-- The data grid: the small black and white pattern the addon flashes for one frame per event. -->
-        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+        <!-- Reloads: the game only writes the addon's saved file on /reload or logout. -->
+        <Border Style="{StaticResource Section}">
           <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="Instant posting" Margin="0,0,0,4"/>
-            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" TextWrapping="Wrap"
-                       Text="For each event the addon shows a small black and white pattern (about 320 x 30 pixels) in a corner for a single frame and takes a screenshot of it, which is how the app hears about it right away. Pick the corner that bothers you least."/>
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Keeping the app up to date"/>
+            <TextBlock Style="{StaticResource SectionHint}"
+                       Text="Gear, bags and bank only reach the app when you /reload or log out (loading screens don't count). These remind you when they changed."/>
+            <CheckBox ToolTip="On a flight path, offer a /reload when your bags or gear changed" IsChecked="{Binding FlightReloadPrompt}" Margin="0,0,0,12">
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Offer a reload on flight paths"/>
+                <TextBlock Style="{StaticResource Hint}" Text="A small box offers a /reload when you take a flight. You keep flying through it."/>
+              </StackPanel>
+            </CheckBox>
+            <CheckBox ToolTip="Put a line in chat reminding you to /reload when your bags or gear changed" IsChecked="{Binding ChatReloadReminder}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Remind me in chat to /reload"/>
+                <TextBlock Style="{StaticResource Hint}" Text="One line only you see: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes."/>
+              </StackPanel>
+            </CheckBox>
+          </StackPanel>
+        </Border>
+
+        <!-- The data grid: the small black and white pattern the addon flashes for one frame per event. -->
+        <Border Style="{StaticResource Section}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Instant posting"/>
+            <TextBlock Style="{StaticResource SectionHint}"
+                       Text="For each event the addon flashes a small black and white pattern (about 320 x 30 pixels) for a single frame and takes a screenshot of it, which is how the app hears about it right away. Pick the corner that bothers you least."/>
             <WrapPanel Margin="0,0,0,12">
               <RadioButton Style="{StaticResource DetailTab}" Content="Top left" ToolTip="Show the instant-post pattern in the top left corner" IsChecked="{Binding GridTopLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
               <RadioButton Style="{StaticResource DetailTab}" Content="Top right" ToolTip="Show the instant-post pattern in the top right corner" IsChecked="{Binding GridTopRight}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
@@ -75,36 +100,27 @@
             </WrapPanel>
             <CheckBox ToolTip="Show a small &quot;Character Tracker /wct&quot; label next to the pattern" IsChecked="{Binding GridLabel}">
               <StackPanel>
-                <TextBlock Text="Show a small label next to it" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Show a small label next to it"/>
                 <TextBlock Style="{StaticResource Hint}" Text="&quot;Character Tracker /wct&quot;, so anyone watching (or you) knows what the flicker is."/>
               </StackPanel>
             </CheckBox>
           </StackPanel>
         </Border>
 
-        <!-- How much history the addon keeps in its saved file (Shared.lua trimEvents). -->
-        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-          <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="Saved history" Margin="0,0,0,4"/>
-            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14" TextWrapping="Wrap"
-                       Text="Every level-up, boss kill, mount and death is always kept. Loot, duels and battlegrounds pile up fast, so by default only the newest 300 of each are kept per character, which keeps /reload, logout and the app quick."/>
-            <CheckBox ToolTip="Keep every loot, duel and battleground in the addon's saved file" IsChecked="{Binding KeepAllHistory}">
-              <StackPanel>
-                <TextBlock Text="Keep everything" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                <TextBlock Style="{StaticResource Hint}" Text="Nothing is ever trimmed, so duel and battleground records count every fight since the start. The saved file grows with every loot and fight, and what was already trimmed doesn't come back."/>
-              </StackPanel>
-            </CheckBox>
-          </StackPanel>
-        </Border>
-
-        <!-- Game settings the addon sets for you. -->
+        <!-- How much the addon keeps in its saved file (Shared.lua trimEvents), and the game's combat log setting. -->
         <Border Style="{StaticResource PanelBorder}">
           <StackPanel>
-            <TextBlock Style="{StaticResource SectionTitle}" Text="Game settings" Margin="0,0,0,14"/>
+            <TextBlock Style="{StaticResource SectionTitle}" Text="History and logs" Margin="0,0,0,14"/>
+            <CheckBox ToolTip="Keep every loot, duel and battleground in the addon's saved file" IsChecked="{Binding KeepAllHistory}" Margin="0,0,0,12">
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Keep all history"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Level-ups, boss kills, mounts and deaths are always kept. Loot, duels and battlegrounds pile up, so only the newest 300 of each are kept per character, which keeps /reload, logout and the app quick. On, nothing is trimmed and the saved file keeps growing. What was already trimmed doesn't come back."/>
+              </StackPanel>
+            </CheckBox>
             <CheckBox ToolTip="Turn on the game's Advanced Combat Logging setting" IsChecked="{Binding AdvancedCombatLog}">
               <StackPanel>
-                <TextBlock Text="Advanced combat logging" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
-                <TextBlock Style="{StaticResource Hint}" Text="Turns on the game's own Advanced Combat Logging setting (System, Network): more detail in the combat log file, for log tools and for features here later. The addon sets it at your next /reload or login, out of combat. Unticking turns it off again."/>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Advanced combat logging"/>
+                <TextBlock Style="{StaticResource Hint}" Text="The game's own setting (System, Network): more detail in the combat log file, for log tools and for features here later. Set at your next /reload or login, out of combat. Unticking turns it off again."/>
               </StackPanel>
             </CheckBox>
           </StackPanel>
