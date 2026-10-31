@@ -83,7 +83,7 @@
             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
               <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="Paste list" Command="{Binding PasteListCommand}" Margin="6,0,0,0" VerticalAlignment="Center"
                       ToolTip="Add the items from a list code on your clipboard. What you already follow stays."/>
-              <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="Copy list" Command="{Binding CopyListCommand}" VerticalAlignment="Center"
+              <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="Copy list" Command="{Binding CopyListCommand}" Margin="0" VerticalAlignment="Center"
                       ToolTip="Copy the items you added yourself as a code to share"/>
               <TextBlock Style="{StaticResource SectionTitle}" Text="Following" VerticalAlignment="Center"/>
             </DockPanel>

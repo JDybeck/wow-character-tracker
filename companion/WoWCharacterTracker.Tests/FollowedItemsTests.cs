@@ -95,6 +95,11 @@ public class FollowedItemsTests
         var items = ReadyMadeList.All.SelectMany(l => l.Items).ToList();
         Assert.Equal(items.Count, items.DistinctBy(i => i.Id).Count());
         Assert.Equal(ReadyMadeList.All.Count, ReadyMadeList.All.DistinctBy(l => l.Key).Count());
+
+        // Both on: each item once.
+        var both = new FlavorSettings { ReadyMadeLists = [.. ReadyMadeList.All.Select(l => l.Key)] };
+        Assert.Equal(items.Count, both.AllFollowed.Count);
+        Assert.Equal(both.AllFollowed.Count, both.AllFollowed.DistinctBy(i => i.Id).Count());
         Assert.Equal(ReadyMadeList.All, Flavors.Forever.ReadyMadeLists);
         Assert.Empty(Flavors.Retail.ReadyMadeLists);
     }
