@@ -1,8 +1,8 @@
 namespace WoWCharacterTracker.Models;
 
 // Every kind of moment the addon records, in one place: its key (as the addon names it), what the
-// app calls it, and where it can show up. The chip lists (stream highlights and alerts, guild
-// announcements), the screenshot options and the highlight lists all come from here.
+// app calls it, and where it can show up. The guild announcement chips, the screenshot options and
+// the highlight lists come from here; the stream panel's chips check against it in StreamTests.
 // RatingsOnly: only in a game with Mythic+ and ratings (Retail); NoRatings: only in one without
 // (end boss kills, which Retail swaps for Mythic+ runs).
 sealed record EventKind(string Key, string Name, bool Shot = false, bool Highlight = false, bool RatingsOnly = false, bool NoRatings = false);

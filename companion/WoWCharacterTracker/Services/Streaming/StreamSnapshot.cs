@@ -72,7 +72,7 @@ sealed record StreamSnapshot(
             newest is null ? "" : $"{newest.Level - 1} to {newest.Level} took {Took(newest)}",
             todayText,
             highlights,
-            mine.Select(AlertFor).FirstOrDefault(a => a is not null && o.AlertKinds.Contains(a.Kind)),
+            mine.Select(e => ChosenAlert(e, o.AlertKinds)).FirstOrDefault(a => a is not null),
             now.ToUnixTimeSeconds(),
             Record("duel"), Record("makgora"), StreamLook.From(o),
             RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? [], Record("bg"),
@@ -119,11 +119,13 @@ sealed record StreamSnapshot(
 
     // The overlay's alert for an event, the way Discord would post it, or null when it's not alert
     // material (a duel or Mak'gora lost, a key over time; rare loot is its own kind). Tone picks the colors on the page.
+    // A dungeon is completed when its end boss dies: the same boss event, recorded inside a dungeon.
     public static StreamAlert? AlertFor(Entry e) => e.Kind switch
     {
+        "boss" when e.Boss.Length > 0 && e.ZoneType == "dungeon" => new(e.Id, "dungeon", "DUNGEON COMPLETE!", e.Instance.Length > 0 ? e.Instance : e.Zone, $"{e.Boss} defeated", "victory", e.At),
         "level" when e.MaxLevel => new(e.Id, "maxlevel", "MAX LEVEL!", $"Level {e.Level}", e.Played > 0 ? $"Total played {Format.Played(e.Played)}" : "", "legendary", e.At),
         "level" => new(e.Id, "level", "DING!", $"Level {e.Level}", e.Seconds > 0 ? $"{e.Level - 1} to {e.Level} took {Took(e)}" : "", "gold", e.At),
-        "boss" when e.Boss.Length > 0 => new(e.Id, "boss", "VICTORY!", $"{e.Boss} defeated", e.Instance, "victory", e.At),
+        "boss" when e.Boss.Length > 0 => BossAlert(e),
         "keyrun" when e.Timed => new(e.Id, "keyrun", "TIMED!", Format.KeyRun(e), $"+{e.Upgrades}" + (e.Seconds > 0 ? $" in {Format.Clock(e.Seconds)}" : ""), "victory", e.At),
         "loot" when e.Quality >= 5 => new(e.Id, "legendary", "LEGENDARY!", e.Item, "", "legendary", e.At),
         "loot" when e.Quality == 4 => new(e.Id, "epic", "EPIC LOOT!", e.Item, "", "epic", e.At),
@@ -138,6 +140,17 @@ sealed record StreamSnapshot(
         "pvp" => new(e.Id, "pvp", "MILESTONE!", $"{e.Step} in {e.Bracket}", e.Rating > 0 ? $"Rating {e.Rating}" : "", "rating", e.At),
         _ => null,
     };
+
+    static StreamAlert BossAlert(Entry e) => new(e.Id, "boss", "VICTORY!", $"{e.Boss} defeated", e.Instance, "victory", e.At);
+
+    // The event's alert if its kind is picked. With the dungeon alert off, a dungeon's end boss is
+    // still a boss kill, so "Boss kills" keeps its VICTORY!.
+    static StreamAlert? ChosenAlert(Entry e, List<string> picked)
+    {
+        var alert = AlertFor(e);
+        if (alert is null || picked.Contains(alert.Kind)) return alert;
+        return alert.Kind == "dungeon" && picked.Contains("boss") ? BossAlert(e) : null;
+    }
 
     static string Capital(string s) => s.Length > 0 ? char.ToUpperInvariant(s[0]) + s[1..] : s;
 
@@ -168,7 +181,7 @@ sealed record StreamRecord(int Won, int Lost)
 }
 
 // The newest alert-worthy moment; the overlay pops it up when it's new (Id) and recent (At).
-// Kind: level, maxlevel, boss, keyrun, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
+// Kind: level, maxlevel, boss, dungeon, keyrun, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
 // How the overlay looks: the card's background (0-100), which parts and stats lines it shows, its
