@@ -100,6 +100,7 @@ end
 
 -- Argument 1 is the winner, argument 2 the loser, in every duel and Mak'gora message.
 function ns.onSystemMessage(text)
+  text = ns.plain(text) -- chat is hidden from addons during a boss fight
   if not text then return end
   if not duelPatterns then buildDuelPatterns() end
   for _, c in ipairs(makgoraPatterns) do

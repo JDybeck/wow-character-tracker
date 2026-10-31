@@ -472,7 +472,19 @@ local function isNotGear(link)
   return classID ~= nil and classID ~= 2 and classID ~= 4
 end
 
-function ns.recordLoot(text)
+-- The item's quality from its link: Forever's links name it ("|cnIQ4:"), older ones have the color.
+local function qualityFromLink(link)
+  local named = link:match("|cnIQ(%d+):")
+  if named then return tonumber(named) end
+  local color = link:match("|c(%x%x%x%x%x%x%x%x)")
+  return color and QUALITY_BY_COLOR[color:lower()]
+end
+
+-- text is hidden from addons during a boss fight on Midnight-era clients (a secret value), so loot
+-- from the fight itself can't be seen. retried: the second look at an item the game didn't have yet.
+function ns.recordLoot(text, retried)
+  text = ns.plain(text)
+  if type(text) ~= "string" then return end
   local link = matchAny(LOOT_PATTERNS, text)
   local pushed = false
   if not link then
@@ -494,16 +506,19 @@ function ns.recordLoot(text)
   if pushed and not followed then return end -- rare loot means looted, not bought or handed out
 
   -- Quality is the 3rd value, the bind type the 14th (2 = Bind on Equip). Both nil while the game
-  -- doesn't have the item yet: the quality then comes from the link's color, and it doesn't count as BoE.
+  -- doesn't have the item yet (asking makes it fetch it), so a new drop gets a second look a moment
+  -- later. Still nothing: the quality comes from the link, and it doesn't count as BoE.
   local quality, bindType
-  if GetItemInfo then
-    local info = { GetItemInfo(link) }
+  local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+  if getInfo then
+    local info = { getInfo(link) }
     quality, bindType = info[3], info[14]
   end
-  if not quality then
-    local color = link:match("|c(%x%x%x%x%x%x%x%x)")
-    quality = color and QUALITY_BY_COLOR[color:lower()]
+  if not quality and not retried and C_Timer then
+    C_Timer.After(1, function() ns.recordLoot(text, true) end)
+    return
   end
+  if not quality then quality = qualityFromLink(link) end
   if not followed and (not quality or quality < 3) then return end -- rare (blue) and better only
 
   local now = time()
@@ -536,9 +551,44 @@ function ns.checkProfessions()
   end
 end
 
+-- What killed you, from the game's death recap (the combat log is off limits on newer clients): the
+-- newest hit, by its time when it has one, else the last listed. An attacker's name, or falling,
+-- drowning and so on as "Falling". Nil when the recap is empty or has none.
+local function deathCause()
+  if not (DeathRecap_HasEvents and DeathRecap_GetEvents) then return nil end
+  local ok, events = pcall(function() return DeathRecap_HasEvents() and DeathRecap_GetEvents() end)
+  if not ok or type(events) ~= "table" or #events == 0 then return nil end
+  local last = events[#events]
+  for _, hit in ipairs(events) do
+    if hit.timestamp and (not last.timestamp or hit.timestamp > last.timestamp) then last = hit end
+  end
+  local environment = ns.plain(last.environmentalType)
+  if environment then
+    environment = tostring(environment)
+    return environment:sub(1, 1):upper() .. environment:sub(2):lower()
+  end
+  local source = ns.plain(last.sourceName)
+  return source ~= "" and source or nil
+end
+
+-- PLAYER_DEAD has been seen firing twice for one death on Forever (a hunter, cause unknown), and a
+-- second post would announce a hardcore character dying twice. Nobody dies twice in 10 seconds.
+local DEATH_COOLDOWN = 10
+local lastDeathAt, deathWaiting = -math.huge, false
+
+local function writeDeath()
+  deathWaiting = false
+  lastDeathAt = time()
+  ns.record("death", { killer = deathCause(), played = ns.playedNow(), gold = GetMoney and GetMoney() or 0 }) -- gold in copper
+  ns.saveSnapshot()
+end
+
 function ns.recordDeath()
   if not ns.isHardcore() then return end
-  -- (No killer: that came from the combat log, which newer clients keep from addons.)
-  ns.record("death", { played = ns.playedNow(), gold = GetMoney and GetMoney() or 0 }) -- gold in copper
-  ns.saveSnapshot()
+  if UnitIsFeignDeath and UnitIsFeignDeath("player") then return end
+  if deathWaiting or time() - lastDeathAt < DEATH_COOLDOWN then return end
+  -- The recap can land a moment after the event: one short wait when it's still empty.
+  if deathCause() or not C_Timer then return writeDeath() end
+  deathWaiting = true
+  C_Timer.After(0.5, writeDeath)
 end

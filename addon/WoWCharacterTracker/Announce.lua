@@ -42,7 +42,8 @@ local function message(e)
   elseif k == "pvp" then
     return string.format("Reached %d rating in %s!", e.step or 0, e.bracket or "PvP")
   elseif k == "death" then
-    return string.format("Fell at level %d. Rest in peace.", e.level or 0)
+    local killer = (e.killer and e.killer ~= "") and (" to " .. e.killer) or ""
+    return string.format("Fell at level %d%s. Rest in peace.", e.level or 0, killer)
   end
   return nil
 end

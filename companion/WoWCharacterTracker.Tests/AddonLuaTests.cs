@@ -253,6 +253,92 @@ public class AddonLuaTests
         Assert.Equal(boe, e.Get("boe").CastToBool());
     }
 
+    // Loads Events.lua after the test's own Lua setup; recorded collects what it records.
+    static (Script Script, Table Ns, List<Table> Recorded) LoadEvents(string setup)
+    {
+        var script = new Script();
+        script.DoString("LOOT_ITEM_SELF = 'You receive loot: %s'\nfunction time() return now or 5000 end\n" + setup);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        return (script, ns, recorded);
+    }
+
+    // Forever's links name the quality ("|cnIQ4:") and a new drop isn't known to the game yet: it gets
+    // a second look, and without an answer the quality comes from the link.
+    [Fact]
+    public void A_new_drop_on_forever_is_kept_with_the_quality_from_its_link()
+    {
+        var (script, ns, recorded) = LoadEvents("""
+            function GetItemInfo() return nil end
+            timers = {}
+            C_Timer = { After = function(_, fn) table.insert(timers, fn) end }
+            """);
+
+        script.Call(ns.Get("recordLoot"), "You receive loot: |cnIQ4:|Hitem:17069::::::::|h[Sul'thraze]|h|r");
+        Assert.Empty(recorded);
+        script.DoString("timers[1]()");
+
+        Assert.Equal(4, Assert.Single(recorded).Get("quality").Number);
+    }
+
+    // During a boss fight the client hands addons secret text, which can't be used at all.
+    [Fact]
+    public void Secret_chat_text_is_skipped()
+    {
+        var (script, ns, recorded) = LoadEvents("function issecretvalue() return true end");
+        script.Call(ns.Get("recordLoot"), "You receive loot: |cnIQ4:|Hitem:17069::::::::|h[Sul'thraze]|h|r");
+        Assert.Empty(recorded);
+    }
+
+    const string HardcoreDeath = """
+        function GetMoney() return 7 end
+        C_Timer = { After = function(_, fn) fn() end }
+        """;
+
+    static Table[] Die(string setup, int times = 1)
+    {
+        var (script, ns, recorded) = LoadEvents(HardcoreDeath + "\n" + setup);
+        ns["isHardcore"] = (Func<bool>)(() => true);
+        ns["playedNow"] = (Func<int>)(() => 100);
+        ns["saveSnapshot"] = (Action)(() => { });
+        for (var i = 0; i < times; i++) script.Call(ns.Get("recordDeath"));
+        return [.. recorded];
+    }
+
+    [Fact]
+    public void A_death_names_the_last_attacker_from_the_recap() =>
+        Assert.Equal("Clattering Scorpid", Assert.Single(Die("""
+            function DeathRecap_HasEvents() return true end
+            function DeathRecap_GetEvents() return { { sourceName = 'Young Wolf' }, { sourceName = 'Clattering Scorpid' } } end
+            """)).Get("killer").String);
+
+    [Fact]
+    public void A_death_to_the_world_says_what_it_was() =>
+        Assert.Equal("Falling", Assert.Single(Die("""
+            function DeathRecap_HasEvents() return true end
+            function DeathRecap_GetEvents() return { { environmentalType = 'FALLING' } } end
+            """)).Get("killer").String);
+
+    [Fact]
+    public void A_death_without_a_recap_still_counts() =>
+        Assert.True(Assert.Single(Die("")).Get("killer").IsNil());
+
+    [Fact]
+    public void One_death_firing_twice_is_one_death() => Assert.Single(Die("", times: 2));
+
+    [Fact]
+    public void Feign_death_is_no_death() => Assert.Empty(Die("function UnitIsFeignDeath() return true end"));
+
+    [Fact]
+    public void A_death_line_names_the_killer() =>
+        Assert.Equal(["GUILD: Fell at level 34 to Hogger. Rest in peace."],
+            Announce("{ announce = { guild = true, kinds = { death = true } } }", "{ kind = 'death', level = 34, killer = 'Hogger' }"));
+
     // Loot that isn't a weapon (class 2) or armor (4) is marked, so a legendary one isn't always
     // posted. An unknown class counts as gear.
     [Theory]
