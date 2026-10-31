@@ -58,6 +58,27 @@ public class FilesAndProcessesTests
         }
     }
 
+    // A config from before the dungeon alert gets it switched on once; turned off later, it stays off.
+    [Fact]
+    public void The_dungeon_alert_is_switched_on_once_for_old_configs()
+    {
+        var file = Path.Combine(Config.Dir, "config.json");
+        Directory.CreateDirectory(Config.Dir);
+        var had = File.Exists(file) ? File.ReadAllText(file) : null;
+        try
+        {
+            File.WriteAllText(file, """{ "StreamOptions": { "AlertKinds": ["level"] } }""");
+            Assert.Equal(["level", "bg", "keyrun", "profession", "dungeon"], Config.Load().StreamOptions.AlertKinds);
+
+            File.WriteAllText(file, """{ "StreamOptions": { "AlertKinds": ["level"], "HasBattlegrounds": true, "HasKeyRuns": true, "HasProfessions": true, "HasDungeonAlerts": true } }""");
+            Assert.Equal(["level"], Config.Load().StreamOptions.AlertKinds);
+        }
+        finally
+        {
+            if (had is null) Files.TryDelete(file); else File.WriteAllText(file, had);
+        }
+    }
+
     // Data that isn't a whole picture (an error page, a cut-off download) gives no picture, never an error.
     [Fact]
     public void ImageCache_gives_null_for_broken_pictures()

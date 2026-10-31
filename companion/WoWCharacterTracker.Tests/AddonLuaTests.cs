@@ -284,6 +284,32 @@ public class AddonLuaTests
         Assert.Equal("The Deadmines", e.Get("instance").String);
     }
 
+    // The stream's DUNGEON COMPLETE! tells a dungeon from a raid by the zone type the kill is recorded with.
+    [Theory]
+    [InlineData("party", "dungeon")]
+    [InlineData("raid", "raid")]
+    public void End_boss_kills_carry_the_zone_type(string instanceType, string zoneType)
+    {
+        var script = new Script();
+        script.DoString($$"""
+            function time() return 5000 end
+            function GetBuildInfo() return "x", "1", "Oct 1 2026", 16001 end
+            function IsInInstance() return true, "{{instanceType}}" end
+            function UnitGUID() return "Player-1" end
+            """);
+        var ns = new Table(script);
+        var events = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        ns["recentBosses"] = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["addEvent"] = (Action<Table>)events.Add;
+
+        script.Call(ns.Get("recordBoss"), "Edwin VanCleef");
+
+        Assert.Equal(zoneType, Assert.Single(events).Get("zoneType").String);
+    }
+
     [Fact]
     public void Nothing_for_losses_kinds_left_out_or_no_channel()
     {

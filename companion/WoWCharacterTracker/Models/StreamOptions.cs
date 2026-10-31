@@ -46,14 +46,15 @@ class StreamOptions
     public static readonly string[] AllKinds = ["loot", "boss", "keyrun", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
 
     // Which moments pop up as the big alert (StreamAlert kinds). Rare loot is off by default (it's often).
-    public List<string> AlertKinds { get; set; } = ["level", "maxlevel", "boss", "keyrun", "legendary", "epic", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
-    public static readonly string[] AllAlertKinds = ["level", "maxlevel", "boss", "keyrun", "legendary", "epic", "rare", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
+    public List<string> AlertKinds { get; set; } = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
+    public static readonly string[] AllAlertKinds = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "rare", "mount", "duel", "makgora", "bg", "profession", "death", "mplus", "pvp"];
 
-    // Battlegrounds came in 0.21.2, Mythic+ runs in 0.28.0, profession milestones in 0.29.0: older
-    // configs get them switched on once (Config.Load).
+    // Battlegrounds came in 0.21.2, Mythic+ runs in 0.28.0, profession milestones in 0.29.0, the dungeon
+    // alert after that: older configs get them switched on once (Config.Load).
     public bool HasBattlegrounds { get; set; }
     public bool HasKeyRuns { get; set; }
     public bool HasProfessions { get; set; }
+    public bool HasDungeonAlerts { get; set; }
 
     // The highlights box used to share the card's background: older configs start with the
     // value they already see. True when it changed something to save (Config.Load).
