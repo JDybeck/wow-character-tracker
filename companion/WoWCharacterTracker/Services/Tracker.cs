@@ -275,7 +275,7 @@ sealed class Tracker : IDisposable
             {
                 var key = $"{e.Id}@{w.Id}";
                 if (posted!.Contains(key)) continue;
-                if (await posterFor(w).PostAsync(e, screenshot: shot))
+                if (await posterFor(w).PostAsync(s.PostsAsFollowed(e) ? e with { Followed = true } : e, screenshot: shot))
                 {
                     posted.Add(key);
                     sent++;

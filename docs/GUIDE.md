@@ -36,6 +36,7 @@ Each game has a **What gets posted** page, in three columns:
 - **General**
   - **Level-ups**: up to a level of your choice, post every few levels, then every level after that. Forever starts at every 5 levels up to 30, then every level. **Max level** has its own switch: on, it's posted with extra flair even when the level rule would skip it.
   - **Loot**: rare (blue) and epic (purple) items, separately. Legendary items are always posted, with extra flair. **Rares: Bind on Equip only** (on by default) posts just the rares that bind when equipped, the world drops people farm and trade, and skips the dungeon blues that bind when picked up. Every rare still shows in the app's highlights. The post shows the item like its Wowhead tooltip, as a picture: icon, name in its quality color, item level, damage and speed, stats, green Equip lines and the sell price.
+  - **Followed items**: anything on your Followed items tab, whatever its quality and whatever the loot options say (see below).
   - **New mounts**: bought from a vendor or learned.
   - **Profession milestones**: when a main profession's skill climbs past one of your steps (on Forever 75, 150, 225 and 300 by default, the Classic rank caps; on Retail 100, the max of each expansion's skill). Going from 140 to 151 Mining posts "reached 150 Mining"; a jump past several steps posts the highest one. Each step posts once per character and profession.
 - **PvE**
@@ -66,6 +67,18 @@ A level-up post, with the screenshot the addon took in game:
 Each game has its own look, and under Settings you can pick a color theme per game: Midnight, Void arcane or Silvermoon made for Retail, Classic gold, Forever wisp, Emerald Dream or Blackrock ember made for Forever, and faction and city looks (Alliance, Horde, Darnassus, Undercity, Icecrown). Every look can be used in either game. Here's Forever in its own four:
 
 ![Forever in Classic gold, Forever wisp, Emerald Dream and Blackrock ember](images/themes.png)
+
+### Followed items
+
+The **Followed items** tab (right of In game) is your own wish list or BiS list, kept per game. Search by name (it asks Wowhead), or paste an item's Wowhead address or id, and click **Follow**. On Forever the search also shows Classic's items, since Wowhead's Forever database isn't complete yet. Wowhead's search gives about ten results of all kinds, so be specific.
+
+When a character gets a followed item, by looting, buying, crafting or as a quest reward, you can get:
+
+- a **Discord post** (on by default, also under What gets posted, Loot),
+- an **ITEM FOUND!** alert on the stream overlay (on by default, also under the panel's Alerts),
+- a line in **guild and group chat** (off by default, also under In game, Tell your guild or group; it needs Guild chat or Party / raid chat on).
+
+Each item gets one post, one alert and one chat line, also when it's an epic that would post anyway. Rare and better items work the moment you follow them. Below rare, and for the chat line, the game needs the list first: type `/reload`. Items that come by mail, trade or the auction house aren't noticed, since the game doesn't announce them as loot.
 
 ## In game
 
@@ -141,7 +154,7 @@ What it shows:
 
 - **The card**: who the character is right now. Its name, level, race, spec and class and zone on top, then its stats on the left (item level, played, gold, your Mythic Keystone and ratings on Retail, and your duel, Mak'gora and battleground records) and its leveling on the right (how long the last level took, the levels before that, today's levels and their average). Without level times, like at max level, the stats get the card to themselves.
 - **Highlights**: what happened lately, as a short list. Pick which kinds count: loot, boss kills (Forever), mounts, duels, Mak'gora, battlegrounds (wins and losses), profession milestones, deaths, and on Retail Mythic+ runs and Mythic+ and PvP rating milestones.
-- **Alerts**: the big moments pop up in the middle for a few seconds, styled like the game, each in its own colors: **DING!** with the level and its time, **MAX LEVEL!** with light rays, **VICTORY!** for an end boss, a duel or a battleground win, **LEGENDARY!**, **EPIC LOOT!** and **RARE LOOT!**, **NEW MOUNT!**, **MAK'GORA!** in blood red, a calm gray **R.I.P.** for a hardcore death, **MILESTONE!** for a profession step, and on Retail **TIMED!** for a key beaten in time and **MILESTONE!** for rating steps. Pick which ones pop up under **Alerts** (rare loot is off by default, it happens a lot).
+- **Alerts**: the big moments pop up in the middle for a few seconds, styled like the game, each in its own colors: **DING!** with the level and its time, **MAX LEVEL!** with light rays, **VICTORY!** for an end boss, a duel or a battleground win, **LEGENDARY!**, **EPIC LOOT!** and **RARE LOOT!**, **ITEM FOUND!** for a followed item, **NEW MOUNT!**, **MAK'GORA!** in blood red, a calm gray **R.I.P.** for a hardcore death, **MILESTONE!** for a profession step, and on Retail **TIMED!** for a key beaten in time and **MILESTONE!** for rating steps. Pick which ones pop up under **Alerts** (rare loot is off by default, it happens a lot). **Rare alerts: Bind on Equip only** (on by default) keeps RARE LOOT! to the rares that bind when equipped, like the Discord option, and **Rares: Bind on Equip only** under Highlights does the same for the highlights box (off by default). Followed items ignore both.
 
 <img src="images/stream-alerts.png" alt="Alerts: MAX LEVEL!, EPIC LOOT!, MAK'GORA! and R.I.P." width="640">
 

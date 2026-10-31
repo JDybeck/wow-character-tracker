@@ -158,6 +158,7 @@ sealed class StreamViewModel : Observable
         ("level", "Level-ups", "DING! with the level and how long it took"), ("maxlevel", "Max level", "MAX LEVEL! with light rays, when you reach the cap"),
         ("boss", "Boss kills", "VICTORY! when an end boss dies"), ("keyrun", "Mythic+ runs", "TIMED! when a key is beaten in time (Retail)"), ("legendary", "Legendary loot", "LEGENDARY! in orange"),
         ("epic", "Epic loot", "EPIC LOOT! in purple"), ("rare", "Rare loot", "RARE LOOT! in blue (off by default, it happens a lot)"),
+        ("followed", "Followed items", "ITEM FOUND! when you get an item from your Followed items tab, whatever its quality"),
         ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"), ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"),
         ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
         ("profession", "Professions", "MILESTONE! when a profession passes a step"),
@@ -166,6 +167,23 @@ sealed class StreamViewModel : Observable
     ];
     ObservableCollection<ToggleOption>? alertKinds;
     public ObservableCollection<ToggleOption> AlertKinds => alertKinds ??= Chips(AlertNames, Options.AlertKinds);
+
+    public bool RareAlertBoeOnly { get => Options.RareAlertBoeOnly; set { Options.RareAlertBoeOnly = value; OptionsChanged(); } }
+    public bool RareHighlightBoeOnly { get => Options.RareHighlightBoeOnly; set { Options.RareHighlightBoeOnly = value; OptionsChanged(); } }
+
+    // The Followed items tab's switch for the same alert as the chip above, so both show the same.
+    public bool FollowedAlert
+    {
+        get => Options.AlertKinds.Contains("followed");
+        set
+        {
+            Options.AlertKinds.Remove("followed");
+            if (value) Options.AlertKinds.Add("followed");
+            alertKinds = null;
+            Raise(nameof(AlertKinds));
+            OptionsChanged();
+        }
+    }
 
     // One on/off chip per kind this game offers.
     ObservableCollection<ToggleOption> Chips((string Kind, string Name, string Tip)[] names, List<string> picked) =>
@@ -186,6 +204,7 @@ sealed class StreamViewModel : Observable
         Raise(nameof(RangeToday));
         Raise(nameof(RangeNow));
         Raise(nameof(NowText));
+        Raise(nameof(FollowedAlert));
         Refresh();
     }
 
@@ -289,7 +308,7 @@ sealed class StreamViewModel : Observable
         // The same sample events as the Test post buttons (SampleEvents), shown the way a real one
         // would be: its alert and the highlight line it adds (level-ups aren't highlights), so the
         // highlights source can be set up too.
-        string[] kinds = ["level", "max", HasRatings ? "keyrun" : "boss", "legendary", "epic", "duel", "makgora", "mount", "death"];
+        string[] kinds = ["level", "max", HasRatings ? "keyrun" : "boss", "legendary", "epic", "followed", "duel", "makgora", "mount", "death"];
         var e = SampleEvents.For(kinds[testIndex++ % kinds.Length], Flavors.Forever, null, []);
         e = e with { Id = $"test-{now}-{testIndex}", Char = name, At = now, Level = e.MaxLevel ? e.Level : level };
         if (StreamSnapshot.AlertFor(e) is not { } sample) return;

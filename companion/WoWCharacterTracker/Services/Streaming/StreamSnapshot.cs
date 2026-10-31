@@ -63,7 +63,7 @@ sealed record StreamSnapshot(
         }
 
         var kinds = o.HighlightKinds.ToHashSet();
-        var highlights = mine.Where(e => kinds.Contains(e.Kind)).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0)
+        var highlights = mine.Where(e => kinds.Contains(e.Kind) && (e.Kind != "loot" || e.Followed || e.PassesRareRule(o.RareHighlightBoeOnly))).Select(e => Highlight(e, items)).Where(h => h.Text.Length > 0)
             .Take(o.HighlightsHeight > 0 ? HighlightsToFit : HighlightsShown).ToList();
 
         return new StreamSnapshot(
@@ -72,7 +72,7 @@ sealed record StreamSnapshot(
             newest is null ? "" : $"{newest.Level - 1} to {newest.Level} took {Took(newest)}",
             todayText,
             highlights,
-            mine.Select(AlertFor).FirstOrDefault(a => a is not null && o.AlertKinds.Contains(a.Kind)),
+            mine.Select(e => WantedAlert(e, o)).FirstOrDefault(a => a is not null),
             now.ToUnixTimeSeconds(),
             Record("duel"), Record("makgora"), StreamLook.From(o),
             RangeText(o), c.Spec, c.Gold, c.Keystone, c.Ratings ?? [], Record("bg"),
@@ -119,7 +119,22 @@ sealed record StreamSnapshot(
 
     // The overlay's alert for an event, the way Discord would post it, or null when it's not alert
     // material (a duel or Mak'gora lost, a key over time; rare loot is its own kind). Tone picks the colors on the page.
-    public static StreamAlert? AlertFor(Entry e) => e.Kind switch
+    public static StreamAlert? AlertFor(Entry e) => (e.Followed ? FollowedAlert(e) : null) ?? MomentAlert(e);
+
+    // The alert this event pops up with these options: a followed item as itself when that's on, else
+    // as any other loot. One event, one alert either way.
+    static StreamAlert? WantedAlert(Entry e, StreamOptions o)
+    {
+        if (e.Followed && o.AlertKinds.Contains("followed") && FollowedAlert(e) is { } followed) return followed;
+        return MomentAlert(e) is { } a && o.AlertKinds.Contains(a.Kind) && (e.Kind != "loot" || e.PassesRareRule(o.RareAlertBoeOnly)) ? a : null;
+    }
+
+    // In its quality's colors; below rare it's gold, there's no tone for those.
+    static StreamAlert? FollowedAlert(Entry e) => (e.Kind == "loot" ? e.Item : e.Kind == "mount" ? e.Mount : "") is { Length: > 0 } thing
+        ? new(e.Id, "followed", "ITEM FOUND!", thing, "From your followed items", e.Quality switch { >= 5 => "legendary", 4 => "epic", 3 => "rare", _ => "gold" }, e.At)
+        : null;
+
+    static StreamAlert? MomentAlert(Entry e) => e.Kind switch
     {
         "level" when e.MaxLevel => new(e.Id, "maxlevel", "MAX LEVEL!", $"Level {e.Level}", e.Played > 0 ? $"Total played {Format.Played(e.Played)}" : "", "legendary", e.At),
         "level" => new(e.Id, "level", "DING!", $"Level {e.Level}", e.Seconds > 0 ? $"{e.Level - 1} to {e.Level} took {Took(e)}" : "", "gold", e.At),
@@ -168,7 +183,7 @@ sealed record StreamRecord(int Won, int Lost)
 }
 
 // The newest alert-worthy moment; the overlay pops it up when it's new (Id) and recent (At).
-// Kind: level, maxlevel, boss, keyrun, legendary, epic, rare, mount, duel, makgora, bg, death, mplus, pvp.
+// Kind: level, maxlevel, boss, keyrun, legendary, epic, rare, followed, mount, duel, makgora, bg, death, mplus, pvp.
 sealed record StreamAlert(string Id, string Kind, string Title, string Line, string Sub, string Tone, long At);
 
 // How the overlay looks: the card's background (0-100), which parts and stats lines it shows, its

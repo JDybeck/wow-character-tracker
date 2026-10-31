@@ -232,6 +232,12 @@ class Config
             stream.HasProfessions = true;
             changed = true;
         }
+        if (!stream.HasFollowed)
+        {
+            if (!stream.AlertKinds.Contains("followed")) stream.AlertKinds.Add("followed");
+            stream.HasFollowed = true;
+            changed = true;
+        }
 
         if (changed) config.Save();
         return config;

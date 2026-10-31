@@ -175,6 +175,10 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
+          <CheckBox Style="{StaticResource OptionChip}" Content="Rares: Bind on Equip only" IsChecked="{Binding RareHighlightBoeOnly}" HorizontalAlignment="Left" Margin="0,0,0,6"
+                    Visibility="{Binding ShowHighlights, Converter={StaticResource Visible}}"
+                    ToolTip="The highlights box only lists rare items that bind when equipped, like the Discord option. Followed items always show."/>
+
           <TextBlock Text="ALERTS" Style="{StaticResource SectionTitle}" FontSize="11" Margin="0,0,0,4"
                      ToolTip="Which moments pop up big in the middle, like Discord posts them"/>
           <ItemsControl ItemsSource="{Binding AlertKinds}" ItemsPanel="{StaticResource Wrap}" Margin="0,0,0,6">
@@ -184,6 +188,9 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+
+          <CheckBox Style="{StaticResource OptionChip}" Content="Rare alerts: Bind on Equip only" IsChecked="{Binding RareAlertBoeOnly}" HorizontalAlignment="Left" Margin="0,0,0,6"
+                    ToolTip="RARE LOOT! only pops up for rare items that bind when equipped, like the Discord option. Followed items always pop up as ITEM FOUND!"/>
 
           <!-- What it counts: one of three, the one in use highlighted. -->
           <TextBlock Text="COUNT" Style="{StaticResource SectionTitle}" FontSize="11" Margin="0,0,0,4"

@@ -18,7 +18,7 @@ static class PostingCode
         List<int> MPlusSteps, List<int> PvpSteps, string SkipBossGroupRegex, string NameStyle,
         bool HideChatInShots, Dictionary<string, bool> Screenshot, Dictionary<string, bool> PostScreenshot, bool HideUiInShots = false, bool FirstBossKillOnly = true,
         bool PostKeyRuns = true, int KeyRunMinLevel = 10, bool KeyRunTimedOnly = false,
-        bool RareBoeOnly = true, bool PostBattlegrounds = false, bool PostProfessions = true, List<int>? ProfessionSteps = null);
+        bool RareBoeOnly = true, bool PostBattlegrounds = false, bool PostProfessions = true, List<int>? ProfessionSteps = null, bool PostFollowed = true);
 
     public static string Export(FlavorSettings s, Flavor flavor)
     {
@@ -29,7 +29,7 @@ static class PostingCode
             s.MPlusSteps, s.PvpSteps, s.SkipBossGroupRegex, s.NameStyle,
             s.HideChatInShots, s.Screenshot, s.PostScreenshot, s.HideUiInShots, s.FirstBossKillOnly,
             s.PostKeyRuns, s.KeyRunMinLevel, s.KeyRunTimedOnly,
-            s.RareBoeOnly, s.PostBattlegrounds, s.PostProfessions, s.ProfessionSteps);
+            s.RareBoeOnly, s.PostBattlegrounds, s.PostProfessions, s.ProfessionSteps, s.PostFollowed);
         return Prefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(dto)));
     }
 
@@ -59,7 +59,7 @@ static class PostingCode
             PostRare = d.PostRare, RareBoeOnly = d.RareBoeOnly, PostEpic = d.PostEpic, PostMounts = d.PostMounts, PostBosses = d.PostBosses, PostDeaths = d.PostDeaths, FirstBossKillOnly = d.FirstBossKillOnly,
             PostKeyRuns = d.PostKeyRuns, KeyRunMinLevel = Math.Clamp(d.KeyRunMinLevel, FlavorSettings.KeyLevelMin, FlavorSettings.KeyLevelMax), KeyRunTimedOnly = d.KeyRunTimedOnly,
             PostDuels = d.PostDuels, PostMakgora = d.PostMakgora, PostBattlegrounds = d.PostBattlegrounds, PostMPlus = d.PostMPlus, PostPvp = d.PostPvp,
-            PostProfessions = d.PostProfessions,
+            PostProfessions = d.PostProfessions, PostFollowed = d.PostFollowed,
             ProfessionSteps = Steps(d.ProfessionSteps, target.ProfessionSteps),
             MPlusSteps = Steps(d.MPlusSteps, target.MPlusSteps),
             PvpSteps = Steps(d.PvpSteps, target.PvpSteps),

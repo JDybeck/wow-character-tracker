@@ -80,7 +80,7 @@ static partial class AddonInstaller
         var shots = string.Join(", ", EventKinds.ShotKinds.Select(k => $"{k} = {B(s.Shoots(k))}"));
         // What gets posted, so the addon only sends those events live and screenshots only them.
         var post = $"level = {{ on = {B(s.PostLevels)}, split = {s.LevelSplit}, before = {s.LevelEveryBefore}, after = {s.LevelEveryAfter} }}, "
-                   + $"rare = {B(s.PostRare)}, rareBoe = {B(s.RareBoeOnly)}, epic = {B(s.PostEpic)}, mount = {B(s.PostMounts)}, boss = {B(s.PostBosses)}, death = {B(s.PostDeaths)}, "
+                   + $"rare = {B(s.PostRare)}, followed = {B(s.PostFollowed)}, rareBoe = {B(s.RareBoeOnly)}, epic = {B(s.PostEpic)}, mount = {B(s.PostMounts)}, boss = {B(s.PostBosses)}, death = {B(s.PostDeaths)}, "
                    + $"keyrun = {{ on = {B(s.PostKeyRuns)}, min = {s.KeyRunMinLevel}, timed = {B(s.KeyRunTimedOnly)} }}, "
                    + $"maxLevel = {B(s.PostMaxLevel)}, duel = {B(s.PostDuels)}, makgora = {B(s.PostMakgora)}, bg = {B(s.PostBattlegrounds)}, mplus = {B(s.PostMPlus)}, pvp = {B(s.PostPvp)}, "
                    + $"profession = {B(s.PostProfessions)}, professionSteps = {{ {string.Join(", ", s.ProfessionSteps)} }}, "
@@ -89,6 +89,8 @@ static partial class AddonInstaller
                   + "WoWCharacterTrackerSettings = {\n"
                   + $"  screenshot = {{ {shots} }},\n"
                   + $"  post = {{ {post} }},\n"
+                  // The followed items, since the addon only records rare and better otherwise.
+                  + $"  followed = {{ {string.Concat(s.FollowedItems.Select(i => $"[{i.Id}] = true, "))}}},\n"
                   + $"  hideChat = {B(s.HideChatInShots)},\n"
                   + $"  hideUI = {B(s.HideUiInShots)},\n"
                   + $"  flightReload = {B(s.FlightReloadPrompt)},\n"
