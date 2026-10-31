@@ -49,6 +49,21 @@ public class FollowedItemsTests
     [InlineData("", null)]
     public void A_pasted_address_or_id_gives_the_item(string text, int? id) => Assert.Equal(id, Wowhead.ItemIdFrom(text));
 
+    [Fact]
+    public void Classic_search_hits_only_add_names_forever_lacks_once_each()
+    {
+        const string thunderfury = "Thunderfury, Blessed Blade of the Windseeker";
+        Wowhead.ItemHit Hit(int id, string name) => new(id, name, "", 4);
+
+        // Forever has it: Classic's versions stay out, also the same id.
+        var merged = Wowhead.WithClassicHits([Hit(19019, thunderfury)], [Hit(19019, thunderfury), Hit(230224, thunderfury)]);
+        Assert.Equal([19019], merged.Select(h => h.Id));
+
+        // Only Classic has it: its oldest id, listed after Forever's.
+        merged = Wowhead.WithClassicHits([Hit(1, "Other")], [Hit(230224, thunderfury), Hit(19019, thunderfury), Hit(14551, "Edgemaster's Handguards")]);
+        Assert.Equal([1, 19019, 14551], merged.Select(h => h.Id));
+    }
+
     static FlavorSettings Following(params int[] ids) => new() { FollowedItems = [.. ids.Select(i => new FollowedItem(i, "x"))] };
 
     // Below rare, and with every other loot rule off: only the list makes it a post.

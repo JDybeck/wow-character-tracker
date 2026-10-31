@@ -139,12 +139,24 @@ static class Wowhead
         {
             var hits = ParseItemHits(await Web.GetStringAsync(SearchUrl(flavor.WowheadPath, query), Timeout));
             if (!flavor.WowheadPath.StartsWith("forever/")) return hits;
-            try { return [.. hits.Concat(ParseItemHits(await Web.GetStringAsync(SearchUrl("classic/", query), Timeout))).DistinctBy(h => h.Id)]; }
+            try { return WithClassicHits(hits, ParseItemHits(await Web.GetStringAsync(SearchUrl("classic/", query), Timeout))); }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { return hits; }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { return null; }
         finally { Parallel.Release(); }
     });
+
+    // Forever's hits, then Classic's for names Forever doesn't have. Classic also lists other versions
+    // of an item under the same name (Thunderfury 230224, not in Forever's database), and a followed
+    // item is matched by id, so only the oldest id of a name comes along.
+    internal static IReadOnlyList<ItemHit> WithClassicHits(IReadOnlyList<ItemHit> forever, IReadOnlyList<ItemHit> classic)
+    {
+        var names = forever.Select(h => h.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return [.. forever, .. classic
+            .Where(h => !names.Contains(h.Name))
+            .GroupBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.MinBy(h => h.Id)!)];
+    }
 
     // Type 3 is an item. Anything else in the answer (spells, quests, news) is left out.
     internal static IReadOnlyList<ItemHit> ParseItemHits(string json)
