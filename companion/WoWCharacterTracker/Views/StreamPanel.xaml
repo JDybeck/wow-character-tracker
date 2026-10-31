@@ -67,10 +67,16 @@
 
           <!-- Look -->
           <DockPanel Margin="0,0,0,8">
-            <TextBlock DockPanel.Dock="Left" Text="Background" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
+            <TextBlock DockPanel.Dock="Left" Text="Card bg" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
             <TextBlock DockPanel.Dock="Right" Text="{Binding CardOpacity, StringFormat={}{0}%}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
             <Slider Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Value="{Binding CardOpacity, Delay=150}" VerticalAlignment="Center"
-                    ToolTip="How solid the boxes' background is: 0 is see-through (just the text), 100 is solid"/>
+                    ToolTip="How solid the card's background is: 0 is see-through (just the text), 100 is solid"/>
+          </DockPanel>
+          <DockPanel Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Left" Text="Highlights bg" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding HighlightsOpacity, StringFormat={}{0}%}" FontSize="12" Foreground="{StaticResource Muted}" Width="34" TextAlignment="Right" VerticalAlignment="Center"/>
+            <Slider Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Value="{Binding HighlightsOpacity, Delay=150}" VerticalAlignment="Center"
+                    ToolTip="How solid the highlights box's background is: 0 is see-through (just the text), 100 is solid"/>
           </DockPanel>
           <DockPanel Margin="0,0,0,8">
             <TextBlock DockPanel.Dock="Left" Text="Size" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Width="78"/>
@@ -129,7 +135,7 @@
             <TextBlock Text="Background" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <Border Width="14" Height="14" CornerRadius="3" Background="{Binding BackgroundBrush}" BorderBrush="#475569" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <TextBox Text="{Binding Background}" Width="76" Padding="6,3" FontSize="12" FontFamily="{StaticResource Mono}"
-                     ToolTip="The background color as a hex code, like #0a0806 (how solid it is: Background above). Empty: dark."/>
+                     ToolTip="The background color as a hex code, like #0a0806 (how solid it is: Card bg and Highlights bg above). Empty: dark."/>
           </WrapPanel>
           <WrapPanel Margin="0,0,0,6">
             <CheckBox Style="{StaticResource OptionChip}" Content="Border" IsChecked="{Binding ShowBorder}" Margin="0,0,6,6"
