@@ -29,6 +29,22 @@ sealed record ReadyMadeList(string Key, string Name, string Tag, string Hint, IR
         new(6975, "Whirlwind Axe"), new(6976, "Whirlwind Warhammer"), new(6977, "Whirlwind Sword"), new(6953, "Verigan's Fist"),
         new(6220, "Meteor Shard"), new(1482, "Shadowfang"), new(6909, "Strike of the Hydra"), new(1155, "Rod of the Sleepwalker"),
         new(7683, "Bloody Brass Knuckles"), new(9449, "Manual Crowd Pummeler"),
+        new(2933, "Seal of Wrynn"), new(6469, "Venomstrike"), new(6463, "Deep Fathom Ring"), new(6472, "Stinging Viper"),
+        new(7713, "Illusionary Rod"), new(7714, "Hypnotic Blade"), new(10410, "Leggings of the Fang"), new(9624, "Triprunner Dungarees"),
+        new(7689, "Morbid Dawn"), new(7690, "Ebon Vise"), new(7688, "Ironspine's Ribcage"), new(7686, "Ironspine's Eye"),
+        new(271767, "Healer's Staff"), new(4500, "Traveler's Backpack"), new(4984, "Skull of Impending Doom"), new(2820, "Nifty Stopwatch"),
+        new(19106, "Ice Barbed Spear"), new(10775, "Carapace of Tuten'kash"), new(10763, "Icemetal Barbute"), new(274158, "Death Prophet Spine"),
+        new(2816, "Death Speaker Scepter"), new(6687, "Corpsemaker"), new(6691, "Swinetusk Shank"), new(6689, "Wind Spirit Staff"),
+        new(6692, "Pronged Reaver"), new(9459, "Thermaplugg's Left Arm"), new(9492, "Electromagnetic Gigaflux Reactivator"), new(7230, "Smite's Mighty Hammer"),
+        new(271211, "Vilewalkers"), new(271217, "Corpse Chopper"), new(6633, "Butcher's Slicer"), new(1292, "Butcher's Cleaver"),
+        new(273637, "Blade of Silverlaine"), new(6321, "Silverlaine's Family Seal"), new(6414, "Seal of Sylvanas"), new(3191, "Arced War Axe"),
+        new(273643, "Worgenbane Talisman"), new(6641, "Haunting Blade"), new(15424, "Axe of Orgrimmar"), new(15444, "Staff of Orgrimmar"),
+        new(279895, "Ironforge Greathammer"), new(279896, "Deepblaze"), new(270227, "Ephemeral Choker"), new(270256, "Durgen's Crescent Axe"),
+        new(6505, "Crescent Staff"), new(2042, "Staff of Westfall"), new(17753, "Verdant Keeper's Aim"), new(11122, "Carrot on a Stick"),
+        new(19141, "Luffa"), new(1191, "Bag of Marbles"), new(7001, "Gravestone Scepter"), new(19120, "Rune of the Guard Captain"), new(6468, "Deviate Scale Belt"),
+        // Classic's ids, not in Wowhead's Forever database yet (ids are shared, the tooltip falls back to Classic's).
+        new(6802, "Sword of Omen"), new(10823, "Vanquisher's Sword"), new(10758, "X'caliboar"), new(10768, "Boar Champion's Belt"),
+        new(10761, "Coldrage Dagger"), new(6830, "Bonebiter"), new(15411, "Mark of Fordring"),
     ]);
 
     public static readonly IReadOnlyList<ReadyMadeList> All = [RareAndFun, LevelingLegends];
