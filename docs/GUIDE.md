@@ -70,7 +70,7 @@ Each game has its own look, and under Settings you can pick a color theme per ga
 
 ### Followed items
 
-The **Followed items** tab (right of In game) is your own wish list or BiS list, kept per game. Search by name (it asks Wowhead), or paste an item's Wowhead address or id, and click **Follow**. On Forever the search also shows Classic's items, since Wowhead's Forever database isn't complete yet. Wowhead's search gives about ten results of all kinds, so be specific.
+The **Followed items** tab (right of In game) is your own wish list or BiS list, kept per game. Search by name (it asks Wowhead as you type), or paste an item's Wowhead address or id, and click **Follow**. On Forever the search also shows Classic's items, since Wowhead's Forever database isn't complete yet. Wowhead's search gives about ten results of all kinds, so be specific.
 
 When a character gets a followed item, by looting, buying, crafting or as a quest reward, you can get:
 

@@ -12,6 +12,7 @@ sealed class FollowedItemsViewModel : Observable
     readonly Func<FlavorSettings> settings;
     readonly Action changed;
     int searchNumber; // only the newest search shows its answer
+    const int MinTypedLength = 2; // one letter finds nothing useful, Enter still searches it
 
     public FollowedItemsViewModel(Flavor flavor, GameLookup lookup, Func<FlavorSettings> settings, Action changed)
     {
@@ -19,7 +20,7 @@ sealed class FollowedItemsViewModel : Observable
         this.lookup = lookup;
         this.settings = settings;
         this.changed = changed;
-        SearchCommand = new RelayCommand(_ => _ = SearchAsync());
+        SearchCommand = new RelayCommand(_ => _ = SearchAsync(1));
         FollowCommand = new RelayCommand(p => { if (p is FollowedRow row) Toggle(row); });
         foreach (var item in settings().FollowedItems) Followed.Add(Row(item.Id, item.Name));
     }
@@ -31,7 +32,11 @@ sealed class FollowedItemsViewModel : Observable
     public bool IsEmpty => Followed.Count == 0;
 
     string query = "";
-    public string Query { get => query; set => Set(ref query, value); }
+    public string Query
+    {
+        get => query;
+        set { if (Set(ref query, value)) _ = SearchAsync(MinTypedLength); } // the box waits for a pause in the typing
+    }
 
     // Under the search box: what's going on, or why there's nothing to show.
     string status = "";
@@ -46,16 +51,17 @@ sealed class FollowedItemsViewModel : Observable
         return new FollowedRow(info, name, settings().FollowedItems.Any(i => i.Id == id));
     }
 
-    async Task SearchAsync()
+    // The old results stay until the new ones are in, so the list doesn't blink while typing.
+    async Task SearchAsync(int minLength)
     {
         var text = Query.Trim();
         var number = ++searchNumber;
-        Results.Clear();
         Failed = false;
-        if (text.Length == 0) { Status = ""; return; }
+        if (text.Length < minLength) { Results.Clear(); Status = ""; return; }
         Status = "Searching...";
         var hits = await FindAsync(text);
         if (number != searchNumber) return;
+        Results.Clear();
         if (hits is null)
         {
             Failed = true;
