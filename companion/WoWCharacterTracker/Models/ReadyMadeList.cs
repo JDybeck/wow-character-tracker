@@ -58,6 +58,8 @@ sealed record ReadyMadeList(string Key, string Name, string Tag, string Hint, IR
         new(9477, "The Chief's Enforcer"), new(9478, "Ripsaw"), new(9479, "Embrace of the Lycan"), new(9480, "Eyegouger"),
         new(12470, "Sandstalker Ankleguards"), new(18082, "Zum'rah's Vexing Cane"),
         new(17713, "Blackstone Ring"), new(17719, "Inventor's Focal Sword"), new(17730, "Gatorbite Axe"), new(17732, "Rotgrip Mantle"),
+        new(9372, "Sul'thraze the Lasher"), new(17766, "Princess Theradras' Scepter"), new(10799, "Headspike"), new(12463, "Drakefang Butcher"),
+        new(12243, "Smoldering Claw"), new(10837, "Tooth of Eranikus"),
     ]);
 
     public static readonly IReadOnlyList<ReadyMadeList> All = [RareAndFun, LevelingLegends];
