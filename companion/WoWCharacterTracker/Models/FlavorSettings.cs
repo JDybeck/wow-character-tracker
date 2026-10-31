@@ -30,6 +30,13 @@ class FlavorSettings
     // The list is replaced, never changed in place, since the tracker's thread reads it.
     public bool PostFollowed { get; set; } = true;
     public List<FollowedItem> FollowedItems { get; set; } = [];
+    // Also follow the ready-made list (NotableItems). Only offered where Flavor.HasNotableItems.
+    public bool FollowNotable { get; set; }
+    // The user's own items, then the ready-made ones not among them.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<FollowedItem> AllFollowed => FollowNotable
+        ? [.. FollowedItems, .. NotableItems.All.Where(n => FollowedItems.All(i => i.Id != n.Id))]
+        : FollowedItems;
     public bool PostMounts { get; set; } = true;
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
@@ -165,7 +172,8 @@ class FlavorSettings
         FirstBossKillOnly && history.Any(o => o.Kind == "boss" && o.Guid == e.Guid && o.Boss == e.Boss && o.At < e.At);
 
     // An item on this game's followed list: loot, or a mount that came as an item.
-    public bool Follows(Entry e) => e.Kind is "loot" or "mount" && e.ItemId > 0 && FollowedItems.Any(i => i.Id == e.ItemId);
+    public bool Follows(Entry e) => e.Kind is "loot" or "mount" && e.ItemId > 0
+        && (FollowedItems.Any(i => i.Id == e.ItemId) || (FollowNotable && NotableItems.Contains(e.ItemId)));
 
     // This event posted as a followed item, whatever the other loot rules say. It stays one event, so
     // one post, when another rule wants it too.
@@ -173,7 +181,7 @@ class FlavorSettings
 
     // The events with the followed ones marked, for the overlay.
     public IReadOnlyList<Entry> MarkFollowed(IReadOnlyList<Entry> events) =>
-        FollowedItems.Count == 0 ? events : [.. events.Select(e => Follows(e) ? e with { Followed = true } : e)];
+        AllFollowed.Count == 0 ? events : [.. events.Select(e => Follows(e) ? e with { Followed = true } : e)];
 
     public bool Wants(Entry e) => PostsAsFollowed(e) || e.Kind switch
     {

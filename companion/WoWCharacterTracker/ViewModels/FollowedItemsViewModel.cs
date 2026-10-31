@@ -22,14 +22,31 @@ sealed class FollowedItemsViewModel : Observable
         this.changed = changed;
         SearchCommand = new RelayCommand(_ => _ = SearchAsync(1));
         FollowCommand = new RelayCommand(p => { if (p is FollowedRow row) Toggle(row); });
-        foreach (var item in settings().FollowedItems) Followed.Add(Row(item.Id, item.Name));
+        BuildList();
     }
 
     public ICommand SearchCommand { get; }
     public ICommand FollowCommand { get; }
     public ObservableCollection<FollowedRow> Results { get; } = [];
-    public ObservableCollection<FollowedRow> Followed { get; } = [];
-    public bool IsEmpty => Followed.Count == 0;
+
+    // The list, in its categories (the empty ones left out).
+    IReadOnlyList<FollowedGroup> groups = [];
+    public IReadOnlyList<FollowedGroup> Groups { get => groups; private set { Set(ref groups, value); Raise(nameof(IsEmpty)); } }
+    public bool IsEmpty => Groups.Count == 0;
+
+    // The ready-made list of rare and fun items, where the game has one.
+    public bool HasNotableItems => flavor.HasNotableItems;
+    public bool FollowNotable
+    {
+        get => settings().FollowNotable;
+        set
+        {
+            settings().FollowNotable = value;
+            Raise(nameof(FollowNotable));
+            BuildList();
+            changed();
+        }
+    }
 
     string query = "";
     public string Query
@@ -50,6 +67,41 @@ sealed class FollowedItemsViewModel : Observable
         info.Fallback(name);
         return new FollowedRow(info, name, settings().FollowedItems.Any(i => i.Id == id));
     }
+
+    int listNumber; // only the newest list gets sorted again
+
+    ItemInfo ListedInfo(FollowedItem item)
+    {
+        var info = lookup.Item(item.Id);
+        info.Fallback(item.Name);
+        return info;
+    }
+
+    // A category comes from the tooltip, so the rows sort again once their lookups are done (without
+    // an answer they stay under Other).
+    void BuildList()
+    {
+        var number = ++listNumber;
+        var own = settings().FollowedItems;
+        var rows = settings().AllFollowed
+            .Select(i => own.Any(o => o.Id == i.Id) ? Row(i.Id, i.Name) : new FollowedRow(ListedInfo(i), i.Name, false) { IsReadyMade = true })
+            .ToList();
+        Groups = Grouped(rows);
+        _ = GroupWhenLoadedAsync(rows, number);
+    }
+
+    async Task GroupWhenLoadedAsync(List<FollowedRow> rows, int number)
+    {
+        await Task.WhenAll(rows.Select(r => r.Info.WhenLoaded));
+        if (number == listNumber) Groups = Grouped(rows);
+    }
+
+    static List<FollowedGroup> Grouped(List<FollowedRow> rows) =>
+    [
+        .. ItemCategories.All
+            .Select(c => new FollowedGroup(c, [.. rows.Where(r => ItemCategories.Of(r.Info.Tooltip) == c).OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)]))
+            .Where(g => g.Rows.Count > 0),
+    ];
 
     // The old results stay until the new ones are in, so the list doesn't blink while typing.
     async Task SearchAsync(int minLength)
@@ -89,10 +141,8 @@ sealed class FollowedItemsViewModel : Observable
             ? [new FollowedItem(id, row.Name), .. s.FollowedItems]
             : [.. s.FollowedItems.Where(i => i.Id != id)];
 
-        if (follow) Followed.Insert(0, Row(id, row.Name));
-        else if (Followed.FirstOrDefault(r => r.Info.ItemId == id) is { } shown) Followed.Remove(shown);
+        BuildList();
         if (Results.FirstOrDefault(r => r.Info.ItemId == id) is { } result) result.IsFollowed = follow;
-        Raise(nameof(IsEmpty));
         changed();
     }
 
@@ -107,6 +157,9 @@ sealed class FollowedItemsViewModel : Observable
     }
 }
 
+// A category of the list: its title and items.
+sealed record FollowedGroup(string Title, IReadOnlyList<FollowedRow> Rows);
+
 // An item on the page, in the search results or the list.
 sealed class FollowedRow(ItemInfo info, string name, bool followed) : Observable
 {
@@ -117,7 +170,10 @@ sealed class FollowedRow(ItemInfo info, string name, bool followed) : Observable
     public bool IsFollowed
     {
         get => isFollowed;
-        set { if (Set(ref isFollowed, value)) Raise(nameof(ActionText)); }
+        set { if (Set(ref isFollowed, value)) { Raise(nameof(ActionText)); Raise(nameof(IsListed)); } }
     }
+    // In the list only through the ready-made list: nothing to remove, that list has its own switch.
+    public bool IsReadyMade { get; init; }
+    public bool IsListed => IsReadyMade && !IsFollowed;
     public string ActionText => IsFollowed ? "Remove" : "Follow";
 }

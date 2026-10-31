@@ -70,7 +70,9 @@ Each game has its own look, and under Settings you can pick a color theme per ga
 
 ### Followed items
 
-The **Followed items** tab (right of In game) is your own wish list or BiS list, kept per game. Search by name (it asks Wowhead as you type), or paste an item's Wowhead address or id, and click **Follow**. On Forever the search also shows Classic's items, since Wowhead's Forever database isn't complete yet. Wowhead's search gives about ten results of all kinds, so be specific.
+The **Followed items** tab (right of In game) is your own wish list or BiS list, kept per game. Search by name (it asks Wowhead as you type), or paste an item's Wowhead address or id, and click **Follow**. On Forever the search also shows Classic's items, since Wowhead's Forever database isn't complete yet. Wowhead's search gives about ten results of all kinds, so be specific. The list is sorted into **Weapons**, **Armor**, **Jewelry and trinkets**, **Mounts** and **Other**.
+
+On Forever, **Exceedingly rare and fun items** (off by default) also follows a ready-made list of famous drops and fun finds, like Deathcharger's Reins, Teebu's Blazing Longsword and Baby Crocolisk. Legendaries aren't on it, since those are always posted.
 
 When a character gets a followed item, by looting, buying, crafting or as a quest reward, you can get:
 

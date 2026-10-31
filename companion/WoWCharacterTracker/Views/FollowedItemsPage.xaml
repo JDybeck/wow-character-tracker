@@ -10,7 +10,10 @@
     <DataTemplate DataType="{x:Type vm:FollowedRow}">
       <DockPanel Margin="0,3">
         <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Content="{Binding ActionText}" VerticalAlignment="Center" Margin="10,0,0,0"
-                Command="{Binding DataContext.FollowCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                Command="{Binding DataContext.FollowCommand, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" CommandParameter="{Binding}"
+                Visibility="{Binding IsListed, Converter={StaticResource Hidden}}"/>
+        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Hint}" Text="Rare and fun" VerticalAlignment="Center" Margin="10,0,0,0"
+                   Visibility="{Binding IsListed, Converter={StaticResource Visible}}"/>
         <Grid Background="Transparent" ui:ItemTip.Info="{Binding Info}">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
@@ -78,9 +81,26 @@
         <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
           <DockPanel>
             <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionTitle}" Text="Following" Margin="0,0,0,8"/>
+            <CheckBox DockPanel.Dock="Top" IsChecked="{Binding FollowNotable}" Margin="0,0,0,10"
+                      ToolTip="Also follow a ready-made list of items the community knows as rare or fun"
+                      Visibility="{Binding HasNotableItems, Converter={StaticResource Visible}}">
+              <StackPanel>
+                <TextBlock Text="Exceedingly rare and fun items" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                <TextBlock Style="{StaticResource Hint}" Text="A ready-made list of famous drops and fun finds. Legendaries aren't on it, those are always posted."/>
+              </StackPanel>
+            </CheckBox>
             <Grid>
               <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-                <ItemsControl ItemsSource="{Binding Followed}" Focusable="False"/>
+                <ItemsControl ItemsSource="{Binding Groups}" Focusable="False">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Margin="0,0,0,10">
+                        <TextBlock Style="{StaticResource FactLabel}" Text="{Binding Title}" Margin="0,0,0,4"/>
+                        <ItemsControl ItemsSource="{Binding Rows}" Focusable="False"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
               </ScrollViewer>
               <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="300"
                           Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}">

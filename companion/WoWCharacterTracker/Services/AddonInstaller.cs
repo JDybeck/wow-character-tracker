@@ -90,7 +90,7 @@ static partial class AddonInstaller
                   + $"  screenshot = {{ {shots} }},\n"
                   + $"  post = {{ {post} }},\n"
                   // The followed items, since the addon only records rare and better otherwise.
-                  + $"  followed = {{ {string.Concat(s.FollowedItems.Select(i => $"[{i.Id}] = true, "))}}},\n"
+                  + $"  followed = {{ {string.Concat(s.AllFollowed.Select(i => $"[{i.Id}] = true, "))}}},\n"
                   + $"  hideChat = {B(s.HideChatInShots)},\n"
                   + $"  hideUI = {B(s.HideUiInShots)},\n"
                   + $"  flightReload = {B(s.FlightReloadPrompt)},\n"

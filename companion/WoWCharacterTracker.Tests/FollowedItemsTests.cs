@@ -49,6 +49,49 @@ public class FollowedItemsTests
     [InlineData("", null)]
     public void A_pasted_address_or_id_gives_the_item(string text, int? id) => Assert.Equal(id, Wowhead.ItemIdFrom(text));
 
+    // Wowhead's Forever tooltips (saved 2026-10-31), the start of each.
+    [Theory]
+    [InlineData("""<table><tr><td><b class="q4">Teebu's Blazing Longsword</b><br>Binds when equipped<br>Unique-Equipped<table width="100%"><tr><td>Main Hand</td><th><span class="q1">Sword</span></th></tr></table>""", ItemCategories.Weapons)]
+    [InlineData("""<table><tr><td><b class="q4">Cloak of Flames</b><br>Binds when equipped<table width="100%"><tr><td>Back</td></tr></table><span>50 Armor</span></td></tr></table>""", ItemCategories.Armor)]
+    [InlineData("""<table><tr><td><b class="q4">The Eye of Shadow</b><br>Unique<table width="100%"><tr><td>Trinket</td><th><span class="q1"></span></th></tr></table></td></tr></table>""", ItemCategories.Jewelry)]
+    [InlineData("""<table><tr><td><b class="q3">Deathcharger's Reins</b><br>Unique<br />Mount <span class="q0">(Account-wide)</span></td></tr></table>""", ItemCategories.Mounts)]
+    [InlineData("""<table><tr><td><b class="q4">Plans: Lionheart Helm</b><br>Use: Teaches you how to make a Lionheart Helm.<br>Lionheart Helm<table width="100%"><tr><td>Head</td><th>Plate</th></tr></table></td></tr></table>""", ItemCategories.Other)]
+    [InlineData("""<table><tr><td><b class="q4">Head of Onyxia</b><br>Unique<br>This Item Begins a Quest</td></tr></table>""", ItemCategories.Other)]
+    [InlineData("""<table><tr><td><b class="q1">Chicken Egg</b><br>Use: Teaches you how to summon this companion.</td></tr></table>""", ItemCategories.Other)]
+    [InlineData("""<table><tr><td><b class="q3">Bulwark</b><table width="100%"><tr><td>Off Hand</td><th>Shield</th></tr></table></td></tr></table>""", ItemCategories.Armor)]
+    public void The_tooltip_gives_the_category(string html, string category) => Assert.Equal(category, ItemCategories.Of(TooltipHtml.ToText(html)));
+
+    [Fact]
+    public void An_item_without_a_tooltip_is_other() => Assert.Equal(ItemCategories.Other, ItemCategories.Of(null));
+
+    [Fact]
+    public void The_ready_made_list_only_counts_when_on_and_adds_to_your_own()
+    {
+        var deathcharger = new Entry { Kind = "mount", ItemId = 13335 };
+        var mine = Following(13335, Followed);
+        Assert.Equal(2, mine.AllFollowed.Count);
+
+        var off = new FlavorSettings();
+        Assert.False(off.Follows(deathcharger));
+        Assert.Empty(off.AllFollowed);
+
+        var on = new FlavorSettings { FollowNotable = true };
+        Assert.True(on.Follows(deathcharger));
+        Assert.Equal(NotableItems.All.Count, on.AllFollowed.Count);
+
+        mine.FollowNotable = true; // one of them is on both: listed once
+        Assert.Equal(NotableItems.All.Count + 1, mine.AllFollowed.Count);
+        Assert.Single(mine.AllFollowed, i => i.Id == 13335);
+    }
+
+    [Fact]
+    public void The_ready_made_list_has_no_repeats_and_only_forever_offers_it()
+    {
+        Assert.Equal(NotableItems.All.Count, NotableItems.All.DistinctBy(i => i.Id).Count());
+        Assert.True(Flavors.Forever.HasNotableItems);
+        Assert.False(Flavors.Retail.HasNotableItems);
+    }
+
     [Fact]
     public void Classic_search_hits_only_add_names_forever_lacks_once_each()
     {
