@@ -124,6 +124,19 @@ public class RatingTests
         Assert.Equal("Old style line.", versions[1].Groups[0].Items[0].Text);
     }
 
+    // The addon has its own version: the same one is left alone whatever version the app is.
+    [Theory]
+    [InlineData(null, "0.31.1", null)]
+    [InlineData("0.31.1", "0.31.1", 0)]
+    [InlineData("0.31.0", "0.31.1", -1)]
+    [InlineData("0.32.0", "0.31.1", 1)]
+    [InlineData("?", "0.31.1", -1)]
+    public void Addon_versions_compare(string? installed, string bundled, int? expected)
+    {
+        var result = AddonInstaller.Compare(installed, bundled);
+        Assert.Equal(expected, result is null ? null : Math.Sign(result.Value));
+    }
+
     // The real file: What's new shows this version first, and every section keeps the two groups.
     [Fact]
     public void The_built_in_changelog_starts_at_this_version_and_uses_the_groups()

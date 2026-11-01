@@ -1,12 +1,14 @@
 # Push a tag like v0.8.0 and this builds WoWCharacterTracker.exe and attaches it to a GitHub Release.
 # The release notes come from that version's section in CHANGELOG.md; the app shows them when it
-# finds an update.
+# finds an update. A tag like addon-v0.32.0 (release.ps1 adds it when the addon changed) sends the
+# addon to the addon sites instead.
 name: Release
 
 on:
   push:
     tags:
       - "v*"
+      - "addon-v*"
 
 # Read by default, only the job that creates the release gets write.
 # Third-party actions are pinned to a commit because a tag can be moved; Dependabot bumps them.
@@ -19,7 +21,7 @@ jobs:
   # CurseForge: variable CURSEFORGE_PROJECT_ID, secret CF_API_KEY.
   # Wago Addons: variable WAGO_PROJECT_ID, secret WAGO_API_TOKEN.
   addon-sites:
-    if: vars.CURSEFORGE_PROJECT_ID != '' || vars.WAGO_PROJECT_ID != ''
+    if: startsWith(github.ref_name, 'addon-v') && (vars.CURSEFORGE_PROJECT_ID != '' || vars.WAGO_PROJECT_ID != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -36,6 +38,7 @@ jobs:
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
 
   release:
+    if: startsWith(github.ref_name, 'v')
     runs-on: windows-latest
     permissions:
       contents: write
