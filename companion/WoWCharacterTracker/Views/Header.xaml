@@ -5,6 +5,7 @@
              xmlns:local="clr-namespace:WoWCharacterTracker"
              xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
              xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:views="clr-namespace:WoWCharacterTracker.Views"
              xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure">
   <!-- The tabs stay in the middle of the window: both sides get the same share of what's left (*),
        whatever they hold, so a longer status line never moves them. The status line shortens
@@ -67,6 +68,43 @@
     </Border>
 
     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+      <!-- What's new: the last versions in a popup. Can't be clicked while open, like the settings button. -->
+      <ToggleButton x:Name="ChangelogButton" IsChecked="{Binding Updates.ShowChangelog}" Cursor="Hand" Margin="0,0,6,0"
+                    ToolTip="See what changed in the last three versions"
+                    IsHitTestVisible="{Binding IsOpen, ElementName=ChangelogPopup, Converter={StaticResource Not}}">
+        <ToggleButton.Style>
+          <Style TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                  <Border Padding="6,4" Background="Transparent">
+                    <ContentPresenter/>
+                  </Border>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+            </Style.Triggers>
+          </Style>
+        </ToggleButton.Style>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE734;" FontSize="15"
+                     Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
+          <TextBlock x:Name="ChangelogLabel" Text="What's new" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"
+                     Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
+        </StackPanel>
+      </ToggleButton>
+      <Popup x:Name="ChangelogPopup" IsOpen="{Binding Updates.ShowChangelog}" StaysOpen="False" PlacementTarget="{Binding ElementName=ChangelogButton}"
+             Placement="Bottom" HorizontalOffset="-300" VerticalOffset="6" AllowsTransparency="True" PopupAnimation="Fade">
+        <views:ChangelogPanel/>
+      </Popup>
       <!-- Feedback: the repo's Discussions page. -->
       <Button Style="{StaticResource GhostButton}" Padding="6,4" Margin="0,0,6,0" Command="{Binding OpenUrlCommand}"
               CommandParameter="https://github.com/JDybeck/wow-character-tracker/discussions"

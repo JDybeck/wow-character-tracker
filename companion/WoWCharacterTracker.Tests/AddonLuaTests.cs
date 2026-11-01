@@ -1,3 +1,4 @@
+using System.Globalization;
 using MoonSharp.Interpreter;
 
 namespace WoWCharacterTracker.Tests;
@@ -168,7 +169,7 @@ public class AddonLuaTests
         ns["addEvent"] = (Action<Table>)recorded.Add;
         ns["IS_RETAIL"] = true;
         ns["recentBosses"] = new Table(script);
-        foreach (var file in new[] { "Shared.lua", "Events.lua" })
+        foreach (var file in new[] { "Shared.lua", "Events.lua", "PvP.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
         script.Call(ns.Get("recordKeyRun"));
@@ -185,6 +186,85 @@ public class AddonLuaTests
         Assert.Equal(tableApi ? 1601 : 2400, e.Get("seconds").Number);
         Assert.Equal(tableApi ? 2847 : 2810, e.Get("rating").Number);
         Assert.Equal("Dreadus~90~DEMONHUNTER~Demon Hunter~Night Elf~ArgentDawn~Havoc", e.Get("group").String);
+    }
+
+    // Shared.lua, Events.lua and PvP.lua as on Retail, with the game's rating APIs stubbed by setup.
+    static (Script Script, Table Ns, List<Table> Recorded) RatingScript(string setup)
+    {
+        var script = new Script();
+        script.DoString("""
+            function time() return 5000 end
+            function GetNumGroupMembers() return 0 end
+            function IsInGroup() return false end
+            WoWCharacterTrackerDB = { ratings = { ['Player-1'] = { mplus = 0 } } }
+            WoWCharacterTrackerSettings = { post = { mplusSteps = { 2000, 3000 }, pvpSteps = { 1800, 2100 } } }
+            """ + "\n" + setup);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 90 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        ns["IS_RETAIL"] = true;
+        foreach (var file in new[] { "Shared.lua", "Events.lua", "PvP.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        return (script, ns, recorded);
+    }
+
+    // A Mythic+ step comes from the finished key's own scores, whatever the game reported at login.
+    [Theory]
+    [InlineData(2990.5, 3011.2, 3000)]  // crossed by this key
+    [InlineData(3011, 3020, 0)]         // already past it
+    [InlineData(3011, 3011, 0)]         // no better
+    public void Mythic_plus_steps_come_from_the_finished_key(double oldScore, double newScore, int expected)
+    {
+        var (script, ns, recorded) = RatingScript($$"""
+            C_ChallengeMode = {
+              GetMapUIInfo = function() return 'Ara-Kara' end,
+              GetChallengeCompletionInfo = function()
+                return { mapChallengeModeID = 503, level = 12, time = 1601500, onTime = true, keystoneUpgradeLevels = 1,
+                  oldOverallDungeonScore = {{oldScore.ToString(CultureInfo.InvariantCulture)}},
+                  newOverallDungeonScore = {{newScore.ToString(CultureInfo.InvariantCulture)}} }
+              end,
+            }
+            """);
+
+        script.Call(ns.Get("recordKeyRun"));
+
+        var steps = recorded.Where(e => e.Get("kind").String == "mplus").ToList();
+        if (expected == 0) Assert.Empty(steps);
+        else
+        {
+            Assert.Equal(expected, Assert.Single(steps).Get("step").Number);
+            Assert.Equal(3011, steps[0].Get("rating").Number);
+        }
+    }
+
+    // A rating the game answers with at login is only the baseline, however low the old saved one
+    // was. Zeros (not answered yet) change nothing, and only a climb past a step in the session counts.
+    [Fact]
+    public void Pvp_steps_only_count_when_crossed_during_the_session()
+    {
+        var (script, ns, recorded) = RatingScript("""
+            rated = 0
+            function GetPersonalRatedInfo(index) return index == 2 and rated or 0 end
+            """);
+        var check = ns.Get("checkPvpRatings");
+
+        script.Call(check); // not answered yet
+        script.DoString("rated = 2150");
+        script.Call(check); // already there at login
+        Assert.Empty(recorded);
+
+        script.DoString("rated = 2050");
+        script.Call(check); // lost some
+        script.DoString("rated = 2110");
+        script.Call(check); // climbed past 2100
+
+        var e = Assert.Single(recorded);
+        Assert.Equal("pvp", e.Get("kind").String);
+        Assert.Equal(2100, e.Get("step").Number);
+        Assert.Equal("3v3", e.Get("bracket").String);
+        Assert.True(script.DoString("return WoWCharacterTrackerDB.ratings == nil").Boolean);
     }
 
     // Events.lua with the game's skill list stubbed (Classic style); the recorded events come back.

@@ -40,7 +40,6 @@ function on.PLAYER_ENTERING_WORLD()
   C_Timer.After(2, ns.applyGameSettings)
   C_Timer.After(10, ns.saveSnapshot)
   C_Timer.After(10, ns.scanInventory)
-  C_Timer.After(12, ns.checkRatings)
   C_Timer.After(12, ns.checkProfessions) -- the baseline, and anything learned while logged out
   C_Timer.After(15, ns.checkIn)
   if ns.IS_RETAIL and type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
@@ -78,11 +77,8 @@ function on.CHAT_MSG_SYSTEM(text) ns.onSystemMessage(text) end -- duels and Mak'
 function on.DUEL_REQUESTED(name) ns.onDuelRequested(name) end -- remembers the challenger's class and level
 function on.CHALLENGE_MODE_START() C_Timer.After(1, ns.inspectGroup) end -- the party's specs, for the run's group
 function on.INSPECT_READY() ns.onInspectReady() end
-function on.CHALLENGE_MODE_COMPLETED()
-  ns.recordKeyRun()
-  C_Timer.After(5, ns.checkRatings) -- the new score takes a moment
-end
-function on.PVP_RATED_STATS_UPDATE() ns.checkRatings() end
+function on.CHALLENGE_MODE_COMPLETED() ns.recordKeyRun() end
+function on.PVP_RATED_STATS_UPDATE() ns.checkPvpRatings() end
 function on.UPDATE_BATTLEFIELD_STATUS() ns.checkBattleground() end
 function on.PVP_MATCH_COMPLETE() ns.checkBattleground() end -- retail
 -- Skill-ups (weapon skills too, in a stream while fighting), so once per burst.

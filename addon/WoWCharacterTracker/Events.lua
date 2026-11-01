@@ -379,10 +379,10 @@ local function completionInfo()
     if ok and type(info) == "table" then return info end
   end
   if cm.GetCompletionInfo then
-    local ok, mapID, level, ms, onTime, upgrades, practice, _, newScore = pcall(cm.GetCompletionInfo)
+    local ok, mapID, level, ms, onTime, upgrades, practice, oldScore, newScore = pcall(cm.GetCompletionInfo)
     if ok then
-      return { mapChallengeModeID = mapID, level = level, time = ms, onTime = onTime,
-        keystoneUpgradeLevels = upgrades, practiceRun = practice, newOverallDungeonScore = newScore }
+      return { mapChallengeModeID = mapID, level = level, time = ms, onTime = onTime, keystoneUpgradeLevels = upgrades,
+        practiceRun = practice, oldOverallDungeonScore = oldScore, newOverallDungeonScore = newScore }
     end
   end
   return nil
@@ -410,6 +410,7 @@ function ns.recordKeyRun()
     rating = (type(score) == "number" and score > 0) and math.floor(score) or nil,
     group = group, groupSize = groupSize, at = now,
   }, string.format("keyrun:%d:%d", mapID, now))
+  ns.checkKeyRating(plain(info.oldOverallDungeonScore), score)
   ns.say(string.format("Mythic+ done: +%d %s, %s.", keyLevel, dungeon or "?", timed and ("timed +" .. math.max(1, up)) or "over time"))
 end
 

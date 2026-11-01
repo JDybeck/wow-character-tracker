@@ -1,14 +1,31 @@
-﻿# Changelog
+# Changelog
 
-The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
+The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
+
+## v0.31.1
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **What's new button**: the button at the top of the window shows the changes in the last three versions, with new features apart from fixes and tweaks, and links to the full changelog. It works without a connection.
+
+### Fixes and tweaks
+
+- Retail: logging in no longer counts as reaching a Mythic+ or PvP rating step. Alts could "reach" a step with another character's rating, and a step could show up again long after you reached it. Mythic+ steps now come only from a finished key that crosses the step, PvP steps only from climbing past one while you're playing.
 
 ## v0.31.0
 
 Post a highlight when you feel like it, and change the in-game settings in the game. Update the addon with the app (it does this by itself) and /reload in game.
 
+### New
+
 - **Ask before a highlight goes unposted**: when What gets posted doesn't post a boss kill or rare or epic gear, a small box in game offers to, with **Post** and **Skip**. It covers every boss, not only the last one. On by default on Forever, off on Retail, with switches on the **In game** page.
 - **Change the In game settings in game**: guild and group lines, the box above, reload reminders, the instant post pattern and saved history can now be changed under Esc, Options, AddOns (or `/wct options`). They apply right away and reach the app on your next /reload or logout. The newest change wins.
 - **Hardcore deaths name the killer** again, from the game's death recap (or say falling, drowning and so on), in posts and in chat.
+
+### Fixes and tweaks
+
 - Guild and group lines go out at most one every 2 seconds and 8 a minute, so a backlog after combat doesn't flood chat. None are lost.
 - Forever: a new rare or epic drop the game hadn't loaded yet no longer goes missing.
 - Forever: chat text hidden during a boss fight no longer risks errors from the addon. Loot from the fight itself still isn't seen, the game doesn't allow it.
@@ -19,8 +36,13 @@ Post a highlight when you feel like it, and change the in-game settings in the g
 
 Followed items and more stream overlay options. Update the addon with the app (it does this by itself) and /reload in game.
 
+### New
+
 - **Followed items**: a new tab to search Wowhead (or paste an address or id) and keep your own wish or BiS list per game. Getting one gives a Discord post, an ITEM FOUND! overlay alert and optionally a guild or group chat line, once each, at any quality. Switches sit in What gets posted, In game and the stream overlay. The list is sorted into categories, you can share it as a code with **Copy list** and **Paste list**, and on Forever you can also turn on the ready-made lists **Exceedingly rare and fun items** and **Leveling legends**.
 - Stream overlay: new **DUNGEON COMPLETE!** alert on Forever when a dungeon's end boss dies, with its own on/off option.
+
+### Fixes and tweaks
+
 - Stream overlay: options only one game has now sit in their own **Forever only** and **Retail only** boxes, and your settings carry over.
 - Stream overlay: rare alerts and highlights can be limited to Bind on Equip, like the Discord option. Rare alerts are limited by default.
 - Stream overlay: the highlights box has its own background slider (**Highlights bg**), separate from the card's (**Card bg**). It starts at the value you already had.
@@ -31,9 +53,14 @@ Followed items and more stream overlay options. Update the addon with the app (i
 
 More to post, from feedback on Reddit. Update the addon with the app (it does this by itself) and /reload in game.
 
+### New
+
 - **Profession milestones**: a post when a main profession passes 75, 150, 225 or 300 skill on Forever, or reaches 100 on Retail (pick your own steps). They're highlights in the app and on the stream overlay too, and guild chat can announce them.
 - **Battleground wins** can be posted to Discord (off by default, in the PvP column).
 - **Rares: Bind on Equip only**, on by default: rare loot posts are now the world drops worth a shout, not every blue from a dungeon. Turn it off to post every rare like before.
+
+### Fixes and tweaks
+
 - Enchant names on Retail's Gear tab no longer start with a code like `|cnIQ4:`.
 - The addon no longer misses loot on a game client that lacks the stacked-loot message.
 
@@ -41,11 +68,15 @@ More to post, from feedback on Reddit. Update the addon with the app (it does th
 
 Ready for Forever's launch. Update the addon with the app (it does this by itself) and /reload in game.
 
+### Fixes and tweaks
+
 - End boss kills are recorded on Forever again. Since 0.28.0 the addon took Forever for Retail (the Forever game has Retail's Mythic+ functions under the hood) and skipped them. Mythic+, keystones and ratings now only run on Retail.
 - The addon's data screenshots are about 0.7 MB instead of 4 MB, so the game spends less time writing them at a ding or check-in. Quality 10 turned out to be the game's best quality, not its smallest; they now use the game's default.
 - The Leveling tab's time to max level no longer disappears after you log out. The game reports 0 XP while logging out, which used to overwrite your real XP bar.
 
 ## v0.28.1
+
+### Fixes and tweaks
 
 - The Mythic+ **From key level** box no longer jumps while you type: a `1` used to turn into 2 before the next digit came (so typing 15 gave 25, or 40). It takes 1 now, which posts every key just like 2.
 - Long class names in the character list ("Demon Hunter", "Death Knight") no longer run into the level.
@@ -54,9 +85,14 @@ Ready for Forever's launch. Update the addon with the app (it does this by itsel
 
 Mythic+ runs on Retail. Update the addon with the app (it does this by itself) and /reload in game.
 
+### New
+
 - **Mythic+ runs** take the place of end boss kills on Retail's What gets posted page: a finished key posts the dungeon, the time, how far the key goes up (or that it went over time), your new rating and the group. Pick the lowest key level that gets a post (+10 by default) and tick **Timed only** to skip keys that went over the timer. Screenshots work like the other kinds.
 - Every run is a highlight in the app and on the stream overlay, a timed key pops up as **TIMED!**, and guild/group chat can announce them (from the same key level).
 - Who was there, under a Mythic+ run or boss kill highlight, shows each name in its class color. On Retail the addon checks your party's specs when a key starts, so runs say "Dreadus (90 Havoc)" instead of the class (and Discord's group list adds the spec too).
+
+### Fixes and tweaks
+
 - The mouse wheel over a character's highlights scrolls the page again (a short list used to swallow it). The same goes for every list inside a page.
 - When a post should have had a screenshot but the game took none (the box was ticked after your last /reload, and the game only reads those settings then), the console now says so instead of posting quietly without it.
 - End boss kills are no longer recorded on Retail. The list is Classic's dungeons and raids, so there it only ever caught old raids soloed for transmog. Forever keeps them as before.
@@ -66,7 +102,7 @@ Mythic+ runs on Retail. Update the addon with the app (it does this by itself) a
 
 A faster, lighter and safer release. Update the addon with the app (it does this by itself) and /reload in game.
 
-**Faster and lighter**
+### Fixes and tweaks
 
 - The app uses far less CPU while it waits in the tray (about a tenth of before): checking whether WoW is running now takes one look at the running programs instead of six, and with the game closed it no longer checks your Screenshots folder every second (new pictures are still noticed right away while you play).
 - The app cleans up after older versions: each update left about 8 MB of WPF files in your temp folder (`%TEMP%\.net\WoWCharacterTracker`). Those are removed now, and the Uninstall page removes the rest with the app.
@@ -76,30 +112,30 @@ A faster, lighter and safer release. Update the addon with the app (it does this
 - In game, the addon no longer reads all your gear's tooltips again after every bag change while looting: only when your gear, enchants or spec change (and every 5 minutes). Equipping a whole equipment set saves the character once instead of once per item.
 - The addon's saved history no longer grows forever: it keeps every level-up, boss kill and everything else, but only the newest 300 loot, duels and battlegrounds per character. The duel and battleground records count those 300. Want it all? Tick **Keep everything** under **Saved history** on the In game page.
 - Live data screenshots are read a little quicker (the picture is decoded once instead of twice for the login check-in).
-
-**Safer**
-
 - Settings, posted history and caches are saved so a crash or power cut can't leave them broken. A settings file that still can't be read (say, after editing it by hand) is kept as `config.json.broken` instead of being replaced, so your webhooks can be brought back; the console says where it is.
 - If the list of what was already posted can't be read, the app starts that list over (nothing old gets posted again) instead of stopping all syncing for that game.
 - A broken or half-downloaded picture no longer causes an error or a failed post: it's skipped and downloaded again.
 - The "/reload to use the new settings" banner also goes away when the game crashed instead of closing normally.
-
-**Also**
-
 - The item picture in loot and mount posts is drawn the same way as the app's own tooltips. Wowhead's drop-source lines are left out of it now too.
 - The README is short now: what it is, how to install, and a quick tour. Every page and option is in the new [full guide](https://github.com/JDybeck/wow-character-tracker/blob/main/docs/GUIDE.md), with fresh pictures of this version.
 - Under the hood: one connection pool for everything the app downloads, one place for WoW's colors, and one cache helper for Wowhead and Raider.IO.
 
 ## v0.27.0
 
+### Fixes and tweaks
+
 - The small **WoW Character Tracker** line under the stream overlay's card and highlights is now always shown, and 20% smaller so it stays out of the way. The **Our name** option is gone.
 
 ## v0.26.2
+
+### Fixes and tweaks
 
 - The app's Wowhead cache (`wowhead.json`) is about half the size, so it loads and saves quicker and the app uses a little less memory. It shrinks the next time the app looks something up.
 - The app download is about 7 MB smaller (63 to 56 MB): parts of .NET the app never uses are left out.
 
 ## v0.26.1
+
+### Fixes and tweaks
 
 - The **ON** tag on a Discord webhook now sits centered in its row, in line with the buttons next to it.
 
@@ -107,44 +143,39 @@ A faster, lighter and safer release. Update the addon with the app (it does this
 
 Update the addon with the app (it does this by itself) and /reload in game: equipment sets, factions and mount icons need it.
 
-**Forever**
+### New
 
 - **Forever is live**: the app looks for Forever in `_forever_` first. If you set it up on the beta folder (`_classic_beta_`), it switches to `_forever_` by itself once that's installed, and brings the addon along.
-
-**Characters and gear**
-
 - **Equipment Manager sets on the Gear tab**: your sets show as chips above the gear (the one you wear marked *equipped*). Pick one to see its pieces in the slots: pieces in your bags or bank are grayed out with "in bags"/"in bank", pieces the game can't find are tinted red.
 - **Alliance and Horde**: each character row gets a thin blue or red edge and a small faction crest on its portrait, and the open details glow faintly in the faction's color. A faction filter (Alliance / Horde chips) shows when you have characters on both sides. Older characters get their faction from their race.
-- **Narrow windows**: the character list and details no longer cut things off. The RACE and PLAYED sort headers wrap instead of vanishing, the realm trims with the full name on hover, and long text in the details wraps or trims with a tooltip.
-
-**Look and setup**
-
 - **New color themes**: Alliance (Stormwind blue and gold), Horde (Orgrimmar red and black iron), Darnassus, Undercity and Icecrown.
 - **Every theme in both games**: Retail and Forever list all of them, so you can give Forever Midnight or Retail Classic gold. Each game keeps its own default and its own pick. The settings menu shows just your current theme; click it to pick from small swatches (names on hover).
-- **Slimmer setup checks**: Game folder, Addon and Discord are small chips above the Discord panel, one quiet line when everything is fine. Pick where they sit in Settings, Setup checks: Right (default), Top or Bottom.
-- **Can't miss a missing folder or addon**: without a game folder the app asks for one in a big amber card over the pages, with Browse. A missing addon gets the same card with Install.
 - **A quick tour for new installs**: six short steps through the game tabs, setup checks, Discord, the pages and Settings. It opens by itself while the app looks new; the ? button in the header brings it back any time.
-
-**Stream overlay**
-
 - **Sizes**: a Size slider for the whole overlay, plus its own width and height for the card (big enough to cover your chat box) and for the highlights. With a height set, the highlights box keeps its size and shows the newest lines that fit, so its text no longer jumps in OBS.
 - **Colors**: presets (Class, Gold, Alliance, Horde, Arcane, Fel, Frost, Mono) or your own accent and background as hex codes.
 - **Pick the card's stats**: item level, played, **played at this level**, gold, **talents** (like 31/20/0), zone, and on Retail the keystone and ratings.
 - **Icons in the highlights**: the item's own icon for loot and mounts (framed in its quality color), and an icon per kind for boss kills, duels, Mak'gora, battlegrounds, deaths and rating milestones.
+- **Mount posts show the mount**: like loot, the post has the mount's tooltip picture with its icon and a Wowhead link, also for mounts learned straight into the mount journal.
+
+### Fixes and tweaks
+
+- **Narrow windows**: the character list and details no longer cut things off. The RACE and PLAYED sort headers wrap instead of vanishing, the realm trims with the full name on hover, and long text in the details wraps or trims with a tooltip.
+- **Slimmer setup checks**: Game folder, Addon and Discord are small chips above the Discord panel, one quiet line when everything is fine. Pick where they sit in Settings, Setup checks: Right (default), Top or Bottom.
+- **Can't miss a missing folder or addon**: without a game folder the app asks for one in a big amber card over the pages, with Browse. A missing addon gets the same card with Install.
 - The card and highlights can drop their border, and carry a small WoW Character Tracker line (you can turn it off).
 - The alert (DING!, VICTORY!...) pops in about twice as fast.
-
-**Discord**
-
-- **Mount posts show the mount**: like loot, the post has the mount's tooltip picture with its icon and a Wowhead link, also for mounts learned straight into the mount journal.
 - The Discord panel's **Test** button now posts "{character} sent a test message." instead of a made-up level-up.
 
 ## v0.25.4
+
+### Fixes and tweaks
 
 - Discord posts show **WoW Character Tracker** small in the footer, with the app's logo, next to the time.
 - The posts' sender picture now shows the new logo (Discord had kept the old one cached).
 
 ## v0.25.3
+
+### Fixes and tweaks
 
 - **Clearer app icon at small sizes**: the taskbar, tray and title bar show a simpler WCT with the ring that's readable at those sizes; the full framed logo stays for large icons.
 - Discord posts end with a small **WoW Character Tracker** line that links to the app's GitHub page.
@@ -152,13 +183,21 @@ Update the addon with the app (it does this by itself) and /reload in game: equi
 
 ## v0.25.2
 
+### New
+
 - **New logo**: the WCT logo in the app's header, a new icon for the app (taskbar, tray, Start menu) and a new picture for Discord posts.
 
 ## v0.25.1
 
+### Fixes and tweaks
+
 - **Fixed the note box erroring in game**: showing the box (or having it open at login) gave an "attempt to call a nil value" error every moment on newer clients, and its buttons never showed. Comes with the updated addon, so `/reload` once.
 
 ## v0.25.0
+
+Comes with the updated addon, so `/reload` once after the app updates.
+
+### New
 
 - **Character notes, now in game too**: every character has a Notes tab in the app for anything you want to keep track of (gear to farm, quests, plans). Type `/wct note` in game to see it in a box on screen, and click **Edit** in the box to change it right there.
   - Write it wherever is handy: the newest edit wins. The game gets the app's changes on `/reload`, and the app gets the game's when you `/reload` or log out.
@@ -166,74 +205,115 @@ Update the addon with the app (it does this by itself) and /reload in game: equi
   - Edit, Lock and the X only show while your mouse is over the box, so it's just your note the rest of the time (turn "Buttons only on mouseover" off in the addon's options to always see them).
   - Set how see-through its background is in the addon's options (below). Lost the box? Reset position there, or `/wct note reset`.
 - **The addon has its own page in the game's options**: Esc, Options, AddOns, WoW Character Tracker (or `/wct options`). Show, lock or reset the note box, pick whether its buttons only show on mouseover, set its background opacity (it changes as you drag), and turn instant posting and the reload popup after a ding on or off. What the app decides (what gets posted, screenshots, chat announcements, reminders) is listed there too, read-only.
-- **Played time fits**: the last seen column is wider, so long played times (100+ days) aren't cut off.
 
-Comes with the updated addon, so `/reload` once after the app updates.
+### Fixes and tweaks
+
+- **Played time fits**: the last seen column is wider, so long played times (100+ days) aren't cut off.
 
 ## v0.24.5
 
+### New
+
 - **Played time in the character list**: each row shows the character's total time played in small text under the last seen time.
 - **Notes tab for every character**: a notepad in the character details for anything you want to keep track of. Saved as you type, kept in the app's settings.
+
+### Fixes and tweaks
+
 - **Column names line up with the rows**: the headers (class, level, item level, gold, last seen) sat a few pixels to the right of what's below them, because the list reserves room for its scrollbar. They now match.
 
 ## v0.24.4
+
+### New
 
 - **Only the first boss kill per character**: an end boss is posted the first time each character kills it, not every run after (farming Stratholme or Molten Core no longer fills the channel). On by default; turn off "First kill only" under End boss kills on the What gets posted page to post every kill again. Every kill still shows in the app's highlights.
 
 ## v0.24.3
 
+### New
+
 - **Forever's new dungeons count as boss kills**: killing the last boss of The Hall of Thanes (Durgen Dirgehammer), Ruins of Lordaeron (Rath'mael), Excavation Site: Wetlands (Relic Guardian), City of Dalaran (Shade of the Archmage), Alcaz Prison (Blazeroar) or Shaper's Terrace (Nanaya) is now posted like any other end boss. More are added as Forever's dungeons and raids come out. Comes with the updated addon, so `/reload` once.
+
+### Fixes and tweaks
+
 - **Stratholme's two sides are told apart**: Balnazzar ends the Living side and Baron Rivendare the Undead side.
 
 ## v0.24.2
+
+### Fixes and tweaks
 
 - **Guild and party announcements fixed**: with announcements on, every level-up was called out as "Reached max level"! Now only the real one is. The addon also stops taking screenshots for moments that won't be posted. Comes with the updated addon, so `/reload` once.
 - **Under the hood**: the app and the addon were cleaned up so each rule lives in one place (which webhooks take a character, what each game has, event texts, how events are recorded), with tests that keep the addon and the app in step. Nothing else should look different.
 
 ## v0.24.1
 
+### New
+
 - **Enchant tooltips on Forever too**: Forever only shows an enchant's stats ("Stamina +2"), so the addon now also saves the enchant's id and the app knows which enchanting spell it is. Hover it for Wowhead's tooltip, click for its page, on Retail and Forever. Comes with the updated addon, so `/reload` once.
+
+### Fixes and tweaks
+
 - **Game tabs stay put**: the Retail and Forever buttons always sit in the middle of the header, a longer status line under the title no longer moves them.
 
 ## v0.24.0
 
+### New
+
 - **Enchants under your gear**: each item on the Gear and bags tab shows its enchant right under its name in green, like "Nature's Fury" under a ring, instead of in a separate list. The "Enchant Ring -" part is left out, the slot already says that. Hover an enchant to see what it does (Wowhead's tooltip, like items), click it to open its Wowhead page. Works on Retail and Forever for enchants the game names; ones it only shows as stats ("+41 Agility/Strength & +115 Stamina") have nothing to look up.
 
 ## v0.23.1
+
+### Fixes and tweaks
 
 - **Tidier gear effects**: the Equip: and Use: lines on the Gear and bags tab are folded away under "Effects (N)", click to open. Each item shows once with all its lines, multi-line effects keep their line breaks, and cooldowns read "1 Min 30 Sec" instead of game codes.
 - **Catalyst note on Retail**: set bonuses on Retail say that catalysted items may not show properly.
 
 ## v0.23.0
 
+### New
+
 - **Set bonuses, effects and enchants next to your gear**: the Gear and bags tab now lists the sets you're wearing (like "4/5") with each bonus and how many pieces it needs, the active ones lit green, every Equip: and Use: effect on your gear, and your enchants. It reads the game's own tooltips, so catalysted pieces that count for a tier set count here too, and tier bonuses show for your spec only. Works on Retail and Forever. Comes with the updated addon, so `/reload` once.
-- **Gear and bags opens faster**: the gear and bags show right away and bank tabs fill in after, empty slots are a count ("12 free slots") instead of hundreds of empty boxes, and item tooltips are only built when you first hover them.
-- **Crests and talents look like items**: hovering a crest, a talent or a looted item in the highlights shows the same game-style tooltip as items in your bags, and clicking it opens its Wowhead page.
-- **Easier to read crest tooltips**: the description keeps its paragraphs and list lines instead of running together, and the cap line is gone.
 - **Spec icons**: the class column shows your spec's icon (Blood, Fury, Devourer, Feral Combat...), or the role icon when the spec isn't known yet.
 - **Click a page tab again to start it over**: clicking Characters while you're on it closes the open character, resets the filter and scrolls to the top. Items clears the search and filters. The other pages scroll back to the top.
 
+### Fixes and tweaks
+
+- **Gear and bags opens faster**: the gear and bags show right away and bank tabs fill in after, empty slots are a count ("12 free slots") instead of hundreds of empty boxes, and item tooltips are only built when you first hover them.
+- **Crests and talents look like items**: hovering a crest, a talent or a looted item in the highlights shows the same game-style tooltip as items in your bags, and clicking it opens its Wowhead page.
+- **Easier to read crest tooltips**: the description keeps its paragraphs and list lines instead of running together, and the cap line is gone.
+
 ## v0.22.0
+
+### New
+
+- **Tell your guild or group** (In game page): the addon can write a line in guild and/or party/raid chat when you level up, hit max level, kill an end boss, loot an epic (as a clickable link), get a mount, win a duel, Mak'gora or battleground, reach a rating step, or die in hardcore. Pick which. Messages wait until you're out of combat, and boss kills don't list the group. Off until you turn it on.
+- **Battlegrounds**: wins and losses are tracked (with the updated addon), shown as highlights, as a record on the stream card, and a win pops VICTORY! on the stream.
+- **Sort your characters**: click CLASS, LEVEL, ITEM LEVEL, GOLD or LAST SEEN to sort, click again to flip. Race, played time and rating (Retail) sort from next to CHARACTER. Remembered per game.
+- **Role icons**: tanks, healers, and damage dealers split into melee, ranged (bow) and caster. Forever characters get one from their top talent tree.
+
+### Fixes and tweaks
 
 - **Stream card and highlights no longer cut off**: as a single source (`?only=card`, `?only=highlights`) the part is scaled up to fill the source, but the page only kept its unscaled height, so everything below the first lines was cut away in OBS and Streamlabs. Now the whole part shows.
 - **Fast with lots of characters**: with 60+ characters the app froze for 10 seconds or more at startup and again when opening Items. Now the Items list is only built when you open it and only draws what's on screen, a character's gear, bags and icons load when you open that character, and Wowhead lookups run in the background. Startup went from about 30 seconds of work to 2 on 64 Retail characters.
 - **Realm filter under the page tabs**: with many realms the filter chips pushed the Characters, Items... tabs off screen. The chips now sit at the top of the Characters and Items pages and wrap onto more lines when needed.
-- **Tell your guild or group** (In game page): the addon can write a line in guild and/or party/raid chat when you level up, hit max level, kill an end boss, loot an epic (as a clickable link), get a mount, win a duel, Mak'gora or battleground, reach a rating step, or die in hardcore. Pick which. Messages wait until you're out of combat, and boss kills don't list the group. Off until you turn it on.
-- **Battlegrounds**: wins and losses are tracked (with the updated addon), shown as highlights, as a record on the stream card, and a win pops VICTORY! on the stream.
 - **Stream highlights show losses too**: duel and Mak'gora losses now show in the highlights box, the same lines as in the app.
 - **Loot is a highlight right away**: loot that isn't posted used to wait for /reload before it showed. Now it comes in live like everything else.
-- **Sort your characters**: click CLASS, LEVEL, ITEM LEVEL, GOLD or LAST SEEN to sort, click again to flip. Race, played time and rating (Retail) sort from next to CHARACTER. Remembered per game.
-- **Role icons**: tanks, healers, and damage dealers split into melee, ranged (bow) and caster. Forever characters get one from their top talent tree.
 - **Same picture everywhere**: Discord posts showed a race portrait for Retail characters while the app showed their real render. One rule now picks the picture for the app, posts and cards. The post sender is always the Character Tracker logo, with the character's picture in the post.
 - **Smoother start**: the window fades in once it's ready instead of stuttering.
 - **Test alert fills the highlights too**: each test (boss kill, loot, duel...) also puts its line in the highlights box for a few seconds, so you can place the highlights source without waiting for real loot.
 
 ## v0.21.1
 
-- **Missing ding screenshots fixed**: a screenshot taken mid-fight could be overwritten by the tracker's own data shot when the fight ended in the same second (the game names screenshots by the second), so the post went out without a picture. Shots now always land in different seconds. Comes with the updated addon, so log in (or `/reload`) once.
+### New
+
 - **In-game portrait on every post** (Forever): dings, boss kills, loot and the rest now show the character's in-game portrait as the thumbnail, like character cards and talent posts already did. Characters set to Standard keep the standard picture.
 
+### Fixes and tweaks
+
+- **Missing ding screenshots fixed**: a screenshot taken mid-fight could be overwritten by the tracker's own data shot when the fight ended in the same second (the game names screenshots by the second), so the post went out without a picture. Shots now always land in different seconds. Comes with the updated addon, so log in (or `/reload`) once.
+
 ## v0.21.0
+
+### New
 
 - **Your ratings** (Retail): a character's overview shows its current Mythic+ score and PvP ratings (2v2, 3v3, RBG, Solo Shuffle, Blitz), each with its icon. Only brackets you have a rating in show up, and nothing shows on Forever. The stream card lists them under the keystone too. They come with the updated addon, so log in (or `/reload`) once.
 
@@ -241,24 +321,29 @@ Comes with the updated addon, so `/reload` once after the app updates.
 
 Alerts, a clearer card, and a pile of small things.
 
+### New
+
 - **Alerts, not just DING!**: the stream alert now pops up for your other big moments too, each in its own colors: **MAX LEVEL!** with turning light rays, **VICTORY!** for an end boss or a duel win, **LEGENDARY!**, **EPIC LOOT!** and **RARE LOOT!**, **NEW MOUNT!**, **MAK'GORA!** in blood red, a calm gray **R.I.P.** for a hardcore death, and **MILESTONE!** for Mythic+ and PvP rating steps. Pick which ones under **Alerts** in the Stream overlay panel (rare loot is off by default). **Test alert** shows the next kind on each click. The address for just the alert is now `?only=alert` (`?only=ding` still works).
-- **The alert's glow no longer ends in a box**: on its own source the alert leaves room for its burst of light, and the edges fade out softly.
 - **Card and highlights each have a job**: the card is the character right now, with its stats on the left (item level, played, gold, your Mythic Keystone on Retail, duel and Mak'gora records) and its leveling on the right (last level, the ones before, today). Without level times the stats get the card. The highlights box is what happened lately. The card's top line has race and spec too.
 - **What the overlay counts**: three choices at the bottom of the panel, the one in use highlighted: **Start counting now** (shows since when; click again to restart), **Today** (since midnight, starts over by itself) and **All**.
-- Mythic+ and PvP rating only show up as overlay options while you're streaming a Retail character.
-- **Clearer buttons** in the Stream overlay panel: they have a frame now and light up on hover.
-- **Hover for info**: tooltips come up quicker (0.3 seconds) and stay longer, and the stream options all say what they do.
 - **Your Mythic Keystone** (Retail) in a character's overview and on the stream card: level and dungeon.
 - **Post talents to Discord**: next to the Wowhead talent calculator link, posts the build on its own (level, race and class, points per tree, the talents picked and the Wowhead link).
 - **Items: leave a place out**: click **Equipped**, **Bags** or **Bank** to show only that place, click it again to leave it out instead (red and crossed out), and once more for everything.
+- **Find it in Windows search**: the app adds itself to your Start menu, so typing "WoW Character Tracker" finds it. The Uninstall page removes the shortcut with the app.
+- **Icons for stats and places**: each stat in a character's overview and on the Discord character card has its icon (Strength, Agility, Crit...), and the last zone says what kind of place it is: dungeon, raid, battleground, city, town or the open world. The place kind comes with the updated addon; capital cities show right away.
+- **Your in-game portrait in Discord**: on Forever, talent posts and text character cards use the portrait you picked in the app (the one from the game) instead of the standard race picture.
+
+### Fixes and tweaks
+
+- **The alert's glow no longer ends in a box**: on its own source the alert leaves room for its burst of light, and the edges fade out softly.
+- Mythic+ and PvP rating only show up as overlay options while you're streaming a Retail character.
+- **Clearer buttons** in the Stream overlay panel: they have a frame now and light up on hover.
+- **Hover for info**: tooltips come up quicker (0.3 seconds) and stay longer, and the stream options all say what they do.
 - **Updates are hard to miss**: a filled **Update to v...** button at the top, and a bolder banner that says what Update now does.
 - **Screenshots that went missing**: when the game doesn't take an event's screenshot (it seems to happen when you ding mid-fight), the addon now tries again right after combat, and the app waits for that later picture instead of posting without one. The addon keeps a short log of its last shots for troubleshooting.
 - The **made by / tip** line stays in view at the bottom of the right column, the panels scroll above it.
 - The Discord panel's webhook steps fold away behind **How do I make one?**.
 - README: a table of contents, and fresh pictures.
-- **Find it in Windows search**: the app adds itself to your Start menu, so typing "WoW Character Tracker" finds it. The Uninstall page removes the shortcut with the app.
-- **Icons for stats and places**: each stat in a character's overview and on the Discord character card has its icon (Strength, Agility, Crit...), and the last zone says what kind of place it is: dungeon, raid, battleground, city, town or the open world. The place kind comes with the updated addon; capital cities show right away.
-- **Your in-game portrait in Discord**: on Forever, talent posts and text character cards use the portrait you picked in the app (the one from the game) instead of the standard race picture.
 - The webhook help (the round **?**) also shows while you add another webhook, not only before the first one.
 - **A smaller download**: the exe is about 14 MB smaller (60 MB instead of 73). The tray icon no longer pulls in a whole second UI toolkit, and Windows' translations for languages the app doesn't use are left out.
 
@@ -266,30 +351,41 @@ Alerts, a clearer card, and a pile of small things.
 
 The streaming release.
 
+### New
+
 - **Stream overlay panel**: all the stream settings now have their own panel between Discord and the console (fold it away by clicking its title). Turn the overlay on there, copy its addresses, preview it, send a test ding and open the text files.
 - **Place each part on its own**: copy the address of just the **card**, just the **highlights** or just the **DING! alert**, and add them as separate Browser sources. A part on its own fills its source, so resizing the source in OBS resizes it. Or one address for everything.
-- The right column (Discord, Stream overlay, console) scrolls as one when it doesn't fit, and the console keeps a readable height. No scrollbar when everything fits.
 - **Background**: a slider from see-through (just the text) to solid.
 - **Choose what shows**: level times, today's levels, the duel record, the Mak'gora record and highlights, each on or off. For highlights, pick which kinds count: loot, boss kills, mounts, duels, Mak'gora, deaths, Mythic+ and PvP rating.
 - **Duel and Mak'gora records** on the card (won and lost), and in `duels.txt` and `makgora.txt` for text sources.
 - **Start from now**: the overlay only counts what happens from that moment (records, highlights, level times), handy for a fresh stream. Everything is still tracked in the app, and **All time** brings it back.
 - **A WoW-style DING!**: gold lettering with a dark edge, an ornament line and the level in the game's yellow.
+
+### Fixes and tweaks
+
+- The right column (Discord, Stream overlay, console) scrolls as one when it doesn't fit, and the console keeps a readable height. No scrollbar when everything fits.
 - A small **tip** link next to the credit in the corner.
+
 ## v0.18.0
 
-- **Faster instant posts**: the addon's data screenshot is saved as a high-quality JPEG instead of PNG (a fraction of the size, and much quicker for the game to write), and the app notices it the moment it's written instead of checking every half second. In tests a shot was picked up 70 ms after the game finished writing it, where it used to take 0.3 to 0.8 seconds.
+### New
+
 - **Pick the corner** for the data grid on the **In game** page: top left (as before), top right, bottom left or bottom right. The app finds it in any corner, so changing it never loses a post.
-- The grid's label is now one small line ("Character Tracker /wct"), and you can hide it.
-- More reliable grid reading: a busy game scene below the grid could make a shot unreadable at some resolutions; the app now measures the grid from its clock row only.
-- Animations no longer replay on the open character every time the list refreshes.
 - **Color themes**: pick a palette per game under Settings. Retail: Midnight (the current expansion), Void arcane and Silvermoon. Forever: Classic gold, Forever wisp, Emerald Dream and Blackrock ember.
 - **Characters in frames**: each character in the list sits in its own box with a sharper edge in the theme's color, brighter on hover and when open.
 - **Switch animation**: switching games sends a blue wisp flying to Forever, or a void orb to Retail. It plays once, in the tab strip.
 - **Turn a game off**: only play Forever (or only Retail)? Untick **Track Retail** (or Forever) under Settings. The app then doesn't look for that game, read its data or install the addon there. Its tab stays, with a button to turn it back on, and a button to remove the addon from that game if it's still installed. Nothing is deleted otherwise.
 - **Stream overlay and text files** (Settings, Stream overlay): a page for an OBS or Streamlabs Browser source with the character you're playing, its latest level times, today's levels and highlights, and a big **DING!** alert when you level. Add `?only=ding` for just the alert, `?scale=1.5` to make it bigger. Text files with the same info (level, last level time, today...) for Text sources. Only your PC can open the page.
 - **Animations**: a character's details unfold when you open them, pages slide in from the side of their tab (Characters, Items, What gets posted, In game), and so does the game when you switch between Retail and Forever. Untick **Animations** under Settings to have everything switch instantly (the tab orb too).
-- A gold bag next to the total gold, instead of a card.
 - **Test ding** next to the stream overlay settings shows the DING! alert in OBS right away, to set it up without leveling.
+
+### Fixes and tweaks
+
+- **Faster instant posts**: the addon's data screenshot is saved as a high-quality JPEG instead of PNG (a fraction of the size, and much quicker for the game to write), and the app notices it the moment it's written instead of checking every half second. In tests a shot was picked up 70 ms after the game finished writing it, where it used to take 0.3 to 0.8 seconds.
+- The grid's label is now one small line ("Character Tracker /wct"), and you can hide it.
+- More reliable grid reading: a busy game scene below the grid could make a shot unreadable at some resolutions; the app now measures the grid from its clock row only.
+- Animations no longer replay on the open character every time the list refreshes.
+- A gold bag next to the total gold, instead of a card.
 - Forever portraits are replaced in place (one file per character, swapped in whole), and a check-in screenshot the app couldn't read is deleted instead of staying in your Screenshots folder.
 - The test characters' surname is TESTCHAR, so their posts can't be mistaken for real ones.
 - README: new pictures (a real level-up post, the four Forever themes, Items, settings, Uninstall, the stream overlay) and a Streaming section that walks through the OBS setup.
@@ -297,12 +393,17 @@ The streaming release.
 
 ## v0.16.0
 
+### New
+
 - **Item tooltips look like the game's and Wowhead's**: dark box, quality colors, yellow item level, green effects, class colors, the slot and type on one line ("Two-Hand ... Mace"), and coins in their colors.
 - **Items by type**: the Items page has type chips next to the place chips: Gear, Consumables, Trade goods (reagents, trade goods, gems, recipes), Quest and Other. The addon tells the app each item's type, so /reload once after updating.
-- Retail's fifth bag shows as **Reagent bag**.
 - **Duel opponents**: duel and Mak'gora posts and highlights say who you fought, like "level 21 Orc Warrior" (when the game could see them: target, party, nameplates, or when they challenged you). Their spec isn't available to addons.
-- **Wowhead talent link fixed** for Forever: it now opens with your points filled in (Wowhead's link format needed a "v2").
 - A **Feedback** button at the top opens the Discussions page.
+
+### Fixes and tweaks
+
+- Retail's fifth bag shows as **Reagent bag**.
+- **Wowhead talent link fixed** for Forever: it now opens with your points filled in (Wowhead's link format needed a "v2").
 - README: pictures of where to make a webhook in Discord, and that you can share a channel with friends or make your own.
 - Switching between Retail and Forever is much lighter: each game keeps its Characters and Items pages instead of building them again, so a switch takes a few hundredths of a second instead of up to 3 seconds of heavy CPU (Retail was the worst). Memory no longer grows with every switch.
 - Icons and portraits are loaded once and shared, instead of downloaded and decoded again every time a page shows them.
@@ -311,9 +412,13 @@ The streaming release.
 
 ## v0.15.1
 
+### Fixes and tweaks
+
 - Item tooltips in the app read properly again: lines that ran together ("Binds when picked upTwo-HandMace") are split, the damage and speed share a line, and the sell price shows its g/s/c.
 
 ## v0.15.0
+
+### New
 
 - **Uninstall**, at the bottom of Settings: shows everything the app and the addon created on your PC (the app, the addon in each game, your character data in each game, settings and caches), with every path and size, and you pick what goes.
 - Presets for the usual choices: **Keep my data** (removes the app and the addon, keeps your characters and settings), **Remove everything**, and **Only the app**.
@@ -322,33 +427,40 @@ The streaming release.
 
 ## v0.14.0
 
+### New
+
 - **Items**: a new page with everything your characters carry (worn, in bags and in the bank), with icons, in one list per server. Search by name to see who has what, and where, or show only what's equipped, in bags or in the bank.
-- Items update when you /reload or log out (the game only saves then). The app says so, shows when and where each character was last saved, and the console notes each logout or /reload.
 - The character details are in tabs now: **Overview**, **Gear and bags** and **Leveling**.
 - **Gear and bags**: what the character wears, laid out like the character window, its bags slot by slot, and its bank as of the last time you opened it. With icons, quality colors and Wowhead tooltips. Needs the updated addon and a /reload (or logout).
 - **Leveling**: average, fastest and slowest level, a chart of your level times, how your item level and professions grew while leveling, and your duel and Mak'gora record.
 - Forever: the played time left to max level at your recent pace. It counts that later levels need more XP, and that monsters give more XP the higher you get.
+- On a flight path, when your bags or gear changed since the last save, a small box in game offers a /reload so the app's items get up to date (you keep flying). Once per flight; switch it off under What gets posted.
+- A reminder in chat to /reload when your bags or gear changed since the last save: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes. Switch it off under What gets posted.
+- A new **In game** page holds what the addon does in game besides posting: the reload box on flight paths, the chat reminder and advanced combat logging.
+- Forever characters get their own portrait in the app (the picture your unit frame shows), taken from the addon's check-in right after you log in. Unit frame addons don't change it, since the addon asks the game for the portrait itself. Each character can switch between In-game and Standard (Overview tab). Discord posts keep the race portrait.
+
+### Fixes and tweaks
+
+- Items update when you /reload or log out (the game only saves then). The app says so, shows when and where each character was last saved, and the console notes each logout or /reload.
 - Boss kills in the highlights say who was in the group; hardcore deaths say how much played time and gold went with them.
 - Total played for the characters you've filtered on, next to the total gold.
 - Click any item (gear, bags, bank, Items page) to open it on Wowhead.
 - The Items page shows its items in as many columns as the window has room for.
 - Updating the app shows each step in the banner: the download with its progress, checking it, putting it in place, restarting.
-- On a flight path, when your bags or gear changed since the last save, a small box in game offers a /reload so the app's items get up to date (you keep flying). Once per flight; switch it off under What gets posted.
-- A reminder in chat to /reload when your bags or gear changed since the last save: after the bank, mailbox, a vendor or the auction house, when you leave a dungeon (at most every 10 minutes), and every 30 minutes. Switch it off under What gets posted.
 - The slot under the weapons says Relic for Paladins, Druids and Shamans, Ranged for everyone else.
 - Lost duels and Mak'goras are recorded too, and running away from a duel. They show in the highlights and the duel record ("Duels: 5 won, 2 lost"), but only wins are posted.
 - The realm shows its region when it's known, like "EU · Tarren Mill".
 - Opening Test characters (and the list in general) is quicker: the details are only built for the open character and tab.
 - The README shows the Gear and bags tab.
-- A new **In game** page holds what the addon does in game besides posting: the reload box on flight paths, the chat reminder and advanced combat logging.
 - The page tabs and the character details tabs are boxes with icons, the open one filled in the tab's colors.
 - The (i) next to the settings says what reaches the app right away and what waits for a /reload or logout (loading screens don't count).
-- Forever characters get their own portrait in the app (the picture your unit frame shows), taken from the addon's check-in right after you log in. Unit frame addons don't change it, since the addon asks the game for the portrait itself. Each character can switch between In-game and Standard (Overview tab). Discord posts keep the race portrait.
 - Retail's character window has no Ranged slot, so the app doesn't show one there.
 
 ## v0.13.0
 
 The app and the addon now share one version number, starting here.
+
+### Fixes and tweaks
 
 - Under the hood: a cleanup pass through the app and the addon, so they're easier to keep working. Nothing changes in what gets posted.
 - Removing a webhook asks right in its row instead of a Windows dialog, like removing a character. Deleting a tag (right-click it in a webhook's options) no longer asks in a Windows dialog either.
@@ -360,14 +472,21 @@ The app and the addon now share one version number, starting here.
 
 ## v0.12.4
 
+### New
+
+- Loot posts show the item like its Wowhead tooltip, as a picture: icon, name in its quality color, item level, damage and speed, stats, green Equip lines and the sell price in coins. A screenshot, if any, comes right under it in the same post.
+- New switch on What gets posted: **Advanced combat logging** turns the game's own setting on (or off again) at your next login or /reload.
+
+### Fixes and tweaks
+
 - Fixed level-ups (and other moments) not being recorded at the ding on Forever: the game hides some numbers like your stats from addons at moments like a ding, and reading them made the addon give up on the whole event. Those numbers are now skipped, and one detail that can't be read never stops an event again.
 - Level times no longer depend on the game answering the addon's /played requests: the played time at logout carries over to the next login, and a brand new character starts at 0.
 - The Addon card no longer offers to "update" to an older addon when a newer one is installed.
 - /wct debug also saves the addon's /played requests and answers.
-- Loot posts show the item like its Wowhead tooltip, as a picture: icon, name in its quality color, item level, damage and speed, stats, green Equip lines and the sell price in coins. A screenshot, if any, comes right under it in the same post.
-- New switch on What gets posted: **Advanced combat logging** turns the game's own setting on (or off again) at your next login or /reload.
 
 ## v0.12.3
+
+### Fixes and tweaks
 
 - Level-ups post right at the ding. The addon used to wait for the game's answer to its /played request, and when that answer went missing it asked again 15 seconds later, so some posts (and their screenshots) came late. Now it times the level from the played time it already knows, and the answer only fine-tunes the next level's start.
 - Clearer console: each instant post's line says how long it took to reach Discord and where the time went, e.g. "In Discord 3s after it happened: the game sent it after 1s, then 2s for the screenshot and upload."
@@ -375,14 +494,26 @@ The app and the addon now share one version number, starting here.
 
 ## v0.12.2
 
+### New
+
 - Changing settings while the game runs shows a banner at the top: type /reload in game to use them. It goes away by itself once the game has loaded them (after a /reload, a new login or closing the game).
+
+### Fixes and tweaks
+
 - The Game folder, Addon and Discord cards use two lines in narrow windows instead of cutting the text off (the full text is in the tooltip).
 - The console says how long an instant post took to reach the app, to see where the time goes.
 
 ## v0.12.1
 
-- Level-ups that aren't posted still reach the app right away, so the level history stays current without a /reload (same for boss kills, mounts, duels and rating steps). Loot that isn't posted still waits for /reload, to keep the corner flicker down.
+### New
+
 - Post any highlight (loot, boss kill, mount...) to Discord from the character details, with the small button at the end of its row.
+- New screenshot option: hide the whole interface for the shot (like Alt+Z), so it's just your character and the world.
+- A settings menu (the gear at the top) with Open with World of Warcraft, Test characters and a new switch to keep the window open when the game closes.
+
+### Fixes and tweaks
+
+- Level-ups that aren't posted still reach the app right away, so the level history stays current without a /reload (same for boss kills, mounts, duels and rating steps). Loot that isn't posted still waits for /reload, to keep the corner flicker down.
 - Looted items link to Wowhead in the post's text too.
 - With the game closed, the app stops its once-a-minute check of the saved files and keeps showing the last known state.
 - Every level gets logged:
@@ -391,88 +522,107 @@ The app and the addon now share one version number, starting here.
   - If the game doesn't answer the ding's /played request, the addon asks again.
   - A ding with no starting point (addon installed mid-level) is still logged, with the time shown as "?".
 - Fixed reaching max level: the addon hit an error and didn't log it.
-- New screenshot option: hide the whole interface for the shot (like Alt+Z), so it's just your character and the world.
 - Sync now shows that it's working (the icon spins) and the console says what it read and posted.
-- A settings menu (the gear at the top) with Open with World of Warcraft, Test characters and a new switch to keep the window open when the game closes.
 - Remove from list asks right in the character details instead of a Windows dialog.
 - Narrow windows: the top bar no longer puts text behind the buttons, and the character list keeps room for names.
 
 ## v0.12.0
 
-- What gets posted is laid out more cleanly: the level rule lines up in one column, Test buttons look like the other chips, and Post screenshot only shows once Screenshot is on.
+### New
+
 - Max level has its own switch instead of always being posted.
 - Copy settings / Paste settings: share your What gets posted settings as a code, so friends can use the same ones.
+
+### Fixes and tweaks
+
+- What gets posted is laid out more cleanly: the level rule lines up in one column, Test buttons look like the other chips, and Post screenshot only shows once Screenshot is on.
 - New default rating steps: Mythic+ 2000, 2500, 3000, 3500, 4000 and PvP 1800, 2100, 2400, 2700 (old defaults are updated). A step posts once per season, only when you climb past it.
 - The page and the Discord panel start at the same height.
 
 ## v0.11.0
 
+### New
+
+- Retail characters show their actual character render in the list, on the card and as the Discord sender picture. Needs one login with the updated addon.
+- Logging in on a game switches the app to that game's tab, with the character picked.
+- The game tabs show the game's logo: the current expansion (Midnight) for Retail and Forever's own. They're downloaded from Warcraft Wiki the first time and kept on your PC.
+- New posts: duels won, Mak'gora won (Forever), Mythic+ rating and PvP rating milestones (Retail, steps you pick). Duels and Mak'gora can have screenshots.
+- Character stats (strength, armor, crit and so on) in the details and on the card.
+- Retail: **Open in Wowhead talent calculator** opens the character's build.
+- Forever talents are split into the class's three trees, like "Holy 0 / Protection 0 / Retribution 16", and the tree with the most points shows as the spec. Each talent you picked is saved too and shown with its icon and rank in the character details and on the card.
+- Forever surnames: the full name (Ronnie Raket) is stored and shown. What gets posted has "Name in posts": full name, first name or surname, for posts and character cards. Party members in boss posts get their surname too.
+- The app updates the addon in your game folders on its own when the app is newer. Installing it the first time still waits for your click.
+- "Check for updates" next to the version under the title, and it says what it found (up to date, or the new version). The app also checks again every 6 hours while it runs.
+
+### Fixes and tweaks
+
 - Screenshots go out at full size first, so boosted servers get the full picture. If Discord says one is too big, a smaller copy is sent instead of none.
 - Long names no longer run into the Class column; the TEST/HARDCORE tag sits next to the realm.
 - The README has screenshots.
-
-- Retail characters show their actual character render in the list, on the card and as the Discord sender picture. Needs one login with the updated addon.
-
 - Under the hood: the app and the addon are reorganized into smaller parts with one job each. Nothing changes in how they work.
-
-- Logging in on a game switches the app to that game's tab, with the character picked.
-
 - Fixed the "blocked from an action" error at login on Forever: the addon no longer listens to the combat log, which newer clients keep from addons. Hardcore death posts don't name the killer anymore because of that.
 - Fixed the class showing twice ("Warrior Warrior") for characters without a spec.
 - The Wowhead talent link shows right after login. Forever's opens Wowhead's Forever calculator with your build filled in.
 - Forever uses Wowhead's Forever database, so Forever-only talents get their names and icons.
 - Stats and talent picks show after a /reload, not only after logging out.
-
-- The game tabs show the game's logo: the current expansion (Midnight) for Retail and Forever's own. They're downloaded from Warcraft Wiki the first time and kept on your PC.
-
 - What gets posted is laid out in three columns: General, PvE and PvP.
-- New posts: duels won, Mak'gora won (Forever), Mythic+ rating and PvP rating milestones (Retail, steps you pick). Duels and Mak'gora can have screenshots.
-- Character stats (strength, armor, crit and so on) in the details and on the card.
-- Retail: **Open in Wowhead talent calculator** opens the character's build.
-
 - Forever talents: read from Forever's talent trees (it has no classic talent tabs), e.g. "Holy 7 / Protection 3 / Retribution 0". Talents also update again after the first save.
-- Forever talents are split into the class's three trees, like "Holy 0 / Protection 0 / Retribution 16", and the tree with the most points shows as the spec. Each talent you picked is saved too and shown with its icon and rank in the character details and on the card.
 - If the game ever blocks the addon ("blocked from an action"), the addon says in chat which function the game blocked and notes it, so it can be fixed.
-- Forever surnames: the full name (Ronnie Raket) is stored and shown. What gets posted has "Name in posts": full name, first name or surname, for posts and character cards. Party members in boss posts get their surname too.
-- The app updates the addon in your game folders on its own when the app is newer. Installing it the first time still waits for your click.
-
-- "Check for updates" next to the version under the title, and it says what it found (up to date, or the new version). The app also checks again every 6 hours while it runs.
 - /wct debug saves what this client's talent, guild and name functions return, to sort out talents and surnames on Forever.
 - The reload popup is only set up when it's used (less risk of "blocked from an action" errors).
 
 ## v0.10.0
 
+### New
+
 - Post to Discord sends the character card as a picture, with crest, profession and item icons and quality colors, in the tab's theme.
 - The gear next to Post to Discord picks what the card shows: item level, played, gold, crests, professions, talents, guild, last seen, levels, highlights.
 - Guilds are stored and shown in the character details (and on the card if you turn it on). Needs the updated addon.
-- Posts use the character's portrait as the webhook picture.
 - Item and mount names in posts link to Wowhead, and professions get an emoji.
+
+### Fixes and tweaks
+
+- Posts use the character's portrait as the webhook picture.
 - The small data grid in the corner now has a "WoW Character Tracker" label next to it, so it's clear what it is.
 - The app asks before installing or updating the addon: the Addon card shows Install or Update, and nothing is written to the game folder until you click it.
 
 ## v0.9.1
 
+### Fixes and tweaks
+
 - Fixed updating: the new version now waits for the old one to close instead of quitting right away, and the old one no longer shows a .NET error while closing.
 
 ## v0.9.0
 
+### New
+
 - Each game tab has its own look: Retail is Midnight violet, Forever is classic gold.
+
+### Fixes and tweaks
+
 - Highlights: "Looted" is plain white and the item has its quality color (mounts too, once Wowhead answers).
 - The (i) commands icon is centered.
 - Releases and updates now come from the main repo (github.com/JDybeck/wow-character-tracker).
 
 ## v0.8.0
 
+### New
+
 - Icons: crests and looted items use their real icons from Wowhead, with tooltips. Professions have their icons too.
 - Gold shows as gold, silver and copper coins. Under 100g the list also shows silver, under 1g silver and copper.
+- Test characters: a switch at the top adds three made-up Forever characters to try the app without playing.
+- The app checks for updates on start, and there's a button for it. Updating downloads the new version and restarts.
+
+### Fixes and tweaks
+
 - Crests come from the game's Crests section, so only this season's crests show up.
 - Gold is kept when logging out (the game reports 0 gold during logout).
 - The live data grid is much smaller (about 320 x 28 px instead of 640 x 120).
 - Clicking the open character's row closes its details.
-- Test characters: a switch at the top adds three made-up Forever characters to try the app without playing.
-- The app checks for updates on start, and there's a button for it. Updating downloads the new version and restarts.
 
 ## v0.7.0
+
+### New
 
 - Gold per character, and the total for the realm (Retail) or ruleset (Forever) you've filtered on.
 - Retail crests in the character details.
@@ -480,14 +630,21 @@ The app and the addon now share one version number, starting here.
 
 ## v0.6.1
 
-- Fixed: on Classic-based clients like Forever, the addon could block Esc and show "blocked from an action" after a ding.
-- Data grids wait until combat ends. Your screenshot of the moment is still taken right away.
+### New
+
 - New "Hide chat in screenshots" option.
 - Test buttons for every kind of post.
+
+### Fixes and tweaks
+
+- Fixed: on Classic-based clients like Forever, the addon could block Esc and show "blocked from an action" after a ding.
+- Data grids wait until combat ends. Your screenshot of the moment is still taken right away.
 - Talents aren't shown until there's something to show (level 10).
 - The addon is called WoW Character Tracker in the AddOns list.
 
 ## v0.6.0
+
+### New
 
 - Boss kill posts list the group (name, level, race, class).
 - Skip boss posts when someone in the group matches a pattern, so friends don't all post the same kill.
@@ -497,6 +654,8 @@ The app and the addon now share one version number, starting here.
 
 ## v0.5.0
 
+### New
+
 - Instant posting through a small data screenshot (the chat log only gets written when the game closes).
 - The app waits in the tray and opens when you start WoW.
 - Webhooks can be switched on and off per game, and limited to Forever rulesets.
@@ -505,13 +664,19 @@ The app and the addon now share one version number, starting here.
 
 ## v0.4.0
 
+### New
+
 - Retail and Forever tabs, each with its own game folder and settings.
 - "What gets posted" page: level rule, rare and epic loot, mounts, end boss kills, hardcore deaths, screenshots.
 
 ## v0.3.0
 
+### New
+
 - The companion became a window app with your characters, a webhook list and a console.
 
 ## v0.2.0
+
+### New
 
 - First release: posts level-ups to Discord.
