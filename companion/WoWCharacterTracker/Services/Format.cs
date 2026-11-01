@@ -110,14 +110,18 @@ static partial class Format
     }
 
     // A release's notes (CHANGELOG markdown) as plain text for the update banner: no ** or `,
-    // bullets as dots, sub-bullets indented.
+    // bullets as dots, sub-bullets indented, section headings as plain lines.
     public static string ReleaseNotes(string markdown) => string.Join("\n", markdown.Trim().Split('\n').Select(line =>
     {
-        line = line.TrimEnd('\r').Replace("**", "").Replace("`", "");
+        line = PlainNotes(line.TrimEnd('\r'));
+        if (line.StartsWith("### ")) return line[4..];
         if (line.StartsWith("  - ")) return "      ◦ " + line[4..];
         if (line.StartsWith("- ")) return "• " + line[2..];
         return line;
     }));
+
+    // Changelog text without its ** and ` marks.
+    public static string PlainNotes(string text) => text.Replace("**", "").Replace("`", "");
 
     // Copper as "12,345g 34s 56c", leaving out leading zero parts.
     public static string Money(long copper)

@@ -104,6 +104,40 @@ public class RatingTests
         Assert.Equal("• Notes in game: type /wct note.\n      ◦ Lock it.\n\nComes with the addon.",
             Format.ReleaseNotes("- **Notes in game**: type `/wct note`.\r\n  - Lock it.\r\n\r\nComes with the addon.\r\n"));
 
+    [Fact]
+    public void Release_notes_show_section_headings_as_plain_lines() =>
+        Assert.Equal("New\n\n• A thing", Format.ReleaseNotes("### New\r\n\r\n- A thing\r\n"));
+
+    [Fact]
+    public void Changelog_splits_versions_groups_and_feature_names()
+    {
+        var versions = Changelog.Parse("# Changelog\r\n\r\nAbout this file.\r\n\r\n## v2.0.0\r\n\r\nBig one, /reload.\r\n\r\n### New\r\n\r\n- **Notes**: type `/wct note`.\r\n  - Lock it.\r\n\r\n### Fixes and tweaks\r\n\r\n- Fixed **this**.\r\n\r\n## v1.0.0\r\n\r\n- Old style line.\r\n");
+
+        Assert.Equal(["v2.0.0", "v1.0.0"], versions.Select(v => v.Name));
+        var latest = versions[0];
+        Assert.Equal("Big one, /reload.", latest.Intro);
+        Assert.True(latest.Groups[0].IsNew);
+        Assert.False(latest.Groups[1].IsNew);
+        Assert.Equal(new ChangelogItem("Notes", ": type /wct note.", false), latest.Groups[0].Items[0]);
+        Assert.Equal(new ChangelogItem("", "Lock it.", true), latest.Groups[0].Items[1]);
+        Assert.Equal(new ChangelogItem("", "Fixed this.", false), latest.Groups[1].Items[0]);
+        Assert.Equal("Old style line.", versions[1].Groups[0].Items[0].Text);
+    }
+
+    // The real file: What's new shows this version first, and every section keeps the two groups.
+    [Fact]
+    public void The_built_in_changelog_starts_at_this_version_and_uses_the_groups()
+    {
+        var all = Changelog.Recent(int.MaxValue);
+        Assert.Equal($"v{Updater.Current}", all[0].Name);
+        Assert.Equal(3, Changelog.Recent(3).Count);
+        Assert.All(all, v =>
+        {
+            Assert.NotEmpty(v.Groups);
+            Assert.All(v.Groups, g => Assert.Contains(g.Title, new[] { Changelog.NewTitle, Changelog.FixesTitle }));
+        });
+    }
+
     // A note edited in game replaces the app's only when it's newer; clearing counts as an edit.
     [Fact]
     public void The_newer_note_wins()

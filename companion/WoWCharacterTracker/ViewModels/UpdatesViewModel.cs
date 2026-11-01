@@ -36,6 +36,13 @@ sealed class UpdatesViewModel : Observable
     public bool ShowNotes { get => showNotes; set => Set(ref showNotes, value); }
     public bool HasUpdate => update is not null;
 
+    // The What's new popup in the header: the last versions, from the built-in changelog.
+    bool showChangelog;
+    public bool ShowChangelog { get => showChangelog; set => Set(ref showChangelog, value); }
+    public IReadOnlyList<ChangelogVersion> RecentChanges => recentChanges ??= Changelog.Recent(3);
+    IReadOnlyList<ChangelogVersion>? recentChanges;
+    public string ChangelogUrl => Changelog.PageUrl;
+
     // What the update button says: "Check for updates", "Checking...", "Up to date", "v0.11.0 ready".
     string updateButtonText = "Check for updates";
     public string UpdateButtonText { get => updateButtonText; set => Set(ref updateButtonText, value); }

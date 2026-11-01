@@ -5,7 +5,12 @@ namespace WoWCharacterTracker.Views;
 
 public partial class Header : UserControl
 {
-    public Header() => InitializeComponent();
+    public Header()
+    {
+        InitializeComponent();
+        // Narrow windows: What's new is just its star (the tooltip names it), or it gets cut off.
+        SizeChanged += (_, _) => ChangelogLabel.Visibility = ActualWidth < 1200 ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     // Switching game tabs plays the orb animation from the old tab to the new one (not at startup,
     // when there's no old tab).
