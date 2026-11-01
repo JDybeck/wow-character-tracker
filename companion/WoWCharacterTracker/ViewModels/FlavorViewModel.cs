@@ -548,7 +548,8 @@ sealed class FlavorViewModel : Observable
 
     // Installs the addon when the user clicks Install in the setup checks (force), since that adds
     // something to their game folder. An installed addon that's older than the one in this app is
-    // updated right away: the app and the addon have to speak the same version. Also keeps the
+    // updated right away, so the addon is never behind what the app expects (the addon has its own
+    // version, raised only when it changes, so an app update alone doesn't touch it). Also keeps the
     // interface number in step with game patches, so the game doesn't call it out of date.
     void SetUpAddon(bool force)
     {
@@ -566,7 +567,7 @@ sealed class FlavorViewModel : Observable
                     Log.Info($"[{Name}] The addon isn't installed in this game folder yet. Click Install next to Addon in the setup checks to add it.");
                     return;
 
-                case > 0: // newer than this app's (a test build put there by hand): left alone
+                case > 0: // newer than this app's (a test build, or later an addon site's update): left alone
                     KeepInterfaceCurrent(installed!, interfaceVersion);
                     AddonStep.Set(ok: true, $"v{installed} installed (newer than this app's v{bundled})");
                     break;
@@ -576,7 +577,7 @@ sealed class FlavorViewModel : Observable
                     AddonStep.Set(ok: true, $"v{bundled} installed. Type /wct test in game to check instant posting");
                     break;
 
-                default: // older (the app and the addon have to speak the same version), or the user clicked
+                default: // older, or the user clicked
                     AddonInstaller.Install(flavorDir, interfaceVersion);
                     Log.Success($"[{Name}] " + (installed is null ? $"Installed the addon (v{bundled})." : $"Updated the addon to v{bundled}."));
                     if (Wow.IsRunning(flavorDir))
