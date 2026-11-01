@@ -149,36 +149,31 @@ local function recordRating(kind, rating, step, bracket)
     string.format("%s:%s:%d:s%s", kind, bracket or "", step, tostring(season)))
 end
 
--- The first reading per character only sets the baseline, so nothing is posted for ratings that
--- were already there before the addon.
-function ns.checkRatings()
-  if not ns.IS_RETAIL then return end -- Forever has the APIs, but no ratings
-  local guid = UnitGUID("player")
-  if not guid or not WoWCharacterTrackerDB then return end
+-- Mythic+ steps come only from a finished key's own before and after scores. The score the game
+-- reports around a login can be 0 or the previous character's, so it can't be compared to anything.
+function ns.checkKeyRating(old, new)
+  if type(old) ~= "number" or type(new) ~= "number" then return end
   local post = ns.setting("post") or {}
-  WoWCharacterTrackerDB.ratings = WoWCharacterTrackerDB.ratings or {}
-  local known = WoWCharacterTrackerDB.ratings[guid] or {}
-  WoWCharacterTrackerDB.ratings[guid] = known
+  local step = ns.stepPassed(old, new, post.mplusSteps or DEFAULT_MPLUS_STEPS)
+  if step then recordRating("mplus", math.floor(new), step) end
+end
 
-  if C_ChallengeMode and C_ChallengeMode.GetOverallDungeonScore then
-    local score = C_ChallengeMode.GetOverallDungeonScore() or 0
-    if known.mplus then
-      local step = ns.stepPassed(known.mplus, score, post.mplusSteps or DEFAULT_MPLUS_STEPS)
-      if step then recordRating("mplus", score, step) end
-    end
-    known.mplus = score
-  end
-  if type(GetPersonalRatedInfo) == "function" then
-    for index, name in pairs(PVP_BRACKETS) do
-      local ok, rating = pcall(GetPersonalRatedInfo, index)
-      if ok and type(rating) == "number" then
-        local key = "pvp" .. index
-        if known[key] then
-          local step = ns.stepPassed(known[key], rating, post.pvpSteps or DEFAULT_PVP_STEPS)
-          if step then recordRating("pvp", rating, step, name) end
-        end
-        known[key] = rating
+-- PvP ratings read as 0 until the game has answered RequestRatedInfo, so only that answer calls
+-- this and zeros are skipped. The first rating of a session is only the baseline: a rating that
+-- was already there at login never counts.
+local sessionRatings = {}
+function ns.checkPvpRatings()
+  if not ns.IS_RETAIL or type(GetPersonalRatedInfo) ~= "function" then return end -- Forever has the APIs, but no ratings
+  if WoWCharacterTrackerDB then WoWCharacterTrackerDB.ratings = nil end -- the baselines older versions saved
+  local post = ns.setting("post") or {}
+  for index, name in pairs(PVP_BRACKETS) do
+    local ok, rating = pcall(GetPersonalRatedInfo, index)
+    if ok and type(rating) == "number" and rating > 0 then
+      if sessionRatings[index] then
+        local step = ns.stepPassed(sessionRatings[index], rating, post.pvpSteps or DEFAULT_PVP_STEPS)
+        if step then recordRating("pvp", rating, step, name) end
       end
+      sessionRatings[index] = rating
     end
   end
 end

@@ -43,7 +43,7 @@ Each game has a **What gets posted** page, in three columns:
   - **Mythic+ runs** (Retail, in place of end boss kills): a finished key, with the dungeon, the time, how far the key goes up (or that it went over time), your new Mythic+ rating and the group. Set the lowest key level that gets a post (**From key level**, 10 by default; 2 posts every key) and tick **Timed only** to skip keys that went over the timer. Every run still shows in the app's highlights.
   - **End boss kills** (Forever): the last boss of a dungeon or raid, with the group. On by default, only each character's first kill of a boss is posted (turn off **First kill only** to post every kill). You can skip the post when someone in the group matches a regex, for friends who run the tracker too, so the same kill isn't posted twice.
   - **Hardcore deaths**: what killed the character, total played and the gold they had on them.
-  - **Mythic+ rating** (Retail): when your rating climbs past one of your steps (2000, 2500, 3000, 3500 and 4000 by default). Going from 2800 to 3000 posts; going from 3000 to 3200 doesn't. Each step posts once per season.
+  - **Mythic+ rating** (Retail): when your rating climbs past one of your steps (2000, 2500, 3000, 3500 and 4000 by default). Going from 2800 to 3000 with a finished key posts; going from 3000 to 3200 doesn't, and neither does logging in with a rating you already had. Each step posts once per season.
 - **PvP**
   - **Duels won**: who you beat, or who ran away.
   - **Mak'gora won** (Forever): the hardcore duel to the death.

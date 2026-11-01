@@ -2,6 +2,12 @@
 
 The app shows the notes for a new version when it finds an update. Each release takes its notes from its section here.
 
+## v0.31.1
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+- Retail: logging in no longer counts as reaching a Mythic+ or PvP rating step. Alts could "reach" a step with another character's rating, and a step could show up again long after you reached it. Mythic+ steps now come only from a finished key that crosses the step, PvP steps only from climbing past one while you're playing.
+
 ## v0.31.0
 
 Post a highlight when you feel like it, and change the in-game settings in the game. Update the addon with the app (it does this by itself) and /reload in game.
