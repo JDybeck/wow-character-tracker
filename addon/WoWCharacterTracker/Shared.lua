@@ -82,7 +82,8 @@ end
 -- when there's none (an older app).
 function ns.setting(key)
   local changed = IN_GAME[key] and changedInGame()
-  if changed then return changed[key] end
+  -- A key an older version didn't keep in game still comes from the app.
+  if changed and changed[key] ~= nil then return changed[key] end
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]
 end
 
@@ -130,6 +131,14 @@ end
 
 function ns.withoutRealm(name)
   return name and (name:gsub("%-.*$", "")) or nil
+end
+
+-- Is an event with this id saved already? (Level-ups and milestones are recorded once.)
+function ns.hasEvent(id)
+  for _, e in ipairs(WoWCharacterTrackerDB and WoWCharacterTrackerDB.events or {}) do
+    if e.id == id then return true end
+  end
+  return false
 end
 
 -- Records a moment for the current character: what characterInfo knows, plus fields, as kind.

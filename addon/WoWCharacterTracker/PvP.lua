@@ -33,7 +33,7 @@ end
 
 local duelPatterns, makgoraPatterns
 local function buildDuelPatterns()
-  duelPatterns, makgoraPatterns = {}, {}
+  duelPatterns = {}
   -- Argument 1 is the winner in both: "%1$s has defeated %2$s in a duel", "%2$s has fled from %1$s in a duel".
   for _, name in ipairs({ "DUEL_WINNER_KNOCKOUT", "DUEL_WINNER_RETREAT" }) do
     local s = _G[name]
@@ -42,7 +42,12 @@ local function buildDuelPatterns()
       duelPatterns[#duelPatterns + 1] = { p, order, fled = name == "DUEL_WINNER_RETREAT" }
     end
   end
-  -- Hardcore Mak'gora (duel to the death): the game's own strings, whatever they're called.
+end
+
+-- Hardcore Mak'gora (duel to the death): the game's own strings, whatever they're called. That means
+-- going through every global, so only once a message that could be one arrives.
+local function buildMakgoraPatterns()
+  makgoraPatterns = {}
   for k, v in pairs(_G) do
     if type(k) == "string" and type(v) == "string" and #v < 200 and select(2, v:gsub("%%", "")) >= 2
         and (v:find("Mak'gora") or v:find("to the death")) and (v:find("defeated") or v:find("slain") or v:find("won")) then
@@ -103,7 +108,8 @@ function ns.onSystemMessage(text)
   text = ns.plain(text) -- chat is hidden from addons during a boss fight
   if not text then return end
   if not duelPatterns then buildDuelPatterns() end
-  for _, c in ipairs(makgoraPatterns) do
+  if not makgoraPatterns and (text:find("Mak'gora") or text:find("to the death")) then buildMakgoraPatterns() end
+  for _, c in ipairs(makgoraPatterns or {}) do
     local a = matchFormat(text, c)
     if a and isMe(a[1]) then recordDuel("makgora", a[2]); return end
     if a and isMe(a[2]) then recordDuel("makgora", a[1], nil, true); return end
@@ -145,8 +151,9 @@ local function recordRating(kind, rating, step, bracket)
   -- Once per step and season: a new season can post the same step again.
   local season = (kind == "mplus" and C_MythicPlus and C_MythicPlus.GetCurrentSeason and C_MythicPlus.GetCurrentSeason())
     or (kind == "pvp" and GetCurrentArenaSeason and GetCurrentArenaSeason()) or 0
-  ns.record(kind, { rating = rating, step = step, bracket = bracket }, -- "mplus" or "pvp"
-    string.format("%s:%s:%d:s%s", kind, bracket or "", step, tostring(season)))
+  local idSuffix = string.format("%s:%s:%d:s%s", kind, bracket or "", step, tostring(season))
+  if ns.hasEvent(UnitGUID("player") .. ":" .. idSuffix) then return end -- dropped below and climbed back
+  ns.record(kind, { rating = rating, step = step, bracket = bracket }, idSuffix) -- "mplus" or "pvp"
 end
 
 -- Mythic+ steps come only from a finished key's own before and after scores. The score the game

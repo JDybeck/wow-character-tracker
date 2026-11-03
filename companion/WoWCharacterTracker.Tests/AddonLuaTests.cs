@@ -196,14 +196,19 @@ public class AddonLuaTests
             function time() return 5000 end
             function GetNumGroupMembers() return 0 end
             function IsInGroup() return false end
-            WoWCharacterTrackerDB = { ratings = { ['Player-1'] = { mplus = 0 } } }
+            function UnitGUID() return 'Player-1' end
+            WoWCharacterTrackerDB = { events = {}, ratings = { ['Player-1'] = { mplus = 0 } } }
             WoWCharacterTrackerSettings = { post = { mplusSteps = { 2000, 3000 }, pvpSteps = { 1800, 2100 } } }
             """ + "\n" + setup);
         var ns = new Table(script);
         var recorded = new List<Table>();
         ns["say"] = (Action<string>)(_ => { });
         ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 90 }").Table);
-        ns["addEvent"] = (Action<Table>)recorded.Add;
+        ns["addEvent"] = (Action<Table>)(e =>
+        {
+            recorded.Add(e);
+            script.DoString("return WoWCharacterTrackerDB.events").Table.Append(DynValue.NewTable(e));
+        });
         ns["IS_RETAIL"] = true;
         foreach (var file in new[] { "Shared.lua", "Events.lua", "PvP.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
@@ -265,6 +270,12 @@ public class AddonLuaTests
         Assert.Equal(2100, e.Get("step").Number);
         Assert.Equal("3v3", e.Get("bracket").String);
         Assert.True(script.DoString("return WoWCharacterTrackerDB.ratings == nil").Boolean);
+
+        script.DoString("rated = 2080");
+        script.Call(check); // dropped below the step again
+        script.DoString("rated = 2105");
+        script.Call(check); // and back: already posted this season
+        Assert.Single(recorded);
     }
 
     // Events.lua with the game's skill list stubbed (Classic style); the recorded events come back.
@@ -1029,5 +1040,151 @@ public class AddonLuaTests
 
         script.DoString("C_EquipmentSet = nil");
         Assert.True(script.Call(ns.Get("scanEquipSets")).IsNil()); // keeps what the saved file had
+    }
+
+    // Events.lua's level times with a clock, timers that run on demand, and a game that may or may
+    // not answer /played. Recorded events also go into the saved list, like ns.addEvent does.
+    static (Script Script, Table Ns, List<Table> Recorded) LevelScript(string setup = "")
+    {
+        var (script, ns, recorded) = LoadEvents("""
+            now = 5000
+            function UnitGUID() return 'Player-1' end
+            function UnitLevel() return level or 1 end
+            function GetMaxPlayerLevel() return 60 end
+            function RequestTimePlayed() end
+            function date() return '12:00:00 ' end
+            timers = {}
+            C_Timer = { After = function(delay, fn) table.insert(timers, { at = now + delay, fn = fn }) end }
+            function runTimers()
+              table.sort(timers, function(a, b) return a.at < b.at end)
+              local due = timers
+              timers = {}
+              for _, t in ipairs(due) do now = math.max(now, t.at); t.fn() end
+            end
+            WoWCharacterTrackerDB = { events = {}, start = {}, startLevel = {}, logoutPlayed = {}, chars = {} }
+            """ + "\n" + setup);
+        var characterInfo = ns.Get("characterInfo");
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Character.lua"))), "WoWCharacterTracker", ns); // ns.playedNow
+        ns["characterInfo"] = characterInfo;
+        ns["doing"] = (Action<string>)(_ => { });
+        ns["saveSnapshot"] = (Action)(() => { });
+        ns["addEvent"] = (Action<Table>)(e =>
+        {
+            recorded.Add(e);
+            script.DoString("return WoWCharacterTrackerDB.events").Table.Append(DynValue.NewTable(e));
+        });
+        return (script, ns, recorded);
+    }
+
+    static string Levels(List<Table> recorded) =>
+        string.Join(",", recorded.Where(e => e.Get("kind").String == "level").Select(e => (int)e.Get("level").Number));
+
+    static string AllLevels => string.Join(",", Enumerable.Range(2, 59));
+
+    // Every ding from 1-2 to 59-60 is logged once, even when the game never answers the addon's
+    // /played requests and there's no played time to start from (the addon installed mid-level).
+    [Fact]
+    public void Every_ding_is_logged_without_any_played_answer()
+    {
+        var (script, ns, recorded) = LevelScript();
+        for (var level = 2; level <= 60; level++)
+        {
+            script.DoString($"level = {level}");
+            script.Call(ns.Get("onLevelUp"), level);
+            script.DoString("runTimers()");
+        }
+
+        Assert.Equal(AllLevels, Levels(recorded));
+        Assert.True(recorded[^1].Get("maxLevel").Boolean);
+    }
+
+    // With the played time known (from the last logout), every ding is timed right away, and the
+    // game's answers afterwards don't log any level twice.
+    [Fact]
+    public void Every_ding_is_timed_once_when_the_played_time_is_known()
+    {
+        var (script, ns, recorded) = LevelScript();
+        script.Call(ns.Get("onLogin")); // a brand new character: played starts at 0
+        for (var level = 2; level <= 60; level++)
+        {
+            script.DoString($"level = {level}; now = now + 600");
+            script.Call(ns.Get("onLevelUp"), level);
+            script.Call(ns.Get("onTimePlayed"), script.DoString("return now - 5000").Number, 0);
+            script.DoString("runTimers()");
+        }
+
+        Assert.Equal(AllLevels, Levels(recorded));
+        Assert.All(recorded, e => Assert.False(e.Get("seconds").IsNil()));
+    }
+
+    // A /reload or logout right after a ding, before the game answered: the ding is still saved.
+    [Fact]
+    public void A_ding_right_before_logout_is_logged()
+    {
+        var (script, ns, recorded) = LevelScript("level = 23");
+        script.Call(ns.Get("onLevelUp"), 23);
+        script.Call(ns.Get("onLogout"));
+        script.DoString("runTimers()");
+
+        Assert.Equal("23", Levels(recorded));
+    }
+
+    // Installing the addon on a character that has been level 2 for a while: its first /played
+    // answer doesn't log a ding that happened long ago.
+    [Fact]
+    public void An_old_level_2_is_not_logged_as_a_new_ding()
+    {
+        var (script, ns, recorded) = LevelScript("level = 2");
+        script.Call(ns.Get("onTimePlayed"), 3600, 1200);
+        Assert.Empty(recorded);
+    }
+
+    // Two different mounts close together both count; a mount item and then learning it is one.
+    [Fact]
+    public void Each_new_mount_counts_but_an_item_and_its_learning_are_one()
+    {
+        var (script, ns, recorded) = LoadEvents("");
+        script.Call(ns.Get("recordMount"), "Reins of the Black Wolf", 5665);
+        script.Call(ns.Get("recordMount"), "Black Wolf", DynValue.Nil, 580); // learned from those reins
+        script.DoString("now = 5030");
+        script.Call(ns.Get("recordMount"), "Swift Brown Ram", 18786);
+        script.Call(ns.Get("recordMount"), "Swift Brown Ram", 18786); // the same one reported twice
+
+        Assert.Equal(["Reins of the Black Wolf", "Swift Brown Ram"], recorded.Select(e => e.Get("mount").String));
+    }
+
+    // A setting changed in game by an older version, which didn't keep this key: the app's value counts.
+    [Fact]
+    public void A_setting_missing_from_the_in_game_change_comes_from_the_app()
+    {
+        var (script, ns) = InGameSettingsScript("{ inGameAt = 100, keepAllHistory = true }");
+        script.DoString("WoWCharacterTrackerDB.gameSettings = { at = 200, gridLabel = false }");
+
+        Assert.True(script.Call(ns.Get("setting"), "keepAllHistory").Boolean);
+        Assert.False(script.Call(ns.Get("setting"), "gridLabel").Boolean);
+    }
+
+    // 0 copper is saved as it is (all spent), except at logout where the game reports 0 for everyone.
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 4200)]
+    public void Zero_money_is_kept_except_at_logout(bool atLogout, int saved)
+    {
+        var script = new Script();
+        script.DoString("""
+            function time() return 1000 end
+            function UnitGUID() return "Player-1" end
+            WoWCharacterTrackerDB = { xpTable = {}, chars = { ["Player-1"] = { level = 11, money = 4200 } } }
+            """);
+        var ns = new Table(script);
+        ns["doing"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Character.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["playedNow"] = (Func<double>)(() => 5000);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 11, money = 0 }").Table);
+
+        script.Call(ns.Get("saveSnapshot"), atLogout);
+
+        Assert.Equal(saved, script.DoString("return WoWCharacterTrackerDB.chars['Player-1'].money").Number);
     }
 }
