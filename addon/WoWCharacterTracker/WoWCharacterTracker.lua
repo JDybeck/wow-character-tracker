@@ -68,7 +68,6 @@ function on.PLAYER_REGEN_ENABLED()
   ns.processShots() -- data grids held back during combat
   ns.flushAnnouncements() -- guild/group messages held back during combat
   ns.showNextAsk() -- and the box offering to post a highlight
-  ns.scanAfterCombat() -- bag changes during the fight
   if professionsWaiting then
     professionsWaiting = false
     ns.checkProfessions()

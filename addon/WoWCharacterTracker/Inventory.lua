@@ -322,19 +322,7 @@ function ns.noteSaved()
   e.savedZone = (GetRealZoneText and GetRealZoneText()) or nil
 end
 
--- Bags change a lot while looting, so the scan waits for a quiet moment, and for the end of a fight
--- (PLAYER_REGEN_ENABLED calls ns.scanAfterCombat).
-local waitingForCombat = false
-ns.scanInventorySoon = ns.debounce(3, function()
-  if InCombatLockdown and InCombatLockdown() then
-    waitingForCombat = true
-    return
-  end
-  ns.scanInventory()
-end)
-
-function ns.scanAfterCombat()
-  if not waitingForCombat then return end
-  waitingForCombat = false
-  ns.scanInventorySoon()
-end
+-- Bags change a lot while looting, so the scan waits for a quiet moment. It runs in fights too (only
+-- the cheap bag and gear ids then): a /reload mid-fight saves what was scanned last, and no scan can
+-- run at logout.
+ns.scanInventorySoon = ns.debounce(3, function() ns.scanInventory() end)

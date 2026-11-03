@@ -8,7 +8,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 ### Fixes and tweaks
 
-- The addon does less while you play: gold and currency changes update only those, bag scans wait until a fight ends, gear tooltips aren't read again every few minutes, and loading screens no longer rescan everything.
+- The addon does less while you play: gold and currency changes update only those, gear tooltips aren't read again every few minutes, and loading screens no longer rescan everything.
 - Saved events no longer carry talent picks, stats and XP the app doesn't use, so the saved file grows slower and loads faster.
 - Forever can never be mistaken for Retail when reading talents and roles.
 - Loot, duel and Mak'gora messages are read with one shared pattern builder, which also handles translated strings with numbered arguments.
