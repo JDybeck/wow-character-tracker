@@ -91,6 +91,7 @@ static class ScreenshotMode
                 vm.Updates.InstallSteps.Clear();
                 foreach (var s in Updater.Steps) vm.Updates.InstallSteps.Add(new UpdateStepRow(s == "Downloading" ? "Downloading version 0.15.0" : s));
                 vm.Updates.IsInstalling = true;
+                vm.Updates.ShowSteps = true;
                 vm.Updates.ShowStep(new Updater.Step(0, 0.42, "29.6 of 70.4 MB"));
             }
             if (Part(3) == "posthighlight" && vm.SelectedFlavor?.SelectedCharacter?.Highlights.FirstOrDefault() is { } h)

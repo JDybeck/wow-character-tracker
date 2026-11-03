@@ -18,9 +18,10 @@ record Snapshot(string Guid, string Char, string Realm, int Level, string Class,
         Region: e.Region, Keystone: e.Keystone, ZoneType: e.ZoneType, MplusScore: e.MplusScore, PvpRatings: e.PvpRatings, Faction: e.Faction);
 }
 
-// The In game page's settings as last changed in game (the addon's options page), and when.
-record InGameSettings(long At, bool AnnounceGuild, bool AnnounceParty, List<string> AnnounceKinds, List<string> AskKinds,
-    bool FlightReload, bool ChatReminder, string GridCorner, bool GridLabel, bool KeepAllHistory);
+// The In game page's settings as last changed in game (the addon's options page), and when. Null:
+// the change doesn't have that setting (an older addon), so the app's own value stays, as in the addon.
+record InGameSettings(long At, bool? AnnounceGuild, bool? AnnounceParty, List<string>? AnnounceKinds, List<string>? AskKinds,
+    bool? FlightReload, bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory);
 
 // Everything read for one game tab: events, character snapshots, what each character carries, and
 // the XP each level needs on that client ([level] = XP).

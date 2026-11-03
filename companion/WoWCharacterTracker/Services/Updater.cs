@@ -57,11 +57,14 @@ static class Updater
     // Step: index into Steps. Fraction and Detail: the download's progress ("12.3 of 70.1 MB").
     public sealed record Step(int Index, double? Fraction = null, string Detail = "");
 
-    // Returns null when the new version was started (the caller then quits), or a reason it couldn't.
-    public static async Task<string?> InstallAsync(Release release, IProgress<Step>? progress = null)
+    // How an install went. Problem null: the new version was started (the caller then quits).
+    // Installed: the new exe is in place even though something went wrong after (it didn't start).
+    public sealed record Outcome(string? Problem, bool Installed = false);
+
+    public static async Task<Outcome> InstallAsync(Release release, IProgress<Step>? progress = null)
     {
-        if (!CanInstall) return "This is a development build, so it can't update itself. Build it again instead.";
-        if (release.DownloadUrl.Length == 0) return "That release has no exe attached.";
+        if (!CanInstall) return new("This is a development build, so it can't update itself. Build it again instead.");
+        if (release.DownloadUrl.Length == 0) return new("That release has no exe attached.");
         var exe = Environment.ProcessPath!;
         var newExe = exe + ".new";
         try
@@ -101,17 +104,16 @@ static class Updater
             progress?.Report(new Step(2));
             File.Move(exe, exe + ".old", overwrite: true);
             File.Move(newExe, exe);
-
         }
         catch (UnauthorizedAccessException)
         {
             PutBack(exe, newExe);
-            return $"Windows didn't let the app replace itself in {Path.GetDirectoryName(exe)}. Download it from the release page instead.";
+            return new($"Windows didn't let the app replace itself in {Path.GetDirectoryName(exe)}. Download it from the release page instead.");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
             PutBack(exe, newExe);
-            return "The update didn't work: " + ex.Message;
+            return new("The update didn't work: " + ex.Message);
         }
 
         // The new version is in place from here, so a failed start doesn't undo the update.
@@ -119,11 +121,11 @@ static class Updater
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--updated") { UseShellExecute = true });
-            return null;
+            return new(null);
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
-            return $"The new version is installed, but Windows didn't let it start ({ex.Message}). Close this window and open the app again.";
+            return new($"The new version is installed, but Windows didn't let it start ({ex.Message}). Close the app and open it again.", Installed: true);
         }
     }
 

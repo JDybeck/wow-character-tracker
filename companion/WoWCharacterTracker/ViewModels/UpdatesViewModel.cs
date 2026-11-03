@@ -103,6 +103,9 @@ sealed class UpdatesViewModel : Observable
     public ObservableCollection<UpdateStepRow> InstallSteps { get; } = [];
     bool isInstalling;
     public bool IsInstalling { get => isInstalling; set => Set(ref isInstalling, value); }
+    // The install's steps stay in the banner after a failure, while Update now can be tried again.
+    bool showSteps;
+    public bool ShowSteps { get => showSteps; set => Set(ref showSteps, value); }
     double downloadPercent;
     public double DownloadPercent { get => downloadPercent; set => Set(ref downloadPercent, value); }
     string downloadText = "";
@@ -115,17 +118,24 @@ sealed class UpdatesViewModel : Observable
         InstallSteps.Clear();
         foreach (var s in Updater.Steps) InstallSteps.Add(new UpdateStepRow(s == "Downloading" ? $"Downloading version {update.Version}" : s));
         IsInstalling = true;
+        ShowSteps = true;
         ShowNotes = false;
 
-        var problem = await Updater.InstallAsync(update, new Progress<Updater.Step>(ShowStep));
-        if (problem is null)
+        var outcome = await Updater.InstallAsync(update, new Progress<Updater.Step>(ShowStep));
+        if (outcome.Problem is not { } problem)
         {
             UpdateStarted?.Invoke();
             return;
         }
         if (InstallSteps.FirstOrDefault(s => s.State == "active") is { } failed) failed.State = "failed";
         InstallSteps.Add(new UpdateStepRow(problem) { State = "note" });
+        if (outcome.Installed)
+        {
+            Log.Warn(problem); // only the restart is left, nothing to download again
+            return;
+        }
         Log.Error(problem);
+        IsInstalling = false; // so Install can be tried again
         Browser.Open(update.PageUrl);
     }
 

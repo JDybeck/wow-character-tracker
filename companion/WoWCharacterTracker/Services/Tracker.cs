@@ -238,8 +238,6 @@ sealed class Tracker : IDisposable
     // turning a toggle on later doesn't dump old events into the channel. Returns how many posts went out.
     async Task<int> PostPendingAsync(List<Entry> pending, List<Entry> history, FlavorSettings s)
     {
-        // When a wanted event with a screenshot is close by, the picture may be its own, so it stays.
-        var wantedShots = pending.Where(e => e.Shot && s.Wants(e, history)).Select(e => e.At).ToList();
         foreach (var e in pending.Where(e => !s.Wants(e, history)))
         {
             if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
@@ -249,7 +247,7 @@ sealed class Tracker : IDisposable
             posted!.Add(e.Id);
             // Only posted highlights keep their screenshot. (The addon normally doesn't take one for
             // these, unless the settings changed since the game last loaded them.)
-            if (e.Shot && !wantedShots.Any(at => Math.Abs(at - e.At) <= 92) && ScreenshotFileFor(e, within: 20) is { } unwantedShot)
+            if (e.Shot && !NearWantedShot(e, history, s) && ScreenshotFileFor(e, within: 20) is { } unwantedShot)
                 Files.TryDelete(unwantedShot);
         }
 
@@ -269,6 +267,7 @@ sealed class Tracker : IDisposable
         var sent = 0;
         foreach (var e in toPost)
         {
+            if (disposed) break; // the tab was turned off mid-batch: the rest waits for it to come back
             var forThis = webhooksFor(e);
             var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
             // The game only reads its screenshot settings on /reload or login, so a box ticked
@@ -294,6 +293,12 @@ sealed class Tracker : IDisposable
         }
         return sent;
     }
+
+    // A wanted event with a screenshot close to this one (in this batch or posted before): the
+    // picture in this one's window may be that event's, so it isn't deleted. Covers the 90 s a
+    // posted event's own picture can come late (ScreenshotFileFor).
+    static bool NearWantedShot(Entry e, List<Entry> history, FlavorSettings s) =>
+        history.Any(w => w.Id != e.Id && w.Shot && Math.Abs(w.At - e.At) <= 92 && s.Wants(w, history));
 
     // The addon takes the screenshot a second or two after the event. The game names it by time,
     // so the newest picture written just after the event is the one. For a live event the file may

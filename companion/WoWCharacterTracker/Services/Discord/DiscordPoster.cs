@@ -38,10 +38,10 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             embed["image"] = new { url = "attachment://item.png" };
             files.Add((item, "item.png"));
         }
+        if (screenshot is null) return await webhook.SendAsync(list, files);
         byte[] image;
         try
         {
-            if (screenshot is null) return await webhook.SendAsync(list, files);
             image = await File.ReadAllBytesAsync(screenshot);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
