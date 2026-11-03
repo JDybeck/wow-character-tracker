@@ -474,8 +474,8 @@ end
 -- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
--- (Money too: during logout GetMoney() comes back as 0. Ratings read as none until the game has
--- answered RequestRatedInfo, so they keep the last known values too.)
+-- (Ratings read as none until the game has answered RequestRatedInfo, so they keep the last known
+-- values too. Money has its own rule below.)
 local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "zone", "played", "crests", "mplusScore", "pvpRatings" }
 
 -- atLogout: true from the logout (a ticker passes itself, so only true counts), where 0 money isn't real.

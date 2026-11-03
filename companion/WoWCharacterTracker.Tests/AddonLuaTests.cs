@@ -517,6 +517,32 @@ public class AddonLuaTests
         Assert.True(script.DoString("return WoWCharacterTrackerSettings.announce.kinds.level").Boolean);
     }
 
+    // At logout or /reload the next frame never comes: a ding logged then (giveUpWaiting) is saved
+    // but starts no grid shot, so the player's screenshot settings are never left changed.
+    [Fact]
+    public void Nothing_is_sent_live_after_logout_starts()
+    {
+        var script = new Script();
+        script.DoString("""
+            WoWCharacterTrackerDB = { events = {} }
+            WoWCharacterTrackerSettings = { post = {} }
+            function Screenshot() shots = (shots or 0) + 1 end
+            function SetCVar() cvars = (cvars or 0) + 1 end
+            function GetCVar() return 'png' end
+            function InCombatLockdown() return false end
+            CreateFrame = function() return {} end
+            """);
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+
+        script.Call(ns.Get("stopShots"));
+        script.Call(ns.Get("sendLive"), script.DoString("return { kind = 'level', id = 'x', level = 12 }"));
+
+        Assert.True(script.Globals.Get("shots").IsNil());
+        Assert.True(script.Globals.Get("cvars").IsNil());
+    }
+
     // Loads Events.lua after the test's own Lua setup; recorded collects what it records.
     static (Script Script, Table Ns, List<Table> Recorded) LoadEvents(string setup)
     {

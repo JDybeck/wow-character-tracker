@@ -31,6 +31,7 @@ function on.PLAYER_LOGIN()
 end
 
 function on.PLAYER_LOGOUT() -- also on /reload, right before the game writes the saved file
+  ns.stopShots()
   ns.noteSaved() -- (no inventory scan: the game has emptied the bags by now)
   ns.onLogout()
 end

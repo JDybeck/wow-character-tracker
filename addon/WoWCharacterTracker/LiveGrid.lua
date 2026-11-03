@@ -18,11 +18,11 @@ local SHORT = {
 -- code also rides along with the check-in after login, so the Wowhead link shows right away.)
 local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true }
 
--- Left out of one kind of event: talentExport except on the check-in, and the check-in's maxLevel,
--- which is the level cap there (on a level-up it means "reached max level" and must go live).
-local function leftOut(k, kind)
+-- Left out: talentExport except on the check-in, and maxLevel unless it's true (a level-up that
+-- reached max); elsewhere it holds the level cap (characterInfo), which the app must not read as that.
+local function leftOut(k, v, kind)
   if k == "talentExport" then return kind ~= "snapshot" end
-  if k == "maxLevel" then return kind == "snapshot" end
+  if k == "maxLevel" then return v ~= true end
   return SAVED_ONLY[k]
 end
 
@@ -31,7 +31,7 @@ end
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
-    if type(v) ~= "table" and v ~= "" and v ~= false and not leftOut(k, t.kind) then
+    if type(v) ~= "table" and v ~= "" and v ~= false and not leftOut(k, v, t.kind) then
       if v == true then v = 1 end
       if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
       if k == "sex" then v = (v == "female") and "f" or "m" end
@@ -376,9 +376,17 @@ ns.processShots = function()
   end
 end
 
+-- At logout or /reload the next frame never comes, so a grid shot would never finish: none start
+-- from now on (what's recorded still goes into the saved file), and the screenshot settings a grid
+-- shot changed go back to the player's own.
+function ns.stopShots()
+  ns.loggingOut = true
+  if savedCVars and not InCombatLockdown() then restoreShotSettings() end
+end
+
 function ns.sendLive(e)
   -- Without the app, nobody reads the grid and its screenshots would just pile up.
-  if not ns.hasApp() or WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
+  if ns.loggingOut or not ns.hasApp() or WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
   table.insert(shotQueue, { bits = toBits(encode(e)), portrait = e.kind == "snapshot" })
   ns.processShots()
 end
