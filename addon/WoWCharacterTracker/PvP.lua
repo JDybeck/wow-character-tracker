@@ -131,7 +131,6 @@ end
 
 -- Rating milestones (retail) -------------------------------------------------
 
-local PVP_BRACKETS = { [1] = "2v2", [2] = "3v3", [4] = "Rated Battlegrounds", [7] = "Solo Shuffle", [9] = "Battleground Blitz" }
 local DEFAULT_MPLUS_STEPS = { 2000, 2500, 3000, 3500, 4000 }
 local DEFAULT_PVP_STEPS = { 1800, 2100, 2400, 2700 }
 
@@ -160,7 +159,8 @@ function ns.checkPvpRatings()
   if not ns.IS_RETAIL or type(GetPersonalRatedInfo) ~= "function" then return end -- Forever has the APIs, but no ratings
   if WoWCharacterTrackerDB then WoWCharacterTrackerDB.ratings = nil end -- the baselines older versions saved
   local post = ns.setting("post") or {}
-  for index, name in pairs(PVP_BRACKETS) do
+  for _, bracket in ipairs(ns.PVP_BRACKETS) do
+    local index, name = bracket[1], bracket[2]
     local ok, rating = pcall(GetPersonalRatedInfo, index)
     if ok and type(rating) == "number" and rating > 0 then
       if sessionRatings[index] then

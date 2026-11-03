@@ -95,7 +95,7 @@ public class AddonLuaTests
         script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
         script.DoString("function time() return 1000 end");
         var recorded = new List<Table>();
-        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 5, maxLevel = 60 }").Table);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 5, maxLevel = 60, talentExport = 'BYQA' }").Table);
         ns["addEvent"] = (Action<Table>)recorded.Add;
 
         script.Call(ns.Get("record"), "loot", script.DoString("return { item = 'X', at = 900 }"), "loot:1:900");
@@ -103,6 +103,7 @@ public class AddonLuaTests
         script.Call(ns.Get("record"), "death");
 
         Assert.True(recorded[0].Get("maxLevel").IsNil());
+        Assert.True(recorded[0].Get("talentExport").IsNil()); // the check-in carries it, saved events don't
         Assert.Equal("Player-1:loot:1:900", recorded[0].Get("id").String);
         Assert.Equal(900, recorded[0].Get("at").Number);
         Assert.True(recorded[1].Get("maxLevel").Boolean);
@@ -120,6 +121,27 @@ public class AddonLuaTests
         Assert.Equal(["GUILD: Looted |cffa335ee|Hitem:17069|h[Sul'thraze the Lasher]|h|r!"],
             [.. Announce(GuildOnly, "{ kind = 'loot', item = \"Sul'thraze the Lasher\", itemId = 17069, quality = 4 }"),
              .. Announce(GuildOnly, "{ kind = 'loot', item = 'Blue thing', itemId = 1, quality = 3 }")]);
+
+    // Newer clients only have C_Item.GetItemInfo: the line still carries the link.
+    [Fact]
+    public void Loot_links_come_from_c_item_when_the_global_is_gone()
+    {
+        var sent = new List<string>();
+        var script = new Script();
+        script.DoString(FakeTimers);
+        script.Globals["SendChatMessage"] = (Action<string, string>)((msg, _) => sent.Add(msg));
+        script.Globals["IsInGuild"] = (Func<bool>)(() => true);
+        script.DoString("""
+            C_Item = { GetItemInfo = function(id) return 'X', '|cnIQ4:|Hitem:'..id..'|h[X]|h|r' end }
+            WoWCharacterTrackerSettings = { announce = { guild = true, kinds = { loot = true } } }
+            """);
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Announce.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        script.Call(ns.Get("announce"), script.DoString("return { kind = 'loot', item = 'X', itemId = 5, quality = 4 }"));
+        script.DoString("runTimers(1100)");
+        Assert.Equal(["Looted |cnIQ4:|Hitem:5|h[X]|h|r!"], sent);
+    }
 
     [Fact]
     public void Boss_kills_leave_the_group_out_and_go_to_the_raid_in_a_raid() =>
@@ -541,6 +563,52 @@ public class AddonLuaTests
 
         Assert.True(script.Globals.Get("shots").IsNil());
         Assert.True(script.Globals.Get("cvars").IsNil());
+    }
+
+    // A fight can start between a grid shot and the game's answer. The player's screenshot settings
+    // only come back once it's over: no CVar changes in combat.
+    [Fact]
+    public void A_grid_shot_ending_in_combat_restores_the_settings_after_it()
+    {
+        var script = new Script();
+        script.DoString("""
+            WoWCharacterTrackerDB = { events = {} }
+            WoWCharacterTrackerSettings = { post = {} }
+            inCombat, cvars, scripts = false, {}, {}
+            function InCombatLockdown() return inCombat end
+            function time() return 1000 end
+            function date() return '12:00:00' end
+            function Screenshot() shots = (shots or 0) + 1 end
+            function SetCVar(name, value) table.insert(cvars, name .. '=' .. value) end
+            function GetCVar(name) return name == 'screenshotFormat' and 'png' or '10' end
+            C_Timer = { After = function() end }
+            local function stub()
+              return setmetatable({}, { __index = function(_, k)
+                if k == 'SetScript' then return function(_, name, fn) scripts[name] = fn end end
+                return function() return stub() end
+              end })
+            end
+            CreateFrame = stub
+            """);
+        var ns = new Table(script);
+        ns["doing"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        string Cvars() => script.DoString("return table.concat(cvars, ',')").String;
+
+        script.Call(ns.Get("sendLive"), script.DoString("return { kind = 'level', id = 'x', level = 12 }"));
+        script.DoString("scripts.OnUpdate(CreateFrame())"); // the next frame: the shot
+        Assert.Equal(1, script.Globals.Get("shots").Number);
+        Assert.Equal("screenshotFormat=jpeg,screenshotQuality=3", Cvars());
+
+        script.DoString("inCombat = true");
+        script.Call(ns.Get("onScreenshotEvent"), true);
+        script.Call(ns.Get("processShots"));
+        Assert.Equal("screenshotFormat=jpeg,screenshotQuality=3", Cvars());
+
+        script.DoString("inCombat = false");
+        script.Call(ns.Get("processShots")); // PLAYER_REGEN_ENABLED
+        Assert.Equal("screenshotFormat=jpeg,screenshotQuality=3,screenshotFormat=png,screenshotQuality=10", Cvars());
     }
 
     // Loads Events.lua after the test's own Lua setup; recorded collects what it records.

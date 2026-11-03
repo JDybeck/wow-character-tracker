@@ -219,7 +219,8 @@ local setCVar = (C_CVar and C_CVar.SetCVar) or SetCVar
 -- JPEG 81, ~0.7 MB), and the black and white 2 px cells read back cleanly far below that (tested
 -- down to JPEG 20). TGA can't be read by the app. The player's own settings come back right after.
 local function useGridShotSettings()
-  savedCVars = { format = getCVar("screenshotFormat"), quality = getCVar("screenshotQuality") }
+  -- Still set from a grid shot that ended in combat: what's saved is the player's own.
+  savedCVars = savedCVars or { format = getCVar("screenshotFormat"), quality = getCVar("screenshotQuality") }
   pcall(setCVar, "screenshotFormat", "jpeg")
   pcall(setCVar, "screenshotQuality", "3")
   if ActionStatus and ActionStatus.UnregisterEvent then ActionStatus:UnregisterEvent("SCREENSHOT_SUCCEEDED") end
@@ -292,11 +293,9 @@ end
 
 -- The last few shots and how they went (kind, ok, in combat, retried), for /wct debug.
 local function logShot(item, ok)
-  local log = WoWCharacterTrackerDB.shotLog or {}
-  WoWCharacterTrackerDB.shotLog = log
-  table.insert(log, string.format("%s %s %s%s%s", date("%H:%M:%S"), item.bits and "grid" or (item.kind or "event"),
-    ok and "ok" or "FAILED", item.inCombat and " in combat" or "", item.retried and " (retry)" or ""))
-  while #log > 20 do table.remove(log, 1) end
+  WoWCharacterTrackerDB.shotLog = ns.appendCapped(WoWCharacterTrackerDB.shotLog or {},
+    string.format("%s %s %s%s%s", date("%H:%M:%S"), item.bits and "grid" or (item.kind or "event"),
+      ok and "ok" or "FAILED", item.inCombat and " in combat" or "", item.retried and " (retry)" or ""), 20)
 end
 
 -- ok = false when the game said the screenshot failed or never answered. An event's own picture
@@ -308,7 +307,9 @@ function ns.shotDone(ok)
   local item = shotItem
   if item and item.bits then
     if grid then grid:Hide() end
-    restoreShotSettings()
+    -- A fight can start between the shot and the game's answer: no CVar changes in combat, so
+    -- the player's settings come back once it's over (processShots on PLAYER_REGEN_ENABLED).
+    if not InCombatLockdown() then restoreShotSettings() end
   else
     showChat()
   end
@@ -347,7 +348,9 @@ local function nextShot()
 end
 
 ns.processShots = function()
-  if shotBusy or #shotQueue == 0 then return end
+  if shotBusy then return end
+  if savedCVars and not InCombatLockdown() then restoreShotSettings() end -- left from a grid shot that ended in combat
+  if #shotQueue == 0 then return end
   if time() <= lastShotSecond then
     C_Timer.After(0.25, ns.processShots)
     return
@@ -450,10 +453,16 @@ local checkedIn = false
 function ns.checkIn()
   if checkedIn or not WoWCharacterTrackerDB or WoWCharacterTrackerDB.live == false then return end
   checkedIn = true
-  local e = ns.characterInfo()
-  e.kind = "snapshot"
+  local e = ns.liveEvent("snapshot")
   e.played = ns.playedNow()
-  e.at = time()
-  e.id = string.format("%s:snapshot:%d", e.guid, e.at)
   ns.sendLive(e)
+end
+
+-- An event that only goes live, never into the saved file (the check-in, /wct test), with
+-- everything characterInfo knows (the check-in carries the talent export).
+function ns.liveEvent(kind)
+  local e = ns.characterInfo()
+  e.kind, e.at = kind, time()
+  e.id = ns.eventId(e.guid, kind, e.at)
+  return e
 end

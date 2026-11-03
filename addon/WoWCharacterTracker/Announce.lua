@@ -6,7 +6,7 @@ local ADDON, ns = ...
 
 -- The item as a clickable link when the game has it, else its name in brackets.
 local function itemLink(id, name)
-  local link = id and GetItemInfo and select(2, GetItemInfo(id))
+  local link = id and select(2, ns.itemInfo(id))
   return link or string.format("[%s]", name or "?")
 end
 ns.itemLink = itemLink

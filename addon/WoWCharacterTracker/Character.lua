@@ -48,15 +48,22 @@ local function getProfessions()
   return table.concat(parts, ", ")
 end
 
+-- The active talent loadout's config id, its trait tree and the config itself, on clients with
+-- modern talents (Retail, Forever). Nil without one; the tree can be nil when the config has none.
+local function activeTraitTree()
+  if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetConfigInfo) then return nil end
+  local configID = C_ClassTalents.GetActiveConfigID()
+  if not configID then return nil end
+  local config = C_Traits.GetConfigInfo(configID)
+  return configID, config and config.treeIDs and config.treeIDs[1], config
+end
+ns.activeTraitTree = activeTraitTree -- /wct debug
+
 -- Retail point split, e.g. "Class 15 / Fury 12 / Slayer 3".
 -- The class and spec trees share one trait tree with one currency each (class first),
 -- and the hero tree has its own currency. Returns nil if anything is missing.
 local function getRetailTalentSplit(specName)
-  if not (C_ClassTalents and C_Traits) then return nil end
-  local configID = C_ClassTalents.GetActiveConfigID()
-  if not configID then return nil end
-  local config = C_Traits.GetConfigInfo(configID)
-  local treeID = config and config.treeIDs and config.treeIDs[1]
+  local configID, treeID = activeTraitTree()
   if not treeID then return nil end
 
   local currencies = C_Traits.GetTreeCurrencyInfo(configID, treeID, false) or {}
@@ -99,13 +106,11 @@ local CLASSIC_TREES = {
 -- Forever (Classic+) keeps the classic three talent trees, but as one modern trait tree with the
 -- three side by side. Nodes are grouped into trees by their X position (a wide gap between
 -- columns starts the next tree). Returns "Holy 0 / Protection 0 / Retribution 16", the tree with
--- the most points (shown as the spec), and the picked talents as "spellID~rank~maxRank~tree,...".
-local function getTraitTalents()
-  if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetTreeNodes) then return nil end
-  local configID = C_ClassTalents.GetActiveConfigID()
-  if not configID then return nil end
-  local config = C_Traits.GetConfigInfo(configID)
-  local treeID = config and config.treeIDs and config.treeIDs[1]
+-- the most points (shown as the spec), and the picked talents as "spellID~rank~maxRank~tree,..."
+-- (skipped with skipPicks: events don't keep them, and each pick costs two more lookups).
+local function getTraitTalents(skipPicks)
+  if not (C_Traits and C_Traits.GetTreeNodes) then return nil end
+  local configID, treeID = activeTraitTree()
   if not treeID then return nil end
 
   local nodes, xs, seen = {}, {}, {}
@@ -133,7 +138,7 @@ local function getTraitTalents()
       local t = treeOfX[node.posX]
       points[t] = points[t] + ranks
       total = total + ranks
-      local entryID = (node.activeEntry and node.activeEntry.entryID) or (node.entryIDs and node.entryIDs[1])
+      local entryID = not skipPicks and ((node.activeEntry and node.activeEntry.entryID) or (node.entryIDs and node.entryIDs[1]))
       local entry = entryID and C_Traits.GetEntryInfo and C_Traits.GetEntryInfo(configID, entryID)
       local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo and C_Traits.GetDefinitionInfo(entry.definitionID)
       local spellID = def and (def.spellID or def.overriddenSpellID)
@@ -175,8 +180,8 @@ function ns.specName()
 end
 
 -- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or nil when there is nothing to show yet.
--- Also returns the spec name on retail (nil on Classic).
-function ns.getTalents()
+-- Also returns the spec name on retail (nil on Classic). skipPicks: see getTraitTalents.
+function ns.getTalents(skipPicks)
   if type(GetNumTalentTabs) == "function" and GetNumTalentTabs() > 0 then
     -- Classic: one entry per talent tree with points spent.
     local parts, total = {}, 0
@@ -202,7 +207,7 @@ function ns.getTalents()
     if ok and split then return split, specName end
     return nil, specName
   end
-  local ok, traits, specName, picks, calc = pcall(getTraitTalents)
+  local ok, traits, specName, picks, calc = pcall(getTraitTalents, skipPicks)
   if ok then return traits, specName, picks, calc end
   return nil
 end
@@ -302,8 +307,8 @@ end
 -- The game's talent loadout string (what "Export" in the talent window gives), for Wowhead's
 -- talent calculator. Retail has it; nil where the client doesn't.
 local function getTalentExport()
-  if not (C_Traits and C_Traits.GenerateImportString and C_ClassTalents and C_ClassTalents.GetActiveConfigID) then return nil end
-  local configID = C_ClassTalents.GetActiveConfigID()
+  if not (C_Traits and C_Traits.GenerateImportString) then return nil end
+  local configID = activeTraitTree()
   if not configID then return nil end
   local ok, s = pcall(C_Traits.GenerateImportString, configID)
   if ok and type(s) == "string" and s ~= "" then return s end
@@ -375,11 +380,12 @@ local function getMplusScore()
 end
 
 -- Retail: rated PvP as "bracket~rating,..." (brackets as GetPersonalRatedInfo numbers them,
--- the same as PVP_BRACKETS in PvP.lua), only brackets with a rating, nil when there are none.
+-- ns.PVP_BRACKETS), only brackets with a rating, nil when there are none.
 local function getPvpRatings()
   if not (ns.IS_RETAIL and type(GetPersonalRatedInfo) == "function") then return nil end
   local parts = {}
-  for _, index in ipairs({ 1, 2, 4, 7, 9 }) do
+  for _, bracket in ipairs(ns.PVP_BRACKETS) do
+    local index = bracket[1]
     local ok, rating = pcall(GetPersonalRatedInfo, index)
     if ok and type(rating) == "number" and rating > 0 then
       table.insert(parts, string.format("%d~%d", index, rating))
@@ -419,12 +425,13 @@ local function safe(fn, ...)
   return nil
 end
 
--- Everything we show about the character, both in posts and in the companion app.
-function ns.characterInfo()
+-- Everything we show about the character, both in posts and in the companion app. forEvent: for
+-- ns.record, which leaves out the saved snapshot's extras (stats, talent picks and export).
+function ns.characterInfo(forEvent)
   local className, classFile = safe(UnitClass, "player")
   local raceName, raceFile = safe(UnitRace, "player")
   local sex = safe(UnitSex, "player") -- 2 = male, 3 = female
-  local talents, spec, picks, calc = safe(ns.getTalents)
+  local talents, spec, picks, calc = safe(ns.getTalents, forEvent)
   local info = {
     guid = UnitGUID("player"),
     char = safe(UnitName, "player"),
@@ -437,9 +444,9 @@ function ns.characterInfo()
     professions = safe(getProfessions),
     talents = talents,
     talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)
-    talentExport = safe(getTalentExport), -- saved file only
+    talentExport = not forEvent and safe(getTalentExport) or nil, -- saved file and check-in only
     talentCalc = calc, -- Forever: Wowhead talent calculator code (short, goes live too)
-    stats = safe(getStats), -- saved file only
+    stats = not forEvent and safe(getStats) or nil, -- saved file only
     spec = spec,
     role = safe(getRole),
     ilvl = safe(getItemLevel),

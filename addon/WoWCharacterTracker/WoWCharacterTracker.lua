@@ -128,7 +128,10 @@ function on.SCREENSHOT_FAILED() ns.onScreenshotEvent(false) end
 -- Gear, bags and the bank (while it's open).
 on.BAG_UPDATE_DELAYED = ns.scanInventorySoon
 on.PLAYERBANKSLOTS_CHANGED = ns.scanInventorySoon
-on.EQUIPMENT_SETS_CHANGED = ns.scanInventorySoon
+function on.EQUIPMENT_SETS_CHANGED()
+  ns.equipSetsChanged()
+  ns.scanInventorySoon()
+end
 function on.BANKFRAME_OPENED()
   ns.bankOpen = true
   C_Timer.After(0.5, ns.scanBank)
@@ -152,6 +155,7 @@ function on.PLAYER_CONTROL_GAINED() ns.onFlightEnd() end
 local snapshotSoon = ns.debounce(1, function() ns.saveSnapshot() end)
 function on.PLAYER_EQUIPMENT_CHANGED()
   snapshotSoon()
+  ns.equipSetsChanged()
   ns.scanInventorySoon()
 end
 on.PLAYER_SPECIALIZATION_CHANGED = snapshotSoon

@@ -84,10 +84,7 @@ end
 -- The last 20 /played requests and answers with times, for /wct debug: shows whether the game
 -- answers the addon's own requests on this client.
 function ns.notePlayed(text)
-  local log = WoWCharacterTrackerDB.playedLog or {}
-  WoWCharacterTrackerDB.playedLog = log
-  table.insert(log, date("%H:%M:%S ") .. text)
-  while #log > 20 do table.remove(log, 1) end
+  WoWCharacterTrackerDB.playedLog = ns.appendCapped(WoWCharacterTrackerDB.playedLog or {}, date("%H:%M:%S ") .. text, 20)
 end
 
 function ns.requestPlayed(reason)
@@ -463,24 +460,16 @@ function ns.recordMount(name, itemId, spellId)
   ns.say(string.format("New mount: %s.", name))
 end
 
--- The item's class and subclass. Needs no item cache, so it answers right away.
-local function itemClass(link)
-  local getInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
-  if not getInstant then return nil end
-  local _, _, _, _, _, classID, subclassID = getInstant(link)
-  return classID, subclassID
-end
-
 -- Mount items are class 15 (miscellaneous), subclass 5 (mount).
 local function isMountItem(link)
-  local classID, subclassID = itemClass(link)
+  local classID, subclassID = ns.itemClass(link)
   return classID == 15 and subclassID == 5
 end
 
 -- Anything but weapons (2) and armor (4): can't be worn, so a legendary one (Elementium Bar) isn't
 -- worth the always-posted treatment. Not known counts as gear.
 local function isNotGear(link)
-  local classID = itemClass(link)
+  local classID = ns.itemClass(link)
   return classID ~= nil and classID ~= 2 and classID ~= 4
 end
 
@@ -520,12 +509,7 @@ function ns.recordLoot(text, retried)
   -- Quality is the 3rd value, the bind type the 14th (2 = Bind on Equip). Both nil while the game
   -- doesn't have the item yet (asking makes it fetch it), so a new drop gets a second look a moment
   -- later. Still nothing: the quality comes from the link, and it doesn't count as BoE.
-  local quality, bindType
-  local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
-  if getInfo then
-    local info = { getInfo(link) }
-    quality, bindType = info[3], info[14]
-  end
+  local _, _, quality, _, _, _, _, _, _, _, _, _, _, bindType = ns.itemInfo(link)
   if not quality and not retried and C_Timer then
     C_Timer.After(1, function() ns.recordLoot(text, true) end)
     return
