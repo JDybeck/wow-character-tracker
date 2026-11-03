@@ -102,20 +102,43 @@ static class Updater
             File.Move(exe, exe + ".old", overwrite: true);
             File.Move(newExe, exe);
 
-            progress?.Report(new Step(3));
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--updated") { UseShellExecute = true });
-            return null;
         }
         catch (UnauthorizedAccessException)
         {
+            PutBack(exe, newExe);
             return $"Windows didn't let the app replace itself in {Path.GetDirectoryName(exe)}. Download it from the release page instead.";
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
-            if (!File.Exists(exe) && File.Exists(exe + ".old")) File.Move(exe + ".old", exe); // put it back
-            Files.TryDelete(newExe);
+            PutBack(exe, newExe);
             return "The update didn't work: " + ex.Message;
         }
+
+        // The new version is in place from here, so a failed start doesn't undo the update.
+        progress?.Report(new Step(3));
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--updated") { UseShellExecute = true });
+            return null;
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            return $"The new version is installed, but Windows didn't let it start ({ex.Message}). Close this window and open the app again.";
+        }
+    }
+
+    // After a failed install: the running exe back under its own name (if it was moved), the download gone.
+    static void PutBack(string exe, string newExe)
+    {
+        try
+        {
+            if (!File.Exists(exe) && File.Exists(exe + ".old")) File.Move(exe + ".old", exe);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Error($"Couldn't put the app back after the failed update ({ex.Message}). Rename {Path.GetFileName(exe)}.old to {Path.GetFileName(exe)} in {Path.GetDirectoryName(exe)}.");
+        }
+        Files.TryDelete(newExe);
     }
 
     // Leftover from the last update.

@@ -123,20 +123,23 @@ sealed partial class DiscordWebhook(string url)
                 return Result.Failed;
             }
 
-            if (res.IsSuccessStatusCode) return Result.Sent;
-            if (res.StatusCode == HttpStatusCode.RequestEntityTooLarge && files.Count > 0) return Result.TooLarge;
-
-            if (res.StatusCode == HttpStatusCode.TooManyRequests)
+            using (res)
             {
-                await Task.Delay(res.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(2));
-                continue;
-            }
+                if (res.IsSuccessStatusCode) return Result.Sent;
+                if (res.StatusCode == HttpStatusCode.RequestEntityTooLarge && files.Count > 0) return Result.TooLarge;
 
-            if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
-                Log.Error("The Discord webhook no longer works (was it deleted?). Add a new one in the Discord panel.");
-            else
-                Log.Warn($"Discord returned {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
-            return Result.Failed;
+                if (res.StatusCode == HttpStatusCode.TooManyRequests)
+                {
+                    await Task.Delay(res.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(2));
+                    continue;
+                }
+
+                if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
+                    Log.Error("The Discord webhook no longer works (was it deleted?). Add a new one in the Discord panel.");
+                else
+                    Log.Warn($"Discord returned {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
+                return Result.Failed;
+            }
         }
 
         return Result.Failed;

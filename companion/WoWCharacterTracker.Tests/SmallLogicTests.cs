@@ -131,6 +131,7 @@ public class RatingTests
     [InlineData("0.31.0", "0.31.1", -1)]
     [InlineData("0.32.0", "0.31.1", 1)]
     [InlineData("?", "0.31.1", -1)]
+    [InlineData("0.31", "0.31.0", 0)]
     public void Addon_versions_compare(string? installed, string bundled, int? expected)
     {
         var result = AddonInstaller.Compare(installed, bundled);

@@ -67,6 +67,11 @@ sealed class OverlayServer : IDisposable
             catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException or InvalidOperationException) { return; }
             try { Answer(ctx); }
             catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException) { }
+            catch (Exception ex) // anything else only fails this request, the overlay keeps serving
+            {
+                Log.Warn($"The stream overlay couldn't answer {ctx.Request.Url?.AbsolutePath} ({ex.Message}).");
+                try { ctx.Response.Abort(); } catch (ObjectDisposedException) { }
+            }
         }
     }
 

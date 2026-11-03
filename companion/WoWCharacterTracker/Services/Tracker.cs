@@ -39,6 +39,7 @@ sealed class Tracker : IDisposable
     int liveVersion;
     // What the last sync showed (saved files and live version); the same again means nothing to show.
     string? shownStamp;
+    volatile bool disposed;
 
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
@@ -149,6 +150,7 @@ sealed class Tracker : IDisposable
         var sent = 0;
         try
         {
+            if (disposed) return; // a sync scheduled just before the tab was turned off
             posted ??= ReadPosted();
 
             // Nothing new since the last sync: the app already shows it, only posts that failed are tried again.
@@ -236,6 +238,8 @@ sealed class Tracker : IDisposable
     // turning a toggle on later doesn't dump old events into the channel. Returns how many posts went out.
     async Task<int> PostPendingAsync(List<Entry> pending, List<Entry> history, FlavorSettings s)
     {
+        // When a wanted event with a screenshot is close by, the picture may be its own, so it stays.
+        var wantedShots = pending.Where(e => e.Shot && s.Wants(e, history)).Select(e => e.At).ToList();
         foreach (var e in pending.Where(e => !s.Wants(e, history)))
         {
             if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
@@ -245,7 +249,8 @@ sealed class Tracker : IDisposable
             posted!.Add(e.Id);
             // Only posted highlights keep their screenshot. (The addon normally doesn't take one for
             // these, unless the settings changed since the game last loaded them.)
-            if (e.Shot && ScreenshotFileFor(e, within: 20) is { } unwantedShot) Files.TryDelete(unwantedShot);
+            if (e.Shot && !wantedShots.Any(at => Math.Abs(at - e.At) <= 92) && ScreenshotFileFor(e, within: 20) is { } unwantedShot)
+                Files.TryDelete(unwantedShot);
         }
 
         var toPost = pending.Where(e => s.Wants(e, history)).ToList();
@@ -405,6 +410,8 @@ sealed class Tracker : IDisposable
 
     public void Dispose()
     {
+        disposed = true;
+        debounce?.Cancel();
         watcher?.Dispose();
         safetyNet?.Dispose();
         shots.Dispose();
