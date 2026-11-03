@@ -99,6 +99,21 @@ public class RatingTests
     [InlineData(0, "", "")]
     public void Ratings_text(int score, string pvp, string expected) => Assert.Equal(expected, Format.RatingsText(score, pvp));
 
+    // Gold reads the same on a Swedish PC as everywhere else (the stream card used Windows' language).
+    [Fact]
+    public void Gold_is_written_the_same_whatever_the_language()
+    {
+        var before = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = new("sv-SE");
+        try
+        {
+            Assert.Equal("12,345g", Format.Gold(123_456_789));
+            Assert.Equal("12,345g 67s 89c", Format.Money(123_456_789));
+            Assert.Equal("5s 3c", Format.Money(503));
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = before; }
+    }
+
     [Fact]
     public void Release_notes_read_as_plain_text_in_the_banner() =>
         Assert.Equal("• Notes in game: type /wct note.\n      ◦ Lock it.\n\nComes with the addon.",

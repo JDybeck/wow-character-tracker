@@ -10,9 +10,9 @@ sealed record Coin(string Amount, SolidColorBrush Brush)
     // Everything: gold, silver and copper (leading zero parts left out).
     public static IReadOnlyList<Coin> Full(long copper)
     {
-        long g = copper / 10000, s = copper / 100 % 100, c = copper % 100;
+        var (g, s, c) = Format.Coins(copper);
         var parts = new List<Coin>();
-        if (g > 0) parts.Add(new(g.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), Gold));
+        if (g > 0) parts.Add(new(Format.Thousands(g), Gold));
         if (g > 0 || s > 0) parts.Add(new(s.ToString(), Silver));
         parts.Add(new(c.ToString(), Copper));
         return parts;
@@ -21,8 +21,8 @@ sealed record Coin(string Amount, SolidColorBrush Brush)
     // For the list: just gold from 100g up, gold and silver below that, silver and copper under 1g.
     public static IReadOnlyList<Coin> Short(long copper)
     {
-        long g = copper / 10000, s = copper / 100 % 100, c = copper % 100;
-        if (g >= 100) return [new(g.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), Gold)];
+        var (g, s, c) = Format.Coins(copper);
+        if (g >= 100) return [new(Format.Thousands(g), Gold)];
         if (g > 0) return [new(g.ToString(), Gold), new(s.ToString(), Silver)];
         return s > 0 ? [new(s.ToString(), Silver), new(c.ToString(), Copper)] : [new(c.ToString(), Copper)];
     }

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows;
 using System.Windows.Input;
 
 namespace WoWCharacterTracker.ViewModels;
@@ -61,23 +60,18 @@ sealed class FollowedItemsViewModel : Observable
     {
         var own = settings().FollowedItems;
         if (own.Count == 0) { ListStatus = "Nothing to copy yet: the code holds the items you added yourself."; return; }
-        try
-        {
-            Clipboard.SetText(FollowedListCode.Export(own, flavor));
-            ListStatus = $"Copied {own.Count} {(own.Count == 1 ? "item" : "items")} as a code. Share it; others click Paste list.";
-        }
-        catch (System.Runtime.InteropServices.ExternalException) { ListStatus = "The clipboard was busy. Try again."; }
+        ListStatus = ClipboardText.TrySet(FollowedListCode.Export(own, flavor))
+            ? $"Copied {Format.Count(own.Count, "item")} as a code. Share it; others click Paste list."
+            : "The clipboard was busy. Try again.";
     }
 
     void PasteList()
     {
-        string text;
-        try { text = Clipboard.ContainsText() ? Clipboard.GetText() : ""; }
-        catch (System.Runtime.InteropServices.ExternalException) { ListStatus = "The clipboard was busy. Try again."; return; }
+        if (ClipboardText.TryGet() is not { } text) { ListStatus = "The clipboard was busy. Try again."; return; }
         var (items, problem) = FollowedListCode.Import(text, flavor);
         if (problem is not null) { ListStatus = problem; return; }
         var added = FollowedListCode.Merge(settings(), items);
-        ListStatus = added > 0 ? $"Added {added} {(added == 1 ? "item" : "items")} to your list." : "You already follow everything in that list.";
+        ListStatus = added > 0 ? $"Added {Format.Count(added, "item")} to your list." : "You already follow everything in that list.";
         if (added == 0) return;
         BuildList();
         changed();

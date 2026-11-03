@@ -40,10 +40,16 @@ sealed class MainViewModel : Observable
         CopyPostingCommand = new RelayCommand(_ =>
         {
             if (SelectedFlavor is not { } tab) return;
-            Clipboard.SetText(tab.PostingCodeText);
-            Log.Success($"[{tab.Name}] Posting settings copied. Share the code; others click Paste settings to use it.");
+            if (ClipboardText.TrySet(tab.PostingCodeText))
+                Log.Success($"[{tab.Name}] Posting settings copied. Share the code; others click Paste settings to use it.");
+            else
+                Log.Warn("The clipboard was busy, so nothing was copied. Try again.");
         });
-        PastePostingCommand = new RelayCommand(_ => SelectedFlavor?.ApplyPostingCode(Clipboard.ContainsText() ? Clipboard.GetText() : ""));
+        PastePostingCommand = new RelayCommand(_ =>
+        {
+            if (ClipboardText.TryGet() is { } text) SelectedFlavor?.ApplyPostingCode(text);
+            else Log.Warn("The clipboard was busy, so nothing was pasted. Try again.");
+        });
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
         AskRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = true);
         CancelRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = false);
@@ -337,18 +343,18 @@ sealed class MainViewModel : Observable
     public void SaveNote(string guid, string text)
     {
         Config.SetNote(guid, text, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-        SaveSoon(notes: true);
+        SaveSoon(addonSettings: true); // /wct note reads it from Settings.lua
     }
 
     // Settings that change many times a second (sliders, typing) are saved a moment after the last
-    // change instead of on every one. notes: the game's Settings.lua gets the notes then too (/wct note
-    // reads them from there). Shutdown saves what's still waiting.
+    // change instead of on every one. addonSettings: the game's Settings.lua is written then too (notes,
+    // typed posting settings). Shutdown saves what's still waiting.
     System.Windows.Threading.DispatcherTimer? saveTimer;
-    bool notesWaiting;
+    bool addonSettingsWaiting;
 
-    public void SaveSoon(bool notes = false)
+    public void SaveSoon(bool addonSettings = false)
     {
-        notesWaiting |= notes;
+        addonSettingsWaiting |= addonSettings;
         if (saveTimer is null)
         {
             saveTimer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -363,9 +369,9 @@ sealed class MainViewModel : Observable
         if (saveTimer is not { IsEnabled: true }) return;
         saveTimer.Stop();
         Config.Save();
-        if (!notesWaiting) return;
-        notesWaiting = false;
-        foreach (var tab in FlavorTabs) tab.NotesChanged();
+        if (!addonSettingsWaiting) return;
+        addonSettingsWaiting = false;
+        foreach (var tab in FlavorTabs) tab.NotesChanged(); // writes Settings.lua (and hints a /reload)
     }
 
     // --- tags ---

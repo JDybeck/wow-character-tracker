@@ -12,6 +12,10 @@ Update the addon with the app (it does this by itself) and /reload in game.
 - Saved events no longer carry talent picks, stats and XP the app doesn't use, so the saved file grows slower and loads faster.
 - Forever can never be mistaken for Retail when reading talents and roles.
 - Loot, duel and Mak'gora messages are read with one shared pattern builder, which also handles translated strings with numbered arguments.
+- Copy settings and Paste settings no longer crash the app when another program is holding the clipboard.
+- Items Wowhead couldn't be reached for (say, offline when the app started) get their names and icons a minute later, not only after a restart.
+- The stream card shows gold as 12,345g on every PC, like the rest of the app, and the stream text files are never half written when OBS reads them.
+- Typing in the level and key boxes on the Posting page saves once you stop, not on every key.
 
 ## v0.31.2
 

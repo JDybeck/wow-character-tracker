@@ -12,7 +12,11 @@ sealed class GameLookup(Flavor flavor, Action loaded)
 
     public ItemInfo For(string type, int id)
     {
-        if (infos.TryGetValue((type, id), out var info)) return info;
+        if (infos.TryGetValue((type, id), out var info))
+        {
+            if (info.CanRetry) _ = LoadAsync(info); // found nothing last time: the next rebuild that shows it tries again
+            return info;
+        }
         infos[(type, id)] = info = new ItemInfo(id, $"https://www.wowhead.com/{flavor.WowheadPath}{type}={id}", type);
         if (type == "item" && itemClasses.TryGetValue(id, out var c)) info.ClassId = c;
         _ = LoadAsync(info);

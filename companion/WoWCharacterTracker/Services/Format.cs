@@ -123,14 +123,23 @@ static partial class Format
     // Changelog text without its ** and ` marks.
     public static string PlainNotes(string text) => text.Replace("**", "").Replace("`", "");
 
+    // Copper as gold, silver and copper.
+    public static (long Gold, long Silver, long Copper) Coins(long copper) => (copper / 10000, copper / 100 % 100, copper % 100);
+
+    // "12,345" the same on every PC (the game shows gold that way, whatever Windows' language).
+    public static string Thousands(long n) => n.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+
     // Copper as "12,345g 34s 56c", leaving out leading zero parts.
     public static string Money(long copper)
     {
-        long g = copper / 10000, s = copper / 100 % 100, c = copper % 100;
-        if (g > 0) return $"{g.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)}g {s}s {c}c";
+        var (g, s, c) = Coins(copper);
+        if (g > 0) return $"{Thousands(g)}g {s}s {c}c";
         if (s > 0) return $"{s}s {c}c";
         return $"{c}c";
     }
+
+    // Copper as whole gold: "12,345g".
+    public static string Gold(long copper) => $"{Thousands(Coins(copper).Gold)}g";
 
     // "840 KB", "77.1 MB".
     public static string Size(long bytes) => bytes switch

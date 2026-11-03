@@ -29,6 +29,8 @@ static class StreamFiles
 
     // What each file was last written with, so an unchanged one isn't read back from disk every refresh.
     static readonly Dictionary<string, string> Written = [];
+    // UTF-8 with a BOM: OBS reads it right, names like Fågelmannen included.
+    static readonly UTF8Encoding WithBom = new(encoderShouldEmitUTF8Identifier: true);
 
     public static void Write(StreamSnapshot s)
     {
@@ -39,8 +41,8 @@ static class StreamFiles
             {
                 var path = Path.Combine(Dir, file);
                 if (Written.GetValueOrDefault(file) == text && File.Exists(path)) continue;
-                // UTF-8 with a BOM: OBS reads it right, names like Fågelmannen included.
-                File.WriteAllText(path, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+                // Whole or not at all, so OBS never reads a half-written file.
+                Files.WriteAtomic(path, [.. WithBom.GetPreamble(), .. WithBom.GetBytes(text)]);
                 Written[file] = text;
             }
         }
