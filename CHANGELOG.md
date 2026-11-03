@@ -2,6 +2,17 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.31.4
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- A fight that starts right as the addon takes its instant-post screenshot no longer changes your screenshot settings mid-combat; they come back once the fight is over.
+- Epic loot in guild and group chat, and in the post box, is a clickable link again on clients that dropped the old item functions.
+- The addon does less while you play: events skip the stats and talent details only the saved character needs, and Equipment Manager sets aren't reread on every bag change.
+- Saved events no longer carry the talent loadout string, so the saved file grows slower.
+
 ## v0.31.3
 
 Update the addon with the app (it does this by itself) and /reload in game.

@@ -60,9 +60,8 @@ local blockedPending = {}
 function ns.flushBlocked()
   if not WoWCharacterTrackerDB or #blockedPending == 0 then return end
   local list = WoWCharacterTrackerDB.blocked or {}
-  for _, l in ipairs(blockedPending) do table.insert(list, l) end
+  for _, l in ipairs(blockedPending) do ns.appendCapped(list, l, 10) end
   blockedPending = {}
-  while #list > 10 do table.remove(list, 1) end
   WoWCharacterTrackerDB.blocked = list
 end
 

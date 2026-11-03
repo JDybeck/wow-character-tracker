@@ -128,6 +128,33 @@ function ns.isFollowed(itemId)
   return (list and itemId and list[itemId]) and true or false
 end
 
+-- Adds line to the end of list and drops the oldest past max (the debug logs). Returns the list.
+function ns.appendCapped(list, line, max)
+  list[#list + 1] = line
+  while #list > max do table.remove(list, 1) end
+  return list
+end
+
+-- GetItemInfo's values, from C_Item where the client has it (newer clients drop the globals).
+function ns.itemInfo(item)
+  local f = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+  if f and item then return f(item) end
+  return nil
+end
+
+-- The item's class and subclass (0 consumable, 2 weapon, 4 armor, 15/5 mount...). Needs no item
+-- cache, so it answers right away. Nil when the client can't tell.
+function ns.itemClass(item)
+  local f = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  if not f or not item then return nil end
+  local ok, _, _, _, _, _, classID, subclassID = pcall(f, item)
+  if ok then return classID, subclassID end
+  return nil
+end
+
+-- Rated PvP brackets as GetPersonalRatedInfo numbers them (the snapshot's ratings and the milestones).
+ns.PVP_BRACKETS = { { 1, "2v2" }, { 2, "3v3" }, { 4, "Rated Battlegrounds" }, { 7, "Solo Shuffle" }, { 9, "Battleground Blitz" } }
+
 -- "Grimtusk-Stormrage" -> "Grimtusk".
 function ns.withoutRealm(name)
   return name and (name:gsub("%-.*$", "")) or nil
@@ -175,18 +202,20 @@ function ns.hasEvent(id)
   return knownIds[id] == true
 end
 
-local function eventId(guid, kind, at, idSuffix)
+-- "<guid>:<idSuffix>", or "<guid>:<kind>:<time>" without one.
+function ns.eventId(guid, kind, at, idSuffix)
   return idSuffix and (guid .. ":" .. idSuffix) or string.format("%s:%s:%d", guid, kind, at)
 end
+local eventId = ns.eventId
 
 -- Fields characterInfo has for the saved snapshot that an event doesn't need (the app reads them
--- from the character, never from events).
-local SNAPSHOT_ONLY = { "talentPicks", "stats", "xp", "xpMax" }
+-- from the character or the check-in, never from events). characterInfo(true) skips most of them.
+local SNAPSHOT_ONLY = { "talentPicks", "talentExport", "stats", "xp", "xpMax" }
 
 -- Records a moment for the current character: what characterInfo knows, plus fields, as kind.
 -- The id is "<guid>:<idSuffix>", or "<guid>:<kind>:<time>" without one. Returns the event.
 function ns.record(kind, fields, idSuffix)
-  local e = ns.characterInfo()
+  local e = ns.characterInfo(true)
   -- characterInfo's maxLevel is the game's level cap (for the saved snapshot). On an event,
   -- maxLevel means "this ding reached it", so only a max level ding sets it.
   e.maxLevel = nil

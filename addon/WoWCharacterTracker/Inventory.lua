@@ -34,16 +34,13 @@ end
 
 -- itemClasses[itemId] = the item's class (0 consumable, 2 weapon, 4 armor, 5 reagent, 7 trade
 -- goods, 12 quest...), shared by all characters, so the app can sort items by type.
--- GetItemInfoInstant needs no item cache, so it answers right away.
 local function noteClass(id)
   local db = WoWCharacterTrackerDB
   if not db or not id then return end
   db.itemClasses = db.itemClasses or {}
   if db.itemClasses[id] then return end
-  local f = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
-  if not f then return end
-  local ok, _, _, _, _, _, classID = pcall(f, id)
-  if ok and type(classID) == "number" then db.itemClasses[id] = classID end
+  local classID = ns.itemClass(id)
+  if type(classID) == "number" then db.itemClasses[id] = classID end
 end
 
 -- The given bags as two strings: what's in each slot, and each bag's size.
@@ -253,6 +250,13 @@ local function gearKey()
   return table.concat(links, ",")
 end
 
+-- Equipment Manager sets are read again when a set or the gear changes (ns.equipSetsChanged), at
+-- the bank, and otherwise at most every minute: looting changes the bags all the time, the sets
+-- hardly ever (a set piece sold or mailed shows up within the minute).
+local SETS_REREAD = 60
+local setsChanged, setsReadAt = true, nil
+function ns.equipSetsChanged() setsChanged = true end
+
 -- What the saved file had when this session started, to tell whether anything changed since.
 local atLoad
 
@@ -295,9 +299,13 @@ function ns.scanInventory()
     end
   end
   -- Equipment Manager sets, also out of combat only (a client without them keeps what it had: none).
-  if not (InCombatLockdown and InCombatLockdown()) then
+  if not (InCombatLockdown and InCombatLockdown())
+      and (setsChanged or ns.bankOpen or time() - (setsReadAt or 0) >= SETS_REREAD) then
     local ok, equipSets = pcall(ns.scanEquipSets)
-    if ok and equipSets then e.equipSets = equipSets end
+    if ok then
+      if equipSets then e.equipSets = equipSets end
+      setsChanged, setsReadAt = false, time()
+    end
   end
   local bags, sizes = scanBags(carriedBags())
   if sizes ~= "" then e.bags, e.bagSizes = bags, sizes end

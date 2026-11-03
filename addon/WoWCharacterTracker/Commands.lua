@@ -25,11 +25,7 @@ local function sendTest()
     ns.say("Instant posting is off. Type /wct live to turn it on.")
     return
   end
-  local e = ns.characterInfo()
-  e.kind = "test"
-  e.at = time()
-  e.id = string.format("%s:test:%d", e.guid, e.at)
-  ns.sendLive(e)
+  ns.sendLive(ns.liveEvent("test"))
   ns.say("Sent a test event. The companion app should show it within a few seconds.")
 end
 
@@ -54,9 +50,7 @@ local function saveDebug()
   -- The trait tree as the addon reads it: currencies, and where each node sits (posX,posY:ranks),
   -- which decides the Wowhead talent calculator code.
   pcall(function()
-    local configID = C_ClassTalents.GetActiveConfigID()
-    local config = C_Traits.GetConfigInfo(configID)
-    local treeID = config.treeIDs[1]
+    local configID, treeID, config = ns.activeTraitTree()
     add("trait config " .. tostring(configID) .. ", trees " .. table.concat(config.treeIDs or {}, ","))
     for _, c in ipairs(C_Traits.GetTreeCurrencyInfo(configID, treeID, false) or {}) do
       add(string.format("currency %s: spent %s of %s", tostring(c.traitCurrencyID), tostring(c.spent), tostring(c.maxQuantity)))
