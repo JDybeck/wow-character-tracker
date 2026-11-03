@@ -81,9 +81,9 @@ local function corner()
 end
 
 local grid, gridWhite, gridPortrait, gridLabel
--- Where the portrait goes, in screen pixels from the top-left corner (the app knows the same spot):
--- right of the grid's 160 columns and the 230 px label.
-local PORTRAIT_X, PORTRAIT_SIZE = 160 * 2 + 4 + 230 + 4, 64 -- kept where it was (the label used to be 230 px)
+-- Where the portrait goes, in screen pixels from the grid's corner, right of its 160 columns with
+-- room for the label. The app cuts it out at this same spot (GridDecoder.CropPortrait), so it stays put.
+local PORTRAIT_X, PORTRAIT_SIZE = 160 * 2 + 4 + 230 + 4, 64
 local gridTextures = {}
 
 -- A frame without a parent stays visible when the UI is hidden (Alt+Z). Its scale is set so one
@@ -429,9 +429,8 @@ local function wantsScreenshot(kind)
 end
 
 -- Stores an event in SavedVariables and sends it live, so the app's level history and highlights
--- stay current while you play, whether it gets posted or not (before 0.21.2 loot that wouldn't be
--- posted waited for /reload). Only events that will be posted get a screenshot (if the app asked
--- for one).
+-- stay current while you play, whether it gets posted or not. Only events that will be posted get
+-- a screenshot (if the app asked for one).
 function ns.addEvent(e)
   table.insert(WoWCharacterTrackerDB.events, e)
   if ns.announce then ns.announce(e) end -- guild/group chat (Announce.lua)

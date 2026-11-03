@@ -122,24 +122,66 @@ function ns.plain(v)
   return v
 end
 
--- "Grimtusk-Stormrage" -> "Grimtusk".
 -- On the app's Followed items list (Settings.lua `followed`, read at /reload or login).
 function ns.isFollowed(itemId)
   local list = ns.setting("followed")
   return (list and itemId and list[itemId]) and true or false
 end
 
+-- "Grimtusk-Stormrage" -> "Grimtusk".
 function ns.withoutRealm(name)
   return name and (name:gsub("%-.*$", "")) or nil
 end
 
--- Is an event with this id saved already? (Level-ups and milestones are recorded once.)
-function ns.hasEvent(id)
-  for _, e in ipairs(WoWCharacterTrackerDB and WoWCharacterTrackerDB.events or {}) do
-    if e.id == id then return true end
-  end
-  return false
+-- Text matched literally inside a Lua pattern ("Set:" -> "Set%:").
+function ns.escapePattern(s)
+  return (s:gsub("%W", "%%%0"))
 end
+
+-- A game format string ("You receive loot: %sx%d.", "%1$s has defeated %2$s in a duel") as an
+-- anchored Lua pattern, plus the argument number of each capture (translations may swap them).
+function ns.formatPattern(fmt)
+  local out, order, i = {}, {}, 1
+  while i <= #fmt do
+    local n, kind, len = fmt:match("^%%(%d)%$([sd])", i)
+    if n then len = 4 else kind = fmt:match("^%%([sd])", i); len = 2 end
+    if kind then
+      order[#order + 1] = n and tonumber(n) or #order + 1
+      out[#out + 1] = kind == "d" and "(%d+)" or "(.-)"
+      i = i + len
+    elseif fmt:sub(i, i + 1) == "%%" then
+      out[#out + 1] = "%%"
+      i = i + 2
+    else
+      out[#out + 1] = ns.escapePattern(fmt:sub(i, i))
+      i = i + 1
+    end
+  end
+  return "^" .. table.concat(out) .. "$", order
+end
+
+-- Saved event ids, so finding one doesn't walk the whole list each time. Events are appended
+-- (ns.addEvent) and only trimmed at load, so new ones are picked up from the end, and a shorter
+-- list (trimmed) is read again.
+local knownIds, idsCounted = {}, 0
+function ns.hasEvent(id)
+  local events = WoWCharacterTrackerDB and WoWCharacterTrackerDB.events or {}
+  if #events < idsCounted then knownIds, idsCounted = {}, 0 end
+  for i = idsCounted + 1, #events do
+    local e = events[i]
+    if type(e) == "table" and e.id then knownIds[e.id] = true end
+  end
+  idsCounted = #events
+  return knownIds[id] == true
+end
+
+local function eventId(guid, kind, at, idSuffix)
+  return idSuffix and (guid .. ":" .. idSuffix) or string.format("%s:%s:%d", guid, kind, at)
+end
+
+-- Fields characterInfo has for the saved snapshot that an event doesn't need (the app reads them
+-- from the character, never from events).
+local SNAPSHOT_ONLY = { "talentPicks", "stats", "xp", "xpMax" }
 
 -- Records a moment for the current character: what characterInfo knows, plus fields, as kind.
 -- The id is "<guid>:<idSuffix>", or "<guid>:<kind>:<time>" without one. Returns the event.
@@ -148,10 +190,19 @@ function ns.record(kind, fields, idSuffix)
   -- characterInfo's maxLevel is the game's level cap (for the saved snapshot). On an event,
   -- maxLevel means "this ding reached it", so only a max level ding sets it.
   e.maxLevel = nil
+  for _, k in ipairs(SNAPSHOT_ONLY) do e[k] = nil end
   for k, v in pairs(fields or {}) do e[k] = v end
   e.kind = kind
   e.at = e.at or time()
-  e.id = idSuffix and (e.guid .. ":" .. idSuffix) or string.format("%s:%s:%d", e.guid, kind, e.at)
+  e.id = eventId(e.guid, kind, e.at, idSuffix)
   ns.addEvent(e)
   return e
+end
+
+-- Like ns.record, but only when this character has no event with that id yet (a milestone
+-- reached again in the same season or after a dip). Returns the event, or nil.
+function ns.recordOnce(kind, fields, idSuffix)
+  local guid = UnitGUID("player")
+  if guid and ns.hasEvent(eventId(guid, kind, 0, idSuffix)) then return nil end
+  return ns.record(kind, fields, idSuffix)
 end

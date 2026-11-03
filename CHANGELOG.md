@@ -2,6 +2,17 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.31.3
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- The addon does less while you play: gold and currency changes update only those, bag scans wait until a fight ends, gear tooltips aren't read again every few minutes, and loading screens no longer rescan everything.
+- Saved events no longer carry talent picks, stats and XP the app doesn't use, so the saved file grows slower and loads faster.
+- Forever can never be mistaken for Retail when reading talents and roles.
+- Loot, duel and Mak'gora messages are read with one shared pattern builder, which also handles translated strings with numbered arguments.
+
 ## v0.31.2
 
 Update the addon with the app (it does this by itself) and /reload in game.

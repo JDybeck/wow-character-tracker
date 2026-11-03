@@ -126,12 +126,14 @@ local function tooltipLines(slot)
   return out
 end
 
-local function plain(s) return (s:gsub("(%W)", "%%%1")) end
--- "Set", "Equip:", "Use:" in the client's language.
-local SET = plain(((ITEM_SET_BONUS or "Set: %s"):match("^(.-):")) or "Set")
-local EQUIP = plain(ITEM_SPELL_TRIGGER_ONEQUIP or "Equip:")
-local USE = plain(ITEM_SPELL_TRIGGER_ONUSE or "Use:")
-local ENCHANTED = "^" .. plain(((ENCHANTED_TOOLTIP_LINE or "Enchanted: %s"):match("^(.-)%%s")) or "Enchanted: ") .. "(.+)$"
+-- "Set", "Equip:", "Use:" in the client's language, as the patterns the tooltip lines are matched with.
+local escape = ns.escapePattern
+local SET = escape(((ITEM_SET_BONUS or "Set: %s"):match("^(.-):")) or "Set")
+local SET_WAITING = "^%((%d+)%) " .. SET .. "([^:]*):%s*(.+)$"
+local SET_ACTIVE = "^" .. SET .. "([^:]*):%s*(.+)$"
+local EQUIP = "^" .. escape(ITEM_SPELL_TRIGGER_ONEQUIP or "Equip:")
+local USE = "^" .. escape(ITEM_SPELL_TRIGGER_ONUSE or "Use:")
+local ENCHANTED = "^" .. escape(((ENCHANTED_TOOLTIP_LINE or "Enchanted: %s"):match("^(.-)%%s")) or "Enchanted: ") .. "(.+)$"
 
 -- Color codes ("|cffRRGGBB" and Retail's named "|cnIQ4:"), icons (the enchant's quality star) out,
 -- and the characters the saved lines use as separators.
@@ -144,8 +146,8 @@ end
 -- drops the count then). Tier bonuses may name a spec ("(2) Set Blood: ..."); other specs' lines are
 -- left out. Returns the pieces needed (0 = active, count not shown) and the text, or nil.
 local function setBonus(text, spec)
-  local need, label, bonus = text:match("^%((%d+)%) " .. SET .. "([^:]*):%s*(.+)$")
-  if not need then label, bonus = text:match("^" .. SET .. "([^:]*):%s*(.+)$") end
+  local need, label, bonus = text:match(SET_WAITING)
+  if not need then label, bonus = text:match(SET_ACTIVE) end
   if not bonus or (label ~= "" and not label:match("^ ")) then return nil end -- "Sets the..." isn't one
   label = label:gsub("^%s+", ""):gsub("%s+$", "")
   if label ~= "" and spec and label ~= spec then return nil end
@@ -184,7 +186,7 @@ function ns.scanGearEffects()
             sets[#sets + 1] = table.concat({ setName, have, max, need, bonus }, "~")
           end
         end
-        if text:match("^" .. EQUIP) or text:match("^" .. USE) then
+        if text:match(EQUIP) or text:match(USE) then
           effects[#effects + 1] = slot .. "~" .. id .. "~" .. text
         end
         local enchant = text:match(ENCHANTED)
@@ -241,9 +243,9 @@ end
 
 -- The equipped items' links (enchants and gems are in them) and the spec, as of the last tooltip
 -- read: bag changes while looting don't change the gear, so its 19 tooltips aren't read again for
--- them. Read again anyway after a while, in case an item's tooltip wasn't loaded yet the first time.
-local GEAR_REREAD = 300
-local lastGearKey, lastGearAt
+-- them. New gear is read once more a minute later, in case a tooltip wasn't loaded the first time.
+local GEAR_REREAD = 60
+local lastGearKey, lastGearAt, rereadDone
 
 local function gearKey()
   local links = { ns.specName and ns.specName() or "" }
@@ -283,11 +285,12 @@ function ns.scanInventory()
   -- Tooltips can come back secret in combat, so the set bonuses wait for the next scan out of it.
   if worn ~= "" and not (InCombatLockdown and InCombatLockdown()) then
     local key = gearKey()
-    if key ~= lastGearKey or not e.setsAt or time() - (lastGearAt or 0) >= GEAR_REREAD then
+    local newGear = key ~= lastGearKey or not e.setsAt
+    if newGear or (not rereadDone and time() - (lastGearAt or 0) >= GEAR_REREAD) then
       local ok, sets, effects, enchants = pcall(ns.scanGearEffects)
       if ok then
         e.sets, e.effects, e.enchants, e.setsAt = sets, effects, enchants, time()
-        lastGearKey, lastGearAt = key, time()
+        lastGearKey, lastGearAt, rereadDone = key, time(), not newGear
       end
     end
   end
@@ -319,5 +322,19 @@ function ns.noteSaved()
   e.savedZone = (GetRealZoneText and GetRealZoneText()) or nil
 end
 
--- Bags change a lot while looting, so the scan waits for a quiet moment.
-ns.scanInventorySoon = ns.debounce(3, function() ns.scanInventory() end)
+-- Bags change a lot while looting, so the scan waits for a quiet moment, and for the end of a fight
+-- (PLAYER_REGEN_ENABLED calls ns.scanAfterCombat).
+local waitingForCombat = false
+ns.scanInventorySoon = ns.debounce(3, function()
+  if InCombatLockdown and InCombatLockdown() then
+    waitingForCombat = true
+    return
+  end
+  ns.scanInventory()
+end)
+
+function ns.scanAfterCombat()
+  if not waitingForCombat then return end
+  waitingForCombat = false
+  ns.scanInventorySoon()
+end
