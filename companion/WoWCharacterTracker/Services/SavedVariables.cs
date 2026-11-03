@@ -39,17 +39,17 @@ static class SavedVariables
         if (at <= 0) return null;
         static List<string> On(DynValue kinds) => kinds.Type != DataType.Table ? [] :
             [.. kinds.Table.Pairs.Where(p => p.Key.Type == DataType.String && p.Value.CastToBool()).Select(p => p.Key.String)];
+        // A setting the change doesn't have is null: the addon then reads the app's value (Shared.lua ns.setting).
+        bool? Flag(string key) => t.Get(key).Type == DataType.Boolean ? t.Get(key).Boolean : null;
         var announce = t.Get("announce");
-        var a = announce.Type == DataType.Table ? announce.Table : null;
-        // A setting missing means on, as the addon reads flightReload, chatReminder and gridLabel.
+        var a = announce.Type == DataType.Table ? announce.Table : null; // the addon takes this table whole
+        var ask = t.Get("ask");
         return new InGameSettings(at,
-            a?.Get("guild").CastToBool() ?? false, a?.Get("party").CastToBool() ?? false,
-            On(a?.Get("kinds") ?? DynValue.Nil), On(t.Get("ask")),
-            t.Get("flightReload").Type != DataType.Boolean || t.Get("flightReload").Boolean,
-            t.Get("chatReminder").Type != DataType.Boolean || t.Get("chatReminder").Boolean,
-            S(t, "gridCorner"),
-            t.Get("gridLabel").Type != DataType.Boolean || t.Get("gridLabel").Boolean,
-            t.Get("keepAllHistory").CastToBool());
+            a?.Get("guild").CastToBool(), a?.Get("party").CastToBool(),
+            a is null ? null : On(a.Get("kinds")), ask.Type == DataType.Table ? On(ask) : null,
+            Flag("flightReload"), Flag("chatReminder"),
+            t.Get("gridCorner").Type == DataType.String ? t.Get("gridCorner").String : null,
+            Flag("gridLabel"), Flag("keepAllHistory"));
     }
 
     // notes[guid] = { text, at }: notes edited in game. The game keeps "|" as "||".

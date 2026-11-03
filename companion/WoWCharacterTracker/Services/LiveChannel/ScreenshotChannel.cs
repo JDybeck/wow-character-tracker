@@ -61,7 +61,16 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
         catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException) { watcher = null; }
     }
 
-    void Soon(int ms = 40) => retry?.Change(ms, Timeout.Infinite);
+    // From the watcher's own thread, where an exception would end the app: a timer that went with
+    // Dispose (the tab turned off mid-shot) is simply done.
+    void Soon(int ms = 40)
+    {
+        if (disposed) return;
+        try { retry?.Change(ms, Timeout.Infinite); }
+        catch (ObjectDisposedException) { }
+    }
+
+    volatile bool disposed;
 
     void Poll()
     {
@@ -135,8 +144,9 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
 
     public void Dispose()
     {
+        disposed = true;
+        watcher?.Dispose(); // first, so no new event reaches the timers below
         timer?.Dispose();
         retry?.Dispose();
-        watcher?.Dispose();
     }
 }

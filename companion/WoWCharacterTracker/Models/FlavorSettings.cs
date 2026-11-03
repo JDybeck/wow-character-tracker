@@ -152,10 +152,12 @@ class FlavorSettings
     {
         if (game is null || game.At <= InGameAt) return false;
         InGameAt = game.At;
-        (AnnounceGuild, AnnounceParty) = (game.AnnounceGuild, game.AnnounceParty);
-        (AnnounceKinds, AskKinds) = (game.AnnounceKinds, game.AskKinds);
-        (FlightReloadPrompt, ChatReloadReminder, KeepAllHistory) = (game.FlightReload, game.ChatReminder, game.KeepAllHistory);
-        (GridCorner, GridLabel) = (CornerOrDefault(game.GridCorner), game.GridLabel);
+        // What the change doesn't have (an older addon) stays as the app has it.
+        (AnnounceGuild, AnnounceParty) = (game.AnnounceGuild ?? AnnounceGuild, game.AnnounceParty ?? AnnounceParty);
+        (AnnounceKinds, AskKinds) = (game.AnnounceKinds ?? AnnounceKinds, game.AskKinds ?? AskKinds);
+        (FlightReloadPrompt, ChatReloadReminder) = (game.FlightReload ?? FlightReloadPrompt, game.ChatReminder ?? ChatReloadReminder);
+        KeepAllHistory = game.KeepAllHistory ?? KeepAllHistory;
+        (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
         return true;
     }
     // Characters removed in the app: guid -> when. A character played after that shows up again.

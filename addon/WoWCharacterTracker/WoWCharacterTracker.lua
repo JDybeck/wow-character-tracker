@@ -31,6 +31,7 @@ function on.PLAYER_LOGIN()
 end
 
 function on.PLAYER_LOGOUT() -- also on /reload, right before the game writes the saved file
+  ns.stopShots()
   ns.noteSaved() -- (no inventory scan: the game has emptied the bags by now)
   ns.onLogout()
 end
@@ -100,8 +101,8 @@ function on.NEW_MOUNT_ADDED(mountID)
 end
 
 -- The shot queue
-function on.SCREENSHOT_SUCCEEDED() ns.shotDone(true) end
-function on.SCREENSHOT_FAILED() ns.shotDone(false) end
+function on.SCREENSHOT_SUCCEEDED() ns.onScreenshotEvent(true) end
+function on.SCREENSHOT_FAILED() ns.onScreenshotEvent(false) end
 
 -- Gear, bags and the bank (while it's open).
 on.BAG_UPDATE_DELAYED = ns.scanInventorySoon

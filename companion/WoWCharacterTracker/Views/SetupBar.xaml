@@ -46,7 +46,7 @@
       </ScrollViewer>
 
       <!-- Updating: each step as it happens, the download with its progress. -->
-      <StackPanel Margin="25,8,0,2" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Visible}}">
+      <StackPanel Margin="25,8,0,2" Visibility="{Binding Updates.ShowSteps, Converter={StaticResource Visible}}">
         <ItemsControl ItemsSource="{Binding Updates.InstallSteps}">
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:UpdateStepRow}">

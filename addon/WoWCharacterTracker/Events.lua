@@ -163,12 +163,7 @@ local getGroup -- below, with the boss kills
 -- timed right away from the played time already known (ns.playedNow), so posts don't wait on the
 -- server; /played answers, when the game sends them, make the next level's start exact.
 
-local function knownEvent(id)
-  for _, e in ipairs(WoWCharacterTrackerDB.events) do
-    if e.id == id then return true end
-  end
-  return false
-end
+local knownEvent = ns.hasEvent
 
 -- Times a finished level: newStart is the total played when `level` began. If the saved start
 -- belongs to the level before, the level is done (also later, at login, when a /reload or logout
@@ -178,8 +173,9 @@ local function finishLevel(guid, level, newStart, total, live)
   local oldStart = WoWCharacterTrackerDB.start[guid]
   local startLevel = WoWCharacterTrackerDB.startLevel[guid]
   -- Level 1 always starts at 0 played, so 1 to 2 never needs a baseline (a brand new character's
-  -- login answer can go missing, and the addon may have been installed after creating it).
-  if level == 2 and startLevel ~= 2 then oldStart, startLevel = 0, 1 end
+  -- login answer can go missing, and the addon may have been installed after creating it). Only at
+  -- the ding: a later answer on a level 2 character would record a ding from long ago.
+  if level == 2 and startLevel ~= 2 and live then oldStart, startLevel = 0, 1 end
   if not (oldStart and newStart >= oldStart and (startLevel == level - 1 or (startLevel == nil and live))) then return false end
   if not knownEvent(guid .. ":" .. level) then
     local seconds = newStart - oldStart
@@ -219,10 +215,19 @@ function ns.onLogin()
   C_Timer.After(3, function() ns.requestPlayed("login") end) -- once the world has loaded
 end
 
+-- A ding still waiting for its /played answer is logged without a time, so no level goes unrecorded
+-- (the answer may never come, and a /reload or logout ends the wait).
+local function giveUpWaiting(level)
+  if ns.pendingLevel ~= level then return end
+  ns.pendingLevel = nil
+  logUntimed(UnitGUID("player"), level, nil)
+end
+
 function ns.onLogout() -- also on /reload, right before the game writes the saved file
+  if ns.pendingLevel then giveUpWaiting(ns.pendingLevel) end
   local played = ns.playedNow()
   if played then WoWCharacterTrackerDB.logoutPlayed[UnitGUID("player")] = played end
-  ns.saveSnapshot()
+  ns.saveSnapshot(true)
 end
 
 function ns.onLevelUp(level)
@@ -234,10 +239,11 @@ function ns.onLevelUp(level)
     setStart(guid, level, total)
   end
   -- Ask the server too, for the exact start of the new level. The answer can be slow or not come at
-  -- all, so ask a moment later and again after a while.
+  -- all, so ask a moment later and again after a while, then log it without a time.
   for _, delay in ipairs({ 1, 15, 45 }) do
     C_Timer.After(delay, function() if ns.pendingLevel == level then ns.requestPlayed("level " .. level) end end)
   end
+  C_Timer.After(60, function() giveUpWaiting(level) end)
 end
 
 function ns.onTimePlayed(total, thisLevel)
@@ -445,15 +451,22 @@ local function matchAny(list, text)
   return nil
 end
 
-local lastMountAt = 0
+local lastItemMountAt, lastMountName, lastMountAt = 0, nil, 0
 
 -- itemId when the mount came as an item, spellId when it was learned straight into the mount journal.
 function ns.recordMount(name, itemId, spellId)
-  -- Buying a mount item and then learning it would count twice on clients with a mount journal.
-  if time() - lastMountAt < 120 then return end
-  lastMountAt = time()
-
   local now = time()
+  -- The same mount twice in a row (looted and pushed), or a mount item and then learning it on
+  -- clients with a mount journal (the item and the mount have different names): once. Any other
+  -- mount, however soon after, counts.
+  if name == lastMountName and now - lastMountAt < 120 then return end
+  if not itemId and now - lastItemMountAt < 120 then
+    lastItemMountAt = 0 -- that item's learning; the next one is a mount of its own
+    return
+  end
+  lastMountName, lastMountAt = name, now
+  if itemId then lastItemMountAt = now end
+
   ns.record("mount", { mount = name, itemId = itemId, spellId = spellId, bought = ns.merchantOpen or nil, at = now },
     string.format("mount:%s:%d", name, now))
   ns.say(string.format("New mount: %s.", name))
@@ -551,7 +564,7 @@ function ns.checkProfessions()
     if p.rank <= 0 then -- hidden right now: keep the baseline
     elseif old then
       local step = ns.stepPassed(old, p.rank, steps)
-      if step then
+      if step and not ns.hasEvent(string.format("%s:profession:%s:%d", guid, p.name, step)) then
         ns.record("profession", { profession = p.name, step = step, rating = p.rank }, string.format("profession:%s:%d", p.name, step))
       end
     end

@@ -16,14 +16,22 @@ local SHORT = {
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
 -- code also rides along with the check-in after login, so the Wowhead link shows right away.)
-local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true, maxLevel = true }
+local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true }
+
+-- Left out: talentExport except on the check-in, and maxLevel unless it's true (a level-up that
+-- reached max); elsewhere it holds the level cap (characterInfo), which the app must not read as that.
+local function leftOut(k, v, kind)
+  if k == "talentExport" then return kind ~= "snapshot" end
+  if k == "maxLevel" then return v ~= true end
+  return SAVED_ONLY[k]
+end
 
 -- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
 -- character's GUID in front (it's in g already). Characters that would break it are %XX.
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
-    if type(v) ~= "table" and v ~= "" and v ~= false and (not SAVED_ONLY[k] or (k == "talentExport" and t.kind == "snapshot")) then
+    if type(v) ~= "table" and v ~= "" and v ~= false and not leftOut(k, v, t.kind) then
       if v == true then v = 1 end
       if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
       if k == "sex" then v = (v == "female") and "f" or "m" end
@@ -316,6 +324,18 @@ function ns.shotDone(ok)
   C_Timer.After(0.1, ns.processShots)
 end
 
+-- The game's answer to a screenshot. One that arrives before the current shot was even taken
+-- belongs to an earlier shot that already timed out, so it doesn't end this one.
+function ns.onScreenshotEvent(ok)
+  if shotItem and not shotItem.taken then return end
+  ns.shotDone(ok)
+end
+
+local function takeShot(item)
+  item.taken = true
+  Screenshot()
+end
+
 -- In combat only normal screenshots are taken (the moment itself); data grids wait until combat
 -- ends, so screenshot settings are never changed mid-fight. A retried event shot waits too.
 local function nextShot()
@@ -346,19 +366,27 @@ ns.processShots = function()
     showPortrait(item.portrait)
     useGridShotSettings()
     grid:Show()
-    onNextFrame(function() Screenshot() end) -- let the grid be drawn once first
+    onNextFrame(function() takeShot(item) end) -- let the grid be drawn once first
   else
     C_Timer.After(item.delay or 0.5, function()
       ns.doing("event screenshot")
       hideChat()
-      onNextFrame(function() Screenshot() end)
+      onNextFrame(function() takeShot(item) end)
     end)
   end
 end
 
+-- At logout or /reload the next frame never comes, so a grid shot would never finish: none start
+-- from now on (what's recorded still goes into the saved file), and the screenshot settings a grid
+-- shot changed go back to the player's own.
+function ns.stopShots()
+  ns.loggingOut = true
+  if savedCVars and not InCombatLockdown() then restoreShotSettings() end
+end
+
 function ns.sendLive(e)
   -- Without the app, nobody reads the grid and its screenshots would just pile up.
-  if not ns.hasApp() or WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
+  if ns.loggingOut or not ns.hasApp() or WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
   table.insert(shotQueue, { bits = toBits(encode(e)), portrait = e.kind == "snapshot" })
   ns.processShots()
 end

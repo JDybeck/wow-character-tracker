@@ -474,11 +474,12 @@ end
 -- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
--- (Money too: during logout GetMoney() comes back as 0. Ratings read as none until the game has
--- answered RequestRatedInfo, so they keep the last known values too.)
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "zone", "played", "crests", "money", "mplusScore", "pvpRatings" }
+-- (Ratings read as none until the game has answered RequestRatedInfo, so they keep the last known
+-- values too. Money has its own rule below.)
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "zone", "played", "crests", "mplusScore", "pvpRatings" }
 
-function ns.saveSnapshot()
+-- atLogout: true from the logout (a ticker passes itself, so only true counts), where 0 money isn't real.
+function ns.saveSnapshot(atLogout)
   ns.doing("snapshot")
   local guid = UnitGUID("player")
   if not guid then return end
@@ -493,6 +494,8 @@ function ns.saveSnapshot()
       local v = info[k]
       if v == nil or v == "" or v == 0 or v == "an unknown place" or v == "Unknown" then info[k] = old[k] end
     end
+    -- Money: 0 is real (all spent) except at logout, where the game reports 0 for everyone.
+    if info.money == nil or (info.money == 0 and atLogout == true) then info.money = old.money end
     -- Guild: "" means no guild (keep that), nil means not known yet.
     if info.guild == nil then info.guild = old.guild end
     -- XP: during logout the game reports 0 of 0, so keep the last known bar, but only one from this

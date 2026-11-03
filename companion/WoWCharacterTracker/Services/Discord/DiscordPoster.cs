@@ -38,10 +38,17 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
             embed["image"] = new { url = "attachment://item.png" };
             files.Add((item, "item.png"));
         }
-        if (screenshot is not null && !File.Exists(screenshot))
-            Log.Warn($"The screenshot for this post was gone before it could be sent ({Path.GetFileName(screenshot)}), so it went out without one.");
-        if (screenshot is null || !File.Exists(screenshot))
+        if (screenshot is null) return await webhook.SendAsync(list, files);
+        byte[] image;
+        try
+        {
+            image = await File.ReadAllBytesAsync(screenshot);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"The screenshot for this post couldn't be read ({Path.GetFileName(screenshot)}: {ex.Message}), so it went out without one.");
             return await webhook.SendAsync(list, files);
+        }
 
         var shotEmbed = embed;
         if (item is not null)
@@ -53,7 +60,6 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
 
         // The full screenshot first (boosted servers take big files), then a smaller JPEG if
         // Discord says it's too large, and the post without it as the last resort.
-        var image = await File.ReadAllBytesAsync(screenshot);
         var name = "screenshot" + Path.GetExtension(screenshot).ToLowerInvariant();
         shotEmbed["image"] = new { url = "attachment://" + name };
         var result = await webhook.SendOrReportAsync(list, [.. files, (image, name)]);
@@ -105,7 +111,11 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         var fields = new List<object>();
         // Discord fields take up to 1024 characters; long pick lists are cut at a whole talent.
         var picks = string.Join(", ", c.TalentPickList.Select(p => p.Text).Where(t => t.Length > 0));
-        if (picks.Length > 1000) picks = picks[..picks.LastIndexOf(", ", 1000, StringComparison.Ordinal)] + "...";
+        if (picks.Length > 1000)
+        {
+            var cut = picks.LastIndexOf(", ", 1000, StringComparison.Ordinal);
+            picks = picks[..(cut > 0 ? cut : 1000)] + "...";
+        }
         if (picks.Length > 0) fields.Add(new { name = "Picked", value = picks, inline = false });
         if (url is not null) fields.Add(new { name = "Wowhead", value = $"[Open in the talent calculator]({url})", inline = false });
         if (fields.Count > 0) embed["fields"] = fields;

@@ -27,8 +27,11 @@ static partial class AddonInstaller
     {
         if (installed is null) return null;
         if (installed == bundled) return 0;
-        return Version.TryParse(installed, out var i) && Version.TryParse(bundled, out var b) ? i.CompareTo(b) : -1;
+        return Version.TryParse(installed, out var i) && Version.TryParse(bundled, out var b) ? Full(i).CompareTo(Full(b)) : -1;
     }
+
+    // Missing parts count as 0, so "1.2" and "1.2.0" are the same version.
+    static Version Full(Version v) => new(v.Major, v.Minor, Math.Max(0, v.Build), Math.Max(0, v.Revision));
 
     public static string? InstalledInterface(string flavorDir)
     {
@@ -52,7 +55,7 @@ static partial class AddonInstaller
             var content = ReadBundled(fileName);
             if (fileName.EndsWith(".toc") && interfaceVersion is int v)
                 content = InterfaceLine().Replace(content, $"## Interface: {v}", 1);
-            File.WriteAllText(Path.Combine(target, fileName), content);
+            Files.WriteAtomic(Path.Combine(target, fileName), content);
         }
 
         // Lua files an older version had but this one doesn't (the game would ignore them anyway,
@@ -138,7 +141,7 @@ static partial class AddonInstaller
     {
         var toc = TocPath(flavorDir);
         var text = File.ReadAllText(toc);
-        File.WriteAllText(toc, InterfaceLine().Replace(text, $"## Interface: {interfaceVersion}", 1));
+        Files.WriteAtomic(toc, InterfaceLine().Replace(text, $"## Interface: {interfaceVersion}", 1));
     }
 
     static string ReadBundled(string fileName)

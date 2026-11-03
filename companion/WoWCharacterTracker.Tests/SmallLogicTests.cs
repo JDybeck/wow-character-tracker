@@ -131,6 +131,7 @@ public class RatingTests
     [InlineData("0.31.0", "0.31.1", -1)]
     [InlineData("0.32.0", "0.31.1", 1)]
     [InlineData("?", "0.31.1", -1)]
+    [InlineData("0.31", "0.31.0", 0)]
     public void Addon_versions_compare(string? installed, string bundled, int? expected)
     {
         var result = AddonInstaller.Compare(installed, bundled);
@@ -200,11 +201,26 @@ public class RatingTests
         Assert.False(read.AnnounceParty);
         Assert.Equal(["boss", "level"], read.AnnounceKinds.Order());
         Assert.Equal(["rare"], read.AskKinds);
-        Assert.True(read.FlightReload); // missing means on, as the addon reads it
+        Assert.Null(read.FlightReload); // missing: the addon reads the app's value, so the app keeps it
+        Assert.Null(read.GridLabel);
         Assert.False(read.ChatReminder);
         Assert.Equal("TOPRIGHT", read.GridCorner);
         Assert.True(read.KeepAllHistory);
         Assert.Null(SavedVariables.ReadInGame(MoonSharp.Interpreter.DynValue.Nil));
+    }
+
+    // A change from an older addon that didn't keep every setting: the ones it has win, the rest stay.
+    [Fact]
+    public void Settings_missing_from_the_in_game_change_keep_the_apps_values()
+    {
+        var s = new FlavorSettings { InGameAt = 1000, KeepAllHistory = true, AskKinds = ["epic"], GridCorner = "BOTTOMRIGHT", ChatReloadReminder = true };
+        Assert.True(s.TakeInGame(new InGameSettings(1100, true, false, ["level"], null, null, false, null, null, null)));
+
+        Assert.True(s.AnnounceGuild);
+        Assert.False(s.ChatReloadReminder);
+        Assert.True(s.KeepAllHistory);
+        Assert.Equal(["epic"], s.AskKinds);
+        Assert.Equal("BOTTOMRIGHT", s.GridCorner);
     }
 
     // Clicking Post in game: always wanted, whatever the rules say, and posted as the moment it carries.

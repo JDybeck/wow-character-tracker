@@ -39,6 +39,7 @@ sealed class Tracker : IDisposable
     int liveVersion;
     // What the last sync showed (saved files and live version); the same again means nothing to show.
     string? shownStamp;
+    volatile bool disposed;
 
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
@@ -149,6 +150,7 @@ sealed class Tracker : IDisposable
         var sent = 0;
         try
         {
+            if (disposed) return; // a sync scheduled just before the tab was turned off
             posted ??= ReadPosted();
 
             // Nothing new since the last sync: the app already shows it, only posts that failed are tried again.
@@ -245,7 +247,8 @@ sealed class Tracker : IDisposable
             posted!.Add(e.Id);
             // Only posted highlights keep their screenshot. (The addon normally doesn't take one for
             // these, unless the settings changed since the game last loaded them.)
-            if (e.Shot && ScreenshotFileFor(e, within: 20) is { } unwantedShot) Files.TryDelete(unwantedShot);
+            if (e.Shot && !NearWantedShot(e, history, s) && ScreenshotFileFor(e, within: 20) is { } unwantedShot)
+                Files.TryDelete(unwantedShot);
         }
 
         var toPost = pending.Where(e => s.Wants(e, history)).ToList();
@@ -264,6 +267,7 @@ sealed class Tracker : IDisposable
         var sent = 0;
         foreach (var e in toPost)
         {
+            if (disposed) break; // the tab was turned off mid-batch: the rest waits for it to come back
             var forThis = webhooksFor(e);
             var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
             // The game only reads its screenshot settings on /reload or login, so a box ticked
@@ -289,6 +293,12 @@ sealed class Tracker : IDisposable
         }
         return sent;
     }
+
+    // A wanted event with a screenshot close to this one (in this batch or posted before): the
+    // picture in this one's window may be that event's, so it isn't deleted. Covers the 90 s a
+    // posted event's own picture can come late (ScreenshotFileFor).
+    static bool NearWantedShot(Entry e, List<Entry> history, FlavorSettings s) =>
+        history.Any(w => w.Id != e.Id && w.Shot && Math.Abs(w.At - e.At) <= 92 && s.Wants(w, history));
 
     // The addon takes the screenshot a second or two after the event. The game names it by time,
     // so the newest picture written just after the event is the one. For a live event the file may
@@ -405,6 +415,8 @@ sealed class Tracker : IDisposable
 
     public void Dispose()
     {
+        disposed = true;
+        debounce?.Cancel();
         watcher?.Dispose();
         safetyNet?.Dispose();
         shots.Dispose();
