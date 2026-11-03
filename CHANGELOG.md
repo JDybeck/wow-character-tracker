@@ -2,6 +2,21 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.31.3
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- The addon does less while you play: gold and currency changes update only those, gear tooltips aren't read again every few minutes, and loading screens no longer rescan everything.
+- Saved events no longer carry talent picks, stats and XP the app doesn't use, so the saved file grows slower and loads faster.
+- Forever can never be mistaken for Retail when reading talents and roles.
+- Loot, duel and Mak'gora messages are read with one shared pattern builder, which also handles translated strings with numbered arguments.
+- Copy settings and Paste settings no longer crash the app when another program is holding the clipboard.
+- Items Wowhead couldn't be reached for (say, offline when the app started) get their names and icons a minute later, not only after a restart.
+- The stream card shows gold as 12,345g on every PC, like the rest of the app, and the stream text files are never half written when OBS reads them.
+- Typing in the level and key boxes on the Posting page saves once you stop, not on every key.
+
 ## v0.31.2
 
 Update the addon with the app (it does this by itself) and /reload in game.

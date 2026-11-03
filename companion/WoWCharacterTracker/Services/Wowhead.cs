@@ -36,6 +36,10 @@ static class Wowhead
         return Lookups.GetOrAdd(key, k => Task.Run(() => FetchAsync(k)));
     }
 
+    // What's known right now, without waiting: null until the lookup (started here if it wasn't) is done.
+    public static Info? Known(string type, int id, Flavor flavor) =>
+        GetAsync(type, id, flavor) is { IsCompletedSuccessfully: true } done ? done.Result : null;
+
     static async Task<Info?> FetchAsync(string key)
     {
         // Entries cached before the HTML was kept are fetched once more.

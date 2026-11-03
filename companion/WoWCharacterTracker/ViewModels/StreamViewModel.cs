@@ -285,25 +285,19 @@ sealed class StreamViewModel : Observable
         StreamFiles.Write(snapshot);
     }
 
-    // The highlights' items (loot, mounts) as Wowhead knows them, for their icons and quality: each
-    // looked up once (Wowhead caches it on disk too), the overlay refreshed when new ones come in. A
-    // lookup that fails is forgotten, so a later refresh tries again; until then the kind's icon shows.
-    readonly Dictionary<int, Wowhead.Info?> items = [];
-    Wowhead.Info? Item(int id) => items.GetValueOrDefault(id);
+    // The highlights' items (loot, mounts) as Wowhead knows them, for their icons and quality, from
+    // Wowhead's own cache (each looked up once, a failed one again later); until then the kind's icon
+    // shows. The overlay is refreshed when new ones come in.
+    Wowhead.Info? Item(int id) => Flavors.Named(snapshot.Game) is { } flavor ? Wowhead.Known("item", id, flavor) : null;
 
     async void LookUpItems()
     {
         if (Flavors.Named(snapshot.Game) is not { } flavor) return;
-        var missing = snapshot.Highlights.Select(h => h.ItemId).Where(id => id > 0 && !items.ContainsKey(id)).Distinct().ToList();
+        var missing = snapshot.Highlights.Select(h => h.ItemId).Where(id => id > 0).Distinct()
+            .Where(id => Wowhead.Known("item", id, flavor) is null).ToList();
         if (missing.Count == 0) return;
-        foreach (var id in missing) items[id] = null; // asked, so the next refresh doesn't ask again
-        var found = false;
-        foreach (var id in missing)
-        {
-            if (await Wowhead.GetAsync("item", id, flavor) is { } info) { items[id] = info; found = true; }
-            else items.Remove(id);
-        }
-        if (found) Refresh();
+        var found = await Task.WhenAll(missing.Select(id => Wowhead.GetAsync("item", id, flavor)));
+        if (found.Any(info => info is not null)) Refresh();
     }
 
     // Shows an alert on the overlay right now (OBS included), for setting it up without playing. Each
@@ -330,14 +324,21 @@ sealed class StreamViewModel : Observable
         var highlights = highlight.Text.Length > 0 ? [highlight, .. test.Highlights.Take(2)] : test.Highlights;
         server.Snapshot = test with { Alert = sample, Highlights = highlights };
         Log.Info($"Test alert sent to the stream overlay: {sample.Title} (click again for the next kind; only the overlay shows it).");
-        // Back to the real state a bit later, so the next real alert still counts as new.
-        _ = Task.Delay(TimeSpan.FromSeconds(10)).ContinueWith(_ => { if (server is not null) server.Snapshot = snapshot; });
+        _ = EndTestAlertAsync(testIndex);
+    }
+
+    // Back to the real state a bit later, so the next real alert still counts as new. Only for the
+    // newest test: a click in the meantime gets its own full 10 seconds. (On the UI thread, like Refresh.)
+    async Task EndTestAlertAsync(int test)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(10));
+        if (test == testIndex && server is not null) server.Snapshot = snapshot;
     }
 
     static void Copy(string url)
     {
-        try { Clipboard.SetText(url); Log.Info("Copied the stream overlay address: " + url); }
-        catch (System.Runtime.InteropServices.ExternalException) { } // the clipboard was busy
+        if (ClipboardText.TrySet(url)) Log.Info("Copied the stream overlay address: " + url);
+        else Log.Warn("The clipboard was busy, so the overlay address wasn't copied. Try again.");
     }
 
     public void Shutdown() => server?.Dispose();
@@ -346,6 +347,6 @@ sealed class StreamViewModel : Observable
         r.Guid, r.FullName, flavor.Name, r.Level, r.ClassName,
         GameColors.Class(r.ClassFile) is int color ? GameColors.Hex(color) : "#FFFFFF",
         r.Race, r.RealmText, r.Zone, r.Played > 0 ? Format.Played(r.Played) : "", r.ItemLevel > 0 ? r.ItemLevel.ToString("0") : "",
-        r.LastSeen, r.Spec, r.Money >= 10000 ? $"{r.Money / 10000:N0}g" : "", r.KeystoneText,
+        r.LastSeen, r.Spec, r.Money >= 10000 ? Format.Gold(r.Money) : "", r.KeystoneText,
         Format.Ratings(r.MplusScore, r.PvpRatings).Select(x => new StreamRating(x.Name, x.Rating)).ToList(), r.Talents, r.Played);
 }

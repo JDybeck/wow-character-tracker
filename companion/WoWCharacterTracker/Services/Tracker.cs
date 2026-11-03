@@ -98,7 +98,8 @@ sealed class Tracker : IDisposable
             wasRunning = running;
         }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
 
-        _ = SyncAsync().ContinueWith(_ => shots.Start()); // live events only after old ones are handled
+        // Live events only after old ones are handled (and not when the tab was turned off meanwhile).
+        _ = SyncAsync().ContinueWith(_ => { if (!disposed) shots.Start(); });
     }
 
     void OnLiveEntry(Entry e, DateTime shotAt, byte[]? portrait)

@@ -49,15 +49,26 @@ sealed class ItemInfo(int itemId, string url, string type = "item") : Observable
         Tooltip ??= name;
     }
 
-    // Looked up once; awaiting it again just waits for that lookup.
+    // Looked up once; awaiting it again just waits for that lookup. One that found nothing (offline,
+    // Wowhead slow) may be tried again a minute later (CanRetry, GameLookup asks).
     Task? load;
-    public Task LoadAsync(Flavor flavor) => load ??= Load(flavor);
+    bool found;
+    DateTime triedAt;
+    static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(1);
+    public bool CanRetry => load is { IsCompleted: true } && !found && DateTime.UtcNow - triedAt >= RetryAfter;
+    public Task LoadAsync(Flavor flavor)
+    {
+        if (CanRetry) load = null;
+        return load ??= Load(flavor);
+    }
     // The lookup started for this (GameLookup starts it), done when nothing was started.
     public Task WhenLoaded => load ?? Task.CompletedTask;
 
     async Task Load(Flavor flavor)
     {
+        triedAt = DateTime.UtcNow;
         if (await Wowhead.GetAsync(Type, ItemId, flavor) is not { } info) return;
+        found = true;
         Name = info.Name;
         var icon = Wowhead.IconUrl(info.Icon, "medium");
         if (info.Icon.Length > 0) await ImageCache.LoadAsync(icon); // read and decoded off the UI thread, so the binding finds it ready

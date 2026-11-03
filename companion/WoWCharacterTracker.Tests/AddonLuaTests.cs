@@ -883,6 +883,7 @@ public class AddonLuaTests
             local set = { "|cffffd100Baleful Grave-Knight's Battlegear (2/5)|r", "  Baleful Grave-Knight's Casque",
               "|cff00ff00Set: Heart Strike deals 10% more damage.|r", "(2) Set Frost: Remorseless Winter hits harder.",
               "(4) Set Blood: Your Bone Shield lasts longer.", "Sets the item level: not a bonus." }
+            function GetBuildInfo() return "12.0.5", "1", "", 120005 end -- Retail: tier bonuses by spec
             function GetSpecialization() return 1 end
             function GetSpecializationInfo() return 250, "Blood" end
             local tips = {
@@ -996,8 +997,8 @@ public class AddonLuaTests
         Assert.Equal(2, script.DoString("return #timers").Number);
     }
 
-    // Bag changes while looting don't read the gear's tooltips again: only new gear (another link), a
-    // new spec, or five minutes passing does.
+    // Bag changes while looting don't read the gear's tooltips again: only new gear (another link) or
+    // a new spec does, plus one more read a minute after it, in case a tooltip wasn't loaded yet.
     [Fact]
     public void Gear_tooltips_are_only_read_again_when_the_gear_changes()
     {
@@ -1026,8 +1027,11 @@ public class AddonLuaTests
         script.DoString("chest = '|Hitem:1005:9999|h'"); // a new enchant
         script.Call(ns.Get("scanInventory"));
         Assert.Equal(2, Reads());
-        script.DoString("now = now + 300");
-        script.Call(ns.Get("scanInventory"));
+        script.DoString("now = now + 60");
+        script.Call(ns.Get("scanInventory")); // the one read again
+        Assert.Equal(3, Reads());
+        script.DoString("now = now + 3600");
+        script.Call(ns.Get("scanInventory")); // then not again while the gear stays
         Assert.Equal(3, Reads());
         Assert.Equal("5~1005~Equip: Heals.", script.DoString("return WoWCharacterTrackerDB.items['Player-1'].effects").String);
     }
@@ -1177,6 +1181,74 @@ public class AddonLuaTests
         script.Call(ns.Get("recordMount"), "Swift Brown Ram", 18786); // the same one reported twice
 
         Assert.Equal(["Reins of the Black Wolf", "Swift Brown Ram"], recorded.Select(e => e.Get("mount").String));
+    }
+
+    // Shared.lua's formatPattern: the game's loot and duel strings as patterns, with arguments in
+    // the order the string numbers them, and everything else matched literally.
+    [Theory]
+    [InlineData("You receive loot: %s.", "You receive loot: |Hitem:1|h[Box]|h.", "1=|Hitem:1|h[Box]|h")]
+    [InlineData("You receive loot: %sx%d.", "You receive loot: |Hitem:2|h[Ore x]|hx12.", "1=|Hitem:2|h[Ore x]|h,2=12")]
+    [InlineData("%1$s has defeated %2$s in a duel", "Zeb has defeated Ola in a duel", "1=Zeb,2=Ola")]
+    [InlineData("%2$s has fled from %1$s in a duel", "Ola has fled from Zeb in a duel", "2=Ola,1=Zeb")]
+    [InlineData("50% (%s) done", "50% (half) done", "1=half")]
+    [InlineData("You receive loot: %s.", "You receive loot: [Box]!", "")]
+    public void Game_format_strings_become_patterns(string fmt, string text, string expected)
+    {
+        var script = new Script();
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Globals["ns"] = ns;
+        script.Globals["FMT"] = fmt;
+        script.Globals["TEXT"] = text;
+        var got = script.DoString("""
+            local p, order = ns.formatPattern(FMT)
+            local caps, out = { TEXT:match(p) }, {}
+            if #caps == 0 then return "" end
+            for k, n in ipairs(order) do out[#out + 1] = n .. "=" .. caps[k] end
+            return table.concat(out, ",")
+            """);
+        Assert.Equal(expected, got.String);
+    }
+
+    // ns.hasEvent keeps an index of saved ids: new events are found, and a shorter (trimmed) list is read again.
+    [Fact]
+    public void Saved_event_ids_are_found_as_the_list_grows_and_shrinks()
+    {
+        var script = new Script();
+        script.DoString("WoWCharacterTrackerDB = { events = { { id = 'a' } } }");
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        bool Has(string id) => script.Call(ns.Get("hasEvent"), id).Boolean;
+
+        Assert.True(Has("a"));
+        Assert.False(Has("b"));
+        script.DoString("table.insert(WoWCharacterTrackerDB.events, { id = 'b' })");
+        Assert.True(Has("b"));
+        script.DoString("WoWCharacterTrackerDB.events = { { id = 'c' } }");
+        Assert.False(Has("a"));
+        Assert.True(Has("c"));
+    }
+
+    // Forever has no specs: even with the Retail spec functions there, talents come from its trait
+    // tree and no role is kept. (Retail is told apart by its interface number, never by an API.)
+    [Fact]
+    public void Forever_never_takes_the_retail_spec_path()
+    {
+        var script = new Script();
+        script.DoString("""
+            function GetBuildInfo() return "1.60.1", "1", "", 16001 end
+            function GetSpecialization() return 1 end
+            function GetSpecializationInfo() return 1, "Damage" end
+            function GetSpecializationRole() return "DAMAGER" end
+            """);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Character.lua"))), "WoWCharacterTracker", ns);
+
+        Assert.False(ns.Get("IS_RETAIL").Boolean);
+        Assert.True(script.Call(ns.Get("specName")).IsNil());
+        script.Globals["ns"] = ns;
+        Assert.True(script.DoString("return (ns.getTalents()) == nil").Boolean); // no trait tree stubbed: nothing, not the Retail split
     }
 
     // A setting changed in game by an older version, which didn't keep this key: the app's value counts.

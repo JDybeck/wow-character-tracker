@@ -167,9 +167,9 @@ local function getTraitTalents()
   return table.concat(parts, " / "), best, table.concat(picks, ","), calc
 end
 
--- The Retail spec's name ("Blood"), nil on clients without specs (Forever) or before one is picked.
+-- The Retail spec's name ("Blood"), nil on Forever (no specs) or before one is picked.
 function ns.specName()
-  if type(GetSpecialization) ~= "function" or type(GetSpecializationInfo) ~= "function" then return nil end
+  if not ns.IS_RETAIL or type(GetSpecialization) ~= "function" or type(GetSpecializationInfo) ~= "function" then return nil end
   local spec = GetSpecialization()
   return spec and select(2, GetSpecializationInfo(spec)) or nil
 end
@@ -194,7 +194,7 @@ function ns.getTalents()
     end
     if total == 0 then return nil end -- under level 10: nothing to show, so nothing is stored
     return table.concat(parts, " / ")
-  elseif type(GetSpecialization) == "function" then
+  elseif ns.IS_RETAIL then
     -- Retail: class, spec and hero trees.
     local specName = ns.specName()
     if not specName then return nil end
@@ -253,7 +253,7 @@ end
 -- "TANK", "HEALER" or "DAMAGER" on retail, nil where there are no specs.
 local function getRole()
   -- Retail only: Forever's single class "spec" always says DAMAGER.
-  if type(GetSpecializationRole) ~= "function" or type(GetSpecialization) ~= "function" then return nil end
+  if not ns.IS_RETAIL or type(GetSpecializationRole) ~= "function" or type(GetSpecialization) ~= "function" then return nil end
   local spec = GetSpecialization()
   if spec then
     local ok, role = pcall(GetSpecializationRole, spec)
@@ -488,8 +488,7 @@ function ns.saveSnapshot(atLogout)
   info.lastSeen = time()
   local old = WoWCharacterTrackerDB.chars[guid]
   if old then
-    -- Talents that can't be read right now (game not ready, logout) keep the old text through
-    -- KEEP_IF_EMPTY below. (This used to follow the spec, but Forever has no specs at all.)
+    -- Talents that can't be read right now (game not ready, logout) keep the old text.
     for _, k in ipairs(KEEP_IF_EMPTY) do
       local v = info[k]
       if v == nil or v == "" or v == 0 or v == "an unknown place" or v == "Unknown" then info[k] = old[k] end
@@ -502,12 +501,25 @@ function ns.saveSnapshot(atLogout)
     -- level (0 XP with a real bar is a fresh level and stays).
     if (info.xpMax or 0) == 0 and old.level == info.level then info.xp, info.xpMax = old.xp, old.xpMax end
   end
-  -- Older versions stored the class as Forever's "spec" and a role that means nothing there.
+  -- A saved "spec" that is the class, or a role, means nothing on Forever (it has no specs).
   if info.spec == info.class then info.spec = nil end
-  if type(GetSpecialization) ~= "function" then info.role = nil end
+  if not ns.IS_RETAIL then info.role = nil end
   WoWCharacterTrackerDB.chars[guid] = info
   -- The XP each level needs on this client, so the app can estimate time to max level.
   if info.level and info.xpMax and info.xpMax > 0 and WoWCharacterTrackerDB.xpTable then
     WoWCharacterTrackerDB.xpTable[info.level] = info.xpMax
   end
+end
+
+-- Gold and currency change all the time (every loot, vendor and repair), so they update only those
+-- fields of the saved character instead of rebuilding it. Before the first full snapshot, that's it.
+function ns.saveMoney()
+  local guid = UnitGUID("player")
+  local saved = guid and WoWCharacterTrackerDB.chars[guid]
+  if not saved then return ns.saveSnapshot() end
+  local money = num(safe(GetMoney))
+  if money then saved.money = money end
+  local crests = safe(getCrests)
+  if crests then saved.crests = crests end
+  saved.lastSeen = time()
 end

@@ -91,14 +91,17 @@ sealed class FlavorViewModel : Observable
         if (!Wow.IsRunning(flavorDir) || NewestSavedFile() > settingsWrittenAt) ReloadNeeded = false;
     }
 
+    // The newest of the files the tracker reads (one per account).
     DateTime NewestSavedFile()
     {
-        var wtf = Path.Combine(flavorDir!, "WTF");
-        if (!Directory.Exists(wtf)) return DateTime.MinValue;
         try
         {
-            return Directory.EnumerateFiles(wtf, Wow.SavedVarsName, SearchOption.AllDirectories)
-                .Select(File.GetLastWriteTime).DefaultIfEmpty(DateTime.MinValue).Max();
+            return Wow.Accounts(flavorDir!)
+                .Select(account => Wow.SavedVarsFile(flavorDir!, account))
+                .Where(File.Exists)
+                .Select(File.GetLastWriteTime)
+                .DefaultIfEmpty(DateTime.MinValue)
+                .Max();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return DateTime.MinValue; }
     }
@@ -185,9 +188,9 @@ sealed class FlavorViewModel : Observable
     // --- what gets posted (bound two-way from the settings page) ---
 
     public bool PostLevels { get => Settings.PostLevels; set { Settings.PostLevels = value; Changed(); } }
-    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); Changed(); } }
-    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); Changed(); } }
-    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); Changed(); } }
+    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); TypedChanged(); } }
+    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); TypedChanged(); } }
+    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); TypedChanged(); } }
     public bool PostRare { get => Settings.PostRare; set { Settings.PostRare = value; Changed(); } }
     public bool RareBoeOnly { get => Settings.RareBoeOnly; set { Settings.RareBoeOnly = value; Changed(); } }
     public bool PostBattlegrounds { get => Settings.PostBattlegrounds; set { Settings.PostBattlegrounds = value; Changed(); } }
@@ -203,7 +206,7 @@ sealed class FlavorViewModel : Observable
     public bool PostMPlus { get => Settings.PostMPlus; set { Settings.PostMPlus = value; Changed(); } }
     public bool PostPvp { get => Settings.PostPvp; set { Settings.PostPvp = value; Changed(); } }
     public bool PostKeyRuns { get => Settings.PostKeyRuns; set { Settings.PostKeyRuns = value; Changed(); } }
-    public int KeyRunMinLevel { get => Settings.KeyRunMinLevel; set { Settings.KeyRunMinLevel = Math.Clamp(value, FlavorSettings.KeyLevelMin, FlavorSettings.KeyLevelMax); Changed(); } }
+    public int KeyRunMinLevel { get => Settings.KeyRunMinLevel; set { Settings.KeyRunMinLevel = Math.Clamp(value, FlavorSettings.KeyLevelMin, FlavorSettings.KeyLevelMax); TypedChanged(); } }
     public bool KeyRunTimedOnly { get => Settings.KeyRunTimedOnly; set { Settings.KeyRunTimedOnly = value; Changed(); } }
     public bool IsRetail => Flavor.HasRatings; // Mythic+ runs (instead of end boss kills) and the rating options
 
@@ -321,21 +324,13 @@ sealed class FlavorViewModel : Observable
         set
         {
             Settings.SkipBossGroupRegex = value;
-            main.Config.Save();
+            main.SaveSoon(); // typed
             Raise(nameof(SkipBossGroupRegex));
             Raise(nameof(SkipRegexProblem));
         }
     }
 
-    public string SkipRegexProblem
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(Settings.SkipBossGroupRegex)) return "";
-            try { _ = new System.Text.RegularExpressions.Regex(Settings.SkipBossGroupRegex); return ""; }
-            catch (ArgumentException) { return "That isn't a valid pattern, so nothing gets skipped."; }
-        }
-    }
+    public string SkipRegexProblem => Settings.SkipRegexValid ? "" : "That isn't a valid pattern, so nothing gets skipped.";
 
     // "Posts at levels 5, 10, 15, 20, 25, 30, 31, 32, 33 and so on."
     public string LevelPreview
@@ -351,6 +346,15 @@ sealed class FlavorViewModel : Observable
     void Changed([CallerMemberName] string? name = null)
     {
         AddonSettingsChanged(); // the addon only sends live (and screenshots) what will be posted
+        Raise(name!);
+        Raise(nameof(LevelPreview));
+    }
+
+    // Like Changed, for boxes that change with every keystroke: the config and the addon's Settings.lua
+    // are written a moment after the last one (MainViewModel.SaveSoon), the preview right away.
+    void TypedChanged([CallerMemberName] string? name = null)
+    {
+        main.SaveSoon(addonSettings: true);
         Raise(name!);
         Raise(nameof(LevelPreview));
     }

@@ -2,6 +2,7 @@
 local ADDON, ns = ...
 
 local on = {}
+local professionsWaiting = false -- skill-ups during a fight, checked when it ends
 
 -- A chat reminder to /reload after the bank, mailbox, a vendor or the auction house, or leaving a
 -- dungeon (Events.lua remindReload), once the bag scan that follows has run.
@@ -36,15 +37,25 @@ function on.PLAYER_LOGOUT() -- also on /reload, right before the game writes the
   ns.onLogout()
 end
 
+-- Snapshot every 5 minutes, but not mid-fight (the next tick or the logout catches up).
+local function snapshotTick()
+  if not (InCombatLockdown and InCombatLockdown()) then ns.saveSnapshot() end
+end
+
+local enteredWorld = false
 function on.PLAYER_ENTERING_WORLD()
-  -- Gear and spec info can take a few seconds after login. Snapshot then, and every 5 minutes.
   C_Timer.After(2, ns.applyGameSettings)
-  C_Timer.After(10, ns.saveSnapshot)
-  C_Timer.After(10, ns.scanInventory)
-  C_Timer.After(12, ns.checkProfessions) -- the baseline, and anything learned while logged out
-  C_Timer.After(15, ns.checkIn)
-  if ns.IS_RETAIL and type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
-  if not ns.snapshotTicker and C_Timer.NewTicker then ns.snapshotTicker = C_Timer.NewTicker(300, ns.saveSnapshot) end
+  -- Once per login or /reload, not on every loading screen (bags, gear and professions don't change
+  -- by zoning; their own events keep them current). Gear and spec info can take a few seconds.
+  if not enteredWorld then
+    enteredWorld = true
+    C_Timer.After(10, ns.saveSnapshot)
+    C_Timer.After(10, ns.scanInventory)
+    C_Timer.After(12, ns.checkProfessions) -- the baseline, and anything learned while logged out
+    C_Timer.After(15, ns.checkIn)
+    if ns.IS_RETAIL and type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
+  end
+  if not ns.snapshotTicker and C_Timer.NewTicker then ns.snapshotTicker = C_Timer.NewTicker(300, snapshotTick) end
   -- The chat reminder to /reload: every 30 minutes (checked every 5), and when leaving a dungeon.
   if not ns.reminderTicker and C_Timer.NewTicker then ns.reminderTicker = C_Timer.NewTicker(300, function() ns.remindReload(false) end) end
   local inInstance = IsInInstance and IsInInstance() or false
@@ -57,6 +68,10 @@ function on.PLAYER_REGEN_ENABLED()
   ns.processShots() -- data grids held back during combat
   ns.flushAnnouncements() -- guild/group messages held back during combat
   ns.showNextAsk() -- and the box offering to post a highlight
+  if professionsWaiting then
+    professionsWaiting = false
+    ns.checkProfessions()
+  end
   if ns.popupLevel then
     local level = ns.popupLevel
     ns.popupLevel = nil
@@ -82,8 +97,14 @@ function on.CHALLENGE_MODE_COMPLETED() ns.recordKeyRun() end
 function on.PVP_RATED_STATS_UPDATE() ns.checkPvpRatings() end
 function on.UPDATE_BATTLEFIELD_STATUS() ns.checkBattleground() end
 function on.PVP_MATCH_COMPLETE() ns.checkBattleground() end -- retail
--- Skill-ups (weapon skills too, in a stream while fighting), so once per burst.
-local professionsSoon = ns.debounce(2, function() ns.checkProfessions() end)
+-- Skill-ups (weapon skills too, in a stream while fighting), so once per burst, and after a fight.
+local professionsSoon = ns.debounce(2, function()
+  if InCombatLockdown and InCombatLockdown() then
+    professionsWaiting = true
+    return
+  end
+  ns.checkProfessions()
+end)
 on.SKILL_LINES_CHANGED = professionsSoon
 on.CHAT_MSG_SKILL = professionsSoon
 
@@ -138,8 +159,9 @@ on.TRAIT_CONFIG_UPDATED = snapshotSoon
 on.CHARACTER_POINTS_CHANGED = snapshotSoon
 on.PLAYER_GUILD_UPDATE = snapshotSoon
 
--- ...and money, which changes a lot (every loot and vendor), so at most every few seconds.
-local moneyChanged = ns.debounce(3, function() ns.saveSnapshot() end)
+-- ...and money, which changes a lot (every loot and vendor), so at most every few seconds, and only
+-- the money and currency fields.
+local moneyChanged = ns.debounce(3, function() ns.saveMoney() end)
 on.PLAYER_MONEY = moneyChanged
 on.CURRENCY_DISPLAY_UPDATE = moneyChanged
 

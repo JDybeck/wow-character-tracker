@@ -3,25 +3,6 @@ local ADDON, ns = ...
 
 -- Duels ----------------------------------------------------------------------
 
--- Turns a game string like "%1$s has defeated %2$s in a duel" into a Lua pattern, plus the order
--- its arguments appear in (so translated strings with swapped arguments still work).
-local function toPattern(fmt)
-  local order, out, i = {}, {}, 1
-  while i <= #fmt do
-    local n = fmt:match("^%%(%d)%$s", i)
-    if n then
-      order[#order + 1] = tonumber(n); out[#out + 1] = "(.-)"; i = i + 4
-    elseif fmt:sub(i, i + 1) == "%s" then
-      order[#order + 1] = #order + 1; out[#out + 1] = "(.-)"; i = i + 2
-    else
-      local c = fmt:sub(i, i)
-      out[#out + 1] = c:match("%W") and ("%" .. c) or c
-      i = i + 1
-    end
-  end
-  return "^" .. table.concat(out) .. "$", order
-end
-
 -- Returns the string's arguments in argument order, or nil when it doesn't match.
 local function matchFormat(text, compiled)
   local caps = { text:match(compiled[1]) }
@@ -38,20 +19,27 @@ local function buildDuelPatterns()
   for _, name in ipairs({ "DUEL_WINNER_KNOCKOUT", "DUEL_WINNER_RETREAT" }) do
     local s = _G[name]
     if type(s) == "string" then
-      local p, order = toPattern(s)
+      local p, order = ns.formatPattern(s)
       duelPatterns[#duelPatterns + 1] = { p, order, fled = name == "DUEL_WINNER_RETREAT" }
     end
   end
 end
 
--- Hardcore Mak'gora (duel to the death): the game's own strings, whatever they're called. That means
--- going through every global, so only once a message that could be one arrives.
+-- Text about a Mak'gora (hardcore duel to the death).
+local function aboutMakgora(s)
+  return s:find("Mak'gora", 1, true) or s:find("to the death", 1, true)
+end
+
+-- Hardcore Mak'gora results: the game's own strings, whatever they're called. That means going
+-- through every global, so only once a message about one arrives, and the cheap checks go first.
+local NONE = {}
 local function buildMakgoraPatterns()
   makgoraPatterns = {}
   for k, v in pairs(_G) do
-    if type(k) == "string" and type(v) == "string" and #v < 200 and select(2, v:gsub("%%", "")) >= 2
-        and (v:find("Mak'gora") or v:find("to the death")) and (v:find("defeated") or v:find("slain") or v:find("won")) then
-      local p, order = toPattern(v)
+    if type(v) == "string" and #v < 200 and type(k) == "string" and aboutMakgora(v)
+        and (v:find("defeated", 1, true) or v:find("slain", 1, true) or v:find("won", 1, true))
+        and select(2, v:gsub("%%", "")) >= 2 then
+      local p, order = ns.formatPattern(v)
       makgoraPatterns[#makgoraPatterns + 1] = { p, order }
     end
   end
@@ -108,8 +96,8 @@ function ns.onSystemMessage(text)
   text = ns.plain(text) -- chat is hidden from addons during a boss fight
   if not text then return end
   if not duelPatterns then buildDuelPatterns() end
-  if not makgoraPatterns and (text:find("Mak'gora") or text:find("to the death")) then buildMakgoraPatterns() end
-  for _, c in ipairs(makgoraPatterns or {}) do
+  if not makgoraPatterns and aboutMakgora(text) then buildMakgoraPatterns() end
+  for _, c in ipairs(makgoraPatterns or NONE) do
     local a = matchFormat(text, c)
     if a and isMe(a[1]) then recordDuel("makgora", a[2]); return end
     if a and isMe(a[2]) then recordDuel("makgora", a[1], nil, true); return end
@@ -151,9 +139,8 @@ local function recordRating(kind, rating, step, bracket)
   -- Once per step and season: a new season can post the same step again.
   local season = (kind == "mplus" and C_MythicPlus and C_MythicPlus.GetCurrentSeason and C_MythicPlus.GetCurrentSeason())
     or (kind == "pvp" and GetCurrentArenaSeason and GetCurrentArenaSeason()) or 0
-  local idSuffix = string.format("%s:%s:%d:s%s", kind, bracket or "", step, tostring(season))
-  if ns.hasEvent(UnitGUID("player") .. ":" .. idSuffix) then return end -- dropped below and climbed back
-  ns.record(kind, { rating = rating, step = step, bracket = bracket }, idSuffix) -- "mplus" or "pvp"
+  ns.recordOnce(kind, { rating = rating, step = step, bracket = bracket }, -- "mplus" or "pvp"
+    string.format("%s:%s:%d:s%s", kind, bracket or "", step, tostring(season)))
 end
 
 -- Mythic+ steps come only from a finished key's own before and after scores. The score the game

@@ -99,9 +99,8 @@ function ns.requestPlayed(reason)
   C_Timer.After(5, ns.unmutePlayed)
 end
 
--- (Older versions also replaced ChatFrame_DisplayTimePlayed to hide it. Replacing Blizzard
--- functions taints the default UI, which on Classic clients blocked Esc and showed "blocked from an
--- action" errors, so that's gone. Muting the chat windows above does the same job safely.)
+-- (Muting the chat windows, not replacing ChatFrame_DisplayTimePlayed: replacing a Blizzard function
+-- taints the default UI, which on Classic clients blocks Esc and shows "blocked from an action".)
 
 -- Reload prompts ----------------------------------------------------------------
 -- Small boxes that offer a /reload (the game only writes the saved file then, and only a click may
@@ -163,8 +162,6 @@ local getGroup -- below, with the boss kills
 -- timed right away from the played time already known (ns.playedNow), so posts don't wait on the
 -- server; /played answers, when the game sends them, make the next level's start exact.
 
-local knownEvent = ns.hasEvent
-
 -- Times a finished level: newStart is the total played when `level` began. If the saved start
 -- belongs to the level before, the level is done (also later, at login, when a /reload or logout
 -- came before the game answered the ding's /played request). Returns true when the level is
@@ -177,7 +174,7 @@ local function finishLevel(guid, level, newStart, total, live)
   -- the ding: a later answer on a level 2 character would record a ding from long ago.
   if level == 2 and startLevel ~= 2 and live then oldStart, startLevel = 0, 1 end
   if not (oldStart and newStart >= oldStart and (startLevel == level - 1 or (startLevel == nil and live))) then return false end
-  if not knownEvent(guid .. ":" .. level) then
+  if not ns.hasEvent(guid .. ":" .. level) then
     local seconds = newStart - oldStart
     ns.recordLevel(guid, level, seconds, total)
     ns.say(string.format("Level %d took %s.", level - 1, ns.formatDuration(seconds)))
@@ -189,7 +186,7 @@ end
 -- A ding without a starting point for its level (the addon came in mid-level) is still logged,
 -- without a time.
 local function logUntimed(guid, level, total)
-  if knownEvent(guid .. ":" .. level) then return end
+  if ns.hasEvent(guid .. ":" .. level) then return end
   ns.recordLevel(guid, level, nil, total)
   ns.say(string.format("Level %d logged. Its time is unknown (no starting point for level %d yet).", level, level - 1))
   ns.offerPost(level)
@@ -421,19 +418,13 @@ function ns.recordKeyRun()
 end
 
 -- LOOT_ITEM_SELF is "You receive loot: %s." (and a "%sx%d." variant for stacks). Turned into
--- Lua patterns so this works with the client's own language.
-local function lootPattern(fmt)
-  if type(fmt) ~= "string" then return nil end
-  local p = fmt:gsub("[%(%)%.%+%-%*%?%[%]%^%$]", "%%%0")
-  p = p:gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
-  return "^" .. p .. "$"
-end
+-- Lua patterns so this works with the client's own language; the item link comes first.
 -- (By count, not ipairs: a client without the first string would otherwise lose them all.)
 local function patterns(...)
   local list = {}
   for i = 1, select("#", ...) do
-    local p = lootPattern((select(i, ...)))
-    if p then table.insert(list, p) end
+    local fmt = select(i, ...)
+    if type(fmt) == "string" then table.insert(list, (ns.formatPattern(fmt))) end
   end
   return list
 end
@@ -564,8 +555,8 @@ function ns.checkProfessions()
     if p.rank <= 0 then -- hidden right now: keep the baseline
     elseif old then
       local step = ns.stepPassed(old, p.rank, steps)
-      if step and not ns.hasEvent(string.format("%s:profession:%s:%d", guid, p.name, step)) then
-        ns.record("profession", { profession = p.name, step = step, rating = p.rank }, string.format("profession:%s:%d", p.name, step))
+      if step then
+        ns.recordOnce("profession", { profession = p.name, step = step, rating = p.rank }, string.format("profession:%s:%d", p.name, step))
       end
     end
     if p.rank > 0 then known[p.name] = p.rank end

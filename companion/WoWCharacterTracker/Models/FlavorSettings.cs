@@ -95,6 +95,10 @@ class FlavorSettings
         catch (System.Text.RegularExpressions.RegexMatchTimeoutException) { return null; }
     }
 
+    // Empty, or a pattern that works (the settings page says when it doesn't).
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SkipRegexValid => string.IsNullOrWhiteSpace(SkipBossGroupRegex) || SkipRegex() is not null;
+
     // Built once per pattern (every sync asks for each waiting boss kill, several times), null when the
     // pattern isn't valid (the settings page says so). Not saved: fields stay out of the config file.
     // One object, so the tracker's thread never sees a new pattern with the old Regex.
