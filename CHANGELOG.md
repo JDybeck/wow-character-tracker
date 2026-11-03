@@ -2,6 +2,23 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.31.2
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- Every level-up is logged, also when the game never answers the addon's time played request and on the first session after installing the addon. Such a ding is saved without a time instead of going missing.
+- Reaching max level is posted right away again when only max level posts are on.
+- A screenshot that finished late no longer cuts the next one short, so instant posts don't lose their data shot or chat hiding.
+- Settings changed in game with an older addon no longer turn other In game settings back to defaults (Keep all history could switch itself off and trim your history).
+- Two different mounts close together are both posted, and a rating or profession step reached twice in one session is posted and announced once.
+- A character with no gold left shows 0 instead of the old amount.
+- Updating: a failed update can be tried again right away, the app always puts itself back when an update can't finish, and an update that installed but couldn't restart says so instead of calling it a failure.
+- The app no longer can close itself when a game tab is turned off while the game takes a screenshot, and stops posting for that tab right away.
+- A screenshot that can't be read is no longer a reason for a post to wait, it goes out without the picture. Highlight screenshots aren't deleted by the cleanup of nearby unposted events.
+- The stream overlay keeps running after an unexpected error and says it once.
+
 ## v0.31.1
 
 Update the addon with the app (it does this by itself) and /reload in game.
