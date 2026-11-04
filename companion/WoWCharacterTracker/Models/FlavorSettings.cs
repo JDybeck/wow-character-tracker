@@ -129,7 +129,7 @@ class FlavorSettings
 
     // The addon tells the guild and/or the group in game chat (Announce.lua), each its own kinds:
     // level, maxlevel, boss, keyrun, loot (epic and better, as a link), followed, mount, duel, makgora, bg, profession, mplus, pvp, death.
-    // AnnounceKinds is guild chat's. The group's is null in configs from before 0.33.0 (both shared
+    // AnnounceKinds is guild chat's. The group's is null in configs from before 0.32.0 (both shared
     // one list), and Config.Load copies the guild's.
     public bool AnnounceGuild { get; set; }
     public bool AnnounceParty { get; set; }
