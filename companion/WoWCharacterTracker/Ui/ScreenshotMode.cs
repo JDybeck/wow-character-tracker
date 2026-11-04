@@ -65,7 +65,7 @@ static class ScreenshotMode
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
             if (Part(2) == "nofolder") vm.SelectedFlavor?.ShowFolderMissing();
-            if (Part(2) == "betafolder") vm.SelectedFlavor?.ShowOldFolder(Path.Combine(Wow.DefaultRoot, "_classic_beta_"));
+            if (Part(2) == "betafolder") vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Folders.Length > 1)?.ShowOldFolder(Path.Combine(Wow.DefaultRoot, "_classic_beta_"));
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
             if (Part(2) == "updateready") // the update banner and header button for a new version
             {

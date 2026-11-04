@@ -8,7 +8,7 @@ Ready for Forever's launch. Update the addon with the app (it does this by itsel
 
 ### New
 
-- Still on the Forever beta's folder? A reminder says so on the Forever tab. Once Forever is installed, the app moves to the live folder by itself, also while it's running (it checks each time you start the game), and takes the addon along.
+- Still on the Forever beta's folder? A warning says so on every tab, with a Browse button to pick `_forever_`. The beta is over, so nothing from the live game is tracked until you do.
 
 ### Fixes and tweaks
 

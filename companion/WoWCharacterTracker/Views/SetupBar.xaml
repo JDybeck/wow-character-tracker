@@ -103,14 +103,14 @@
     </DockPanel>
   </Border>
 
-  <!-- Still on Forever's beta folder: nothing from the live game reaches it. -->
-  <Border Visibility="{Binding SelectedFlavor.OldFolderNote, Converter={StaticResource VisibleIfSet}}" Margin="0,0,0,10" Padding="12,8" CornerRadius="10"
+  <!-- A game still on Forever's beta folder, shown on every tab: nothing from the live game reaches it. -->
+  <Border DataContext="{Binding OldFolderTab}" Visibility="{Binding Converter={StaticResource VisibleIfSet}}" Margin="0,0,0,10" Padding="12,8" CornerRadius="10"
           Background="{StaticResource AmberSoft}" BorderBrush="{StaticResource Amber}" BorderThickness="1">
     <DockPanel>
       <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Margin="8,0,0,0" Padding="10,3" VerticalAlignment="Center"
-              Content="Browse" Command="{Binding SelectedFlavor.BrowseCommand}" ToolTip="{Binding SelectedFlavor.FolderStep.ActionTooltip}"/>
+              Content="Browse" Command="{Binding FolderStep.ActionCommand}" ToolTip="{Binding FolderStep.ActionTooltip}"/>
       <TextBlock Style="{StaticResource Icon}" Text="&#xE7BA;" Foreground="{StaticResource Amber}" FontSize="13" Margin="0,2,10,0" VerticalAlignment="Top"/>
-      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12" Foreground="White" Text="{Binding SelectedFlavor.OldFolderNote}"/>
+      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12" Foreground="White" Text="{Binding OldFolderNote}"/>
     </DockPanel>
   </Border>
 

@@ -77,11 +77,7 @@ public partial class App : Application
 
         // Open the window when WoW starts, put it back in the tray when the last WoW closes.
         watcher = new GameWatcher(
-            started: () => Dispatcher.BeginInvoke(() =>
-            {
-                foreach (var tab in vm.FlavorTabs) tab.CheckNewerFolder(); // the live game may have been installed since
-                if (vm.OpenWithWow) ShowWindow();
-            }),
+            started: () => Dispatcher.BeginInvoke(() => { if (vm.OpenWithWow) ShowWindow(); }),
             stopped: () => Dispatcher.BeginInvoke(() => { if (vm.OpenWithWow && vm.HideWhenGameCloses && window.IsVisible) window.Hide(); }));
     }
 

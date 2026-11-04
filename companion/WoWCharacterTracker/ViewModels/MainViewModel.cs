@@ -109,6 +109,9 @@ sealed class MainViewModel : Observable
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
 
+    // A game still on an older folder (Forever's beta): its warning shows on every tab, not just its own.
+    public FlavorViewModel? OldFolderTab => FlavorTabs.FirstOrDefault(t => t.OldFolderNote is not null);
+
     FlavorViewModel? selectedFlavor;
     public FlavorViewModel? SelectedFlavor
     {
@@ -175,7 +178,12 @@ sealed class MainViewModel : Observable
         Autostart.Apply(Config.OpenWithWow.Value);
         Raise(nameof(OpenWithWow));
 
-        foreach (var f in Flavors.All) FlavorTabs.Add(new FlavorViewModel(this, f));
+        foreach (var f in Flavors.All)
+        {
+            var tab = new FlavorViewModel(this, f);
+            tab.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(FlavorViewModel.OldFolderNote)) Raise(nameof(OldFolderTab)); };
+            FlavorTabs.Add(tab);
+        }
         // Opens on the last tab, unless that game is turned off and another one isn't.
         var last = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
         SelectedFlavor = last.IsOn ? last : FlavorTabs.FirstOrDefault(t => t.IsOn) ?? last;
