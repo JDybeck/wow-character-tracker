@@ -417,6 +417,7 @@ sealed class FlavorViewModel : Observable
         tracker = null;
         flavorDir = null;
         ReloadNeeded = false;
+        OldFolderNote = null;
         ShowData(TrackerData.Empty);
         StatusText = $"{Name} is turned off";
         Log.Info($"[{Name}] Turned off: the app no longer looks at {Name}." + (AddonLeftInstalled ? " The addon is still installed there; remove it on the tab if you like." : ""));
@@ -481,6 +482,21 @@ sealed class FlavorViewModel : Observable
         UseFolder(path, installAddon: moved && AddonInstaller.InstalledVersion(saved!) is not null);
     }
 
+    // On an older folder for this game (Forever's beta): the banner says so, until the live folder is
+    // installed next to it, which every game start checks for (the app may run for days).
+    string? oldFolderNote;
+    public string? OldFolderNote { get => oldFolderNote; private set => Set(ref oldFolderNote, value); }
+    public ICommand BrowseCommand => new RelayCommand(_ => Browse());
+
+    // Screenshot mode fakes it with this too.
+    internal void ShowOldFolder(string path) => OldFolderNote =
+        $"{Name} is still on the beta's folder ({Path.GetFileName(path)}), so the live game isn't tracked. Install {Name} in Battle.net and the app moves to {Flavor.Folders[0]} by itself. Installed somewhere else? Click Browse.";
+
+    public void CheckNewerFolder()
+    {
+        if (IsOn && flavorDir is not null && OldFolderNote is not null && Wow.NewestFolder(flavorDir, Flavor) != flavorDir) Start();
+    }
+
     // No game folder: the checks say so (the big card over the pages asks for one). Screenshot mode
     // fakes this state with it, so test runs never go looking for the real game.
     internal void ShowFolderMissing()
@@ -517,6 +533,13 @@ sealed class FlavorViewModel : Observable
         {
             Settings.Path = path;
             main.Config.Save();
+        }
+
+        OldFolderNote = null;
+        if (Wow.IsOlderFolder(path, Flavor))
+        {
+            ShowOldFolder(path);
+            Log.Warn($"[{Name}] {OldFolderNote}");
         }
 
         var version = Wow.ClientVersion(path);
