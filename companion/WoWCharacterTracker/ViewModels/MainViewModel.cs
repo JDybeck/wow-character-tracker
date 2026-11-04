@@ -57,6 +57,7 @@ sealed class MainViewModel : Observable
         PostHighlightCommand = new RelayCommand(p => PostHighlightAsync((HighlightRow)p!));
         OpenTalentsCommand = new RelayCommand(p => OpenTalents(p as CharacterRow));
         PostTalentsCommand = new RelayCommand(p => { if (p is CharacterRow c) _ = PostTalentsAsync(c); });
+        ExportCharacterCommand = new RelayCommand(p => { if (p is CharacterRow c) ExportCharacter(c); });
         ToggleCardOptionsCommand = new RelayCommand(_ => ShowCardOptions = !ShowCardOptions);
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
@@ -153,6 +154,7 @@ sealed class MainViewModel : Observable
     public ICommand PostHighlightCommand { get; }
     public ICommand OpenTalentsCommand { get; }
     public ICommand PostTalentsCommand { get; }
+    public ICommand ExportCharacterCommand { get; }
     public ICommand ToggleCardOptionsCommand { get; }
     public ICommand AddTagCommand { get; }
     public ICommand DeleteTagCommand { get; }
@@ -331,6 +333,28 @@ sealed class MainViewModel : Observable
         foreach (var w in WebhooksFor(tab, c))
             if (await PosterFor(tab, w).PostTalentsAsync(c))
                 Log.Success($"[{tab.Name}] Posted {c.Name}'s talents to \"{w.Name}\".");
+    }
+
+    // Saves the character as a JSON file for the armory proof of concept (ArmoryExport), where the user picks.
+    void ExportCharacter(CharacterRow c)
+    {
+        if (SelectedFlavor is not { } tab) return;
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = ArmoryExport.FileName(c),
+            DefaultExt = ".json",
+            Filter = "JSON file (*.json)|*.json",
+        };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            Files.WriteAtomic(dialog.FileName, ArmoryExport.ToJson(ArmoryExport.From(c, tab.Flavor, Updater.Current, DateTimeOffset.Now)));
+            Log.Success($"[{tab.Name}] Exported {c.Name} to {dialog.FileName}.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"[{tab.Name}] Couldn't save {c.Name}'s export: {ex.Message}");
+        }
     }
 
     // --- notes ---
