@@ -15,7 +15,7 @@ local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplat
 scroll:SetPoint("TOPLEFT", 0, -4)
 scroll:SetPoint("BOTTOMRIGHT", -28, 4)
 local page = CreateFrame("Frame", nil, scroll)
-page:SetSize(640, 1180)
+page:SetSize(640, 1330)
 scroll:SetScrollChild(page)
 
 local function text(parent, template, s)
@@ -96,6 +96,29 @@ local function checkGrid(items, anchor, get, set)
   return last
 end
 
+-- Checkboxes in a table under anchor: a row per item (its name on the left), a column per entry of
+-- columns ({ key, title }). get(column, key) and set(column, key, on). Returns the last row's name.
+local function checkTable(items, columns, anchor, get, set)
+  local FIRST, WIDTH = 230, 110
+  local header = text(page, "GameFontNormalSmall", "What")
+  header:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -10)
+  for c, column in ipairs(columns) do
+    local title = text(page, "GameFontNormalSmall", column[2])
+    title:SetPoint("LEFT", header, "LEFT", FIRST + (c - 1) * WIDTH, 0)
+  end
+  local last = header
+  for _, item in ipairs(items) do
+    local name = text(page, "GameFontHighlight", item[2])
+    name:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -14)
+    for c, column in ipairs(columns) do
+      local cb = checkbox("", nil, function() return get(column[1], item[1]) end, function(on) set(column[1], item[1], on) end)
+      cb:SetPoint("LEFT", name, "LEFT", FIRST + (c - 1) * WIDTH - 4, 0)
+    end
+    last = name
+  end
+  return last
+end
+
 local function isOn(key) return ns.setting(key) ~= false end
 
 local title = text(page, "GameFontNormalLarge", NAME)
@@ -134,12 +157,17 @@ for _, kind in ipairs(ns.IS_RETAIL
   ANNOUNCE_KINDS[#ANNOUNCE_KINDS + 1] = kind
 end
 
-local kindsLast = checkGrid(ANNOUNCE_KINDS, whereLast,
-  function(key)
-    local a = ns.setting("announce") or {}
-    return a.kinds ~= nil and a.kinds[key] == true
+-- Guild chat's kinds are `kinds`, the group's `partyKinds` (missing from before it had its own).
+local function announceKinds(a, column)
+  return column == "guild" and a.kinds or (a.partyKinds or a.kinds)
+end
+
+local kindsLast = checkTable(ANNOUNCE_KINDS, { { "guild", "Guild chat" }, { "party", "Group chat" } }, whereLast,
+  function(column, key)
+    local kinds = announceKinds(ns.setting("announce") or {}, column)
+    return kinds ~= nil and kinds[key] == true
   end,
-  function(key, on) ns.editSettings(function(s) s.announce.kinds[key] = on or nil end) end)
+  function(column, key, on) ns.editSettings(function(s) announceKinds(s.announce, column)[key] = on or nil end) end)
 
 -- Offering to post ----------------------------------------------------------------
 local askTitle = heading("Ask before a highlight goes unposted", kindsLast)

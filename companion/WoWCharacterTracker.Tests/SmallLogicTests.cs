@@ -179,7 +179,7 @@ public class RatingTests
         Assert.Equal([new GameNote("P-1", "", 1100)], config.Notes().ToList()); // the clear still reaches the game
     }
 
-    static InGameSettings GameChange(long at) => new(at, true, false, ["level"], ["boss"], false, true, "BOTTOMLEFT", false, true);
+    static InGameSettings GameChange(long at) => new(at, true, false, ["level"], ["death"], ["boss"], false, true, "BOTTOMLEFT", false, true);
 
     // In game settings changed in game replace the app's only when that was the newest change.
     [Fact]
@@ -194,6 +194,7 @@ public class RatingTests
         Assert.Equal(1100, s.InGameAt);
         Assert.True(s.AnnounceGuild);
         Assert.Equal(["level"], s.AnnounceKinds);
+        Assert.Equal(["death"], s.AnnouncePartyKinds);
         Assert.Equal(["boss"], s.AskKinds);
         Assert.False(s.FlightReloadPrompt);
         Assert.Equal("BOTTOMLEFT", s.GridCorner);
@@ -206,7 +207,7 @@ public class RatingTests
     {
         var script = new MoonSharp.Interpreter.Script();
         var read = SavedVariables.ReadInGame(script.DoString("""
-            return { at = 1234, announce = { guild = true, kinds = { level = true, boss = true } },
+            return { at = 1234, announce = { guild = true, kinds = { level = true, boss = true }, partyKinds = { death = true } },
               ask = { rare = true }, chatReminder = false, gridCorner = 'TOPRIGHT', keepAllHistory = true }
             """));
 
@@ -215,6 +216,7 @@ public class RatingTests
         Assert.True(read.AnnounceGuild);
         Assert.False(read.AnnounceParty);
         Assert.Equal(["boss", "level"], read.AnnounceKinds.Order());
+        Assert.Equal(["death"], read.AnnouncePartyKinds);
         Assert.Equal(["rare"], read.AskKinds);
         Assert.Null(read.FlightReload); // missing: the addon reads the app's value, so the app keeps it
         Assert.Null(read.GridLabel);
@@ -228,10 +230,11 @@ public class RatingTests
     [Fact]
     public void Settings_missing_from_the_in_game_change_keep_the_apps_values()
     {
-        var s = new FlavorSettings { InGameAt = 1000, KeepAllHistory = true, AskKinds = ["epic"], GridCorner = "BOTTOMRIGHT", ChatReloadReminder = true };
-        Assert.True(s.TakeInGame(new InGameSettings(1100, true, false, ["level"], null, null, false, null, null, null)));
+        var s = new FlavorSettings { InGameAt = 1000, KeepAllHistory = true, AskKinds = ["epic"], GridCorner = "BOTTOMRIGHT", ChatReloadReminder = true, AnnouncePartyKinds = ["boss"] };
+        Assert.True(s.TakeInGame(new InGameSettings(1100, true, false, ["level"], null, null, null, false, null, null, null)));
 
         Assert.True(s.AnnounceGuild);
+        Assert.Equal(["boss"], s.AnnouncePartyKinds);
         Assert.False(s.ChatReloadReminder);
         Assert.True(s.KeepAllHistory);
         Assert.Equal(["epic"], s.AskKinds);

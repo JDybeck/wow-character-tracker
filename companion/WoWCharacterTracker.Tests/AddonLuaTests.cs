@@ -149,6 +149,33 @@ public class AddonLuaTests
             Announce("{ announce = { party = true, kinds = { boss = true } } }",
                 "{ kind = 'boss', boss = 'Edwin VanCleef', instance = 'The Deadmines', group = 'Zeb~40~WARRIOR~Warrior~Orc~' }", inGroup: true, inRaid: true));
 
+    // Guild and group chat each get only their own kinds: a death for the guild, a boss for the group.
+    [Fact]
+    public void Guild_and_group_chat_each_get_their_own_kinds()
+    {
+        const string settings = "{ announce = { guild = true, party = true, kinds = { death = true, level = true }, partyKinds = { boss = true, level = true } } }";
+        Assert.Equal(["GUILD: Fell at level 34 to Hogger. Rest in peace."],
+            Announce(settings, "{ kind = 'death', level = 34, killer = 'Hogger' }", inGroup: true));
+        Assert.Equal(["PARTY: Killed Edwin VanCleef in The Deadmines!"],
+            Announce(settings, "{ kind = 'boss', boss = 'Edwin VanCleef', instance = 'The Deadmines' }", inGroup: true));
+        Assert.Equal(["GUILD: Ding! Level 5.", "PARTY: Ding! Level 5."], Announce(settings, "{ kind = 'level', level = 5 }", inGroup: true));
+    }
+
+    // A Settings.lua from before the group had its own kinds: both chats use kinds.
+    [Fact]
+    public void Group_chat_uses_the_guild_kinds_without_its_own() =>
+        Assert.Equal(["PARTY: Ding! Level 5."], Announce("{ announce = { party = true, kinds = { level = true } } }", "{ kind = 'level', level = 5 }", inGroup: true));
+
+    // A followed item is its own line in a chat that has followed items on, the usual one in another.
+    [Fact]
+    public void A_followed_item_line_goes_only_where_followed_items_are_on()
+    {
+        const string settings = "{ followed = { [17069] = true }, announce = { guild = true, party = true, kinds = { loot = true }, partyKinds = { loot = true, followed = true } } }";
+        Assert.Equal(["GUILD: Looted |cffa335ee|Hitem:17069|h[Sul'thraze the Lasher]|h|r!",
+                      "PARTY: Got |cffa335ee|Hitem:17069|h[Sul'thraze the Lasher]|h|r from my followed items!"],
+            Announce(settings, "{ kind = 'loot', item = \"Sul'thraze the Lasher\", itemId = 17069, quality = 4 }", inGroup: true));
+    }
+
     [Fact]
     public void Key_runs_go_out_from_the_posts_key_level()
     {

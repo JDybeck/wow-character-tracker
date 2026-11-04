@@ -3,7 +3,9 @@
 -- guild and group lines off until they're turned on in the game's options.
 WoWCharacterTrackerSettings = {
   screenshot = { level = false, loot = false, mount = false, boss = false, death = false },
-  announce = { guild = false, party = false, kinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, mplus = true, pvp = true } },
+  announce = { guild = false, party = false,
+    kinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, mplus = true, pvp = true },
+    partyKinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, mplus = true, pvp = true } },
   ask = {},
   flightReload = false, -- these two only help the app
   chatReminder = false,
