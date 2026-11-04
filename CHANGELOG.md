@@ -8,6 +8,7 @@ Ready for Forever's launch. Update the addon with the app (it does this by itsel
 
 ### New
 
+- **Separate guild and group chat lines**: under In game, Tell your guild or group, each chat now has its own column, so the guild can hear about hardcore deaths while the group only hears about boss kills. Your current picks are copied to both, so nothing changes until you untick something. The same table is in game under `/wct options`.
 - Still on the Forever beta's folder? A warning says so on every tab, with a Browse button to pick `_forever_`. The beta is over, so nothing from the live game is tracked until you do.
 
 ### Fixes and tweaks
