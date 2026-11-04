@@ -11,9 +11,8 @@ local ADDON, ns = ...
 -- statistic for each final boss, which Wowhead lists, so new ones show up there:
 -- https://www.wowhead.com/forever/guide/dungeons-overview-locations-details
 -- https://www.wowhead.com/forever/guide/raids-overview-hub-dates-locations
--- Still unknown (October 2026): The Drowned City, Krol'dok Stronghold, Blackmaw Hold, and the
--- Forever raids (The Wild King in Hyjal Summit and Sonya Darkhallow in Barrow Deeps have kill
--- statistics already; add them once the raids are out).
+-- Still unknown (checked 2026-11-04, no kill statistic on Wowhead yet): The Drowned City,
+-- Krol'dok Stronghold, Blackmaw Hold. Wowhead's Forever kill statistics are around ids 63570-63593.
 -- Later, if players ask: other languages. Names only match an English client; the encounter id
 -- from ENCOUNTER_END would work in every language.
 local END_BOSSES = {
@@ -24,6 +23,9 @@ local END_BOSSES = {
   ["Shade of the Archmage"] = "City of Dalaran",
   ["Blazeroar"] = "Alcaz Prison",
   ["Nanaya"] = "Shaper's Terrace",
+  -- Forever's raids (from their kill statistics, in before the raids open).
+  ["The Wild King"] = "Hyjal Summit",
+  ["Sonya Darkhallow"] = "Barrow Deeps",
   -- Classic dungeons and raids (also in Forever).
   ["Bazzalan"] = "Ragefire Chasm",
   ["Mutanus the Devourer"] = "Wailing Caverns",

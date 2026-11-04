@@ -417,6 +417,7 @@ sealed class FlavorViewModel : Observable
         tracker = null;
         flavorDir = null;
         ReloadNeeded = false;
+        OldFolderNote = null;
         ShowData(TrackerData.Empty);
         StatusText = $"{Name} is turned off";
         Log.Info($"[{Name}] Turned off: the app no longer looks at {Name}." + (AddonLeftInstalled ? " The addon is still installed there; remove it on the tab if you like." : ""));
@@ -481,6 +482,15 @@ sealed class FlavorViewModel : Observable
         UseFolder(path, installAddon: moved && AddonInstaller.InstalledVersion(saved!) is not null);
     }
 
+    // On an older folder for this game (Forever's beta, which is over): a banner on every tab says so
+    // (MainViewModel.OldFolderTab) until the user picks the live folder.
+    string? oldFolderNote;
+    public string? OldFolderNote { get => oldFolderNote; private set => Set(ref oldFolderNote, value); }
+
+    // Screenshot mode fakes it with this too.
+    internal void ShowOldFolder(string path) => OldFolderNote =
+        $"{Name} is watching the beta's folder ({Path.GetFileName(path)}), but the beta is over: nothing you play now is tracked. Click Browse and pick {Flavor.Folders[0]} (install {Name} in Battle.net first if it isn't there).";
+
     // No game folder: the checks say so (the big card over the pages asks for one). Screenshot mode
     // fakes this state with it, so test runs never go looking for the real game.
     internal void ShowFolderMissing()
@@ -517,6 +527,13 @@ sealed class FlavorViewModel : Observable
         {
             Settings.Path = path;
             main.Config.Save();
+        }
+
+        OldFolderNote = null;
+        if (Wow.IsOlderFolder(path, Flavor))
+        {
+            ShowOldFolder(path);
+            Log.Warn($"[{Name}] {OldFolderNote}");
         }
 
         var version = Wow.ClientVersion(path);

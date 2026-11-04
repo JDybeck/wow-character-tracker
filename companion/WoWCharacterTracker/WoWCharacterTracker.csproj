@@ -11,7 +11,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>WoWCharacterTracker</AssemblyName>
     <RootNamespace>WoWCharacterTracker</RootNamespace>
-    <Version>0.31.4</Version>
+    <Version>0.32.0</Version>
     <!-- dotnet publish -c Release gives one WoWCharacterTracker.exe that runs without .NET installed. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
@@ -48,7 +48,7 @@
   <!-- The stream overlay page (Services/Streaming/OverlayServer serves it). -->
   <ItemGroup>
     <EmbeddedResource Include="Assets\overlay.html" LogicalName="Stream/overlay.html" />
-    <EmbeddedResource Include="Assets\enchant-spells.json" LogicalName="Data/enchant-spells.json" />
+    <EmbeddedResource Include="Assets\enchant-spells*.json" LogicalName="Data/%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="Data/CHANGELOG.md" />
   </ItemGroup>
 

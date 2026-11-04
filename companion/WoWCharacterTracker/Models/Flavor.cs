@@ -40,6 +40,9 @@ sealed record Flavor(string Key, string Name, string[] Folders, string WowheadPa
 
     // The level cap, for the max level sample post.
     public int MaxLevel { get; init; }
+
+    // Its enchant id -> enchanting spell map (Assets, made by tools/enchant-spells.ps1).
+    public string EnchantSpells { get; init; } = "enchant-spells.json";
 }
 
 static class Flavors
@@ -72,6 +75,7 @@ static class Flavors
         LogoUrl = "https://warcraft.wiki.gg/images/thumb/WoW_Forever_Logo.png/250px-WoW_Forever_Logo.png",
         HasRulesets = true, HasSurnames = true, HasInGamePortraits = true, HasClassicTalents = true,
         HasRangedSlot = true, EstimatesXp = true, ReadyMadeLists = ReadyMadeList.All, MaxLevel = 60,
+        EnchantSpells = "enchant-spells-forever.json", // Forever renumbered some of Classic's enchants
     };
 
     public static readonly IReadOnlyList<Flavor> All = [Retail, Forever];

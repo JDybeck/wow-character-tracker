@@ -1,17 +1,21 @@
-# Makes companion/WoWCharacterTracker/Assets/enchant-spells.json: enchant id -> the enchanting spell
-# that puts it on, from Classic Era's game data on wago.tools (SpellEffect effect 53 = enchant item,
-# its misc value is the enchant id). The app uses it to show Wowhead's tooltip for an enchant (the game
-# only gives its id and, on Classic clients, its stats). Run again when Classic adds enchants:
-#   powershell -File tools\enchant-spells.ps1 [-Build 1.15.9.70003]
-param([string]$Build = "")
+# Makes the enchant maps in companion/WoWCharacterTracker/Assets: enchant id -> the enchanting spell
+# that puts it on, from the game data on wago.tools (SpellEffect effect 53 = enchant item, its misc
+# value is the enchant id). The app uses them to show Wowhead's tooltip for an enchant (the game only
+# gives its id and, on Classic clients, its stats). Each game has its own (Flavor.EnchantSpells):
+# Forever renumbered some enchants, Retail kept Classic Era's ids. Run both again when enchants change:
+#   powershell -File tools\enchant-spells.ps1                  (Classic Era -> enchant-spells.json)
+#   powershell -File tools\enchant-spells.ps1 -Product wowf    (Forever -> enchant-spells-forever.json)
+param([string]$Product = "wow_classic_era", [string]$Build = "")
 
 $ErrorActionPreference = "Stop"
 $headers = @{ "User-Agent" = "WoWCharacterTracker" }
+$files = @{ "wow_classic_era" = "enchant-spells.json"; "wowf" = "enchant-spells-forever.json" }
+if (-not $files.ContainsKey($Product)) { throw "Unknown product $Product, use one of: $($files.Keys -join ', ')" }
 if (-not $Build) {
     $builds = Invoke-RestMethod "https://wago.tools/api/builds" -Headers $headers
-    $Build = $builds.wow_classic_era[0].version
+    $Build = $builds.$Product[0].version
 }
-Write-Host "Classic Era build $Build"
+Write-Host "$Product build $Build"
 
 function Table($name) {
     $csv = Invoke-WebRequest "https://wago.tools/db2/$name/csv?build=$Build" -Headers $headers -UseBasicParsing
@@ -33,6 +37,6 @@ Table "SpellEffect" |
         $map["$($_.Name)"] = if ($recipe) { $recipe } else { $spells[0] }
     }
 
-$out = Join-Path $PSScriptRoot "..\companion\WoWCharacterTracker\Assets\enchant-spells.json"
+$out = Join-Path $PSScriptRoot "..\companion\WoWCharacterTracker\Assets\$($files[$Product])"
 [IO.File]::WriteAllText([IO.Path]::GetFullPath($out), ($map | ConvertTo-Json -Compress))
 Write-Host "$($map.Count) enchants written to $out"

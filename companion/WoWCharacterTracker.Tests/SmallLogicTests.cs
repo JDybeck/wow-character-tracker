@@ -470,10 +470,18 @@ public class ItemKindTests
     public async Task Classic_enchants_are_found_by_id_without_asking_Wowhead()
     {
         // Forever only shows the stats ("+4 All Stats"), so the id has to do it: 1891 is Enchant Chest - Greater Stats.
-        Assert.Equal(20025, Enchants.SpellFor(1891));
+        Assert.Equal(20025, Enchants.SpellFor(1891, Flavors.Forever));
         Assert.Equal(("spell", 20025), await Enchants.FindAsync(1891, "+4 All Stats", Flavors.Forever));
-        Assert.Null(Enchants.SpellFor(0));
-        Assert.Null(Enchants.SpellFor(999999));
+        Assert.Null(Enchants.SpellFor(0, Flavors.Forever));
+        Assert.Null(Enchants.SpellFor(999999, Flavors.Forever));
+    }
+
+    [Fact]
+    public void Each_game_reads_enchant_ids_with_its_own_map()
+    {
+        // Forever renumbered some: its 805 is Minor Impact (7745), Classic's (and Retail's) is Greater Striking (13943).
+        Assert.Equal(7745, Enchants.SpellFor(805, Flavors.Forever));
+        Assert.Equal(13943, Enchants.SpellFor(805, Flavors.Retail));
     }
 
     [Fact]
