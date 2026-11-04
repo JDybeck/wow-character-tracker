@@ -77,6 +77,7 @@ sealed class CharacterRow : Observable
     public bool HasProfessions => ProfessionList.Count > 0;
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
+    public IReadOnlyList<Entry> Events { get; init; } = []; // oldest first (ArmoryExport)
     public Inventory? Inventory { get; init; } // what the character carries, as saved (the Items page)
     // The Gear and bags tab, built the first time it's shown: it makes an item (and a Wowhead
     // lookup) per slot, which for dozens of characters at startup froze the window.
@@ -328,6 +329,7 @@ sealed class CharacterRow : Observable
                     .OrderByDescending(e => e.At)
                     .Select(Highlight)
                     .ToList(),
+                Events = all,
                 Lookup = lookup,
                 Inventory = inventories.GetValueOrDefault(guid),
                 MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile), Pick(s?.Spec, last?.Spec)),

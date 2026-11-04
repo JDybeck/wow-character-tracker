@@ -46,7 +46,9 @@ static class SavedVariables
         var ask = t.Get("ask");
         return new InGameSettings(at,
             a?.Get("guild").CastToBool(), a?.Get("party").CastToBool(),
-            a is null ? null : On(a.Get("kinds")), ask.Type == DataType.Table ? On(ask) : null,
+            a is null ? null : On(a.Get("kinds")),
+            a?.Get("partyKinds").Type == DataType.Table ? On(a.Get("partyKinds")) : null, // an older addon had one list for both
+            ask.Type == DataType.Table ? On(ask) : null,
             Flag("flightReload"), Flag("chatReminder"),
             t.Get("gridCorner").Type == DataType.String ? t.Get("gridCorner").String : null,
             Flag("gridLabel"), Flag("keepAllHistory"));

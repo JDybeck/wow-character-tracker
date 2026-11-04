@@ -81,6 +81,7 @@ static partial class AddonInstaller
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
         static string B(bool v) => v ? "true" : "false";
+        static string LuaSet(IEnumerable<string> keys) => string.Join(", ", keys.Select(k => $"{k} = true"));
         var shots = string.Join(", ", EventKinds.ShotKinds.Select(k => $"{k} = {B(s.Shoots(k))}"));
         // What gets posted, so the addon only sends those events live and screenshots only them.
         var post = $"level = {{ on = {B(s.PostLevels)}, split = {s.LevelSplit}, before = {s.LevelEveryBefore}, after = {s.LevelEveryAfter} }}, "
@@ -100,9 +101,10 @@ static partial class AddonInstaller
                   + $"  flightReload = {B(s.FlightReloadPrompt)},\n"
                   + $"  chatReminder = {B(s.ChatReloadReminder)},\n"
                   + $"  keepAllHistory = {B(s.KeepAllHistory)},\n"
-                  + $"  announce = {{ guild = {B(s.AnnounceGuild)}, party = {B(s.AnnounceParty)}, kinds = {{ {string.Join(", ", s.AnnounceKinds.Select(k => $"{k} = true"))} }} }},\n"
+                  + $"  announce = {{ guild = {B(s.AnnounceGuild)}, party = {B(s.AnnounceParty)}, kinds = {{ {LuaSet(s.AnnounceKinds)} }}, "
+                  + $"partyKinds = {{ {LuaSet(s.AnnouncePartyKinds ?? s.AnnounceKinds)} }} }},\n"
                   + $"  inGameAt = {s.InGameAt},\n"
-                  + $"  ask = {{ {string.Join(", ", (s.AskKinds ?? []).Select(k => $"{k} = true"))} }},\n"
+                  + $"  ask = {{ {LuaSet(s.AskKinds ?? [])} }},\n"
                   + $"  discord = {B(hasWebhook)},\n"
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"

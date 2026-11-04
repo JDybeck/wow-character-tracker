@@ -28,37 +28,66 @@
         <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,18"
                    Text="What the addon does in game. Discord has its own page, What gets posted. Changes here reach the game on your next /reload or login. You can change them in game too (/wct options): those reach the app on your next /reload or logout, and the newest change wins."/>
 
-        <!-- Telling the guild and/or group in game chat (the addon's Announce.lua). The lines always
-             show, so you can see what would be written before turning a chat on. -->
+        <!-- Telling the guild and/or group in game chat (the addon's Announce.lua). A table: one row per
+             kind, a column per chat, each with its own picks. The chips on top turn a chat on or off and
+             keep its picks; an off chat's column is faded but can still be picked ahead. -->
         <Border Style="{StaticResource Section}">
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitle}" Text="Tell your guild or group"/>
             <TextBlock Style="{StaticResource SectionHint}"
-                       Text="The addon writes one line in chat as you when something happens. Items are links people can click. Lines wait until you're out of combat."/>
-            <TextBlock Style="{StaticResource FactLabel}" Text="WHERE" Margin="0,0,0,6"/>
-            <WrapPanel>
-              <CheckBox Style="{StaticResource OptionChip}" Content="Guild chat" IsChecked="{Binding AnnounceGuild}" Margin="0,0,6,6"
-                        ToolTip="Write it in guild chat (when you're in a guild)"/>
-              <CheckBox Style="{StaticResource OptionChip}" Content="Party / raid chat" IsChecked="{Binding AnnounceParty}" Margin="0,0,6,6"
-                        ToolTip="Write it to your group: party, raid or instance chat (when you're in one)"/>
-            </WrapPanel>
-            <TextBlock Style="{StaticResource Hint}" Text="Both are off, so nothing is written yet." Margin="0,0,0,6"
+                       Text="The addon writes one line in chat as you when something happens. Each chat gets only what's ticked in its column. Items are links people can click. Lines wait until you're out of combat."/>
+            <Grid Margin="0,0,0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="160"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource FactLabel}" Text="WHAT" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+              <CheckBox Grid.Column="1" Style="{StaticResource OptionChip}" Content="Guild chat" IsChecked="{Binding AnnounceGuild}" HorizontalAlignment="Center" Margin="0,0,0,6"
+                        ToolTip="Write in guild chat (when you're in a guild)"/>
+              <CheckBox Grid.Column="2" Style="{StaticResource OptionChip}" Content="Party / raid chat" IsChecked="{Binding AnnounceParty}" HorizontalAlignment="Center" Margin="0,0,0,6"
+                        ToolTip="Write to your group: party, raid or instance chat (when you're in one)"/>
+            </Grid>
+            <TextBlock Style="{StaticResource Hint}" Text="Both chats are off, so nothing is written yet." Margin="0,0,0,8"
                        Visibility="{Binding Announces, Converter={StaticResource Hidden}}"/>
-            <TextBlock Style="{StaticResource FactLabel}" Text="WHAT" Margin="0,10,0,8"/>
             <ItemsControl ItemsSource="{Binding AnnounceKinds}" Focusable="False">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <UniformGrid Columns="2"/>
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <CheckBox IsChecked="{Binding IsOn}" ToolTip="{Binding Tip}" Margin="0,0,14,12" VerticalAlignment="Top">
+                  <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="160"/>
+                      <ColumnDefinition Width="160"/>
+                    </Grid.ColumnDefinitions>
                     <StackPanel>
                       <TextBlock Style="{StaticResource OptionTitle}" Text="{Binding Name}"/>
                       <TextBlock Style="{StaticResource Hint}" Text="{Binding Tip}"/>
                     </StackPanel>
-                  </CheckBox>
+                    <CheckBox Grid.Column="1" IsChecked="{Binding Guild.IsOn}" HorizontalAlignment="Center" VerticalAlignment="Top"
+                              ToolTip="{Binding Name, StringFormat={}{0}: write in guild chat}" AutomationProperties.Name="{Binding Name, StringFormat={}{0} in guild chat}">
+                      <CheckBox.Style>
+                        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding DataContext.AnnounceGuild, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="False">
+                              <Setter Property="Opacity" Value="0.4"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </CheckBox.Style>
+                    </CheckBox>
+                    <CheckBox Grid.Column="2" IsChecked="{Binding Party.IsOn}" HorizontalAlignment="Center" VerticalAlignment="Top"
+                              ToolTip="{Binding Name, StringFormat={}{0}: write in party / raid chat}" AutomationProperties.Name="{Binding Name, StringFormat={}{0} in party / raid chat}">
+                      <CheckBox.Style>
+                        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding DataContext.AnnounceParty, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="False">
+                              <Setter Property="Opacity" Value="0.4"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </CheckBox.Style>
+                    </CheckBox>
+                  </Grid>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>

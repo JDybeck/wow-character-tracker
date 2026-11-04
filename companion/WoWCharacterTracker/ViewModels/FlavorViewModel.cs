@@ -286,9 +286,17 @@ sealed class FlavorViewModel : Observable
         ("profession", "Professions", "\"Reached 150 Mining!\" At the steps set for Discord."),
         ("mplus", "Mythic+", "\"Reached 2500 Mythic+ rating!\""), ("pvp", "PvP rating", "\"Reached 1800 rating in 3v3!\""), ("death", "Deaths", "\"Fell at level 34 to Hogger. Rest in peace.\""),
     ];
-    ObservableCollection<ToggleOption>? announceKinds;
-    public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
-        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, () => InGameChanged());
+    // One row per kind, with a box for guild chat and one for group chat: each has its own list.
+    ObservableCollection<AnnounceRow>? announceKinds;
+    public ObservableCollection<AnnounceRow> AnnounceKinds => announceKinds ??= AnnounceTable();
+
+    ObservableCollection<AnnounceRow> AnnounceTable()
+    {
+        var names = EventKinds.Offered(AnnounceNames, Flavor.HasRatings).ToList();
+        var guild = ToggleOption.Kinds(names, Settings.AnnounceKinds, () => InGameChanged());
+        var party = ToggleOption.Kinds(names, Settings.AnnouncePartyKinds ??= [.. Settings.AnnounceKinds], () => InGameChanged());
+        return [.. names.Select((n, i) => new AnnounceRow(n.Name, n.Tip, guild[i], party[i]))];
+    }
 
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; InGameChanged(); } }

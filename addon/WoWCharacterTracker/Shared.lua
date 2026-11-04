@@ -103,6 +103,7 @@ function ns.editSettings(edit)
   end
   changed.announce = changed.announce or {}
   changed.announce.kinds = changed.announce.kinds or {}
+  changed.announce.partyKinds = changed.announce.partyKinds or copy(changed.announce.kinds) -- from before the group had its own
   changed.ask = changed.ask or {}
   edit(changed)
   local fromApp = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.inGameAt or 0

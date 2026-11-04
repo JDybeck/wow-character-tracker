@@ -80,7 +80,7 @@ When a character gets a followed item, by looting, buying, crafting or as a ques
 
 - a **Discord post** (on by default, under What gets posted, Loot),
 - an **ITEM FOUND!** alert on the stream overlay (on by default, under the panel's Alerts),
-- a line in **guild and group chat** (off by default, under In game, Tell your guild or group; it needs Guild chat or Party / raid chat on).
+- a line in **guild and group chat** (off by default, under In game, Tell your guild or group; it needs Guild chat or Party / raid chat on). Each chat has its own column, so the guild can hear about hardcore deaths while the group only hears about boss kills.
 
 Each item gets one post, one alert and one chat line, also when it's an epic that would post anyway. Rare and better items work the moment you follow them. Below rare, and for the chat line, the game needs the list first: type `/reload`. Items that come by mail, trade or the auction house aren't noticed, since the game doesn't announce them as loot.
 

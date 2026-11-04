@@ -127,11 +127,14 @@ class FlavorSettings
     // character (Shared.lua trimEvents); on keeps everything.
     public bool KeepAllHistory { get; set; }
 
-    // The addon tells the guild and/or the group in game chat (Announce.lua), for these kinds:
+    // The addon tells the guild and/or the group in game chat (Announce.lua), each its own kinds:
     // level, maxlevel, boss, keyrun, loot (epic and better, as a link), followed, mount, duel, makgora, bg, profession, mplus, pvp, death.
+    // AnnounceKinds is guild chat's. The group's is null in configs from before 0.33.0 (both shared
+    // one list), and Config.Load copies the guild's.
     public bool AnnounceGuild { get; set; }
     public bool AnnounceParty { get; set; }
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
+    public List<string>? AnnouncePartyKinds { get; set; }
     public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "mplus", "pvp"];
 
     // Highlights no setting posts that the addon offers to post (Ask.lua): boss, rare, epic. Null until
@@ -158,7 +161,8 @@ class FlavorSettings
         InGameAt = game.At;
         // What the change doesn't have (an older addon) stays as the app has it.
         (AnnounceGuild, AnnounceParty) = (game.AnnounceGuild ?? AnnounceGuild, game.AnnounceParty ?? AnnounceParty);
-        (AnnounceKinds, AskKinds) = (game.AnnounceKinds ?? AnnounceKinds, game.AskKinds ?? AskKinds);
+        (AnnounceKinds, AnnouncePartyKinds) = (game.AnnounceKinds ?? AnnounceKinds, game.AnnouncePartyKinds ?? AnnouncePartyKinds);
+        AskKinds = game.AskKinds ?? AskKinds;
         (FlightReloadPrompt, ChatReloadReminder) = (game.FlightReload ?? FlightReloadPrompt, game.ChatReminder ?? ChatReloadReminder);
         KeepAllHistory = game.KeepAllHistory ?? KeepAllHistory;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);

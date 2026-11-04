@@ -1,6 +1,7 @@
 -- Tells your guild and/or group about a moment, in the game's own chat: level-ups, max level, end
 -- bosses, Mythic+ runs, epic loot (as an item link), new mounts, PvP wins, profession and rating milestones, hardcore deaths.
--- What and where come from Settings.lua `announce` (the app's In game page). Messages wait until
+-- What and where come from Settings.lua `announce` (the app's In game page): `kinds` for guild chat,
+-- `partyKinds` for group chat. Messages wait until
 -- you're out of combat, and boss kills don't list the group (they're right there).
 local ADDON, ns = ...
 
@@ -56,11 +57,12 @@ local pending = {}
 local sentAt = {}
 local flushWaiting = false
 
-local function send(msg)
-  local a = ns.setting("announce")
-  if not a or type(SendChatMessage) ~= "function" then return end
-  if a.guild and IsInGuild and IsInGuild() then pcall(SendChatMessage, msg, "GUILD") end
-  if a.party and IsInGroup and IsInGroup() then
+-- line = { msg, guild = true/nil, party = true/nil }: which chats get it was settled in ns.announce.
+local function send(line)
+  if type(SendChatMessage) ~= "function" then return end
+  local msg = line.msg
+  if line.guild and IsInGuild and IsInGuild() then pcall(SendChatMessage, msg, "GUILD") end
+  if line.party and IsInGroup and IsInGroup() then
     local channel = "PARTY"
     if IsInRaid and IsInRaid() then channel = "RAID"
     elseif LE_PARTY_CATEGORY_HOME and not IsInGroup(LE_PARTY_CATEGORY_HOME) then channel = "INSTANCE_CHAT" end -- only a dungeon finder group
@@ -93,16 +95,31 @@ function ns.flushAnnouncements()
   end)
 end
 
--- Called for every recorded event (ns.addEvent).
-function ns.announce(e)
-  local a = ns.setting("announce")
-  if not a or not (a.guild or a.party) or not a.kinds then return end
+-- The line one chat gets for an event, from that chat's kinds, or nil.
+local function lineFor(e, kinds)
+  if not kinds then return nil end
   -- A followed item says so, instead of (not as well as) its usual line.
-  local followed = a.kinds.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId)
-  if not followed and not a.kinds[e.maxLevel and "maxlevel" or e.kind] then return end
-  local msg = followed and string.format("Got %s from my followed items!", itemLink(e.itemId, e.item or e.mount)) or message(e)
-  if not msg then return end
-  table.insert(pending, msg)
+  if kinds.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then
+    return string.format("Got %s from my followed items!", itemLink(e.itemId, e.item or e.mount))
+  end
+  if not kinds[e.maxLevel and "maxlevel" or e.kind] then return nil end
+  return message(e)
+end
+
+local function queue(line)
+  table.insert(pending, line)
   -- A moment later, so it follows the game's own lines (the level-up, the loot), or after combat.
   C_Timer.After(1, ns.flushAnnouncements)
+end
+
+-- Called for every recorded event (ns.addEvent). Guild and group chat each have their own kinds
+-- (partyKinds is missing in a Settings.lua from before they did: both used kinds).
+function ns.announce(e)
+  local a = ns.setting("announce")
+  if not a then return end
+  local guild = a.guild and lineFor(e, a.kinds)
+  local party = a.party and lineFor(e, a.partyKinds or a.kinds)
+  if guild and guild == party then return queue({ msg = guild, guild = true, party = true }) end
+  if guild then queue({ msg = guild, guild = true }) end
+  if party then queue({ msg = party, party = true }) end
 end

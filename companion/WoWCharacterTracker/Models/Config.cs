@@ -214,6 +214,12 @@ class Config
                 s.AskKinds = askFlavor.Defaults().AskKinds;
                 changed = true;
             }
+            // Guild and group chat got their own kinds in 0.33.0: the group starts with what both had.
+            if (s.AnnouncePartyKinds is null)
+            {
+                s.AnnouncePartyKinds = [.. s.AnnounceKinds];
+                changed = true;
+            }
         }
 
         var stream = config.StreamOptions;
