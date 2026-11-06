@@ -172,6 +172,21 @@ function ns.startFriends()
   if ticker or not (C_Timer and C_Timer.NewTicker) then return end
   ticker = C_Timer.NewTicker(TICK, ns.friendsTick)
   ns.friendsTick()
+  C_Timer.After(40, ns.maybeShareTip) -- a minute after login, once the chat has settled
+end
+
+-- "Did you know?" in chat now and then (at most once a week) while sharing is on and you share
+-- with nobody yet. WoWCharacterTrackerDB.shareTipAt remembers when.
+local TIP_EVERY = 7 * 86400
+function ns.maybeShareTip()
+  local s, db = ns.shareSettings(), WoWCharacterTrackerDB
+  if not s.enabled or (db.shareTipAt and time() - db.shareTipAt < TIP_EVERY) then return end
+  for _, c in pairs(s.contacts) do
+    if c.share then return end
+  end
+  db.shareTipAt = time()
+  ns.say("Did you know? Battle.net friends with the addon can see each other's characters, gear and talents. "
+    .. "/wct friends share <BattleTag> to share yours, /wct friends ask <BattleTag> to see theirs.")
 end
 
 -- Receiving -----------------------------------------------------------------------------------

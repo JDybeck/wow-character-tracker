@@ -340,6 +340,28 @@ public class FriendsLuaTests
         Assert.Empty(a.Sent());
     }
 
+    // A "Did you know?" line now and then (at most once a week) while you share with nobody yet.
+    [Fact]
+    public void The_sharing_tip_shows_at_most_weekly_and_only_while_you_share_with_nobody()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Call("maybeShareTip");
+        Assert.Single(a.Said(), s => s.StartsWith("Did you know?"));
+        a.Run(6 * 86400);
+        a.Call("maybeShareTip");
+        Assert.Single(a.Said(), s => s.StartsWith("Did you know?")); // not again within the week
+        a.Run(2 * 86400);
+        a.Call("maybeShareTip");
+        Assert.Equal(2, a.Said().Count(s => s.StartsWith("Did you know?")));
+
+        var sharing = new Client(A, AFriends, ADb(AShares));
+        sharing.Call("maybeShareTip");
+        Assert.DoesNotContain(sharing.Said(), s => s.StartsWith("Did you know?"));
+        var off = new Client(A, AFriends, ADb("{ enabled = false, at = 100 }"));
+        off.Call("maybeShareTip");
+        Assert.DoesNotContain(off.Said(), s => s.StartsWith("Did you know?"));
+    }
+
     [Fact]
     public void Sharing_turned_off_sends_and_keeps_nothing()
     {
