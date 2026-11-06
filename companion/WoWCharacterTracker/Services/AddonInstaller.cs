@@ -111,6 +111,7 @@ static partial class AddonInstaller
                   + $"partyKinds = {{ {LuaSet(s.AnnouncePartyKinds ?? s.AnnounceKinds)} }} }},\n"
                   + $"  inGameAt = {s.InGameAt},\n"
                   + $"  ask = {{ {LuaSet(s.AskKinds ?? [])} }},\n"
+                  + $"  askSeconds = {FlavorSettings.AskSecondsOrDefault(s.AskSeconds)},\n"
                   + $"  discord = {B(hasWebhook)},\n"
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
