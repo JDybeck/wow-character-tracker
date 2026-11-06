@@ -362,6 +362,17 @@ public class FriendsLuaTests
         Assert.DoesNotContain(off.Said(), s => s.StartsWith("Did you know?"));
     }
 
+    // In WoW chat | starts a code (|t is a texture): "gear|talents" showed as "gearalents".
+    [Fact]
+    public void Friends_help_lines_have_no_raw_pipes()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Call("friendsCommand", "help");
+        a.Call("friendsCommand", "set all nonsense on");
+        Assert.NotEmpty(a.Said());
+        Assert.All(a.Said(), s => Assert.DoesNotContain("|", s));
+    }
+
     [Fact]
     public void Sharing_turned_off_sends_and_keeps_nothing()
     {
