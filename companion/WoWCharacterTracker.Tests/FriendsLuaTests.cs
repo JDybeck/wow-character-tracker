@@ -324,10 +324,26 @@ public class FriendsLuaTests
 
     static int Count(Client c, string kind) => c.Sent().Count(m => m.Get("text").String.Contains($":{kind}:"));
 
+    // On by default, but nothing goes to anyone until a request is allowed (or you share yourself).
     [Fact]
-    public void Sharing_is_off_until_turned_on()
+    public void Sharing_is_on_by_default_but_only_a_request_starts_anything()
     {
         var a = new Client(A, AFriends, ADb("nil"));
+        Assert.True(a.Lua("return ns.shareSettings().enabled").Boolean);
+        a.Call("friendsTick");
+        a.Receive("1:DATA:2:1:1:guid=Player-1-0000000B;char=Zeb", BAccount);
+        a.Run(5);
+        Assert.Empty(a.Sent());
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil());
+        a.Receive("1:REQ:3:1:1:", BAccount);
+        Assert.Equal(1, a.Lua("return #shown").Number); // the popup asks first
+        Assert.Empty(a.Sent());
+    }
+
+    [Fact]
+    public void Sharing_turned_off_sends_and_keeps_nothing()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = false, at = 100 }"));
         a.Call("friendsTick");
         a.Run(5);
         Assert.Empty(a.Sent());

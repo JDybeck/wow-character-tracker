@@ -181,7 +181,7 @@ local askLast = checkGrid({ { "boss", "Boss kills" }, { "rare", "Rare gear" }, {
 
 -- Sharing with Battle.net friends ---------------------------------------------------
 local friendsTitle = heading("Share with Battle.net friends", askLast)
-local friendsHint = hint("Friends who have the addon see the characters you share. Contacts, and what one friend gets: /wct friends.", friendsTitle)
+local friendsHint = hint("Friends who have the addon can ask to see your characters; nothing is shared until you allow it. Contacts: /wct friends.", friendsTitle)
 local shareOn = checkbox("Share with friends", "Off: nothing is sent, and nothing friends send is kept.",
   function() return ns.shareSettings().enabled == true end,
   function(on) ns.editShare(function(s) s.enabled = on end) end)
