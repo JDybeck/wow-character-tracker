@@ -163,6 +163,126 @@ public class FriendsLuaTests
         Assert.Equal(Str(c, "k1"), Str(c, "k2"));
     }
 
+    static readonly string[] CommsFiles = ["Shared.lua", "Comms.lua"];
+
+    // A client with only Comms.lua, whose whole messages land in the Lua table `got`.
+    static Client CommsClient()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: CommsFiles);
+        c.Lua("got = {}; ns.comms.onReceive = function(from, kind, body) table.insert(got, { from = from, kind = kind, body = body }) end");
+        return c;
+    }
+
+    [Fact]
+    public void A_long_text_goes_in_parts_and_comes_back_whole_in_any_order()
+    {
+        var c = CommsClient();
+        c.Lua("long = string.rep('abcdefghij', 70); ns.comms.send(2, 'DATA', long)"); // 700 bytes: 3 parts
+        c.Run(5);
+        var sent = c.Sent();
+        Assert.Equal(3, sent.Count);
+        Assert.All(sent, m =>
+        {
+            Assert.Equal("WCTF", m.Get("prefix").String);
+            Assert.Equal(2, m.Get("to").Number);
+            Assert.StartsWith("1:DATA:", m.Get("text").String);
+        });
+        foreach (var m in Enumerable.Reverse(sent)) c.Receive(m.Get("text").String, 7);
+        Assert.Equal(1, c.Lua("return #got").Number);
+        Assert.Equal(7, c.Lua("return got[1].from").Number);
+        Assert.Equal("DATA", Str(c, "got[1].kind"));
+        Assert.Equal(Str(c, "long"), Str(c, "got[1].body"));
+    }
+
+    [Fact]
+    public void Pipes_are_dropped_both_ways_and_strangers_prefixes_ignored()
+    {
+        var c = CommsClient();
+        c.Lua("ns.comms.send(2, 'HI', 'a|b')");
+        Assert.Equal("1:HI:1:1:1:ab", c.Sent()[0].Get("text").String);
+        c.Receive("1:HI:1:1:1:x", 7, prefix: "OTHER");
+        c.Receive("garbage", 7);
+        c.Receive("1:HI:5:1:1:a|b", 7);
+        Assert.Equal(1, c.Lua("return #got").Number);
+        Assert.Equal("ab", Str(c, "got[1].body"));
+    }
+
+    [Fact]
+    public void Another_protocol_is_reported_as_its_version()
+    {
+        var c = CommsClient();
+        c.Receive("2:HI:1:1:1:0.40.0", 7);
+        Assert.Equal("VERSION", Str(c, "got[1].kind"));
+        Assert.Equal("2", Str(c, "got[1].body"));
+    }
+
+    [Fact]
+    public void Half_a_message_is_dropped_after_30_seconds()
+    {
+        var c = CommsClient();
+        c.Receive("1:DATA:9:1:2:abc", 7);
+        c.Run(31);
+        c.Receive("1:DATA:9:2:2:def", 7);
+        Assert.Equal(0, c.Lua("return #got").Number);
+        c.Receive("1:DATA:10:1:2:abc", 7);
+        c.Receive("1:DATA:10:2:2:def", 7);
+        Assert.Equal("abcdef", Str(c, "got[1].body"));
+    }
+
+    [Fact]
+    public void At_most_eight_half_messages_wait_at_once()
+    {
+        var c = CommsClient();
+        for (var id = 1; id <= 9; id++) c.Receive($"1:DATA:{id}:1:2:x", 7);
+        c.Receive("1:DATA:9:2:2:y", 7); // the ninth was never kept
+        Assert.Equal(0, c.Lua("return #got").Number);
+        c.Receive("1:DATA:1:2:2:y", 7);
+        Assert.Equal("xy", Str(c, "got[1].body"));
+    }
+
+    [Theory]
+    [InlineData("inCombat")]
+    [InlineData("lockdown")]
+    public void Nothing_goes_out_in_combat_or_chat_lockdown_and_it_goes_after(string flag)
+    {
+        var c = CommsClient();
+        c.Lua($"{flag} = true; ns.comms.send(2, 'HI', 'x')");
+        c.Run(20);
+        Assert.Empty(c.Sent());
+        c.Lua($"{flag} = false");
+        c.Run(6);
+        Assert.Single(c.Sent());
+    }
+
+    [Fact]
+    public void A_throttled_send_is_tried_three_times_then_dropped()
+    {
+        var c = CommsClient();
+        c.Lua("sendResult = 3; ns.comms.send(2, 'HI', 'x')");
+        c.Run(60);
+        Assert.Equal(3, c.Sent().Count);
+        c.Lua("sendResult = 0; ns.comms.send(2, 'HI', 'y')");
+        c.Run(1);
+        Assert.Equal("1:HI:2:1:1:y", c.Sent()[3].Get("text").String);
+    }
+
+    [Fact]
+    public void A_text_over_40_parts_is_refused()
+    {
+        var c = CommsClient();
+        Assert.False(c.Lua("return ns.comms.send(2, 'DATA', string.rep('x', 240 * 40 + 1))").Boolean);
+        Assert.Empty(c.Sent());
+    }
+
+    [Fact]
+    public void A_handler_error_does_not_escape_the_receive()
+    {
+        var c = CommsClient();
+        c.Lua("ns.comms.onReceive = function() error('boom') end");
+        c.Receive("1:HI:1:1:1:x", 7); // would throw without the guard
+        Assert.Contains("boom", Str(c, "ns.lastCommsError"));
+    }
+
     [Fact]
     public void A_copy_is_deep_and_separate()
     {
