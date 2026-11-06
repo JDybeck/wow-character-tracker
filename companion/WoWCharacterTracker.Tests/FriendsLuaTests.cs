@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using MoonSharp.Interpreter;
 
 namespace WoWCharacterTracker.Tests;
@@ -281,6 +281,196 @@ public class FriendsLuaTests
         c.Lua("ns.comms.onReceive = function() error('boom') end");
         c.Receive("1:HI:1:1:1:x", 7); // would throw without the guard
         Assert.Contains("boom", Str(c, "ns.lastCommsError"));
+    }
+
+    const string A = "Player-1-0000000A", B = "Player-1-0000000B";
+    const int AAccount = 1, BAccount = 2; // each one's game account as the other's friends list has it
+    const string AFriends = "{ { tag = 'Zeb#2222', account = 2, guid = 'Player-1-0000000B' } }";
+    const string BFriends = "{ { tag = 'Jesper#1111', account = 1, guid = 'Player-1-0000000A' } }";
+    const string AShares = "{ enabled = true, contacts = { ['Zeb#2222'] = { share = true, receive = true, location = true } }, chars = { ['Player-1-0000000D'] = false }, at = 100 }";
+    const string BReceives = "{ enabled = true, contacts = { ['Jesper#1111'] = { receive = true } }, at = 100 }";
+    const string GotDeadbeck = "WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000A']";
+
+    // A's saved file: the character being played (A), an alt (C) and a hidden alt (D).
+    static string ADb(string share) => $$"""
+        { share = {{share}}, chars = {
+            ['Player-1-0000000A'] = {{Deadbeck}},
+            ['Player-1-0000000C'] = { char = 'Drygbeck', realm = 'Firemaw', level = 12, class = 'Mage', classFile = 'MAGE', lastSeen = 500 },
+            ['Player-1-0000000D'] = { char = 'Hiddenbeck', realm = 'Firemaw', level = 5, class = 'Rogue', classFile = 'ROGUE', lastSeen = 400 } },
+          items = { ['Player-1-0000000A'] = { gear = '1~19019,16~12345' } } }
+        """;
+
+    static string BDb(string share) => $"{{ share = {share}, chars = {{}}, items = {{}} }}";
+
+    // Hands what from sent to to, as fromAccount (how to's friends list knows from).
+    static void Deliver(Client from, Client to, int fromAccount)
+    {
+        var messages = from.Sent();
+        from.Lua("sent = {}");
+        foreach (var m in messages) to.Receive(m.Get("text").String, fromAccount, m.Get("prefix").String);
+    }
+
+    // Both clients send what they queued and answer each other, a few rounds.
+    static void Talk(Client a, Client b, int rounds = 4)
+    {
+        for (var i = 0; i < rounds; i++)
+        {
+            a.Run(1);
+            b.Run(1);
+            Deliver(a, b, AAccount);
+            Deliver(b, a, BAccount);
+        }
+    }
+
+    static int Count(Client c, string kind) => c.Sent().Count(m => m.Get("text").String.Contains($":{kind}:"));
+
+    [Fact]
+    public void Sharing_is_off_until_turned_on()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Call("friendsTick");
+        a.Run(5);
+        Assert.Empty(a.Sent());
+        a.Receive("1:HI:1:1:1:0.33.0", BAccount);
+        a.Receive("1:DATA:2:1:1:guid=Player-1-0000000B;char=Zeb", BAccount);
+        a.Run(5);
+        Assert.Empty(a.Sent());
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil());
+    }
+
+    [Fact]
+    public void A_contact_gets_the_character_being_played_with_only_what_they_may_see()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        Assert.Equal("Stranglethorn Vale", Str(b, GotDeadbeck + ".zone")); // location: Zeb's own setting
+        Assert.Equal("1~19019,16~12345", Str(b, GotDeadbeck + ".gear"));   // gear: the general one
+        Assert.True(b.Lua($"return {GotDeadbeck}.money").IsNil());          // gold: off by default
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C']").IsNil()); // alts only when asked
+        Assert.Equal("0.33.0", Str(b, "WoWCharacterTrackerDB.friends['Jesper#1111'].version"));
+        Assert.True(a.Lua("local f = WoWCharacterTrackerDB.friends; return not (f and f['Zeb#2222'] and next(f['Zeb#2222'].chars) ~= nil)").Boolean); // B shares nothing
+    }
+
+    [Fact]
+    public void What_a_friend_gets_is_the_general_choice_unless_set_for_them()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, defaults = { gold = true, gear = false }, contacts = { ['Zeb#2222'] = { share = true, gear = true, talents = false } }, at = 100 }"));
+        a.Lua("s = ns.shareSettings(); allowed = ns.allowedFor(s, s.contacts['Zeb#2222']); general = ns.allowedFor(s, {})");
+        Assert.True(a.Lua("return allowed.gold").Boolean);     // general
+        Assert.True(a.Lua("return allowed.gear").Boolean);     // their own beats the general off
+        Assert.False(a.Lua("return allowed.talents").Boolean); // their own beats the general on
+        Assert.False(a.Lua("return allowed.location").Boolean);
+        Assert.False(a.Lua("return general.gear").Boolean);
+        var fresh = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        Assert.False(fresh.Lua("return ns.allowedFor(ns.shareSettings(), {}).gold").Boolean); // gold is off until turned on
+        Assert.True(fresh.Lua("return ns.allowedFor(ns.shareSettings(), {}).gear").Boolean);
+    }
+
+    [Fact]
+    public void Two_clients_go_quiet_after_saying_hello()
+    {
+        const string BShares = "{ enabled = true, contacts = { ['Jesper#1111'] = { share = true, receive = true } }, at = 100 }";
+        var a = new Client(A, AFriends, ADb(AShares));
+        var b = new Client(B, BFriends, BDb(BShares).Replace("chars = {}", "chars = { ['Player-1-0000000B'] = { char = 'Zeb', lastSeen = 1 } }"));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        a.Run(1);
+        b.Run(1);
+        Assert.Empty(a.Sent());
+        Assert.Empty(b.Sent());
+        Assert.Equal("Zeb", Str(a, "WoWCharacterTrackerDB.friends['Zeb#2222'].chars['Player-1-0000000B'].char"));
+    }
+
+    [Fact]
+    public void Data_from_someone_we_dont_keep_data_from_is_dropped()
+    {
+        var b = new Client(B, BFriends, BDb("{ enabled = true, contacts = { ['Jesper#1111'] = { receive = false } }, at = 100 }"));
+        b.Receive("1:DATA:1:1:1:guid=Player-1-0000000A;char=Deadbeck", AAccount);
+        b.Receive("1:DATA:2:1:1:guid=Player-1-0000000E;char=Stranger", 99); // not a Battle.net friend
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends").IsNil());
+    }
+
+    // A after saying hello to B and getting B's answer (so A knows B has the addon).
+    static Client HelloDone(string groupGuids = "{}")
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        a.Lua($"groupGuids = {groupGuids}");
+        a.Call("friendsTick");
+        a.Receive("1:HEY:1:1:1:0.33.0", BAccount);
+        a.Run(1);
+        Assert.Equal(1, Count(a, "DATA"));
+        a.Lua("sent = {}");
+        return a;
+    }
+
+    [Fact]
+    public void The_character_being_played_goes_when_due_and_changed_or_as_a_heartbeat()
+    {
+        var a = HelloDone();
+        a.Run(300);
+        a.Call("friendsTick");
+        a.Run(1);
+        Assert.Equal(0, Count(a, "DATA")); // 10 minutes not up
+        a.Run(300);
+        a.Call("friendsTick");
+        a.Run(1);
+        Assert.Equal(0, Count(a, "DATA")); // up, but nothing changed
+        a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000A'].zone = 'Booty Bay'");
+        a.Call("friendsTick");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "DATA"));
+        a.Lua("sent = {}");
+        a.Run(1800);
+        a.Call("friendsTick");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "DATA")); // the heartbeat
+    }
+
+    [Theory]
+    [InlineData("{ 'Player-1-0000000B' }", 1)]
+    [InlineData("{}", 0)]
+    public void A_contact_in_your_group_gets_it_every_2_minutes(string group, int expected)
+    {
+        var a = HelloDone(group);
+        a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000A'].zone = 'Booty Bay'");
+        a.Run(121);
+        a.Call("friendsTick");
+        a.Run(1);
+        Assert.Equal(expected, Count(a, "DATA"));
+    }
+
+    [Fact]
+    public void At_most_50_characters_are_kept_per_contact()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives));
+        for (var i = 1; i <= 55; i++)
+            b.Receive($"1:DATA:{i}:1:1:guid=Player-1-{i:X8};char=Alt{i};at={i}", AAccount);
+        Assert.Equal(50, b.Lua("local n = 0; for _ in pairs(WoWCharacterTrackerDB.friends['Jesper#1111'].chars) do n = n + 1 end; return n").Number);
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-00000001']").IsNil()); // seen longest ago
+        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-00000037']").IsNil()); // the 55th
+    }
+
+    [Fact]
+    public void The_newest_sharing_settings_win_and_an_edit_in_game_is_newer_than_the_apps()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = false, at = 100 }"), settings: "{ share = { enabled = true, at = 200 } }");
+        Assert.True(a.Lua("return ns.shareSettings().enabled").Boolean);
+        a.Lua("clock = 150; ns.editShare(function(s) s.newChars = false end)");
+        Assert.Equal(201, a.Lua("return WoWCharacterTrackerDB.share.at").Number);
+        Assert.False(a.Lua("return ns.shareSettings().newChars").Boolean);
+        Assert.True(a.Lua("return ns.shareSettings().enabled").Boolean); // the app's copy was the base
+    }
+
+    [Fact]
+    public void Sharing_settings_changed_in_game_survive_an_app_that_doesnt_know_them()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ inGameAt = 99999, announce = {} }");
+        Assert.True(a.Lua("return ns.shareSettings().enabled").Boolean);
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].share").Boolean);
     }
 
     [Fact]
