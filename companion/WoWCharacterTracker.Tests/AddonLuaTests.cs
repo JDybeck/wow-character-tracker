@@ -931,10 +931,11 @@ public class AddonLuaTests
                   end })
                 end
                 function CreateFrame() local f = widget(); frames[#frames + 1] = f; return f end
+                function UnitGUID() return 'Player-1' end
                 """);
             var ns = new Table(script);
             ns["say"] = (Action<string>)(_ => { });
-            foreach (var file in new[] { "Shared.lua", "NoteBox.lua", "Options.lua" })
+            foreach (var file in new[] { "Shared.lua", "FriendData.lua", "Comms.lua", "Friends.lua", "NoteBox.lua", "Options.lua" })
                 script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
             Assert.Equal("WoW Character Tracker", script.DoString("return registered").String);

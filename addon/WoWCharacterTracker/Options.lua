@@ -15,7 +15,7 @@ local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplat
 scroll:SetPoint("TOPLEFT", 0, -4)
 scroll:SetPoint("BOTTOMRIGHT", -28, 4)
 local page = CreateFrame("Frame", nil, scroll)
-page:SetSize(640, 1330)
+page:SetSize(640, 1560)
 scroll:SetScrollChild(page)
 
 local function text(parent, template, s)
@@ -179,8 +179,32 @@ local askLast = checkGrid({ { "boss", "Boss kills" }, { "rare", "Rare gear" }, {
   end,
   function(key, on) ns.editSettings(function(s) s.ask[key] = on or nil end) end)
 
+-- Sharing with Battle.net friends ---------------------------------------------------
+local friendsTitle = heading("Share with Battle.net friends", askLast)
+local friendsHint = hint("Friends who have the addon see the characters you share. Contacts, and what one friend gets: /wct friends.", friendsTitle)
+local shareOn = checkbox("Share with friends", "Off: nothing is sent, and nothing friends send is kept.",
+  function() return ns.shareSettings().enabled == true end,
+  function(on) ns.editShare(function(s) s.enabled = on end) end)
+shareOn:SetPoint("TOPLEFT", friendsHint, "BOTTOMLEFT", -2, -8)
+local shareThis = checkbox("Share this character", nil,
+  function() return ns.isCharShared(ns.shareSettings(), UnitGUID("player")) end,
+  function(on)
+    local me = UnitGUID("player")
+    if me then ns.editShare(function(s) s.chars[me] = on end) end
+  end)
+shareThis:SetPoint("TOPLEFT", shareOn, "BOTTOMLEFT", 0, -18)
+local shareNew = checkbox("Share new characters", "Characters you haven't shared or hidden yet.",
+  function() return ns.shareSettings().newChars ~= false end,
+  function(on) ns.editShare(function(s) s.newChars = on end) end)
+shareNew:SetPoint("TOPLEFT", shareThis, "BOTTOMLEFT", 0, -2)
+local whatTitle = text(page, "GameFontNormalSmall", "What friends get (name, level, class and item level always)")
+whatTitle:SetPoint("TOPLEFT", shareNew, "BOTTOMLEFT", 4, -24)
+local shareLast = checkGrid({ { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "gold", "Gold" } }, whatTitle,
+  function(key) return ns.shareSettings().defaults[key] == true end,
+  function(key, on) ns.editShare(function(s) s.defaults[key] = on end) end)
+
 -- Keeping the app up to date ------------------------------------------------------
-local reloadTitle = heading("Keeping the app up to date", askLast)
+local reloadTitle = heading("Keeping the app up to date", shareLast)
 local flightReload = checkbox("Offer a reload on flight paths", nil,
   function() return isOn("flightReload") end,
   function(on) ns.editSettings(function(s) s.flightReload = on end) end)

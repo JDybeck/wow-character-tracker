@@ -21,6 +21,7 @@ function on.ADDON_LOADED(name)
   db.logoutPlayed = db.logoutPlayed or {} -- [guid] = total played at logout
   db.items = db.items or {}               -- [guid] = gear, bags and bank (Inventory.lua)
   db.xpTable = db.xpTable or {}           -- [level] = XP that level needs, on this client
+  db.friends = db.friends or {}           -- [battleTag] = what that friend shares (Friends.lua)
   if db.popup == nil then db.popup = false end
   ns.flushBlocked()
 end
@@ -53,6 +54,7 @@ function on.PLAYER_ENTERING_WORLD()
     C_Timer.After(10, ns.scanInventory)
     C_Timer.After(12, ns.checkProfessions) -- the baseline, and anything learned while logged out
     C_Timer.After(15, ns.checkIn)
+    C_Timer.After(20, ns.startFriends) -- after the snapshot, which is what friends get
     if ns.IS_RETAIL and type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
   end
   if not ns.snapshotTicker and C_Timer.NewTicker then ns.snapshotTicker = C_Timer.NewTicker(300, snapshotTick) end
@@ -68,6 +70,7 @@ function on.PLAYER_REGEN_ENABLED()
   ns.processShots() -- data grids held back during combat
   ns.flushAnnouncements() -- guild/group messages held back during combat
   ns.showNextAsk() -- and the box offering to post a highlight
+  ns.showNextFriendRequest() -- a friend's request that came during the fight
   if professionsWaiting then
     professionsWaiting = false
     ns.checkProfessions()
@@ -168,6 +171,11 @@ on.PLAYER_GUILD_UPDATE = snapshotSoon
 local moneyChanged = ns.debounce(3, function() ns.saveMoney() end)
 on.PLAYER_MONEY = moneyChanged
 on.CURRENCY_DISPLAY_UPDATE = moneyChanged
+
+-- Sharing with Battle.net friends (Comms.lua, Friends.lua). The friends list changes in bursts
+-- at login, so one look a few seconds after.
+function on.BN_CHAT_MSG_ADDON(prefix, text, channel, senderID) ns.comms.receive(prefix, text, channel, senderID) end
+on.BN_FRIEND_INFO_CHANGED = ns.debounce(5, function() ns.friendsTick() end)
 
 ns.frame:SetScript("OnEvent", function(_, event, ...)
   local handler = on[event]

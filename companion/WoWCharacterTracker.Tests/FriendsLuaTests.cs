@@ -626,6 +626,31 @@ public class FriendsLuaTests
     }
 
     [Fact]
+    public void The_toc_has_every_file_and_loads_the_friend_files_after_what_they_use()
+    {
+        var lines = File.ReadAllLines(Path.Combine(AddonLuaTests.AddonDir, "WoWCharacterTracker.toc")).Where(l => l.EndsWith(".lua")).ToList();
+        Assert.Equal(Directory.GetFiles(AddonLuaTests.AddonDir, "*.lua").Select(f => Path.GetFileName(f)).Order(), lines.Order());
+        Assert.True(lines.IndexOf("Shared.lua") < lines.IndexOf("FriendData.lua"));
+        Assert.True(lines.IndexOf("FriendData.lua") < lines.IndexOf("Comms.lua"));
+        Assert.True(lines.IndexOf("Comms.lua") < lines.IndexOf("Friends.lua"));
+        Assert.True(lines.IndexOf("Friends.lua") < lines.IndexOf("Options.lua"));
+    }
+
+    [Fact]
+    public void The_friends_command_gets_what_was_typed_with_its_case()
+    {
+        var c = new Client(A, "{}", files: ["Shared.lua"]);
+        c.Lua("""
+            SlashCmdList = {}
+            got = nil
+            ns.friendsCommand = function(args) got = args end
+            """);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Commands.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Lua("SlashCmdList.CHARACTERTRACKER('Friends ask Zeb#2222')");
+        Assert.Equal(" ask Zeb#2222", Str(c, "got"));
+    }
+
+    [Fact]
     public void A_copy_is_deep_and_separate()
     {
         var c = new Client("Player-1-0000000A", "{}", files: ["Shared.lua"]);

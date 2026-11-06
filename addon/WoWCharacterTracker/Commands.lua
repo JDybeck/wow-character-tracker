@@ -74,8 +74,11 @@ end
 SLASH_CHARACTERTRACKER1 = "/charactertracker"
 SLASH_CHARACTERTRACKER2 = "/wct"
 SlashCmdList["CHARACTERTRACKER"] = function(msg)
-  msg = strtrim(msg or ""):lower()
-  if msg == "popup" then
+  local typed = strtrim(msg or "")
+  msg = typed:lower()
+  if msg == "friends" or msg:match("^friends%s") then
+    ns.friendsCommand(typed:sub(8)) -- BattleTags keep their case
+  elseif msg == "popup" then
     WoWCharacterTrackerDB.popup = not WoWCharacterTrackerDB.popup
     ns.say("Reload popup after a ding is now " .. (WoWCharacterTrackerDB.popup and "on." or "off."))
   elseif msg == "live" then
@@ -102,6 +105,7 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     ns.say("/wct live turns instant posting on or off.")
     ns.say("/wct popup turns the reload popup after a ding on or off.")
     ns.say("/wct note shows or hides this character's note (Edit in the box to change it). /wct note lock or unlock pins it in place, /wct note reset brings it back to the middle.")
+    ns.say("/wct friends shares your characters with Battle.net friends who have the addon. /wct friends help for more.")
     ns.say("/wct options opens the addon's settings (also under Esc, Options, AddOns).")
     ns.say("/wct debug saves details for tracking down problems.")
   else

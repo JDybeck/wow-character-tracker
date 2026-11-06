@@ -9,6 +9,7 @@
 
 Settings.lua
 Shared.lua
+FriendData.lua
 Core.lua
 Character.lua
 Inventory.lua
@@ -17,6 +18,8 @@ Events.lua
 PvP.lua
 Announce.lua
 Ask.lua
+Comms.lua
+Friends.lua
 NoteBox.lua
 Options.lua
 Commands.lua
