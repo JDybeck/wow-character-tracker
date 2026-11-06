@@ -102,18 +102,11 @@ end
 -- taints the default UI, which on Classic clients blocks Esc and shows "blocked from an action".)
 
 -- Reload prompts ----------------------------------------------------------------
--- Small boxes that offer a /reload (the game only writes the saved file then, and only a click may
--- reload). A dialog is only added to Blizzard's StaticPopupDialogs when it's first used: anything an
--- addon puts in Blizzard's tables can spread taint, so it stays out unless it's needed.
+-- Small boxes that offer a /reload (the game only writes the saved file then, and only a click may reload).
+-- alt and onAlt: an optional third button (the flight box's snooze).
 local function askReload(name, text, accept, decline, arg, alt, onAlt)
-  if not StaticPopupDialogs[name] then
-    StaticPopupDialogs[name] = {
-      text = text, button1 = accept, button2 = decline, button3 = alt, OnAlt = onAlt,
-      OnAccept = function() ReloadUI() end,
-      timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
-    }
-  end
-  StaticPopup_Show(name, arg)
+  ns.popup(name, { text = text, button1 = accept, button2 = decline, button3 = alt, OnAlt = onAlt,
+    OnAccept = function() ReloadUI() end }, arg)
 end
 
 -- Optional (off by default, /wct popup): after a ding, for when the live channel doesn't work on a client.

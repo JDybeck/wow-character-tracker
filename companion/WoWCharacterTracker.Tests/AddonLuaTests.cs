@@ -6,7 +6,7 @@ namespace WoWCharacterTracker.Tests;
 // The addon's Lua, checked with MoonSharp (the same interpreter the app reads saved files with).
 public class AddonLuaTests
 {
-    static string AddonDir
+    internal static string AddonDir
     {
         get
         {
@@ -24,7 +24,7 @@ public class AddonLuaTests
         new Script().LoadString(File.ReadAllText(Path.Combine(AddonDir, file)), codeFriendlyName: file);
 
     // A clock and C_Timer for Announce.lua: runTimers() runs what's due, moving the clock as it goes.
-    const string FakeTimers = """
+    internal const string FakeTimers = """
         clock = 1000
         function GetTime() return clock end
         timers = {}
@@ -968,10 +968,11 @@ public class AddonLuaTests
                   end })
                 end
                 function CreateFrame() local f = widget(); frames[#frames + 1] = f; return f end
+                function UnitGUID() return 'Player-1' end
                 """);
             var ns = new Table(script);
             ns["say"] = (Action<string>)(_ => { });
-            foreach (var file in new[] { "Shared.lua", "NoteBox.lua", "Options.lua" })
+            foreach (var file in new[] { "Shared.lua", "FriendData.lua", "Comms.lua", "Friends.lua", "NoteBox.lua", "Options.lua" })
                 script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
             Assert.Equal("WoW Character Tracker", script.DoString("return registered").String);

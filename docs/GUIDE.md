@@ -101,6 +101,18 @@ The **In game** page has what the addon does in game besides posting to Discord:
 - **Addon options**: Esc, Options, AddOns, WoW Character Tracker (or `/wct options`). Show, lock or reset the note box, set how see-through its background is, and turn instant posting and the reload popup on or off. Everything on the app's In game page except Advanced combat logging can be changed there too and applies right away. It reaches the app on your next `/reload` or logout, and the newest change wins, like notes. What gets posted to Discord and screenshots stay in the app, and are listed there read-only.
 - **The addon without the app**: guild and group lines, deaths named and the options page all work with the addon alone. Discord, screenshots and the character overview need the app.
 
+### Sharing with Battle.net friends (new, in game only for now)
+
+Friends on your Battle.net friends list who have the addon can see the characters you share: name, level, class, spec and item level, plus gear and talents, and location and gold if you allow it. It's on, but nothing is shared until you allow a friend's request (a popup) or share with them yourself. Turn it off and friends can't even ask.
+
+- **What friends get** is one general choice (gear and talents on, location and gold off), set under Esc, Options, AddOns or with `/wct friends set all gold on`. Any friend can get something different: `/wct friends set <BattleTag> gold on`, and `default` puts them back on the general choice.
+- `/wct friends ask <BattleTag>` asks a friend for theirs. They get a popup: **Allow**, **Not now** or **Never**. Asking never shares your own characters.
+- `/wct friends share <BattleTag>` shares yours with them. They keep it once they have you as a contact.
+- `/wct friends hide` keeps the character you're on from friends, and **Share new characters** in the options decides what happens with characters you haven't picked for yet.
+- `/wct friends` lists your contacts and what each gets, `/wct friends help` has the rest.
+
+It all goes through Battle.net while you're both online: the character you're on every 2 minutes in a group, every 10 minutes otherwise, only when something changed. Nothing is shown in chat and nothing goes out in combat. What friends share is saved for the app, which gets a Friends page next.
+
 ## The app
 
 ![The app on the Forever tab, with a character's details open](images/characters.png)
@@ -196,6 +208,7 @@ Treat the link like a password: anyone with it can post in that channel. The app
 - `/wct help` lists these in game.
 - `/wct popup` turns the reload popup after a ding on or off, if you'd rather not use instant posting.
 - `/wct note` shows or hides this character's note box. `/wct note lock` and `/wct note unlock` pin it in place or let you move it, and `/wct note reset` brings it back to the middle of the screen.
+- `/wct friends` lists the Battle.net friends you share with, `/wct friends help` has the commands for asking, sharing and choosing what they get (see Sharing with Battle.net friends above).
 - `/wct options` opens the addon's options page (also under Esc, Options, AddOns).
 - `/wct debug` saves what your client's talent, name and guild functions return, and the addon's recent `/played` requests and answers (for tracking down problems on new clients).
 

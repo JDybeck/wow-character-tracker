@@ -4,11 +4,12 @@
 ## Author: JDybeck
 ## X-License: GPL-3.0
 ## X-Website: https://github.com/JDybeck/wow-character-tracker
-## Version: 0.32.0
+## Version: 0.33.2
 ## SavedVariables: WoWCharacterTrackerDB
 
 Settings.lua
 Shared.lua
+FriendData.lua
 Core.lua
 Character.lua
 Inventory.lua
@@ -17,6 +18,8 @@ Events.lua
 PvP.lua
 Announce.lua
 Ask.lua
+Comms.lua
+Friends.lua
 NoteBox.lua
 Options.lua
 Commands.lua

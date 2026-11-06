@@ -87,12 +87,14 @@ function ns.setting(key)
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]
 end
 
-local function copy(v)
+-- A deep copy of a table (anything else as it is).
+function ns.copy(v)
   if type(v) ~= "table" then return v end
   local out = {}
-  for k, inner in pairs(v) do out[k] = copy(inner) end
+  for k, inner in pairs(v) do out[k] = ns.copy(inner) end
   return out
 end
+local copy = ns.copy
 
 -- Changes In game settings: edit gets a full table of them to change, and they apply right away.
 function ns.editSettings(edit)
@@ -227,6 +229,18 @@ function ns.record(kind, fields, idSuffix)
   e.id = eventId(e.guid, kind, e.at, idSuffix)
   ns.addEvent(e)
   return e
+end
+
+-- A Blizzard popup. It's only added to StaticPopupDialogs when first used: anything an addon puts
+-- in Blizzard's tables can spread taint, so it stays out unless it's needed. data reaches the
+-- dialog's OnAccept, OnCancel and OnAlt as their second argument.
+function ns.popup(name, dialog, textArg, data)
+  if not StaticPopupDialogs[name] then
+    dialog.timeout = dialog.timeout or 0
+    dialog.whileDead, dialog.hideOnEscape, dialog.preferredIndex = true, true, 3
+    StaticPopupDialogs[name] = dialog
+  end
+  return StaticPopup_Show(name, textArg, nil, data)
 end
 
 -- Like ns.record, but only when this character has no event with that id yet (a milestone

@@ -42,6 +42,7 @@ local EVENTS = {
   "EQUIPMENT_SETS_CHANGED",                                             -- Equipment Manager sets saved or deleted
   "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED", "TAXIMAP_CLOSED",                 -- flight paths (the reload box)
   "MAIL_CLOSED", "AUCTION_HOUSE_CLOSED",                                          -- moments for the reload reminder
+  "BN_CHAT_MSG_ADDON", "BN_FRIEND_INFO_CHANGED",                                  -- sharing with Battle.net friends
   -- Refresh the character snapshot when these change, while the game has the data.
   "PLAYER_EQUIPMENT_CHANGED", "PLAYER_MONEY", "CURRENCY_DISPLAY_UPDATE", "PLAYER_SPECIALIZATION_CHANGED",
   "TRAIT_CONFIG_UPDATED", "CHARACTER_POINTS_CHANGED", "PLAYER_GUILD_UPDATE",
