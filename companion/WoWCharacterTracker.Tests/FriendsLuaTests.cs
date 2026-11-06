@@ -16,17 +16,20 @@ public class FriendsLuaTests
         function IsEncounterInProgress() return false end
         C_ChatInfo = { RegisterAddonMessagePrefix = function() end, InChatMessagingLockdown = function() return lockdown end }
         BNET_CLIENT_WOW, WOW_PROJECT_ID = 'WoW', 5
-        sent, shown, said = {}, {}, {}
+        sent, shown, said, whispers, hidden = {}, {}, {}, {}, {}
         function BNGetNumFriends() return #friends end
         C_BattleNet = {
-          GetFriendAccountInfo = function(i) return friends[i] and { battleTag = friends[i].tag } end,
+          GetFriendAccountInfo = function(i) return friends[i] and { battleTag = friends[i].tag, bnetAccountID = friends[i].bnet or i * 100 } end,
           GetFriendNumGameAccounts = function(i) return friends[i] and 1 or 0 end,
           GetFriendGameAccountInfo = function(i)
             local f = friends[i]
-            return f and { isOnline = f.online ~= false, clientProgram = 'WoW', wowProjectID = 5, gameAccountID = f.account, playerGuid = f.guid }
+            return f and { isOnline = f.online ~= false, clientProgram = 'WoW', wowProjectID = 5, gameAccountID = f.account, playerGuid = f.guid,
+              characterName = f.char, className = f.className, classFilename = f.classFile, characterLevel = f.level, areaName = f.zone }
           end,
           SendGameData = function(to, prefix, text) table.insert(sent, { to = to, prefix = prefix, text = text }) return sendResult end,
+          SendWhisper = function(to, text) table.insert(whispers, { to = to, text = text }) end,
         }
+        function StaticPopup_Hide(name) table.insert(hidden, name) end
         function IsInGroup() return #groupGuids > 0 end
         function IsInRaid() return false end
         function GetNumGroupMembers() return #groupGuids end
@@ -825,5 +828,264 @@ public class FriendsLuaTests
         c.Lua("original = { a = { b = 1 } }; copied = ns.copy(original); copied.a.b = 2");
         Assert.Equal(1, c.Lua("return original.a.b").Number);
         Assert.Equal(5, c.Lua("return ns.copy(5)").Number);
+    }
+
+    // Friends tab (Window.lua uses these) ------------------------------------------------------
+
+    static int Whispers(Client c) => (int)c.Lua("return #whispers").Number;
+
+    static void CountChanges(Client c) => c.Lua("changes = 0; ns.friendsChanged = function() changes = changes + 1 end");
+
+    static int Changes(Client c) => (int)c.Lua("return changes").Number;
+
+    [Fact]
+    public void A_ping_gets_one_pong_a_minute_even_with_sharing_off_and_nothing_else()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = false, at = 100 }"));
+        a.Receive("1:PING:1:1:1:", BAccount);
+        a.Run(1);
+        Assert.Single(a.Sent());
+        Assert.Equal("1:PONG:1:1:1:0.33.0", a.Sent()[0].Get("text").String);
+        a.Run(10);
+        a.Receive("1:PING:2:1:1:", BAccount);
+        a.Run(1);
+        Assert.Single(a.Sent()); // within a minute
+        a.Run(60);
+        a.Receive("1:PING:3:1:1:", BAccount);
+        a.Receive("1:PING:4:1:1:", 99); // not a Battle.net friend
+        a.Run(1);
+        Assert.Equal(2, a.Sent().Count);
+        Assert.All(a.Sent(), m => Assert.Equal(2, m.Get("to").Number));
+        Assert.Equal(0, Whispers(a));
+    }
+
+    [Fact]
+    public void Finding_online_friends_shows_who_has_the_addon_after_their_pong()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        var b = new Client(B, BFriends, BDb("nil"));
+        CountChanges(a);
+        a.Call("findOnlineFriends");
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil()); // not known yet
+        a.Run(1);
+        Assert.Equal(1, Count(a, "PING"));
+        Deliver(a, b, AAccount);
+        b.Run(1);
+        Assert.Single(b.Sent());
+        Assert.Equal(1, Count(b, "PONG"));
+        Deliver(b, a, BAccount);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
+        Assert.True(Changes(a) >= 1);
+        a.Run(11);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean); // the timeout doesn't undo it
+        Assert.Equal(0, Whispers(a) + Whispers(b));
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends").IsNil());
+        Assert.Empty(b.Lua("return shown").Table.Values); // no popup either
+    }
+
+    [Fact]
+    public void A_friend_who_doesnt_answer_in_10_seconds_has_no_addon()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        CountChanges(a);
+        a.Call("findOnlineFriends");
+        a.Run(9);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
+        a.Run(2);
+        Assert.False(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
+        Assert.Equal(1, Changes(a));
+        a.Receive("1:HI:1:1:1:0.33.0", BAccount); // any message later says they do
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
+    }
+
+    [Fact]
+    public void Finding_twice_within_a_minute_pings_once_and_each_account_once_a_session()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Call("findOnlineFriends");
+        a.Run(1);
+        a.Call("findOnlineFriends");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "PING"));
+        a.Lua("table.insert(friends, { tag = 'Bo#3333', account = 3 })");
+        a.Call("findOnlineFriends");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "PING")); // still within the minute
+        Assert.Equal(2, a.Lua("return #ns.onlineFriends()").Number); // but listed
+        a.Run(60);
+        a.Call("findOnlineFriends");
+        a.Run(1);
+        Assert.Equal(2, Count(a, "PING"));
+        Assert.Equal(3, a.Sent().Last().Get("to").Number); // only the new one
+    }
+
+    const string TwoFriends = """
+        { { tag = 'Zeb#2222', account = 2, guid = 'Player-1-0000000B', char = 'Zeb', classFile = 'WARRIOR', level = 60, zone = 'Orgrimmar' },
+          { tag = 'Al#4444', account = 4, char = 'Alby', className = 'Mage', level = 12 } }
+        """;
+
+    [Fact]
+    public void Online_friends_rows_have_what_the_tab_shows_sorted_by_label()
+    {
+        var a = new Client(A, TwoFriends,
+            ADb("{ enabled = true, contacts = { ['Zeb#2222'] = { share = true, receive = true } }, blocked = { ['Al#4444'] = true }, at = 100 }"),
+            settings: "{ friendNames = { ['Zeb#2222'] = 'Zebbe' } }");
+        a.Lua("LOCALIZED_CLASS_NAMES_MALE = { MAGE = 'Mage' }; WoWCharacterTrackerDB.friends = { ['Zeb#2222'] = { chars = { x = { char = 'Zeb', at = 1 } } } }");
+        a.Lua("rows = ns.onlineFriends(); al, zeb = rows[1], rows[2]");
+        Assert.Equal("Al#4444", Str(a, "al.label"));
+        Assert.Equal("Zebbe (Zeb#2222)", Str(a, "zeb.label"));
+        Assert.Equal("Zeb#2222", Str(a, "zeb.tag"));
+        Assert.Equal(2, a.Lua("return zeb.account").Number);
+        Assert.Equal("Zeb", Str(a, "zeb.character"));
+        Assert.Equal("WARRIOR", Str(a, "zeb.classFile"));
+        Assert.Equal(60, a.Lua("return zeb.level").Number);
+        Assert.Equal("Orgrimmar", Str(a, "zeb.zone"));
+        Assert.True(a.Lua("return zeb.contact.share").Boolean);
+        Assert.True(a.Lua("return zeb.sharesWithYou").Boolean);
+        Assert.False(a.Lua("return zeb.blocked").Boolean);
+        Assert.True(a.Lua("return zeb.invitedAt").IsNil());
+        Assert.Equal("MAGE", Str(a, "al.classFile")); // from the class name when the game gives no file name
+        Assert.True(a.Lua("return al.blocked").Boolean);
+        Assert.True(a.Lua("return al.contact").IsNil());
+        Assert.False(a.Lua("return al.sharesWithYou").Boolean);
+        Assert.True(a.Lua("return al.zone").IsNil());
+    }
+
+    [Fact]
+    public void Ask_and_share_from_the_tab_do_what_the_commands_do()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        var asked = b.Call("askFriend", "Jesper#1111").String;
+        Assert.StartsWith("Asked Jesper#1111", asked);
+        Assert.Contains(asked, b.Said());
+        b.Run(1);
+        Assert.Equal(1, Count(b, "REQ"));
+        Assert.True(b.Lua("return ns.shareSettings().contacts['Jesper#1111'].receive").Boolean);
+        Assert.Contains("a moment ago", b.Call("askFriend", "Jesper#1111").String);
+
+        var shared = a.Call("shareWithFriend", "Zeb#2222").String;
+        Assert.StartsWith("Zeb#2222 gets your shared characters", shared);
+        Assert.Contains(shared, a.Said());
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].share").Boolean);
+        Assert.Equal(0, Whispers(a) + Whispers(b));
+    }
+
+    const string InviteText = "I use WoW Character Tracker to share characters with friends: https://github.com/JDybeck/wow-character-tracker";
+
+    [Fact]
+    public void Invite_sends_one_whisper_a_day_and_only_when_asked()
+    {
+        var a = new Client(A, "{ { tag = 'Zeb#2222', account = 2, bnet = 77 } }", ADb("nil"));
+        a.Call("findOnlineFriends");
+        a.Run(11);
+        Assert.Equal(0, Whispers(a));
+        var first = a.Lua("return ns.inviteFriend('Zeb#2222')");
+        Assert.True(first.Tuple[0].Boolean);
+        Assert.Equal(1, Whispers(a));
+        Assert.Equal(77, a.Lua("return whispers[1].to").Number);
+        Assert.Equal(InviteText, Str(a, "whispers[1].text"));
+        Assert.Equal(1011, a.Lua("return ns.onlineFriends()[1].invitedAt").Number);
+        Assert.Equal(1011, a.Lua("return WoWCharacterTrackerDB.invitedAt['Zeb#2222']").Number);
+
+        var again = a.Lua("return ns.inviteFriend('Zeb#2222')");
+        Assert.False(again.Tuple[0].Boolean);
+        Assert.False(string.IsNullOrEmpty(again.Tuple[1].String));
+        Assert.Equal(1, Whispers(a));
+        a.Run(86400);
+        Assert.True(a.Lua("return (ns.inviteFriend('Zeb#2222'))").Boolean);
+        Assert.Equal(2, Whispers(a));
+        Assert.Empty(a.Sent().Where(m => !m.Get("text").String.Contains(":PING:"))); // nothing else went out
+    }
+
+    [Fact]
+    public void Invite_refuses_a_friend_with_the_addon_or_one_not_online()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Receive("1:PONG:1:1:1:0.33.0", BAccount);
+        Assert.False(a.Lua("return (ns.inviteFriend('Zeb#2222'))").Boolean);
+        Assert.False(a.Lua("return (ns.inviteFriend('Nobody#1'))").Boolean);
+        a.Lua("friends[1].online = false");
+        Assert.False(a.Lua("return (ns.inviteFriend('Zeb#2222'))").Boolean);
+        Assert.Equal(0, Whispers(a));
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.invitedAt").IsNil());
+    }
+
+    [Fact]
+    public void Requests_are_listed_and_answering_from_the_list_hides_the_popup()
+    {
+        var a = new Client(A, TwoFriends, ADb("{ enabled = true, at = 100 }"), settings: "{ friendNames = { ['Zeb#2222'] = 'Zebbe' } }");
+        CountChanges(a);
+        a.Receive("1:REQ:1:1:1:", BAccount);
+        a.Run(5);
+        a.Receive("1:REQ:1:1:1:", 4);
+        Assert.True(Changes(a) >= 2);
+        a.Lua("pending = ns.pendingRequests()");
+        Assert.Equal(2, a.Lua("return #pending").Number);
+        Assert.Equal("Zeb#2222", Str(a, "pending[1].tag"));
+        Assert.Equal(2, a.Lua("return pending[1].account").Number);
+        Assert.Equal("Zebbe (Zeb#2222)", Str(a, "pending[1].label"));
+        Assert.Equal(1000, a.Lua("return pending[1].at").Number);
+        Assert.Equal("Al#4444", Str(a, "pending[2].tag")); // waiting behind the popup
+
+        a.Lua("ns.answerFriendRequest(pending[1], 'allow')"); // the one in the popup
+        Assert.Equal("CHARACTERTRACKER_FRIEND_REQUEST", Str(a, "hidden[1]"));
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].share").Boolean);
+        Assert.Equal(2, a.Lua("return #shown").Number); // the next one shows
+        Assert.Equal("Al#4444", Str(a, "shown[2].data.tag"));
+        Assert.Equal(1, a.Lua("return #ns.pendingRequests()").Number);
+        Assert.True(Changes(a) >= 3);
+
+        Answer(a, "notnow"); // from the popup: nothing to hide
+        Assert.Equal(1, a.Lua("return #hidden").Number);
+        Assert.Equal(0, a.Lua("return #ns.pendingRequests()").Number);
+    }
+
+    [Fact]
+    public void A_waiting_request_answered_from_the_list_never_shows()
+    {
+        var a = new Client(A, TwoFriends, ADb("{ enabled = true, at = 100 }"));
+        a.Receive("1:REQ:1:1:1:", BAccount);
+        a.Receive("1:REQ:1:1:1:", 4);
+        a.Lua("ns.answerFriendRequest(ns.pendingRequests()[2], 'never')");
+        Assert.Equal(0, a.Lua("return #hidden").Number); // Zeb's popup stays
+        Assert.True(a.Lua("return ns.shareSettings().blocked['Al#4444']").Boolean);
+        Assert.Equal("Zeb#2222", Str(a, "ns.pendingRequests()[1].tag"));
+        Answer(a, "notnow");
+        Assert.Equal(1, a.Lua("return #shown").Number);
+        Assert.Equal(0, a.Lua("return #ns.pendingRequests()").Number);
+    }
+
+    [Fact]
+    public void Shared_with_you_lists_only_friends_you_keep_newest_first()
+    {
+        var a = new Client(A, AFriends, ADb("""
+            { enabled = true, at = 100, blocked = { ['Al#4444'] = true }, contacts = {
+              ['Zeb#2222'] = { receive = true }, ['Al#4444'] = { receive = true }, ['Bo#3333'] = { receive = false }, ['Cy#5555'] = { receive = true } } }
+            """), settings: "{ friendNames = { ['Zeb#2222'] = 'Zebbe' } }");
+        a.Lua("""
+            WoWCharacterTrackerDB.friends = {
+              ['Zeb#2222'] = { chars = { old = { char = 'Old', at = 5 }, new = { char = 'New', at = 9 } } },
+              ['Al#4444'] = { chars = { x = { char = 'Blocked', at = 1 } } },
+              ['Bo#3333'] = { chars = { x = { char = 'NotKept', at = 1 } } },
+              ['Dee#6666'] = { chars = { x = { char = 'NoContact', at = 1 } } },
+              ['Cy#5555'] = { chars = {} } }
+            got = ns.sharedWithYou()
+            """);
+        Assert.Equal(1, a.Lua("return #got").Number);
+        Assert.Equal("Zeb#2222", Str(a, "got[1].tag"));
+        Assert.Equal("Zebbe (Zeb#2222)", Str(a, "got[1].label"));
+        Assert.Equal("New", Str(a, "got[1].chars[1].char"));
+        Assert.Equal("Old", Str(a, "got[1].chars[2].char"));
+    }
+
+    [Fact]
+    public void New_data_from_a_friend_tells_the_tab()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives));
+        b.Receive("1:PONG:1:1:1:0.33.0", AAccount); // known to have the addon already
+        CountChanges(b);
+        b.Receive("1:DATA:2:1:1:guid=Player-1-0000000A;char=Deadbeck", AAccount);
+        Assert.Equal(1, Changes(b));
     }
 }
