@@ -330,6 +330,7 @@ public class FriendsLuaTests
     {
         var a = new Client(A, AFriends, ADb("nil"));
         Assert.True(a.Lua("return ns.shareSettings().enabled").Boolean);
+        Assert.True(a.Lua("return ns.allowedFor(ns.shareSettings(), {}).location").Boolean); // location on by default
         a.Call("friendsTick");
         a.Receive("1:DATA:2:1:1:guid=Player-1-0000000B;char=Zeb", BAccount);
         a.Run(5);
@@ -360,6 +361,17 @@ public class FriendsLuaTests
         var off = new Client(A, AFriends, ADb("{ enabled = false, at = 100 }"));
         off.Call("maybeShareTip");
         Assert.DoesNotContain(off.Said(), s => s.StartsWith("Did you know?"));
+    }
+
+    // In WoW chat | starts a code (|t is a texture): "gear|talents" showed as "gearalents".
+    [Fact]
+    public void Friends_help_lines_have_no_raw_pipes()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Call("friendsCommand", "help");
+        a.Call("friendsCommand", "set all nonsense on");
+        Assert.NotEmpty(a.Said());
+        Assert.All(a.Said(), s => Assert.DoesNotContain("|", s));
     }
 
     [Fact]
@@ -400,7 +412,7 @@ public class FriendsLuaTests
         Assert.True(a.Lua("return allowed.gold").Boolean);     // general
         Assert.True(a.Lua("return allowed.gear").Boolean);     // their own beats the general off
         Assert.False(a.Lua("return allowed.talents").Boolean); // their own beats the general on
-        Assert.False(a.Lua("return allowed.location").Boolean);
+        Assert.True(a.Lua("return allowed.location").Boolean);  // the general default, on
         Assert.False(a.Lua("return general.gear").Boolean);
         var fresh = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
         Assert.False(fresh.Lua("return ns.allowedFor(ns.shareSettings(), {}).gold").Boolean); // gold is off until turned on
@@ -531,6 +543,23 @@ public class FriendsLuaTests
         Assert.Equal("Drygbeck", Str(b, "WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C'].char"));
         Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000D']").IsNil());
         Assert.Contains(b.Said(), s => s.StartsWith("Asked Jesper#1111"));
+    }
+
+    // Characters removed in the app (Settings.lua removed) are never shared, until played again.
+    [Fact]
+    public void Characters_removed_in_the_app_are_never_shared()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ removed = { ['Player-1-0000000C'] = 600 } }"); // Drygbeck, last seen 500
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Talk(a, b);
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C']").IsNil());
+        Assert.False(a.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000C')").Boolean);
+        a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000C'].lastSeen = 700"); // played again
+        Assert.True(a.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000C')").Boolean);
     }
 
     [Fact]

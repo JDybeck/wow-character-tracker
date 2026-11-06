@@ -154,6 +154,11 @@ class FlavorSettings
     // both, and the newest change wins (like notes). Goes to the addon as Settings.lua inGameAt.
     public long InGameAt { get; set; }
 
+    // How long the in-game box offering to post a highlight stays, in seconds (Ask.lua, an In game setting).
+    public int AskSeconds { get; set; } = 10;
+    public static readonly int[] AskSecondsChoices = [5, 10, 15, 30, 60];
+    public static int AskSecondsOrDefault(int seconds) => seconds is >= 3 and <= 120 ? seconds : 10;
+
     // Settings changed in game count only when that was after the app's last change.
     public bool TakeInGame(InGameSettings? game)
     {
@@ -165,6 +170,7 @@ class FlavorSettings
         AskKinds = game.AskKinds ?? AskKinds;
         (FlightReloadPrompt, ChatReloadReminder) = (game.FlightReload ?? FlightReloadPrompt, game.ChatReminder ?? ChatReloadReminder);
         KeepAllHistory = game.KeepAllHistory ?? KeepAllHistory;
+        AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
         return true;
     }

@@ -245,6 +245,7 @@ sealed class FlavorViewModel : Observable
         WriteAddonSettings();
         announceKinds = null;
         askKinds = null;
+        RefreshAskSeconds();
         foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces), nameof(AnnounceKinds), nameof(AskKinds),
             nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
             nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight) })
@@ -306,6 +307,13 @@ sealed class FlavorViewModel : Observable
     public bool GridTopRight { get => Corner == "TOPRIGHT"; set { if (value) SetCorner("TOPRIGHT"); } }
     public bool GridBottomLeft { get => Corner == "BOTTOMLEFT"; set { if (value) SetCorner("BOTTOMLEFT"); } }
     public bool GridBottomRight { get => Corner == "BOTTOMRIGHT"; set { if (value) SetCorner("BOTTOMRIGHT"); } }
+    // How long the in-game post box stays: one chip per choice, picked like radio buttons.
+    IReadOnlyList<SecondsChoice>? askSecondsChoices;
+    public IReadOnlyList<SecondsChoice> AskSecondsChoices => askSecondsChoices ??=
+        [.. FlavorSettings.AskSecondsChoices.Select(n => new SecondsChoice(n, $"askseconds-{Name}",
+            () => Settings.AskSeconds == n, () => { Settings.AskSeconds = n; InGameChanged(nameof(AskSecondsChoices)); RefreshAskSeconds(); }))];
+    void RefreshAskSeconds() { foreach (var c in AskSecondsChoices) c.Refresh(); }
+
     string Corner => FlavorSettings.CornerOrDefault(Settings.GridCorner);
     void SetCorner(string corner)
     {
@@ -801,6 +809,7 @@ sealed class FlavorViewModel : Observable
     {
         Settings.Removed[row.Guid] = Math.Max(row.LastSeen, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         main.Config.Save();
+        WriteAddonSettings(); // the addon stops sharing it with friends (Settings.lua removed)
         Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");
         ShowData(lastData);
     }

@@ -485,6 +485,65 @@ public class AddonLuaTests
     [Fact]
     public void Skipping_records_nothing() => Assert.Empty(Ask(AskAll, ABoss, post: false));
 
+    // The box stays 10 seconds, counting down on Skip, then goes away without posting.
+    [Fact]
+    public void The_post_box_counts_down_from_10_and_goes_away()
+    {
+        var (script, recorded) = AskBox(AskAll);
+        bool Said(string s) => script.DoString($"for _, t in ipairs(texts) do if t == '{s}' then return true end end return false").Boolean;
+        Assert.True(Said("Skip (10)"));
+        script.DoString("runTimers(clock + 3)");
+        Assert.True(Said("Skip (7)"));
+        Assert.True(script.DoString("return box.shown").Boolean);
+        script.DoString("runTimers(clock + 8)");
+        Assert.False(script.DoString("return box.shown").Boolean); // gone after 10 seconds
+        Assert.Empty(recorded);
+    }
+
+    // How long it stays is an In game setting (askSeconds), 10 when it isn't set.
+    [Fact]
+    public void The_post_box_stays_as_long_as_the_setting_says()
+    {
+        var (script, _) = AskBox("{ post = {}, discord = true, ask = { boss = true }, askSeconds = 5 }");
+        Assert.True(script.DoString("for _, t in ipairs(texts) do if t == 'Skip (5)' then return true end end return false").Boolean);
+        script.DoString("runTimers(clock + 6)");
+        Assert.False(script.DoString("return box.shown").Boolean);
+    }
+
+    // Ask.lua with frames that remember their text and whether they show, a fake clock, and a boss offered.
+    static (Script Script, List<Table> Recorded) AskBox(string settings)
+    {
+        var script = new Script();
+        script.DoString(FakeTimers);
+        script.DoString("""
+            function time() return 7000 end
+            texts = {}
+            local function frame()
+              local f = { shown = true }
+              return setmetatable(f, { __index = function(_, k)
+                if k == 'CreateFontString' or k == 'CreateTexture' then return function() return frame() end end
+                if k == 'SetText' then return function(s, t) s.text = t; texts[#texts + 1] = t end end
+                if k == 'Show' then return function(s) s.shown = true end end
+                if k == 'Hide' then return function(s) s.shown = false end end
+                return function() end
+              end })
+            end
+            CreateFrame = function() local f = frame(); box = box or f; return f end -- the first frame is the box
+            UIParent = {}
+            WoWCharacterTrackerDB = {}
+            function InCombatLockdown() return false end
+            """);
+        script.DoString("WoWCharacterTrackerSettings = " + settings);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Announce.lua", "Ask.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        script.Call(ns.Get("offerAsk"), script.DoString("return " + ABoss));
+        return (script, recorded);
+    }
+
     // Nothing to post to, or switched off: no box, so even an answer records nothing.
     [Theory]
     [InlineData("{ discord = true, ask = { boss = true } }")] // no app
@@ -935,10 +994,10 @@ public class AddonLuaTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
-    // Options.lua: registers a page under the game's AddOns options, and lists what the app set
-    // (from the Settings.lua it writes) when the page opens.
+    // Options.lua registers a short page under the game's AddOns options; the window's App tab
+    // lists what the app set (from the Settings.lua it writes) and Chat shows its guild switch.
     [Fact]
-    public void The_options_page_registers_and_lists_the_apps_settings()
+    public void The_options_page_registers_and_the_window_lists_the_apps_settings()
     {
         var dir = Path.Combine(Path.GetTempPath(), "wct-options-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
@@ -972,15 +1031,18 @@ public class AddonLuaTests
                 """);
             var ns = new Table(script);
             ns["say"] = (Action<string>)(_ => { });
-            foreach (var file in new[] { "Shared.lua", "FriendData.lua", "Comms.lua", "Friends.lua", "NoteBox.lua", "Options.lua" })
+            foreach (var file in new[] { "Shared.lua", "FriendData.lua", "Comms.lua", "Friends.lua", "NoteBox.lua", "Ui.lua", "Window.lua", "Options.lua" })
                 script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
             Assert.Equal("WoW Character Tracker", script.DoString("return registered").String);
             script.DoString("frames[1].scripts.OnShow(frames[1])");
-            var summary = script.DoString("return texts[#texts]").String;
-            Assert.Contains("boss kills", summary);
-            Assert.False(script.DoString("return frames[4].checked").Boolean); // instant posting, off in the saved file (after the panel, its scroll frame and the page)
-            Assert.True(script.DoString("return frames[6].checked").Boolean); // guild chat, on in Settings.lua
+            Assert.Equal(2, script.DoString("return #frames").Number); // the panel and its button, the window not built yet
+
+            script.Call(ns.Get("openWindow"), "app");
+            Assert.Contains("boss kills", script.DoString("return texts[#texts]").String);
+            var before = (int)script.DoString("return #frames").Number;
+            script.Call(ns.Get("openWindow"), "chat");
+            Assert.True(script.DoString($"return frames[{before + 2}].checked").Boolean); // guild chat, on in Settings.lua (after the tab's page)
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

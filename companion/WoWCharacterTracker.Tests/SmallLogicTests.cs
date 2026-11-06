@@ -179,7 +179,7 @@ public class RatingTests
         Assert.Equal([new GameNote("P-1", "", 1100)], config.Notes().ToList()); // the clear still reaches the game
     }
 
-    static InGameSettings GameChange(long at) => new(at, true, false, ["level"], ["death"], ["boss"], false, true, "BOTTOMLEFT", false, true);
+    static InGameSettings GameChange(long at) => new(at, true, false, ["level"], ["death"], ["boss"], false, true, "BOTTOMLEFT", false, true, AskSeconds: 30);
 
     // In game settings changed in game replace the app's only when that was the newest change.
     [Fact]
@@ -200,6 +200,22 @@ public class RatingTests
         Assert.Equal("BOTTOMLEFT", s.GridCorner);
         Assert.False(s.GridLabel);
         Assert.True(s.KeepAllHistory);
+        Assert.Equal(30, s.AskSeconds);
+    }
+
+    // How long the in-game post box stays: 10 seconds unless changed, written to Settings.lua for the addon.
+    [Fact]
+    public void The_post_box_time_is_10_seconds_and_reaches_the_addon()
+    {
+        Assert.Equal(10, new FlavorSettings().AskSeconds);
+        var dir = Path.Combine(Path.GetTempPath(), "wct-askseconds-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, new FlavorSettings { AskSeconds = 15 });
+            Assert.Contains("askSeconds = 15,", File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
     }
 
     [Fact]
@@ -208,7 +224,7 @@ public class RatingTests
         var script = new MoonSharp.Interpreter.Script();
         var read = SavedVariables.ReadInGame(script.DoString("""
             return { at = 1234, announce = { guild = true, kinds = { level = true, boss = true }, partyKinds = { death = true } },
-              ask = { rare = true }, chatReminder = false, gridCorner = 'TOPRIGHT', keepAllHistory = true }
+              ask = { rare = true }, chatReminder = false, gridCorner = 'TOPRIGHT', keepAllHistory = true, askSeconds = 15 }
             """));
 
         Assert.NotNull(read);
@@ -223,6 +239,7 @@ public class RatingTests
         Assert.False(read.ChatReminder);
         Assert.Equal("TOPRIGHT", read.GridCorner);
         Assert.True(read.KeepAllHistory);
+        Assert.Equal(15, read.AskSeconds);
         Assert.Null(SavedVariables.ReadInGame(MoonSharp.Interpreter.DynValue.Nil));
     }
 

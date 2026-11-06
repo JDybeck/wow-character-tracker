@@ -18,7 +18,7 @@ end
 
 local function sendTest()
   if not ns.hasApp() then
-    ns.say("The app isn't set up for this game. Discord posts need the free Character Tracker app. /wct options has what works without it.")
+    ns.say("The app isn't set up for this game. Discord posts need the free Character Tracker app. /wct has what works without it.")
     return
   end
   if WoWCharacterTrackerDB.live == false then
@@ -77,7 +77,11 @@ SLASH_CHARACTERTRACKER2 = "/wct"
 SlashCmdList["CHARACTERTRACKER"] = function(msg)
   local typed = strtrim(msg or "")
   msg = typed:lower()
-  if msg == "friends" or msg:match("^friends%s") then
+  if msg == "" then
+    ns.openWindow()
+  elseif msg == "times" then
+    showHistory()
+  elseif msg == "friends" or msg:match("^friends%s") then
     ns.friendsCommand(typed:sub(8)) -- BattleTags keep their case
   elseif msg == "popup" then
     WoWCharacterTrackerDB.popup = not WoWCharacterTrackerDB.popup
@@ -90,7 +94,7 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
   elseif msg == "debug" then
     saveDebug()
   elseif msg == "options" or msg == "config" then
-    ns.openOptions()
+    ns.openWindow() -- every option is in the window, which also opens in combat
   elseif msg == "note" then
     ns.toggleNoteBox()
   elseif msg == "note lock" then
@@ -101,15 +105,16 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     ns.resetNoteBox()
     ns.say("Note box moved back to the middle of the screen.")
   elseif msg == "help" then
-    ns.say("/wct shows your last 10 level times.")
+    ns.say("/wct opens the addon's window with every option (the minimap button does too).")
+    ns.say("/wct times shows your last 10 level times.")
     ns.say("/wct test checks that instant posting reaches the companion app.")
     ns.say("/wct live turns instant posting on or off.")
     ns.say("/wct popup turns the reload popup after a ding on or off.")
     ns.say("/wct note shows or hides this character's note (Edit in the box to change it). /wct note lock or unlock pins it in place, /wct note reset brings it back to the middle.")
     ns.say("/wct friends shares your characters with Battle.net friends who have the addon. /wct friends help for more.")
-    ns.say("/wct options opens the addon's settings (also under Esc, Options, AddOns).")
+    ns.say("/wct options opens the addon's page under Esc, Options, AddOns.")
     ns.say("/wct debug saves details for tracking down problems.")
   else
-    showHistory()
+    ns.say("Unknown command. /wct help lists them.")
   end
 end

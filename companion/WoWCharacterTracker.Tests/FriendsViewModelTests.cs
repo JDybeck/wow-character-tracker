@@ -102,6 +102,7 @@ public class FriendsViewModelTests
         var f = new Fixture("nil");
         Assert.True(f.Vm.ShareGear);
         Assert.False(f.Vm.ShareGold);
+        Assert.True(f.Vm.ShareLocation);
         Assert.Null(f.Settings.Share);
         f.Vm.ShareGold = true;
         Assert.True(f.Settings.Share!.Defaults.Gold);
@@ -169,6 +170,19 @@ public class FriendsViewModelTests
         var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { receive = false } }, blocked = { ['Kalle#3333'] = true } }");
         Assert.Empty(f.Vm.Characters);
         Assert.False(f.Vm.ContactRows.Single(c => c.Tag == "Kalle#3333").Receive); // not a contact: nothing kept
+    }
+
+    // A character removed on the Characters page isn't offered for sharing either, until it's played again.
+    [Fact]
+    public void Removed_characters_are_not_among_your_characters()
+    {
+        var f = new Fixture();
+        f.Settings.Removed["Player-1-0000000A"] = 10; // after its LastSeen (5)
+        f.Vm.Show(f.Data);
+        Assert.Empty(f.Vm.OwnCharacters);
+        f.Settings.Removed["Player-1-0000000A"] = 1; // played since
+        f.Vm.Show(f.Data);
+        Assert.Single(f.Vm.OwnCharacters);
     }
 
     [Fact]

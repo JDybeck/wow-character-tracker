@@ -99,7 +99,7 @@
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitle}" Text="Ask before a highlight goes unposted"/>
             <TextBlock Style="{StaticResource SectionHint}"
-                       Text="When What gets posted doesn't post one of these, a small box in game offers to: Post or Skip. It waits until you're out of combat and goes away by itself after 30 seconds. It needs a webhook on this tab."/>
+                       Text="When What gets posted doesn't post one of these, a small box in game offers to: Post or Skip. It waits until you're out of combat and goes away by itself after the time below (Skip counts it down). It needs a webhook on this tab."/>
             <ItemsControl ItemsSource="{Binding AskKinds}" Focusable="False">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -117,6 +117,18 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <!-- How long the box stays (Settings.lua askSeconds), like the corner choice below. -->
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+              <TextBlock Text="The box stays" Foreground="{StaticResource TextSoft}" FontSize="13" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <ItemsControl ItemsSource="{Binding AskSecondsChoices}" Focusable="False" ItemsPanel="{StaticResource Row}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <RadioButton Style="{StaticResource DetailTab}" Content="{Binding Label}" IsChecked="{Binding IsOn}" Margin="0,0,6,0"
+                                 GroupName="{Binding Group}" ToolTip="How long the box stays before it goes away by itself"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
           </StackPanel>
         </Border>
 

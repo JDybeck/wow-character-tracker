@@ -167,9 +167,9 @@
                         </TextBlock.Style>
                       </TextBlock>
                       <Grid Width="200" HorizontalAlignment="Left" Margin="0,6,0,0">
-                        <TextBox Text="{Binding Nickname, UpdateSourceTrigger=LostFocus}" Padding="8,3" FontSize="12" ToolTip="A name of your own for this friend, shown here and in game"/>
+                        <TextBox x:Name="NicknameBox" Text="{Binding Nickname, UpdateSourceTrigger=LostFocus}" Padding="8,3" FontSize="12" ToolTip="A name of your own for this friend, shown here and in game"/>
                         <TextBlock Text="Nickname" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
-                                   Visibility="{Binding Nickname, Converter={StaticResource HiddenIfSet}}"/>
+                                   Visibility="{Binding Text, ElementName=NicknameBox, Converter={StaticResource HiddenIfSet}}"/> <!-- follows what is typed, not the saved name (saved when you leave the box) -->
                       </Grid>
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Center">

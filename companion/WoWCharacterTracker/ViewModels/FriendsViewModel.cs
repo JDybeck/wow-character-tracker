@@ -194,7 +194,9 @@ sealed class FriendsViewModel : Observable
     void BuildOwnCharacters()
     {
         var share = Share;
+        var removed = settings().Removed; // removed on the Characters page, until played again
         OwnCharacters = [.. data.Characters.GroupBy(c => c.Guid).Select(g => g.MaxBy(c => c.LastSeen)!)
+            .Where(c => !(removed.TryGetValue(c.Guid, out var at) && c.LastSeen <= at))
             .OrderBy(c => c.Char, StringComparer.CurrentCultureIgnoreCase)
             .Select(c => new OwnCharacterShare(c.Guid, c.Char, share.Chars.TryGetValue(c.Guid, out var on) ? on : share.NewChars, this))];
         Raise(nameof(OwnCharacters));

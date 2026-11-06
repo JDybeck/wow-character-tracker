@@ -2,6 +2,23 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.34.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **One addon window**: `/wct` or the new WCT button on the minimap opens it, with every in-game option in tabs: General, Chat, Highlights, Note, Friends, Sharing and App. Drag the button around the minimap, or hide it on the General tab. Your level times moved to `/wct times`.
+- **The post box counts down**: "Post to Discord?" now stays 10 seconds and counts down on Skip. Pick 5 to 60 seconds on the In game page, or on the window's Highlights tab.
+- **Location is shared with friends by default**, next to gear and talents. Gold stays off until you turn it on.
+
+### Fixes and tweaks
+
+- Characters you removed in the app are never shared with friends, until you play them again.
+- `/wct friends help` showed "gearalents": fixed.
+- The nickname box on the Friends page hides its placeholder as soon as you type.
+- `/wct options` opens the window, also in combat.
+
 ## v0.33.0
 
 Update the addon with the app (it does this by itself) and /reload in game.

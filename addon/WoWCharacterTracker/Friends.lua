@@ -14,7 +14,7 @@ local TICK = 30
 
 -- What friends get, unless set for one of them. Gold stays off until turned on.
 local CATEGORIES = { "gear", "talents", "location", "gold" }
-local DEFAULTS = { gear = true, talents = true, location = false, gold = false }
+local DEFAULTS = { gear = true, talents = true, location = true, gold = false }
 ns.SHARE_CATEGORIES = CATEGORIES
 
 -- This session only.
@@ -65,9 +65,19 @@ function ns.allowedFor(s, contact)
   return out
 end
 
--- One of your characters goes to friends: its own choice, else the one for new characters.
+-- Removed on the app's Characters page (Settings.lua removed = { [guid] = when }) and not played since.
+local function removedInApp(guid)
+  local removed = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.removed
+  local at = removed and removed[guid]
+  if not at then return false end
+  local char = WoWCharacterTrackerDB and WoWCharacterTrackerDB.chars and WoWCharacterTrackerDB.chars[guid]
+  return not char or (char.lastSeen or 0) <= at
+end
+
+-- One of your characters goes to friends: its own choice, else the one for new characters. Never
+-- one removed in the app.
 function ns.isCharShared(s, guid)
-  if not guid then return false end
+  if not guid or removedInApp(guid) then return false end
   local v = s.chars[guid]
   if v == nil then return s.newChars ~= false end
   return v == true
@@ -426,8 +436,8 @@ local HELP = {
   "/wct friends on or off turns sharing with Battle.net friends on or off.",
   "/wct friends ask <BattleTag> asks a friend for their characters.",
   "/wct friends share <BattleTag> shares your characters with them.",
-  "/wct friends set all <gear|talents|location|gold> <on|off> changes what friends get. Gold is off until you turn it on.",
-  "/wct friends set <BattleTag> <gear|talents|location|gold> <on|off|default> changes it for one friend.",
+  "/wct friends set all gear/talents/location/gold on/off changes what friends get. Gold is off until you turn it on.",
+  "/wct friends set <BattleTag> gear/talents/location/gold on/off/default changes it for one friend.",
   "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",
   "/wct friends hide or unhide keeps this character from friends, or shares it again.",
   "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",

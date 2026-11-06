@@ -53,7 +53,8 @@ static class SavedVariables
             ask.Type == DataType.Table ? On(ask) : null,
             Flag("flightReload"), Flag("chatReminder"),
             t.Get("gridCorner").Type == DataType.String ? t.Get("gridCorner").String : null,
-            Flag("gridLabel"), Flag("keepAllHistory"));
+            Flag("gridLabel"), Flag("keepAllHistory"),
+            t.Get("askSeconds").CastToNumber() is double seconds ? (int)seconds : null);
     }
 
     // notes[guid] = { text, at }: notes edited in game. The game keeps "|" as "||".
