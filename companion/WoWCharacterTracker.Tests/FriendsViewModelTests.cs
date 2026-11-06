@@ -14,6 +14,9 @@ public class FriendsViewModelTests
             ['Player-1-0000000E'] = { guid = 'Player-1-0000000E', char = 'Kalle', realm = 'Firemaw', level = 60, classFile = 'ROGUE', at = 1400 } } } }
         """;
 
+    // Both friends as contacts whose characters you keep.
+    const string KeepBoth = "{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { receive = true }, ['Kalle#3333'] = { receive = true } } }";
+
     sealed class Fixture
     {
         public Config Config { get; } = new();
@@ -22,7 +25,7 @@ public class FriendsViewModelTests
         public FriendsViewModel Vm { get; }
         public TrackerData Data { get; }
 
-        public Fixture(string share = "nil")
+        public Fixture(string share = KeepBoth)
         {
             var script = new Script();
             Data = new TrackerData([], [new Snapshot("Player-1-0000000A", "Deadbeck", "Firemaw", 10, "Warrior", "WARRIOR", "Orc", "Orc", "male", "", "", 10, 0, "", "", "", 5, false, "")])
@@ -96,7 +99,7 @@ public class FriendsViewModelTests
     [Fact]
     public void General_categories_default_like_the_addon()
     {
-        var f = new Fixture();
+        var f = new Fixture("nil");
         Assert.True(f.Vm.ShareGear);
         Assert.False(f.Vm.ShareGold);
         Assert.Null(f.Settings.Share);
@@ -137,6 +140,35 @@ public class FriendsViewModelTests
         var f = new Fixture();
         Assert.Empty(f.Data.Friends.Single(c => c.Tag == "Kalle#3333").Inventories);
         Assert.False(f.Vm.Characters.Single(c => c.Name == "Kalle").ShowsGold);
+    }
+
+    // A sync while you type a nickname mustn't replace the row (and the text box) under you.
+    [Fact]
+    public void A_sync_keeps_the_sharing_rows_when_the_friends_are_the_same()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { share = true, receive = true }, ['Kalle#3333'] = { receive = true } } }");
+        var zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        f.Vm.Show(f.Data);
+        Assert.Same(zeb, f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222"));
+    }
+
+    [Fact]
+    public void A_sync_keeps_the_open_friends_tab()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { receive = true }, ['Kalle#3333'] = { receive = true } } }");
+        f.Vm.SelectedCharacter = f.Vm.Characters.Single(c => c.Name == "Zeb");
+        f.Vm.SelectedCharacter.DetailTab = "gear";
+        f.Vm.Show(f.Data);
+        Assert.Equal("Zeb", f.Vm.SelectedCharacter?.Name);
+        Assert.Equal("gear", f.Vm.SelectedCharacter!.DetailTab);
+    }
+
+    [Fact]
+    public void What_you_no_longer_keep_or_blocked_is_not_shown()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { receive = false } }, blocked = { ['Kalle#3333'] = true } }");
+        Assert.Empty(f.Vm.Characters);
+        Assert.False(f.Vm.ContactRows.Single(c => c.Tag == "Kalle#3333").Receive); // not a contact: nothing kept
     }
 
     [Fact]

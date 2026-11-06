@@ -57,8 +57,10 @@ sealed class FriendsViewModel : Observable
     {
         this.data = data;
         var keep = SelectedCharacter?.Guid;
+        var keepTab = SelectedCharacter?.DetailTab; // the list refreshes on every sync
         var rows = new List<CharacterRow>();
-        foreach (var contact in data.Friends)
+        // Only friends whose characters you keep: unticking "Keep theirs" or blocking them hides what came before.
+        foreach (var contact in data.Friends.Where(c => ContactFor(c.Tag).Receive && !Share.Blocked.Contains(c.Tag)))
             foreach (var row in CharacterRow.Build(new TrackerData([], contact.Characters) { Inventories = contact.Inventories }, flavor, lookup))
             {
                 row.IsFriend = true;
@@ -68,6 +70,7 @@ sealed class FriendsViewModel : Observable
         allRows = rows;
         ShowRows();
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
+        if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab;
         BuildContactRows();
         BuildOwnCharacters();
         RaiseSharing();
@@ -149,12 +152,18 @@ sealed class FriendsViewModel : Observable
     // Everyone in the sharing settings or who shared something, one row each.
     public ObservableCollection<FriendContactRow> ContactRows { get; } = [];
 
+    // The same friends as before keep their rows (a sync mustn't replace the nickname box you're typing in); only their values refresh.
     void BuildContactRows()
     {
+        var tags = Share.Contacts.Keys.Union(data.Friends.Select(f => f.Tag)).Order(StringComparer.CurrentCultureIgnoreCase).ToList();
+        FriendContact? Got(string tag) => data.Friends.FirstOrDefault(f => f.Tag == tag);
+        if (tags.SequenceEqual(ContactRows.Select(r => r.Tag)))
+        {
+            foreach (var row in ContactRows) row.Refresh(Got(row.Tag));
+            return;
+        }
         ContactRows.Clear();
-        var tags = Share.Contacts.Keys.Union(data.Friends.Select(f => f.Tag)).Order(StringComparer.CurrentCultureIgnoreCase);
-        foreach (var tag in tags)
-            ContactRows.Add(new FriendContactRow(tag, data.Friends.FirstOrDefault(f => f.Tag == tag), this));
+        foreach (var tag in tags) ContactRows.Add(new FriendContactRow(tag, Got(tag), this));
     }
 
     internal bool General(string category) => category switch
@@ -165,9 +174,10 @@ sealed class FriendsViewModel : Observable
         _ => Share.Defaults.Gold,
     };
 
-    internal ShareContact ContactFor(string tag) => Share.Contacts.TryGetValue(tag, out var c) ? c : new(false, true);
+    // Not a contact: nothing shared, nothing kept (as the addon sees it).
+    internal ShareContact ContactFor(string tag) => Share.Contacts.TryGetValue(tag, out var c) ? c : new(false, false);
     internal void EditContact(string tag, Func<ShareContact, ShareContact> edit) =>
-        Edit(s => s with { Contacts = new(s.Contacts) { [tag] = edit(s.Contacts.TryGetValue(tag, out var c) ? c : new(false, true)) } });
+        Edit(s => s with { Contacts = new(s.Contacts) { [tag] = edit(s.Contacts.TryGetValue(tag, out var c) ? c : new(false, false)) } });
 
     internal string NicknameOf(string tag) => config.FriendNicknames.GetValueOrDefault(tag, "");
     internal void SetNickname(string tag, string name)
@@ -198,6 +208,13 @@ sealed class FriendsViewModel : Observable
 sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel owner) : Observable
 {
     public string Tag { get; } = tag;
+
+    // New data for the same friend: every value is read again.
+    public void Refresh(FriendContact? fresh)
+    {
+        got = fresh;
+        Raise("");
+    }
     public string Nickname { get => owner.NicknameOf(Tag); set { owner.SetNickname(Tag, value); Raise(nameof(Nickname)); } }
     public bool NeedsUpdate => got is { Protocol: > 0 } && got.Protocol != 1;
     public string VersionText => NeedsUpdate ? "One of you needs to update the addon" : got?.Version is { Length: > 0 } v ? $"Addon {v}" : "";

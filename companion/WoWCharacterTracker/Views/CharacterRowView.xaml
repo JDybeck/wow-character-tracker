@@ -53,6 +53,11 @@
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
                       </Border>
+                      <!-- A friend's character (Friends page): whose it is. -->
+                      <DockPanel Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE716;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
+                        <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding FriendName}" Foreground="{StaticResource Dim}" FontSize="12"/>
+                      </DockPanel>
                     </WrapPanel>
                   </StackPanel>
                 </DockPanel>

@@ -121,6 +121,8 @@
       <!-- Sharing settings -->
       <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="{Binding ShowSettings, Converter={StaticResource Visible}}">
         <StackPanel Margin="35,10,35,20">
+          <TextBlock FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                     Text="These are the same settings as in game. Changes here reach the game on your next /reload. If you also change something in game before that, the newest change wins as a whole."/>
           <TextBlock Style="{StaticResource FactLabel}" Text="SHARING"/>
           <WrapPanel>
             <CheckBox Style="{StaticResource OptionChip}" Content="Share with friends" IsChecked="{Binding Enabled}" Margin="0,0,6,6"
