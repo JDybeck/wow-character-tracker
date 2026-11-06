@@ -40,6 +40,7 @@ sealed class FriendsViewModel : Observable
     }
     public bool HasFriends => allRows.Count > 0;
     public int HiddenCount => allRows.Count(r => config.HiddenFriendCharacters.Contains(r.Guid));
+    public bool HasHidden => HiddenCount > 0;
     public string HiddenText => $"{Format.Count(HiddenCount, "hidden character")}, {(ShowHidden ? "hide them" : "show them")}";
 
     bool showHidden;
@@ -74,7 +75,11 @@ sealed class FriendsViewModel : Observable
 
     void ShowRows()
     {
-        foreach (var r in allRows) r.FriendName = NameOf(r.FriendTag);
+        foreach (var r in allRows)
+        {
+            r.FriendName = NameOf(r.FriendTag);
+            r.IsHiddenFriend = config.HiddenFriendCharacters.Contains(r.Guid);
+        }
         Contacts.Fill(allRows, r => r.FriendTag, NameOf);
         Characters.Clear();
         foreach (var r in allRows.Where(r => Contacts.Matches(r.FriendTag) && (ShowHidden || !config.HiddenFriendCharacters.Contains(r.Guid)))
@@ -85,6 +90,7 @@ sealed class FriendsViewModel : Observable
         }
         Raise(nameof(HasFriends));
         Raise(nameof(HiddenCount));
+        Raise(nameof(HasHidden));
         Raise(nameof(HiddenText));
     }
 
@@ -105,6 +111,12 @@ sealed class FriendsViewModel : Observable
     }
 
     // --- sharing settings ---
+
+    // The sharing settings panel open instead of the list.
+    bool showSettings;
+    public bool ShowSettings { get => showSettings; set => Set(ref showSettings, value); }
+    public ICommand ToggleSettingsCommand => toggleSettings ??= new RelayCommand(_ => ShowSettings = !ShowSettings);
+    ICommand? toggleSettings;
 
     ShareSettings Share => settings().Share ?? ShareSettings.Empty;
 
@@ -144,6 +156,14 @@ sealed class FriendsViewModel : Observable
         foreach (var tag in tags)
             ContactRows.Add(new FriendContactRow(tag, data.Friends.FirstOrDefault(f => f.Tag == tag), this));
     }
+
+    internal bool General(string category) => category switch
+    {
+        "gear" => Share.Defaults.Gear,
+        "talents" => Share.Defaults.Talents,
+        "location" => Share.Defaults.Location,
+        _ => Share.Defaults.Gold,
+    };
 
     internal ShareContact ContactFor(string tag) => Share.Contacts.TryGetValue(tag, out var c) ? c : new(false, true);
     internal void EditContact(string tag, Func<ShareContact, ShareContact> edit) =>
@@ -191,7 +211,33 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
     public bool? Talents { get => C.Talents; set => owner.EditContact(Tag, c => c with { Talents = value }); }
     public bool? Location { get => C.Location; set => owner.EditContact(Tag, c => c with { Location = value }); }
     public bool? Gold { get => C.Gold; set => owner.EditContact(Tag, c => c with { Gold = value }); }
+
+    // A chip per category that cycles: like all friends, on, off (a checkbox's third state looks unticked).
+    static readonly (string Key, string Name)[] Names = [("gear", "Gear"), ("talents", "Talents"), ("location", "Location"), ("gold", "Gold")];
+    bool? Own(string key) => key switch { "gear" => Gear, "talents" => Talents, "location" => Location, _ => Gold };
+    public IReadOnlyList<CategoryChip> Categories => [.. Names.Select(n => Own(n.Key) switch
+    {
+        null => new CategoryChip(n.Key, $"{n.Name}: like all friends ({(owner.General(n.Key) ? "on" : "off")})", "all"),
+        true => new CategoryChip(n.Key, $"{n.Name}: on", "on"),
+        false => new CategoryChip(n.Key, $"{n.Name}: off", "off"),
+    })];
+    public ICommand CycleCommand => cycle ??= new RelayCommand(p =>
+    {
+        if (p is not string key) return;
+        bool? next = Own(key) switch { null => true, true => false, false => null };
+        switch (key)
+        {
+            case "gear": Gear = next; break;
+            case "talents": Talents = next; break;
+            case "location": Location = next; break;
+            default: Gold = next; break;
+        }
+    });
+    ICommand? cycle;
 }
+
+// One category chip of a friend: State is "all" (follows what all friends get), "on" or "off".
+sealed record CategoryChip(string Key, string Text, string State);
 
 // One of your characters in the sharing settings.
 sealed class OwnCharacterShare(string guid, string name, bool shared, FriendsViewModel owner) : Observable

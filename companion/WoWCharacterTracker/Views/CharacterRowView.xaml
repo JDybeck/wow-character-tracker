@@ -1,0 +1,93 @@
+<!-- One character's row header (portrait, name, class, level, item level, gold, last seen), for the
+     Characters and Friends pages. Clicking the open row closes it. DataContext: a CharacterRow. -->
+<UserControl x:Class="WoWCharacterTracker.Views.CharacterRowView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             PreviewMouseLeftButtonDown="Row_MouseDown">
+              <Grid>
+              <!-- Faction edge: a short bar inside the frame's left side, clear of its rounded corners. -->
+              <Rectangle Width="3" Margin="0,14" RadiusX="1.5" RadiusY="1.5" HorizontalAlignment="Left" Fill="{Binding FactionBrush}"
+                         ToolTip="{Binding Faction}" Visibility="{Binding HasFaction, Converter={StaticResource Visible}}"/>
+              <Grid Margin="24,12" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="{StaticResource ColClass}"/>
+                  <ColumnDefinition Width="{StaticResource ColLevel}"/>
+                  <ColumnDefinition Width="{StaticResource ColIlvl}"/>
+                  <ColumnDefinition Width="{StaticResource ColGold}"/>
+                  <ColumnDefinition Width="{StaticResource ColSeen}"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Portrait, then the name (trimmed when long) over realm and tag. -->
+                <DockPanel>
+                  <Grid DockPanel.Dock="Left" Width="42" Height="42" Margin="0,0,12,0">
+                    <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
+                    <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="17" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Image Source="{Binding PictureUrl, Converter={StaticResource WebImage}}" Stretch="UniformToFill">
+                      <Image.Clip>
+                        <EllipseGeometry Center="21,21" RadiusX="21" RadiusY="21"/>
+                      </Image.Clip>
+                    </Image>
+                    <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5" Opacity="0.7"/>
+                    <!-- The faction crest as a small badge on the portrait's lower right, ringed in the row color. -->
+                    <Grid Width="18" Height="18" Margin="0,0,-5,-3" HorizontalAlignment="Right" VerticalAlignment="Bottom" ToolTip="{Binding Faction}"
+                          Visibility="{Binding FactionCrestUrl, Converter={StaticResource VisibleIfSet}}">
+                      <Image Source="{Binding FactionCrestUrl, Converter={StaticResource WebImage}}" RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Clip>
+                          <EllipseGeometry Center="9,9" RadiusX="9" RadiusY="9"/>
+                        </Image.Clip>
+                      </Image>
+                      <Ellipse Stroke="{DynamicResource RowBg}" StrokeThickness="1.5" Margin="-0.75"/>
+                    </Grid>
+                  </Grid>
+                  <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
+                    <!-- On a narrow window the tag wraps under the realm, and the realm trims when even alone it doesn't fit. -->
+                    <WrapPanel Margin="0,2,0,0">
+                      <DockPanel Margin="0,0,8,0">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
+                        <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding RealmText}" Foreground="{StaticResource Dim}" FontSize="12"/>
+                      </DockPanel>
+                      <Border x:Name="TagBox" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
+                              Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
+                        <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
+                      </Border>
+                    </WrapPanel>
+                  </StackPanel>
+                </DockPanel>
+
+                <!-- DockPanel, not a horizontal StackPanel: it keeps the texts inside the column (long ones trim) instead of running into the level. -->
+                <DockPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,6,0">
+                  <Border Width="22" Height="22" CornerRadius="4" ClipToBounds="True" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding SpecIconTip}"
+                          Visibility="{Binding SpecIconUrl, Converter={StaticResource VisibleIfSet}}">
+                    <Image Source="{Binding SpecIconUrl, Converter={StaticResource WebImage}}" RenderOptions.BitmapScalingMode="HighQuality"/>
+                  </Border>
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ClassName}" Foreground="{Binding ClassBrush}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Spec}" Foreground="{StaticResource Dim}" FontSize="11" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding Spec, Converter={StaticResource VisibleIfSet}}"/>
+                  </StackPanel>
+                </DockPanel>
+
+                <Border Grid.Column="2" Style="{StaticResource Pill}">
+                  <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+                </Border>
+
+                <Border Grid.Column="3" Style="{StaticResource Pill}" Background="#4D1E3A8A" BorderBrush="#801D4ED8">
+                  <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{DynamicResource BlueText}"/>
+                </Border>
+
+                <Grid Grid.Column="4" VerticalAlignment="Center" ToolTip="{Binding MoneyText}">
+                  <ItemsControl ItemsSource="{Binding ShortCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}"
+                                Visibility="{Binding HasMoney, Converter={StaticResource Visible}}"/>
+                  <TextBlock Text="-" Foreground="{StaticResource Dim}" Visibility="{Binding HasMoney, Converter={StaticResource Hidden}}"/>
+                </Grid>
+                <StackPanel Grid.Column="5" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13"/>
+                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0"
+                             Visibility="{Binding PlayedLine, Converter={StaticResource VisibleIfSet}}"/>
+                </StackPanel>
+              </Grid>
+              </Grid>
+</UserControl>

@@ -28,14 +28,18 @@ static partial class FriendData
             var version = t.Get("version").Type == DataType.String && VersionText().IsMatch(t.Get("version").String) ? t.Get("version").String : "";
             var chars = ReadCharacters(t.Get("chars"));
             list.Add(new FriendContact(p.Key.String, (long)Number(t.Get("seen")), version, (int)Number(t.Get("protocol")),
-                Number(t.Get("refused")) > 0, [.. chars.Select(c => c.Snapshot)], [.. chars.Select(c => c.Inventory)]));
+                Number(t.Get("refused")) > 0, [.. chars.Select(c => c.Snapshot)], [.. chars.Select(c => c.Inventory).OfType<Inventory>()]));
         }
         return list;
     }
 
-    static List<(Snapshot Snapshot, Inventory Inventory)> ReadCharacters(DynValue chars)
+    // Several WoW accounts on one PC, each with its own saved friends: per friend, the newest news wins.
+    public static List<FriendContact> Merge(IEnumerable<List<FriendContact>> perAccount) =>
+        [.. perAccount.SelectMany(f => f).GroupBy(f => f.Tag).Select(g => g.MaxBy(f => f.Seen)!)];
+
+    static List<(Snapshot Snapshot, Inventory? Inventory)> ReadCharacters(DynValue chars)
     {
-        var list = new List<(Snapshot, Inventory)>();
+        var list = new List<(Snapshot, Inventory?)>();
         if (chars.Type != DataType.Table) return list;
         foreach (var p in chars.Table.Pairs)
         {
@@ -49,7 +53,8 @@ static partial class FriendData
             var snapshot = new Snapshot(guid, name, S("realm"), (int)N("level"), S("class"), S("classFile"), S("race"), S("raceFile"),
                 Sex: "", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: 0, Zone: S("zone"), Professions: "", Talents: S("talents"),
                 LastSeen: (long)N("at"), Hardcore: false, Ruleset: "", Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction"));
-            var inventory = Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0);
+            // No gear shared: no inventory, so the gear tab says it isn't shared.
+            var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;
             list.Add((snapshot, inventory));
         }
         // At most MaxCharacters: the ones seen longest ago go.

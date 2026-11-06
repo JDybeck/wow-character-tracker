@@ -106,6 +106,40 @@ public class FriendsViewModelTests
     }
 
     [Fact]
+    public void A_category_chip_cycles_from_all_friends_to_on_to_off()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, defaults = { gold = false }, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }");
+        var zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.Equal("Gold: like all friends (off)", zeb.Categories.Single(c => c.Key == "gold").Text);
+        zeb.CycleCommand.Execute("gold");
+        zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.Equal("Gold: on", zeb.Categories.Single(c => c.Key == "gold").Text);
+        zeb.CycleCommand.Execute("gold");
+        zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.False(f.Settings.Share!.Contacts["Zeb#2222"].Gold);
+        zeb.CycleCommand.Execute("gold");
+        Assert.Null(f.Settings.Share.Contacts["Zeb#2222"].Gold);
+    }
+
+    [Fact]
+    public void Hidden_rows_know_they_are_hidden()
+    {
+        var f = new Fixture();
+        f.Vm.HideCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zeb"));
+        f.Vm.ShowHidden = true;
+        Assert.True(f.Vm.Characters.Single(c => c.Name == "Zeb").IsHiddenFriend);
+        Assert.False(f.Vm.Characters.Single(c => c.Name == "Kalle").IsHiddenFriend);
+    }
+
+    [Fact]
+    public void A_friend_who_shares_no_gear_has_no_inventory()
+    {
+        var f = new Fixture();
+        Assert.Empty(f.Data.Friends.Single(c => c.Tag == "Kalle#3333").Inventories);
+        Assert.False(f.Vm.Characters.Single(c => c.Name == "Kalle").ShowsGold);
+    }
+
+    [Fact]
     public void A_friend_with_another_protocol_says_needs_update()
     {
         var f = new Fixture();

@@ -148,6 +148,17 @@ public class FriendDataTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
+    // Two WoW accounts on one PC each keep their own friends list: the newest news per friend wins.
+    [Fact]
+    public void Friends_from_several_accounts_merge_with_the_newest_per_friend()
+    {
+        var older = FriendData.ReadFriends(Lua("{ ['Zeb#2222'] = { seen = 100, chars = { a = { guid = 'Player-1-0000000B', char = 'Old' } } } }"));
+        var newer = FriendData.ReadFriends(Lua("{ ['Zeb#2222'] = { seen = 200, chars = { a = { guid = 'Player-1-0000000B', char = 'New' } } }, ['Kalle#3333'] = { seen = 50 } }"));
+        var merged = FriendData.Merge([older, newer]);
+        Assert.Equal(["Kalle#3333", "Zeb#2222"], merged.Select(f => f.Tag).Order());
+        Assert.Equal("New", merged.Single(f => f.Tag == "Zeb#2222").Characters.Single().Char);
+    }
+
     [Fact]
     public void Share_settings_are_read_with_defaults_for_what_is_missing()
     {

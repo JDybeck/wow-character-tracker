@@ -32,6 +32,9 @@ sealed class CharacterRow : Observable
     public bool IsOwn => !IsFriend;
     public string FriendTag { get; set; } = "";
     public string FriendName { get; set; } = ""; // nickname, else the BattleTag
+    bool isHiddenFriend;
+    public bool IsHiddenFriend { get => isHiddenFriend; set => Set(ref isHiddenFriend, value); } // hidden on the Friends page, shown anyway
+    public bool ShowsGold => IsOwn || HasMoney; // a friend who doesn't share gold has none to show
     public string Guild { get; init; } = "";
     public bool HasGuild => Guild.Length > 0;
     public string Surname { get; init; } = "";
