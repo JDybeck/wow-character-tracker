@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.33.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Share with Battle.net friends** (in game, new): friends with the addon can see the characters you share, with gear and talents, and location and gold if you allow it, for all friends or one at a time. Off until you turn it on. `/wct friends help` in game. The app's Friends page comes next.
+
 ## v0.32.0
 
 Ready for Forever's launch. Update the addon with the app (it does this by itself) and /reload in game.
