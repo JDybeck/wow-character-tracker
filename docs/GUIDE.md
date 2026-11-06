@@ -98,7 +98,7 @@ The **In game** page has what the addon does in game besides posting to Discord:
 - **Saved history**: every level-up, boss kill, mount and death is always kept. Loot, duels, battlegrounds and Mythic+ runs pile up fast, so by default the addon keeps the newest 300 of each per character, which keeps `/reload`, logout and the app quick. Tick **Keep all history** to never trim anything (duel and battleground records then count every fight since the start).
 - **Advanced combat logging**: turns on the game's own Advanced Combat Logging setting (more detail in the combat log file, for log tools), set by the addon at your next login or `/reload`. Unticking turns it off again.
 - **Character notes in game**: `/wct note` shows this character's note in a box on screen, the same note as the app's Notes tab. Click **Edit** in the box to change it right there. The newest edit wins: the game takes the app's changes on `/reload`, and the app takes the game's when you `/reload` or log out. Drag the box where you want it, then **Lock** it (`/wct note lock`) so your clicks go through to the game. `/wct note unlock` moves it again, and `/wct note reset` puts it back in the middle of the screen. Its buttons only show while your mouse is over the box, unless you turn that off.
-- **Addon options**: Esc, Options, AddOns, WoW Character Tracker (or `/wct options`). Show, lock or reset the note box, set how see-through its background is, and turn instant posting and the reload popup on or off. Everything on the app's In game page except Advanced combat logging can be changed there too and applies right away. It reaches the app on your next `/reload` or logout, and the newest change wins, like notes. What gets posted to Discord and screenshots stay in the app, and are listed there read-only.
+- **The addon window**: `/wct`, or click the WCT button on the minimap (drag it around the edge to move it; the General tab can hide it). Every in-game option is there, in tabs: **General** (instant posting, reload popups and reminders, the instant post pattern, saved history, the minimap button), **Chat** (telling your guild or group), **Highlights** (asking before a highlight goes unposted), **Note** (the note box), **Friends** and **Sharing** (sharing with Battle.net friends), and **App** (what the app set, read-only). Esc closes it, and it opens in combat too. Everything on the app's In game page except Advanced combat logging can be changed there and applies right away; it reaches the app on your next `/reload` or logout, and the newest change wins, like notes. What gets posted to Discord and screenshots stay in the app. Esc, Options, AddOns, WoW Character Tracker has a button that opens the window.
 - **The addon without the app**: guild and group lines, deaths named and the options page all work with the addon alone. Discord, screenshots and the character overview need the app.
 
 ### Sharing with Battle.net friends (new)
@@ -204,7 +204,7 @@ Treat the link like a password: anyone with it can post in that channel. The app
 
 ## In-game commands
 
-- `/wct` shows your last 10 level times for the character you're on.
+- `/wct` opens the addon window. `/wct times` shows your last 10 level times for the character you're on.
 - `/wct test` checks that instant posting reaches the app.
 - `/wct live` turns instant posting on or off.
 - `/wct help` lists these in game.
