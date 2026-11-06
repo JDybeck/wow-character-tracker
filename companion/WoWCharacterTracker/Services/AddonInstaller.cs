@@ -52,6 +52,11 @@ static partial class AddonInstaller
         var bundled = asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix)).Select(n => n[Prefix.Length..]).ToList();
         foreach (var fileName in bundled)
         {
+            if (!IsText(fileName))
+            {
+                Files.WriteAtomic(Path.Combine(target, fileName), ReadBundledBytes(fileName)); // pictures, as they are
+                continue;
+            }
             var content = ReadBundled(fileName);
             if (fileName.EndsWith(".toc") && interfaceVersion is int v)
                 content = InterfaceLine().Replace(content, $"## Interface: {v}", 1);
@@ -172,12 +177,26 @@ static partial class AddonInstaller
         Files.WriteAtomic(toc, InterfaceLine().Replace(text, $"## Interface: {interfaceVersion}", 1));
     }
 
+    static readonly string[] TextExtensions = [".lua", ".toc", ".xml", ".md", ".txt"];
+
+    static bool IsText(string fileName) => TextExtensions.Contains(Path.GetExtension(fileName), StringComparer.OrdinalIgnoreCase);
+
+    static Stream OpenBundled(string fileName) =>
+        Assembly.GetExecutingAssembly().GetManifestResourceStream(Prefix + fileName)
+        ?? throw new InvalidOperationException($"Bundled addon file {fileName} is missing.");
+
     static string ReadBundled(string fileName)
     {
-        using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream(Prefix + fileName)
-                      ?? throw new InvalidOperationException($"Bundled addon file {fileName} is missing.");
-        using var r = new StreamReader(s);
+        using var r = new StreamReader(OpenBundled(fileName));
         return r.ReadToEnd();
+    }
+
+    static byte[] ReadBundledBytes(string fileName)
+    {
+        using var s = OpenBundled(fileName);
+        using var bytes = new MemoryStream();
+        s.CopyTo(bytes);
+        return bytes.ToArray();
     }
 
     static string? ReadVersion(string toc)
