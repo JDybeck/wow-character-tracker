@@ -88,6 +88,81 @@ public class FriendsLuaTests
         Assert.Equal(2, c.Lua("return shown[2].data.n").Number);
     }
 
+    static readonly string[] DataFiles = ["Shared.lua", "FriendData.lua"];
+
+    const string Deadbeck = "{ char = 'Deadbeck', realm = 'Firemaw', level = 42, class = 'Warrior', classFile = 'WARRIOR', race = 'Orc', raceFile = 'Orc', faction = 'Horde', ilvl = 38, spec = 'Arms', zone = 'Stranglethorn Vale', money = 123456, talents = 'a;b\\\\c', guild = 'Secret', lastSeen = 900 }";
+
+    [Fact]
+    public void A_character_goes_as_one_line_with_only_the_allowed_categories_and_comes_back_whole()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        c.Lua($$"""
+            char = {{Deadbeck}}
+            items = { gear = '1~19019,16~12345', enchants = '16~12345~Crusader~1900\n5~3000~+4 Stats~1891' }
+            text = ns.encodeFriendChar('Player-1-0000000A', char, items, { gear = true, talents = true })
+            back = ns.decodeFriendChar(text)
+            """);
+        Assert.DoesNotContain("\n", Str(c, "text"));
+        Assert.Equal("Player-1-0000000A", Str(c, "back.guid"));
+        Assert.Equal("Deadbeck", Str(c, "back.char"));
+        Assert.Equal(42, c.Lua("return back.level").Number);
+        Assert.Equal(900, c.Lua("return back.at").Number);
+        Assert.Equal("a;b\\c", Str(c, "back.talents"));
+        Assert.Equal("1~19019,16~12345", Str(c, "back.gear"));
+        Assert.Equal("16~12345~Crusader~1900\n5~3000~+4 Stats~1891", Str(c, "back.enchants"));
+        Assert.True(c.Lua("return back.zone").IsNil());  // location not allowed
+        Assert.True(c.Lua("return back.money").IsNil()); // gold not allowed
+        Assert.True(c.Lua("return back.guild").IsNil()); // never sent
+    }
+
+    [Fact]
+    public void What_a_friend_sends_is_cleaned_field_by_field()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        c.Lua("""
+            back = ns.decodeFriendChar('guid=Player-1-0000000B;char=Ze|cffff0000b|r;level=abc;ilvl=1e999;spec=' .. string.rep('x', 100)
+              .. ';evil=1;zone=Elwynn\\nForest;enchants=1~2~A\\n3~4~B')
+            """);
+        Assert.Equal("Zecffff0000br", Str(c, "back.char")); // no | escapes
+        Assert.True(c.Lua("return back.level").IsNil());    // not a number
+        Assert.True(c.Lua("return back.ilvl").IsNil());     // not a finite number
+        Assert.Equal(32, c.Lua("return #back.spec").Number);
+        Assert.True(c.Lua("return back.evil").IsNil());
+        Assert.Equal("ElwynnForest", Str(c, "back.zone"));  // line breaks only in enchants
+        Assert.Equal("1~2~A\n3~4~B", Str(c, "back.enchants"));
+    }
+
+    [Theory]
+    [InlineData("char=Zeb")]                  // no guid
+    [InlineData("guid=Creature-0-1;char=Zeb")] // not a player
+    [InlineData("guid=Player-1-0000000B")]     // no name
+    public void Text_that_isnt_a_character_is_dropped(string text)
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        Assert.True(c.Lua($"return ns.decodeFriendChar('{text}')").IsNil());
+    }
+
+    [Fact]
+    public void Text_over_8_kb_is_dropped()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        Assert.True(c.Lua("return ns.decodeFriendChar('guid=Player-1-0000000B;char=Zeb;talents=' .. string.rep('x', 8200))").IsNil());
+    }
+
+    [Fact]
+    public void The_change_key_ignores_when_the_snapshot_was_taken()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        c.Lua($$"""
+            char = {{Deadbeck}}
+            t1, k1 = ns.encodeFriendChar('Player-1-0000000A', char, nil, {})
+            char.lastSeen = 1900
+            t2, k2 = ns.encodeFriendChar('Player-1-0000000A', char, nil, {})
+            """);
+        Assert.NotEqual(Str(c, "t1"), Str(c, "t2"));
+        Assert.Equal(Str(c, "k1"), Str(c, "k2"));
+    }
+
     [Fact]
     public void A_copy_is_deep_and_separate()
     {
