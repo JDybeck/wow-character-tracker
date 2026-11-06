@@ -195,20 +195,28 @@ local function keep(tag, char)
   for i = MAX_CHARS + 1, #guids do e.chars[guids[i]] = nil end
 end
 
+-- Their addon's version, kept only when it looks like one ("0.33.0").
 local function noteVersion(f, contact, body)
   if not contact.receive then return end
   local e = friendEntry(f.tag)
-  e.version, e.protocol, e.seen = body, nil, time()
+  e.protocol, e.seen = nil, time()
+  if type(body) == "string" and #body <= 16 and body:match("^[%w%.%-]+$") then e.version = body end
 end
 
 local on = {}
+local answeredHi = {} -- [account] = when we last answered their hello
 
--- A contact came online (or reloaded): answer, and send them the character being played.
+-- A contact came online (or reloaded): answer, and send them the character being played. At most
+-- once per GROUP_EVERY, so a contact saying hello over and over can't flood us (or Battle.net).
 function on.HI(f, contact, body)
   heard[f.account] = true
   noteVersion(f, contact, body)
+  local now = time()
+  if answeredHi[f.account] and now - answeredHi[f.account] < GROUP_EVERY then return end
+  answeredHi[f.account] = now
   ns.comms.send(f.account, "HEY", version())
-  if contact.share then sendCurrent(f, contact, false, true) end
+  local last = lastSent[f.account]
+  if contact.share and not (last and now - last.at < GROUP_EVERY) then sendCurrent(f, contact, false, true) end
 end
 
 -- The answer to our hello (never answered back, so no ping-pong).
@@ -306,6 +314,7 @@ end
 -- Makes tag a contact whose characters we keep, and shares ours with them too when share is true
 -- (what they get follows the general choice until set for them). Turns sharing with friends on.
 local function addContact(tag, share)
+  if not ns.shareSettings().enabled then ns.say("Sharing with friends is now on (/wct friends off turns it off).") end
   ns.editShare(function(s)
     s.enabled = true
     local c = s.contacts[tag] or {}
@@ -343,13 +352,25 @@ function ns.showNextFriendRequest()
   if showing or #waitingRequests == 0 then return end
   if InCombatLockdown and InCombatLockdown() then return end
   showing = table.remove(waitingRequests, 1)
-  ns.popup("CHARACTERTRACKER_FRIEND_REQUEST", {
+  local dialog = ns.popup("CHARACTERTRACKER_FRIEND_REQUEST", {
     text = "%s wants to see your characters (Character Tracker).",
     button1 = "Allow", button2 = "Not now", button3 = "Never",
     OnAccept = function(_, data) ns.answerFriendRequest(data, "allow") end,
     OnCancel = function(_, data) ns.answerFriendRequest(data, "notnow") end,
     OnAlt = function(_, data) ns.answerFriendRequest(data, "never") end,
+    -- Closed without an answer (another popup took its place): the next one may show.
+    OnHide = function(_, data)
+      if showing == data then
+        showing = nil
+        ns.showNextFriendRequest()
+      end
+    end,
   }, label(showing.tag), showing)
+  if not dialog then -- the game had no room for it: try again in a moment
+    table.insert(waitingRequests, 1, showing)
+    showing = nil
+    C_Timer.After(5, ns.showNextFriendRequest)
+  end
 end
 
 -- Allow shares with them, Not now waits for the next session, Never blocks them and tells their

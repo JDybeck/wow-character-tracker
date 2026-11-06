@@ -65,6 +65,7 @@ local function saveDebug()
   add("UnitName: " .. dump(UnitName("player")) .. ", surnames: " .. tostring(ns.HAS_SURNAMES))
   add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
   add("hardcore: " .. dump(ns.isHardcore()))
+  add("comms error: " .. tostring(ns.lastCommsError)) -- the last friend message our code couldn't handle
 
   WoWCharacterTrackerDB.debug = out
   for _, s in ipairs(out) do if #s < 250 then ns.say(s) end end

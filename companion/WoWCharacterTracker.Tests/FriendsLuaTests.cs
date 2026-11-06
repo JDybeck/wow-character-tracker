@@ -650,6 +650,107 @@ public class FriendsLuaTests
         Assert.Equal(" ask Zeb#2222", Str(c, "got"));
     }
 
+    // Review fixes ---------------------------------------------------------------------------
+
+    [Fact]
+    public void Debug_saves_the_last_comms_error()
+    {
+        var c = new Client(A, "{}", files: ["Shared.lua"]);
+        c.Lua("""
+            SlashCmdList = {}
+            WoWCharacterTrackerDB = {}
+            function GetBuildInfo() return '1.60.1' end
+            function UnitLevel() return 10 end
+            function UnitName() return 'Deadbeck' end
+            function IsInGuild() return false end
+            function GetGuildInfo() return nil end
+            ns.playedNow = function() return 0 end
+            ns.getTalents = function() return '' end
+            ns.activeTraitTree = function() error('none') end
+            ns.isHardcore = function() return false end
+            ns.lastCommsError = 'boom'
+            """);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Commands.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Lua("SlashCmdList.CHARACTERTRACKER('debug')");
+        Assert.True(c.Lua("for _, l in ipairs(WoWCharacterTrackerDB.debug) do if l:find('comms error: boom', 1, true) then return true end end return false").Boolean);
+    }
+
+    [Fact]
+    public void A_flood_of_hellos_gets_one_answer()
+    {
+        var a = HelloDone();
+        for (var i = 2; i <= 6; i++) a.Receive($"1:HI:{i}:1:1:0.33.0", BAccount);
+        a.Run(5);
+        Assert.True(Count(a, "HEY") <= 1);
+        Assert.Equal(0, Count(a, "DATA")); // sent a moment ago
+    }
+
+    [Fact]
+    public void The_send_queue_has_a_cap()
+    {
+        var c = CommsClient();
+        c.Lua("inCombat = true; for i = 1, 300 do ns.comms.send(2, 'HI', 'x') end");
+        Assert.True(c.Lua("return ns.comms.pending()").Number <= 200);
+    }
+
+    [Fact]
+    public void A_friends_version_text_is_cleaned_and_a_huge_protocol_ignored()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives));
+        b.Receive("1:HI:1:1:1:" + new string('9', 100) + "\u0001", AAccount);
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].version").IsNil());
+        b.Receive("1:HI:2:1:1:0.33.0", AAccount);
+        Assert.Equal("0.33.0", Str(b, "WoWCharacterTrackerDB.friends['Jesper#1111'].version"));
+        b.Receive(new string('9', 400) + ":HI:3:1:1:x", AAccount);
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].protocol").IsNil());
+    }
+
+    [Fact]
+    public void Asking_while_sharing_is_off_says_it_turned_sharing_on()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = false, contacts = { ['Zeb#2222'] = { share = true } }, at = 100 }"));
+        a.Call("friendsCommand", "ask Zeb#2222");
+        Assert.Contains(a.Said(), s => s.Contains("Sharing with friends is now on"));
+    }
+
+    [Fact]
+    public void A_popup_the_game_couldnt_show_doesnt_block_later_requests()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        a.Lua("realShow = StaticPopup_Show; StaticPopup_Show = function() return nil end");
+        a.Receive("1:REQ:1:1:1:", BAccount);
+        a.Lua("StaticPopup_Show = realShow");
+        a.Call("showNextFriendRequest");
+        Assert.Equal(1, a.Lua("return #shown").Number);
+        a.Lua("StaticPopupDialogs.CHARACTERTRACKER_FRIEND_REQUEST.OnHide(nil, shown[1].data)"); // closed without an answer
+        a.Lua("shown = {}");
+        a.Call("offerFriendRequest", a.Lua("return { tag = 'Other#1', account = 9 }"));
+        Assert.Equal(1, a.Lua("return #shown").Number);
+    }
+
+    [Fact]
+    public void Parts_are_never_cut_inside_a_letter()
+    {
+        var c = CommsClient();
+        // MoonSharp strings are UTF-16, so the game's bytes are written out: \195\169 is UTF-8 for é.
+        c.Lua("body = string.rep('a', 239) .. '\\195\\169' .. string.rep('b', 300); ns.comms.send(2, 'DATA', body)");
+        c.Run(5);
+        var first = c.Sent()[0].Get("text").String;
+        Assert.EndsWith(":" + new string('a', 239), first); // é went whole to the next part
+        foreach (var m in c.Sent()) c.Receive(m.Get("text").String, 7);
+        Assert.True(c.Lua("return got[1].body == body").Boolean);
+    }
+
+    [Fact]
+    public void One_friend_cant_take_every_half_message_slot()
+    {
+        var c = CommsClient();
+        for (var id = 1; id <= 8; id++) c.Receive($"1:DATA:{id}:1:2:x", 7);
+        c.Receive("1:DATA:50:1:2:x", 8);
+        c.Receive("1:DATA:50:2:2:y", 8);
+        Assert.Equal("xy", Str(c, "got[1].body"));
+    }
+
     [Fact]
     public void A_copy_is_deep_and_separate()
     {

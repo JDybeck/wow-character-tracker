@@ -12,6 +12,8 @@ comms.PROTOCOL = 1
 comms.CHUNK = 240       -- body bytes per message: raise once the real limit is measured in game
 local MAX_PARTS = 40    -- 40 x 240 is more than FriendData's 8 KB
 local MAX_PARTIAL = 8   -- half messages waiting at once
+local MAX_PER_SENDER = 2 -- of those, from one sender
+local MAX_QUEUE = 200   -- messages waiting to go out
 local PART_TIMEOUT = 30 -- seconds half a message waits for the rest
 local SPACING = 0.25    -- seconds between two sends
 local RETRY = 5         -- while sending isn't allowed
@@ -65,30 +67,54 @@ function comms.flush()
   end)
 end
 
--- Queues kind (HI, HEY, REQ, DATA, NO) with body for one game account. False when it's too long.
+-- body in parts of at most CHUNK bytes, never cut inside a UTF-8 letter.
+local function split(body)
+  local parts, i = {}, 1
+  repeat
+    local j = math.min(i + comms.CHUNK - 1, #body)
+    while j < #body and j > i do
+      local nextByte = body:byte(j + 1)
+      if nextByte < 0x80 or nextByte > 0xBF then break end -- not a continuation byte
+      j = j - 1
+    end
+    parts[#parts + 1] = body:sub(i, j)
+    i = j + 1
+  until i > #body
+  return parts
+end
+
+-- Queues kind (HI, HEY, REQ, DATA, NO) with body for one game account. False when it's too long
+-- or too much is already waiting.
 function comms.send(account, kind, body)
   body = (body or ""):gsub("|", "")
-  local total = math.max(1, math.ceil(#body / comms.CHUNK))
-  if total > MAX_PARTS then return false end
+  local parts = split(body)
+  if #parts > MAX_PARTS or #queue + #parts > MAX_QUEUE then return false end
   nextId = nextId % 9999 + 1
-  for part = 1, total do
-    local chunk = body:sub((part - 1) * comms.CHUNK + 1, part * comms.CHUNK)
+  for part, chunk in ipairs(parts) do
     queue[#queue + 1] = { to = account, tries = 0,
-      text = string.format("%d:%s:%d:%d:%d:%s", comms.PROTOCOL, kind, nextId, part, total, chunk) }
+      text = string.format("%d:%s:%d:%d:%d:%s", comms.PROTOCOL, kind, nextId, part, #parts, chunk) }
   end
   comms.flush()
   return true
 end
 
+-- How many messages wait to go out.
+function comms.pending() return #queue end
+
 local partial = {} -- ["sender:id"] = { parts, got, total, kind, at }
 
--- Drops half messages that waited too long; returns how many still wait.
-local function expire(now)
-  local count = 0
+-- Drops half messages that waited too long; returns how many still wait, and how many of those from sender.
+local function expire(now, sender)
+  local count, fromSender = 0, 0
   for key, p in pairs(partial) do
-    if now - p.at > PART_TIMEOUT then partial[key] = nil else count = count + 1 end
+    if now - p.at > PART_TIMEOUT then
+      partial[key] = nil
+    else
+      count = count + 1
+      if p.sender == sender then fromSender = fromSender + 1 end
+    end
   end
-  return count
+  return count, fromSender
 end
 
 -- A friend's message can't make our code throw: an error is kept for /wct debug and the message dropped.
@@ -101,19 +127,19 @@ end
 -- BN_CHAT_MSG_ADDON.
 function comms.receive(prefix, text, _, senderID)
   if prefix ~= comms.PREFIX or type(text) ~= "string" or not senderID then return end
-  local protocol, kind, id, part, total, chunk = text:match("^(%d+):(%u+):(%d+):(%d+):(%d+):(.*)$")
+  local protocol, kind, id, part, total, chunk = text:match("^(%d%d?%d?):(%u+):(%d%d?%d?%d?):(%d%d?):(%d%d?):(.*)$")
   if not protocol then return end
   if tonumber(protocol) ~= comms.PROTOCOL then return deliver(senderID, "VERSION", protocol) end
   part, total = tonumber(part), tonumber(total)
   if total < 1 or total > MAX_PARTS or part < 1 or part > total then return end
   chunk = chunk:gsub("|", "")
   if total == 1 then return deliver(senderID, kind, chunk) end
-  local waitingNow = expire(GetTime())
+  local waitingNow, fromSender = expire(GetTime(), senderID)
   local key = senderID .. ":" .. id
   local p = partial[key]
   if not p or p.total ~= total or p.kind ~= kind then
-    if waitingNow >= MAX_PARTIAL then return end
-    p = { parts = {}, got = 0, total = total, kind = kind, at = GetTime() }
+    if waitingNow >= MAX_PARTIAL or fromSender >= MAX_PER_SENDER then return end
+    p = { parts = {}, got = 0, total = total, kind = kind, at = GetTime(), sender = senderID }
     partial[key] = p
   end
   if not p.parts[part] then
