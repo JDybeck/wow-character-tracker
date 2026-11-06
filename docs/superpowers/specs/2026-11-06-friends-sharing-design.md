@@ -15,7 +15,8 @@ Out of scope for v1: guild-wide sharing, guild map pins (a later feature on the 
 - **Contact = Battle.net friend, keyed by BattleTag.** Players rarely add character friends now. `bnetAccountID` is believed to change between sessions, so it is never stored (to confirm in game).
 - **Transport = `C_BattleNet.SendGameData(gameAccountID, prefix, data)`, received on `BN_CHAT_MSG_ADDON` (`prefix, text, channel, senderID`).** Checked in wow-ui-source `live` (Retail). Not yet checked on the Forever client.
 - **We only send to friends who are online in the same game**: walking the Battle.net friends list (`GetFriendAccountInfo`, `GetFriendNumGameAccounts`, `GetFriendGameAccountInfo`), the game account has `isOnline`, `clientProgram` WoW and `wowProjectID == WOW_PROJECT_ID`.
-- **Sender identity comes from the game**: `senderID` -> `C_BattleNet.GetGameAccountInfoByID` -> `playerGuid` -> `C_BattleNet.GetAccountInfoByGUID` -> `battleTag`. The game sets it, so it can't be spoofed by the friend's addon.
+- **Sender identity comes from the game**: `senderID` is the sender's game account, matched against our own Battle.net friends list (the same walk as above) to get the `battleTag`. The game sets it, so it can't be spoofed by the friend's addon, and only Battle.net friends can send at all.
+- **Off means off**: with sharing off nothing is sent and nothing received is kept or shown, requests included.
 - **Silent by default**: addon messages never show in chat or in a Battle.net conversation. The addon prints nothing about sharing on its own; the only visible things are the request popup, `/wct friends` output and the Options page. We use `SendGameData`, not the logged variants.
 - **`accountName` is never stored** (can be a Real ID real name). Only the BattleTag, plus the nickname the user gives.
 
@@ -24,8 +25,9 @@ Out of scope for v1: guild-wide sharing, guild map pins (a later feature on the 
 - Sharing is off by default (`share.enabled`).
 - **Sending**: the user adds contacts from their Battle.net list. Each contact has categories: `gear`, `talents`, `location`, `gold`. Defaults: gear and talents on, location and gold off.
 - **Receiving**: the addon only keeps data from contacts with `receive` on. Data from anyone else is dropped without a message.
-- **Requests**: B asks A (`REQ`). If B is not yet a contact of A, A gets a popup: "<B> wants to see your characters" with Allow / Not now / Never. Allow adds B with the default categories (and `receive` on). Not now sends nothing back. Never adds B to `blocked` and replies `NO`, so B's addon stops asking.
-- **Own characters**: each is shared or hidden (`share.hidden`, GUIDs that are never sent). `share.newChars` decides whether a character not seen before is shared (on) or hidden (off).
+- **Requests**: B asks A (`REQ`). Asking makes A a contact on B's side with `receive` on and nothing shared: asking for someone's data never shares your own. If A doesn't share with B yet, A gets a popup: "<B> wants to see your characters" with Allow / Not now / Never. Allow shares the default categories with B (and turns `receive` on). Not now sends nothing back and doesn't ask again this session. Never adds B to `blocked` and replies `NO`, so B's addon stops asking (until B gets data from A again).
+- **Sharing first**: A can also share with B without being asked (`/wct friends share`). B only keeps it once B has A as a contact with `receive` on.
+- **Own characters**: each is shared or hidden (`share.chars[guid] = true/false`). A character with no entry follows `share.newChars` (on: shared).
 - **Receiver side hiding**: the app can hide a contact's characters from the Friends page (`Config.HiddenFriendCharacters`). Local only, nothing is sent back.
 - Removing a contact removes their stored data in the addon and, on the next sync, in the app.
 
@@ -36,35 +38,36 @@ Out of scope for v1: guild-wide sharing, guild map pins (a later feature on the 
   - online elsewhere: at most every 10 minutes
   - only when the payload for that contact changed (last sent string per contact and character), plus a heartbeat every 30 minutes
 - Alts (last-known snapshots from `WoWCharacterTrackerDB.chars`/`items`): only on `REQ`, at most once per session per contact.
-- "Refresh now" sends `REQ` right away, with a 30 s cooldown per contact. In game only (`/wct friends`, a button on the Options page): the app can't send anything, it only writes Settings.lua.
-- Group membership: a party/raid member's GUID through `GetAccountInfoByGUID` tells if they are a contact.
-- Nothing goes out in combat, in an encounter or while `InChatMessagingLockdown()` is true. Those sends wait and go on `PLAYER_REGEN_ENABLED` (same pattern as `flushAnnouncements`).
+- "Refresh now" sends `REQ` right away, with a 30 s cooldown per contact (`/wct friends ask`). In game only: the app can't send anything, it only writes Settings.lua.
+- Group membership: a contact's game account has `playerGuid`, compared with the party/raid members' GUIDs.
+- Nothing goes out in combat, in an encounter (`IsEncounterInProgress`) or while `C_ChatInfo.InChatMessagingLockdown()` is true. Those sends wait (checked again every 5 s while anything is queued).
 
 ## Protocol
 
-Prefix `WCT1` (1 = protocol version), registered with `C_ChatInfo.RegisterAddonMessagePrefix`.
+Prefix `WCTF`, registered with `C_ChatInfo.RegisterAddonMessagePrefix`. The prefix never changes; the protocol version is the first field of every message, so a newer addon can still tell an older one to update.
 
-Every message: `type`, message id, part, total, then the body chunk. Chunk size is one constant, starting at 240 bytes; raise it once the real `SendGameData` limit is measured in game.
+Every message: `protocol:type:id:part:total:chunk`. Chunk size is one constant, starting at 240 bytes; raise it once the real `SendGameData` limit is measured in game. Wire text has no `|` (dropped on send and on arrival).
 
 | Type | Body | When |
 |------|------|------|
-| `HI` | addon version, protocol version | once when a contact is seen online (login, friend comes online) |
-| `REQ` | nothing | "please send your data" (refresh now, first request) |
-| `DATA` | one character snapshot | cadence, or answer to `REQ` |
+| `HI` | addon version | once per session to each online contact's game account |
+| `HEY` | addon version | the answer to `HI` (never answered, so no ping-pong) |
+| `REQ` | nothing | "please send your data" (`/wct friends ask`) |
+| `DATA` | one character snapshot | cadence, after `HI`/`HEY`, or answer to `REQ` |
 | `NO` | nothing | the user chose Never |
 
-A contact that never answers `HI` gets nothing else until their next login.
+A contact that never answers `HI` (no addon) gets nothing else that session.
 
 ### Snapshot
 
-Always: name, realm, level, class, race, spec, ilvl, `at` (time taken). Then only the allowed categories:
+Always: `guid`, `char`, `realm`, `level`, `class`, `classFile`, `race`, `raceFile`, `faction`, `spec`, `ilvl`, `at` (the snapshot's `lastSeen`). Then only the allowed categories:
 
-- gear: `slot~itemId~enchant` lines, as in `items[guid].gear`
-- talents: the existing talents string
-- location: zone and subzone
-- gold: copper
+- gear: `gear` (`slot~itemId,...` as in `items[guid].gear`) and `enchants` (`items[guid].enchants` lines)
+- talents: `talents`, `talentCalc`
+- location: `zone`
+- gold: `money` (copper)
 
-Built from what the addon already collects (`characterInfo`, the inventory scan), using the existing `SHORT` keys where a field has one. New keys get two letters and go into `Payload.ShortKeys` at the same time (`SharedRulesTests`).
+Built from the saved snapshot (`WoWCharacterTrackerDB.chars[guid]`, kept fresh by `saveSnapshot`) and `items[guid]`, so the character being played and alts go through the same code. Full field names (`key=value`, `;` between fields, `\` escapes for `\`, `;` and line breaks): a few more bytes, but no coupling to the grid's one-letter `SHORT` keys. Change detection compares the text without `at`.
 
 ### Validating what comes in (addon and again in the app)
 
@@ -75,18 +78,20 @@ Built from what the addon already collects (`characterInfo`, the inventory scan)
 
 ## Addon
 
-- `Comms.lua`: the only file that sends or receives addon messages. Prefix, chunking and reassembly, send queue with pacing, combat/encounter/lockdown guards, back off when `SendGameData` reports throttling, sender check against the accepted list, validation. Built so guild map pins can use it later.
-- `Friends.lua`: contacts, consent and popup (reuses what `askReload` uses, no Blizzard globals replaced), cadence, change detection, building snapshots, `/wct friends`.
-- Options page: sharing on/off, contacts with categories, own characters shared/hidden, pending requests, blocked. Shows why sharing is paused when Battle.net or its friends list is unavailable (`IsBattleNetFriendsListEnabled`).
-- Saved data: `WoWCharacterTrackerDB.friends[battleTag] = { seen, version, chars = { [guid] = { at, data } } }`.
-- Settings.lua `share = { enabled, newChars, hidden = {...}, contacts = { [battleTag] = { gear, talents, location, gold, receive } }, blocked = {...}, nicknames = {...}, at }`. In-game edits go through `ns.editSettings`, newest `at` wins, like the In game settings.
+- `Comms.lua`: the only file that sends or receives addon messages. Prefix, chunking and reassembly, send queue with pacing, combat/encounter/lockdown guards, back off when `SendGameData` reports throttling, caps on half messages. Knows nothing about friends (hands whole messages to `ns.comms.onReceive`), so guild map pins can use it later.
+- `FriendData.lua`: one character as text and back, with the field allowlist and caps. No game calls, so the tests load it.
+- `Friends.lua`: sharing settings, contacts, Battle.net friends list walk, consent and popup (a shared `ns.popup` helper in Shared.lua that `askReload` uses too, no Blizzard globals replaced), cadence, change detection, what to keep, `/wct friends`.
+- Options page: sharing on/off, share new characters, share this character, and a pointer to `/wct friends` for contacts. A full contacts list is the app's job (step 3).
+- Saved data: `WoWCharacterTrackerDB.friends[battleTag] = { seen, version, protocol, refused, chars = { [guid] = { ...fields, received } } }`.
+- Sharing settings: `share = { enabled, newChars, chars = { [guid] = bool }, contacts = { [battleTag] = { share, receive, gear, talents, location, gold } }, blocked = { [battleTag] = true }, at }`, in `WoWCharacterTrackerDB.share` (changed in game) and Settings.lua `share` (from the app, step 3). The newest `at` wins, like notes. Its own time, not the In game settings' one: those share one `at`, and an app that doesn't write `share` yet would otherwise wipe it the next time its In game page changes.
+- Nicknames: Settings.lua `friendNames[battleTag]`, owned by the app (step 3), only read by the addon.
 - Taint rules from `addon.md` apply: no Blizzard globals replaced, no CVar changes, nothing protected touched.
 
 ## App
 
 - Models: `FriendContact` (BattleTag, nickname, seen, version, characters) and `FriendCharacter` (snapshot fields, gear, talents, location, gold, `At`).
 - `Services/FriendData`: parses `WoWCharacterTrackerDB.friends` next to `SavedVariables`, validates again with the same rules as the addon.
-- Config: `Sharing` (mirrors Settings.lua `share`, synced newest wins through the existing In game settings path: `IN_GAME`, `ReadInGame`, `TakeInGame`), `FriendNicknames[battleTag]`, `HiddenFriendCharacters`. Nicknames are written to Settings.lua so the addon shows the same name; empty falls back to the BattleTag.
+- Config: `Sharing` (mirrors `share`: the app reads `WoWCharacterTrackerDB.share` on sync, takes it when its `at` is newer, and writes Settings.lua `share` with a newer `at` when changed in the app), `FriendNicknames[battleTag]` (written to Settings.lua `friendNames` so the addon shows the same name; empty falls back to the BattleTag), `HiddenFriendCharacters`.
 - Friends page, one per game tab (Forever friends on the Forever tab):
   - Contacts: nickname (or BattleTag), last heard from, version or "needs update", hint "ask in game to refresh".
   - Chip bar by contact: reuse `ChipFilter`, with an optional label function in `Fill` so the key stays the BattleTag and the chip shows the nickname. With All picked, the list is grouped under a header per contact.
