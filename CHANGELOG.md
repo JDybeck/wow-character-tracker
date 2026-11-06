@@ -2,6 +2,16 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.35.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Friends tab** in the addon window (`/wct`): **Find online friends** lists your Battle.net friends online in this game and checks, without them seeing anything, who has the addon. Ask, Share or Ask again with one click, no BattleTags to type. Friends without the addon get an **Invite** button (one whisper with a link, only when you click it, at most once a day).
+- Requests show up in the Friends tab too, with Allow, Not now and Never, so a missed popup isn't lost.
+- **Shared with you**: what friends share, right in the tab. Hover a character for its gear and talents.
+
 ## v0.34.0
 
 Update the addon with the app (it does this by itself) and /reload in game.
