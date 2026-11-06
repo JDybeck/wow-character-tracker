@@ -27,6 +27,8 @@ static class SavedVariables
             ItemClasses = ReadItemClasses(db.Table.Get("itemClasses")),
             Notes = ReadNotes(db.Table.Get("notes")),
             InGame = ReadInGame(db.Table.Get("gameSettings")),
+            Friends = FriendData.ReadFriends(db.Table.Get("friends")),
+            Share = FriendData.ReadShare(db.Table.Get("share")),
         };
     }
 
