@@ -14,6 +14,7 @@ local version = ui.text(panel, "GameFontDisableSmall")
 version:SetPoint("LEFT", title, "RIGHT", 8, -1)
 local line = ui.text(panel, "GameFontHighlight", "Every option is in the addon's own window. /wct opens it too, and so does the minimap button.")
 line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -12)
+line:SetWidth(560)
 local open = ui.button(panel, "Open the Character Tracker window", 260, function() ns.openWindow() end)
 open:SetPoint("TOPLEFT", line, "BOTTOMLEFT", 0, -14)
 
@@ -26,15 +27,3 @@ elseif InterfaceOptions_AddCategory then
   InterfaceOptions_AddCategory(panel)
 end
 
-function ns.openOptions()
-  if InCombatLockdown() then
-    ns.say("The options open after combat.")
-    return
-  end
-  if category and Settings.OpenToCategory then
-    Settings.OpenToCategory(category:GetID())
-  elseif InterfaceOptionsFrame_OpenToCategory then
-    InterfaceOptionsFrame_OpenToCategory(panel)
-    InterfaceOptionsFrame_OpenToCategory(panel) -- the old frame needs it twice the first time
-  end
-end

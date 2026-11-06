@@ -14,7 +14,7 @@ public class AddonWindowTests
         UIParent = {}
         UISpecialFrames = {}
         SlashCmdList = {}
-        frames, texts = {}, {}
+        frames, texts, strings = {}, {}, {}
         registered = nil
         Settings = {
           RegisterCanvasLayoutCategory = function(frame, name) return { name = name, GetID = function() return 1 end } end,
@@ -30,13 +30,19 @@ public class AddonWindowTests
               texts[#texts + 1] = t
               if s.owner and s.owner.label == nil and t ~= "" then s.owner.label = t end
             end end
+            if k == "SetWidth" then return function(s, w) s.width = w end end
             if k == "SetChecked" then return function(s, v) s.checked = v end end
             if k == "GetChecked" then return function(s) return s.checked end end
             if k == "Show" then return function(s) s.shown = true end end
             if k == "Hide" then return function(s) s.shown = false end end
             if k == "IsShown" then return function(s) return s.shown end end
             if k == "SetShown" then return function(s, on) s.shown = on end end
-            if k == "CreateTexture" or k == "CreateFontString" then return function(s) return widget(s) end end
+            if k == "CreateTexture" then return function(s) return widget(s) end end
+            if k == "CreateFontString" then return function(s)
+              local fs = widget(s)
+              strings[#strings + 1] = fs
+              return fs
+            end end
             return function() end
           end })
         end
@@ -184,6 +190,32 @@ public class AddonWindowTests
         c.Lua("SlashCmdList.CHARACTERTRACKER('friends Ask Zeb#2222')");
         Assert.Equal(" Ask Zeb#2222", c.Lua("return gotFriends").String);
         Assert.Equal(1, Num(c, "opened"));
+    }
+
+    // The window opens in combat, so /wct options doesn't need to wait for it to end.
+    [Fact]
+    public void Wct_options_opens_the_window_even_in_combat()
+    {
+        var c = Load();
+        c.Lua("inCombat = true; opened = 0; ns.openWindow = function() opened = opened + 1 end");
+        c.Lua("SlashCmdList.CHARACTERTRACKER('options')");
+        Assert.Equal(1, Num(c, "opened"));
+    }
+
+    // Long hints and checkbox tips wrap inside the window instead of running past its edge.
+    [Fact]
+    public void Long_hints_and_tips_get_a_width_so_they_wrap()
+    {
+        var c = Load();
+        foreach (var tab in new[] { "general", "chat", "highlights", "note", "friends", "sharing" }) c.Call("openWindow", tab);
+        var unwrapped = c.Lua("""
+            local bad = {}
+            for _, s in ipairs(strings) do
+              if s.text and #s.text > 60 and not s.width then bad[#bad + 1] = s.text end
+            end
+            return table.concat(bad, " / ")
+            """).String;
+        Assert.Equal("", unwrapped);
     }
 
     [Fact]

@@ -94,7 +94,7 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
   elseif msg == "debug" then
     saveDebug()
   elseif msg == "options" or msg == "config" then
-    ns.openOptions()
+    ns.openWindow() -- every option is in the window, which also opens in combat
   elseif msg == "note" then
     ns.toggleNoteBox()
   elseif msg == "note lock" then

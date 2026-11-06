@@ -5,6 +5,9 @@ local ADDON, ns = ...
 local ui = {}
 ns.ui = ui
 
+-- How wide long lines get before they wrap (the window's content area, with room to spare).
+ui.WRAP = 640
+
 local refreshers = setmetatable({}, { __mode = "k" }) -- [page] = { fn, ... }
 
 function ui.onRefresh(parent, fn)
@@ -41,6 +44,7 @@ function ui.checkbox(parent, label, tip, get, set)
   if tip then
     local t = ui.text(cb, "GameFontDisableSmall", tip)
     t:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -2)
+    t:SetWidth(ui.WRAP - 40)
   end
   cb:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
   ui.onRefresh(parent, function() cb:SetChecked(get()) end)
@@ -94,6 +98,7 @@ end
 function ui.hint(parent, s, anchor)
   local h = ui.text(parent, "GameFontDisableSmall", s)
   h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -4)
+  h:SetWidth(ui.WRAP)
   return h
 end
 
