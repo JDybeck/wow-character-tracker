@@ -175,11 +175,274 @@ local function buildNote(p)
 end
 
 -- Friends ---------------------------------------------------------------------------------------
+-- What's listed comes from Friends.lua (ns.onlineFriends and the rest), each guarded so the tab
+-- opens without them. Rows are pooled: a redraw reuses the frames and hides the spare ones.
+local DAY = 86400
+local ROW = 24
+local drawFriends
+local searched = false -- Find online friends was clicked this session
+
+local function rowsOf(fn) return fn and fn() or {} end
+
+local function place(w, page, x, y)
+  w:ClearAllPoints()
+  w:SetPoint("TOPLEFT", page, "TOPLEFT", x, -y)
+  w:Show()
+end
+
+local function pooled(pool, i, make)
+  pool[i] = pool[i] or make()
+  return pool[i]
+end
+
+local function hideFrom(pool, first)
+  for i = first, #pool do pool[i]:Hide() end
+end
+
+local function classColor(fs, classFile)
+  local c = RAID_CLASS_COLORS and classFile and RAID_CLASS_COLORS[classFile]
+  if c then fs:SetTextColor(c.r, c.g, c.b) else fs:SetTextColor(1, 1, 1) end
+end
+
+local function ago(at)
+  local s = math.max(0, time() - (at or time()))
+  if s < 3600 then return math.floor(s / 60) .. "m ago" end
+  if s < DAY then return math.floor(s / 3600) .. "h ago" end
+  return math.floor(s / DAY) .. "d ago"
+end
+
+-- A row's button runs whatever the last redraw gave it (self.act).
+local function rowButton(row, width, x)
+  local b = ui.button(row, "", width, function(self) if self.act then self.act() end end)
+  b:SetPoint("LEFT", row, "LEFT", x, 0)
+  return b
+end
+
+local function setButton(b, label, act)
+  b:SetText(label)
+  b.act = act
+  if act then b:Enable() else b:Disable() end
+  b:Show()
+end
+
+local function rowText(row, template, x, width)
+  local fs = ui.text(row, template)
+  fs:SetPoint("LEFT", row, "LEFT", x, 0)
+  fs:SetWidth(width)
+  return fs
+end
+
+-- The state text and up to two buttons ({ label, fn(tag) }, fn nil: shown disabled).
+local function friendState(f)
+  if f.blocked then return "Blocked" end
+  if f.contact then
+    local bits = {}
+    if f.contact.share then bits[#bits + 1] = "You share" end
+    if f.sharesWithYou then bits[#bits + 1] = #bits > 0 and "shares with you" or "Shares with you" end
+    return #bits > 0 and table.concat(bits, ", ") or "Contact", { "Ask again", ns.askFriend }
+  end
+  if f.hasAddon == nil then return "Checking..." end
+  if f.hasAddon then return "Has the addon", { "Ask", ns.askFriend }, { "Share", ns.shareWithFriend } end
+  if f.invitedAt and time() - f.invitedAt < DAY then return "No addon", { "Invited" } end
+  return "No addon", { "Invite", ns.inviteFriend }
+end
+
+-- Gear as item names (quality colored when the game has the item) and talents.
+local function showCharTip(self)
+  local c = self.char
+  if not (c and GameTooltip) then return end
+  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+  GameTooltip:AddLine(c.realm and string.format("%s (%s)", c.char or "?", c.realm) or (c.char or "?"), 1, 1, 1)
+  for id in string.gmatch(c.gear or "", "%d+~(%d+)") do
+    local name, _, quality = ns.itemInfo(tonumber(id))
+    local color = quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
+    if color then GameTooltip:AddLine(name or ("item " .. id), color.r, color.g, color.b)
+    else GameTooltip:AddLine(name or ("item " .. id), 1, 1, 1) end
+  end
+  if c.talents then GameTooltip:AddLine("Talents: " .. c.talents, 0.8, 0.8, 0.8, true) end
+  GameTooltip:Show()
+end
+
+local function hideCharTip() if GameTooltip then GameTooltip:Hide() end end
+
+local function charInfo(c)
+  local parts = {}
+  if c.level then parts[#parts + 1] = "level " .. c.level end
+  if c.spec then parts[#parts + 1] = c.spec end
+  if c.ilvl then parts[#parts + 1] = "ilvl " .. math.floor(c.ilvl) end
+  if c.zone then parts[#parts + 1] = c.zone end
+  parts[#parts + 1] = ago(c.received or c.at)
+  return table.concat(parts, ", ")
+end
+
 local function buildFriends(p)
-  local title = ui.heading(p, "Friends")
-  local line = ui.hint(p, "Find and ask friends here soon. Until then: /wct friends help.", title)
-  local list = ui.button(p, "List my contacts in chat", 200, function() ns.friendsCommand("") end)
-  list:SetPoint("TOPLEFT", line, "BOTTOMLEFT", 0, -10)
+  local width = PAGE_WIDTH - 20
+  ui.heading(p, "Friends")
+  local status
+  local find = ui.button(p, "Find online friends", 170, function()
+    searched = true
+    if ns.findOnlineFriends then ns.findOnlineFriends() end
+    status:SetText("")
+    drawFriends()
+  end)
+  place(find, p, 16, 38)
+  local hint = ui.text(p, "GameFontDisableSmall", "Battle.net friends online in this game. Checking who has the addon sends them nothing they can see.")
+  hint:SetWidth(ui.WRAP)
+  place(hint, p, 16, 66)
+  status = ui.text(p, "GameFontHighlightSmall")
+  status:SetWidth(ui.WRAP)
+  place(status, p, 16, 84)
+
+  local function title(s) return ui.text(p, "GameFontNormal", s) end
+  local function note(s)
+    local fs = ui.text(p, "GameFontDisableSmall", s)
+    fs:SetWidth(ui.WRAP)
+    return fs
+  end
+  local requestsTitle, onlineTitle, sharedTitle = title("Requests"), title("Online friends"), title("Shared with you")
+  local prompt = note("Click Find online friends to see who's on.")
+  local noneOnline = note("None of your Battle.net friends are online in this game.")
+  local noneShared = note("Nothing shared with you yet. Ask a friend above.")
+  local requestRows, friendRows, sharedHeads, charLines = {}, {}, {}, {}
+
+  -- Runs fn(tag) and shows what it said (ask/share return a line, invite ok and a line).
+  local function act(fn, tag)
+    return function()
+      local a, b = fn(tag)
+      status:SetText(type(a) == "string" and a or (type(b) == "string" and b or ""))
+      drawFriends()
+    end
+  end
+
+  local function newRequestRow()
+    local r = CreateFrame("Frame", nil, p)
+    r:SetSize(width, ROW)
+    r.line = rowText(r, "GameFontHighlight", 0, 400)
+    r.buttons = { rowButton(r, 64, 410), rowButton(r, 80, 478), rowButton(r, 64, 562) }
+    return r
+  end
+
+  local function newFriendRow()
+    local r = CreateFrame("Frame", nil, p)
+    r:SetSize(width, ROW)
+    r.nameText = rowText(r, "GameFontHighlight", 0, 120)
+    r.levelText = rowText(r, "GameFontHighlightSmall", 124, 30)
+    r.zoneText = rowText(r, "GameFontHighlightSmall", 158, 140)
+    r.tagText = rowText(r, "GameFontHighlightSmall", 302, 130)
+    r.stateText = rowText(r, "GameFontDisableSmall", 436, 80)
+    r.b1, r.b2 = rowButton(r, 70, 518), rowButton(r, 64, 592) -- ends at 656 (+16 indent), inside the ~678 px scroll area
+    return r
+  end
+
+  local function newCharLine()
+    local l = CreateFrame("Frame", nil, p)
+    l:SetSize(width - 8, 18)
+    l:EnableMouse(true)
+    l.nameText = rowText(l, "GameFontHighlight", 0, 120)
+    l.infoText = rowText(l, "GameFontHighlightSmall", 124, 500)
+    l:SetScript("OnEnter", showCharTip)
+    l:SetScript("OnLeave", hideCharTip)
+    return l
+  end
+
+  local CHOICES = { { "Allow", "allow" }, { "Not now", "notnow" }, { "Never", "never" } }
+
+  drawFriends = function()
+    local y = 106
+
+    local requests = rowsOf(ns.pendingRequests)
+    if #requests > 0 then
+      place(requestsTitle, p, 16, y)
+      y = y + 20
+    else
+      requestsTitle:Hide()
+    end
+    for i, req in ipairs(requests) do
+      local r = pooled(requestRows, i, newRequestRow)
+      local who = (req.label and req.label ~= req.tag) and string.format("%s (%s)", req.label, req.tag) or req.tag
+      r.line:SetText(who .. " wants to see your characters")
+      for j, choice in ipairs(CHOICES) do
+        setButton(r.buttons[j], choice[1], ns.answerFriendRequest and function()
+          ns.answerFriendRequest(req, choice[2])
+          drawFriends()
+        end)
+      end
+      place(r, p, 16, y)
+      y = y + ROW
+    end
+    hideFrom(requestRows, #requests + 1)
+    if #requests > 0 then y = y + 10 end
+
+    place(onlineTitle, p, 16, y)
+    y = y + 20
+    local online = searched and rowsOf(ns.onlineFriends) or {}
+    prompt:Hide()
+    noneOnline:Hide()
+    if not searched then
+      place(prompt, p, 16, y)
+      y = y + 20
+    elseif #online == 0 then
+      place(noneOnline, p, 16, y)
+      y = y + 20
+    end
+    for i, f in ipairs(online) do
+      local r = pooled(friendRows, i, newFriendRow)
+      r.nameText:SetText(f.character or "?")
+      classColor(r.nameText, f.classFile)
+      r.levelText:SetText(f.level and tostring(f.level) or "")
+      r.zoneText:SetText(f.zone or "")
+      r.tagText:SetText(f.label or f.tag or "")
+      local state, first, second = friendState(f)
+      r.stateText:SetText(state)
+      for _, pair in ipairs({ { r.b1, first }, { r.b2, second } }) do
+        local b, what = pair[1], pair[2]
+        if what then setButton(b, what[1], what[2] and act(what[2], f.tag)) else b:Hide() end
+      end
+      place(r, p, 16, y)
+      y = y + ROW
+    end
+    hideFrom(friendRows, #online + 1)
+    y = y + 10
+
+    place(sharedTitle, p, 16, y)
+    y = y + 20
+    local shared = rowsOf(ns.sharedWithYou)
+    noneShared:Hide()
+    if #shared == 0 then
+      place(noneShared, p, 16, y)
+      y = y + 20
+    end
+    local heads, lines = 0, 0
+    for _, friend in ipairs(shared) do
+      heads = heads + 1
+      local h = pooled(sharedHeads, heads, function() return ui.text(p, "GameFontNormalSmall") end)
+      h:SetText(friend.label or friend.tag or "?")
+      place(h, p, 16, y)
+      y = y + 18
+      for _, c in ipairs(friend.chars or {}) do
+        lines = lines + 1
+        local l = pooled(charLines, lines, newCharLine)
+        l.char = c
+        l.nameText:SetText(c.char or "?")
+        classColor(l.nameText, c.classFile)
+        l.infoText:SetText(charInfo(c))
+        place(l, p, 24, y)
+        y = y + 18
+      end
+      y = y + 4
+    end
+    hideFrom(sharedHeads, heads + 1)
+    hideFrom(charLines, lines + 1)
+
+    p:SetHeight(y + 10)
+  end
+  ui.onRefresh(p, drawFriends)
+end
+
+-- Friends.lua calls this when a friend answers, asks, or sends something: redraws the tab if it's up.
+function ns.friendsChanged()
+  local t = tabs.friends
+  if drawFriends and ns.windowShown() and t and t.holder and t.holder:IsShown() then drawFriends() end
 end
 
 -- Sharing ---------------------------------------------------------------------------------------
@@ -251,7 +514,7 @@ local TABS = {
   { key = "chat", label = "Chat", height = 440, build = buildChat },
   { key = "highlights", label = "Highlights", height = 200, build = buildHighlights },
   { key = "note", label = "Note", height = 330, build = buildNote },
-  { key = "friends", label = "Friends", height = 120, build = buildFriends },
+  { key = "friends", label = "Friends", height = 600, build = buildFriends }, -- grows with its lists
   { key = "sharing", label = "Sharing", height = 300, build = buildSharing },
   { key = "app", label = "App", height = 200, build = buildApp },
 }
