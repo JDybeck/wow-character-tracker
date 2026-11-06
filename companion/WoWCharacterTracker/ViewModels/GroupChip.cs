@@ -34,13 +34,14 @@ sealed class ChipFilter(string label, Action changed) : Observable
     }
 
     // Rebuilds the chips from the items' keys (an empty key reads "Unknown"), keeping the chosen one if it's still there.
-    public void Fill<T>(IReadOnlyCollection<T> items, Func<T, string> keyOf)
+    // labelOf: what a key shows as (a friend's nickname for their BattleTag); the key itself by default.
+    public void Fill<T>(IReadOnlyCollection<T> items, Func<T, string> keyOf, Func<string, string>? labelOf = null)
     {
         var chosen = Key;
         Chips.Clear();
         Chips.Add(new GroupChip("", $"All ({items.Count})"));
-        foreach (var g in items.GroupBy(keyOf).OrderBy(g => g.Key))
-            Chips.Add(new GroupChip(g.Key, $"{(g.Key.Length > 0 ? g.Key : "Unknown")} ({g.Count()})"));
+        foreach (var g in items.GroupBy(keyOf).Select(g => (g.Key, Label: labelOf?.Invoke(g.Key) ?? g.Key, Count: g.Count())).OrderBy(g => g.Label))
+            Chips.Add(new GroupChip(g.Key, $"{(g.Label.Length > 0 ? g.Label : "Unknown")} ({g.Count})"));
         selected = Chips.FirstOrDefault(c => c.Key == chosen) ?? Chips[0];
         Raise(nameof(Selected));
         Raise(nameof(HasChoices));

@@ -27,6 +27,15 @@ sealed class CharacterRow : Observable
     public required bool Dead { get; init; }
     public required long Money { get; init; }   // copper
     public required string Crests { get; init; }
+    // A Battle.net friend's character (the Friends page): shown, never yours to post, tag or remove.
+    public bool IsFriend { get; set; }
+    public bool IsOwn => !IsFriend;
+    public string FriendTag { get; set; } = "";
+    string friendName = "";
+    public string FriendName { get => friendName; set => Set(ref friendName, value); } // nickname, else the BattleTag
+    bool isHiddenFriend;
+    public bool IsHiddenFriend { get => isHiddenFriend; set => Set(ref isHiddenFriend, value); } // hidden on the Friends page, shown anyway
+    public bool ShowsGold => IsOwn || HasMoney; // a friend who doesn't share gold has none to show
     public string Guild { get; init; } = "";
     public bool HasGuild => Guild.Length > 0;
     public string Surname { get; init; } = "";

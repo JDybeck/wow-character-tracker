@@ -83,6 +83,10 @@ class Config
 
     // How the character list is sorted, per game tab (flavor key -> "key:asc"/"key:desc", ViewModels/CharacterSort).
     public Dictionary<string, string> CharacterSort { get; set; } = [];
+    // Battle.net friends: nicknames by BattleTag (all games; the addon gets them as Settings.lua
+    // friendNames), and friends' characters hidden on the Friends page (by GUID, only here).
+    public Dictionary<string, string> FriendNicknames { get; set; } = [];
+    public HashSet<string> HiddenFriendCharacters { get; set; } = [];
 
     // Forever characters (GUIDs) shown with their standard race portrait instead of the in-game one.
     public List<string> StandardPortraits { get; set; } = [];

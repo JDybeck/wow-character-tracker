@@ -64,12 +64,20 @@
   </UserControl.Resources>
 
   <StackPanel>
-    <TextBlock Text="Nothing yet. Log in with the updated addon and type /reload (or log out): gear and bags show up here." Foreground="{StaticResource Dim}"
-               FontSize="13" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="{Binding Gear.HasInventory, Converter={StaticResource Hidden}}"/>
+    <StackPanel Visibility="{Binding IsOwn, Converter={StaticResource Visible}}">
+      <TextBlock Text="Nothing yet. Log in with the updated addon and type /reload (or log out): gear and bags show up here." Foreground="{StaticResource Dim}"
+                 FontSize="13" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="{Binding Gear.HasInventory, Converter={StaticResource Hidden}}"/>
+    </StackPanel>
+    <!-- A friend's character: only the equipped gear, when they share it. -->
+    <StackPanel Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">
+      <TextBlock Text="Not shared. Your friend shares gear with you once they turn it on." Foreground="{StaticResource Dim}"
+                 FontSize="13" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="{Binding Gear.HasInventory, Converter={StaticResource Hidden}}"/>
+    </StackPanel>
 
     <StackPanel Visibility="{Binding Gear.HasInventory, Converter={StaticResource Visible}}">
       <!-- How fresh this is: the game only writes it on /reload or logout. -->
-      <StackPanel Orientation="Horizontal" Margin="0,10,0,0" ToolTip="Gear and bags update when you /reload or log out (the game only saves then).">
+      <StackPanel Orientation="Horizontal" Margin="0,10,0,0" ToolTip="Gear and bags update when you /reload or log out (the game only saves then)."
+                  Visibility="{Binding IsOwn, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Dim}" FontSize="12" Margin="0,0,6,0"/>
         <TextBlock FontSize="12" Foreground="{StaticResource Dim}" Text="{Binding Gear.SavedText}" Visibility="{Binding Gear.HasSavedText, Converter={StaticResource Visible}}"/>
         <TextBlock FontSize="12" Foreground="{StaticResource Dim}" Text="Updates on /reload or logout" Visibility="{Binding Gear.HasSavedText, Converter={StaticResource Hidden}}"/>
@@ -77,9 +85,11 @@
       <DockPanel>
         <!-- Beside the gear: set bonuses (active ones lit, like the game) and the items' Equip/Use effects. -->
         <StackPanel DockPanel.Dock="Right" Width="300" Margin="20,0,0,0" Visibility="{Binding Gear.ShowsSide, Converter={StaticResource Visible}}">
+          <StackPanel Visibility="{Binding IsOwn, Converter={StaticResource Visible}}"> <!-- friends don't share set bonuses -->
           <StackPanel Visibility="{Binding Gear.NeedsGearScan, Converter={StaticResource Visible}}">
             <TextBlock Style="{StaticResource FactLabel}" Text="SET BONUSES"/>
             <TextBlock Style="{StaticResource Hint}" Text="Log in with the updated addon and /reload (or log out) once: your set bonuses and gear effects show up here."/>
+          </StackPanel>
           </StackPanel>
           <StackPanel Visibility="{Binding Gear.HasSets, Converter={StaticResource Visible}}">
             <TextBlock Style="{StaticResource FactLabel}" Text="SET BONUSES"/>
@@ -184,6 +194,7 @@
         </StackPanel>
       </DockPanel>
 
+      <StackPanel Visibility="{Binding IsOwn, Converter={StaticResource Visible}}"> <!-- friends never share bags or bank -->
       <TextBlock Style="{StaticResource FactLabel}" Text="BAGS" Margin="0,14,0,6"/>
       <ItemsControl ItemsSource="{Binding Gear.Bags}" ItemTemplate="{StaticResource BagTemplate}">
         <ItemsControl.ItemsPanel>
@@ -197,6 +208,7 @@
           <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
       </ItemsControl>
+      </StackPanel>
     </StackPanel>
   </StackPanel>
 </UserControl>

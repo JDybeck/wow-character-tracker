@@ -101,7 +101,7 @@ The **In game** page has what the addon does in game besides posting to Discord:
 - **Addon options**: Esc, Options, AddOns, WoW Character Tracker (or `/wct options`). Show, lock or reset the note box, set how see-through its background is, and turn instant posting and the reload popup on or off. Everything on the app's In game page except Advanced combat logging can be changed there too and applies right away. It reaches the app on your next `/reload` or logout, and the newest change wins, like notes. What gets posted to Discord and screenshots stay in the app, and are listed there read-only.
 - **The addon without the app**: guild and group lines, deaths named and the options page all work with the addon alone. Discord, screenshots and the character overview need the app.
 
-### Sharing with Battle.net friends (new, in game only for now)
+### Sharing with Battle.net friends (new)
 
 Friends on your Battle.net friends list who have the addon can see the characters you share: name, level, class, spec and item level, plus gear and talents, and location and gold if you allow it. It's on, but nothing is shared until you allow a friend's request (a popup) or share with them yourself. Turn it off and friends can't even ask.
 
@@ -111,7 +111,7 @@ Friends on your Battle.net friends list who have the addon can see the character
 - `/wct friends hide` keeps the character you're on from friends, and **Share new characters** in the options decides what happens with characters you haven't picked for yet.
 - `/wct friends` lists your contacts and what each gets, `/wct friends help` has the rest.
 
-It all goes through Battle.net while you're both online: the character you're on every 2 minutes in a group, every 10 minutes otherwise, only when something changed. Nothing is shown in chat and nothing goes out in combat. What friends share is saved for the app, which gets a Friends page next.
+It all goes through Battle.net while you're both online: the character you're on every 2 minutes in a group, every 10 minutes otherwise, only when something changed. Nothing is shown in chat and nothing goes out in combat. What friends share shows up on the app's **Friends** page after your next `/reload` or logout.
 
 ## The app
 
@@ -128,6 +128,8 @@ It all goes through Battle.net while you're both online: the character you're on
 - **Items**: everything your characters carry (worn, bags and bank) in one list per server, with icons. Search by name to see who has what and where. Click **Equipped**, **Bags** or **Bank** to show only that place, click it again to leave that place out instead (it turns red and crossed out), and once more for everything. Or show only one type (gear, consumables, trade goods, quest items). Hover an item for its tooltip, colored like in game. Each server shows when and where every character was last saved, since items only update on `/reload` or logout.
 
   ![The Items page: every item with who has it and where, with place and type chips](images/items.png)
+
+- **Friends**: what Battle.net friends share with you (see Sharing with Battle.net friends above), as the same rows as your own characters, with a chip per friend. Open one for its Overview and its gear, with Wowhead tooltips; gold, location and talents show when they share them. **Hide** keeps a character off the page (only for you, nothing is sent). **Sharing settings** has the same switches as in game: sharing on or off, what all friends get, each friend's own choice (click a chip: like all friends, on, off), a nickname per friend (the addon shows it too), which of your characters are shared, and who you blocked. Changes reach the game on your next `/reload`, and changes made in game reach the app the same way: the newest one wins. Friends' characters never show up in your own lists, totals, posts or the stream overlay.
 
 - **Tags**: make your own (like Main, Alts, Guild) and put them on characters. Webhooks can post only for some tags.
 - **Post to Discord**: sends the character as a card picture, with icons and quality colors. The gear next to it picks what the card shows (item level, played, gold, crests, professions, talents, stats, guild, last seen, levels, highlights). **Remove from list** hides a character you don't play anymore; if you play it again, it comes back.

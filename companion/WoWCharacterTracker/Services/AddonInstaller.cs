@@ -76,7 +76,8 @@ static partial class AddonInstaller
     // Settings.lua tells the addon which events get a screenshot, and carries the characters' notes
     // (by GUID, with when they were written) for /wct note. The game reads it on /reload or login.
     // hasWebhook: the tab has somewhere to post, so the addon may offer to post a highlight.
-    public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null, bool hasWebhook = false)
+    public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null, bool hasWebhook = false,
+        IReadOnlyDictionary<string, string>? friendNames = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -113,9 +114,34 @@ static partial class AddonInstaller
                   + string.Concat((notes ?? []).OrderBy(n => n.Guid, StringComparer.Ordinal)
                       .Select(n => $"    [{LuaString(n.Guid)}] = {{ text = {LuaString(n.Text)}, at = {n.At} }},\n"))
                   + "  },\n"
+                  + ShareLua(s.Share)
+                  + "  friendNames = { "
+                  + string.Concat((friendNames ?? new Dictionary<string, string>()).Where(n => n.Value.Length > 0).OrderBy(n => n.Key, StringComparer.Ordinal)
+                      .Select(n => $"[{LuaString(n.Key)}] = {LuaString(n.Value)}, "))
+                  + "},\n"
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
         if (!File.Exists(file) || File.ReadAllText(file) != lua) Files.WriteAtomic(file, lua);
+    }
+
+    // Sharing with friends (the addon's Friends.lua `share`), only when the app has a copy: otherwise
+    // the game's own settings stay. A contact's category left out follows the general choice.
+    static string ShareLua(ShareSettings? share)
+    {
+        if (share is null) return "";
+        static string B(bool v) => v ? "true" : "false";
+        static string Opt(string key, bool? v) => v is bool b ? $", {key} = {B(b)}" : "";
+        var d = share.Defaults;
+        var contacts = string.Concat(share.Contacts.OrderBy(c => c.Key, StringComparer.Ordinal).Select(c =>
+            $"[{LuaString(c.Key)}] = {{ share = {B(c.Value.Share)}, receive = {B(c.Value.Receive)}"
+            + Opt("gear", c.Value.Gear) + Opt("talents", c.Value.Talents) + Opt("location", c.Value.Location) + Opt("gold", c.Value.Gold) + " }, "));
+        var chars = string.Concat(share.Chars.OrderBy(c => c.Key, StringComparer.Ordinal).Select(c => $"[{LuaString(c.Key)}] = {B(c.Value)}, "));
+        var blocked = string.Concat(share.Blocked.Order(StringComparer.Ordinal).Select(t => $"[{LuaString(t)}] = true, "));
+        return $"  share = {{ enabled = {B(share.Enabled)}, newChars = {B(share.NewChars)}, at = {share.At},\n"
+               + $"    defaults = {{ gear = {B(d.Gear)}, talents = {B(d.Talents)}, location = {B(d.Location)}, gold = {B(d.Gold)} }},\n"
+               + $"    contacts = {{ {contacts}}},\n"
+               + $"    chars = {{ {chars}}},\n"
+               + $"    blocked = {{ {blocked}}} }},\n";
     }
 
     // A Lua string literal for any text. "|" is doubled: in a game font string it starts a color or

@@ -1,0 +1,194 @@
+using MoonSharp.Interpreter;
+using WoWCharacterTracker.Services;
+
+namespace WoWCharacterTracker.Tests;
+
+// The Friends page: friends' characters as rows, chips per friend, hiding, and the sharing settings.
+public class FriendsViewModelTests
+{
+    const string Friends = """
+        { ['Zeb#2222'] = { seen = 2000, version = '0.33.0', chars = {
+            ['Player-1-0000000B'] = { guid = 'Player-1-0000000B', char = 'Zeb', realm = 'Firemaw', level = 42, classFile = 'WARRIOR', at = 1900 },
+            ['Player-1-0000000C'] = { guid = 'Player-1-0000000C', char = 'Zebalt', realm = 'Firemaw', level = 12, classFile = 'MAGE', at = 1000 } } },
+          ['Kalle#3333'] = { seen = 1500, protocol = 2, chars = {
+            ['Player-1-0000000E'] = { guid = 'Player-1-0000000E', char = 'Kalle', realm = 'Firemaw', level = 60, classFile = 'ROGUE', at = 1400 } } } }
+        """;
+
+    // Both friends as contacts whose characters you keep.
+    const string KeepBoth = "{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { receive = true }, ['Kalle#3333'] = { receive = true } } }";
+
+    sealed class Fixture
+    {
+        public Config Config { get; } = new();
+        public FlavorSettings Settings { get; } = new();
+        public int Changes { get; private set; }
+        public FriendsViewModel Vm { get; }
+        public TrackerData Data { get; }
+
+        public Fixture(string share = KeepBoth)
+        {
+            var script = new Script();
+            Data = new TrackerData([], [new Snapshot("Player-1-0000000A", "Deadbeck", "Firemaw", 10, "Warrior", "WARRIOR", "Orc", "Orc", "male", "", "", 10, 0, "", "", "", 5, false, "")])
+            {
+                Friends = FriendData.ReadFriends(script.DoString("return " + Friends)),
+                Share = FriendData.ReadShare(script.DoString("return " + share)),
+            };
+            Settings.TakeShare(Data.Share);
+            Vm = new FriendsViewModel(Flavors.Forever, new GameLookup(Flavors.Forever, () => { }), Config, () => Settings, () => Changes++, () => { });
+            Vm.Show(Data);
+        }
+    }
+
+    [Fact]
+    public void Friend_rows_never_reach_the_tabs_own_rows()
+    {
+        var f = new Fixture();
+        Assert.Equal(["Kalle", "Zeb", "Zebalt"], f.Vm.Characters.Select(c => c.Name).Order());
+        Assert.All(f.Vm.Characters, c => Assert.True(c.IsFriend));
+        Assert.DoesNotContain(f.Vm.Characters, c => c.Guid == "Player-1-0000000A");
+        var own = CharacterRow.Build(f.Data, Flavors.Forever, new GameLookup(Flavors.Forever, () => { }));
+        Assert.Equal(["Player-1-0000000A"], own.Select(r => r.Guid));
+    }
+
+    [Fact]
+    public void Chips_show_nicknames_but_keep_the_battletag_as_key()
+    {
+        var f = new Fixture();
+        f.Config.FriendNicknames["Zeb#2222"] = "Zebbe";
+        f.Vm.Show(f.Data);
+        var chip = f.Vm.Contacts.Chips.Single(c => c.Key == "Zeb#2222");
+        Assert.Equal("Zebbe (2)", chip.Label);
+        f.Vm.Contacts.Selected = chip;
+        Assert.Equal(["Zeb", "Zebalt"], f.Vm.Characters.Select(c => c.Name).Order());
+        f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222").Nickname = "Z";
+        Assert.Equal("Zeb#2222", f.Vm.Contacts.Key); // still picked
+        Assert.Equal("Z (2)", f.Vm.Contacts.Chips.Single(c => c.Key == "Zeb#2222").Label);
+        Assert.Equal("Z", f.Vm.Characters.First().FriendName);
+    }
+
+    [Fact]
+    public void Hidden_friend_characters_fold_away()
+    {
+        var f = new Fixture();
+        var zebalt = f.Vm.Characters.Single(c => c.Name == "Zebalt");
+        f.Vm.HideCommand.Execute(zebalt);
+        Assert.DoesNotContain(f.Vm.Characters, c => c.Name == "Zebalt");
+        Assert.Equal(1, f.Vm.HiddenCount);
+        Assert.Contains("Player-1-0000000C", f.Config.HiddenFriendCharacters);
+        f.Vm.ShowHidden = true;
+        Assert.Contains(f.Vm.Characters, c => c.Name == "Zebalt");
+        f.Vm.UnhideCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zebalt"));
+        Assert.Equal(0, f.Vm.HiddenCount);
+    }
+
+    [Fact]
+    public void Changing_a_category_for_one_friend_edits_the_share_and_tells_the_addon()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }");
+        var zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        zeb.Gold = true;
+        Assert.True(f.Settings.Share!.Contacts["Zeb#2222"].Gold);
+        Assert.True(f.Settings.Share.At > 100);
+        Assert.Equal(1, f.Changes);
+        zeb.Gold = null;
+        Assert.Null(f.Settings.Share.Contacts["Zeb#2222"].Gold); // the general choice again
+        zeb.YouShare = false;
+        Assert.False(f.Settings.Share.Contacts["Zeb#2222"].Share);
+    }
+
+    [Fact]
+    public void General_categories_default_like_the_addon()
+    {
+        var f = new Fixture("nil");
+        Assert.True(f.Vm.ShareGear);
+        Assert.False(f.Vm.ShareGold);
+        Assert.Null(f.Settings.Share);
+        f.Vm.ShareGold = true;
+        Assert.True(f.Settings.Share!.Defaults.Gold);
+        Assert.Equal(1, f.Changes);
+    }
+
+    [Fact]
+    public void A_category_chip_cycles_from_all_friends_to_on_to_off()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, defaults = { gold = false }, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }");
+        var zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.Equal("Gold: like all friends (off)", zeb.Categories.Single(c => c.Key == "gold").Text);
+        zeb.CycleCommand.Execute("gold");
+        zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.Equal("Gold: on", zeb.Categories.Single(c => c.Key == "gold").Text);
+        zeb.CycleCommand.Execute("gold");
+        zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.False(f.Settings.Share!.Contacts["Zeb#2222"].Gold);
+        zeb.CycleCommand.Execute("gold");
+        Assert.Null(f.Settings.Share.Contacts["Zeb#2222"].Gold);
+    }
+
+    [Fact]
+    public void Hidden_rows_know_they_are_hidden()
+    {
+        var f = new Fixture();
+        f.Vm.HideCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zeb"));
+        f.Vm.ShowHidden = true;
+        Assert.True(f.Vm.Characters.Single(c => c.Name == "Zeb").IsHiddenFriend);
+        Assert.False(f.Vm.Characters.Single(c => c.Name == "Kalle").IsHiddenFriend);
+    }
+
+    [Fact]
+    public void A_friend_who_shares_no_gear_has_no_inventory()
+    {
+        var f = new Fixture();
+        Assert.Empty(f.Data.Friends.Single(c => c.Tag == "Kalle#3333").Inventories);
+        Assert.False(f.Vm.Characters.Single(c => c.Name == "Kalle").ShowsGold);
+    }
+
+    // A sync while you type a nickname mustn't replace the row (and the text box) under you.
+    [Fact]
+    public void A_sync_keeps_the_sharing_rows_when_the_friends_are_the_same()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { share = true, receive = true }, ['Kalle#3333'] = { receive = true } } }");
+        var zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        f.Vm.Show(f.Data);
+        Assert.Same(zeb, f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222"));
+    }
+
+    [Fact]
+    public void A_sync_keeps_the_open_friends_tab()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { receive = true }, ['Kalle#3333'] = { receive = true } } }");
+        f.Vm.SelectedCharacter = f.Vm.Characters.Single(c => c.Name == "Zeb");
+        f.Vm.SelectedCharacter.DetailTab = "gear";
+        f.Vm.Show(f.Data);
+        Assert.Equal("Zeb", f.Vm.SelectedCharacter?.Name);
+        Assert.Equal("gear", f.Vm.SelectedCharacter!.DetailTab);
+    }
+
+    [Fact]
+    public void What_you_no_longer_keep_or_blocked_is_not_shown()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { receive = false } }, blocked = { ['Kalle#3333'] = true } }");
+        Assert.Empty(f.Vm.Characters);
+        Assert.False(f.Vm.ContactRows.Single(c => c.Tag == "Kalle#3333").Receive); // not a contact: nothing kept
+    }
+
+    [Fact]
+    public void A_friend_with_another_protocol_says_needs_update()
+    {
+        var f = new Fixture();
+        var kalle = f.Vm.ContactRows.Single(c => c.Tag == "Kalle#3333");
+        Assert.True(kalle.NeedsUpdate);
+        Assert.Contains("needs to update", kalle.VersionText);
+        Assert.False(f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222").NeedsUpdate);
+    }
+
+    [Fact]
+    public void Your_own_characters_can_be_shared_or_hidden()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, newChars = false }");
+        var own = Assert.Single(f.Vm.OwnCharacters);
+        Assert.Equal("Deadbeck", own.Name);
+        Assert.False(own.IsShared); // new characters hidden
+        own.IsShared = true;
+        Assert.True(f.Settings.Share!.Chars["Player-1-0000000A"]);
+    }
+}

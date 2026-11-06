@@ -8,7 +8,7 @@ namespace WoWCharacterTracker.Tests;
 // other's BN_CHAT_MSG_ADDON handler.
 public class FriendsLuaTests
 {
-    const string Stubs = """
+    internal const string Stubs = """
         function time() return math.floor(clock) end
         function strtrim(s) return (s:gsub('^%s+', ''):gsub('%s+$', '')) end
         inCombat, lockdown, groupGuids, sendResult = false, false, {}, 0
