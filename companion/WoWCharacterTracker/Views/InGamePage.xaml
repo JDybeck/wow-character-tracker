@@ -99,7 +99,7 @@
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitle}" Text="Ask before a highlight goes unposted"/>
             <TextBlock Style="{StaticResource SectionHint}"
-                       Text="When What gets posted doesn't post one of these, a small box in game offers to: Post or Skip. It waits until you're out of combat and goes away by itself after 30 seconds. It needs a webhook on this tab."/>
+                       Text="When What gets posted doesn't post one of these, a small box in game offers to: Post or Skip. It waits until you're out of combat and goes away by itself after 10 seconds (Skip counts down). It needs a webhook on this tab."/>
             <ItemsControl ItemsSource="{Binding AskKinds}" Focusable="False">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>

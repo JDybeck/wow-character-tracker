@@ -5,7 +5,7 @@
 -- never pops up in combat, and goes away by itself.
 local ADDON, ns = ...
 
-local SHOW_SECONDS = 30
+local SHOW_SECONDS = 10 -- counted down on the Skip button
 local MAX_WAITING = 5
 
 local waiting = {}
@@ -70,13 +70,14 @@ local function buildBox()
 
   local function button(label, post)
     local b = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
-    b:SetSize(70, 22)
+    b:SetSize(80, 22) -- room for "Skip (10)"
     b:SetText(label)
     b:SetScript("OnClick", function() ns.answerAsk(post) end)
     return b
   end
   local skip = button("Skip", false)
   skip:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -8, 7)
+  box.skip = skip
   button("Post", true):SetPoint("RIGHT", skip, "LEFT", -6, 0)
   box:Hide()
   return box
@@ -91,9 +92,14 @@ function ns.showNextAsk()
   f:Show()
   shownAt = shownAt + 1
   local showing = shownAt
-  C_Timer.After(SHOW_SECONDS, function()
-    if showing == shownAt and current then ns.answerAsk(false) end
-  end)
+  -- "Skip (10)", "Skip (9)"... then it goes away by itself. A newer showing stops this one.
+  local function countdown(left)
+    if showing ~= shownAt or not current then return end
+    if left <= 0 then return ns.answerAsk(false) end
+    f.skip:SetText(string.format("Skip (%d)", left))
+    C_Timer.After(1, function() countdown(left - 1) end)
+  end
+  countdown(SHOW_SECONDS)
 end
 
 -- The player's answer to the moment in the box (or running out of time: false).

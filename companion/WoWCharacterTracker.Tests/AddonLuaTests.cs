@@ -485,6 +485,48 @@ public class AddonLuaTests
     [Fact]
     public void Skipping_records_nothing() => Assert.Empty(Ask(AskAll, ABoss, post: false));
 
+    // The box stays 10 seconds, counting down on Skip, then goes away without posting.
+    [Fact]
+    public void The_post_box_counts_down_from_10_and_goes_away()
+    {
+        var script = new Script();
+        script.DoString(FakeTimers);
+        script.DoString("""
+            function time() return 7000 end
+            texts = {}
+            local function frame()
+              local f = { shown = true }
+              return setmetatable(f, { __index = function(_, k)
+                if k == 'CreateFontString' or k == 'CreateTexture' then return function() return frame() end end
+                if k == 'SetText' then return function(s, t) s.text = t; texts[#texts + 1] = t end end
+                if k == 'Show' then return function(s) s.shown = true end end
+                if k == 'Hide' then return function(s) s.shown = false end end
+                return function() end
+              end })
+            end
+            CreateFrame = function() local f = frame(); box = box or f; return f end -- the first frame is the box
+            UIParent = {}
+            WoWCharacterTrackerDB = {}
+            function InCombatLockdown() return false end
+            """);
+        script.DoString("WoWCharacterTrackerSettings = " + AskAll);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Announce.lua", "Ask.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        script.Call(ns.Get("offerAsk"), script.DoString("return " + ABoss));
+        bool Said(string s) => script.DoString($"for _, t in ipairs(texts) do if t == '{s}' then return true end end return false").Boolean;
+        Assert.True(Said("Skip (10)"));
+        script.DoString("runTimers(clock + 3)");
+        Assert.True(Said("Skip (7)"));
+        Assert.True(script.DoString("return box.shown").Boolean);
+        script.DoString("runTimers(clock + 8)");
+        Assert.False(script.DoString("return box.shown").Boolean); // gone after 10 seconds
+        Assert.Empty(recorded);
+    }
+
     // Nothing to post to, or switched off: no box, so even an answer records nothing.
     [Theory]
     [InlineData("{ discord = true, ask = { boss = true } }")] // no app
