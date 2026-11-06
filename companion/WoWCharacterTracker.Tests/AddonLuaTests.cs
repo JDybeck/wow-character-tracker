@@ -935,10 +935,10 @@ public class AddonLuaTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
-    // Options.lua: registers a page under the game's AddOns options, and lists what the app set
-    // (from the Settings.lua it writes) when the page opens.
+    // Options.lua registers a short page under the game's AddOns options; the window's App tab
+    // lists what the app set (from the Settings.lua it writes) and Chat shows its guild switch.
     [Fact]
-    public void The_options_page_registers_and_lists_the_apps_settings()
+    public void The_options_page_registers_and_the_window_lists_the_apps_settings()
     {
         var dir = Path.Combine(Path.GetTempPath(), "wct-options-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
@@ -972,15 +972,18 @@ public class AddonLuaTests
                 """);
             var ns = new Table(script);
             ns["say"] = (Action<string>)(_ => { });
-            foreach (var file in new[] { "Shared.lua", "FriendData.lua", "Comms.lua", "Friends.lua", "NoteBox.lua", "Options.lua" })
+            foreach (var file in new[] { "Shared.lua", "FriendData.lua", "Comms.lua", "Friends.lua", "NoteBox.lua", "Ui.lua", "Window.lua", "Options.lua" })
                 script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
             Assert.Equal("WoW Character Tracker", script.DoString("return registered").String);
             script.DoString("frames[1].scripts.OnShow(frames[1])");
-            var summary = script.DoString("return texts[#texts]").String;
-            Assert.Contains("boss kills", summary);
-            Assert.False(script.DoString("return frames[4].checked").Boolean); // instant posting, off in the saved file (after the panel, its scroll frame and the page)
-            Assert.True(script.DoString("return frames[6].checked").Boolean); // guild chat, on in Settings.lua
+            Assert.Equal(2, script.DoString("return #frames").Number); // the panel and its button, the window not built yet
+
+            script.Call(ns.Get("openWindow"), "app");
+            Assert.Contains("boss kills", script.DoString("return texts[#texts]").String);
+            var before = (int)script.DoString("return #frames").Number;
+            script.Call(ns.Get("openWindow"), "chat");
+            Assert.True(script.DoString($"return frames[{before + 2}].checked").Boolean); // guild chat, on in Settings.lua (after the tab's page)
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

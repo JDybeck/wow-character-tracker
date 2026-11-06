@@ -21,6 +21,8 @@ Ask.lua
 Comms.lua
 Friends.lua
 NoteBox.lua
+Ui.lua
+Window.lua
 Options.lua
 Minimap.lua
 Commands.lua
