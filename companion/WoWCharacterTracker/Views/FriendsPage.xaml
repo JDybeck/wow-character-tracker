@@ -114,7 +114,7 @@
           <TextBlock Style="{StaticResource Icon}" Text="&#xE716;" FontSize="34" Foreground="{StaticResource Faint}" HorizontalAlignment="Center"/>
           <TextBlock Text="Nothing from friends yet" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,10,0,4"/>
           <TextBlock Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"
-                     Text="Battle.net friends who have the addon can share their characters with you. Turn sharing on under Sharing settings (or /wct friends on in game), then type /wct friends ask &lt;BattleTag&gt; in game while they're online."/>
+                     Text="Battle.net friends who have the addon can share their characters with you. Type /wct friends ask &lt;BattleTag&gt; in game while they're online: they get a popup, and once they allow it their characters show up here."/>
         </StackPanel>
       </Grid>
 
@@ -126,7 +126,7 @@
           <TextBlock Style="{StaticResource FactLabel}" Text="SHARING"/>
           <WrapPanel>
             <CheckBox Style="{StaticResource OptionChip}" Content="Share with friends" IsChecked="{Binding Enabled}" Margin="0,0,6,6"
-                      ToolTip="Off: nothing is sent, and nothing friends send is kept"/>
+                      ToolTip="On: friends can ask, and only what you allow is shared. Off: no requests, nothing sent or kept."/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Share new characters" IsChecked="{Binding NewChars}" Margin="0,0,6,6"
                       ToolTip="Characters you haven't shared or hidden yet"/>
           </WrapPanel>

@@ -16,5 +16,5 @@ record ShareContact(bool Share, bool Receive, bool? Gear = null, bool? Talents =
 record ShareSettings(bool Enabled, bool NewChars, GeneralCategories Defaults, Dictionary<string, bool> Chars,
     Dictionary<string, ShareContact> Contacts, HashSet<string> Blocked, long At)
 {
-    public static ShareSettings Empty => new(false, true, new(), [], [], [], 0);
+    public static ShareSettings Empty => new(true, true, new(), [], [], [], 0); // on, as in the addon: only allowing a request shares
 }

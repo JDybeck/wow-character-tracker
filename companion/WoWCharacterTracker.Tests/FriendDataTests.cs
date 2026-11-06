@@ -159,6 +159,15 @@ public class FriendDataTests
         Assert.Equal("New", merged.Single(f => f.Tag == "Zeb#2222").Characters.Single().Char);
     }
 
+    // Like the addon: on unless turned off (nothing is shared without a contact anyway).
+    [Fact]
+    public void Sharing_is_on_unless_turned_off()
+    {
+        Assert.True(FriendData.ReadShare(Lua("{ at = 5 }"))!.Enabled);
+        Assert.False(FriendData.ReadShare(Lua("{ at = 5, enabled = false }"))!.Enabled);
+        Assert.True(ShareSettings.Empty.Enabled);
+    }
+
     [Fact]
     public void Share_settings_are_read_with_defaults_for_what_is_missing()
     {

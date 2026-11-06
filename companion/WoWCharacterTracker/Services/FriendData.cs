@@ -83,7 +83,7 @@ static partial class FriendData
                     Flag(c, "gear"), Flag(c, "talents"), Flag(c, "location"), Flag(c, "gold"));
             }
         var blocked = Pairs(t.Get("blocked")).Where(p => p.Value.CastToBool()).Select(p => p.Key.String).ToHashSet();
-        return new(Flag(t, "enabled") == true, Flag(t, "newChars") ?? true, general, chars, contacts, blocked, (long)Number(t.Get("at")));
+        return new(Flag(t, "enabled") ?? true, Flag(t, "newChars") ?? true, general, chars, contacts, blocked, (long)Number(t.Get("at")));
     }
 
     // A table's pairs with string keys (anything else is ignored).
