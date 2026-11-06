@@ -172,6 +172,19 @@ public class FriendsViewModelTests
         Assert.False(f.Vm.ContactRows.Single(c => c.Tag == "Kalle#3333").Receive); // not a contact: nothing kept
     }
 
+    // A character removed on the Characters page isn't offered for sharing either, until it's played again.
+    [Fact]
+    public void Removed_characters_are_not_among_your_characters()
+    {
+        var f = new Fixture();
+        f.Settings.Removed["Player-1-0000000A"] = 10; // after its LastSeen (5)
+        f.Vm.Show(f.Data);
+        Assert.Empty(f.Vm.OwnCharacters);
+        f.Settings.Removed["Player-1-0000000A"] = 1; // played since
+        f.Vm.Show(f.Data);
+        Assert.Single(f.Vm.OwnCharacters);
+    }
+
     [Fact]
     public void A_friend_with_another_protocol_says_needs_update()
     {

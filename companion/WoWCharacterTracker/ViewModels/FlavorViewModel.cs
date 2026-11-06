@@ -809,6 +809,7 @@ sealed class FlavorViewModel : Observable
     {
         Settings.Removed[row.Guid] = Math.Max(row.LastSeen, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         main.Config.Save();
+        WriteAddonSettings(); // the addon stops sharing it with friends (Settings.lua removed)
         Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");
         ShowData(lastData);
     }

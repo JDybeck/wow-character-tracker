@@ -100,6 +100,22 @@ public class FriendDataTests
         Assert.Contains("Bad#1", back.Share.Blocked);
     }
 
+    // The addon gets the characters removed in the app (guid and when), so it never shares them.
+    [Fact]
+    public void Settings_lua_lists_the_removed_characters()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-removed-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var s = new FlavorSettings();
+            s.Removed["Player-1-0000000D"] = 1234;
+            var script = new Script();
+            script.DoString(File.ReadAllText(WriteSettings(dir, s)));
+            Assert.Equal(1234, script.DoString("return WoWCharacterTrackerSettings.removed['Player-1-0000000D']").Number);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // Settings.lua in a fake game folder; returns its path.
     static string WriteSettings(string dir, FlavorSettings s, Dictionary<string, string>? names = null)
     {

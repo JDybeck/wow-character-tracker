@@ -65,9 +65,19 @@ function ns.allowedFor(s, contact)
   return out
 end
 
--- One of your characters goes to friends: its own choice, else the one for new characters.
+-- Removed on the app's Characters page (Settings.lua removed = { [guid] = when }) and not played since.
+local function removedInApp(guid)
+  local removed = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.removed
+  local at = removed and removed[guid]
+  if not at then return false end
+  local char = WoWCharacterTrackerDB and WoWCharacterTrackerDB.chars and WoWCharacterTrackerDB.chars[guid]
+  return not char or (char.lastSeen or 0) <= at
+end
+
+-- One of your characters goes to friends: its own choice, else the one for new characters. Never
+-- one removed in the app.
 function ns.isCharShared(s, guid)
-  if not guid then return false end
+  if not guid or removedInApp(guid) then return false end
   local v = s.chars[guid]
   if v == nil then return s.newChars ~= false end
   return v == true

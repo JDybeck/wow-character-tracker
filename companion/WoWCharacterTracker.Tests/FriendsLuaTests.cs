@@ -545,6 +545,23 @@ public class FriendsLuaTests
         Assert.Contains(b.Said(), s => s.StartsWith("Asked Jesper#1111"));
     }
 
+    // Characters removed in the app (Settings.lua removed) are never shared, until played again.
+    [Fact]
+    public void Characters_removed_in_the_app_are_never_shared()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ removed = { ['Player-1-0000000C'] = 600 } }"); // Drygbeck, last seen 500
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Talk(a, b);
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C']").IsNil());
+        Assert.False(a.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000C')").Boolean);
+        a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000C'].lastSeen = 700"); // played again
+        Assert.True(a.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000C')").Boolean);
+    }
+
     [Fact]
     public void Alts_go_once_a_session_and_asking_again_too_soon_waits()
     {

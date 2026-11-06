@@ -112,6 +112,8 @@ static partial class AddonInstaller
                   + $"  inGameAt = {s.InGameAt},\n"
                   + $"  ask = {{ {LuaSet(s.AskKinds ?? [])} }},\n"
                   + $"  askSeconds = {FlavorSettings.AskSecondsOrDefault(s.AskSeconds)},\n"
+                  // Characters removed in the app and when: never shared with friends until played again.
+                  + $"  removed = {{ {string.Concat(s.Removed.OrderBy(r => r.Key, StringComparer.Ordinal).Select(r => $"[{LuaString(r.Key)}] = {r.Value}, "))}}},\n"
                   + $"  discord = {B(hasWebhook)},\n"
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
