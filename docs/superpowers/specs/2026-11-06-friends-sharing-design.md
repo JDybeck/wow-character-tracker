@@ -17,7 +17,7 @@ Out of scope for v1: guild-wide sharing, guild map pins (a later feature on the 
 - **We only send to friends who are online in the same game**: walking the Battle.net friends list (`GetFriendAccountInfo`, `GetFriendNumGameAccounts`, `GetFriendGameAccountInfo`), the game account has `isOnline`, `clientProgram` WoW and `wowProjectID == WOW_PROJECT_ID`.
 - **Sender identity comes from the game**: `senderID` is the sender's game account, matched against our own Battle.net friends list (the same walk as above) to get the `battleTag`. The game sets it, so it can't be spoofed by the friend's addon, and only Battle.net friends can send at all.
 - **Off means off**: with sharing off nothing is sent and nothing received is kept or shown, requests included.
-- **Silent by default**: addon messages never show in chat or in a Battle.net conversation. The addon prints nothing about sharing on its own; the only visible things are the request popup, `/wct friends` output and the Options page. We use `SendGameData`, not the logged variants.
+- **Silent by default**: addon messages never show in chat or in a Battle.net conversation. The addon prints nothing about sharing on its own, except a "Did you know?" tip at most once a week while sharing is on and you share with nobody yet; otherwise the only visible things are the request popup, `/wct friends` output and the Options page. We use `SendGameData`, not the logged variants.
 - **`accountName` is never stored** (can be a Real ID real name). Only the BattleTag, plus the nickname the user gives.
 
 ## Consent
