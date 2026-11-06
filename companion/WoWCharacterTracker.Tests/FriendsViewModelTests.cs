@@ -102,6 +102,7 @@ public class FriendsViewModelTests
         var f = new Fixture("nil");
         Assert.True(f.Vm.ShareGear);
         Assert.False(f.Vm.ShareGold);
+        Assert.True(f.Vm.ShareLocation);
         Assert.Null(f.Settings.Share);
         f.Vm.ShareGold = true;
         Assert.True(f.Settings.Share!.Defaults.Gold);

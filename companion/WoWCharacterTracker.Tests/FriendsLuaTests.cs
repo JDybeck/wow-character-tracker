@@ -330,6 +330,7 @@ public class FriendsLuaTests
     {
         var a = new Client(A, AFriends, ADb("nil"));
         Assert.True(a.Lua("return ns.shareSettings().enabled").Boolean);
+        Assert.True(a.Lua("return ns.allowedFor(ns.shareSettings(), {}).location").Boolean); // location on by default
         a.Call("friendsTick");
         a.Receive("1:DATA:2:1:1:guid=Player-1-0000000B;char=Zeb", BAccount);
         a.Run(5);
@@ -411,7 +412,7 @@ public class FriendsLuaTests
         Assert.True(a.Lua("return allowed.gold").Boolean);     // general
         Assert.True(a.Lua("return allowed.gear").Boolean);     // their own beats the general off
         Assert.False(a.Lua("return allowed.talents").Boolean); // their own beats the general on
-        Assert.False(a.Lua("return allowed.location").Boolean);
+        Assert.True(a.Lua("return allowed.location").Boolean);  // the general default, on
         Assert.False(a.Lua("return general.gear").Boolean);
         var fresh = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
         Assert.False(fresh.Lua("return ns.allowedFor(ns.shareSettings(), {}).gold").Boolean); // gold is off until turned on

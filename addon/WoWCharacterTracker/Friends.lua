@@ -14,7 +14,7 @@ local TICK = 30
 
 -- What friends get, unless set for one of them. Gold stays off until turned on.
 local CATEGORIES = { "gear", "talents", "location", "gold" }
-local DEFAULTS = { gear = true, talents = true, location = false, gold = false }
+local DEFAULTS = { gear = true, talents = true, location = true, gold = false }
 ns.SHARE_CATEGORIES = CATEGORIES
 
 -- This session only.

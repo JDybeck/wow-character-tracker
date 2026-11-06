@@ -179,7 +179,7 @@ public class FriendDataTests
         Assert.Equal(300, share.At);
         Assert.True(share.Defaults.Gold);
         Assert.True(share.Defaults.Gear);       // missing: the addon's default
-        Assert.False(share.Defaults.Location);
+        Assert.True(share.Defaults.Location);   // on by default since 0.33.3
         Assert.False(share.Chars["Player-1-0000000D"]);
         Assert.False(share.Contacts["Zeb#2222"].Location);
         Assert.Null(share.Contacts["Zeb#2222"].Gold); // follows the general choice
