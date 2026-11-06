@@ -168,6 +168,25 @@ class FlavorSettings
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
         return true;
     }
+    // Sharing with Battle.net friends (Friends.lua `share`): null until changed in the app or taken
+    // from the game, and only then written to Settings.lua, so the app never resets the game's.
+    public ShareSettings? Share { get; set; }
+
+    // The game's sharing settings, when they're newer than the app's.
+    public bool TakeShare(ShareSettings? game)
+    {
+        if (game is null || game.At <= (Share?.At ?? 0)) return false;
+        Share = game;
+        return true;
+    }
+
+    // Changes the sharing settings in the app, with a time newer than the last change.
+    public void EditShare(Func<ShareSettings, ShareSettings> edit)
+    {
+        var old = Share ?? ShareSettings.Empty;
+        Share = edit(old) with { At = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), old.At + 1) };
+    }
+
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
 

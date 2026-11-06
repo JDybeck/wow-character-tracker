@@ -74,6 +74,81 @@ public class FriendDataTests
     }
 
     [Fact]
+    public void The_newest_share_wins_both_ways()
+    {
+        var s = new FlavorSettings();
+        var game = FriendData.ReadShare(Lua("{ enabled = true, at = 200 }"));
+        Assert.True(s.TakeShare(game));
+        Assert.True(s.Share!.Enabled);
+        s.EditShare(x => x with { NewChars = false });
+        Assert.True(s.Share.At > 200);
+        Assert.False(s.TakeShare(game)); // older than the app's edit now
+        Assert.False(s.Share.NewChars);
+    }
+
+    [Fact]
+    public void Share_settings_survive_the_config_file()
+    {
+        var s = new FlavorSettings();
+        s.TakeShare(FriendData.ReadShare(Lua("{ enabled = true, at = 200, defaults = { gold = true }, chars = { ['Player-1-0000000D'] = false }, contacts = { ['Zeb#2222'] = { share = true, gold = false } }, blocked = { ['Bad#1'] = true } }")));
+        var back = System.Text.Json.JsonSerializer.Deserialize<FlavorSettings>(System.Text.Json.JsonSerializer.Serialize(s))!;
+        Assert.Equal(200, back.Share!.At);
+        Assert.True(back.Share.Defaults.Gold);
+        Assert.False(back.Share.Chars["Player-1-0000000D"]);
+        Assert.False(back.Share.Contacts["Zeb#2222"].Gold);
+        Assert.Null(back.Share.Contacts["Zeb#2222"].Gear);
+        Assert.Contains("Bad#1", back.Share.Blocked);
+    }
+
+    // Settings.lua in a fake game folder; returns its path.
+    static string WriteSettings(string dir, FlavorSettings s, Dictionary<string, string>? names = null)
+    {
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        AddonInstaller.WriteSettings(dir, s, friendNames: names);
+        return Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua");
+    }
+
+    [Fact]
+    public void Settings_lua_has_no_share_until_the_app_has_one()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-share-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var s = new FlavorSettings();
+            Assert.DoesNotContain("share =", File.ReadAllText(WriteSettings(dir, s)));
+            s.TakeShare(FriendData.ReadShare(Lua("{ enabled = true, at = 200, contacts = { ['Zeb#2222'] = { share = true, gold = true } } }")));
+            var file = WriteSettings(dir, s, new() { ["Zeb#2222"] = "Zebbe \"Z\"" });
+            var script = new Script();
+            script.DoString(File.ReadAllText(file));
+            var share = FriendData.ReadShare(script.Globals.Get("WoWCharacterTrackerSettings").Table.Get("share"))!;
+            Assert.True(share.Enabled);
+            Assert.Equal(200, share.At);
+            Assert.True(share.Contacts["Zeb#2222"].Gold);
+            Assert.Null(share.Contacts["Zeb#2222"].Talents);
+            Assert.Equal("Zebbe \"Z\"", script.DoString("return WoWCharacterTrackerSettings.friendNames['Zeb#2222']").String);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void The_addon_reads_the_share_the_app_wrote()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-share-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var s = new FlavorSettings();
+            s.TakeShare(FriendData.ReadShare(Lua("{ enabled = true, at = 200, defaults = { gear = false }, contacts = { ['Zeb#2222'] = { share = true, gold = true } } }")));
+            var file = WriteSettings(dir, s, new() { ["Zeb#2222"] = "Zebbe" });
+            var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", db: "{ share = { enabled = false, at = 100 } }");
+            c.Lua(File.ReadAllText(file));
+            Assert.True(c.Lua("return ns.shareSettings().enabled").Boolean); // the app's is newer
+            Assert.True(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).gold").Boolean);
+            Assert.False(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).gear").Boolean);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
     public void Share_settings_are_read_with_defaults_for_what_is_missing()
     {
         var share = FriendData.ReadShare(Lua("""
