@@ -6,7 +6,7 @@ namespace WoWCharacterTracker.Tests;
 // The addon's Lua, checked with MoonSharp (the same interpreter the app reads saved files with).
 public class AddonLuaTests
 {
-    static string AddonDir
+    internal static string AddonDir
     {
         get
         {
@@ -24,7 +24,7 @@ public class AddonLuaTests
         new Script().LoadString(File.ReadAllText(Path.Combine(AddonDir, file)), codeFriendlyName: file);
 
     // A clock and C_Timer for Announce.lua: runTimers() runs what's due, moving the clock as it goes.
-    const string FakeTimers = """
+    internal const string FakeTimers = """
         clock = 1000
         function GetTime() return clock end
         timers = {}
