@@ -329,8 +329,8 @@ local function buildFriends(p)
     r.levelText = rowText(r, "GameFontHighlightSmall", 124, 30)
     r.zoneText = rowText(r, "GameFontHighlightSmall", 158, 140)
     r.tagText = rowText(r, "GameFontHighlightSmall", 302, 130)
-    r.stateText = rowText(r, "GameFontDisableSmall", 436, 92)
-    r.b1, r.b2 = rowButton(r, 70, 530), rowButton(r, 64, 604)
+    r.stateText = rowText(r, "GameFontDisableSmall", 436, 80)
+    r.b1, r.b2 = rowButton(r, 70, 518), rowButton(r, 64, 592) -- ends at 656 (+16 indent), inside the ~678 px scroll area
     return r
   end
 

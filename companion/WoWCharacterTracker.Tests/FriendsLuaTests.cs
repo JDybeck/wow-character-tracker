@@ -910,13 +910,63 @@ public class FriendsLuaTests
         a.Lua("table.insert(friends, { tag = 'Bo#3333', account = 3 })");
         a.Call("findOnlineFriends");
         a.Run(1);
-        Assert.Equal(1, Count(a, "PING")); // still within the minute
-        Assert.Equal(2, a.Lua("return #ns.onlineFriends()").Number); // but listed
+        Assert.Equal(2, Count(a, "PING")); // a friend who came online since is pinged, even within the minute
+        Assert.Equal(3, a.Sent().Last().Get("to").Number); // only the new one
         a.Run(60);
         a.Call("findOnlineFriends");
         a.Run(1);
-        Assert.Equal(2, Count(a, "PING"));
-        Assert.Equal(3, a.Sent().Last().Get("to").Number); // only the new one
+        Assert.Equal(2, Count(a, "PING")); // nobody twice
+    }
+
+    // A PING still waiting (combat, a full queue) isn't "no answer": the 10 s start once it went out.
+    [Fact]
+    public void A_ping_waiting_in_combat_is_not_no_addon()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Lua("inCombat = true");
+        a.Call("findOnlineFriends");
+        a.Run(15);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
+        a.Lua("inCombat = false");
+        a.Run(6);
+        Assert.Equal(1, Count(a, "PING"));
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil()); // it only just went
+        a.Run(20);
+        Assert.False(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
+    }
+
+    [Fact]
+    public void A_ping_that_could_not_be_sent_is_not_counted()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Lua("realSend = ns.comms.send; ns.comms.send = function() return false end");
+        a.Call("findOnlineFriends");
+        a.Run(11);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
+        a.Lua("ns.comms.send = realSend");
+        a.Run(60);
+        a.Call("findOnlineFriends");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "PING")); // tried again
+    }
+
+    // Older addons don't answer PING: someone who is a contact or shared with you has the addon anyway.
+    [Fact]
+    public void Invite_never_goes_to_a_contact_or_someone_still_being_checked()
+    {
+        var contact = new Client(A, "{ { tag = 'Zeb#2222', account = 2, bnet = 77 } }", ADb(AShares));
+        contact.Call("findOnlineFriends");
+        contact.Run(11);
+        Assert.False(contact.Lua("return (ns.inviteFriend('Zeb#2222'))").Boolean);
+        var sharedWithMe = new Client(A, "{ { tag = 'Zeb#2222', account = 2, bnet = 77 } }", ADb("nil"));
+        sharedWithMe.Lua("WoWCharacterTrackerDB.friends = { ['Zeb#2222'] = { chars = {} } }");
+        sharedWithMe.Call("findOnlineFriends");
+        sharedWithMe.Run(11);
+        Assert.False(sharedWithMe.Lua("return (ns.inviteFriend('Zeb#2222'))").Boolean);
+        var checking = new Client(A, "{ { tag = 'Zeb#2222', account = 2, bnet = 77 } }", ADb("nil"));
+        checking.Call("findOnlineFriends");
+        Assert.False(checking.Lua("return (ns.inviteFriend('Zeb#2222'))").Boolean); // no answer yet
+        Assert.Equal(0, Whispers(contact) + Whispers(sharedWithMe) + Whispers(checking));
     }
 
     const string TwoFriends = """

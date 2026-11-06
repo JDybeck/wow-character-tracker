@@ -219,28 +219,33 @@ end
 
 -- Who has the addon ---------------------------------------------------------------------------
 -- PING asks a friend's addon to say PONG, invisibly. Each game account is pinged once a session.
-local FIND_EVERY = 60 -- seconds between two finds, and between two PONGs to one account
+local FIND_EVERY = 60 -- seconds between two PONGs to one account
 local PING_WAIT = 10  -- seconds without an answer before it's "no addon"
 
 local pinged = {}       -- [account] = true: PING went out
 local silent = {}       -- [account] = true: no answer to it in PING_WAIT
 local answeredPing = {} -- [account] = when we last said PONG
-local lastFind
 
+-- No answer counts only PING_WAIT after the PING really went: while anything still waits to go out
+-- (combat, lockdown, a backlog), the wait starts over.
+local function waitForAnswer(account, sentAlready)
+  C_Timer.After(PING_WAIT, function()
+    if heard[account] then return end
+    local queued = ns.comms.pending and ns.comms.pending() > 0
+    if queued or not sentAlready then return waitForAnswer(account, not queued) end
+    silent[account] = true
+    changed()
+  end)
+end
+
+-- Pings every friend online here that hasn't been pinged yet this session. A friend who came online
+-- since the last look is pinged right away; nobody is pinged twice.
 function ns.findOnlineFriends()
-  local now = time()
-  if lastFind and now - lastFind < FIND_EVERY then return end
-  lastFind = now
   for _, f in ipairs(online()) do
     local account = f.account
-    if not pinged[account] and not heard[account] then
+    if not pinged[account] and not heard[account] and ns.comms.send(account, "PING", "") then
       pinged[account] = true
-      ns.comms.send(account, "PING", "")
-      C_Timer.After(PING_WAIT, function()
-        if heard[account] then return end
-        silent[account] = true
-        changed()
-      end)
+      waitForAnswer(account, not (ns.comms.pending and ns.comms.pending() > 0))
     end
   end
 end
@@ -682,10 +687,14 @@ ns.shareWithFriend = share
 -- The only real chat message the addon sends: one Battle.net whisper with a link, on the player's
 -- click, at most once a day per friend and never to one who has the addon. Returns ok, message.
 function ns.inviteFriend(tag)
+  -- A contact, or someone who shared with you, runs the addon (an older one may not answer PING).
+  local known = ns.shareSettings().contacts[tag] or (WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[tag])
+  if known then return false, label(tag) .. " has the addon already." end
   local friend
   for _, f in ipairs(online()) do
     if f.tag == tag then
       if heard[f.account] then return false, label(tag) .. " has the addon already." end
+      if not silent[f.account] then return false, "Still checking whether " .. label(tag) .. " has the addon." end
       friend = friend or f
     end
   end
