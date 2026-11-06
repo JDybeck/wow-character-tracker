@@ -103,7 +103,7 @@ The **In game** page has what the addon does in game besides posting to Discord:
 
 ### Sharing with Battle.net friends (new, in game only for now)
 
-Friends on your Battle.net friends list who have the addon can see the characters you share: name, level, class, spec and item level, plus gear and talents, and location and gold if you allow it. It's off until you turn it on.
+Friends on your Battle.net friends list who have the addon can see the characters you share: name, level, class, spec and item level, plus gear and talents, and location and gold if you allow it. It's on, but nothing is shared until you allow a friend's request (a popup) or share with them yourself. Turn it off and friends can't even ask.
 
 - **What friends get** is one general choice (gear and talents on, location and gold off), set under Esc, Options, AddOns or with `/wct friends set all gold on`. Any friend can get something different: `/wct friends set <BattleTag> gold on`, and `default` puts them back on the general choice.
 - `/wct friends ask <BattleTag>` asks a friend for theirs. They get a popup: **Allow**, **Not now** or **Never**. Asking never shares your own characters.

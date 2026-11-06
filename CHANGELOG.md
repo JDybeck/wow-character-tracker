@@ -8,7 +8,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 ### New
 
-- **Share with Battle.net friends** (in game, new): friends with the addon can see the characters you share, with gear and talents, and location and gold if you allow it, for all friends or one at a time. Off until you turn it on. `/wct friends help` in game. The app's Friends page comes next.
+- **Share with Battle.net friends** (in game, new): friends with the addon can see the characters you share, with gear and talents, and location and gold if you allow it, for all friends or one at a time. Nothing is shared until you allow a friend's request. `/wct friends help` in game. The app's Friends page comes next.
 
 ## v0.32.0
 

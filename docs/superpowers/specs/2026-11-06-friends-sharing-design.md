@@ -22,7 +22,7 @@ Out of scope for v1: guild-wide sharing, guild map pins (a later feature on the 
 
 ## Consent
 
-- Sharing is off by default (`share.enabled`).
+- Sharing is on by default (`share.enabled`), but nothing goes to anyone without a contact: a friend asks and you allow, or you share with them yourself. Off: no requests, nothing sent or kept.
 - **Sending**: the user adds contacts from their Battle.net list. What friends get is one general choice per category (`share.defaults`: `gear`, `talents`, `location`, `gold`; gear and talents on, location and gold off, gold only on when turned on), and any contact can have their own value per category that overrides it (nil follows the general choice).
 - **Receiving**: the addon only keeps data from contacts with `receive` on. Data from anyone else is dropped without a message.
 - **Requests**: B asks A (`REQ`). Asking makes A a contact on B's side with `receive` on and nothing shared: asking for someone's data never shares your own. If A doesn't share with B yet, A gets a popup: "<B> wants to see your characters" with Allow / Not now / Never. Allow shares the default categories with B (and turns `receive` on). Not now sends nothing back and doesn't ask again this session. Never adds B to `blocked` and replies `NO`, so B's addon stops asking (until B gets data from A again).

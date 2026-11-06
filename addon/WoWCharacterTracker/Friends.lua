@@ -1,5 +1,6 @@
--- Sharing characters with Battle.net friends (contacts) who have the addon too. Off until turned
--- on. What a contact gets is the general choice per category, unless set for them; only from
+-- Sharing characters with Battle.net friends (contacts) who have the addon too. On by default, but
+-- nothing goes to anyone until you allow their request or share with them yourself (a contact).
+-- What a contact gets is the general choice per category, unless set for them; only from
 -- characters that are shared. What a contact sends is kept (WoWCharacterTrackerDB.friends, for the
 -- app) only when receiving from them is on. Messages go through Comms.lua, one character's text
 -- through FriendData.lua.
@@ -35,13 +36,14 @@ local function normalize(s)
     if s.defaults[k] == nil then s.defaults[k] = v end
   end
   if s.newChars == nil then s.newChars = true end
+  if s.enabled == nil then s.enabled = true end -- on, so friends can ask; only Allow shares
   return s
 end
 
 function ns.shareSettings()
   local game, app = WoWCharacterTrackerDB and WoWCharacterTrackerDB.share, fromApp()
   if app and (not game or (app.at or 0) > (game.at or 0)) then return normalize(app) end
-  return normalize(game or { enabled = false })
+  return normalize(game or {})
 end
 
 -- Changes sharing settings: edit gets a copy of all of them, saved with a time newer than the app's.
