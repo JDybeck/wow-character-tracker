@@ -16,6 +16,7 @@ Out of scope for v1: guild-wide sharing, guild map pins (a later feature on the 
 - **Transport = `C_BattleNet.SendGameData(gameAccountID, prefix, data)`, received on `BN_CHAT_MSG_ADDON` (`prefix, text, channel, senderID`).** Checked in wow-ui-source `live` (Retail). Not yet checked on the Forever client.
 - **We only send to friends who are online in the same game**: walking the Battle.net friends list (`GetFriendAccountInfo`, `GetFriendNumGameAccounts`, `GetFriendGameAccountInfo`), the game account has `isOnline`, `clientProgram` WoW and `wowProjectID == WOW_PROJECT_ID`.
 - **Sender identity comes from the game**: `senderID` -> `C_BattleNet.GetGameAccountInfoByID` -> `playerGuid` -> `C_BattleNet.GetAccountInfoByGUID` -> `battleTag`. The game sets it, so it can't be spoofed by the friend's addon.
+- **Silent by default**: addon messages never show in chat or in a Battle.net conversation. The addon prints nothing about sharing on its own; the only visible things are the request popup, `/wct friends` output and the Options page. We use `SendGameData`, not the logged variants.
 - **`accountName` is never stored** (can be a Real ID real name). Only the BattleTag, plus the nickname the user gives.
 
 ## Consent
@@ -136,3 +137,4 @@ Docs: a Friends section in `docs/GUIDE.md`, a new `.claude/notes/friends.md` (li
 - Max `SendGameData` message size.
 - Is `bnetAccountID` stable between sessions? (The design doesn't depend on it.)
 - Are Battle.net addon messages restricted in instances or encounters on Forever as on Retail?
+- Confirm nothing shows for either player (chat, Battle.net conversation, toast), also when the friend is in a loading screen or goes offline mid-send.
