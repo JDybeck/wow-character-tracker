@@ -105,10 +105,10 @@ end
 -- Small boxes that offer a /reload (the game only writes the saved file then, and only a click may
 -- reload). A dialog is only added to Blizzard's StaticPopupDialogs when it's first used: anything an
 -- addon puts in Blizzard's tables can spread taint, so it stays out unless it's needed.
-local function askReload(name, text, accept, decline, arg)
+local function askReload(name, text, accept, decline, arg, alt, onAlt)
   if not StaticPopupDialogs[name] then
     StaticPopupDialogs[name] = {
-      text = text, button1 = accept, button2 = decline,
+      text = text, button1 = accept, button2 = decline, button3 = alt, OnAlt = onAlt,
       OnAccept = function() ReloadUI() end,
       timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
     }
@@ -128,15 +128,19 @@ end
 
 -- On a flight path, with gear or bags changed since the last save: so the app gets the new items
 -- (the flight goes on through the loading screen). Once per flight, never in combat, and only when
--- the app's "Offer a reload on flight paths" is on (Settings.lua flightReload).
+-- the app's "Offer a reload on flight paths" is on (Settings.lua flightReload). "Not for 30 min"
+-- keeps it quiet on every flight until then; kept in the saved file so a /reload doesn't undo it.
 local askedThisFlight = false
+local FLIGHT_SNOOZE = 1800
 
 function ns.onFlightStart()
   if askedThisFlight or ns.setting("flightReload") == false or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
+  if time() < (WoWCharacterTrackerDB.flightSnoozeUntil or 0) then return end
   if InCombatLockdown() or not ns.itemsChanged() then return end
   askedThisFlight = true
   askReload("CHARACTERTRACKER_FLIGHT_RELOAD",
-    "Character Tracker\n\nYour bags changed since the last save.\nReload now to update the app? (You keep flying.)", "Reload", "Not now")
+    "Character Tracker\n\nYour bags changed since the last save.\nReload now to update the app? (You keep flying.)", "Reload", "Not now",
+    nil, "Not for 30 min", function() WoWCharacterTrackerDB.flightSnoozeUntil = time() + FLIGHT_SNOOZE end)
 end
 
 function ns.onFlightEnd() askedThisFlight = false end

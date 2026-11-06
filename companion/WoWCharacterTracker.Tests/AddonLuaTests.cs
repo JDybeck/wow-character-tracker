@@ -504,6 +504,43 @@ public class AddonLuaTests
     [Fact]
     public void The_box_waits_for_combat_to_end() => Assert.Empty(Ask(AskAll, ABoss, post: true, inCombat: true));
 
+    // Events.lua: the flight box shows once per flight; "Not for 30 min" (its third button) keeps it
+    // away on later flights until the 30 minutes are up, and is kept in the saved file.
+    [Fact]
+    public void Snoozing_the_flight_box_skips_it_for_30_minutes()
+    {
+        var script = new Script();
+        script.DoString("""
+            now = 1000
+            function time() return now end
+            function UnitOnTaxi() return true end
+            function InCombatLockdown() return false end
+            WoWCharacterTrackerDB = {}
+            WoWCharacterTrackerSettings = {}
+            StaticPopupDialogs = {}
+            shown = 0
+            function StaticPopup_Show() shown = shown + 1 return {} end
+            """);
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["itemsChanged"] = (Func<bool>)(() => true);
+        double Fly(int at)
+        {
+            script.DoString($"now = {at}");
+            script.Call(ns.Get("onFlightStart"));
+            script.Call(ns.Get("onFlightEnd"));
+            return script.Globals.Get("shown").Number;
+        }
+
+        Assert.Equal(1, Fly(1000));
+        script.DoString("StaticPopupDialogs.CHARACTERTRACKER_FLIGHT_RELOAD.OnAlt()");
+        Assert.Equal(2800, script.DoString("return WoWCharacterTrackerDB.flightSnoozeUntil").Number);
+        Assert.Equal(1, Fly(2000));
+        Assert.Equal(1, Fly(2799));
+        Assert.Equal(2, Fly(2800));
+    }
+
     // Shared.lua: a change in game applies right away and carries a time; a later change in the app
     // (Settings.lua inGameAt) wins over it.
     static (Script Script, Table Ns) InGameSettingsScript(string settings)
