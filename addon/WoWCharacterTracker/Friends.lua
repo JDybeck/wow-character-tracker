@@ -257,3 +257,247 @@ ns.comms.onReceive = function(account, kind, body)
     on[kind](f, contact, body)
   end
 end
+
+-- Requests ------------------------------------------------------------------------------------
+local REQUEST_COOLDOWN = 30 -- between two requests to, or from, the same contact
+
+local asked = {}     -- [tag] = when we last asked them
+local requested = {} -- [tag] = when they last asked us
+local notNow = {}    -- [tag] = true: "Not now" this session
+local altsSent = {}  -- [tag] = true: the alts went out this session
+
+-- "Zebbe (Zeb#2222)" with a nickname from the app (Settings.lua friendNames), else the BattleTag.
+local function label(tag)
+  local names = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.friendNames
+  local name = names and names[tag]
+  if name and name ~= "" then return string.format("%s (%s)", name, tag) end
+  return tag
+end
+
+local function accountsOf(tag)
+  local out = {}
+  for _, f in ipairs(online()) do
+    if f.tag == tag then out[#out + 1] = f.account end
+  end
+  return out
+end
+
+-- Your shared characters other than the one being played.
+local function sharedAlts()
+  local s, me, out = ns.shareSettings(), UnitGUID("player"), {}
+  for guid in pairs(WoWCharacterTrackerDB.chars or {}) do
+    if guid ~= me and ns.isCharShared(s, guid) then out[#out + 1] = guid end
+  end
+  table.sort(out)
+  return out
+end
+
+-- Everything a contact may see, for one who asked: the character being played, and the alts once a session.
+local function answer(f, contact)
+  sendCurrent(f, contact, false, true)
+  if altsSent[f.tag] then return end
+  altsSent[f.tag] = true
+  for _, guid in ipairs(sharedAlts()) do
+    local text = charText(guid, contact)
+    if text then ns.comms.send(f.account, "DATA", text) end
+  end
+end
+
+-- Makes tag a contact whose characters we keep, and shares ours with them too when share is true
+-- (what they get follows the general choice until set for them). Turns sharing with friends on.
+local function addContact(tag, share)
+  ns.editShare(function(s)
+    s.enabled = true
+    local c = s.contacts[tag] or {}
+    c.receive = true
+    if share then c.share = true end
+    s.contacts[tag] = c
+  end)
+  return ns.shareSettings().contacts[tag]
+end
+
+-- A friend asks for our characters: answered when we share with them, else asked about in a popup.
+function on.REQ(f, contact)
+  local now = time()
+  if requested[f.tag] and now - requested[f.tag] < REQUEST_COOLDOWN then return end
+  requested[f.tag] = now
+  heard[f.account] = true
+  if contact and contact.share then return answer(f, contact) end
+  if not notNow[f.tag] then ns.offerFriendRequest(f) end
+end
+
+-- The popup: one at a time, never in combat (PLAYER_REGEN_ENABLED shows the next one).
+local waitingRequests = {}
+local showing
+
+function ns.offerFriendRequest(f)
+  if showing and showing.tag == f.tag then return end
+  for _, w in ipairs(waitingRequests) do
+    if w.tag == f.tag then return end
+  end
+  table.insert(waitingRequests, f)
+  ns.showNextFriendRequest()
+end
+
+function ns.showNextFriendRequest()
+  if showing or #waitingRequests == 0 then return end
+  if InCombatLockdown and InCombatLockdown() then return end
+  showing = table.remove(waitingRequests, 1)
+  ns.popup("CHARACTERTRACKER_FRIEND_REQUEST", {
+    text = "%s wants to see your characters (Character Tracker).",
+    button1 = "Allow", button2 = "Not now", button3 = "Never",
+    OnAccept = function(_, data) ns.answerFriendRequest(data, "allow") end,
+    OnCancel = function(_, data) ns.answerFriendRequest(data, "notnow") end,
+    OnAlt = function(_, data) ns.answerFriendRequest(data, "never") end,
+  }, label(showing.tag), showing)
+end
+
+-- Allow shares with them, Not now waits for the next session, Never blocks them and tells their
+-- addon to stop asking.
+function ns.answerFriendRequest(f, choice)
+  showing = nil
+  if f then
+    if choice == "allow" then
+      answer(f, addContact(f.tag, true))
+      ns.say(label(f.tag) .. " can now see your shared characters. /wct friends to change what they get.")
+    elseif choice == "never" then
+      ns.editShare(function(s) s.blocked[f.tag] = true end)
+      saidNo[f.tag] = true
+      ns.comms.send(f.account, "NO", "")
+    else
+      notNow[f.tag] = true
+    end
+  end
+  ns.showNextFriendRequest()
+end
+
+-- /wct friends ---------------------------------------------------------------------------------
+-- The Battle.net friend's BattleTag as the game writes it, from what was typed (any case), or nil.
+function ns.findFriendTag(typed)
+  typed = typed and typed:lower()
+  if not typed or typed == "" or not (BNGetNumFriends and C_BattleNet and C_BattleNet.GetFriendAccountInfo) then return nil end
+  for i = 1, (BNGetNumFriends() or 0) do
+    local info = C_BattleNet.GetFriendAccountInfo(i)
+    if info and info.battleTag and info.battleTag:lower() == typed then return info.battleTag end
+  end
+  return nil
+end
+
+local HELP = {
+  "/wct friends lists your contacts and what they get.",
+  "/wct friends on or off turns sharing with Battle.net friends on or off.",
+  "/wct friends ask <BattleTag> asks a friend for their characters.",
+  "/wct friends share <BattleTag> shares your characters with them.",
+  "/wct friends set all <gear|talents|location|gold> <on|off> changes what friends get. Gold is off until you turn it on.",
+  "/wct friends set <BattleTag> <gear|talents|location|gold> <on|off|default> changes it for one friend.",
+  "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",
+  "/wct friends hide or unhide keeps this character from friends, or shares it again.",
+  "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",
+}
+
+local IS_CATEGORY = {}
+for _, k in ipairs(CATEGORIES) do IS_CATEGORY[k] = true end
+
+local function picked(allowed)
+  local out = {}
+  for _, k in ipairs(CATEGORIES) do
+    if allowed[k] then out[#out + 1] = k end
+  end
+  return #out > 0 and table.concat(out, ", ") or "only the basics"
+end
+
+local function listContacts()
+  local s, me = ns.shareSettings(), UnitGUID("player")
+  ns.say(string.format("Sharing with friends is %s. This character is %s. Friends get: %s.", s.enabled and "on" or "off",
+    ns.isCharShared(s, me) and "shared" or "hidden", picked(s.defaults)))
+  local onlineTags = {}
+  for _, f in ipairs(online()) do onlineTags[f.tag] = true end
+  local any = false
+  for tag, c in pairs(s.contacts) do
+    any = true
+    local got = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[tag]
+    local count = 0
+    for _ in pairs(got and got.chars or {}) do count = count + 1 end
+    ns.say(string.format("%s%s: %s, %s, %d of their characters here.", label(tag), onlineTags[tag] and " (online)" or "",
+      c.share and ("gets " .. picked(ns.allowedFor(s, c))) or "gets nothing",
+      c.receive and "theirs kept" or "theirs not kept", count))
+  end
+  if not any then ns.say("No contacts yet. /wct friends ask <BattleTag> or /wct friends share <BattleTag>.") end
+end
+
+local function ask(tag)
+  local now = time()
+  if asked[tag] and now - asked[tag] < REQUEST_COOLDOWN then return ns.say("Asked " .. label(tag) .. " a moment ago.") end
+  local got = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[tag]
+  if got and got.refused then return ns.say(label(tag) .. " said no to sharing.") end
+  addContact(tag, false)
+  local accounts = accountsOf(tag)
+  if #accounts == 0 then return ns.say(label(tag) .. " isn't online in this game right now.") end
+  asked[tag] = now
+  for _, account in ipairs(accounts) do ns.comms.send(account, "REQ", "") end
+  ns.say("Asked " .. label(tag) .. ". What they share reaches the app on your next /reload or logout.")
+end
+
+-- /wct friends set all|<BattleTag> <category> <on|off|default>
+local function set(typed, what, value)
+  what, value = (what or ""):lower(), (value or ""):lower()
+  local general = (typed or ""):lower() == "all"
+  if not IS_CATEGORY[what] or not (value == "on" or value == "off" or (value == "default" and not general)) then
+    ns.say(HELP[5])
+    return ns.say(HELP[6])
+  end
+  if general then
+    ns.editShare(function(s) s.defaults[what] = value == "on" end)
+    return ns.say(string.format("Friends now get %s: %s.", what, value))
+  end
+  local tag = ns.findFriendTag(typed)
+  if not tag then return ns.say((typed or "That") .. " isn't on your Battle.net friends list.") end
+  if not ns.shareSettings().contacts[tag] then return ns.say(label(tag) .. " isn't a contact. /wct friends share " .. tag .. " adds them.") end
+  local own
+  if value ~= "default" then own = value == "on" end
+  ns.editShare(function(s) s.contacts[tag][what] = own end)
+  ns.say(string.format("%s: %s is now %s.", label(tag), what, value == "default" and "the same as for all friends" or value))
+end
+
+local TAG_COMMANDS = { ask = true, share = true, stop = true, remove = true, unblock = true }
+
+function ns.friendsCommand(args)
+  local cmd, rest = strtrim(args or ""):match("^(%S*)%s*(.-)$")
+  cmd = (cmd or ""):lower()
+  if cmd == "" then return listContacts() end
+  if cmd == "on" or cmd == "off" then
+    ns.editShare(function(s) s.enabled = cmd == "on" end)
+    return ns.say("Sharing with friends is now " .. cmd .. ".")
+  end
+  if cmd == "hide" or cmd == "unhide" then
+    local me = UnitGUID("player")
+    if me then ns.editShare(function(s) s.chars[me] = cmd == "unhide" end) end
+    return ns.say(cmd == "hide" and "Friends won't get this character anymore." or "Friends get this character again.")
+  end
+  local typed, what, value = rest:match("^(%S+)%s*(%S*)%s*(%S*)$")
+  if cmd == "set" then return set(typed, what, value) end
+  if not TAG_COMMANDS[cmd] then
+    for _, line in ipairs(HELP) do ns.say(line) end
+    return
+  end
+  local tag = ns.findFriendTag(typed)
+  if not tag then return ns.say((typed or "That") .. " isn't on your Battle.net friends list.") end
+  if cmd == "ask" then return ask(tag) end
+  if cmd == "share" then
+    addContact(tag, true)
+    ns.friendsTick()
+    return ns.say(label(tag) .. " gets your shared characters. They need the addon, with you as a contact.")
+  end
+  if cmd == "unblock" then
+    ns.editShare(function(s) s.blocked[tag] = nil end)
+    return ns.say(label(tag) .. " can ask again.")
+  end
+  if not ns.shareSettings().contacts[tag] then return ns.say(label(tag) .. " isn't a contact. /wct friends share " .. tag .. " adds them.") end
+  if cmd == "stop" then
+    ns.editShare(function(s) s.contacts[tag].share = false end)
+    return ns.say(label(tag) .. " doesn't get your characters anymore.")
+  end
+  ns.editShare(function(s) s.contacts[tag] = nil end)
+  if WoWCharacterTrackerDB.friends then WoWCharacterTrackerDB.friends[tag] = nil end
+  ns.say(label(tag) .. " is forgotten, with what they sent.")
+end

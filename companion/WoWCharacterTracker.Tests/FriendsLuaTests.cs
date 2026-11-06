@@ -473,6 +473,158 @@ public class FriendsLuaTests
         Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].share").Boolean);
     }
 
+    // A and B after saying hello; B keeps A's data, A shares with B.
+    static (Client A, Client B) Friends()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        return (a, b);
+    }
+
+    [Fact]
+    public void Asking_gets_the_shared_alts_but_never_a_hidden_one()
+    {
+        var (a, b) = Friends();
+        b.Call("friendsCommand", "ask jesper#1111"); // any case
+        Talk(a, b);
+        Assert.Equal("Drygbeck", Str(b, "WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C'].char"));
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000D']").IsNil());
+        Assert.Contains(b.Said(), s => s.StartsWith("Asked Jesper#1111"));
+    }
+
+    [Fact]
+    public void Alts_go_once_a_session_and_asking_again_too_soon_waits()
+    {
+        var (a, b) = Friends();
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Talk(a, b);
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Assert.Contains(b.Said(), s => s.Contains("a moment ago"));
+        a.Run(31);
+        b.Run(31);
+        b.Call("friendsCommand", "ask Jesper#1111");
+        b.Run(1);
+        Deliver(b, a, BAccount);
+        a.Run(1);
+        Assert.Contains(a.Sent(), m => m.Get("text").String.Contains("char=Deadbeck"));
+        Assert.DoesNotContain(a.Sent(), m => m.Get("text").String.Contains("char=Drygbeck"));
+    }
+
+    // A, who doesn't share with Zeb yet, gets a request from Zeb's game account.
+    static Client Asked(string settings = "{}")
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"), settings);
+        a.Receive("1:REQ:1:1:1:", BAccount);
+        return a;
+    }
+
+    static void Answer(Client a, string choice) =>
+        a.Script.Call(a.Ns.Get("answerFriendRequest"), a.Lua("return shown[#shown].data"), choice);
+
+    [Fact]
+    public void A_request_shows_a_popup_and_allow_shares_what_friends_get_in_general()
+    {
+        var a = Asked("{ friendNames = { ['Zeb#2222'] = 'Zebbe' } }");
+        Assert.Equal("CHARACTERTRACKER_FRIEND_REQUEST", Str(a, "shown[1].name"));
+        Assert.Equal("Zebbe (Zeb#2222)", Str(a, "shown[1].arg"));
+        Answer(a, "allow");
+        a.Run(1);
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].share").Boolean);
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].gold").IsNil()); // follows the general choice
+        Assert.Contains(a.Sent(), m => m.Get("text").String.Contains("char=Deadbeck"));
+        Assert.Contains(a.Sent(), m => m.Get("text").String.Contains("char=Drygbeck"));
+        Assert.DoesNotContain(a.Sent(), m => m.Get("text").String.Contains("money=")); // gold is off by default
+    }
+
+    [Fact]
+    public void Not_now_sends_nothing_and_doesnt_ask_again_this_session()
+    {
+        var a = Asked();
+        Answer(a, "notnow");
+        a.Run(31);
+        a.Receive("1:REQ:2:1:1:", BAccount);
+        a.Run(1);
+        Assert.Equal(1, a.Lua("return #shown").Number);
+        Assert.Empty(a.Sent());
+    }
+
+    [Fact]
+    public void Never_blocks_them_and_their_addon_stops_asking()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Talk(a, b);
+        Answer(a, "never");
+        Talk(a, b);
+        Assert.True(a.Lua("return ns.shareSettings().blocked['Zeb#2222']").Boolean);
+        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].refused").IsNil());
+        b.Run(31);
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Assert.Contains(b.Said(), s => s.Contains("said no"));
+        a.Run(31);
+        a.Receive("1:REQ:9:1:1:", BAccount); // a blocked friend asking again: no popup, no second NO
+        a.Run(1);
+        Assert.Equal(1, a.Lua("return #shown").Number);
+        Assert.Equal(0, Count(a, "NO"));
+    }
+
+    [Fact]
+    public void Two_requests_within_30_seconds_get_one_answer()
+    {
+        var (a, _) = Friends();
+        a.Lua("sent = {}");
+        a.Receive("1:REQ:1:1:1:", BAccount);
+        a.Run(10);
+        a.Receive("1:REQ:2:1:1:", BAccount);
+        a.Run(1);
+        Assert.Equal(1, a.Sent().Count(m => m.Get("text").String.Contains("char=Deadbeck")));
+    }
+
+    [Fact]
+    public void A_request_in_combat_waits_for_the_fight_to_end()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        a.Lua("inCombat = true");
+        a.Receive("1:REQ:1:1:1:", BAccount);
+        Assert.Equal(0, a.Lua("return #shown").Number);
+        a.Lua("inCombat = false");
+        a.Call("showNextFriendRequest");
+        Assert.Equal(1, a.Lua("return #shown").Number);
+    }
+
+    [Fact]
+    public void Commands_find_the_friend_and_change_what_they_get()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Call("friendsCommand", "ask nobody#1");
+        Assert.Contains(a.Said(), s => s.Contains("isn't on your Battle.net friends list"));
+        a.Call("friendsCommand", "share zeb#2222");
+        Assert.True(a.Lua("return ns.shareSettings().enabled").Boolean);
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].share").Boolean);
+        a.Call("friendsCommand", "set all gold on");
+        Assert.True(a.Lua("return ns.shareSettings().defaults.gold").Boolean);
+        a.Call("friendsCommand", "set Zeb#2222 gold off");
+        Assert.False(a.Lua("return ns.allowedFor(ns.shareSettings(), ns.shareSettings().contacts['Zeb#2222']).gold").Boolean);
+        a.Call("friendsCommand", "set Zeb#2222 gold default");
+        Assert.True(a.Lua("return ns.allowedFor(ns.shareSettings(), ns.shareSettings().contacts['Zeb#2222']).gold").Boolean);
+        a.Call("friendsCommand", "hide");
+        Assert.False(a.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000A')").Boolean);
+        a.Lua("sent = {}");
+        a.Receive("1:HI:1:1:1:0.33.0", BAccount);
+        a.Run(1);
+        Assert.Equal(0, Count(a, "DATA")); // hidden: not sent
+        a.Lua("WoWCharacterTrackerDB.friends = { ['Zeb#2222'] = { chars = {} } }");
+        a.Call("friendsCommand", "remove Zeb#2222");
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222']").IsNil());
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends['Zeb#2222']").IsNil());
+        a.Call("friendsCommand", "off");
+        Assert.False(a.Lua("return ns.shareSettings().enabled").Boolean);
+    }
+
     [Fact]
     public void A_copy_is_deep_and_separate()
     {
