@@ -22,5 +22,6 @@ Comms.lua
 Friends.lua
 NoteBox.lua
 Options.lua
+Minimap.lua
 Commands.lua
 WoWCharacterTracker.lua

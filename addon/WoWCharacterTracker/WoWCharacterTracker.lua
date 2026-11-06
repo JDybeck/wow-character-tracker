@@ -29,6 +29,7 @@ end
 function on.PLAYER_LOGIN()
   ns.onLogin()
   ns.restoreNoteBox()
+  ns.createMinimapButton()
   ns.say("Loaded. Type /wct help for the commands.")
 end
 
