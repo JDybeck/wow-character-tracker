@@ -121,12 +121,28 @@ end
 local function buildHighlights(p)
   local askTitle = ui.heading(p, "Ask before a highlight goes unposted")
   local askHint = ui.hint(p, "A small box offers to post it to Discord, for what What gets posted in the app doesn't post by itself. Needs the app and a webhook.", askTitle)
-  ui.checkGrid(p, { { "boss", "Boss kills" }, { "rare", "Rare gear" }, { "epic", "Epic gear" } }, askHint,
+  local kindsLast = ui.checkGrid(p, { { "boss", "Boss kills" }, { "rare", "Rare gear" }, { "epic", "Epic gear" } }, askHint,
     function(key)
       local ask = ns.setting("ask") or {}
       return ask[key] == true
     end,
     function(key, on) ns.editSettings(function(s) s.ask[key] = on or nil end) end)
+
+  -- How long the box stays (askSeconds, the same choices as the app's In game page): click for the next.
+  local CHOICES = { 5, 10, 15, 30, 60 }
+  local function current() return tonumber(ns.setting("askSeconds")) or 10 end
+  local secondsButton
+  local function showSeconds() secondsButton:SetText(string.format("Box stays: %d seconds", current())) end
+  secondsButton = ui.button(p, "Box stays: 10 seconds", 190, function()
+    local now, nextChoice = current(), CHOICES[1]
+    for i, n in ipairs(CHOICES) do
+      if n == now then nextChoice = CHOICES[i % #CHOICES + 1] end
+    end
+    ns.editSettings(function(s) s.askSeconds = nextChoice end)
+    showSeconds()
+  end)
+  secondsButton:SetPoint("TOPLEFT", kindsLast, "BOTTOMLEFT", 2, -14)
+  ui.onRefresh(p, showSeconds)
 end
 
 -- Note ------------------------------------------------------------------------------------------

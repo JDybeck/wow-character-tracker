@@ -5,7 +5,12 @@
 -- never pops up in combat, and goes away by itself.
 local ADDON, ns = ...
 
-local SHOW_SECONDS = 10 -- counted down on the Skip button
+-- How long the box stays, counted down on the Skip button: the In game setting askSeconds, 10 by default.
+local function showSeconds()
+  local n = tonumber(ns.setting("askSeconds"))
+  if not n then return 10 end
+  return math.max(3, math.min(120, math.floor(n)))
+end
 local MAX_WAITING = 5
 
 local waiting = {}
@@ -99,7 +104,7 @@ function ns.showNextAsk()
     f.skip:SetText(string.format("Skip (%d)", left))
     C_Timer.After(1, function() countdown(left - 1) end)
   end
-  countdown(SHOW_SECONDS)
+  countdown(showSeconds())
 end
 
 -- The player's answer to the moment in the box (or running out of time: false).

@@ -192,6 +192,17 @@ public class AddonWindowTests
         Assert.Equal(1, Num(c, "opened"));
     }
 
+    // Highlights: how long the post box stays, 10 by default, cycling through the choices.
+    [Fact]
+    public void The_post_box_time_can_be_changed_on_the_highlights_tab()
+    {
+        var c = Load();
+        c.Call("openWindow", "highlights");
+        c.Lua("local b = find('Box stays: 10 seconds'); b.scripts.OnClick(b)");
+        Assert.Equal(15, Num(c, "ns.setting('askSeconds')"));
+        Assert.True(Bool(c, "find('Box stays: 15 seconds') ~= nil"));
+    }
+
     // The window opens in combat, so /wct options doesn't need to wait for it to end.
     [Fact]
     public void Wct_options_opens_the_window_even_in_combat()

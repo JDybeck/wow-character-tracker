@@ -489,6 +489,30 @@ public class AddonLuaTests
     [Fact]
     public void The_post_box_counts_down_from_10_and_goes_away()
     {
+        var (script, recorded) = AskBox(AskAll);
+        bool Said(string s) => script.DoString($"for _, t in ipairs(texts) do if t == '{s}' then return true end end return false").Boolean;
+        Assert.True(Said("Skip (10)"));
+        script.DoString("runTimers(clock + 3)");
+        Assert.True(Said("Skip (7)"));
+        Assert.True(script.DoString("return box.shown").Boolean);
+        script.DoString("runTimers(clock + 8)");
+        Assert.False(script.DoString("return box.shown").Boolean); // gone after 10 seconds
+        Assert.Empty(recorded);
+    }
+
+    // How long it stays is an In game setting (askSeconds), 10 when it isn't set.
+    [Fact]
+    public void The_post_box_stays_as_long_as_the_setting_says()
+    {
+        var (script, _) = AskBox("{ post = {}, discord = true, ask = { boss = true }, askSeconds = 5 }");
+        Assert.True(script.DoString("for _, t in ipairs(texts) do if t == 'Skip (5)' then return true end end return false").Boolean);
+        script.DoString("runTimers(clock + 6)");
+        Assert.False(script.DoString("return box.shown").Boolean);
+    }
+
+    // Ask.lua with frames that remember their text and whether they show, a fake clock, and a boss offered.
+    static (Script Script, List<Table> Recorded) AskBox(string settings)
+    {
         var script = new Script();
         script.DoString(FakeTimers);
         script.DoString("""
@@ -509,7 +533,7 @@ public class AddonLuaTests
             WoWCharacterTrackerDB = {}
             function InCombatLockdown() return false end
             """);
-        script.DoString("WoWCharacterTrackerSettings = " + AskAll);
+        script.DoString("WoWCharacterTrackerSettings = " + settings);
         var ns = new Table(script);
         var recorded = new List<Table>();
         ns["say"] = (Action<string>)(_ => { });
@@ -517,14 +541,7 @@ public class AddonLuaTests
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         ns["addEvent"] = (Action<Table>)recorded.Add;
         script.Call(ns.Get("offerAsk"), script.DoString("return " + ABoss));
-        bool Said(string s) => script.DoString($"for _, t in ipairs(texts) do if t == '{s}' then return true end end return false").Boolean;
-        Assert.True(Said("Skip (10)"));
-        script.DoString("runTimers(clock + 3)");
-        Assert.True(Said("Skip (7)"));
-        Assert.True(script.DoString("return box.shown").Boolean);
-        script.DoString("runTimers(clock + 8)");
-        Assert.False(script.DoString("return box.shown").Boolean); // gone after 10 seconds
-        Assert.Empty(recorded);
+        return (script, recorded);
     }
 
     // Nothing to post to, or switched off: no box, so even an answer records nothing.
