@@ -49,6 +49,7 @@ sealed class FlavorViewModel : Observable
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
         FollowedItems = new FollowedItemsViewModel(flavor, Lookup, () => Settings, FollowedChanged);
+        Friends = new FriendsViewModel(flavor, Lookup, main.Config, () => Settings, AddonSettingsChanged, main.Config.Save);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
@@ -180,6 +181,7 @@ sealed class FlavorViewModel : Observable
         }
         else if (page == "items") Items.Reset();
         else if (page == "followed") FollowedItems.Reset();
+        else if (page == "friends") Friends.Reset();
     }
 
     string statusText = "Starting up...";
@@ -675,6 +677,8 @@ sealed class FlavorViewModel : Observable
 
     // The Followed items page, and the switch for its post (What gets posted).
     public FollowedItemsViewModel FollowedItems { get; }
+    // The Friends page: what Battle.net friends shared, apart from your own characters.
+    public FriendsViewModel Friends { get; }
     public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
     public StreamViewModel Stream => main.Stream;
 
@@ -764,6 +768,7 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
+        Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
         main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
