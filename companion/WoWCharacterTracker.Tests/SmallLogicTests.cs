@@ -2,6 +2,18 @@ using WoWCharacterTracker.Services.Discord;
 
 namespace WoWCharacterTracker.Tests;
 
+public class RealmTextTests
+{
+    [Theory]
+    [InlineData("eu", "CAMWOW EU5 Realm 6 PvP", "EU · PvP")]
+    [InlineData("eu", "CAMWOW EU5 Realm 2 Normal", "EU · Normal")]
+    [InlineData("eu", "Tarren Mill", "EU · Tarren Mill")]
+    [InlineData("", "Firemaw", "Firemaw")]
+    [InlineData("us", "", "US · ")]
+    public void Forever_realms_show_their_type(string region, string realm, string expected) =>
+        Assert.Equal(expected, Format.Realm(region, realm));
+}
+
 public class TalentLinkTests
 {
     [Fact]
