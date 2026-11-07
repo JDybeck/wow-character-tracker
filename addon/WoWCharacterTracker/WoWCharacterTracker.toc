@@ -21,6 +21,7 @@ Announce.lua
 Ask.lua
 Comms.lua
 Friends.lua
+FriendMap.lua
 NoteBox.lua
 Ui.lua
 Window.lua

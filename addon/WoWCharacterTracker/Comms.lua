@@ -83,7 +83,7 @@ local function split(body)
   return parts
 end
 
--- Queues kind (HI, HEY, REQ, DATA, NO, PING, PONG) with body for one game account. False when
+-- Queues kind (HI, HEY, REQ, DATA, NO, PING, PONG, WATCH, POS) with body for one game account. False when
 -- it's too long or too much is already waiting.
 function comms.send(account, kind, body)
   body = (body or ""):gsub("|", "")
