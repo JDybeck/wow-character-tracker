@@ -4,6 +4,7 @@
 local ADDON, ns = ...
 
 local ICON = "Interface\\AddOns\\WoWCharacterTracker\\Icon"
+ns.ICON = ICON -- the window's title shows it too
 local BORDER = "Interface\\Minimap\\MiniMap-TrackingBorder" -- the game's own ring, as on its tracking button
 local HIGHLIGHT = "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"
 local DEFAULT_ANGLE = 225 -- bottom left

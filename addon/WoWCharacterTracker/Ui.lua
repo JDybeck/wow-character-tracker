@@ -8,6 +8,54 @@ ns.ui = ui
 -- How wide long lines get before they wrap (the window's content area, with room to spare).
 ui.WRAP = 640
 
+-- The app's look: warm dark panels, thin borders, an amber accent. { r, g, b, a }
+local COLOR = {
+  window = { 0.078, 0.063, 0.047, 0.97 },
+  bar = { 0.063, 0.05, 0.039, 1 },
+  card = { 0.102, 0.078, 0.063, 1 },
+  border = { 0.227, 0.184, 0.141, 1 },
+  accent = { 0.94, 0.63, 0.13, 1 },
+  primary = { 0.71, 0.33, 0.04, 1 },
+  selected = { 0.165, 0.114, 0.055, 1 },
+  request = { 0.141, 0.098, 0.047, 1 },
+  requestBorder = { 0.42, 0.29, 0.08, 1 },
+  good = { 0.18, 0.42, 0.18, 1 },
+  bad = { 0.45, 0.2, 0.16, 1 },
+  hover = { 1, 1, 1, 0.05 },
+}
+ui.COLOR = COLOR
+
+function ui.fill(texture, c) texture:SetColorTexture(c[1], c[2], c[3], c[4] or 1) end
+
+local SIDES = { "TOP", "BOTTOM", "LEFT", "RIGHT" }
+
+-- A flat background and, with border, a 1 px edge, from plain textures (the same on every client).
+-- Calling it again on the same frame recolors it.
+function ui.box(frame, bg, border)
+  frame.boxBg = frame.boxBg or frame:CreateTexture(nil, "BACKGROUND")
+  ui.fill(frame.boxBg, bg)
+  frame.boxBg:SetAllPoints()
+  if not border then return end
+  frame.boxEdges = frame.boxEdges or {}
+  for i, side in ipairs(SIDES) do
+    local t = frame.boxEdges[i]
+    if not t then
+      t = frame:CreateTexture(nil, "BORDER")
+      frame.boxEdges[i] = t
+      if i <= 2 then
+        t:SetPoint(side .. "LEFT")
+        t:SetPoint(side .. "RIGHT")
+        t:SetHeight(1)
+      else
+        t:SetPoint("TOP" .. side)
+        t:SetPoint("BOTTOM" .. side)
+        t:SetWidth(1)
+      end
+    end
+    ui.fill(t, border)
+  end
+end
+
 local refreshers = setmetatable({}, { __mode = "k" }) -- [page] = { fn, ... }
 
 function ui.onRefresh(parent, fn)
@@ -51,9 +99,23 @@ function ui.checkbox(parent, label, tip, get, set)
   return cb
 end
 
-function ui.button(parent, label, width, onClick)
-  local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+-- "primary": filled amber, for the one thing to do; "selected": a picked tab; else quiet and outlined.
+function ui.styleButton(b, style)
+  if style == "primary" then ui.box(b, COLOR.primary, COLOR.accent)
+  elseif style == "selected" then ui.box(b, COLOR.selected, COLOR.accent)
+  else ui.box(b, COLOR.card, COLOR.border) end
+  b:SetNormalFontObject(style == "selected" and "GameFontNormalSmall" or "GameFontHighlightSmall")
+end
+
+function ui.button(parent, label, width, onClick, style)
+  local b = CreateFrame("Button", nil, parent)
   b:SetSize(width, 22)
+  b:SetFontString(b:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall"))
+  b:SetDisabledFontObject("GameFontDisableSmall")
+  local hover = b:CreateTexture(nil, "HIGHLIGHT")
+  ui.fill(hover, COLOR.hover)
+  hover:SetAllPoints()
+  ui.styleButton(b, style)
   b:SetText(label)
   b:SetScript("OnClick", onClick)
   return b
@@ -90,6 +152,7 @@ end
 -- Under anchor, or at the top of the page without one.
 function ui.heading(parent, s, anchor, gap)
   local h = ui.text(parent, "GameFontNormal", s)
+  h:SetTextColor(COLOR.accent[1], COLOR.accent[2], COLOR.accent[3])
   if anchor then h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 2, gap or -26)
   else h:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -14) end
   return h
