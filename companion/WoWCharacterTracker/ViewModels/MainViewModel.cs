@@ -12,6 +12,7 @@ sealed class MainViewModel : Observable
     {
         Backfill = backfill;
         Updates = new UpdatesViewModel(justUpdated);
+        Updates.Found += () => { foreach (var tab in FlavorTabs) tab.WriteAddonSettings(); };
         Discord = new DiscordViewModel(this);
         Uninstall = new UninstallViewModel(this);
         Appearance = new AppearanceViewModel(this);

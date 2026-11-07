@@ -174,6 +174,20 @@ public class FriendsLuaTests
         Assert.Equal("Stonehand", Str(c, "back.surname"));
     }
 
+    // The character's sex goes along too (for portraits and the details), only as male or female.
+    [Fact]
+    public void Sex_goes_with_the_character_as_male_or_female_only()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        c.Lua("""
+            text = ns.encodeFriendChar('Player-1-0000000A', { char = 'Zeb', sex = 'female', lastSeen = 1 }, nil, {})
+            back = ns.decodeFriendChar(text)
+            odd = ns.decodeFriendChar('guid=Player-1-0000000A;char=Zeb;sex=robot')
+            """);
+        Assert.Equal("female", Str(c, "back.sex"));
+        Assert.True(c.Lua("return odd.sex").IsNil());
+    }
+
     [Fact]
     public void Text_over_8_kb_is_dropped()
     {

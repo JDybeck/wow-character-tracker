@@ -81,8 +81,9 @@ static partial class AddonInstaller
     // Settings.lua tells the addon which events get a screenshot, and carries the characters' notes
     // (by GUID, with when they were written) for /wct note. The game reads it on /reload or login.
     // hasWebhook: the tab has somewhere to post, so the addon may offer to post a highlight.
+    // appUpdate: a newer app version, which the addon mentions in chat on the next login.
     public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null, bool hasWebhook = false,
-        IReadOnlyDictionary<string, string>? friendNames = null)
+        IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -117,6 +118,7 @@ static partial class AddonInstaller
                   + $"  discord = {B(hasWebhook)},\n"
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
+                  + (appUpdate is { } update ? $"  appUpdate = \"{update.ToString(3)}\",\n" : "")
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")
                   + "  notes = {\n"
                   + string.Concat((notes ?? []).OrderBy(n => n.Guid, StringComparer.Ordinal)

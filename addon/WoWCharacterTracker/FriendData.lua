@@ -15,6 +15,7 @@ local FIELDS = {
   classFile = { kind = "string", max = 16 },
   race = { kind = "string", max = 24 },
   raceFile = { kind = "string", max = 16 },
+  sex = { kind = "string", max = 6, only = { male = true, female = true } },
   faction = { kind = "string", max = 10 },
   spec = { kind = "string", max = 32 },
   ilvl = { kind = "number" },
@@ -107,7 +108,7 @@ function ns.decodeFriendChar(text)
         if not finite(v) then v = nil end
       else
         v = clean(v, field)
-        if v == "" then v = nil end
+        if v == "" or (field.only and not field.only[v]) then v = nil end
       end
       out[key] = v
     end
