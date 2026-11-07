@@ -24,7 +24,8 @@ public class FriendsLuaTests
           GetFriendGameAccountInfo = function(i)
             local f = friends[i]
             return f and { isOnline = f.online ~= false, clientProgram = 'WoW', wowProjectID = 5, gameAccountID = f.account, playerGuid = f.guid,
-              characterName = f.char, className = f.className, classFilename = f.classFile, characterLevel = f.level, areaName = f.zone }
+              characterName = f.char, className = f.className, classFilename = f.classFile, characterLevel = f.level, areaName = f.zone,
+              factionName = f.faction, realmName = f.realm }
           end,
           SendGameData = function(to, prefix, text) table.insert(sent, { to = to, prefix = prefix, text = text }) return sendResult end,
           SendWhisper = function(to, text) table.insert(whispers, { to = to, text = text }) end,
@@ -366,7 +367,7 @@ public class FriendsLuaTests
     static string BDb(string share) => $"{{ share = {share}, chars = {{}}, items = {{}} }}";
 
     // Hands what from sent to to, as fromAccount (how to's friends list knows from).
-    static void Deliver(Client from, Client to, int fromAccount)
+    internal static void Deliver(Client from, Client to, int fromAccount)
     {
         var messages = from.Sent();
         from.Lua("sent = {}");
@@ -374,7 +375,7 @@ public class FriendsLuaTests
     }
 
     // Both clients send what they queued and answer each other, a few rounds.
-    static void Talk(Client a, Client b, int rounds = 4)
+    internal static void Talk(Client a, Client b, int rounds = 4)
     {
         for (var i = 0; i < rounds; i++)
         {
@@ -386,6 +387,73 @@ public class FriendsLuaTests
     }
 
     static int Count(Client c, string kind) => c.Sent().Count(m => m.Get("text").String.Contains($":{kind}:"));
+
+    // Map position (off) and the other faction rule (off) work like the categories: general, or per friend.
+    [Fact]
+    public void Map_position_and_the_other_faction_are_off_unless_turned_on_and_can_be_set_per_friend()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        Assert.False(a.Lua("return ns.allowedFor(ns.shareSettings(), nil).map").Boolean);
+        Assert.False(a.Lua("return ns.allowedFor(ns.shareSettings(), nil).otherFaction").Boolean);
+        a.Call("friendsCommand", "set Zeb#2222 map on");
+        a.Call("friendsCommand", "set zeb#2222 OtherFaction on"); // any case
+        Assert.True(a.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).map").Boolean);
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].otherFaction").Boolean);
+        a.Call("friendsCommand", "set all map on");
+        Assert.True(a.Lua("return ns.shareSettings().defaults.map").Boolean);
+        Assert.Contains("Friends now get map: on.", a.Said());
+        Assert.Equal("gear, talents, location, professions, map position", Str(a, "ns.shareSummary(ns.allowedFor(ns.shareSettings(), nil))"));
+    }
+
+    [Fact]
+    public void Contact_sharing_lists_the_other_faction_rule_after_the_categories()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        a.Lua("o = ns.contactSharing('Zeb#2222')");
+        Assert.Equal(7, a.Lua("return #o.categories").Number);
+        Assert.Equal("map", Str(a, "o.categories[6].key"));
+        Assert.Equal("otherFaction", Str(a, "o.categories[7].key"));
+        Assert.True(a.Lua("return o.categories[7].rule").Boolean);
+        Assert.True(a.Lua("return o.categories[6].rule").IsNil());
+        a.Call("cycleContactCategory", "Zeb#2222", "otherFaction");
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].otherFaction").Boolean);
+    }
+
+    [Theory]
+    [InlineData("live", 5)]
+    [InlineData("1m", 60)]
+    [InlineData("5M", 300)]
+    public void The_map_rate_is_live_unless_set_to_one_of_the_steps(string word, int rate)
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, mapRate = 7, at = 100 }"));
+        Assert.Equal(5, a.Lua("return ns.shareSettings().mapRate").Number); // 7 isn't a step
+        a.Call("friendsCommand", "maprate " + word);
+        Assert.Equal(rate, a.Lua("return ns.shareSettings().mapRate").Number);
+        a.Call("friendsCommand", "maprate 2m");
+        Assert.Equal(rate, a.Lua("return ns.shareSettings().mapRate").Number); // unchanged
+        Assert.Contains(a.Said(), s => s.StartsWith("/wct friends maprate", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Online_friends_carry_their_faction_and_realm()
+    {
+        var a = new Client(A, "{ { tag = 'Zeb#2222', account = 2, guid = 'Player-1-0000000B', faction = 'Alliance', realm = 'Firemaw' } }");
+        Assert.Equal("Alliance", Str(a, "ns.friendsOnline()[1].faction"));
+        Assert.Equal("Firemaw", Str(a, "ns.onlineFriends()[1].realm"));
+        Assert.Equal("Alliance", Str(a, "ns.onlineFriends()[1].faction"));
+    }
+
+    // FriendMap.lua adds its own kinds through this; unknown kinds are still dropped quietly.
+    [Fact]
+    public void Another_file_can_handle_a_kind_and_unknown_kinds_are_dropped()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        a.Lua("got = nil; ns.onFriendKind('ZZ', function(f, contact, body) got = f.tag .. ':' .. body end)");
+        a.Receive("1:ZZ:4:1:1:hello", BAccount);
+        Assert.Equal("Zeb#2222:hello", Str(a, "got"));
+        a.Receive("1:QQ:5:1:1:x", BAccount);
+        Assert.True(a.Lua("return ns.lastCommsError").IsNil());
+    }
 
     // On by default, but nothing goes to anyone until a request is allowed (or you share yourself).
     [Fact]

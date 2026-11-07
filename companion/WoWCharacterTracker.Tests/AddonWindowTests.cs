@@ -161,6 +161,22 @@ public class AddonWindowTests
         Assert.False(Bool(c, "WoWCharacterTrackerDB.share.defaults.professions"));
     }
 
+    [Fact]
+    public void The_sharing_tab_sets_map_position_the_other_faction_and_the_map_rate()
+    {
+        var c = Load();
+        c.Call("openWindow", "sharing");
+        Assert.False(Bool(c, "find('Map position').checked"));
+        c.Lua("click('Map position')");
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.map"));
+        Assert.False(Bool(c, "find('Show my map position to the other faction').checked"));
+        c.Lua("click('Show my map position to the other faction')");
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.otherFaction"));
+        c.Lua("local b = find('Map updates: live'); b.scripts.OnClick(b)");
+        Assert.Equal(60, Num(c, "WoWCharacterTrackerDB.share.mapRate"));
+        Assert.True(Bool(c, "find('Map updates: every minute') ~= nil"));
+    }
+
     // The App tab's Ignore this character is the same In game setting the app's Ignore tracking writes.
     [Fact]
     public void Ignore_this_character_writes_the_in_game_setting()
@@ -631,7 +647,7 @@ public class AddonWindowTests
         c.Lua("clickIn('Cidro', 'Sharing')");
         Assert.True(Bool(c, "onScreen(sharingPanel())"));
         Assert.True(Bool(c, "shownText('Cid#3') ~= nil"));
-        Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Gold: like all friends (off)",
+        Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Gold: like all friends (off);Map position: like all friends (off);Map for the other faction: like all friends (off)",
             c.Lua("return sharingButtons()").String);
         Assert.True(Bool(c, "shownText('They get gear, talents, location, professions.') ~= nil"));
 
@@ -639,7 +655,7 @@ public class AddonWindowTests
         c.Lua("clickSharing('Gold:')");
         Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gold == true"));
         Assert.StartsWith("Gear: like all friends (on);Talents", c.Lua("return sharingButtons()").String);
-        Assert.EndsWith("Gold: on", c.Lua("return sharingButtons()").String);
+        Assert.Contains(";Gold: on;Map position", c.Lua("return sharingButtons()").String);
         c.Lua("clickSharing('Gear:')"); c.Lua("clickSharing('Gear: on')");
         Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == false"));
         Assert.True(Bool(c, "shownText('They get talents, location, professions, gold.') ~= nil"));

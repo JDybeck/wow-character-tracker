@@ -525,8 +525,9 @@ end
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
 local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
-local SHARING_HEIGHT = 360
-local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", gold = "Gold" }
+local SHARING_HEIGHT = 412
+local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", gold = "Gold",
+  map = "Map position", otherFaction = "Map for the other faction" }
 local sharingTag, sharingTitle, sharingSummary
 local categoryButtons = {}
 
@@ -584,7 +585,7 @@ local function buildSharing()
   local always = ui.text(sharing, "GameFontNormalSmall", "Name, level, class and item level always, and:")
   always:SetPoint("TOPLEFT", receiveBox, "BOTTOMLEFT", 4, -12)
   local last = always
-  for i = 1, #(ns.SHARE_CATEGORIES or {}) do
+  for i = 1, #(ns.SHARE_CATEGORIES or {}) + #(ns.SHARE_RULES or {}) do
     local b = ui.button(sharing, "", DETAILS_WIDTH - 28, function(self)
       if sharingTag and self.key then ns.cycleContactCategory(sharingTag, self.key) end
       drawSharing()
@@ -626,8 +627,8 @@ local REQUEST_WIDTH = 440
 local REQUEST_SHORT, REQUEST_TALL = 150, 262
 local PRESETS = {
   { "Like all friends" },
-  { "Everything", { gear = true, talents = true, location = true, professions = true, gold = true } },
-  { "Basics only", { gear = false, talents = false, location = false, professions = false, gold = false } },
+  { "Everything", { gear = true, talents = true, location = true, professions = true, gold = true, map = true } },
+  { "Basics only", { gear = false, talents = false, location = false, professions = false, gold = false, map = false } },
 }
 local requestBox
 
@@ -1012,9 +1013,24 @@ local function buildSharing(p)
   shareNew:SetPoint("TOPLEFT", shareThis, "BOTTOMLEFT", 0, -2)
   local whatTitle = ui.text(p, "GameFontNormalSmall", "What friends get (name, level, class and item level always)")
   whatTitle:SetPoint("TOPLEFT", shareNew, "BOTTOMLEFT", 4, -24)
-  ui.checkGrid(p, { { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "professions", "Professions" }, { "gold", "Gold" } }, whatTitle,
+  local gridLast = ui.checkGrid(p, { { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "professions", "Professions" },
+    { "gold", "Gold" }, { "map", "Map position" } }, whatTitle,
     function(key) return ns.shareSettings().defaults[key] == true end,
     function(key, on) ns.editShare(function(s) s.defaults[key] = on end) end)
+  local otherFaction = ui.checkbox(p, "Show my map position to the other faction",
+    "Off: a friend playing the other faction doesn't see you on the map, even with Map position on.",
+    function() return ns.shareSettings().defaults.otherFaction == true end,
+    function(on) ns.editShare(function(s) s.defaults.otherFaction = on end) end)
+  otherFaction:SetPoint("TOPLEFT", gridLast, "BOTTOMLEFT", 0, -10)
+  -- One rate for all friends: click to go from live to every minute to every 5 minutes.
+  local RATE_TEXT = { [5] = "Map updates: live", [60] = "Map updates: every minute", [300] = "Map updates: every 5 minutes" }
+  local NEXT_RATE = { [5] = 60, [60] = 300, [300] = 5 }
+  local rate = ui.button(p, RATE_TEXT[5], 240, function(self)
+    ns.editShare(function(s) s.mapRate = NEXT_RATE[s.mapRate] or 5 end)
+    self:SetText(RATE_TEXT[ns.shareSettings().mapRate])
+  end)
+  rate:SetPoint("TOPLEFT", otherFaction, "BOTTOMLEFT", 4, -24)
+  ui.onRefresh(p, function() rate:SetText(RATE_TEXT[ns.shareSettings().mapRate]) end)
 end
 
 -- App -------------------------------------------------------------------------------------------
@@ -1074,7 +1090,7 @@ local TABS = {
   { key = "highlights", label = "Highlights", height = 200, build = buildHighlights },
   { key = "note", label = "Note", height = 330, build = buildNote },
   { key = "friends", label = "Friends", height = 600, build = buildFriends }, -- grows with its lists
-  { key = "sharing", label = "Sharing", height = 300, build = buildSharing },
+  { key = "sharing", label = "Sharing", height = 400, build = buildSharing },
   { key = "app", label = "App", height = 300, build = buildApp },
 }
 local BY_KEY = {}
