@@ -334,9 +334,9 @@ public class AddonLuaTests
         script.DoString("""
             function time() return 5000 end
             function UnitGUID() return 'Player-1' end
-            skills = { { 'Mining', 140 }, { 'Herbalism', 70 } }
+            skills = { { 'Mining', 140, 150 }, { 'Herbalism', 70, 75 } }
             function GetNumSkillLines() return #skills end
-            function GetSkillLineInfo(i) return skills[i][1], false, nil, skills[i][2] end
+            function GetSkillLineInfo(i) return skills[i][1], false, nil, skills[i][2], 0, 0, skills[i][3] end
             WoWCharacterTrackerDB = {}
             WoWCharacterTrackerSettings = { post = { professionSteps = { 75, 150, 225, 300 } } }
             """);
@@ -367,6 +367,32 @@ public class AddonLuaTests
             recorded.Select(e => $"{e.Get("profession").String}:{e.Get("step").Number}:{e.Get("rating").Number}"));
         Assert.Equal("Player-1:profession:Mining:150", recorded[0].Get("id").String);
         Assert.Equal("profession", recorded[0].Get("kind").String);
+    }
+
+    // Classic-style clients: skill and max from the skill list (GetSkillLineInfo's 4th and 7th values).
+    // The saved text has both, the max left out when the game gives none.
+    [Fact]
+    public void Professions_come_with_their_max_skill_from_the_skill_list()
+    {
+        var (script, ns, _) = ProfessionScript();
+        script.DoString("skills = { { 'Mining', 150, 225 }, { 'Herbalism', 75, nil }, { 'Cooking', 10, 75 } }");
+        var ranks = script.Call(ns.Get("professionRanks")).Table;
+        Assert.Equal(225, ranks.Get(1).Table.Get("max").Number);
+        Assert.True(ranks.Get(2).Table.Get("max").IsNil());
+        Assert.Equal("Mining 150/225, Herbalism 75", script.Call(ns.Get("professionText")).String);
+    }
+
+    // Retail: GetProfessionInfo's 4th value is the max.
+    [Fact]
+    public void Retail_professions_come_with_their_max_skill()
+    {
+        var (script, ns, _) = ProfessionScript();
+        ns["IS_RETAIL"] = true;
+        script.DoString("""
+            function GetProfessions() return 3, 7 end
+            function GetProfessionInfo(i) if i == 3 then return 'Mining', 1, 85, 100 end return 'Skinning', 2, 12, 0 end
+            """);
+        Assert.Equal("Mining 85/100, Skinning 12", script.Call(ns.Get("professionText")).String);
     }
 
     // Shared.lua's stepPassed (profession and rating milestones): a step counts when the value goes

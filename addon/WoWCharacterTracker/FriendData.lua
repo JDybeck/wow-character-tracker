@@ -23,6 +23,7 @@ local FIELDS = {
   gear = { kind = "string", max = 512, category = "gear" },
   enchants = { kind = "string", max = 2048, category = "gear", lines = true },
   zone = { kind = "string", max = 64, category = "location" },
+  professions = { kind = "string", max = 256, category = "professions" },
   money = { kind = "number", category = "gold" },
 }
 local MAX_TEXT = 8192

@@ -13,8 +13,8 @@ local MAX_CHARS = 50     -- characters kept per contact
 local TICK = 30
 
 -- What friends get, unless set for one of them. Gold stays off until turned on.
-local CATEGORIES = { "gear", "talents", "location", "gold" }
-local DEFAULTS = { gear = true, talents = true, location = true, gold = false }
+local CATEGORIES = { "gear", "talents", "location", "professions", "gold" }
+local DEFAULTS = { gear = true, talents = true, location = true, professions = true, gold = false }
 ns.SHARE_CATEGORIES = CATEGORIES
 
 -- This session only.
@@ -527,8 +527,8 @@ local HELP = {
   "/wct friends on or off turns sharing with Battle.net friends on or off.",
   "/wct friends ask <BattleTag> asks a friend for their characters.",
   "/wct friends share <BattleTag> shares your characters with them.",
-  "/wct friends set all gear/talents/location/gold on/off changes what friends get. Gold is off until you turn it on.",
-  "/wct friends set <BattleTag> gear/talents/location/gold on/off/default changes it for one friend.",
+  "/wct friends set all gear/talents/location/professions/gold on/off changes what friends get. Gold is off until you turn it on.",
+  "/wct friends set <BattleTag> gear/talents/location/professions/gold on/off/default changes it for one friend.",
   "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",
   "/wct friends hide or unhide keeps this character from friends, or shares it again.",
   "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",
