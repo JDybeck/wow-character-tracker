@@ -751,10 +751,10 @@ Add to `FriendsLuaTests`:
     const string A = "Player-1-0000000A", B = "Player-1-0000000B";
     const int AAccount = 1, BAccount = 2; // each one's game account as the other's friends list has it
     const string AFriends = "{ { tag = 'Zeb#2222', account = 2, guid = 'Player-1-0000000B' } }";
-    const string BFriends = "{ { tag = 'Jesper#1111', account = 1, guid = 'Player-1-0000000A' } }";
+    const string BFriends = "{ { tag = 'JDybeck#1111', account = 1, guid = 'Player-1-0000000A' } }";
     const string AShares = "{ enabled = true, contacts = { ['Zeb#2222'] = { share = true, receive = true, gear = true, talents = true, location = true, gold = false } }, chars = { ['Player-1-0000000D'] = false }, at = 100 }";
-    const string BReceives = "{ enabled = true, contacts = { ['Jesper#1111'] = { receive = true } }, at = 100 }";
-    const string GotDeadbeck = "WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000A']";
+    const string BReceives = "{ enabled = true, contacts = { ['JDybeck#1111'] = { receive = true } }, at = 100 }";
+    const string GotDeadbeck = "WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000A']";
 
     // A's saved file: the character being played (A), an alt (C) and a hidden alt (D).
     static string ADb(string share) => $$"""
@@ -814,15 +814,15 @@ Add to `FriendsLuaTests`:
         Assert.Equal("Stranglethorn Vale", Str(b, GotDeadbeck + ".zone"));
         Assert.Equal("1~19019,16~12345", Str(b, GotDeadbeck + ".gear"));
         Assert.True(b.Lua($"return {GotDeadbeck}.money").IsNil());
-        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C']").IsNil()); // alts only when asked
-        Assert.Equal("0.33.0", Str(b, "WoWCharacterTrackerDB.friends['Jesper#1111'].version"));
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C']").IsNil()); // alts only when asked
+        Assert.Equal("0.33.0", Str(b, "WoWCharacterTrackerDB.friends['JDybeck#1111'].version"));
         Assert.True(a.Lua("return WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends['Zeb#2222'] and next(WoWCharacterTrackerDB.friends['Zeb#2222'].chars)").IsNil()); // B shares nothing
     }
 
     [Fact]
     public void Two_clients_go_quiet_after_saying_hello()
     {
-        const string BShares = "{ enabled = true, contacts = { ['Jesper#1111'] = { share = true, receive = true, gear = true } }, at = 100 }";
+        const string BShares = "{ enabled = true, contacts = { ['JDybeck#1111'] = { share = true, receive = true, gear = true } }, at = 100 }";
         var a = new Client(A, AFriends, ADb(AShares));
         var b = new Client(B, BFriends, BDb(BShares).Replace("chars = {}", "chars = { ['Player-1-0000000B'] = { char = 'Zeb', lastSeen = 1 } }"));
         a.Call("friendsTick");
@@ -838,7 +838,7 @@ Add to `FriendsLuaTests`:
     [Fact]
     public void Data_from_someone_we_dont_keep_data_from_is_dropped()
     {
-        var b = new Client(B, BFriends, BDb("{ enabled = true, contacts = { ['Jesper#1111'] = { receive = false } }, at = 100 }"));
+        var b = new Client(B, BFriends, BDb("{ enabled = true, contacts = { ['JDybeck#1111'] = { receive = false } }, at = 100 }"));
         b.Receive("1:DATA:1:1:1:guid=Player-1-0000000A;char=Deadbeck", AAccount);
         b.Receive("1:DATA:2:1:1:guid=Player-1-0000000E;char=Stranger", 99); // not a Battle.net friend
         Assert.True(b.Lua("return WoWCharacterTrackerDB.friends").IsNil());
@@ -899,9 +899,9 @@ Add to `FriendsLuaTests`:
         var b = new Client(B, BFriends, BDb(BReceives));
         for (var i = 1; i <= 55; i++)
             b.Receive($"1:DATA:{i}:1:1:guid=Player-1-{i:X8};char=Alt{i};at={i}", AAccount);
-        Assert.Equal(50, b.Lua("local n = 0; for _ in pairs(WoWCharacterTrackerDB.friends['Jesper#1111'].chars) do n = n + 1 end; return n").Number);
-        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-00000001']").IsNil()); // seen longest ago
-        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-00000037']").IsNil()); // the 55th
+        Assert.Equal(50, b.Lua("local n = 0; for _ in pairs(WoWCharacterTrackerDB.friends['JDybeck#1111'].chars) do n = n + 1 end; return n").Number);
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-00000001']").IsNil()); // seen longest ago
+        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-00000037']").IsNil()); // the 55th
     }
 
     [Fact]
@@ -1217,24 +1217,24 @@ Add to `FriendsLuaTests`:
     public void Asking_gets_the_shared_alts_but_never_a_hidden_one()
     {
         var (a, b) = Friends();
-        b.Call("friendsCommand", "ask jesper#1111"); // any case
+        b.Call("friendsCommand", "ask jdybeck#1111"); // any case
         Talk(a, b);
-        Assert.Equal("Drygbeck", Str(b, "WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C'].char"));
-        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000D']").IsNil());
-        Assert.Contains(b.Said(), s => s.StartsWith("Asked Jesper#1111"));
+        Assert.Equal("Drygbeck", Str(b, "WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].char"));
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000D']").IsNil());
+        Assert.Contains(b.Said(), s => s.StartsWith("Asked JDybeck#1111"));
     }
 
     [Fact]
     public void Alts_go_once_a_session_and_asking_again_too_soon_waits()
     {
         var (a, b) = Friends();
-        b.Call("friendsCommand", "ask Jesper#1111");
+        b.Call("friendsCommand", "ask JDybeck#1111");
         Talk(a, b);
-        b.Call("friendsCommand", "ask Jesper#1111");
+        b.Call("friendsCommand", "ask JDybeck#1111");
         Assert.Contains(b.Said(), s => s.Contains("a moment ago"));
         a.Run(31);
         b.Run(31);
-        b.Call("friendsCommand", "ask Jesper#1111");
+        b.Call("friendsCommand", "ask JDybeck#1111");
         b.Run(1);
         Deliver(b, a, BAccount);
         a.Run(1);
@@ -1286,14 +1286,14 @@ Add to `FriendsLuaTests`:
     {
         var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
         var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
-        b.Call("friendsCommand", "ask Jesper#1111");
+        b.Call("friendsCommand", "ask JDybeck#1111");
         Talk(a, b);
         Answer(a, "never");
         Talk(a, b);
         Assert.True(a.Lua("return ns.shareSettings().blocked['Zeb#2222']").Boolean);
-        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].refused").IsNil());
+        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].refused").IsNil());
         b.Run(31);
-        b.Call("friendsCommand", "ask Jesper#1111");
+        b.Call("friendsCommand", "ask JDybeck#1111");
         Assert.Contains(b.Said(), s => s.Contains("said no"));
         a.Run(31);
         a.Receive("1:REQ:9:1:1:", BAccount); // a blocked friend asking again: no popup, no second NO
@@ -1868,9 +1868,9 @@ git add .claude/notes/friends.md .claude/notes/addon.md CLAUDE.md docs/GUIDE.md 
 git commit -m "docs: describe sharing with battle.net friends" -m "Co-Authored-By: Claude <noreply@anthropic.com>" -m "Claude-Session: 5273ae34-7426-4d14-b965-12f2bb2aaef0"
 ```
 
-- [ ] **Step 8: Hand Jesper the in-game checklist**
+- [ ] **Step 8: Hand JDybeck the in-game checklist**
 
-Not automatable. Report this list to Jesper (and add the answers to `friends.md` and the spec's open questions once known):
+Not automatable. Report this list to JDybeck (and add the answers to `friends.md` and the spec's open questions once known):
 
 1. Two clients that are Battle.net friends (a friend, or a second account), both on Forever, both with `/wct friends on`.
 2. A: `/wct friends share <B's BattleTag>`. B: `/wct friends ask <A's BattleTag>`. Expect: no popup (A already shares), nothing in either chat, and after B's `/reload`, `WoWCharacterTrackerDB.friends` in B's SavedVariables has A's characters.

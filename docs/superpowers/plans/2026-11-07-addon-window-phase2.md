@@ -69,4 +69,4 @@ Layout, top to bottom:
 
 ### After the merge (main session)
 
-Run the full suite, whole-branch review, fix, bump the addon `.toc`, GUIDE (Friends tab), CHANGELOG (with the next version at release), rebuild dist. In-game check by Jesper: the online list, Checking... to Has the addon / No addon, Ask/Share/Invite, a request in the list and in the popup, the shared-with-you hover, the ping invisible on both sides.
+Run the full suite, whole-branch review, fix, bump the addon `.toc`, GUIDE (Friends tab), CHANGELOG (with the next version at release), rebuild dist. In-game check by JDybeck: the online list, Checking... to Has the addon / No addon, Ask/Share/Invite, a request in the list and in the popup, the shared-with-you hover, the ping invisible on both sides.

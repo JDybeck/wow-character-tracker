@@ -81,4 +81,4 @@
 
 ### After the merge (main session)
 
-Resolve the `.toc` line conflict, run the full suite, screenshot-check the app (no app change beyond Task C), bump the addon `.toc` to 0.33.3, update `.claude/notes/addon.md` (Ui.lua, Window.lua, Minimap.lua) and GUIDE (the window and minimap button), whole-branch review, rebuild dist. In-game check by Jesper: every tab, the button (drag, hide, show), Esc, combat, the icon.
+Resolve the `.toc` line conflict, run the full suite, screenshot-check the app (no app change beyond Task C), bump the addon `.toc` to 0.33.3, update `.claude/notes/addon.md` (Ui.lua, Window.lua, Minimap.lua) and GUIDE (the window and minimap button), whole-branch review, rebuild dist. In-game check by JDybeck: every tab, the button (drag, hide, show), Esc, combat, the icon.

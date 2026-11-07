@@ -1,6 +1,6 @@
 # Addon window: tabs, minimap button, friends without typing BattleTags
 
-Status: design, from Jesper's feedback on 0.33.0 (2026-11-06). Not built.
+Status: design, from JDybeck's feedback on 0.33.0 (2026-11-06). Not built.
 
 ## Why
 
@@ -47,14 +47,14 @@ Each tab is its own small builder function, using shared control helpers (checkb
 
 ## Privacy
 
-- Answering a `PING` tells a Battle.net friend you run the addon, nothing else. With sharing off you still answer (so friends can see why nothing comes); turning off the minimap button changes nothing here. If Jesper prefers, "off" can mean no answer either (open question 1).
+- Answering a `PING` tells a Battle.net friend you run the addon, nothing else. With sharing off you still answer (so friends can see why nothing comes); turning off the minimap button changes nothing here. If JDybeck prefers, "off" can mean no answer either (open question 1).
 - No character data goes anywhere without a contact, as today.
 
 ## Testing
 
 - Lua (MoonSharp): PING/PONG between two clients (answered once, rate limited, never from a non-friend), the Friends tab state per row (has addon, contact, no addon), Invite cooldown, professions in DATA both ways, the location default, the moved options writing the same settings as before (`ns.editSettings`, DB fields).
 - App: `FriendData` reads professions; the Friends page shows them.
-- In game (Jesper): the window and every tab, the minimap button (drag, hide, show), Esc, combat, the PING invisible on both sides, Invite's whisper, the icon loading.
+- In game (JDybeck): the window and every tab, the minimap button (drag, hide, show), Esc, combat, the PING invisible on both sides, Invite's whisper, the icon loading.
 
 ## Build order
 
