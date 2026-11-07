@@ -409,18 +409,9 @@ sealed class CharacterRow : Observable
             .ToList();
     }
 
-    // "Mining 104, Blacksmithing 96" with each profession's icon.
-    static IReadOnlyList<IconChip> ProfessionChips(string professions)
-    {
-        if (professions is "" or "None") return [];
-        return professions.Split(", ").Select(p =>
-        {
-            var space = p.LastIndexOf(' ');
-            var name = space > 0 ? p[..space] : p;
-            var icon = Wowhead.ProfessionIcons.TryGetValue(name, out var i) ? Wowhead.IconUrl(i, "small") : null;
-            return new IconChip(p, icon, name);
-        }).ToList();
-    }
+    // "Mining 104" with the profession's icon (the card shows these too), the max on hover.
+    static IReadOnlyList<IconChip> ProfessionChips(string professions) => [.. ProfessionSkills.Parse(professions)
+        .Select(p => new IconChip(p.Text, ProfessionSkills.IconUrl(p.Name), p.FullText))];
 
     static string When(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");
     static string Pick(string? a, string? b) => a is { Length: > 0 } ? a : b ?? "";

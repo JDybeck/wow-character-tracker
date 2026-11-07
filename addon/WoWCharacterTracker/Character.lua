@@ -15,36 +15,42 @@ local CLASSIC_PROFESSIONS = {
   Alchemy = true, Blacksmithing = true, Enchanting = true, Engineering = true,
   Herbalism = true, Leatherworking = true, Mining = true, Skinning = true, Tailoring = true,
 }
--- The primary professions as { name = "Mining", rank = 150 } (rank 0 when the game hides it).
+-- The primary professions as { name = "Mining", rank = 150, max = 225 } (rank 0 when the game hides
+-- it, max nil when it gives none).
 function ns.professionRanks()
   local found = {}
-  local function add(name, rank)
-    if name then found[#found + 1] = { name = name, rank = num(rank) or 0 } end
+  local function add(name, rank, max)
+    if name then
+      max = num(max)
+      found[#found + 1] = { name = name, rank = num(rank) or 0, max = max and max > 0 and max or nil }
+    end
   end
 
-  if type(GetProfessions) == "function" then
+  if ns.IS_RETAIL and type(GetProfessions) == "function" then
     -- Retail: the two main professions are the first two return values.
     local p1, p2 = GetProfessions()
     for _, idx in ipairs({ p1 or 0, p2 or 0 }) do
       if idx > 0 then
-        local name, _, rank = GetProfessionInfo(idx)
-        add(name, rank)
+        local name, _, rank, max = GetProfessionInfo(idx)
+        add(name, rank, max)
       end
     end
   elseif type(GetNumSkillLines) == "function" then
-    -- Classic: scan the skill list for primary professions.
+    -- Classic-style clients: scan the skill list for primary professions.
     for i = 1, GetNumSkillLines() do
-      local name, isHeader, _, rank = GetSkillLineInfo(i)
-      if name and not isHeader and CLASSIC_PROFESSIONS[name] then add(name, rank) end
+      local name, isHeader, _, rank, _, _, max = GetSkillLineInfo(i)
+      if name and not isHeader and CLASSIC_PROFESSIONS[name] then add(name, rank, max) end
     end
   end
   return found
 end
 
--- Returns e.g. "Mining 150, Herbalism 75", or "" when there are none (the post then skips the line).
-local function getProfessions()
+-- Returns e.g. "Mining 150/225, Herbalism 75", or "" when there are none (the post then skips the line).
+function ns.professionText()
   local parts = {}
-  for _, p in ipairs(ns.professionRanks()) do parts[#parts + 1] = string.format("%s %d", p.name, p.rank) end
+  for _, p in ipairs(ns.professionRanks()) do
+    parts[#parts + 1] = p.max and string.format("%s %d/%d", p.name, p.rank, p.max) or string.format("%s %d", p.name, p.rank)
+  end
   return table.concat(parts, ", ")
 end
 
@@ -441,7 +447,7 @@ function ns.characterInfo(forEvent)
     level = safe(UnitLevel, "player"),
     zone = safe(getZone),
     zoneType = safe(getZoneType),
-    professions = safe(getProfessions),
+    professions = safe(ns.professionText),
     talents = talents,
     talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)
     talentExport = not forEvent and safe(getTalentExport) or nil, -- saved file and check-in only

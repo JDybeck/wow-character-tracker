@@ -11,7 +11,7 @@ public class ArmoryExportTests
     {
         Kind = "snapshot", Guid = Guid, Char = "Zebdryg", Realm = "Firemaw", Level = 42, At = 1_800_000_000,
         Class = "Warrior", ClassFile = "WARRIOR", Race = "Human", RaceFile = "Human", Sex = "male", Faction = "Alliance",
-        Spec = "Fury", ItemLevel = 41.26, Played = 360_000, Zone = "Stranglethorn Vale", Professions = "Mining 150, Herbalism",
+        Spec = "Fury", ItemLevel = 41.26, Played = 360_000, Zone = "Stranglethorn Vale", Professions = "Mining 150/225, Herbalism",
         Talents = "Arms 5 / Fury 31", Money = 123_456, Guild = "Raket", Ruleset = "Hardcore", Hardcore = true,
     };
 
@@ -36,7 +36,7 @@ public class ArmoryExportTests
         var c = file.Character;
         Assert.Equal(("Zebdryg", "Firemaw", 42, "WARRIOR", "Fury"), (c.Name, c.Realm, c.Level, c.ClassFile, c.Spec));
         Assert.Equal(("Hardcore", true, 41.3), (c.Ruleset, c.Hardcore, c.ItemLevel));
-        Assert.Equal([new ArmoryProfession("Mining", 150), new ArmoryProfession("Herbalism", null)], c.Professions);
+        Assert.Equal([new ArmoryProfession("Mining", 150, 225), new ArmoryProfession("Herbalism", null, null)], c.Professions);
         Assert.Equal([new ArmoryStat("Strength", "120"), new ArmoryStat("Crit", "5.2%")], c.Stats);
     }
 

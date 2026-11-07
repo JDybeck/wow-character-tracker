@@ -275,6 +275,7 @@ local function showCharTip(self)
   GameTooltip:AddLine(charTitle(c), 1, 1, 1)
   for id in string.gmatch(c.gear or "", "%d+~(%d+)") do GameTooltip:AddLine(itemName(tonumber(id))) end
   if c.talents then GameTooltip:AddLine("Talents: " .. c.talents, 0.8, 0.8, 0.8, true) end
+  if c.professions then GameTooltip:AddLine("Professions: " .. c.professions, 0.8, 0.8, 0.8, true) end
   GameTooltip:Show()
 end
 
@@ -596,7 +597,7 @@ local function buildSharing(p)
   shareNew:SetPoint("TOPLEFT", shareThis, "BOTTOMLEFT", 0, -2)
   local whatTitle = ui.text(p, "GameFontNormalSmall", "What friends get (name, level, class and item level always)")
   whatTitle:SetPoint("TOPLEFT", shareNew, "BOTTOMLEFT", 4, -24)
-  ui.checkGrid(p, { { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "gold", "Gold" } }, whatTitle,
+  ui.checkGrid(p, { { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "professions", "Professions" }, { "gold", "Gold" } }, whatTitle,
     function(key) return ns.shareSettings().defaults[key] == true end,
     function(key, on) ns.editShare(function(s) s.defaults[key] = on end) end)
 end

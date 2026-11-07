@@ -687,6 +687,8 @@ sealed class FlavorViewModel : Observable
     public FollowedItemsViewModel FollowedItems { get; }
     // The Friends page: what Battle.net friends shared, apart from your own characters.
     public FriendsViewModel Friends { get; }
+    // The Professions page: your characters' professions by server and faction.
+    public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions yet. They show up once a character with one has been played with the addon." };
     public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
     public StreamViewModel Stream => main.Stream;
 
@@ -777,6 +779,7 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
+        Professions.Show(rows);
         Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
         main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins

@@ -118,6 +118,23 @@ public class FriendsLuaTests
         Assert.True(c.Lua("return back.guild").IsNil()); // never sent
     }
 
+    // Professions are their own category, on unless turned off, and capped at 256 characters.
+    [Fact]
+    public void Professions_go_only_when_allowed_and_are_cut_to_length()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        c.Lua($$"""
+            char = {{Deadbeck}}
+            char.professions = 'Mining 150/225, Herbalism 75/150'
+            with = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000A', char, nil, { professions = true }))
+            without = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000A', char, nil, {}))
+            long = ns.decodeFriendChar('guid=Player-1-0000000B;char=Zeb;professions=' .. string.rep('x', 300))
+            """);
+        Assert.Equal("Mining 150/225, Herbalism 75/150", Str(c, "with.professions"));
+        Assert.True(c.Lua("return without.professions").IsNil());
+        Assert.Equal(256, c.Lua("return #long.professions").Number);
+    }
+
     [Fact]
     public void What_a_friend_sends_is_cleaned_field_by_field()
     {
@@ -346,6 +363,7 @@ public class FriendsLuaTests
         var a = new Client(A, AFriends, ADb("nil"));
         Assert.True(a.Lua("return ns.shareSettings().enabled").Boolean);
         Assert.True(a.Lua("return ns.allowedFor(ns.shareSettings(), {}).location").Boolean); // location on by default
+        Assert.True(a.Lua("return ns.allowedFor(ns.shareSettings(), {}).professions").Boolean); // and professions
         a.Call("friendsTick");
         a.Receive("1:DATA:2:1:1:guid=Player-1-0000000B;char=Zeb", BAccount);
         a.Run(5);
@@ -387,6 +405,7 @@ public class FriendsLuaTests
         a.Call("friendsCommand", "set all nonsense on");
         Assert.NotEmpty(a.Said());
         Assert.All(a.Said(), s => Assert.DoesNotContain("|", s));
+        Assert.Contains(a.Said(), s => s.Contains("gear/talents/location/professions/gold", StringComparison.Ordinal));
     }
 
     [Fact]

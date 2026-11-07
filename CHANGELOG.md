@@ -10,7 +10,14 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 - **Friends tab** in the addon window (`/wct`): **Find online friends** lists your Battle.net friends online in this game and checks, without them seeing anything, who has the addon. Ask, Share or Ask again with one click, no BattleTags to type. Friends without the addon get an **Invite** button (one whisper with a link, only when you click it, at most once a day).
 - Requests show up in the Friends tab too, with Allow, Not now and Never, so a missed popup isn't lost.
-- **Shared with you**: what friends share, right in the tab. Hover a character for its gear and talents.
+- **Shared with you**: what friends share, right in the tab. Hover a character for its gear, talents and professions, or click it for a **gear panel** where every item shows its real tooltip.
+- **Professions page** in the app: every profession of your characters with its skill and max, by server and faction. Friends share their professions too (on by default), shown the same way on the Friends page.
+- Friends' surnames show next to their names.
+
+### Fixes and tweaks
+
+- Characters a friend no longer shares (hidden, removed or deleted) disappear on your side.
+- Characters left from Forever's stress test (last seen before November 4) are removed once, in the app and the addon. Retail isn't touched.
 
 ## v0.34.0
 

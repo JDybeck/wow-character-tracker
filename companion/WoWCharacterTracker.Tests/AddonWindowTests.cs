@@ -150,6 +150,9 @@ public class AddonWindowTests
         Assert.False(Bool(c, "find('Gold').checked"));
         c.Lua("click('Gold')");
         Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.gold"));
+        Assert.True(Bool(c, "find('Professions').checked")); // on by default
+        c.Lua("click('Professions')");
+        Assert.False(Bool(c, "WoWCharacterTrackerDB.share.defaults.professions"));
     }
 
     [Fact]
@@ -276,7 +279,8 @@ public class AddonWindowTests
         shared = {
           { tag = 'Cid#3', label = 'Cid#3', chars = {
             { char = 'Cidrin', surname = 'Frostmane', realm = 'Firemaw', level = 60, classFile = 'MAGE', spec = 'Frost', ilvl = 112, zone = 'Ironforge',
-              gear = '1~100,5~200', talents = 'Arcane 10 / Fire 0 / Frost 41', at = clock - 7200, received = clock - 7200 },
+              gear = '1~100,5~200', talents = 'Arcane 10 / Fire 0 / Frost 41', professions = 'Tailoring 300/300, Enchanting 280/300',
+              at = clock - 7200, received = clock - 7200 },
           } },
         }
         ns.findOnlineFriends = function() call('find') end
@@ -412,6 +416,7 @@ public class AddonWindowTests
         Assert.Contains("Frostfire Circlet", lines);
         Assert.Contains("item 200", lines); // not cached yet
         Assert.Contains("Arcane 10 / Fire 0 / Frost 41", lines);
+        Assert.Contains("Professions: Tailoring 300/300, Enchanting 280/300", lines);
         c.Lua("line.scripts.OnLeave(line)");
         Assert.False(Bool(c, "GameTooltip.up"));
     }

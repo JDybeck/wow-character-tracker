@@ -91,6 +91,7 @@ sealed class FriendsViewModel : Observable
             Characters.Add(r);
             _ = r.LoadPictureAsync(flavor);
         }
+        Professions.Show(Characters, r => r.FriendName);
         Raise(nameof(HasFriends));
         Raise(nameof(HiddenCount));
         Raise(nameof(HasHidden));
@@ -113,11 +114,28 @@ sealed class FriendsViewModel : Observable
         ShowRows();
     }
 
+    // The shown friends' professions (the same view as the Professions page), by friend first.
+    public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions from friends yet. Friends who share professions show up here." };
+
+    // What the page shows: the characters, their professions or the sharing settings.
+    bool showProfessions;
+    public bool ShowProfessions { get => showProfessions; set { if (Set(ref showProfessions, value)) ViewChanged(value ? "professions" : null); } }
+    public ICommand ToggleProfessionsCommand => toggleProfessions ??= new RelayCommand(_ => ShowProfessions = !ShowProfessions);
+    ICommand? toggleProfessions;
+    public bool ShowCharacters => !ShowSettings && !ShowProfessions;
+
+    void ViewChanged(string? opened)
+    {
+        if (opened == "professions") ShowSettings = false;
+        if (opened == "settings") ShowProfessions = false;
+        Raise(nameof(ShowCharacters));
+    }
+
     // --- sharing settings ---
 
     // The sharing settings panel open instead of the list.
     bool showSettings;
-    public bool ShowSettings { get => showSettings; set => Set(ref showSettings, value); }
+    public bool ShowSettings { get => showSettings; set { if (Set(ref showSettings, value)) ViewChanged(value ? "settings" : null); } }
     public ICommand ToggleSettingsCommand => toggleSettings ??= new RelayCommand(_ => ShowSettings = !ShowSettings);
     ICommand? toggleSettings;
 
@@ -134,7 +152,7 @@ sealed class FriendsViewModel : Observable
 
     void RaiseSharing()
     {
-        foreach (var name in new[] { nameof(Enabled), nameof(NewChars), nameof(ShareGear), nameof(ShareTalents), nameof(ShareLocation), nameof(ShareGold), nameof(Blocked), nameof(HasBlocked) })
+        foreach (var name in new[] { nameof(Enabled), nameof(NewChars), nameof(ShareGear), nameof(ShareTalents), nameof(ShareLocation), nameof(ShareProfessions), nameof(ShareGold), nameof(Blocked), nameof(HasBlocked) })
             Raise(name);
     }
 
@@ -143,6 +161,7 @@ sealed class FriendsViewModel : Observable
     public bool ShareGear { get => Share.Defaults.Gear; set => Edit(s => s with { Defaults = s.Defaults with { Gear = value } }); }
     public bool ShareTalents { get => Share.Defaults.Talents; set => Edit(s => s with { Defaults = s.Defaults with { Talents = value } }); }
     public bool ShareLocation { get => Share.Defaults.Location; set => Edit(s => s with { Defaults = s.Defaults with { Location = value } }); }
+    public bool ShareProfessions { get => Share.Defaults.Professions; set => Edit(s => s with { Defaults = s.Defaults with { Professions = value } }); }
     public bool ShareGold { get => Share.Defaults.Gold; set => Edit(s => s with { Defaults = s.Defaults with { Gold = value } }); }
 
     public IReadOnlyList<string> Blocked => [.. Share.Blocked.Order(StringComparer.CurrentCultureIgnoreCase)];
@@ -171,6 +190,7 @@ sealed class FriendsViewModel : Observable
         "gear" => Share.Defaults.Gear,
         "talents" => Share.Defaults.Talents,
         "location" => Share.Defaults.Location,
+        "professions" => Share.Defaults.Professions,
         _ => Share.Defaults.Gold,
     };
 
@@ -229,11 +249,12 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
     public bool? Gear { get => C.Gear; set => owner.EditContact(Tag, c => c with { Gear = value }); }
     public bool? Talents { get => C.Talents; set => owner.EditContact(Tag, c => c with { Talents = value }); }
     public bool? Location { get => C.Location; set => owner.EditContact(Tag, c => c with { Location = value }); }
+    public bool? Professions { get => C.Professions; set => owner.EditContact(Tag, c => c with { Professions = value }); }
     public bool? Gold { get => C.Gold; set => owner.EditContact(Tag, c => c with { Gold = value }); }
 
     // A chip per category that cycles: like all friends, on, off (a checkbox's third state looks unticked).
-    static readonly (string Key, string Name)[] Names = [("gear", "Gear"), ("talents", "Talents"), ("location", "Location"), ("gold", "Gold")];
-    bool? Own(string key) => key switch { "gear" => Gear, "talents" => Talents, "location" => Location, _ => Gold };
+    static readonly (string Key, string Name)[] Names = [("gear", "Gear"), ("talents", "Talents"), ("location", "Location"), ("professions", "Professions"), ("gold", "Gold")];
+    bool? Own(string key) => key switch { "gear" => Gear, "talents" => Talents, "location" => Location, "professions" => Professions, _ => Gold };
     public IReadOnlyList<CategoryChip> Categories => [.. Names.Select(n => Own(n.Key) switch
     {
         null => new CategoryChip(n.Key, $"{n.Name}: like all friends ({(owner.General(n.Key) ? "on" : "off")})", "all"),
@@ -249,6 +270,7 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
             case "gear": Gear = next; break;
             case "talents": Talents = next; break;
             case "location": Location = next; break;
+            case "professions": Professions = next; break;
             default: Gold = next; break;
         }
     });

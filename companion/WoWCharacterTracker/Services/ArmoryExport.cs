@@ -43,18 +43,8 @@ static class ArmoryExport
         return name + ".json";
     }
 
-    // "Mining 150, Herbalism 75"; a name without a number keeps no skill.
-    static List<ArmoryProfession> Professions(string text)
-    {
-        if (text is "" or "None") return [];
-        return [.. text.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(p =>
-        {
-            var space = p.LastIndexOf(' ');
-            return space > 0 && int.TryParse(p[(space + 1)..], out var skill)
-                ? new ArmoryProfession(p[..space], skill)
-                : new ArmoryProfession(p, null);
-        })];
-    }
+    static List<ArmoryProfession> Professions(string text) =>
+        [.. ProfessionSkills.Parse(text).Select(p => new ArmoryProfession(p.Name, p.Skill, p.Max))];
 
     // Equipped items with their enchants, in slot order.
     static List<ArmoryGear> Gear(Inventory? inv)
@@ -92,7 +82,7 @@ record ArmoryCharacter(string Name, string? Surname, string Realm, string? Regio
     string? Talents, string? TalentCalc, string? TalentExport,
     IReadOnlyList<ArmoryStat> Stats, IReadOnlyList<ArmoryRating> Ratings);
 
-record ArmoryProfession(string Name, int? Skill);
+record ArmoryProfession(string Name, int? Skill, int? Max);
 record ArmoryStat(string Name, string Value);
 record ArmoryRating(string Name, int Rating);
 record ArmoryGear(int Slot, int ItemId, string? Enchant, int? EnchantId);

@@ -40,7 +40,7 @@
     </DataTemplate>
   </UserControl.Resources>
 
-  <Border Style="{StaticResource CardBorder}" ClipToBounds="True" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="5"
+  <Border Style="{StaticResource CardBorder}" ClipToBounds="True" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="6"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=friends}">
     <Grid DataContext="{Binding Friends}">
       <Grid.RowDefinitions>
@@ -66,6 +66,22 @@
               </TextBlock>
             </StackPanel>
           </Button>
+          <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Padding="12,6" Margin="0,0,8,0" VerticalAlignment="Top" Command="{Binding ToggleProfessionsCommand}"
+                  ToolTip="Friends' professions by friend, server and faction">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE90F;" FontSize="12" Foreground="{StaticResource TextSoft}" Margin="0,0,7,0"/>
+              <TextBlock FontSize="12" Foreground="{StaticResource TextSoft}">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="Text" Value="Professions"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding ShowProfessions}" Value="True"><Setter Property="Text" Value="Back to friends"/></DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </StackPanel>
+          </Button>
           <StackPanel Margin="0,0,16,0">
             <views:ChipBar DataContext="{Binding Contacts}"/>
             <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
@@ -75,7 +91,7 @@
       </Border>
 
       <!-- Friends' characters -->
-      <Grid Grid.Row="1" Visibility="{Binding ShowSettings, Converter={StaticResource Hidden}}">
+      <Grid Grid.Row="1" Visibility="{Binding ShowCharacters, Converter={StaticResource Visible}}">
         <Grid.RowDefinitions>
           <RowDefinition Height="*"/>
           <RowDefinition Height="Auto"/>
@@ -118,6 +134,11 @@
         </StackPanel>
       </Grid>
 
+      <!-- Friends' professions, by friend -->
+      <Border Grid.Row="1" Padding="0,4,0,0" Visibility="{Binding ShowProfessions, Converter={StaticResource Visible}}">
+        <views:ProfessionsView DataContext="{Binding Professions}"/>
+      </Border>
+
       <!-- Sharing settings -->
       <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="{Binding ShowSettings, Converter={StaticResource Visible}}">
         <StackPanel Margin="35,10,35,20">
@@ -138,6 +159,7 @@
             <CheckBox Style="{StaticResource OptionChip}" Content="Gear" IsChecked="{Binding ShareGear}" Margin="0,0,6,6"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Talents" IsChecked="{Binding ShareTalents}" Margin="0,0,6,6"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Location" IsChecked="{Binding ShareLocation}" Margin="0,0,6,6" ToolTip="The zone you're in"/>
+            <CheckBox Style="{StaticResource OptionChip}" Content="Professions" IsChecked="{Binding ShareProfessions}" Margin="0,0,6,6" ToolTip="Each profession with its skill"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Gold" IsChecked="{Binding ShareGold}" Margin="0,0,6,6" ToolTip="Off until you turn it on"/>
           </WrapPanel>
 

@@ -6,10 +6,10 @@ namespace WoWCharacterTracker.Models;
 record FriendContact(string Tag, long Seen, string Version, int Protocol, bool Refused, List<Snapshot> Characters, List<Inventory> Inventories);
 
 // What all friends get, unless set for one of them. Gold stays off until turned on.
-record GeneralCategories(bool Gear = true, bool Talents = true, bool Location = true, bool Gold = false);
+record GeneralCategories(bool Gear = true, bool Talents = true, bool Location = true, bool Gold = false, bool Professions = true);
 
 // One contact: whether we share with them and keep what they send, and their own categories (null = the general choice).
-record ShareContact(bool Share, bool Receive, bool? Gear = null, bool? Talents = null, bool? Location = null, bool? Gold = null);
+record ShareContact(bool Share, bool Receive, bool? Gear = null, bool? Talents = null, bool? Location = null, bool? Gold = null, bool? Professions = null);
 
 // Sharing with friends, the same shape as the addon's `share` (Friends.lua). Changed in the app or in
 // game, the newest At wins.
