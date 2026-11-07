@@ -29,7 +29,7 @@ static class CharacterArt
     // Forever has no armory to get a render from, so the addon shows the character's own portrait in
     // its check-in shot after login, and the app keeps it here (<data dir>\portraits\<guid>.png). Only
     // used in the app: Discord needs a web address for pictures.
-    static string PortraitPath(string guid) => Path.Combine(Config.Dir, "portraits", string.Concat(guid.Split(Path.GetInvalidFileNameChars())) + ".png");
+    internal static string PortraitPath(string guid) => Path.Combine(Config.Dir, "portraits", string.Concat(guid.Split(Path.GetInvalidFileNameChars())) + ".png");
 
     public static string? LocalPortrait(string guid) => File.Exists(PortraitPath(guid)) ? PortraitPath(guid) : null;
 

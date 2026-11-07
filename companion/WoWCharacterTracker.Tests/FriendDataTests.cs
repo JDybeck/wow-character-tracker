@@ -15,7 +15,7 @@ public class FriendDataTests
             { ['Zeb#2222'] = { seen = 2000, version = '0.33.0', chars = {
                 ['Player-1-0000000B'] = { guid = 'Player-1-0000000B', char = 'Zeb', realm = 'Firemaw', level = 42, class = 'Warrior', classFile = 'WARRIOR',
                   race = 'Orc', raceFile = 'Orc', faction = 'Horde', spec = 'Arms', ilvl = 38, at = 1900, zone = 'Duskwood', money = 5000,
-                  gear = '1~19019,16~12345', enchants = '16~12345~Crusader~1900', talentCalc = '--505', received = 1950,
+                  gear = '1~19019,16~12345', enchants = '16~12345~Crusader~1900', talentCalc = '--505', surname = 'Stonehand', received = 1950,
                   professions = 'Mining 150/225, ' .. string.rep('x', 300) } } } }
             """));
         var zeb = Assert.Single(friends);
@@ -26,6 +26,7 @@ public class FriendDataTests
         Assert.Equal("--505", s.TalentCalc);
         Assert.StartsWith("Mining 150/225, ", s.Professions);
         Assert.Equal(256, s.Professions.Length); // the addon's cap
+        Assert.Equal("Stonehand", s.Surname);
         var inv = Assert.Single(zeb.Inventories);
         Assert.Equal(2, inv.Gear.Count);
         Assert.Equal("Crusader", Assert.Single(inv.Enchants).Text);

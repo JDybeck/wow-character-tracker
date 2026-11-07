@@ -8,6 +8,7 @@ local ADDON, ns = ...
 local FIELDS = {
   guid = { kind = "string", max = 40 },
   char = { kind = "string", max = 24 },
+  surname = { kind = "string", max = 24 }, -- Forever
   realm = { kind = "string", max = 40 },
   level = { kind = "number" },
   class = { kind = "string", max = 24 },
@@ -73,6 +74,23 @@ function ns.encodeFriendChar(guid, char, items, allowed)
   table.sort(parts) -- the same character is the same text
   local key = table.concat(parts, ";")
   return key .. ";at=" .. tostring(values.at or 0), key
+end
+
+-- A friend character's gear in slot order: { slot, id, enchant, enchantId } (enchant and
+-- enchantId nil when not known; enchant lines only count for the same item in the same slot).
+function ns.friendGear(c)
+  local enchants = {}
+  for line in string.gmatch(c.enchants or "", "[^\n]+") do
+    local slot, id, text, enchantId = line:match("^(%d+)~(%d+)~(.-)~(%d+)$")
+    if slot then enchants[slot .. "~" .. id] = { text = text ~= "" and text or nil, id = tonumber(enchantId) } end
+  end
+  local out = {}
+  for slot, id in string.gmatch(c.gear or "", "(%d+)~(%d+)") do
+    local e = enchants[slot .. "~" .. id] or {}
+    out[#out + 1] = { slot = tonumber(slot), id = tonumber(id), enchant = e.text, enchantId = (e.id or 0) > 0 and e.id or nil }
+  end
+  table.sort(out, function(a, b) return a.slot < b.slot end)
+  return out
 end
 
 -- The character in a friend's text, or nil when it isn't one. Only known fields are kept.

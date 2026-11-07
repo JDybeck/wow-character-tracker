@@ -162,6 +162,18 @@ public class FriendsLuaTests
         Assert.True(c.Lua($"return ns.decodeFriendChar('{text}')").IsNil());
     }
 
+    // Forever's surnames go along with the name, like the name itself (no category needed).
+    [Fact]
+    public void A_surname_goes_with_the_character()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        c.Lua("""
+            text = ns.encodeFriendChar('Player-1-0000000A', { char = 'Zeb', surname = 'Stonehand', lastSeen = 1 }, nil, {})
+            back = ns.decodeFriendChar(text)
+            """);
+        Assert.Equal("Stonehand", Str(c, "back.surname"));
+    }
+
     [Fact]
     public void Text_over_8_kb_is_dropped()
     {
@@ -582,6 +594,23 @@ public class FriendsLuaTests
         Assert.False(a.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000C')").Boolean);
         a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000C'].lastSeen = 700"); // played again
         Assert.True(a.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000C')").Boolean);
+    }
+
+    // A friend's character they no longer share (hidden, removed, deleted) disappears on your side.
+    [Fact]
+    public void Characters_a_friend_no_longer_shares_disappear()
+    {
+        var (a, b) = Friends();
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Talk(a, b);
+        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C']").IsNil());
+        a.Lua("WoWCharacterTrackerDB.share.chars['Player-1-0000000C'] = false"); // Drygbeck hidden
+        a.Run(31);
+        b.Run(31);
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Talk(a, b);
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C']").IsNil());
+        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000A']").IsNil()); // still shared
     }
 
     [Fact]

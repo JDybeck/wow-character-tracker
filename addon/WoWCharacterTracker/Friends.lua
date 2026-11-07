@@ -300,6 +300,8 @@ local answeredHi = {} -- [account] = when we last answered their hello
 
 -- A contact came online (or reloaded): answer, and send them the character being played. At most
 -- once per GROUP_EVERY, so a contact saying hello over and over can't flood us (or Battle.net).
+local sendCharList -- below, with the requests
+
 function on.HI(f, contact, body)
   noteVersion(f, contact, body)
   local now = time()
@@ -307,13 +309,31 @@ function on.HI(f, contact, body)
   answeredHi[f.account] = now
   ns.comms.send(f.account, "HEY", version())
   local last = lastSent[f.account]
-  if contact.share and not (last and now - last.at < GROUP_EVERY) then sendCurrent(f, contact, false, true) end
+  if contact.share and not (last and now - last.at < GROUP_EVERY) then
+    sendCurrent(f, contact, false, true)
+    sendCharList(f)
+  end
 end
 
 -- The answer to our hello (never answered back, so no ping-pong).
 function on.HEY(f, contact, body)
   noteVersion(f, contact, body)
-  if contact.share and not lastSent[f.account] then sendCurrent(f, contact, false, true) end
+  if contact.share and not lastSent[f.account] then
+    sendCurrent(f, contact, false, true)
+    sendCharList(f)
+  end
+end
+
+-- Which characters they still share: anything else we kept from them goes (hidden, removed, deleted).
+function on.CHARS(f, contact, body)
+  if not contact.receive then return end
+  local still = {}
+  for guid in string.gmatch(body or "", "[^,]+") do still[guid] = true end
+  local e = friendEntry(f.tag)
+  for guid in pairs(e.chars) do
+    if not still[guid] then e.chars[guid] = nil end
+  end
+  changed()
 end
 
 function on.DATA(f, contact, body)
@@ -398,9 +418,18 @@ local function sharedAlts()
   return out
 end
 
--- Everything a contact may see, for one who asked: the character being played, and the alts once a session.
+-- The GUIDs of every character we share, so the friend drops the ones we don't anymore.
+sendCharList = function(f)
+  local list, me = sharedAlts(), UnitGUID("player")
+  if me and ns.isCharShared(ns.shareSettings(), me) then list[#list + 1] = me end
+  ns.comms.send(f.account, "CHARS", table.concat(list, ","))
+end
+
+-- Everything a contact may see, for one who asked: the character being played, the list of what we
+-- share, and the alts once a session.
 local function answer(f, contact)
   sendCurrent(f, contact, false, true)
+  sendCharList(f)
   if altsSent[f.tag] then return end
   altsSent[f.tag] = true
   for _, guid in ipairs(sharedAlts()) do
