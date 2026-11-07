@@ -725,6 +725,7 @@ sealed class FlavorViewModel : Observable
     void ShowData(TrackerData data)
     {
         lastData = data;
+        CleanStressTestOnce(data);
         var keepRow = SelectedCharacter;
         var keep = keepRow?.Guid;
         var removed = Settings.Removed;
@@ -784,6 +785,18 @@ sealed class FlavorViewModel : Observable
         Raise(nameof(TotalCoins));
         Raise(nameof(TotalPlayedText));
         UpdateStatus();
+    }
+
+    // Once per game tab with a pre-launch stress test (Forever): its characters go (StressTestCleanup).
+    // The addon cleans the saved file on its side; until then the app keeps them hidden.
+    void CleanStressTestOnce(TrackerData data)
+    {
+        if (Flavor.StressTestBefore <= 0 || Settings.StressTestCleaned || data.Characters.Count == 0) return;
+        var old = StressTestCleanup.OldCharacters(data, Flavor.StressTestBefore);
+        StressTestCleanup.Apply(main.Config, Settings, old, Flavor.StressTestBefore, guid => Files.TryDelete(CharacterArt.PortraitPath(guid)));
+        main.Config.Save();
+        WriteAddonSettings();
+        if (old.Count > 0) Log.Info($"[{Name}] Removed {Format.Count(old.Count, "character")} left from the stress test (before November 4).");
     }
 
     // "Total gold on Tarren Mill (3 characters):" followed by the coins, for what the filter shows.

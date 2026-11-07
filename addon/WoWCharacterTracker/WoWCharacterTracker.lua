@@ -27,6 +27,14 @@ function on.ADDON_LOADED(name)
 end
 
 function on.PLAYER_LOGIN()
+  -- Forever only, once per account: the stress test's characters (Cleanup.lua). Before onLogin, so
+  -- nothing from them is used; the character being played always stays.
+  local db = WoWCharacterTrackerDB
+  if not ns.IS_RETAIL and not db.stressTestCleaned then
+    local removed = ns.cleanStressTest(db, ns.STRESS_TEST_BEFORE, UnitGUID("player"))
+    db.stressTestCleaned = time()
+    if removed > 0 then ns.say(string.format("Removed %d characters left from the stress test (before November 4).", removed)) end
+  end
   ns.onLogin()
   ns.restoreNoteBox()
   ns.createMinimapButton()
