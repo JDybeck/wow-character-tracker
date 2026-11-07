@@ -11,7 +11,7 @@ sealed class MainViewModel : Observable
     public MainViewModel(bool backfill, bool justUpdated)
     {
         Backfill = backfill;
-        Updates = new UpdatesViewModel(justUpdated);
+        Updates = new UpdatesViewModel(justUpdated, () => Config.AutoUpdate);
         Updates.Found += () => { foreach (var tab in FlavorTabs) tab.WriteAddonSettings(); };
         Discord = new DiscordViewModel(this);
         Uninstall = new UninstallViewModel(this);
@@ -252,6 +252,22 @@ sealed class MainViewModel : Observable
             Config.HideWhenGameCloses = value;
             Config.Save();
             Raise(nameof(HideWhenGameCloses));
+        }
+    }
+
+    // Off until turned on: a found update installs by itself, once no game is running.
+    public bool AutoUpdate
+    {
+        get => Config.AutoUpdate;
+        set
+        {
+            Config.AutoUpdate = value;
+            Config.Save();
+            Raise(nameof(AutoUpdate));
+            Log.Info(value
+                ? "Updates now install by themselves when no game is running."
+                : "Updates no longer install by themselves. The header offers them.");
+            if (value) Updates.TryAutoInstall();
         }
     }
 

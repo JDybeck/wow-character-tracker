@@ -49,6 +49,9 @@ class Config
     // With Open with World of Warcraft on: hide the window again when the game closes.
     public bool HideWhenGameCloses { get; set; } = true;
 
+    // Install a found update by itself (when no game runs). Off until the user turns it on.
+    public bool AutoUpdate { get; set; }
+
     // Parts of the character card (Post to Discord) the user turned off. Guild is off unless picked.
     public List<string> CardHidden { get; set; } = ["guild"];
 

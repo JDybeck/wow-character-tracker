@@ -196,6 +196,10 @@
                       ToolTip="Off: the window stays open when the game closes, so you can look things over after playing.">
               <TextBlock Text="Hide the window when the game closes" FontSize="13" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap"/>
             </CheckBox>
+            <CheckBox IsChecked="{Binding AutoUpdate}" Margin="0,10,0,0"
+                      ToolTip="A new version installs by itself and the app restarts. It waits while World of Warcraft is running, so nothing in game is missed. Off: the header offers it and you click.">
+              <TextBlock Text="Install updates automatically" FontSize="13" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap"/>
+            </CheckBox>
             <Border Height="1" Background="{DynamicResource Line}" Margin="0,14"/>
             <!-- Which games the app looks at (a game that's off keeps its tab, with a way back on). -->
             <ItemsControl ItemsSource="{Binding FlavorTabs}" Focusable="False">

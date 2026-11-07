@@ -153,6 +153,16 @@ public class RatingTests
         Assert.Equal(expected, result is null ? null : Math.Sign(result.Value));
     }
 
+    // Only when turned on, only a build that can replace itself, never while a game runs, one try per version.
+    [Theory]
+    [InlineData(true, true, false, false, true)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(true, false, false, false, false)]
+    [InlineData(true, true, true, false, false)]
+    [InlineData(true, true, false, true, false)]
+    public void An_update_installs_by_itself_only_when_allowed(bool optedIn, bool canInstall, bool gameRunning, bool tried, bool expected) =>
+        Assert.Equal(expected, Updater.ShouldAutoInstall(optedIn, canInstall, gameRunning, tried));
+
     // The real file: What's new shows this version first, and every section keeps the two groups.
     [Fact]
     public void The_built_in_changelog_starts_at_this_version_and_uses_the_groups()
