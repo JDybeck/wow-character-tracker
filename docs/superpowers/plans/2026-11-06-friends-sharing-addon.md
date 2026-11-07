@@ -24,7 +24,7 @@
 - `accountName` (can be a real name) is never read or stored; only the BattleTag.
 - Comments brief, no em dashes in comments, docs or chat lines (use commas).
 - Commits: Conventional Commits, scope `addon` (or `docs`), ending with `Co-Authored-By: Claude <noreply@anthropic.com>` and `Claude-Session: 5273ae34-7426-4d14-b965-12f2bb2aaef0`. Commit as `35696089+JDybeck@users.noreply.github.com` (already the repo's git user). No pushes.
-- Validation: `dotnet test companion/WoWCharacterTracker.Tests`.
+- Validation: `verify.cmd` from CLAUDE.md is not on main (it lives on the unmerged `chore/agent-setup` branch). Use `dotnet test companion/WoWCharacterTracker.Tests`.
 - No version bumps in this plan (`.toc` and csproj change at release time, `releases.md`).
 
 ## Review Focus
