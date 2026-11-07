@@ -9,6 +9,7 @@ local professionsWaiting = false -- skill-ups during a fight, checked when it en
 local function remindSoon() C_Timer.After(4, function() ns.remindReload(true) end) end
 
 function on.ADDON_LOADED(name)
+  if name == "Blizzard_WorldMap" then return ns.attachMapPins() end -- loaded on demand on some clients
   if name ~= ADDON then return end
   local db = WoWCharacterTrackerDB or {}
   WoWCharacterTrackerDB = db
@@ -38,6 +39,7 @@ function on.PLAYER_LOGIN()
   ns.onLogin()
   ns.restoreNoteBox()
   ns.createMinimapButton()
+  ns.attachMapPins() -- friends on the world map (MapPins.lua)
   ns.say("Loaded. Type /wct help for the commands.")
 end
 

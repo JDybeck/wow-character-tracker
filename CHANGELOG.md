@@ -2,6 +2,15 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.38.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Friends on the world map**: Battle.net friends who share Map position with you show up on your world map as their class icon while you have it open. Off until you turn it on, for all friends or one at a time, with a choice to show yourself to friends on the other faction (hidden unless you allow it) and how often your position goes out (live, every minute or every 5 minutes). Nothing goes out while nobody is looking, nothing from dungeons, raids or battlegrounds, and positions are never saved. Set it on the Sharing tab in game or on the Friends page in the app.
+- **Friends' highlights**: friends now see each shared character's newest 10 highlights (boss kills, rare loot, mounts, duels, milestones, deaths) in its details on the Friends page, just like your own. On like gear and talents, and you can turn **Highlights** off for all friends or one at a time. Who was in your group isn't shared, and a death's gold and zone only go with Gold and Location.
+
 ## v0.37.2
 
 ### Fixes and tweaks

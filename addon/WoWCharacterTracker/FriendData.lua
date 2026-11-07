@@ -27,8 +27,33 @@ local FIELDS = {
   zone = { kind = "string", max = 64, category = "location" },
   professions = { kind = "string", max = 256, category = "professions" },
   money = { kind = "number", category = "gold" },
+  highlights = { kind = "string", max = 1024, category = "highlights", lines = true },
 }
 local MAX_TEXT = 8192
+
+-- Highlights go as one line each, newest first: "kind~at~level" and then the kind's own fields in
+-- this order. A field with a category (FIELD_CATEGORY) stays empty unless that one is allowed too.
+-- Who was in the group stays home, only its size goes. The app reads the same order (FriendData.cs).
+local MAX_HIGHLIGHTS = 10
+local HIGHLIGHT_FIELDS = {
+  boss = { "boss", "instance", "groupSize" },
+  keyrun = { "instance", "keyLevel", "upgrades" },
+  loot = { "item", "itemId", "quality" },
+  mount = { "mount", "itemId", "bought" },
+  duel = { "opponent", "lost", "fled" },
+  makgora = { "opponent", "lost" },
+  bg = { "instance", "lost" },
+  profession = { "profession", "step" },
+  mplus = { "step", "rating" },
+  pvp = { "step", "bracket", "rating" },
+  death = { "killer", "played", "gold", "zone" },
+}
+local FIELD_CATEGORY = { gold = "gold", zone = "location" }
+ns.FRIEND_HIGHLIGHTS = MAX_HIGHLIGHTS
+
+function ns.isFriendHighlight(e)
+  return type(e) == "table" and HIGHLIGHT_FIELDS[e.kind] ~= nil and type(e.at) == "number"
+end
 
 -- `\`, `;` (between fields) and line breaks are escaped, so the text is one line.
 local function escape(s)
@@ -58,13 +83,46 @@ local function finite(n)
   return n ~= nil and n - n == 0
 end
 
+-- One value in a highlight line: no ~ (between fields), | or line breaks; true is 1.
+local function highlightValue(v)
+  if type(v) == "boolean" then return v and "1" or "" end
+  if type(v) == "number" then return finite(v) and tostring(math.floor(v)) or "" end
+  if type(v) == "string" then return (v:gsub("[~|%c]", "")) end
+  return ""
+end
+
+-- The newest highlights among events (any order, other kinds skipped) as lines, nil without any.
+local function encodeHighlights(events, allowed)
+  local list = {}
+  for _, e in ipairs(events or {}) do
+    if ns.isFriendHighlight(e) then list[#list + 1] = e end
+  end
+  table.sort(list, function(x, y) return x.at > y.at end)
+  local lines, size = {}, 0
+  for i = 1, math.min(#list, MAX_HIGHLIGHTS) do
+    local e = list[i]
+    local parts = { e.kind, highlightValue(e.at), highlightValue(e.level) }
+    for _, key in ipairs(HIGHLIGHT_FIELDS[e.kind]) do
+      local category = FIELD_CATEGORY[key]
+      parts[#parts + 1] = (not category or allowed[category]) and highlightValue(e[key]) or ""
+    end
+    local line = table.concat(parts, "~")
+    if size + #line + 1 > FIELDS.highlights.max then break end
+    lines[#lines + 1] = line
+    size = size + #line + 1
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
 -- The text for one of your characters, and the same without `at` (it changes with every snapshot,
--- so change detection compares that one). allowed: the categories the friend may see.
-function ns.encodeFriendChar(guid, char, items, allowed)
+-- so change detection compares that one). allowed: the categories the friend may see; events: the
+-- character's highlights (ns.isFriendHighlight), or nil.
+function ns.encodeFriendChar(guid, char, items, allowed, events)
   local values = {}
   for key in pairs(FIELDS) do values[key] = char[key] end
   values.guid, values.at = guid, char.lastSeen
   values.gear, values.enchants = items and items.gear, items and items.enchants
+  values.highlights = allowed.highlights and encodeHighlights(events, allowed) or nil
   local parts = {}
   for key, field in pairs(FIELDS) do
     local v = values[key]

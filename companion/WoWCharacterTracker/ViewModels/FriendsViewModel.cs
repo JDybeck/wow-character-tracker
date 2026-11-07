@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows.Input;
 
 namespace WoWCharacterTracker.ViewModels;
@@ -61,7 +62,7 @@ sealed class FriendsViewModel : Observable
         var rows = new List<CharacterRow>();
         // Only friends whose characters you keep: unticking "Keep theirs" or blocking them hides what came before.
         foreach (var contact in data.Friends.Where(c => ContactFor(c.Tag).Receive && !Share.Blocked.Contains(c.Tag)))
-            foreach (var row in CharacterRow.Build(new TrackerData([], contact.Characters) { Inventories = contact.Inventories }, flavor, lookup))
+            foreach (var row in CharacterRow.Build(new TrackerData(contact.Events, contact.Characters) { Inventories = contact.Inventories }, flavor, lookup))
             {
                 row.IsFriend = true;
                 row.FriendTag = contact.Tag;
@@ -152,7 +153,8 @@ sealed class FriendsViewModel : Observable
 
     void RaiseSharing()
     {
-        foreach (var name in new[] { nameof(Enabled), nameof(NewChars), nameof(ShareGear), nameof(ShareTalents), nameof(ShareLocation), nameof(ShareProfessions), nameof(ShareGold), nameof(Blocked), nameof(HasBlocked) })
+        foreach (var name in new[] { nameof(Enabled), nameof(NewChars), nameof(ShareGear), nameof(ShareTalents), nameof(ShareLocation), nameof(ShareProfessions), nameof(ShareHighlights), nameof(ShareGold), nameof(ShareMap), nameof(ShareOtherFaction),
+            nameof(IsMapLive), nameof(IsMapMinute), nameof(IsMapFiveMinutes), nameof(Blocked), nameof(HasBlocked) })
             Raise(name);
     }
 
@@ -162,7 +164,21 @@ sealed class FriendsViewModel : Observable
     public bool ShareTalents { get => Share.Defaults.Talents; set => Edit(s => s with { Defaults = s.Defaults with { Talents = value } }); }
     public bool ShareLocation { get => Share.Defaults.Location; set => Edit(s => s with { Defaults = s.Defaults with { Location = value } }); }
     public bool ShareProfessions { get => Share.Defaults.Professions; set => Edit(s => s with { Defaults = s.Defaults with { Professions = value } }); }
+    public bool ShareHighlights { get => Share.Defaults.Highlights; set => Edit(s => s with { Defaults = s.Defaults with { Highlights = value } }); }
     public bool ShareGold { get => Share.Defaults.Gold; set => Edit(s => s with { Defaults = s.Defaults with { Gold = value } }); }
+    public bool ShareMap { get => Share.Defaults.Map; set => Edit(s => s with { Defaults = s.Defaults with { Map = value } }); }
+    public bool ShareOtherFaction { get => Share.Defaults.OtherFaction; set => Edit(s => s with { Defaults = s.Defaults with { OtherFaction = value } }); }
+
+    // How often friends' maps get your position: one rate for all friends.
+    public bool IsMapLive => Share.MapRate == 5;
+    public bool IsMapMinute => Share.MapRate == 60;
+    public bool IsMapFiveMinutes => Share.MapRate == 300;
+    public ICommand MapRateCommand => mapRate ??= new RelayCommand(p =>
+    {
+        if (p is string text && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rate) && ShareSettings.MapRates.Contains(rate))
+            Edit(s => s with { MapRate = rate });
+    });
+    ICommand? mapRate;
 
     public IReadOnlyList<string> Blocked => [.. Share.Blocked.Order(StringComparer.CurrentCultureIgnoreCase)];
     public bool HasBlocked => Share.Blocked.Count > 0;
@@ -191,6 +207,9 @@ sealed class FriendsViewModel : Observable
         "talents" => Share.Defaults.Talents,
         "location" => Share.Defaults.Location,
         "professions" => Share.Defaults.Professions,
+        "highlights" => Share.Defaults.Highlights,
+        "map" => Share.Defaults.Map,
+        "otherFaction" => Share.Defaults.OtherFaction,
         _ => Share.Defaults.Gold,
     };
 
@@ -254,11 +273,19 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
     public bool? Talents { get => C.Talents; set => owner.EditContact(Tag, c => c with { Talents = value }); }
     public bool? Location { get => C.Location; set => owner.EditContact(Tag, c => c with { Location = value }); }
     public bool? Professions { get => C.Professions; set => owner.EditContact(Tag, c => c with { Professions = value }); }
+    public bool? Highlights { get => C.Highlights; set => owner.EditContact(Tag, c => c with { Highlights = value }); }
     public bool? Gold { get => C.Gold; set => owner.EditContact(Tag, c => c with { Gold = value }); }
+    public bool? Map { get => C.Map; set => owner.EditContact(Tag, c => c with { Map = value }); }
+    public bool? OtherFaction { get => C.OtherFaction; set => owner.EditContact(Tag, c => c with { OtherFaction = value }); }
 
     // A chip per category that cycles: like all friends, on, off (a checkbox's third state looks unticked).
-    static readonly (string Key, string Name)[] Names = [("gear", "Gear"), ("talents", "Talents"), ("location", "Location"), ("professions", "Professions"), ("gold", "Gold")];
-    bool? Own(string key) => key switch { "gear" => Gear, "talents" => Talents, "location" => Location, "professions" => Professions, _ => Gold };
+    static readonly (string Key, string Name)[] Names = [("gear", "Gear"), ("talents", "Talents"), ("location", "Location"), ("professions", "Professions"),
+        ("highlights", "Highlights"), ("gold", "Gold"), ("map", "Map position"), ("otherFaction", "Map for the other faction")];
+    bool? Own(string key) => key switch
+    {
+        "gear" => Gear, "talents" => Talents, "location" => Location, "professions" => Professions, "highlights" => Highlights,
+        "map" => Map, "otherFaction" => OtherFaction, _ => Gold,
+    };
     public IReadOnlyList<CategoryChip> Categories => [.. Names.Select(n => Own(n.Key) switch
     {
         null => new CategoryChip(n.Key, $"{n.Name}: like all friends ({(owner.General(n.Key) ? "on" : "off")})", "all"),
@@ -275,6 +302,9 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
             case "talents": Talents = next; break;
             case "location": Location = next; break;
             case "professions": Professions = next; break;
+            case "highlights": Highlights = next; break;
+            case "map": Map = next; break;
+            case "otherFaction": OtherFaction = next; break;
             default: Gold = next; break;
         }
     });

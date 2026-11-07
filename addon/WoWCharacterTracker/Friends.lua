@@ -12,10 +12,16 @@ local HEARTBEAT = 1800   -- sent even when nothing changed
 local MAX_CHARS = 50     -- characters kept per contact
 local TICK = 30
 
--- What friends get, unless set for one of them. Gold stays off until turned on.
-local CATEGORIES = { "gear", "talents", "location", "professions", "gold" }
-local DEFAULTS = { gear = true, talents = true, location = true, professions = true, gold = false }
+-- What friends get, unless set for one of them. Gold and map position stay off until turned on.
+local CATEGORIES = { "gear", "talents", "location", "professions", "highlights", "gold", "map" }
+-- Set like a category, but not data: otherFaction off means a friend playing the other faction
+-- gets no map position.
+local RULES = { "otherFaction" }
+local DEFAULTS = { gear = true, talents = true, location = true, professions = true, highlights = true, gold = false, map = false,
+  otherFaction = false }
+local MAP_RATES = { [5] = true, [60] = true, [300] = true } -- seconds between two map position readings
 ns.SHARE_CATEGORIES = CATEGORIES
+ns.SHARE_RULES = RULES
 
 -- This session only.
 local helloSent = {} -- [account] = true: HI went out
@@ -42,6 +48,7 @@ local function normalize(s)
   end
   if s.newChars == nil then s.newChars = true end
   if s.enabled == nil then s.enabled = true end -- on, so friends can ask; only Allow shares
+  if not MAP_RATES[s.mapRate] then s.mapRate = 5 end
   return s
 end
 
@@ -60,12 +67,14 @@ function ns.editShare(edit)
   WoWCharacterTrackerDB.share = s
 end
 
--- The categories a contact gets: their own choice where there is one, else the general one.
+-- The categories and rules a contact gets: their own choice where there is one, else the general one.
 function ns.allowedFor(s, contact)
   local out = {}
-  for _, k in ipairs(CATEGORIES) do
-    local own = contact and contact[k]
-    if own == nil then out[k] = s.defaults[k] == true else out[k] = own == true end
+  for _, list in ipairs({ CATEGORIES, RULES }) do
+    for _, k in ipairs(list) do
+      local own = contact and contact[k]
+      if own == nil then out[k] = s.defaults[k] == true else out[k] = own == true end
+    end
   end
   return out
 end
@@ -101,7 +110,7 @@ local function classFileOf(g)
 end
 
 -- Each game account of a Battle.net friend that is online in this same game: { tag, account, guid,
--- bnet, character, classFile, level, zone }.
+-- bnet, character, classFile, level, zone, faction, realm }.
 function ns.friendsOnline()
   local out = {}
   if not (BNGetNumFriends and C_BattleNet and C_BattleNet.GetFriendAccountInfo) then return out end
@@ -113,7 +122,8 @@ function ns.friendsOnline()
         local g = C_BattleNet.GetFriendGameAccountInfo(i, j)
         if g and g.isOnline and g.clientProgram == wow and g.wowProjectID == WOW_PROJECT_ID and g.gameAccountID then
           out[#out + 1] = { tag = info.battleTag, account = g.gameAccountID, guid = g.playerGuid, bnet = info.bnetAccountID,
-            character = g.characterName, classFile = classFileOf(g), level = g.characterLevel, zone = g.areaName }
+            character = g.characterName, classFile = classFileOf(g), level = g.characterLevel, zone = g.areaName,
+            faction = g.factionName, realm = g.realmName }
         end
       end
     end
@@ -151,12 +161,35 @@ local function version()
 end
 
 -- Sending -------------------------------------------------------------------------------------
+-- The newest highlights per character (ns.FRIEND_HIGHLIGHTS of them), kept up to date like
+-- ns.hasEvent's ids: events are appended, so only new ones are read; another or shorter list
+-- (trimmed, cleaned up) is read again.
+local recentHighlights, highlightsList, highlightsCounted = {}, nil, 0
+local function highlightsOf(guid)
+  local events = WoWCharacterTrackerDB.events or {}
+  if events ~= highlightsList or #events < highlightsCounted then
+    recentHighlights, highlightsList, highlightsCounted = {}, events, 0
+  end
+  for i = highlightsCounted + 1, #events do
+    local e = events[i]
+    if ns.isFriendHighlight(e) and e.guid then
+      local list = recentHighlights[e.guid] or {}
+      list[#list + 1] = e
+      table.sort(list, function(x, y) return x.at > y.at end)
+      list[ns.FRIEND_HIGHLIGHTS + 1] = nil
+      recentHighlights[e.guid] = list
+    end
+  end
+  highlightsCounted = #events
+  return recentHighlights[guid]
+end
+
 -- One of your characters as a contact may see it, and its change key; nil without a snapshot.
 local function charText(guid, contact)
   local db = WoWCharacterTrackerDB
   local char = db.chars and db.chars[guid]
   if not char then return nil end
-  return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact))
+  return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact), highlightsOf(guid))
 end
 
 -- The character being played, to one contact: when due (GROUP_EVERY or ONLINE_EVERY since the
@@ -296,7 +329,11 @@ local function noteVersion(f, contact, body)
 end
 
 local on = {}
-local answeredHi = {} -- [account] = when we last answered their hello
+local answeredHi = {}
+
+-- Another file's handler for a kind (FriendMap.lua: WATCH and POS), called like these: (f, contact,
+-- body), only for contacts, only with sharing on.
+function ns.onFriendKind(kind, handler) on[kind] = handler end -- [account] = when we last answered their hello
 
 -- A contact came online (or reloaded): answer, and send them the character being played. At most
 -- once per GROUP_EVERY, so a contact saying hello over and over can't flood us (or Battle.net).
@@ -601,20 +638,27 @@ local HELP = {
   "/wct friends on or off turns sharing with Battle.net friends on or off.",
   "/wct friends ask <BattleTag> asks a friend for their characters.",
   "/wct friends share <BattleTag> shares your characters with them.",
-  "/wct friends set all gear/talents/location/professions/gold on/off changes what friends get. Gold is off until you turn it on.",
-  "/wct friends set <BattleTag> gear/talents/location/professions/gold on/off/default changes it for one friend.",
+  "/wct friends set all gear/talents/location/professions/highlights/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
+  "/wct friends set <BattleTag> gear/talents/location/professions/highlights/gold/map on/off/default changes it for one friend.",
+  "/wct friends set all/<BattleTag> otherfaction on/off/default: on lets friends playing the other faction see you on the map too.",
+  "/wct friends maprate live/1m/5m sets how often friends' maps get your position.",
   "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",
   "/wct friends hide or unhide keeps this character from friends, or shares it again.",
   "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",
 }
 
-local IS_CATEGORY = {}
-for _, k in ipairs(CATEGORIES) do IS_CATEGORY[k] = true end
+-- What set takes: a category or a rule, its key exact (IS_CHOICE) or typed in any case (CHOICE_BY_WORD).
+local IS_CHOICE, CHOICE_BY_WORD = {}, {}
+for _, list in ipairs({ CATEGORIES, RULES }) do
+  for _, k in ipairs(list) do IS_CHOICE[k], CHOICE_BY_WORD[k:lower()] = true, k end
+end
+
+local SUMMARY_NAMES = { map = "map position" }
 
 local function picked(allowed)
   local out = {}
   for _, k in ipairs(CATEGORIES) do
-    if allowed[k] then out[#out + 1] = k end
+    if allowed[k] then out[#out + 1] = SUMMARY_NAMES[k] or k end
   end
   return #out > 0 and table.concat(out, ", ") or "only the basics"
 end
@@ -667,7 +711,7 @@ end
 
 -- One contact's own choice for a category: true, false, or nil for what all friends get.
 function ns.setContactCategory(tag, key, value)
-  if not IS_CATEGORY[key] or not ns.shareSettings().contacts[tag] then return false end
+  if not IS_CHOICE[key] or not ns.shareSettings().contacts[tag] then return false end
   ns.editShare(function(s) s.contacts[tag][key] = value end)
   changed()
   return true
@@ -699,7 +743,8 @@ function ns.setContactReceive(tag, on)
 end
 
 -- What a contact gets, for the Friends tab's sharing panel: nil when tag isn't a contact.
--- categories: { key, own (true, false or nil = like all friends), general, on } in CATEGORIES order.
+-- categories: { key, own (true, false or nil = like all friends), general, on, rule } for CATEGORIES,
+-- then RULES (rule = true).
 function ns.contactSharing(tag)
   local s = ns.shareSettings()
   local c = s.contacts[tag]
@@ -708,30 +753,39 @@ function ns.contactSharing(tag)
   for _, k in ipairs(CATEGORIES) do
     categories[#categories + 1] = { key = k, own = c[k], general = s.defaults[k] == true, on = allowed[k] }
   end
+  for _, k in ipairs(RULES) do
+    categories[#categories + 1] = { key = k, own = c[k], general = s.defaults[k] == true, on = allowed[k], rule = true }
+  end
   return { tag = tag, label = label(tag), share = c.share == true, receive = c.receive == true,
     categories = categories, summary = picked(allowed) }
 end
 
--- /wct friends set all|<BattleTag> <category> <on|off|default>
+-- /wct friends set all|<BattleTag> <category or rule> <on|off|default>
 local function set(typed, what, value)
-  what, value = (what or ""):lower(), (value or ""):lower()
+  local word = (what or ""):lower()
+  local key = CHOICE_BY_WORD[word]
+  value = (value or ""):lower()
   local general = (typed or ""):lower() == "all"
-  if not IS_CATEGORY[what] or not (value == "on" or value == "off" or (value == "default" and not general)) then
+  if not key or not (value == "on" or value == "off" or (value == "default" and not general)) then
     ns.say(HELP[5])
-    return ns.say(HELP[6])
+    ns.say(HELP[6])
+    return ns.say(HELP[7])
   end
   if general then
-    ns.editShare(function(s) s.defaults[what] = value == "on" end)
-    return ns.say(string.format("Friends now get %s: %s.", what, value))
+    ns.editShare(function(s) s.defaults[key] = value == "on" end)
+    return ns.say(string.format("Friends now get %s: %s.", word, value))
   end
   local tag = ns.findFriendTag(typed)
   if not tag then return ns.say((typed or "That") .. " isn't on your Battle.net friends list.") end
   if not ns.shareSettings().contacts[tag] then return ns.say(label(tag) .. " isn't a contact. /wct friends share " .. tag .. " adds them.") end
   local own
   if value ~= "default" then own = value == "on" end
-  ns.setContactCategory(tag, what, own)
-  ns.say(string.format("%s: %s is now %s.", label(tag), what, value == "default" and "the same as for all friends" or value))
+  ns.setContactCategory(tag, key, own)
+  ns.say(string.format("%s: %s is now %s.", label(tag), word, value == "default" and "the same as for all friends" or value))
 end
+
+local RATE_WORDS = { live = 5, ["1m"] = 60, ["5m"] = 300 }
+local RATE_NAMES = { [5] = "live", [60] = "once a minute", [300] = "every 5 minutes" }
 
 local TAG_COMMANDS = { ask = true, share = true, stop = true, remove = true, unblock = true }
 
@@ -747,6 +801,12 @@ function ns.friendsCommand(args)
     local me = UnitGUID("player")
     if me then ns.editShare(function(s) s.chars[me] = cmd == "unhide" end) end
     return ns.say(cmd == "hide" and "Friends won't get this character anymore." or "Friends get this character again.")
+  end
+  if cmd == "maprate" then
+    local rate = RATE_WORDS[rest:lower()]
+    if not rate then return ns.say(HELP[8]) end
+    ns.editShare(function(s) s.mapRate = rate end)
+    return ns.say("Friends' maps now get your position " .. RATE_NAMES[rate] .. ".")
   end
   local typed, what, value = rest:match("^(%S+)%s*(%S*)%s*(%S*)$")
   if cmd == "set" then return set(typed, what, value) end
@@ -793,7 +853,7 @@ function ns.onlineFriends()
   local s, out = ns.shareSettings(), {}
   for _, f in ipairs(online()) do
     out[#out + 1] = { tag = f.tag, account = f.account, guid = f.guid, label = label(f.tag), character = f.character,
-      classFile = f.classFile, level = f.level, zone = f.zone, hasAddon = hasAddon(f.account),
+      classFile = f.classFile, level = f.level, zone = f.zone, faction = f.faction, realm = f.realm, hasAddon = hasAddon(f.account),
       contact = s.contacts[f.tag], sharesWithYou = sharesWithYou(f.tag), blocked = s.blocked[f.tag] == true,
       invitedAt = invitedAt(f.tag) }
   end

@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <!-- A friend's pin on the world map (MapPins.lua): mouse-over for the tooltip, no clicks. -->
+  <Frame name="WoWCharacterTrackerFriendPinTemplate" mixin="WoWCharacterTrackerFriendPinMixin" enableMouse="false" enableMouseMotion="true" virtual="true"/>
+</Ui>

@@ -275,3 +275,12 @@ function ns.recordOnce(kind, fields, idSuffix)
   if guid and ns.hasEvent(eventId(guid, kind, 0, idSuffix)) then return nil end
   return ns.record(kind, fields, idSuffix)
 end
+
+-- "just now", "3m ago", "2h ago" or "1d ago" since at (a time()).
+function ns.ago(at)
+  local s = math.max(0, time() - (at or time()))
+  if s < 60 then return "just now" end
+  if s < 3600 then return math.floor(s / 60) .. "m ago" end
+  if s < 86400 then return math.floor(s / 3600) .. "h ago" end
+  return math.floor(s / 86400) .. "d ago"
+end
