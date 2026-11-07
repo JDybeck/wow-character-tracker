@@ -1029,6 +1029,21 @@ public class MapPinsLuaTests
     }
 
     [Fact]
+    public void A_pin_shows_the_class_icon_where_the_game_has_it()
+    {
+        var script = Load();
+        script.DoString("""
+            function GetClassAtlas(class) return 'classicon-' .. class end
+            C_Texture = { GetAtlasInfo = function(atlas) if atlas == 'classicon-warrior' then return { width = 64 } end end }
+            """);
+        Assert.Equal("classicon-warrior", script.DoString("return ns.pinIcon('WARRIOR')").String);
+        Assert.True(script.DoString("return ns.pinIcon('EVOKER')").IsNil()); // not on this client: the colored dot
+        Assert.True(script.DoString("return ns.pinIcon(nil)").IsNil());
+        script.DoString("C_Texture = nil");
+        Assert.True(script.DoString("return ns.pinIcon('WARRIOR')").IsNil());
+    }
+
+    [Fact]
     public void Nothing_happens_without_a_world_map()
     {
         var script = Load();
@@ -1101,7 +1116,8 @@ Create `addon/WoWCharacterTracker/MapPins.lua`:
 local ADDON, ns = ...
 
 local TEMPLATE = "WoWCharacterTrackerFriendPinTemplate"
-local SIZE = 14
+local SIZE = 18
+local RING = 2 -- the class colored ring around the icon
 local REFRESH = 5 -- seconds between redraws while the map is open, so pins fade and go
 local CIRCLE = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local WHITE = "Interface\\Buttons\\WHITE8X8"
@@ -1130,6 +1146,14 @@ local function classColor(file)
   return 0.8, 0.8, 0.8
 end
 
+-- The game's round class icon ("classicon-warrior"), or nil on a client without that atlas.
+function ns.pinIcon(classFile)
+  if type(classFile) ~= "string" or not (GetClassAtlas and C_Texture and C_Texture.GetAtlasInfo) then return nil end
+  local atlas = GetClassAtlas(classFile:lower())
+  if atlas and C_Texture.GetAtlasInfo(atlas) then return atlas end
+  return nil
+end
+
 -- A round texture inset from the pin's edges, in one color.
 local function circle(pin, layer, inset, r, g, b)
   local t = pin:CreateTexture(nil, layer)
@@ -1155,16 +1179,25 @@ local function buildPin()
     self:SetSize(SIZE, SIZE)
     self:UseFrameLevelType("PIN_FRAME_LEVEL_GROUP_MEMBER")
     self:SetScalingLimits(1, 1.0, 1.2)
-    self.border = circle(self, "BACKGROUND", 0, 0, 0, 0)
-    self.fill = circle(self, "ARTWORK", 2, 1, 1, 1)
-    self.hole = circle(self, "OVERLAY", 5, 0, 0, 0) -- a ring instead of a dot: another realm
+    self.ring = circle(self, "BACKGROUND", 0, 1, 1, 1)
+    self.icon = circle(self, "ARTWORK", RING, 1, 1, 1)
   end
 
+  -- Class icon in a class colored ring (grey: another realm); a class colored dot without the atlas.
   function Pin:OnAcquired(friend, x, y)
     self.friend = friend
     self:SetPosition(x, y)
-    self.fill:SetVertexColor(classColor(friend.classFile))
-    self.hole:SetShown(friend.otherRealm == true)
+    local r, g, b = classColor(friend.classFile)
+    if friend.otherRealm then self.ring:SetVertexColor(0.5, 0.5, 0.5) else self.ring:SetVertexColor(r, g, b) end
+    local atlas = ns.pinIcon(friend.classFile)
+    if atlas then
+      self.icon:SetAtlas(atlas)
+      self.icon:SetVertexColor(1, 1, 1)
+    else
+      self.icon:SetTexture(WHITE)
+      self.icon:SetTexCoord(0, 1, 0, 1) -- a reused pin may still have the atlas's
+      self.icon:SetVertexColor(r, g, b)
+    end
     self:SetAlpha(friend.faded and 0.45 or 1)
   end
 

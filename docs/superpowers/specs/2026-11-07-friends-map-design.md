@@ -12,9 +12,9 @@ Out of scope for v1: minimap pins, the app showing positions, clicking a pin (wh
 
 ## What the player sees
 
-- One pin per friend character that's sending: a dot in the class color with a thin border. Built from our own texture or a plain color texture, no Blizzard art in the repo.
+- One pin per friend character that's sending: their class icon, round, in a thin ring in the class color, about 18 px. The icon is the game's own `classicon-<class>` atlas (`GetClassAtlas`, in Forever's client too), referenced at runtime, so no Blizzard art in the repo. A client without that atlas (`C_Texture.GetAtlasInfo`) gets a dot in the class color instead.
 - Hover tooltip: nickname (Settings.lua `friendNames`) or BattleTag, character name, level and class, zone name (`C_Map.GetMapInfo(mapID).name`), realm when it differs from ours, and the age ("a few seconds ago", "3 min ago").
-- A friend on another realm still gets a pin, drawn as a hollow ring instead of a dot (faded stays reserved for stale), with "other realm" in the tooltip. Battle.net can't tell us the layer, so we never claim "same layer".
+- A friend on another realm still gets a pin, its ring grey instead of class colored (faded stays reserved for stale), with "other realm" in the tooltip. Battle.net can't tell us the layer, so we never claim "same layer".
 - Pins show on the map the friend is on and on the maps above it (continent, world) when the position translates onto them (`C_Map.GetWorldPosFromMapPos` then `C_Map.GetMapPosFromWorldPos` for the shown map, kept only when inside 0..1). Never on dungeon maps.
 - Freshness depends on the sender's rate: a pin fades after `max(30, 2 x rate)` seconds without an update and is removed after `max(120, 4 x rate)`. Live (5 s): fades at 30 s, gone at 2 min. Every 5 min: fades at 10 min, gone at 20 min.
 - No pin when the friend is in an instance (dungeon, raid, battleground, arena), playing another game (`ns.friendsOnline` already only lists `wowProjectID == WOW_PROJECT_ID`), or hidden by the faction rule. No "hidden" hint in any of these cases.
