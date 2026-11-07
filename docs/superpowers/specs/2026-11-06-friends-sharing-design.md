@@ -124,7 +124,7 @@ Built from the saved snapshot (`WoWCharacterTrackerDB.chars[guid]`, kept fresh b
 - Lua (`AddonLuaTests`, MoonSharp) with a fake clock and fake Battle.net friends list: chunking and reassembly, size caps, `|` stripped, unknown sender dropped, hidden characters and off categories never sent, change detection, 2/10 min cadence, `REQ` cooldown, Never/blocked.
 - C#: `FriendData` with broken, oversized and hostile input; sharing settings sync newest wins; `SharedRulesTests` for new keys; `ChipFilter` labels; friend data absent from Discord payloads, stream snapshot and `ArmoryExport`.
 - UI: screenshot-mode render of the Friends page with fake friend data in a fake game folder.
-- In game (Jesper with a friend or second account), since it can't be faked: `SendGameData` on Forever, its real size limit, whether `bnetAccountID` changes between sessions, sending in groups, instances and combat, cross-realm, the popup.
+- In game (JDybeck with a friend or second account), since it can't be faked: `SendGameData` on Forever, its real size limit, whether `bnetAccountID` changes between sessions, sending in groups, instances and combat, cross-realm, the popup.
 
 ## Build order
 

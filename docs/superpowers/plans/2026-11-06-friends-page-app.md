@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Branch `feat/friends-page`, cut from `feat/friends-sharing`; its own PR (base `feat/friends-sharing` until that merges, then `main`). No pushes without Jesper asking.
+- Branch `feat/friends-page`, cut from `feat/friends-sharing`; its own PR (base `feat/friends-sharing` until that merges, then `main`). No pushes without JDybeck asking.
 - Friend data never reaches Discord posts, the stream overlay, `ArmoryExport`, the Items page, totals or the console beyond counts. Friend rows live only in `FriendsViewModel`, never in `FlavorViewModel.Characters` or `allRows`.
 - Validation mirrors `FriendData.lua`: field allowlist, string caps (char 24, realm 40, class/race 24, classFile/raceFile 16, faction 10, spec 32, talents 1024, talentCalc 256, gear 512, enchants 2048, zone 64), numbers finite, GUID `^Player-\d+-[0-9A-Fa-f]+$`, at most 50 characters per contact, version `^[\w.\-]{1,16}$`.
 - Settings.lua `share` is written only when the app has a copy (`FlavorSettings.Share` not null): an app that never touched sharing must not reset it. `friendNames` is app-owned.
@@ -295,7 +295,7 @@ And one through the addon itself: load the written Settings.lua plus `Shared.lua
 
 - [ ] **Step 1: Move the row header into `CharacterRowView`** and check the Characters page renders the same (screenshot before and after: `CHARACTERTRACKER_SCREENSHOT_VIEW=forever:characters:testchars`).
 - [ ] **Step 2: Build `FriendsPage`, the tab, the slide index** and the read-only Overview.
-- [ ] **Step 3: Fake friend data for the render**: a fake `_forever_` folder with a SavedVariables file that has `friends` (two contacts, five characters, gear on one) and `share`. Render `forever:friends`, `forever:friends::gear`, `forever:friends::sharing`, plus `forever:characters:testchars` to confirm the Characters page is unchanged. Check the PNGs by eye (Jesper prefers to see them: send them).
+- [ ] **Step 3: Fake friend data for the render**: a fake `_forever_` folder with a SavedVariables file that has `friends` (two contacts, five characters, gear on one) and `share`. Render `forever:friends`, `forever:friends::gear`, `forever:friends::sharing`, plus `forever:characters:testchars` to confirm the Characters page is unchanged. Check the PNGs by eye (JDybeck prefers to see them: send them).
 - [ ] **Step 4: Run all tests, expect PASS.**
 - [ ] **Step 5: Commit** `feat(companion): friends page with shared characters and sharing settings`
 
@@ -308,4 +308,4 @@ And one through the addon itself: load the written Settings.lua plus `Shared.lua
 - [ ] **Step 1: Write them.**
 - [ ] **Step 2: `dotnet test companion/WoWCharacterTracker.Tests`, expect PASS** (the changelog test reads the section).
 - [ ] **Step 3: Commit** `docs: describe the friends page`
-- [ ] **Step 4: Rebuild dist and restart Jesper's copy** (memory: stop by PID, `dotnet publish companion/WoWCharacterTracker -c Release -o dist -nologo`, start it again).
+- [ ] **Step 4: Rebuild dist and restart JDybeck's copy** (memory: stop by PID, `dotnet publish companion/WoWCharacterTracker -c Release -o dist -nologo`, start it again).
