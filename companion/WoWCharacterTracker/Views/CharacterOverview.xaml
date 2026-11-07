@@ -53,7 +53,7 @@
         <TextBlock Style="{StaticResource FactLabel}" Text="RATINGS"/>
         <ItemsControl ItemsSource="{Binding RatingChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
       </StackPanel>
-      <StackPanel Visibility="{Binding IsOwn, Converter={StaticResource Visible}}"> <!-- friends don't share professions -->
+      <StackPanel Visibility="{Binding ShowsProfessions, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
         <ItemsControl ItemsSource="{Binding ProfessionList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
                       Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>
