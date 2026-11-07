@@ -17,7 +17,7 @@
       <Setter Property="Margin" Value="0,4,0,14"/>
     </Style>
   </UserControl.Resources>
-  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="3" DataContext="{Binding SelectedFlavor}"
+  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="4" DataContext="{Binding SelectedFlavor}"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=ingame}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="26,22">
