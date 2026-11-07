@@ -184,6 +184,7 @@ local DAY = 86400
 local CARD = 40     -- a friend or character card
 local REQUEST = 34  -- a request banner
 local drawFriends
+local openSharing -- opens what you share with one contact beside the window (set further down)
 local searched = false -- Find online friends was clicked this session
 
 local function rowsOf(fn) return fn and fn() or {} end
@@ -263,7 +264,9 @@ local function friendState(f)
     local bits = {}
     if f.contact.share then bits[#bits + 1] = "You share" end
     if f.sharesWithYou then bits[#bits + 1] = #bits > 0 and "shares with you" or "Shares with you" end
-    return #bits > 0 and table.concat(bits, ", ") or "Contact", #bits > 0 and "good" or nil, { "Ask again", ns.askFriend }
+    -- Asking again only makes sense while they don't share with you.
+    return #bits > 0 and table.concat(bits, ", ") or "Contact", #bits > 0 and "good" or nil,
+      { "Sharing", openSharing }, not f.sharesWithYou and { "Ask again", ns.askFriend } or nil
   end
   if f.hasAddon == nil then return "Checking..." end
   if f.hasAddon then return "Has the addon", nil, { "Ask", ns.askFriend, "primary" }, { "Share", ns.shareWithFriend } end
@@ -365,28 +368,41 @@ local function newGearRow()
   return r
 end
 
--- Beside the window on the side with room: clamped to the screen on the full side, it would slide
--- over the window.
-local function placeDetails()
-  if not details then return end
-  details:ClearAllPoints()
+local sharing -- the sharing panel, built further down
+
+-- The side panels (details, sharing) go beside the window on the side with room: clamped to the
+-- screen on the full side, they would slide over the window.
+local function placeBeside(panel)
+  if not panel then return end
+  panel:ClearAllPoints()
   local right, screen = window:GetRight(), UIParent:GetRight()
   if right and screen and right + 4 + DETAILS_WIDTH > screen then
-    details:SetPoint("TOPRIGHT", window, "TOPLEFT", -4, 0)
+    panel:SetPoint("TOPRIGHT", window, "TOPLEFT", -4, 0)
   else
-    details:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, 0)
+    panel:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, 0)
   end
 end
 
+local function placePanels()
+  placeBeside(details)
+  placeBeside(sharing)
+end
+
+-- A side panel: the window's look, a close button, Esc closes it.
+local function sidePanel(name)
+  local p = CreateFrame("Frame", name, window)
+  p:SetFrameStrata("DIALOG")
+  p:SetClampedToScreen(true)
+  p:EnableMouse(true)
+  p:SetWidth(DETAILS_WIDTH)
+  if UISpecialFrames then table.insert(UISpecialFrames, name) end
+  ui.box(p, C.window, C.border)
+  closeButton(p, function() p:Hide() end)
+  return p
+end
+
 local function buildDetails()
-  details = CreateFrame("Frame", DETAILS_PANEL, window)
-  details:SetFrameStrata("DIALOG")
-  details:SetClampedToScreen(true)
-  details:EnableMouse(true)
-  details:SetWidth(DETAILS_WIDTH)
-  placeDetails()
-  if UISpecialFrames then table.insert(UISpecialFrames, DETAILS_PANEL) end -- Esc closes it
-  ui.box(details, C.window, C.border)
+  details = sidePanel(DETAILS_PANEL)
   detailsTitle = ui.text(details, "GameFontHighlightLarge")
   detailsTitle:SetPoint("TOPLEFT", 14, -14)
   detailsTitle:SetWidth(DETAILS_WIDTH - 50)
@@ -395,8 +411,7 @@ local function buildDetails()
   detailsLine = details:CreateTexture(nil, "ARTWORK")
   ui.fill(detailsLine, C.border)
   detailsLine:SetHeight(1)
-  closeButton(details, function() details:Hide() end)
-  notShared = ui.text(details, "GameFontDisableSmall", "Not shared with you. Ask them on the Friends tab to see their gear and more.")
+  notShared =ui.text(details, "GameFontDisableSmall", "Not shared with you. Ask them on the Friends tab to see their gear and more.")
   notShared:SetWidth(DETAILS_WIDTH - 28)
   gearTitle = ui.heading(details, "Gear", nil)
   noGear = ui.text(details, "GameFontDisableSmall", "No gear shared")
@@ -494,7 +509,8 @@ local function drawDetails(c, friend)
   end
   hideFrom(gearRows, #items + 1)
   details:SetHeight(y + 14)
-  placeDetails()
+  placeBeside(details)
+  if sharing then sharing:Hide() end -- one side panel at a time
   details:Show()
 end
 
@@ -504,6 +520,102 @@ local function toggleDetails(self)
   if not c then return end
   if not details then buildDetails() end
   if details:IsShown() and detailsKey == charKey(c) then details:Hide() else drawDetails(c, self.friend) end
+end
+
+-- The sharing panel: what one contact gets from you, beside the window, with the same choices as
+-- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
+local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
+local SHARING_HEIGHT = 360
+local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", gold = "Gold" }
+local sharingTag, sharingTitle, sharingSummary
+local categoryButtons = {}
+
+-- "Gear: like all friends (on)", "Gear: on" or "Gear: off".
+local function categoryText(cat)
+  local name = CATEGORY_NAMES[cat.key] or cat.key
+  if cat.own == nil then return string.format("%s: like all friends (%s)", name, cat.general and "on" or "off") end
+  return string.format("%s: %s", name, cat.own and "on" or "off")
+end
+
+local function sharingNow() return sharingTag and ns.contactSharing and ns.contactSharing(sharingTag) end
+
+local function drawSharing()
+  local o = sharingNow()
+  if not o then
+    sharing:Hide()
+    return
+  end
+  sharingTitle:SetText(o.label)
+  for i, cat in ipairs(o.categories) do
+    local b = categoryButtons[i]
+    if b then
+      b.key = cat.key
+      b:SetText(categoryText(cat))
+      ui.styleButton(b, cat.own ~= nil and "selected" or nil) -- their own choice stands out
+    end
+  end
+  sharingSummary:SetText(o.share and ("They get " .. o.summary .. ".") or "They get nothing while you don't share with them.")
+  ui.refresh(sharing) -- the checkboxes
+end
+
+local function buildSharing()
+  sharing = sidePanel(SHARING_PANEL)
+  sharing:SetHeight(SHARING_HEIGHT)
+  sharingTitle = ui.text(sharing, "GameFontHighlightLarge")
+  sharingTitle:SetPoint("TOPLEFT", 14, -14)
+  sharingTitle:SetWidth(DETAILS_WIDTH - 50)
+  local sub = ui.text(sharing, "GameFontDisableSmall", "What they get from you. Changes apply right away.")
+  sub:SetPoint("TOPLEFT", sharingTitle, "BOTTOMLEFT", 0, -6)
+  sub:SetWidth(DETAILS_WIDTH - 28)
+  local shareBox = ui.checkbox(sharing, "Share your characters", nil,
+    function() local o = sharingNow(); return o ~= nil and o.share end,
+    function(on)
+      if sharingTag then ns.setContactShare(sharingTag, on) end
+      drawSharing()
+    end)
+  shareBox:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", -4, -10)
+  local receiveBox = ui.checkbox(sharing, "Keep what they share with you", nil,
+    function() local o = sharingNow(); return o ~= nil and o.receive end,
+    function(on)
+      if sharingTag then ns.setContactReceive(sharingTag, on) end
+      drawSharing()
+    end)
+  receiveBox:SetPoint("TOPLEFT", shareBox, "BOTTOMLEFT", 0, -2)
+  local always = ui.text(sharing, "GameFontNormalSmall", "Name, level, class and item level always, and:")
+  always:SetPoint("TOPLEFT", receiveBox, "BOTTOMLEFT", 4, -12)
+  local last = always
+  for i = 1, #(ns.SHARE_CATEGORIES or {}) do
+    local b = ui.button(sharing, "", DETAILS_WIDTH - 28, function(self)
+      if sharingTag and self.key then ns.cycleContactCategory(sharingTag, self.key) end
+      drawSharing()
+    end)
+    b:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, i == 1 and -8 or -4)
+    categoryButtons[i] = b
+    last = b
+  end
+  local cycleHint = ui.text(sharing, "GameFontDisableSmall", "Click one to switch between like all friends, on and off.")
+  cycleHint:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -6)
+  cycleHint:SetWidth(DETAILS_WIDTH - 28)
+  sharingSummary = ui.text(sharing, "GameFontHighlightSmall")
+  sharingSummary:SetPoint("TOPLEFT", cycleHint, "BOTTOMLEFT", 0, -12)
+  sharingSummary:SetWidth(DETAILS_WIDTH - 28)
+end
+
+-- Opens what you share with tag (a contact), or closes it when it already shows them. Returns nil
+-- (the Friends tab shows a button's answer; this one has none).
+openSharing = function(tag)
+  if not (ns.contactSharing and ns.contactSharing(tag)) then return nil end
+  if not sharing then buildSharing() end
+  if sharing:IsShown() and sharingTag == tag then
+    sharing:Hide()
+    return nil
+  end
+  sharingTag = tag
+  if details then details:Hide() end -- one side panel at a time
+  placeBeside(sharing)
+  drawSharing()
+  sharing:Show()
+  return nil
 end
 
 local function charInfo(c)
@@ -593,7 +705,7 @@ local function buildFriends(p)
   local prompt = note("Click Find online friends to see who's on.")
   local noneOnline = note("None of your Battle.net friends are online in this game.")
   local noneShared = note("Nothing shared with you yet. Ask a friend above.")
-  local requestRows, friendCards, sharedHeads, charCards = {}, {}, {}, {}
+  local requestRows, friendCards, sharedHeads, sharedButtons, charCards = {}, {}, {}, {}, {}
 
   -- Runs fn(tag) and shows what it said (ask/share return a line, invite ok and a line).
   local function act(fn, tag)
@@ -720,8 +832,12 @@ local function buildFriends(p)
       local h = pooled(sharedHeads, heads, function() return ui.text(p, "GameFontNormalSmall") end)
       local label = who(friend.label, friend.tag) or "?"
       h:SetText(label)
-      place(h, p, 18, y)
-      y = y + 18
+      place(h, p, 18, y + 4)
+      -- What you share with them, also when they're offline.
+      local b = pooled(sharedButtons, heads, function() return cardButton(p, 90) end)
+      setButton(b, "Your sharing", function() openSharing(friend.tag) end)
+      place(b, p, 24 + width - 8 - 90, y)
+      y = y + 26
       for _, c in ipairs(friend.chars or {}) do
         cards = cards + 1
         local card = pooled(charCards, cards, newCharCard)
@@ -734,10 +850,12 @@ local function buildFriends(p)
       y = y + 6
     end
     hideFrom(sharedHeads, heads + 1)
+    hideFrom(sharedButtons, heads + 1)
     hideFrom(charCards, cards + 1)
     if details and details:IsShown() then
       if open then drawDetails(open, openFriend) else details:Hide() end
     end
+    if sharing and sharing:IsShown() then drawSharing() end
 
     p:SetHeight(y + 10)
   end
@@ -862,16 +980,16 @@ local function selectTab(key)
   ui.refresh(tabs[key].page)
 end
 
--- While the window is dragged, the details panel switches sides as it runs out of room.
+-- While the window is dragged, the side panels switch sides as they run out of room.
 local function startDrag(self)
   self:StartMoving()
-  if details then details:SetScript("OnUpdate", placeDetails) end
+  self:SetScript("OnUpdate", placePanels)
 end
 
 local function savePosition(self)
   self:StopMovingOrSizing()
-  if details then details:SetScript("OnUpdate", nil) end
-  placeDetails()
+  self:SetScript("OnUpdate", nil)
+  placePanels()
   local point, _, relative, x, y = self:GetPoint()
   local s = saved()
   s.point, s.relative, s.x, s.y = point, relative, x, y

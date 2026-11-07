@@ -618,6 +618,53 @@ local function share(tag)
   return tell(label(tag) .. " gets your shared characters. They need the addon, with you as a contact.")
 end
 
+-- One contact's own choice for a category: true, false, or nil for what all friends get.
+function ns.setContactCategory(tag, key, value)
+  if not IS_CATEGORY[key] or not ns.shareSettings().contacts[tag] then return false end
+  ns.editShare(function(s) s.contacts[tag][key] = value end)
+  changed()
+  return true
+end
+
+-- Like all friends, then on, then off, then like all friends again (the app's chips do the same).
+function ns.cycleContactCategory(tag, key)
+  local c = ns.shareSettings().contacts[tag]
+  if not c then return false end
+  local nextValue
+  if c[key] == nil then nextValue = true elseif c[key] == true then nextValue = false end
+  return ns.setContactCategory(tag, key, nextValue)
+end
+
+-- Share with a contact or stop. Returns what it said.
+function ns.setContactShare(tag, on)
+  if on then return share(tag) end
+  if not ns.shareSettings().contacts[tag] then return nil end
+  ns.editShare(function(s) s.contacts[tag].share = false end)
+  changed()
+  return tell(label(tag) .. " doesn't get your characters anymore.")
+end
+
+-- Keep what a contact sends, or not.
+function ns.setContactReceive(tag, on)
+  if not ns.shareSettings().contacts[tag] then return end
+  ns.editShare(function(s) s.contacts[tag].receive = on end)
+  changed()
+end
+
+-- What a contact gets, for the Friends tab's sharing panel: nil when tag isn't a contact.
+-- categories: { key, own (true, false or nil = like all friends), general, on } in CATEGORIES order.
+function ns.contactSharing(tag)
+  local s = ns.shareSettings()
+  local c = s.contacts[tag]
+  if not c then return nil end
+  local allowed, categories = ns.allowedFor(s, c), {}
+  for _, k in ipairs(CATEGORIES) do
+    categories[#categories + 1] = { key = k, own = c[k], general = s.defaults[k] == true, on = allowed[k] }
+  end
+  return { tag = tag, label = label(tag), share = c.share == true, receive = c.receive == true,
+    categories = categories, summary = picked(allowed) }
+end
+
 -- /wct friends set all|<BattleTag> <category> <on|off|default>
 local function set(typed, what, value)
   what, value = (what or ""):lower(), (value or ""):lower()
@@ -635,7 +682,7 @@ local function set(typed, what, value)
   if not ns.shareSettings().contacts[tag] then return ns.say(label(tag) .. " isn't a contact. /wct friends share " .. tag .. " adds them.") end
   local own
   if value ~= "default" then own = value == "on" end
-  ns.editShare(function(s) s.contacts[tag][what] = own end)
+  ns.setContactCategory(tag, what, own)
   ns.say(string.format("%s: %s is now %s.", label(tag), what, value == "default" and "the same as for all friends" or value))
 end
 
@@ -669,10 +716,7 @@ function ns.friendsCommand(args)
     return ns.say(label(tag) .. " can ask again.")
   end
   if not ns.shareSettings().contacts[tag] then return ns.say(label(tag) .. " isn't a contact. /wct friends share " .. tag .. " adds them.") end
-  if cmd == "stop" then
-    ns.editShare(function(s) s.contacts[tag].share = false end)
-    return ns.say(label(tag) .. " doesn't get your characters anymore.")
-  end
+  if cmd == "stop" then return ns.setContactShare(tag, false) end
   ns.editShare(function(s) s.contacts[tag] = nil end)
   if WoWCharacterTrackerDB.friends then WoWCharacterTrackerDB.friends[tag] = nil end
   ns.say(label(tag) .. " is forgotten, with what they sent.")

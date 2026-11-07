@@ -321,7 +321,7 @@ public class AddonWindowTests
         Assert.Equal("", c.Lua("return rowButtons('Annie')").String);
         Assert.Equal("Ask,Share", c.Lua("return rowButtons('Bobo')").String);
         Assert.True(Bool(c, "shownText('12, Bobby (Bob#2)') ~= nil")); // level, then the label (nickname) and BattleTag
-        Assert.Equal("Ask again", c.Lua("return rowButtons('Cidro')").String);
+        Assert.Equal("Sharing", c.Lua("return rowButtons('Cidro')").String); // they share with you: no need to ask again
         Assert.True(Bool(c, "shownText('You share, shares with you') ~= nil"));
         Assert.Equal("Invite", c.Lua("return rowButtons('Danno')").String);
         Assert.Equal("Invited", c.Lua("return rowButtons('Evie')").String);
@@ -337,7 +337,8 @@ public class AddonWindowTests
     public void Each_friend_button_calls_friends_with_their_tag()
     {
         var c = FriendsTab();
-        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b); calls = {}");
+        c.Lua("online[3].sharesWithYou = false; local b = find('Find online friends'); b.scripts.OnClick(b); calls = {}");
+        Assert.Equal("Sharing,Ask again", c.Lua("return rowButtons('Cidro')").String);
         c.Lua("clickIn('Bobo', 'Ask')");
         c.Lua("clickIn('Bobo', 'Share')");
         c.Lua("clickIn('Cidro', 'Ask again')");
@@ -581,11 +582,82 @@ public class AddonWindowTests
         Assert.Equal("TOPRIGHT", c.Lua("return panel().point[1]").String);
 
         c.Lua("win.scripts.OnDragStart(win)");
-        Assert.True(Bool(c, "panel().scripts.OnUpdate ~= nil"));
-        c.Lua("win.GetRight = function() return 900 end; panel().scripts.OnUpdate()");
+        Assert.True(Bool(c, "win.scripts.OnUpdate ~= nil"));
+        c.Lua("win.GetRight = function() return 900 end; win.scripts.OnUpdate()");
         Assert.Equal("TOPLEFT", c.Lua("return panel().point[1]").String);
         c.Lua("win.scripts.OnDragStop(win)");
-        Assert.True(Bool(c, "panel().scripts.OnUpdate == nil"));
+        Assert.True(Bool(c, "win.scripts.OnUpdate == nil"));
+    }
+
+    // Cid#3 a real contact (Friends.lua's own functions), and helpers for the sharing panel.
+    const string SharingStubs = """
+        WoWCharacterTrackerDB.share = { enabled = true, at = 1, contacts = { ['Cid#3'] = { share = true, receive = true } } }
+        function sharingPanel() return named('WoWCharacterTrackerSharingPanel') end
+        function sharingButtons()
+          local out = {}
+          for _, f in ipairs(frames) do
+            if f.parent == sharingPanel() and f.kind == 'Button' and f.text and f.text:find(':') then out[#out + 1] = f.text end
+          end
+          return table.concat(out, ';')
+        end
+        function clickSharing(prefix)
+          for _, f in ipairs(frames) do
+            if f.parent == sharingPanel() and f.text and f.text:sub(1, #prefix) == prefix then return f.scripts.OnClick(f) end
+          end
+          error('no ' .. prefix)
+        end
+        """;
+
+    [Fact]
+    public void Sharing_opens_what_you_share_with_that_friend_and_changes_it()
+    {
+        var c = FriendsTab();
+        c.Lua(SharingStubs);
+        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
+        c.Lua("clickIn('Cidro', 'Sharing')");
+        Assert.True(Bool(c, "onScreen(sharingPanel())"));
+        Assert.True(Bool(c, "shownText('Cid#3') ~= nil"));
+        Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Gold: like all friends (off)",
+            c.Lua("return sharingButtons()").String);
+        Assert.True(Bool(c, "shownText('They get gear, talents, location, professions.') ~= nil"));
+
+        // Like all friends, on, off, like all friends again.
+        c.Lua("clickSharing('Gold:')");
+        Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gold == true"));
+        Assert.StartsWith("Gear: like all friends (on);Talents", c.Lua("return sharingButtons()").String);
+        Assert.EndsWith("Gold: on", c.Lua("return sharingButtons()").String);
+        c.Lua("clickSharing('Gear:')"); c.Lua("clickSharing('Gear: on')");
+        Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == false"));
+        Assert.True(Bool(c, "shownText('They get talents, location, professions, gold.') ~= nil"));
+        c.Lua("clickSharing('Gear: off')");
+        Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == nil"));
+
+        c.Lua("click('Share your characters')");
+        Assert.False(Bool(c, "ns.shareSettings().contacts['Cid#3'].share"));
+        Assert.True(Bool(c, "shownText(\"They get nothing while you don't share with them.\") ~= nil"));
+        c.Lua("click('Keep what they share with you')");
+        Assert.False(Bool(c, "ns.shareSettings().contacts['Cid#3'].receive"));
+
+        // The same button again closes it; a character's details take its place.
+        c.Lua("clickIn('Cidro', 'Sharing')");
+        Assert.False(Bool(c, "onScreen(sharingPanel())"));
+    }
+
+    [Fact]
+    public void Shared_with_you_has_your_sharing_for_each_friend()
+    {
+        var c = GearTab();
+        c.Lua(SharingStubs);
+        c.Call("friendsChanged");
+        c.Lua("""
+            for _, f in ipairs(frames) do
+              if f.text == 'Your sharing' and onScreen(f) then f.scripts.OnClick(f) end
+            end
+            """);
+        Assert.True(Bool(c, "onScreen(sharingPanel())"));
+        c.Lua("clickChar('Cidra')");
+        Assert.True(Bool(c, "onScreen(panel())"));
+        Assert.False(Bool(c, "onScreen(sharingPanel())")); // one side panel at a time
     }
 
     [Fact]
