@@ -8,10 +8,10 @@ public class FriendsViewModelTests
 {
     const string Friends = """
         { ['Zeb#2222'] = { seen = 2000, version = '0.33.0', chars = {
-            ['Player-1-0000000B'] = { guid = 'Player-1-0000000B', char = 'Zeb', realm = 'Firemaw', level = 42, classFile = 'WARRIOR', at = 1900 },
+            ['Player-1-0000000B'] = { guid = 'Player-1-0000000B', char = 'Zeb', realm = 'Firemaw', level = 42, classFile = 'WARRIOR', raceFile = 'Orc', at = 1900, professions = 'Mining 150/225' },
             ['Player-1-0000000C'] = { guid = 'Player-1-0000000C', char = 'Zebalt', realm = 'Firemaw', level = 12, classFile = 'MAGE', at = 1000 } } },
           ['Kalle#3333'] = { seen = 1500, protocol = 2, chars = {
-            ['Player-1-0000000E'] = { guid = 'Player-1-0000000E', char = 'Kalle', realm = 'Firemaw', level = 60, classFile = 'ROGUE', at = 1400 } } } }
+            ['Player-1-0000000E'] = { guid = 'Player-1-0000000E', char = 'Kalle', realm = 'Firemaw', level = 60, classFile = 'ROGUE', raceFile = 'Orc', at = 1400, professions = 'Mining 300/300' } } } }
         """;
 
     // Both friends as contacts whose characters you keep.
@@ -103,6 +103,7 @@ public class FriendsViewModelTests
         Assert.True(f.Vm.ShareGear);
         Assert.False(f.Vm.ShareGold);
         Assert.True(f.Vm.ShareLocation);
+        Assert.True(f.Vm.ShareProfessions);
         Assert.Null(f.Settings.Share);
         f.Vm.ShareGold = true;
         Assert.True(f.Settings.Share!.Defaults.Gold);
@@ -123,6 +124,32 @@ public class FriendsViewModelTests
         Assert.False(f.Settings.Share!.Contacts["Zeb#2222"].Gold);
         zeb.CycleCommand.Execute("gold");
         Assert.Null(f.Settings.Share.Contacts["Zeb#2222"].Gold);
+    }
+
+    [Fact]
+    public void Professions_are_a_category_like_the_others()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }");
+        var zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.Equal("Professions: like all friends (on)", zeb.Categories.Single(c => c.Key == "professions").Text);
+        zeb.CycleCommand.Execute("professions");
+        Assert.True(f.Settings.Share!.Contacts["Zeb#2222"].Professions);
+        f.Vm.ShareProfessions = false;
+        Assert.False(f.Settings.Share.Defaults.Professions);
+    }
+
+    // The professions view shows friends' characters under each friend's name (nickname first).
+    [Fact]
+    public void Friends_professions_are_grouped_by_friend()
+    {
+        var f = new Fixture();
+        f.Config.FriendNicknames["Zeb#2222"] = "Zebbe";
+        f.Vm.Show(f.Data);
+        Assert.Equal(["Kalle#3333", "Zebbe"], f.Vm.Professions.Owners.Select(o => o.Name));
+        var mining = f.Vm.Professions.Owners[1].Realms.Single().Professions.Single();
+        Assert.Equal(("Mining", "Zeb", "150/225"), (mining.Name, mining.Characters.Single().Name, mining.Characters.Single().SkillText));
+        f.Vm.HideCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zeb"));
+        Assert.Equal(["Kalle#3333"], f.Vm.Professions.Owners.Select(o => o.Name)); // hidden characters too
     }
 
     [Fact]

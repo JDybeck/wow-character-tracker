@@ -15,7 +15,8 @@ public class FriendDataTests
             { ['Zeb#2222'] = { seen = 2000, version = '0.33.0', chars = {
                 ['Player-1-0000000B'] = { guid = 'Player-1-0000000B', char = 'Zeb', realm = 'Firemaw', level = 42, class = 'Warrior', classFile = 'WARRIOR',
                   race = 'Orc', raceFile = 'Orc', faction = 'Horde', spec = 'Arms', ilvl = 38, at = 1900, zone = 'Duskwood', money = 5000,
-                  gear = '1~19019,16~12345', enchants = '16~12345~Crusader~1900', talentCalc = '--505', received = 1950 } } } }
+                  gear = '1~19019,16~12345', enchants = '16~12345~Crusader~1900', talentCalc = '--505', received = 1950,
+                  professions = 'Mining 150/225, ' .. string.rep('x', 300) } } } }
             """));
         var zeb = Assert.Single(friends);
         Assert.Equal("Zeb#2222", zeb.Tag);
@@ -23,6 +24,8 @@ public class FriendDataTests
         var s = Assert.Single(zeb.Characters);
         Assert.Equal(("Zeb", "Firemaw", 42, "WARRIOR", "Duskwood", 1900L, 5000L), (s.Char, s.Realm, s.Level, s.ClassFile, s.Zone, s.LastSeen, s.Money));
         Assert.Equal("--505", s.TalentCalc);
+        Assert.StartsWith("Mining 150/225, ", s.Professions);
+        Assert.Equal(256, s.Professions.Length); // the addon's cap
         var inv = Assert.Single(zeb.Inventories);
         Assert.Equal(2, inv.Gear.Count);
         Assert.Equal("Crusader", Assert.Single(inv.Enchants).Text);
@@ -153,13 +156,15 @@ public class FriendDataTests
         try
         {
             var s = new FlavorSettings();
-            s.TakeShare(FriendData.ReadShare(Lua("{ enabled = true, at = 200, defaults = { gear = false }, contacts = { ['Zeb#2222'] = { share = true, gold = true } } }")));
+            s.TakeShare(FriendData.ReadShare(Lua("{ enabled = true, at = 200, defaults = { gear = false, professions = false }, contacts = { ['Zeb#2222'] = { share = true, gold = true }, ['Kalle#3333'] = { share = true, professions = true } } }")));
             var file = WriteSettings(dir, s, new() { ["Zeb#2222"] = "Zebbe" });
             var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", db: "{ share = { enabled = false, at = 100 } }");
             c.Lua(File.ReadAllText(file));
             Assert.True(c.Lua("return ns.shareSettings().enabled").Boolean); // the app's is newer
             Assert.True(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).gold").Boolean);
             Assert.False(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).gear").Boolean);
+            Assert.False(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).professions").Boolean);
+            Assert.True(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Kalle#3333']).professions").Boolean);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
@@ -189,15 +194,17 @@ public class FriendDataTests
     {
         var share = FriendData.ReadShare(Lua("""
             { enabled = true, at = 300, defaults = { gold = true }, chars = { ['Player-1-0000000D'] = false },
-              contacts = { ['Zeb#2222'] = { share = true, receive = true, location = false } }, blocked = { ['Bad#1'] = true } }
+              contacts = { ['Zeb#2222'] = { share = true, receive = true, location = false, professions = false } }, blocked = { ['Bad#1'] = true } }
             """))!;
         Assert.True(share.Enabled);
         Assert.Equal(300, share.At);
         Assert.True(share.Defaults.Gold);
         Assert.True(share.Defaults.Gear);       // missing: the addon's default
         Assert.True(share.Defaults.Location);   // on by default since 0.33.3
+        Assert.True(share.Defaults.Professions); // on by default
         Assert.False(share.Chars["Player-1-0000000D"]);
         Assert.False(share.Contacts["Zeb#2222"].Location);
+        Assert.False(share.Contacts["Zeb#2222"].Professions);
         Assert.Null(share.Contacts["Zeb#2222"].Gold); // follows the general choice
         Assert.Contains("Bad#1", share.Blocked);
         Assert.Null(FriendData.ReadShare(Lua("nil")));
