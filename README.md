@@ -15,7 +15,7 @@ Made for WoW Forever (Classic+), and works for Retail too. An addon in the game 
 
 Nothing leaves your PC unless you set it up. See [Privacy](#privacy).
 
-> **Still young, testers wanted.** It works day to day, but few people have run it so far, especially on Forever, which only just launched. If something looks off, or you have an idea, say so in [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) or [Issues](https://github.com/JDybeck/wow-character-tracker/issues).
+> **Still young, testers wanted.** It works day to day, but few people have run it so far, especially on Forever. If something looks off, or you have an idea, say so in [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) or [Issues](https://github.com/JDybeck/wow-character-tracker/issues).
 
 ![The app on the Forever tab, with a character's details open](docs/images/characters.png)
 
