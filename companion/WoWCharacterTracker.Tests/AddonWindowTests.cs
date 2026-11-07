@@ -314,7 +314,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Checking...') ~= nil"));
         Assert.Equal("", c.Lua("return rowButtons('Annie')").String);
         Assert.Equal("Ask,Share", c.Lua("return rowButtons('Bobo')").String);
-        Assert.True(Bool(c, "shownText('Bobby') ~= nil")); // the label (nickname)
+        Assert.True(Bool(c, "shownText('12, Bobby (Bob#2)') ~= nil")); // level, then the label (nickname) and BattleTag
         Assert.Equal("Ask again", c.Lua("return rowButtons('Cidro')").String);
         Assert.True(Bool(c, "shownText('You share, shares with you') ~= nil"));
         Assert.Equal("Invite", c.Lua("return rowButtons('Danno')").String);
@@ -393,32 +393,12 @@ public class AddonWindowTests
     }
 
     [Fact]
-    public void Shared_with_you_lists_characters_with_their_gear_on_hover()
+    public void Shared_with_you_lists_characters_with_a_line_of_info()
     {
         var c = FriendsTab();
-        c.Lua("""
-            tip = { lines = {} }
-            GameTooltip = {
-              SetOwner = function(self, owner) self.owner = owner; self.lines = {} end,
-              AddLine = function(self, s) table.insert(self.lines, s) end,
-              Show = function(self) self.up = true end,
-              Hide = function(self) self.up = false end,
-            }
-            ns.itemInfo = function(id) if id == 100 then return 'Frostfire Circlet', nil, 4 end end
-            """);
-        c.Call("friendsChanged");
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil")); // with the surname
         Assert.True(Bool(c, "shownText('level 60, Frost, ilvl 112, Ironforge, 2h ago') ~= nil"));
-
-        c.Lua("line = shownText('Cidrin Frostmane').owner; line.scripts.OnEnter(line)");
-        Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == line"));
-        var lines = c.Lua("return table.concat(GameTooltip.lines, ';')").String;
-        Assert.Contains("Frostfire Circlet", lines);
-        Assert.Contains("item 200", lines); // not cached yet
-        Assert.Contains("Arcane 10 / Fire 0 / Frost 41", lines);
-        Assert.Contains("Professions: Tailoring 300/300, Enchanting 280/300", lines);
-        c.Lua("line.scripts.OnLeave(line)");
-        Assert.False(Bool(c, "GameTooltip.up"));
+        Assert.True(Bool(c, "shownText('Cid#3') ~= nil")); // whose characters they are
     }
 
     // A second character, items 100 (cached, epic), 200 and 300 (not cached), and a tooltip that
@@ -438,7 +418,7 @@ public class AddonWindowTests
           Hide = function(self) self.up = false end,
         }
         function panel()
-          for _, f in ipairs(frames) do if f.name == 'WoWCharacterTrackerGearPanel' then return f end end
+          for _, f in ipairs(frames) do if f.name == 'WoWCharacterTrackerDetailsPanel' then return f end end
         end
         function gearRows()
           local out = {}
@@ -480,7 +460,7 @@ public class AddonWindowTests
         Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
         Assert.Equal(0.64, Num(c, "gearRow(1).nameText.color[1]"), 3);
         Assert.Equal("1,1,1", c.Lua("return table.concat(gearRow(2).nameText.color, ',')").String);
-        Assert.Contains("WoWCharacterTrackerGearPanel", c.Lua("return table.concat(UISpecialFrames, ',')").String);
+        Assert.Contains("WoWCharacterTrackerDetailsPanel", c.Lua("return table.concat(UISpecialFrames, ',')").String);
     }
 
     [Fact]
@@ -517,6 +497,60 @@ public class AddonWindowTests
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
         Assert.Equal(built, Num(c, "#frames"));
+    }
+
+    // Everything shared about the character, each line only when it's known.
+    [Fact]
+    public void The_details_list_what_the_friend_shared()
+    {
+        var c = GearTab();
+        c.Lua("""
+            local cid = shared[1].chars[1]
+            cid.class, cid.race, cid.faction, cid.money = 'Mage', 'Gnome', 'Alliance', 1234567
+            """);
+        c.Call("friendsChanged");
+        c.Lua("clickChar('Cidrin Frostmane')");
+        Assert.True(Bool(c, "shownText('Level 60 Frost Mage') ~= nil"));
+        foreach (var (label, value) in new[] {
+            ("Friend", "Cid#3"), ("Race", "Gnome, Alliance"), ("Item level", "112"), ("Zone", "Ironforge"), ("Gold", "123g 45s 67c"),
+            ("Professions", "Tailoring 300/300, Enchanting 280/300"), ("Talents", "Arcane 10 / Fire 0 / Frost 41"), ("Updated", "2h ago") })
+        {
+            Assert.Equal(value, c.Lua($"return shownText('{label}').owner.valueText.text").String);
+        }
+        Assert.Equal(0.25, Num(c, "shownText('Cidrin Frostmane (Firemaw)').color[1]"), 3); // class colored
+
+        c.Lua("clickChar('Cidra')"); // little shared: only what's there
+        Assert.True(Bool(c, "shownText('Level 20') ~= nil"));
+        Assert.True(Bool(c, "shownText('Gold') == nil and shownText('Talents') == nil"));
+    }
+
+    // An online friend's card opens their shared character when they share the one they're on,
+    // else what Battle.net says, with a hint to ask.
+    [Fact]
+    public void Clicking_an_online_friend_opens_their_character()
+    {
+        var c = GearTab();
+        c.Lua("""
+            shared[1].chars[1].guid = 'Player-1-00000C1D'
+            online[3].guid = 'Player-1-00000C1D' -- Cidro is on Cidrin
+            online[2].guid = 'Player-1-00000B0B'
+            local b = find('Find online friends'); b.scripts.OnClick(b)
+            """);
+        c.Lua("clickChar('Cidro')");
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane (Firemaw)') ~= nil"));
+        Assert.StartsWith("Head:Frostfire Circlet", c.Lua("return gearRows()").String);
+
+        c.Lua("clickChar('Bobo')");
+        Assert.True(Bool(c, "shownText('Bobo') ~= nil and shownText('Level 12') ~= nil"));
+        Assert.True(Bool(c, "shownText('Bobby (Bob#2)') ~= nil"));
+        Assert.True(Bool(c, "shownText('Not shared with you. Ask them on the Friends tab to see their gear and more.') ~= nil"));
+        Assert.Equal("", c.Lua("return gearRows()").String);
+        Assert.True(Bool(c, "shownText('No gear shared') == nil"));
+
+        c.Call("friendsChanged"); // a redraw keeps it open
+        Assert.True(Bool(c, "onScreen(panel())"));
+        c.Lua("clickChar('Bobo')");
+        Assert.False(Bool(c, "onScreen(panel())"));
     }
 
     [Fact]

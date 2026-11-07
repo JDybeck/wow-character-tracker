@@ -2,6 +2,15 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.36.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **New look for the addon window**, matching the app: dark panels, an amber accent, the icon in the title and tabs as a strip. Friends show as cards with a class-colored stripe, their state as a small tag and the button to press in amber. Requests show as a banner at the top.
+- **Click a friend for details**: a panel beside the window with everything they share about the character (level, spec, race, item level, zone, gold, professions, talents, when it was updated and the gear with real item tooltips). Works for online friends too, from the character they're on. It replaces the gear panel and the hover tooltip.
+
 ## v0.35.0
 
 Update the addon with the app (it does this by itself) and /reload in game.

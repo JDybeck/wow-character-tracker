@@ -701,7 +701,7 @@ end
 function ns.onlineFriends()
   local s, out = ns.shareSettings(), {}
   for _, f in ipairs(online()) do
-    out[#out + 1] = { tag = f.tag, account = f.account, label = label(f.tag), character = f.character,
+    out[#out + 1] = { tag = f.tag, account = f.account, guid = f.guid, label = label(f.tag), character = f.character,
       classFile = f.classFile, level = f.level, zone = f.zone, hasAddon = hasAddon(f.account),
       contact = s.contacts[f.tag], sharesWithYou = sharesWithYou(f.tag), blocked = s.blocked[f.tag] == true,
       invitedAt = invitedAt(f.tag) }

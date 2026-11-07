@@ -7,8 +7,9 @@ local ADDON, ns = ...
 local ui = ns.ui
 
 local NAME = "WoWCharacterTrackerWindow"
-local WIDTH, HEIGHT = 720, 560
-local AREA_HEIGHT = HEIGHT - 78 -- below the title and the tab row
+local WIDTH, HEIGHT = 720, 590
+local TITLE_BAR, TAB_BAR = 44, 40
+local AREA_HEIGHT = HEIGHT - TITLE_BAR - TAB_BAR - 8 -- below the title and the tab row
 local PAGE_WIDTH = WIDTH - 50
 
 local window, area, version
@@ -176,9 +177,12 @@ end
 
 -- Friends ---------------------------------------------------------------------------------------
 -- What's listed comes from Friends.lua (ns.onlineFriends and the rest), each guarded so the tab
--- opens without them. Rows are pooled: a redraw reuses the frames and hides the spare ones.
+-- opens without them. Cards are pooled: a redraw reuses the frames and hides the spare ones.
+-- A click on a friend's card opens that character's details beside the window.
+local C = ui.COLOR
 local DAY = 86400
-local ROW = 24
+local CARD = 40     -- a friend or character card
+local REQUEST = 34  -- a request banner
 local drawFriends
 local searched = false -- Find online friends was clicked this session
 
@@ -199,10 +203,13 @@ local function hideFrom(pool, first)
   for i = first, #pool do pool[i]:Hide() end
 end
 
-local function classColor(fs, classFile)
+local function classRgb(classFile)
   local c = RAID_CLASS_COLORS and classFile and RAID_CLASS_COLORS[classFile]
-  if c then fs:SetTextColor(c.r, c.g, c.b) else fs:SetTextColor(1, 1, 1) end
+  if c then return c.r, c.g, c.b end
+  return 1, 1, 1
 end
+
+local function classColor(fs, classFile) fs:SetTextColor(classRgb(classFile)) end
 
 local function ago(at)
   local s = math.max(0, time() - (at or time()))
@@ -211,40 +218,59 @@ local function ago(at)
   return math.floor(s / DAY) .. "d ago"
 end
 
--- A row's button runs whatever the last redraw gave it (self.act).
-local function rowButton(row, width, x)
-  local b = ui.button(row, "", width, function(self) if self.act then self.act() end end)
-  b:SetPoint("LEFT", row, "LEFT", x, 0)
-  return b
+-- "12g 34s 56c" from copper.
+local function gold(copper)
+  copper = math.floor(copper)
+  return string.format("%dg %ds %dc", math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100)
 end
 
-local function setButton(b, label, act)
+-- "Zebbe (Zeb#2222)" for a nickname, else the BattleTag.
+local function who(label, tag)
+  if label and tag and label ~= tag then return string.format("%s (%s)", label, tag) end
+  return label or tag
+end
+
+-- A card's button runs whatever the last redraw gave it (self.act).
+local function cardButton(card, width)
+  return ui.button(card, "", width, function(self) if self.act then self.act() end end)
+end
+
+-- style: "primary" or nil. act nil: shown disabled.
+local function setButton(b, label, act, style)
   b:SetText(label)
   b.act = act
+  ui.styleButton(b, style)
   if act then b:Enable() else b:Disable() end
   b:Show()
 end
 
-local function rowText(row, template, x, width)
-  local fs = ui.text(row, template)
-  fs:SetPoint("LEFT", row, "LEFT", x, 0)
-  fs:SetWidth(width)
-  return fs
+-- The shown buttons from the right edge in, the first of them leftmost.
+local function alignButtons(card, buttons)
+  local right = -10
+  for i = #buttons, 1, -1 do
+    local b = buttons[i]
+    if b:IsShown() then
+      b:ClearAllPoints()
+      b:SetPoint("RIGHT", card, "RIGHT", right, 0)
+      right = right - (b:GetWidth() or 0) - 6
+    end
+  end
 end
 
--- The state text and up to two buttons ({ label, fn(tag) }, fn nil: shown disabled).
+-- The state text, its look (good, bad or nil) and up to two buttons ({ label, fn(tag), style }, fn
+-- nil: shown disabled).
 local function friendState(f)
-  if f.blocked then return "Blocked" end
+  if f.blocked then return "Blocked", "bad" end
   if f.contact then
     local bits = {}
     if f.contact.share then bits[#bits + 1] = "You share" end
     if f.sharesWithYou then bits[#bits + 1] = #bits > 0 and "shares with you" or "Shares with you" end
-    return #bits > 0 and table.concat(bits, ", ") or "Contact", { "Ask again", ns.askFriend }
+    return #bits > 0 and table.concat(bits, ", ") or "Contact", #bits > 0 and "good" or nil, { "Ask again", ns.askFriend }
   end
   if f.hasAddon == nil then return "Checking..." end
-  if f.hasAddon then return "Has the addon", { "Ask", ns.askFriend }, { "Share", ns.shareWithFriend } end
-  if f.invitedAt and time() - f.invitedAt < DAY then return "No addon", { "Invited" } end
-  return "No addon", { "Invite", ns.inviteFriend }
+  if f.hasAddon then return "Has the addon", nil, { "Ask", ns.askFriend, "primary" }, { "Share", ns.shareWithFriend } end
+  if f.invitedAt and time() - f.invitedAt < DAY then return "No addon", nil, { "Invited" } end
+  return "No addon", nil, { "Invite", ns.inviteFriend, "primary" }
 end
 
 -- "Zeb Stonehand" with a Forever surname, else the name.
@@ -254,7 +280,7 @@ local function fullName(c)
   return name
 end
 
--- "Zeb Stonehand (Firemaw)": the gear panel's title and the hover tooltip's first line.
+-- "Zeb Stonehand (Firemaw)": the details panel's title.
 local function charTitle(c)
   return c.realm and string.format("%s (%s)", fullName(c), c.realm) or fullName(c)
 end
@@ -267,19 +293,7 @@ local function itemName(id)
   return name or ("item " .. id), 1, 1, 1
 end
 
--- Gear as item names (quality colored when the game has the item) and talents.
-local function showCharTip(self)
-  local c = self.char
-  if not (c and GameTooltip) then return end
-  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:AddLine(charTitle(c), 1, 1, 1)
-  for id in string.gmatch(c.gear or "", "%d+~(%d+)") do GameTooltip:AddLine(itemName(tonumber(id))) end
-  if c.talents then GameTooltip:AddLine("Talents: " .. c.talents, 0.8, 0.8, 0.8, true) end
-  if c.professions then GameTooltip:AddLine("Professions: " .. c.professions, 0.8, 0.8, 0.8, true) end
-  GameTooltip:Show()
-end
-
-local function hideCharTip() if GameTooltip then GameTooltip:Hide() end end
+local function hideTip() if GameTooltip then GameTooltip:Hide() end end
 
 local function closeButton(parent, onClick)
   local close = CreateFrame("Button", nil, parent)
@@ -292,15 +306,16 @@ local function closeButton(parent, onClick)
   return close
 end
 
--- The gear panel: a shared character's equipped items beside the window, each with the game's own
--- item tooltip (built from the ids). Built on the first click on a character line.
-local GEAR_PANEL = "WoWCharacterTrackerGearPanel"
+-- The details panel: everything known about one friend character beside the window, its gear with
+-- the game's own item tooltips (built from the ids). Built on the first click on a card.
+local DETAILS_PANEL = "WoWCharacterTrackerDetailsPanel"
+local DETAILS_WIDTH = 320
 local GEAR_ROW = 30
 local SLOT_NAMES = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands",
   "Finger", "Finger", "Trinket", "Trinket", "Back", "Main Hand", "Off Hand", "Ranged", "Tabard" }
-local gearPanel, gearTitle, noGear
-local gearRows = {}
-local gearKey -- which character the panel shows
+local details, detailsTitle, detailsSub, gearTitle, noGear, notShared
+local factRows, gearRows = {}, {}
+local detailsKey -- which character the panel shows
 
 local function charKey(c) return c.guid or charTitle(c) end
 
@@ -318,9 +333,21 @@ local function showItemTip(self)
   GameTooltip:Show()
 end
 
+local function newFactRow()
+  local r = CreateFrame("Frame", nil, details)
+  r:SetSize(DETAILS_WIDTH - 28, 16)
+  r.labelText = ui.text(r, "GameFontDisableSmall")
+  r.labelText:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
+  r.labelText:SetWidth(84)
+  r.valueText = ui.text(r, "GameFontHighlightSmall")
+  r.valueText:SetPoint("TOPLEFT", r, "TOPLEFT", 88, 0)
+  r.valueText:SetWidth(DETAILS_WIDTH - 28 - 88)
+  return r
+end
+
 local function newGearRow()
-  local r = CreateFrame("Frame", nil, gearPanel)
-  r:SetSize(256, GEAR_ROW)
+  local r = CreateFrame("Frame", nil, details)
+  r:SetSize(DETAILS_WIDTH - 24, GEAR_ROW)
   r:EnableMouse(true)
   r.icon = r:CreateTexture(nil, "ARTWORK")
   r.icon:SetSize(24, 24)
@@ -330,38 +357,103 @@ local function newGearRow()
   r.slotText:SetWidth(62)
   r.nameText = ui.text(r, "GameFontHighlightSmall")
   r.nameText:SetPoint("TOPLEFT", r, "TOPLEFT", 96, -3)
-  r.nameText:SetWidth(160)
+  r.nameText:SetWidth(DETAILS_WIDTH - 24 - 96)
   r.enchantText = ui.text(r, "GameFontHighlightSmall")
   r.enchantText:SetPoint("TOPLEFT", r.nameText, "BOTTOMLEFT", 0, -2)
-  r.enchantText:SetWidth(160)
+  r.enchantText:SetWidth(DETAILS_WIDTH - 24 - 96)
   r.enchantText:SetTextColor(0.1, 1, 0.1)
   r:SetScript("OnEnter", showItemTip)
-  r:SetScript("OnLeave", hideCharTip)
+  r:SetScript("OnLeave", hideTip)
   return r
 end
 
-local function buildGearPanel()
-  gearPanel = CreateFrame("Frame", GEAR_PANEL, window)
-  gearPanel:SetFrameStrata("DIALOG")
-  gearPanel:SetClampedToScreen(true)
-  gearPanel:EnableMouse(true)
-  gearPanel:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, 0)
-  if UISpecialFrames then table.insert(UISpecialFrames, GEAR_PANEL) end -- Esc closes it
-  local bg = gearPanel:CreateTexture(nil, "BACKGROUND")
-  bg:SetColorTexture(0.05, 0.05, 0.08, 0.95)
-  bg:SetAllPoints()
-  gearTitle = ui.text(gearPanel, "GameFontNormal")
-  gearTitle:SetPoint("TOPLEFT", 12, -12)
-  gearTitle:SetWidth(220)
-  closeButton(gearPanel, function() gearPanel:Hide() end)
-  noGear = ui.text(gearPanel, "GameFontDisableSmall", "No gear shared")
-  noGear:SetPoint("TOPLEFT", 12, -40)
+local function buildDetails()
+  details = CreateFrame("Frame", DETAILS_PANEL, window)
+  details:SetFrameStrata("DIALOG")
+  details:SetClampedToScreen(true)
+  details:EnableMouse(true)
+  details:SetWidth(DETAILS_WIDTH)
+  details:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, 0)
+  if UISpecialFrames then table.insert(UISpecialFrames, DETAILS_PANEL) end -- Esc closes it
+  ui.box(details, C.window, C.border)
+  detailsTitle = ui.text(details, "GameFontHighlightLarge")
+  detailsTitle:SetPoint("TOPLEFT", 14, -14)
+  detailsTitle:SetWidth(DETAILS_WIDTH - 50)
+  detailsSub = ui.text(details, "GameFontDisableSmall")
+  detailsSub:SetPoint("TOPLEFT", detailsTitle, "BOTTOMLEFT", 0, -4)
+  detailsSub:SetWidth(DETAILS_WIDTH - 50)
+  closeButton(details, function() details:Hide() end)
+  notShared = ui.text(details, "GameFontDisableSmall", "Not shared with you. Ask them on the Friends tab to see their gear and more.")
+  notShared:SetWidth(DETAILS_WIDTH - 28)
+  gearTitle = ui.heading(details, "Gear", nil)
+  noGear = ui.text(details, "GameFontDisableSmall", "No gear shared")
 end
 
-local function drawGear(c)
-  gearKey = charKey(c)
-  gearTitle:SetText(charTitle(c))
-  local items = ns.friendGear(c)
+local function textHeight(fs, fallback)
+  local h = fs.GetStringHeight and fs:GetStringHeight()
+  return (h and h > 0) and h or fallback
+end
+
+-- "Level 60 Frost Mage", from what's known.
+local function headline(c)
+  local parts = {}
+  if c.level then parts[#parts + 1] = "Level " .. c.level end
+  if c.spec then parts[#parts + 1] = c.spec end
+  if c.class then parts[#parts + 1] = c.class end
+  return table.concat(parts, " ")
+end
+
+-- The label and value lines the panel lists, each only when known.
+local function facts(c, friend)
+  local out = {}
+  local function add(label, value) if value and value ~= "" then out[#out + 1] = { label, value } end end
+  add("Friend", friend)
+  add("Race", c.race and (c.faction and string.format("%s, %s", c.race, c.faction) or c.race))
+  add("Item level", c.ilvl and tostring(math.floor(c.ilvl)))
+  add("Zone", c.zone)
+  add("Gold", c.money and gold(c.money))
+  add("Professions", c.professions)
+  add("Talents", c.talents)
+  add("Updated", (c.received or c.at) and ago(c.received or c.at))
+  return out
+end
+
+-- c: a shared character, or what Battle.net says about an online one (c.notShared).
+local function drawDetails(c, friend)
+  detailsKey = charKey(c)
+  detailsTitle:SetText(charTitle(c))
+  classColor(detailsTitle, c.classFile)
+  local sub = headline(c)
+  detailsSub:SetText(sub)
+  local y = 40 + (sub ~= "" and 14 or 0)
+
+  local list = facts(c, friend)
+  for i, fact in ipairs(list) do
+    local r = pooled(factRows, i, newFactRow)
+    r.labelText:SetText(fact[1])
+    r.valueText:SetText(fact[2])
+    local h = math.max(14, textHeight(r.valueText, 14))
+    r:SetHeight(h)
+    place(r, details, 14, y)
+    y = y + h + 4
+  end
+  hideFrom(factRows, #list + 1)
+
+  notShared:SetShown(c.notShared == true)
+  local items = c.notShared and {} or ns.friendGear(c)
+  gearTitle:SetShown(not c.notShared)
+  noGear:SetShown(not c.notShared and #items == 0)
+  if c.notShared then
+    place(notShared, details, 14, y + 6)
+    y = y + 6 + textHeight(notShared, 28)
+  else
+    place(gearTitle, details, 14, y + 10)
+    y = y + 32
+    if #items == 0 then
+      place(noGear, details, 14, y)
+      y = y + 16
+    end
+  end
   for i, item in ipairs(items) do
     local r = pooled(gearRows, i, newGearRow)
     r.itemId, r.enchantId = item.id, item.enchantId
@@ -372,22 +464,20 @@ local function drawGear(c)
     r.nameText:SetTextColor(red, green, blue)
     r.enchantText:SetText(item.enchant or "")
     r.enchantText:SetShown(item.enchant ~= nil)
-    r:ClearAllPoints()
-    r:SetPoint("TOPLEFT", gearPanel, "TOPLEFT", 12, -36 - (i - 1) * GEAR_ROW)
-    r:Show()
+    place(r, details, 14, y)
+    y = y + GEAR_ROW
   end
   hideFrom(gearRows, #items + 1)
-  noGear:SetShown(#items == 0)
-  gearPanel:SetSize(280, 48 + math.max(1, #items) * GEAR_ROW)
-  gearPanel:Show()
+  details:SetHeight(y + 14)
+  details:Show()
 end
 
--- A click on a character line: opens its gear, or closes the panel when it already shows it.
-local function toggleGear(self)
+-- A click on a card: opens its character, or closes the panel when it already shows it.
+local function toggleDetails(self)
   local c = self.char
   if not c then return end
-  if not gearPanel then buildGearPanel() end
-  if gearPanel:IsShown() and gearKey == charKey(c) then gearPanel:Hide() else drawGear(c) end
+  if not details then buildDetails() end
+  if details:IsShown() and detailsKey == charKey(c) then details:Hide() else drawDetails(c, self.friend) end
 end
 
 local function charInfo(c)
@@ -400,107 +490,167 @@ local function charInfo(c)
   return table.concat(parts, ", ")
 end
 
+-- "60, Orgrimmar, Bobby (Bob#2)" under an online friend's name.
+local function onlineInfo(f)
+  local parts = {}
+  if f.level then parts[#parts + 1] = tostring(f.level) end
+  if f.zone and f.zone ~= "" then parts[#parts + 1] = f.zone end
+  parts[#parts + 1] = who(f.label, f.tag)
+  return table.concat(parts, ", ")
+end
+
+-- What the card of an online friend opens: their shared character when they share this one,
+-- else what Battle.net tells.
+local function onlineChar(f, sharedByGuid)
+  local c = f.guid and sharedByGuid[f.tag .. "~" .. f.guid]
+  if c then return c end
+  return { guid = f.guid, char = f.character, classFile = f.classFile, level = f.level, zone = f.zone, notShared = true }
+end
+
+local function showHover(self) self.hover:Show() end
+local function hideHover(self) self.hover:Hide() end
+
+-- A card: a dark box with a class-colored stripe, a name line and an info line. Clicking it opens
+-- the details.
+local function newCard(p, width)
+  local card = CreateFrame("Frame", nil, p)
+  card:SetSize(width, CARD)
+  card:EnableMouse(true)
+  ui.box(card, C.card, C.border)
+  card.hover = card:CreateTexture(nil, "ARTWORK")
+  ui.fill(card.hover, C.hover)
+  card.hover:SetAllPoints()
+  card.hover:Hide()
+  card.stripe = card:CreateTexture(nil, "ARTWORK")
+  card.stripe:SetSize(3, CARD - 14)
+  card.stripe:SetPoint("LEFT", card, "LEFT", 7, 0)
+  card.nameText = ui.text(card, "GameFontHighlight")
+  card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 18, -6)
+  card.infoText = ui.text(card, "GameFontDisableSmall")
+  card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 18, -23)
+  card.infoText:SetWidth(width - 200)
+  card:SetScript("OnEnter", showHover)
+  card:SetScript("OnLeave", hideHover)
+  card:SetScript("OnMouseUp", toggleDetails)
+  return card
+end
+
+local function setCard(card, name, classFile, info)
+  card.nameText:SetText(name)
+  classColor(card.nameText, classFile)
+  card.stripe:SetColorTexture(classRgb(classFile))
+  card.infoText:SetText(info)
+end
+
 local function buildFriends(p)
-  local width = PAGE_WIDTH - 20
-  ui.heading(p, "Friends")
-  local status
-  local find = ui.button(p, "Find online friends", 170, function()
+  local width = PAGE_WIDTH - 30
+  local status, said = nil, "" -- said: what the last button said, shown under the hint
+  local onlineTitle = ui.heading(p, "Online friends")
+  local find = ui.button(p, "Find online friends", 150, function()
     searched = true
     if ns.findOnlineFriends then ns.findOnlineFriends() end
-    status:SetText("")
+    said = ""
     drawFriends()
-  end)
-  place(find, p, 16, 38)
-  local hint = ui.text(p, "GameFontDisableSmall", "Battle.net friends online in this game. Checking who has the addon sends them nothing they can see.")
-  hint:SetWidth(ui.WRAP)
-  place(hint, p, 16, 66)
+  end, "primary")
+  local hint = ui.text(p, "GameFontDisableSmall", "Battle.net friends online in this game. Checking who has the addon sends them nothing they can see. Click a friend for details.")
+  hint:SetWidth(width - 170)
   status = ui.text(p, "GameFontHighlightSmall")
   status:SetWidth(ui.WRAP)
-  place(status, p, 16, 84)
 
-  local function title(s) return ui.text(p, "GameFontNormal", s) end
+  local function title(s) return ui.heading(p, s) end
   local function note(s)
     local fs = ui.text(p, "GameFontDisableSmall", s)
     fs:SetWidth(ui.WRAP)
     return fs
   end
-  local requestsTitle, onlineTitle, sharedTitle = title("Requests"), title("Online friends"), title("Shared with you")
+  local requestsTitle, sharedTitle = title("Requests"), title("Shared with you")
   local prompt = note("Click Find online friends to see who's on.")
   local noneOnline = note("None of your Battle.net friends are online in this game.")
   local noneShared = note("Nothing shared with you yet. Ask a friend above.")
-  local requestRows, friendRows, sharedHeads, charLines = {}, {}, {}, {}
+  local requestRows, friendCards, sharedHeads, charCards = {}, {}, {}, {}
 
   -- Runs fn(tag) and shows what it said (ask/share return a line, invite ok and a line).
   local function act(fn, tag)
     return function()
       local a, b = fn(tag)
-      status:SetText(type(a) == "string" and a or (type(b) == "string" and b or ""))
+      said = type(a) == "string" and a or (type(b) == "string" and b or "")
       drawFriends()
     end
   end
 
   local function newRequestRow()
     local r = CreateFrame("Frame", nil, p)
-    r:SetSize(width, ROW)
-    r.line = rowText(r, "GameFontHighlight", 0, 400)
-    r.buttons = { rowButton(r, 64, 410), rowButton(r, 80, 478), rowButton(r, 64, 562) }
+    r:SetSize(width, REQUEST)
+    ui.box(r, C.request, C.requestBorder)
+    r.line = ui.text(r, "GameFontHighlight")
+    r.line:SetPoint("LEFT", r, "LEFT", 12, 0)
+    r.line:SetWidth(width - 250)
+    r.buttons = { cardButton(r, 64), cardButton(r, 70), cardButton(r, 60) }
     return r
   end
 
-  local function newFriendRow()
-    local r = CreateFrame("Frame", nil, p)
-    r:SetSize(width, ROW)
-    r.nameText = rowText(r, "GameFontHighlight", 0, 120)
-    r.levelText = rowText(r, "GameFontHighlightSmall", 124, 30)
-    r.zoneText = rowText(r, "GameFontHighlightSmall", 158, 140)
-    r.tagText = rowText(r, "GameFontHighlightSmall", 302, 130)
-    r.stateText = rowText(r, "GameFontDisableSmall", 436, 80)
-    r.b1, r.b2 = rowButton(r, 70, 518), rowButton(r, 64, 592) -- ends at 656 (+16 indent), inside the ~678 px scroll area
-    return r
+  local function newFriendCard()
+    local card = newCard(p, width)
+    card.pill = CreateFrame("Frame", nil, card)
+    card.pill:SetHeight(16)
+    card.pill:SetPoint("LEFT", card.nameText, "RIGHT", 8, 0)
+    card.stateText = ui.text(card.pill, "GameFontHighlightSmall")
+    card.stateText:SetPoint("CENTER", card.pill, "CENTER", 0, 0)
+    card.b1, card.b2 = cardButton(card, 76), cardButton(card, 64)
+    return card
   end
 
-  local function newCharLine()
-    local l = CreateFrame("Frame", nil, p)
-    l:SetSize(width - 8, 18)
-    l:EnableMouse(true)
-    l.nameText = rowText(l, "GameFontHighlight", 0, 120)
-    l.infoText = rowText(l, "GameFontHighlightSmall", 124, 500)
-    l:SetScript("OnEnter", showCharTip)
-    l:SetScript("OnLeave", hideCharTip)
-    l:SetScript("OnMouseUp", toggleGear)
-    return l
-  end
+  local function newCharCard() return newCard(p, width - 8) end
 
-  local CHOICES = { { "Allow", "allow" }, { "Not now", "notnow" }, { "Never", "never" } }
+  local CHOICES = { { "Allow", "allow", "primary" }, { "Not now", "notnow" }, { "Never", "never" } }
 
   drawFriends = function()
-    local y = 106
+    local shared = rowsOf(ns.sharedWithYou)
+    local sharedByGuid = {}
+    for _, friend in ipairs(shared) do
+      for _, c in ipairs(friend.chars or {}) do
+        if c.guid then sharedByGuid[friend.tag .. "~" .. c.guid] = c end
+      end
+    end
+    local open -- the open panel's character in the new data, and its friend
+    local openFriend
 
+    local y = 14
     local requests = rowsOf(ns.pendingRequests)
     if #requests > 0 then
       place(requestsTitle, p, 16, y)
-      y = y + 20
+      y = y + 22
     else
       requestsTitle:Hide()
     end
     for i, req in ipairs(requests) do
       local r = pooled(requestRows, i, newRequestRow)
-      local who = (req.label and req.label ~= req.tag) and string.format("%s (%s)", req.label, req.tag) or req.tag
-      r.line:SetText(who .. " wants to see your characters")
+      r.line:SetText(who(req.label, req.tag) .. " wants to see your characters")
       for j, choice in ipairs(CHOICES) do
         setButton(r.buttons[j], choice[1], ns.answerFriendRequest and function()
           ns.answerFriendRequest(req, choice[2])
           drawFriends()
-        end)
+        end, choice[3])
       end
+      alignButtons(r, r.buttons)
       place(r, p, 16, y)
-      y = y + ROW
+      y = y + REQUEST + 6
     end
     hideFrom(requestRows, #requests + 1)
     if #requests > 0 then y = y + 10 end
 
     place(onlineTitle, p, 16, y)
+    place(find, p, 16 + width - 150, y - 4)
     y = y + 20
+    place(hint, p, 16, y)
+    y = y + textHeight(hint, 24) + 6
+    if said ~= "" then
+      status:SetText(said)
+      place(status, p, 16, y)
+      y = y + 18
+    else
+      status:Hide()
+    end
     local online = searched and rowsOf(ns.onlineFriends) or {}
     prompt:Hide()
     noneOnline:Hide()
@@ -512,57 +662,55 @@ local function buildFriends(p)
       y = y + 20
     end
     for i, f in ipairs(online) do
-      local r = pooled(friendRows, i, newFriendRow)
-      r.nameText:SetText(f.character or "?")
-      classColor(r.nameText, f.classFile)
-      r.levelText:SetText(f.level and tostring(f.level) or "")
-      r.zoneText:SetText(f.zone or "")
-      r.tagText:SetText(f.label or f.tag or "")
-      local state, first, second = friendState(f)
-      r.stateText:SetText(state)
-      for _, pair in ipairs({ { r.b1, first }, { r.b2, second } }) do
+      local card = pooled(friendCards, i, newFriendCard)
+      card.char, card.friend = onlineChar(f, sharedByGuid), who(f.label, f.tag)
+      if charKey(card.char) == detailsKey then open, openFriend = card.char, card.friend end
+      setCard(card, f.character or "?", f.classFile, onlineInfo(f))
+      local state, look, first, second = friendState(f)
+      card.stateText:SetText(state)
+      card.pill:SetWidth((card.stateText:GetStringWidth() or 60) + 14)
+      ui.box(card.pill, C.bar, look == "good" and C.good or (look == "bad" and C.bad or C.border))
+      for _, pair in ipairs({ { card.b1, first }, { card.b2, second } }) do
         local b, what = pair[1], pair[2]
-        if what then setButton(b, what[1], what[2] and act(what[2], f.tag)) else b:Hide() end
+        if what then setButton(b, what[1], what[2] and act(what[2], f.tag), what[3]) else b:Hide() end
       end
-      place(r, p, 16, y)
-      y = y + ROW
+      alignButtons(card, { card.b1, card.b2 })
+      place(card, p, 16, y)
+      y = y + CARD + 6
     end
-    hideFrom(friendRows, #online + 1)
-    y = y + 10
+    hideFrom(friendCards, #online + 1)
+    y = y + 12
 
     place(sharedTitle, p, 16, y)
-    y = y + 20
-    local shared = rowsOf(ns.sharedWithYou)
+    y = y + 22
     noneShared:Hide()
     if #shared == 0 then
       place(noneShared, p, 16, y)
       y = y + 20
     end
-    local heads, lines = 0, 0
-    local gearChar -- the open panel's character in the new data
+    local heads, cards = 0, 0
     for _, friend in ipairs(shared) do
       heads = heads + 1
       local h = pooled(sharedHeads, heads, function() return ui.text(p, "GameFontNormalSmall") end)
-      h:SetText(friend.label or friend.tag or "?")
-      place(h, p, 16, y)
+      local label = who(friend.label, friend.tag) or "?"
+      h:SetText(label)
+      place(h, p, 18, y)
       y = y + 18
       for _, c in ipairs(friend.chars or {}) do
-        lines = lines + 1
-        local l = pooled(charLines, lines, newCharLine)
-        l.char = c
-        if charKey(c) == gearKey then gearChar = c end
-        l.nameText:SetText(fullName(c))
-        classColor(l.nameText, c.classFile)
-        l.infoText:SetText(charInfo(c))
-        place(l, p, 24, y)
-        y = y + 18
+        cards = cards + 1
+        local card = pooled(charCards, cards, newCharCard)
+        card.char, card.friend = c, label
+        if charKey(c) == detailsKey then open, openFriend = c, label end
+        setCard(card, fullName(c), c.classFile, charInfo(c))
+        place(card, p, 24, y)
+        y = y + CARD + 6
       end
-      y = y + 4
+      y = y + 6
     end
     hideFrom(sharedHeads, heads + 1)
-    hideFrom(charLines, lines + 1)
-    if gearPanel and gearPanel:IsShown() then
-      if gearChar then drawGear(gearChar) else gearPanel:Hide() end
+    hideFrom(charCards, cards + 1)
+    if details and details:IsShown() then
+      if open then drawDetails(open, openFriend) else details:Hide() end
     end
 
     p:SetHeight(y + 10)
@@ -679,10 +827,10 @@ local function selectTab(key)
     if t.key == key then
       if not state.page then buildTab(t) end
       state.holder:Show()
-      state.button:LockHighlight()
+      ui.styleButton(state.button, "selected")
     else
       if state.holder then state.holder:Hide() end
-      state.button:UnlockHighlight()
+      ui.styleButton(state.button)
     end
   end
   ui.refresh(tabs[key].page)
@@ -711,12 +859,21 @@ local function build()
   else window:SetPoint("CENTER", UIParent, "CENTER", 0, 40) end
   if UISpecialFrames then table.insert(UISpecialFrames, NAME) end -- Esc closes it
 
-  local bg = window:CreateTexture(nil, "BACKGROUND")
-  bg:SetColorTexture(0.05, 0.05, 0.08, 0.95)
-  bg:SetAllPoints()
+  ui.box(window, ui.COLOR.window, ui.COLOR.border)
 
-  local title = ui.text(window, "GameFontNormalLarge", "WoW Character Tracker")
-  title:SetPoint("TOPLEFT", 14, -12)
+  -- The tab strip, a shade darker, between two lines.
+  local strip = CreateFrame("Frame", nil, window)
+  strip:SetPoint("TOPLEFT", 1, -TITLE_BAR)
+  strip:SetPoint("TOPRIGHT", -1, -TITLE_BAR)
+  strip:SetHeight(TAB_BAR)
+  ui.box(strip, ui.COLOR.bar, ui.COLOR.border)
+
+  local logo = window:CreateTexture(nil, "ARTWORK")
+  logo:SetSize(24, 24)
+  logo:SetPoint("TOPLEFT", 14, -10)
+  logo:SetTexture(ns.ICON) -- Minimap.lua's
+  local title = ui.text(window, "GameFontHighlightLarge", "WoW Character Tracker")
+  title:SetPoint("LEFT", logo, "RIGHT", 8, 0)
   version = ui.text(window, "GameFontDisableSmall")
   version:SetPoint("LEFT", title, "RIGHT", 8, -1)
 
@@ -725,15 +882,16 @@ local function build()
   local last
   for _, t in ipairs(TABS) do
     local key = t.key
-    local b = ui.button(window, t.label, 92, function() selectTab(key) end)
-    if last then b:SetPoint("LEFT", last, "RIGHT", 4, 0)
-    else b:SetPoint("TOPLEFT", 12, -40) end
+    local b = ui.button(strip, t.label, 88, function() selectTab(key) end)
+    b:SetHeight(24)
+    if last then b:SetPoint("LEFT", last, "RIGHT", 6, 0)
+    else b:SetPoint("LEFT", strip, "LEFT", 12, 0) end
     tabs[key] = { button = b }
     last = b
   end
 
   area = CreateFrame("Frame", nil, window)
-  area:SetPoint("TOPLEFT", 8, -70)
+  area:SetPoint("TOPLEFT", 8, -(TITLE_BAR + TAB_BAR + 4))
   area:SetPoint("BOTTOMRIGHT", -8, 8)
 end
 

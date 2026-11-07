@@ -15,7 +15,7 @@ version:SetPoint("LEFT", title, "RIGHT", 8, -1)
 local line = ui.text(panel, "GameFontHighlight", "Every option is in the addon's own window. /wct opens it too, and so does the minimap button.")
 line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -12)
 line:SetWidth(560)
-local open = ui.button(panel, "Open the Character Tracker window", 260, function() ns.openWindow() end)
+local open = ui.button(panel, "Open the Character Tracker window", 260, function() ns.openWindow() end, "primary")
 open:SetPoint("TOPLEFT", line, "BOTTOMLEFT", 0, -14)
 
 panel:SetScript("OnShow", function() version:SetText(ui.version()) end)

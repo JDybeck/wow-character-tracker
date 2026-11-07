@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Addon window directions</title>
+<style>
+  :root { --bg:#0b0907; --text:#e8e1d6; --muted:#9a8f80; --dim:#6f665a; --line:#3a2f24; --amber:#f0a020; --orange:#d9661c;
+          --war:#c69b6d; --mage:#3fc7eb; --rogue:#fff468; --pal:#f48cba; --hunt:#aad372; --green:#1eff00; --blue:#4a9eff; --epic:#a335ee; --red:#e05a4a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 "Segoe UI", Arial, sans-serif; padding:24px 16px 60px; }
+  h1 { font-size:20px; margin:0 0 4px; } .lede { color:var(--muted); margin:0 0 28px; max-width:900px; }
+  .dir { margin:0 0 48px; } .dir h2 { font-size:16px; margin:0 0 4px; color:var(--amber); } .dir p.why { margin:0 0 14px; color:var(--muted); max-width:900px; }
+  .pair { display:flex; gap:20px; flex-wrap:wrap; }
+  .cap { color:var(--dim); font-size:11px; margin:6px 0 0; }
+  .win { width:560px; max-width:100%; }
+
+  /* ---------- A: Blizzard panel ---------- */
+  .a { background:#100c08; border:2px solid #5a4a32; border-radius:6px; box-shadow:inset 0 0 0 1px #000, 0 6px 18px #0008; font-family:Georgia, "Times New Roman", serif; }
+  .a .title { background:linear-gradient(#2a2014,#17110b); border-bottom:1px solid #5a4a32; padding:8px 12px; display:flex; justify-content:space-between; color:#ffd100; font-weight:bold; letter-spacing:.3px; }
+  .a .title small { color:#a89878; font-weight:normal; } .a .x { color:#c8b48a; }
+  .a .tabs { display:flex; gap:2px; padding:8px 10px 0; border-bottom:1px solid #5a4a32; }
+  .a .tab { padding:5px 10px; border:1px solid #5a4a32; border-bottom:none; border-radius:5px 5px 0 0; background:#1c150d; color:#c8b48a; font-size:12px; }
+  .a .tab.on { background:#2c2215; color:#ffd100; }
+  .a .body { padding:12px 14px 14px; font-family:"Segoe UI", Arial, sans-serif; }
+  .a .h { color:#ffd100; font-family:Georgia, serif; font-size:14px; margin:4px 0 6px; }
+  .a .hint { color:#8a8070; font-size:11px; margin:0 0 8px; }
+  .a .btn { display:inline-block; padding:3px 10px; background:linear-gradient(#8b1a10,#5e0f08); border:1px solid #c0a060; border-radius:3px; color:#ffd100; font-size:11px; }
+  .a .row { display:grid; grid-template-columns:1.4fr .9fr 1fr auto; gap:8px; align-items:center; padding:4px 0; border-bottom:1px solid #2a2117; font-size:12px; }
+  .a .state { color:#8a8070; font-size:11px; }
+  .a .check { display:flex; gap:6px; align-items:center; margin:4px 0; } .a .box { width:14px; height:14px; border:1px solid #c0a060; background:#1a120a; display:inline-block; text-align:center; font-size:10px; line-height:13px; color:#ffd100; }
+
+  /* ---------- B: matches the app ---------- */
+  .b { background:#14100c; border:1px solid #3a2f24; border-radius:12px; box-shadow:0 8px 24px #000a; overflow:hidden; }
+  .b .title { display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid #2c241b; }
+  .b .logo { width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg,#f0a020,#c2410c); display:grid; place-items:center; font-weight:800; font-size:11px; color:#1a1007; }
+  .b .title b { font-size:14px; } .b .title small { color:var(--dim); margin-left:4px; } .b .x { margin-left:auto; color:var(--muted); }
+  .b .tabs { display:flex; gap:6px; padding:10px 12px; flex-wrap:wrap; border-bottom:1px solid #2c241b; background:#110d0a; }
+  .b .tab { padding:5px 10px; border:1px solid #3a2f24; border-radius:8px; color:#cfc5b6; font-size:12px; display:flex; gap:6px; align-items:center; }
+  .b .tab.on { border-color:#b8761a; background:#2a1d0e; color:#ffd59a; }
+  .b .body { padding:12px 14px 14px; }
+  .b .bar { display:flex; justify-content:space-between; align-items:center; margin:0 0 10px; }
+  .b .btn { padding:6px 12px; border-radius:8px; background:#b45309; color:#fff; font-size:12px; border:none; }
+  .b .ghost { padding:4px 10px; border-radius:7px; border:1px solid #3a2f24; color:#e8e1d6; font-size:11px; background:#1b150f; }
+  .b .card { border:1px solid #2f261d; border-radius:10px; background:#1a1410; padding:8px 10px; margin:0 0 8px; display:grid; grid-template-columns:4px 1fr auto; gap:10px; align-items:center; }
+  .b .stripe { width:4px; height:30px; border-radius:2px; }
+  .b .name { font-weight:600; } .b .meta { color:var(--muted); font-size:11px; }
+  .b .pill { font-size:10px; padding:2px 7px; border-radius:999px; border:1px solid #3a2f24; color:var(--muted); margin-left:6px; }
+  .b .pill.ok { border-color:#2f6b2f; color:#8fd18f; } .b .pill.no { color:#a8907a; }
+  .b .sec { color:var(--dim); font-size:10px; letter-spacing:.08em; margin:12px 0 6px; text-transform:uppercase; }
+  .b .req { border:1px solid #6b4a14; background:#24190c; border-radius:10px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; margin:0 0 10px; }
+  .b .chips { display:flex; gap:6px; flex-wrap:wrap; } .b .chip { padding:4px 10px; border-radius:999px; border:1px solid #3a2f24; font-size:12px; }
+  .b .chip.on { border-color:#b8761a; background:#2a1d0e; color:#ffd59a; }
+
+  /* ---------- C: sidebar, friends first ---------- */
+  .c { background:#121212; border:1px solid #2c2c2c; border-radius:10px; overflow:hidden; display:grid; grid-template-columns:150px 1fr; min-height:400px; }
+  .c .side { background:#0d0d0d; border-right:1px solid #262626; padding:10px 0; }
+  .c .brand { padding:4px 14px 12px; font-weight:700; color:#f0a020; font-size:13px; }
+  .c .nav { padding:7px 14px; color:#b9b9b9; font-size:12px; display:flex; gap:8px; } .c .nav.on { background:#1e1a14; color:#ffd59a; border-left:3px solid #f0a020; padding-left:11px; }
+  .c .navsec { color:#5e5e5e; font-size:10px; padding:12px 14px 4px; letter-spacing:.08em; }
+  .c .main { padding:12px 14px; }
+  .c .top { display:flex; justify-content:space-between; align-items:center; margin:0 0 10px; } .c .top b { font-size:14px; }
+  .c .search { padding:5px 10px; border:1px solid #333; border-radius:6px; color:#777; font-size:12px; width:170px; }
+  .c .friend { display:grid; grid-template-columns:28px 1fr auto; gap:8px; align-items:center; padding:7px 4px; border-bottom:1px solid #1f1f1f; }
+  .c .ava { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-weight:700; font-size:12px; color:#111; }
+  .c .act { font-size:11px; padding:3px 9px; border-radius:6px; background:#2a2418; color:#ffd59a; border:1px solid #4a3a1c; }
+  .c .sub { color:#7a7a7a; font-size:11px; }
+  .c .dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:5px; }
+  .c .sett { display:grid; grid-template-columns:1fr auto; gap:6px 12px; align-items:center; padding:6px 0; border-bottom:1px solid #1f1f1f; }
+  .c .tog { width:30px; height:16px; border-radius:999px; background:#3a3a3a; position:relative; } .c .tog::after { content:""; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:#999; }
+  .c .tog.on { background:#a1650f; } .c .tog.on::after { left:16px; background:#ffd59a; }
+
+  .cls-war{color:var(--war)} .cls-mage{color:var(--mage)} .cls-rogue{color:var(--rogue)} .cls-pal{color:var(--pal)} .cls-hunt{color:var(--hunt)}
+  @media (max-width:640px) { .c { grid-template-columns:1fr; } .c .side { display:none; } }
+</style>
+</head>
+<body>
+<h1>Addon window: three directions</h1>
+<p class="lede">Mockups of the in-game window, Friends tab on the left and a settings tab on the right. In game the fonts and textures are WoW's own; colors, layout and how things read are what to compare.</p>
+
+<section class="dir">
+  <h2>A. Blizzard panel</h2>
+  <p class="why">Looks like part of the game: gold headings, red buttons, tabs like the character sheet. Familiar to every player, quiet on screen. Least like the app.</p>
+  <div class="pair">
+    <div>
+      <div class="win a">
+        <div class="title">WoW Character Tracker <small>v0.35.0</small><span class="x">✕</span></div>
+        <div class="tabs"><span class="tab">General</span><span class="tab">Chat</span><span class="tab">Highlights</span><span class="tab">Note</span><span class="tab on">Friends</span><span class="tab">Sharing</span><span class="tab">App</span></div>
+        <div class="body">
+          <div class="h">Online friends</div>
+          <p class="hint">Battle.net friends in this game. Checking who has the addon sends them nothing they can see.</p>
+          <span class="btn">Find online friends</span>
+          <div style="margin-top:10px">
+            <div class="row"><span class="cls-pal">Zebdryg</span><span>60, Eastern Plaguelands</span><span class="state">Shares with you</span><span class="btn">Ask again</span></div>
+            <div class="row"><span class="cls-rogue">Kallerogue</span><span>58, Stranglethorn</span><span class="state">Has the addon</span><span><span class="btn">Ask</span> <span class="btn">Share</span></span></div>
+            <div class="row"><span class="cls-mage">Frostbyte</span><span>32, Ashenvale</span><span class="state">No addon</span><span class="btn">Invite</span></div>
+          </div>
+          <div class="h" style="margin-top:12px">Shared with you</div>
+          <div class="row"><span class="cls-pal">Zebdryg Stonehand</span><span>60 Holy, ilvl 62</span><span class="state">2h ago</span><span></span></div>
+        </div>
+      </div>
+      <p class="cap">Friends tab</p>
+    </div>
+    <div>
+      <div class="win a">
+        <div class="title">WoW Character Tracker <small>v0.35.0</small><span class="x">✕</span></div>
+        <div class="tabs"><span class="tab on">General</span><span class="tab">Chat</span><span class="tab">Highlights</span><span class="tab">Note</span><span class="tab">Friends</span><span class="tab">Sharing</span><span class="tab">App</span></div>
+        <div class="body">
+          <div class="h">Posting</div>
+          <div class="check"><span class="box">✓</span>Instant posting</div><p class="hint">Tell the app about events right away.</p>
+          <div class="check"><span class="box"></span>Reload popup after a ding</div>
+          <div class="h" style="margin-top:10px">Keeping the app up to date</div>
+          <div class="check"><span class="box">✓</span>Offer a reload on flight paths</div>
+          <div class="check"><span class="box">✓</span>Remind me in chat to /reload</div>
+        </div>
+      </div>
+      <p class="cap">General tab</p>
+    </div>
+  </div>
+</section>
+
+<section class="dir">
+  <h2>B. Matches the app (my pick)</h2>
+  <p class="why">The app's look in game: dark cards, amber accent, chips, a class-colored stripe per friend, status as small pills. Feels like one product with the app, clearer at a glance, and buttons only where you can act.</p>
+  <div class="pair">
+    <div>
+      <div class="win b">
+        <div class="title"><span class="logo">WCT</span><b>Character Tracker</b><small>v0.35.0</small><span class="x">✕</span></div>
+        <div class="tabs"><span class="tab">General</span><span class="tab">Chat</span><span class="tab">Highlights</span><span class="tab">Note</span><span class="tab on">Friends</span><span class="tab">Sharing</span><span class="tab">App</span></div>
+        <div class="body">
+          <div class="req"><span><b>Kallerogue</b> wants to see your characters</span><span><button class="btn">Allow</button> <span class="ghost">Not now</span> <span class="ghost">Never</span></span></div>
+          <div class="bar"><span class="sec" style="margin:0">Online friends</span><button class="btn">Find online friends</button></div>
+          <div class="card"><span class="stripe" style="background:var(--pal)"></span><span><span class="name cls-pal">Zebdryg</span><span class="pill ok">Shares with you</span><br><span class="meta">60, Eastern Plaguelands, Zebbe (Zeb#2222)</span></span><span class="ghost">Ask again</span></div>
+          <div class="card"><span class="stripe" style="background:var(--rogue)"></span><span><span class="name cls-rogue">Kallerogue</span><span class="pill">Has the addon</span><br><span class="meta">58, Stranglethorn Vale, Kalle#3333</span></span><span><button class="btn">Ask</button> <span class="ghost">Share</span></span></div>
+          <div class="card"><span class="stripe" style="background:var(--mage)"></span><span><span class="name cls-mage">Frostbyte</span><span class="pill no">No addon</span><br><span class="meta">32, Ashenvale, Frost#4444</span></span><span class="ghost">Invite</span></div>
+          <div class="sec">Shared with you</div>
+          <div class="card"><span class="stripe" style="background:var(--pal)"></span><span><span class="name cls-pal">Zebdryg Stonehand</span><br><span class="meta">60 Holy, ilvl 62, Engineering 285, 2h ago</span></span><span class="ghost">Gear</span></div>
+        </div>
+      </div>
+      <p class="cap">Friends tab</p>
+    </div>
+    <div>
+      <div class="win b">
+        <div class="title"><span class="logo">WCT</span><b>Character Tracker</b><small>v0.35.0</small><span class="x">✕</span></div>
+        <div class="tabs"><span class="tab on">General</span><span class="tab">Chat</span><span class="tab">Highlights</span><span class="tab">Note</span><span class="tab">Friends</span><span class="tab">Sharing</span><span class="tab">App</span></div>
+        <div class="body">
+          <div class="sec" style="margin-top:0">Posting</div>
+          <div class="chips"><span class="chip on">✓ Instant posting</span><span class="chip">Reload popup after a ding</span></div>
+          <div class="sec">Keeping the app up to date</div>
+          <div class="chips"><span class="chip on">✓ Reload on flight paths</span><span class="chip on">✓ Chat reminder</span></div>
+          <div class="sec">Post box</div>
+          <div class="chips"><span class="chip">5 s</span><span class="chip on">10 s</span><span class="chip">15 s</span><span class="chip">30 s</span><span class="chip">60 s</span></div>
+        </div>
+      </div>
+      <p class="cap">General tab</p>
+    </div>
+  </div>
+</section>
+
+<section class="dir">
+  <h2>C. Sidebar, friends first</h2>
+  <p class="why">Navigation on the left, grouped (Friends, then Settings), a friend list like a chat app with an avatar dot and one action. Most modern, best when the Friends part grows (map, recipes later). Furthest from how WoW panels look.</p>
+  <div class="pair">
+    <div>
+      <div class="win c">
+        <div class="side"><div class="brand">Character Tracker</div><div class="navsec">FRIENDS</div><div class="nav on">Online</div><div class="nav">Shared with you</div><div class="nav">Requests (1)</div><div class="navsec">SETTINGS</div><div class="nav">General</div><div class="nav">Chat</div><div class="nav">Highlights</div><div class="nav">Note</div><div class="nav">Sharing</div><div class="nav">App</div></div>
+        <div class="main">
+          <div class="top"><b>Online</b><span class="search">Find online friends</span></div>
+          <div class="friend"><span class="ava" style="background:var(--pal)">Z</span><span><span class="dot" style="background:#3fbf3f"></span><span class="cls-pal">Zebdryg</span><br><span class="sub">60, Eastern Plaguelands, shares with you</span></span><span class="act">Ask again</span></div>
+          <div class="friend"><span class="ava" style="background:var(--rogue)">K</span><span><span class="dot" style="background:#e0b03a"></span><span class="cls-rogue">Kallerogue</span><br><span class="sub">58, Stranglethorn, has the addon</span></span><span class="act">Ask</span></div>
+          <div class="friend"><span class="ava" style="background:var(--mage)">F</span><span><span class="dot" style="background:#666"></span><span class="cls-mage">Frostbyte</span><br><span class="sub">32, Ashenvale, no addon</span></span><span class="act">Invite</span></div>
+        </div>
+      </div>
+      <p class="cap">Friends, Online</p>
+    </div>
+    <div>
+      <div class="win c">
+        <div class="side"><div class="brand">Character Tracker</div><div class="navsec">FRIENDS</div><div class="nav">Online</div><div class="nav">Shared with you</div><div class="nav">Requests (1)</div><div class="navsec">SETTINGS</div><div class="nav on">General</div><div class="nav">Chat</div><div class="nav">Highlights</div><div class="nav">Note</div><div class="nav">Sharing</div><div class="nav">App</div></div>
+        <div class="main">
+          <div class="top"><b>General</b></div>
+          <div class="sett"><span>Instant posting<br><span class="sub">Tell the app about events right away</span></span><span class="tog on"></span></div>
+          <div class="sett"><span>Reload popup after a ding</span><span class="tog"></span></div>
+          <div class="sett"><span>Offer a reload on flight paths</span><span class="tog on"></span></div>
+          <div class="sett"><span>Remind me in chat to /reload</span><span class="tog on"></span></div>
+        </div>
+      </div>
+      <p class="cap">General</p>
+    </div>
+  </div>
+</section>
+</body>
+</html>
