@@ -269,13 +269,13 @@ public class AddonWindowTests
         local function call(s) calls[#calls + 1] = s end
         online = {
           { tag = 'Ann#1', account = 1, label = 'Ann#1', character = 'Annie', classFile = 'MAGE', level = 60, zone = 'Orgrimmar' },
-          { tag = 'Bob#2', account = 2, label = 'Bobby', character = 'Bobo', level = 12, hasAddon = true },
+          { tag = 'Bob#2', account = 2, label = 'Bobby (Bob#2)', character = 'Bobo', level = 12, hasAddon = true },
           { tag = 'Cid#3', account = 3, label = 'Cid#3', character = 'Cidro', hasAddon = true, contact = { share = true }, sharesWithYou = true },
           { tag = 'Dan#4', account = 4, label = 'Dan#4', character = 'Danno', hasAddon = false },
           { tag = 'Eve#5', account = 5, label = 'Eve#5', character = 'Evie', hasAddon = false, invitedAt = clock - 3600 },
           { tag = 'Fay#6', account = 6, label = 'Fay#6', character = 'Fayla', hasAddon = true, blocked = true },
         }
-        requests = { { tag = 'Zeb#2222', account = 9, label = 'Zebbe', at = clock - 5 } }
+        requests = { { tag = 'Zeb#2222', account = 9, label = 'Zebbe (Zeb#2222)', at = clock - 5 } }
         shared = {
           { tag = 'Cid#3', label = 'Cid#3', chars = {
             { char = 'Cidrin', surname = 'Frostmane', realm = 'Firemaw', level = 60, classFile = 'MAGE', spec = 'Frost', ilvl = 112, zone = 'Ironforge',
@@ -438,6 +438,10 @@ public class AddonWindowTests
             end
           end
         end
+        function titleText()
+          for _, s in ipairs(strings) do if s.owner == panel() then return s end end
+        end
+        function title() return titleText().text end
         function clickChar(name) local l = shownText(name).owner; l.scripts.OnMouseUp(l, 'LeftButton') end
         """;
 
@@ -456,7 +460,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "panel() == nil")); // built on the first click
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "onScreen(panel())"));
-        Assert.True(Bool(c, "shownText('Cidrin Frostmane (Firemaw)') ~= nil"));
+        Assert.True(Bool(c, "title() == 'Cidrin Frostmane'"));
         Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
         Assert.Equal(0.64, Num(c, "gearRow(1).nameText.color[1]"), 3);
         Assert.Equal("1,1,1", c.Lua("return table.concat(gearRow(2).nameText.color, ',')").String);
@@ -489,9 +493,8 @@ public class AddonWindowTests
         c.Lua("clickChar('Cidra')");
         Assert.Equal(built, Num(c, "#frames"));
         Assert.Equal("Head:item 400:", c.Lua("return gearRows()").String);
-        Assert.True(Bool(c, "shownText('Cidra (Firemaw)') ~= nil"));
-        Assert.True(Bool(c, "shownText('Cidrin Frostmane (Firemaw)') == nil"));
-
+        Assert.True(Bool(c, "title() == 'Cidra'"));
+        
         c.Lua("clickChar('Cidra')");
         Assert.False(Bool(c, "onScreen(panel())"));
         c.Lua("clickChar('Cidrin Frostmane')");
@@ -506,18 +509,18 @@ public class AddonWindowTests
         var c = GearTab();
         c.Lua("""
             local cid = shared[1].chars[1]
-            cid.class, cid.race, cid.faction, cid.money = 'Mage', 'Gnome', 'Alliance', 1234567
+            cid.class, cid.race, cid.sex, cid.faction, cid.money = 'Mage', 'Gnome', 'female', 'Alliance', 1234567
             """);
         c.Call("friendsChanged");
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "shownText('Level 60 Frost Mage') ~= nil"));
         foreach (var (label, value) in new[] {
-            ("Friend", "Cid#3"), ("Race", "Gnome, Alliance"), ("Item level", "112"), ("Zone", "Ironforge"), ("Gold", "123g 45s 67c"),
+            ("Friend", "Cid#3"), ("Realm", "Firemaw"), ("Race", "Female Gnome, Alliance"), ("Item level", "112"), ("Zone", "Ironforge"), ("Gold", "123g 45s 67c"),
             ("Professions", "Tailoring 300/300, Enchanting 280/300"), ("Talents", "Arcane 10 / Fire 0 / Frost 41"), ("Updated", "2h ago") })
         {
             Assert.Equal(value, c.Lua($"return shownText('{label}').owner.valueText.text").String);
         }
-        Assert.Equal(0.25, Num(c, "shownText('Cidrin Frostmane (Firemaw)').color[1]"), 3); // class colored
+        Assert.Equal(0.25, Num(c, "titleText().color[1]"), 3); // class colored
 
         c.Lua("clickChar('Cidra')"); // little shared: only what's there
         Assert.True(Bool(c, "shownText('Level 20') ~= nil"));
@@ -537,7 +540,7 @@ public class AddonWindowTests
             local b = find('Find online friends'); b.scripts.OnClick(b)
             """);
         c.Lua("clickChar('Cidro')");
-        Assert.True(Bool(c, "shownText('Cidrin Frostmane (Firemaw)') ~= nil"));
+        Assert.True(Bool(c, "title() == 'Cidrin Frostmane'"));
         Assert.StartsWith("Head:Frostfire Circlet", c.Lua("return gearRows()").String);
 
         c.Lua("clickChar('Bobo')");

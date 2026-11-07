@@ -9,6 +9,12 @@ Update the addon with the app (it does this by itself) and /reload in game.
 ### New
 
 - **The addon tells you about app updates**: when the app has found a newer version, the addon says so in chat once when you log in (not on /reload), so you don't miss it while playing.
+- Friends now get your character's gender too, so the app shows their characters with the right portrait, and the details panel says it ("Female Night Elf").
+
+### Fixes and tweaks
+
+- The friend details panel is easier to read: the name alone on top (the realm moved into the list, so a long realm doesn't push lines into each other), more space between lines, and "just now" instead of "0m ago".
+- A friend's nickname no longer shows their BattleTag twice, in the details panel and in requests.
 
 ## v0.36.0
 

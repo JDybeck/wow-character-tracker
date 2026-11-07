@@ -13,7 +13,7 @@ static partial class FriendData
     // Longest length per text field (the addon's FIELDS).
     static readonly Dictionary<string, int> Max = new()
     {
-        ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16,
+        ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16, ["sex"] = 6,
         ["faction"] = 10, ["spec"] = 32, ["talents"] = 1024, ["talentCalc"] = 256, ["gear"] = 512, ["enchants"] = 2048, ["zone"] = 64, ["professions"] = 256,
     };
 
@@ -51,7 +51,7 @@ static partial class FriendData
             var name = S("char");
             if (!PlayerGuid().IsMatch(guid) || name.Length == 0) continue;
             var snapshot = new Snapshot(guid, name, S("realm"), (int)N("level"), S("class"), S("classFile"), S("race"), S("raceFile"),
-                Sex: "", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: 0, Zone: S("zone"), Professions: S("professions"), Talents: S("talents"),
+                Sex: S("sex") == "female" ? "female" : "male", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: 0, Zone: S("zone"), Professions: S("professions"), Talents: S("talents"),
                 LastSeen: (long)N("at"), Hardcore: false, Ruleset: "", Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction")) { Surname = S("surname") };
             // No gear shared: no inventory, so the gear tab says it isn't shared.
             var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;

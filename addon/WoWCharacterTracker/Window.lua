@@ -213,6 +213,7 @@ local function classColor(fs, classFile) fs:SetTextColor(classRgb(classFile)) en
 
 local function ago(at)
   local s = math.max(0, time() - (at or time()))
+  if s < 60 then return "just now" end
   if s < 3600 then return math.floor(s / 60) .. "m ago" end
   if s < DAY then return math.floor(s / 3600) .. "h ago" end
   return math.floor(s / DAY) .. "d ago"
@@ -224,11 +225,8 @@ local function gold(copper)
   return string.format("%dg %ds %dc", math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100)
 end
 
--- "Zebbe (Zeb#2222)" for a nickname, else the BattleTag.
-local function who(label, tag)
-  if label and tag and label ~= tag then return string.format("%s (%s)", label, tag) end
-  return label or tag
-end
+-- Friends.lua's label ("Zebbe (Zeb#2222)" with a nickname), else the BattleTag.
+local function who(label, tag) return label or tag end
 
 -- A card's button runs whatever the last redraw gave it (self.act).
 local function cardButton(card, width)
@@ -280,7 +278,7 @@ local function fullName(c)
   return name
 end
 
--- "Zeb Stonehand (Firemaw)": the details panel's title.
+-- "Zeb Stonehand (Firemaw)": tells characters apart when there's no guid.
 local function charTitle(c)
   return c.realm and string.format("%s (%s)", fullName(c), c.realm) or fullName(c)
 end
@@ -313,7 +311,7 @@ local DETAILS_WIDTH = 320
 local GEAR_ROW = 30
 local SLOT_NAMES = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands",
   "Finger", "Finger", "Trinket", "Trinket", "Back", "Main Hand", "Off Hand", "Ranged", "Tabard" }
-local details, detailsTitle, detailsSub, gearTitle, noGear, notShared
+local details, detailsTitle, detailsSub, detailsLine, gearTitle, noGear, notShared
 local factRows, gearRows = {}, {}
 local detailsKey -- which character the panel shows
 
@@ -338,10 +336,10 @@ local function newFactRow()
   r:SetSize(DETAILS_WIDTH - 28, 16)
   r.labelText = ui.text(r, "GameFontDisableSmall")
   r.labelText:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
-  r.labelText:SetWidth(84)
+  r.labelText:SetWidth(86)
   r.valueText = ui.text(r, "GameFontHighlightSmall")
-  r.valueText:SetPoint("TOPLEFT", r, "TOPLEFT", 88, 0)
-  r.valueText:SetWidth(DETAILS_WIDTH - 28 - 88)
+  r.valueText:SetPoint("TOPLEFT", r, "TOPLEFT", 92, 0)
+  r.valueText:SetWidth(DETAILS_WIDTH - 28 - 92)
   return r
 end
 
@@ -379,9 +377,11 @@ local function buildDetails()
   detailsTitle = ui.text(details, "GameFontHighlightLarge")
   detailsTitle:SetPoint("TOPLEFT", 14, -14)
   detailsTitle:SetWidth(DETAILS_WIDTH - 50)
-  detailsSub = ui.text(details, "GameFontDisableSmall")
-  detailsSub:SetPoint("TOPLEFT", detailsTitle, "BOTTOMLEFT", 0, -4)
-  detailsSub:SetWidth(DETAILS_WIDTH - 50)
+  detailsSub = ui.text(details, "GameFontHighlight")
+  detailsSub:SetWidth(DETAILS_WIDTH - 28)
+  detailsLine = details:CreateTexture(nil, "ARTWORK")
+  ui.fill(detailsLine, C.border)
+  detailsLine:SetHeight(1)
   closeButton(details, function() details:Hide() end)
   notShared = ui.text(details, "GameFontDisableSmall", "Not shared with you. Ask them on the Friends tab to see their gear and more.")
   notShared:SetWidth(DETAILS_WIDTH - 28)
@@ -408,7 +408,9 @@ local function facts(c, friend)
   local out = {}
   local function add(label, value) if value and value ~= "" then out[#out + 1] = { label, value } end end
   add("Friend", friend)
-  add("Race", c.race and (c.faction and string.format("%s, %s", c.race, c.faction) or c.race))
+  add("Realm", c.realm)
+  local race = c.race and (c.sex == "female" and "Female " or (c.sex == "male" and "Male " or "")) .. c.race
+  add("Race", race and (c.faction and string.format("%s, %s", race, c.faction) or race))
   add("Item level", c.ilvl and tostring(math.floor(c.ilvl)))
   add("Zone", c.zone)
   add("Gold", c.money and gold(c.money))
@@ -421,11 +423,21 @@ end
 -- c: a shared character, or what Battle.net says about an online one (c.notShared).
 local function drawDetails(c, friend)
   detailsKey = charKey(c)
-  detailsTitle:SetText(charTitle(c))
+  detailsTitle:SetText(fullName(c))
   classColor(detailsTitle, c.classFile)
+  local y = 14 + textHeight(detailsTitle, 16) + 4
   local sub = headline(c)
   detailsSub:SetText(sub)
-  local y = 40 + (sub ~= "" and 14 or 0)
+  detailsSub:SetShown(sub ~= "")
+  if sub ~= "" then
+    place(detailsSub, details, 14, y)
+    y = y + textHeight(detailsSub, 14)
+  end
+  y = y + 10
+  detailsLine:ClearAllPoints()
+  detailsLine:SetPoint("TOPLEFT", details, "TOPLEFT", 14, -y)
+  detailsLine:SetPoint("TOPRIGHT", details, "TOPRIGHT", -14, -y)
+  y = y + 10
 
   local list = facts(c, friend)
   for i, fact in ipairs(list) do
@@ -435,7 +447,7 @@ local function drawDetails(c, friend)
     local h = math.max(14, textHeight(r.valueText, 14))
     r:SetHeight(h)
     place(r, details, 14, y)
-    y = y + h + 4
+    y = y + h + 7
   end
   hideFrom(factRows, #list + 1)
 
