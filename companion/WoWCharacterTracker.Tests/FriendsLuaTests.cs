@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using MoonSharp.Interpreter;
 
 namespace WoWCharacterTracker.Tests;
@@ -151,6 +151,55 @@ public class FriendsLuaTests
         Assert.Equal("Mining 150/225, Herbalism 75/150", Str(c, "with.professions"));
         Assert.True(c.Lua("return without.professions").IsNil());
         Assert.Equal(256, c.Lua("return #long.professions").Number);
+    }
+
+    // Highlights: on unless turned off, the newest 10 as lines, gold and zone of a death only with
+    // their own categories, group members never.
+    [Fact]
+    public void Highlights_go_newest_first_with_only_what_the_friend_may_see()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        c.Lua($$"""
+            char = {{Deadbeck}}
+            events = {
+              { kind = 'boss', at = 100, level = 60, boss = 'Ragnaros', instance = 'Molten~Core', groupSize = 40, group = 'Zeb~60~WARRIOR~Warrior~Orc~Firemaw' },
+              { kind = 'death', at = 300, level = 42, killer = 'Hogger', played = 3600, gold = 5000, zone = 'Elwynn Forest' },
+              { kind = 'level', at = 400, level = 43 },
+              { kind = 'duel', at = 200, level = 42, opponent = 'Grim|tusk', lost = true },
+            }
+            with = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000A', char, nil, { highlights = true }, events))
+            all = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000A', char, nil, { highlights = true, gold = true, location = true }, events))
+            without = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000A', char, nil, { gold = true }, events))
+            many = {}
+            for i = 1, 30 do many[i] = { kind = 'loot', at = i, level = 42, item = 'Item ' .. i, itemId = i, quality = 3 } end
+            capped = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000A', char, nil, { highlights = true }, many))
+            """);
+        Assert.Equal("death~300~42~Hogger~3600~~\nduel~200~42~Grimtusk~1~\nboss~100~60~Ragnaros~MoltenCore~40", Str(c, "with.highlights"));
+        Assert.StartsWith("death~300~42~Hogger~3600~5000~Elwynn Forest\n", Str(c, "all.highlights"));
+        Assert.True(c.Lua("return without.highlights").IsNil());
+        Assert.Equal(10, c.Lua("local n = 0; for _ in capped.highlights:gmatch('[^\\n]+') do n = n + 1 end; return n").Number);
+        Assert.StartsWith("loot~30~42~Item 30~30~3\n", Str(c, "capped.highlights"));
+    }
+
+    // Each character's newest highlights reach a contact, kept up to date as new events come in.
+    [Fact]
+    public void A_contact_gets_the_newest_highlights_and_new_ones_after_them()
+    {
+        var a = new Client(A, AFriends, ADb(AShares).Replace("items = {", """
+            events = { { kind = 'loot', guid = 'Player-1-0000000A', at = 800, level = 42, item = 'Thunderfury', itemId = 19019, quality = 5 },
+                       { kind = 'mount', guid = 'Player-1-0000000C', at = 450, level = 12, mount = 'Horse', itemId = 2411 } },
+            items = {
+            """));
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        Assert.Equal("loot~800~42~Thunderfury~19019~5", Str(b, GotDeadbeck + ".highlights")); // only Deadbeck's own
+        a.Lua("table.insert(WoWCharacterTrackerDB.events, { kind = 'boss', guid = 'Player-1-0000000A', at = 950, level = 42, boss = 'Onyxia', groupSize = 40 })");
+        a.Run(700); // past ONLINE_EVERY
+        a.Call("friendsTick");
+        Talk(a, b);
+        Assert.StartsWith("boss~950~42~Onyxia~~40\n", Str(b, GotDeadbeck + ".highlights"));
     }
 
     [Fact]
@@ -402,7 +451,7 @@ public class FriendsLuaTests
         a.Call("friendsCommand", "set all map on");
         Assert.True(a.Lua("return ns.shareSettings().defaults.map").Boolean);
         Assert.Contains("Friends now get map: on.", a.Said());
-        Assert.Equal("gear, talents, location, professions, map position", Str(a, "ns.shareSummary(ns.allowedFor(ns.shareSettings(), nil))"));
+        Assert.Equal("gear, talents, location, professions, highlights, map position", Str(a, "ns.shareSummary(ns.allowedFor(ns.shareSettings(), nil))"));
     }
 
     [Fact]
@@ -410,11 +459,11 @@ public class FriendsLuaTests
     {
         var a = new Client(A, AFriends, ADb(AShares));
         a.Lua("o = ns.contactSharing('Zeb#2222')");
-        Assert.Equal(7, a.Lua("return #o.categories").Number);
-        Assert.Equal("map", Str(a, "o.categories[6].key"));
-        Assert.Equal("otherFaction", Str(a, "o.categories[7].key"));
-        Assert.True(a.Lua("return o.categories[7].rule").Boolean);
-        Assert.True(a.Lua("return o.categories[6].rule").IsNil());
+        Assert.Equal(8, a.Lua("return #o.categories").Number);
+        Assert.Equal("map", Str(a, "o.categories[7].key"));
+        Assert.Equal("otherFaction", Str(a, "o.categories[8].key"));
+        Assert.True(a.Lua("return o.categories[8].rule").Boolean);
+        Assert.True(a.Lua("return o.categories[7].rule").IsNil());
         a.Call("cycleContactCategory", "Zeb#2222", "otherFaction");
         Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].otherFaction").Boolean);
     }
@@ -504,7 +553,7 @@ public class FriendsLuaTests
         a.Call("friendsCommand", "set all nonsense on");
         Assert.NotEmpty(a.Said());
         Assert.All(a.Said(), s => Assert.DoesNotContain("|", s));
-        Assert.Contains(a.Said(), s => s.Contains("gear/talents/location/professions/gold", StringComparison.Ordinal));
+        Assert.Contains(a.Said(), s => s.Contains("gear/talents/location/professions/highlights/gold", StringComparison.Ordinal));
     }
 
     [Fact]

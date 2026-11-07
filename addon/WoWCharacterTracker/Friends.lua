@@ -13,11 +13,12 @@ local MAX_CHARS = 50     -- characters kept per contact
 local TICK = 30
 
 -- What friends get, unless set for one of them. Gold and map position stay off until turned on.
-local CATEGORIES = { "gear", "talents", "location", "professions", "gold", "map" }
+local CATEGORIES = { "gear", "talents", "location", "professions", "highlights", "gold", "map" }
 -- Set like a category, but not data: otherFaction off means a friend playing the other faction
 -- gets no map position.
 local RULES = { "otherFaction" }
-local DEFAULTS = { gear = true, talents = true, location = true, professions = true, gold = false, map = false, otherFaction = false }
+local DEFAULTS = { gear = true, talents = true, location = true, professions = true, highlights = true, gold = false, map = false,
+  otherFaction = false }
 local MAP_RATES = { [5] = true, [60] = true, [300] = true } -- seconds between two map position readings
 ns.SHARE_CATEGORIES = CATEGORIES
 ns.SHARE_RULES = RULES
@@ -160,12 +161,35 @@ local function version()
 end
 
 -- Sending -------------------------------------------------------------------------------------
+-- The newest highlights per character (ns.FRIEND_HIGHLIGHTS of them), kept up to date like
+-- ns.hasEvent's ids: events are appended, so only new ones are read; another or shorter list
+-- (trimmed, cleaned up) is read again.
+local recentHighlights, highlightsList, highlightsCounted = {}, nil, 0
+local function highlightsOf(guid)
+  local events = WoWCharacterTrackerDB.events or {}
+  if events ~= highlightsList or #events < highlightsCounted then
+    recentHighlights, highlightsList, highlightsCounted = {}, events, 0
+  end
+  for i = highlightsCounted + 1, #events do
+    local e = events[i]
+    if ns.isFriendHighlight(e) and e.guid then
+      local list = recentHighlights[e.guid] or {}
+      list[#list + 1] = e
+      table.sort(list, function(x, y) return x.at > y.at end)
+      list[ns.FRIEND_HIGHLIGHTS + 1] = nil
+      recentHighlights[e.guid] = list
+    end
+  end
+  highlightsCounted = #events
+  return recentHighlights[guid]
+end
+
 -- One of your characters as a contact may see it, and its change key; nil without a snapshot.
 local function charText(guid, contact)
   local db = WoWCharacterTrackerDB
   local char = db.chars and db.chars[guid]
   if not char then return nil end
-  return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact))
+  return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact), highlightsOf(guid))
 end
 
 -- The character being played, to one contact: when due (GROUP_EVERY or ONLINE_EVERY since the
@@ -614,8 +638,8 @@ local HELP = {
   "/wct friends on or off turns sharing with Battle.net friends on or off.",
   "/wct friends ask <BattleTag> asks a friend for their characters.",
   "/wct friends share <BattleTag> shares your characters with them.",
-  "/wct friends set all gear/talents/location/professions/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
-  "/wct friends set <BattleTag> gear/talents/location/professions/gold/map on/off/default changes it for one friend.",
+  "/wct friends set all gear/talents/location/professions/highlights/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
+  "/wct friends set <BattleTag> gear/talents/location/professions/highlights/gold/map on/off/default changes it for one friend.",
   "/wct friends set all/<BattleTag> otherfaction on/off/default: on lets friends playing the other faction see you on the map too.",
   "/wct friends maprate live/1m/5m sets how often friends' maps get your position.",
   "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",

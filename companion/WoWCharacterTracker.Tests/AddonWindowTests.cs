@@ -647,9 +647,9 @@ public class AddonWindowTests
         c.Lua("clickIn('Cidro', 'Sharing')");
         Assert.True(Bool(c, "onScreen(sharingPanel())"));
         Assert.True(Bool(c, "shownText('Cid#3') ~= nil"));
-        Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Gold: like all friends (off);Map position: like all friends (off);Map for the other faction: like all friends (off)",
+        Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Highlights: like all friends (on);Gold: like all friends (off);Map position: like all friends (off);Map for the other faction: like all friends (off)",
             c.Lua("return sharingButtons()").String);
-        Assert.True(Bool(c, "shownText('They get gear, talents, location, professions.') ~= nil"));
+        Assert.True(Bool(c, "shownText('They get gear, talents, location, professions, highlights.') ~= nil"));
 
         // Like all friends, on, off, like all friends again.
         c.Lua("clickSharing('Gold:')");
@@ -658,7 +658,7 @@ public class AddonWindowTests
         Assert.Contains(";Gold: on;Map position", c.Lua("return sharingButtons()").String);
         c.Lua("clickSharing('Gear:')"); c.Lua("clickSharing('Gear: on')");
         Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == false"));
-        Assert.True(Bool(c, "shownText('They get talents, location, professions, gold.') ~= nil"));
+        Assert.True(Bool(c, "shownText('They get talents, location, professions, highlights, gold.') ~= nil"));
         c.Lua("clickSharing('Gear: off')");
         Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == nil"));
 
@@ -698,7 +698,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "onScreen(requestBox())"));
         Assert.Equal(0, Num(c, "#shown")); // not the Blizzard popup
         Assert.True(Bool(c, "shownText('Zeb#2222 wants to see your characters.') ~= nil"));
-        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus gear, talents, location, professions.') ~= nil"));
+        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus gear, talents, location, professions, highlights.') ~= nil"));
         Assert.True(Bool(c, "shownText('Talents') == nil")); // folded
 
         c.Lua("press('Choose what they get  v')");
@@ -712,7 +712,7 @@ public class AddonWindowTests
         c.Lua("zeb = ns.shareSettings().contacts['Zeb#2222']");
         Assert.True(Bool(c, "zeb.share and zeb.receive"));
         Assert.True(Bool(c, "zeb.talents == nil and zeb.gold == nil")); // the same as for all friends: follows it
-        Assert.True(Bool(c, "zeb.gear == false and zeb.location == false and zeb.professions == false"));
+        Assert.True(Bool(c, "zeb.gear == false and zeb.location == false and zeb.professions == false and zeb.highlights == false"));
         Assert.Contains("Zeb#2222 can now see your shared characters (talents). Change it on the Friends tab (/wct).", c.Said());
     }
 

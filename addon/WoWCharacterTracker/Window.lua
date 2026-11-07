@@ -519,9 +519,9 @@ end
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
 local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
-local SHARING_HEIGHT = 412
-local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", gold = "Gold",
-  map = "Map position", otherFaction = "Map for the other faction" }
+local SHARING_HEIGHT = 438
+local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", highlights = "Highlights",
+  gold = "Gold", map = "Map position", otherFaction = "Map for the other faction" }
 local sharingTag, sharingTitle, sharingSummary
 local categoryButtons = {}
 
@@ -618,11 +618,11 @@ end
 -- Friends.lua queues the requests and shows one at a time, never in combat. Closing it is Not now.
 local REQUEST_BOX = "WoWCharacterTrackerRequestBox"
 local REQUEST_WIDTH = 440
-local REQUEST_SHORT, REQUEST_TALL = 150, 262
+local REQUEST_SHORT, REQUEST_TALL = 150, 288
 local PRESETS = {
   { "Like all friends" },
-  { "Everything", { gear = true, talents = true, location = true, professions = true, gold = true, map = true } },
-  { "Basics only", { gear = false, talents = false, location = false, professions = false, gold = false, map = false } },
+  { "Everything", { gear = true, talents = true, location = true, professions = true, highlights = true, gold = true, map = true } },
+  { "Basics only", { gear = false, talents = false, location = false, professions = false, highlights = false, gold = false, map = false } },
 }
 local requestBox
 
@@ -675,7 +675,7 @@ local function buildRequestBox()
   -- The unfolded part: the shortcuts, then a checkbox per category in two columns.
   local choices = CreateFrame("Frame", nil, box)
   choices:SetPoint("TOPLEFT", box.toggle, "BOTTOMLEFT", 0, -8)
-  choices:SetSize(REQUEST_WIDTH - 32, 110)
+  choices:SetSize(REQUEST_WIDTH - 32, 136)
   box.choicesFrame = choices
   local last
   for i, preset in ipairs(PRESETS) do
@@ -1008,7 +1008,7 @@ local function buildSharing(p)
   local whatTitle = ui.text(p, "GameFontNormalSmall", "What friends get (name, level, class and item level always)")
   whatTitle:SetPoint("TOPLEFT", shareNew, "BOTTOMLEFT", 4, -24)
   local gridLast = ui.checkGrid(p, { { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "professions", "Professions" },
-    { "gold", "Gold" }, { "map", "Map position" } }, whatTitle,
+    { "highlights", "Highlights" }, { "gold", "Gold" }, { "map", "Map position" } }, whatTitle,
     function(key) return ns.shareSettings().defaults[key] == true end,
     function(key, on) ns.editShare(function(s) s.defaults[key] = on end) end)
   local otherFaction = ui.checkbox(p, "Show my map position to the other faction",
@@ -1084,7 +1084,7 @@ local TABS = {
   { key = "highlights", label = "Highlights", height = 200, build = buildHighlights },
   { key = "note", label = "Note", height = 330, build = buildNote },
   { key = "friends", label = "Friends", height = 600, build = buildFriends }, -- grows with its lists
-  { key = "sharing", label = "Sharing", height = 400, build = buildSharing },
+  { key = "sharing", label = "Sharing", height = 426, build = buildSharing },
   { key = "app", label = "App", height = 300, build = buildApp },
 }
 local BY_KEY = {}
