@@ -275,7 +275,7 @@ public class AddonWindowTests
         requests = { { tag = 'Zeb#2222', account = 9, label = 'Zebbe', at = clock - 5 } }
         shared = {
           { tag = 'Cid#3', label = 'Cid#3', chars = {
-            { char = 'Cidrin', realm = 'Firemaw', level = 60, classFile = 'MAGE', spec = 'Frost', ilvl = 112, zone = 'Ironforge',
+            { char = 'Cidrin', surname = 'Frostmane', realm = 'Firemaw', level = 60, classFile = 'MAGE', spec = 'Frost', ilvl = 112, zone = 'Ironforge',
               gear = '1~100,5~200', talents = 'Arcane 10 / Fire 0 / Frost 41', at = clock - 7200, received = clock - 7200 },
           } },
         }
@@ -403,10 +403,10 @@ public class AddonWindowTests
             ns.itemInfo = function(id) if id == 100 then return 'Frostfire Circlet', nil, 4 end end
             """);
         c.Call("friendsChanged");
-        Assert.True(Bool(c, "shownText('Cidrin') ~= nil"));
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil")); // with the surname
         Assert.True(Bool(c, "shownText('level 60, Frost, ilvl 112, Ironforge, 2h ago') ~= nil"));
 
-        c.Lua("line = shownText('Cidrin').owner; line.scripts.OnEnter(line)");
+        c.Lua("line = shownText('Cidrin Frostmane').owner; line.scripts.OnEnter(line)");
         Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == line"));
         var lines = c.Lua("return table.concat(GameTooltip.lines, ';')").String;
         Assert.Contains("Frostfire Circlet", lines);

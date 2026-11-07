@@ -145,6 +145,18 @@ public class FriendsLuaTests
         Assert.True(c.Lua($"return ns.decodeFriendChar('{text}')").IsNil());
     }
 
+    // Forever's surnames go along with the name, like the name itself (no category needed).
+    [Fact]
+    public void A_surname_goes_with_the_character()
+    {
+        var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
+        c.Lua("""
+            text = ns.encodeFriendChar('Player-1-0000000A', { char = 'Zeb', surname = 'Stonehand', lastSeen = 1 }, nil, {})
+            back = ns.decodeFriendChar(text)
+            """);
+        Assert.Equal("Stonehand", Str(c, "back.surname"));
+    }
+
     [Fact]
     public void Text_over_8_kb_is_dropped()
     {

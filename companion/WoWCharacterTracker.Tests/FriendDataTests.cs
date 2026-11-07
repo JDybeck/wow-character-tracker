@@ -15,7 +15,7 @@ public class FriendDataTests
             { ['Zeb#2222'] = { seen = 2000, version = '0.33.0', chars = {
                 ['Player-1-0000000B'] = { guid = 'Player-1-0000000B', char = 'Zeb', realm = 'Firemaw', level = 42, class = 'Warrior', classFile = 'WARRIOR',
                   race = 'Orc', raceFile = 'Orc', faction = 'Horde', spec = 'Arms', ilvl = 38, at = 1900, zone = 'Duskwood', money = 5000,
-                  gear = '1~19019,16~12345', enchants = '16~12345~Crusader~1900', talentCalc = '--505', received = 1950 } } } }
+                  gear = '1~19019,16~12345', enchants = '16~12345~Crusader~1900', talentCalc = '--505', surname = 'Stonehand', received = 1950 } } } }
             """));
         var zeb = Assert.Single(friends);
         Assert.Equal("Zeb#2222", zeb.Tag);
@@ -23,6 +23,7 @@ public class FriendDataTests
         var s = Assert.Single(zeb.Characters);
         Assert.Equal(("Zeb", "Firemaw", 42, "WARRIOR", "Duskwood", 1900L, 5000L), (s.Char, s.Realm, s.Level, s.ClassFile, s.Zone, s.LastSeen, s.Money));
         Assert.Equal("--505", s.TalentCalc);
+        Assert.Equal("Stonehand", s.Surname);
         var inv = Assert.Single(zeb.Inventories);
         Assert.Equal(2, inv.Gear.Count);
         Assert.Equal("Crusader", Assert.Single(inv.Enchants).Text);
