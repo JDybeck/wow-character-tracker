@@ -24,6 +24,11 @@ static class Updater
     public static bool CanInstall =>
         Environment.ProcessPath is { } exe && !File.Exists(Path.ChangeExtension(exe, ".dll"));
 
+    // Installs by itself only when the user turned it on, and never while a game runs: the restart
+    // would miss what happens in game meanwhile. One try per version, a failed one leaves the banner.
+    public static bool ShouldAutoInstall(bool optedIn, bool canInstall, bool gameRunning, bool triedThisVersion) =>
+        optedIn && canInstall && !gameRunning && !triedThisVersion;
+
     public static Task<Release?> LatestAsync() => GetAsync($"https://api.github.com/repos/{Repo}/releases/latest");
 
     public static Task<Release?> ForVersionAsync(Version v) => GetAsync($"https://api.github.com/repos/{Repo}/releases/tags/v{v}");
@@ -61,7 +66,8 @@ static class Updater
     // Installed: the new exe is in place even though something went wrong after (it didn't start).
     public sealed record Outcome(string? Problem, bool Installed = false);
 
-    public static async Task<Outcome> InstallAsync(Release release, IProgress<Step>? progress = null)
+    // background: the new version starts in the tray, like this one sits now.
+    public static async Task<Outcome> InstallAsync(Release release, IProgress<Step>? progress = null, bool background = false)
     {
         if (!CanInstall) return new("This is a development build, so it can't update itself. Build it again instead.");
         if (release.DownloadUrl.Length == 0) return new("That release has no exe attached.");
@@ -120,7 +126,7 @@ static class Updater
         progress?.Report(new Step(3));
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--updated") { UseShellExecute = true });
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, background ? "--updated --background" : "--updated") { UseShellExecute = true });
             return new(null);
         }
         catch (System.ComponentModel.Win32Exception ex)

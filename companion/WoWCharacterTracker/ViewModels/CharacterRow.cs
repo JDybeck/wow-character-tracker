@@ -84,6 +84,8 @@ sealed class CharacterRow : Observable
     public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
     public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
     public bool HasProfessions => ProfessionList.Count > 0;
+    // Yours always ("None yet" without any); a friend's only when they share them.
+    public bool ShowsProfessions => IsOwn || HasProfessions;
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
     public IReadOnlyList<Entry> Events { get; init; } = []; // oldest first (ArmoryExport)
@@ -155,6 +157,7 @@ sealed class CharacterRow : Observable
         Raise(nameof(CrestList));
         Raise(nameof(ProfessionList));
         Raise(nameof(HasProfessions));
+        Raise(nameof(ShowsProfessions));
 
         foreach (var chip in CrestList.Where(c => c.Info is not null))
         {

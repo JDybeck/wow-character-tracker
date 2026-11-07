@@ -172,8 +172,14 @@ class FlavorSettings
         KeepAllHistory = game.KeepAllHistory ?? KeepAllHistory;
         AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
+        Ignored = game.Ignored is { } ignored ? [.. ignored] : Ignored;
         return true;
     }
+
+    // Characters not tracked (Ignore tracking): never posted or listed with the others, and in game
+    // nothing is recorded, announced or shared for them. An In game setting, so the addon's toggle and
+    // the app's agree. Replaced, never changed in place: the tracker's thread reads it.
+    public HashSet<string> Ignored { get; set; } = [];
     // Sharing with Battle.net friends (Friends.lua `share`): null until changed in the app or taken
     // from the game, and only then written to Settings.lua, so the app never resets the game's.
     public ShareSettings? Share { get; set; }
@@ -229,7 +235,8 @@ class FlavorSettings
     // materials (Elementium Bar) aren't, unless followed.
     // Wants, plus what needs the character's history: a boss this character killed before isn't posted
     // again when only first kills are. history: every event known for the tab.
-    public bool Wants(Entry e, IEnumerable<Entry> history) => Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
+    public bool Wants(Entry e, IEnumerable<Entry> history) =>
+        !Ignored.Contains(e.Guid) && Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
 
     public bool IsRepeatKill(Entry e, IEnumerable<Entry> history) =>
         FirstBossKillOnly && history.Any(o => o.Kind == "boss" && o.Guid == e.Guid && o.Boss == e.Boss && o.At < e.At);

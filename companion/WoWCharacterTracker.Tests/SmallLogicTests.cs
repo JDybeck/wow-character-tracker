@@ -153,6 +153,16 @@ public class RatingTests
         Assert.Equal(expected, result is null ? null : Math.Sign(result.Value));
     }
 
+    // Only when turned on, only a build that can replace itself, never while a game runs, one try per version.
+    [Theory]
+    [InlineData(true, true, false, false, true)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(true, false, false, false, false)]
+    [InlineData(true, true, true, false, false)]
+    [InlineData(true, true, false, true, false)]
+    public void An_update_installs_by_itself_only_when_allowed(bool optedIn, bool canInstall, bool gameRunning, bool tried, bool expected) =>
+        Assert.Equal(expected, Updater.ShouldAutoInstall(optedIn, canInstall, gameRunning, tried));
+
     // The real file: What's new shows this version first, and every section keeps the two groups.
     [Fact]
     public void The_built_in_changelog_starts_at_this_version_and_uses_the_groups()
@@ -288,6 +298,35 @@ public class RatingTests
         Assert.True(s.KeepAllHistory);
         Assert.Equal(["epic"], s.AskKinds);
         Assert.Equal("BOTTOMRIGHT", s.GridCorner);
+    }
+
+    // Ignore tracking: an In game setting both ways, and nothing of that character is posted.
+    [Fact]
+    public void An_ignored_character_is_never_posted_and_the_setting_goes_both_ways()
+    {
+        var s = new FlavorSettings { InGameAt = 1000, PostLevels = true, LevelSplit = 0 };
+        var ding = new Entry { Id = "a", Guid = "Player-1-0000000A", Kind = "level", Level = 10 };
+        Assert.True(s.Wants(ding, []));
+
+        var read = SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString(
+            "return { at = 1100, ignored = { ['Player-1-0000000A'] = true, ['Player-1-0000000B'] = false } }"));
+        Assert.Equal(["Player-1-0000000A"], read!.Ignored);
+        Assert.True(s.TakeInGame(read));
+        Assert.False(s.Wants(ding, []));
+        Assert.True(s.Wants(ding with { Guid = "Player-1-0000000B" }, []));
+
+        // A change from an older addon without the setting keeps the app's.
+        Assert.True(s.TakeInGame(new InGameSettings(1200, true, false, ["level"], null, null, null, false, null, null, null)));
+        Assert.Contains("Player-1-0000000A", s.Ignored);
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-ignored-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, s);
+            Assert.Contains("ignored = { [\"Player-1-0000000A\"] = true, },", File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
     }
 
     // Clicking Post in game: always wanted, whatever the rules say, and posted as the moment it carries.

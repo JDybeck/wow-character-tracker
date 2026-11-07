@@ -70,7 +70,7 @@ end
 -- right away, the app takes it from the saved file, and a later change in the app (Settings.lua
 -- inGameAt) wins over it.
 local IN_GAME = { announce = true, ask = true, flightReload = true, chatReminder = true,
-  gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true }
+  gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true }
 
 local function changedInGame()
   local changed = WoWCharacterTrackerDB and WoWCharacterTrackerDB.gameSettings
@@ -85,6 +85,13 @@ function ns.setting(key)
   -- A key an older version didn't keep in game still comes from the app.
   if changed and changed[key] ~= nil then return changed[key] end
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]
+end
+
+-- Ignore tracking (`ignored` = { [guid] = true }, an In game setting): nothing is recorded, sent
+-- live, announced, offered or shared with friends for that character.
+function ns.isIgnored(guid)
+  local ignored = ns.setting("ignored")
+  return guid ~= nil and type(ignored) == "table" and ignored[guid] == true
 end
 
 -- The chat line about a newer app version (Settings.lua appUpdate, written by the app when it
@@ -235,6 +242,7 @@ local SNAPSHOT_ONLY = { "talentPicks", "talentExport", "stats", "xp", "xpMax" }
 -- Records a moment for the current character: what characterInfo knows, plus fields, as kind.
 -- The id is "<guid>:<idSuffix>", or "<guid>:<kind>:<time>" without one. Returns the event.
 function ns.record(kind, fields, idSuffix)
+  if ns.isIgnored(UnitGUID and UnitGUID("player")) then return nil end
   local e = ns.characterInfo(true)
   -- characterInfo's maxLevel is the game's level cap (for the saved snapshot). On an event,
   -- maxLevel means "this ding reached it", so only a max level ding sets it.

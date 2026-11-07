@@ -73,7 +73,7 @@
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
       <Border Grid.Row="2" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,12"
-              Padding="24,10" Visibility="{Binding HasCharacters, Converter={StaticResource Visible}}">
+              Padding="24,10" Visibility="{Binding ShowsFooter, Converter={StaticResource Visible}}">
         <StackPanel Orientation="Horizontal">
           <Image Source="{StaticResource GoldBag}" Width="22" Height="22" Margin="0,0,8,0" VerticalAlignment="Center"/>
           <TextBlock Text="{Binding TotalGoldText}" Foreground="{StaticResource TextSoft}" FontSize="13" Margin="0,0,10,0" VerticalAlignment="Center"/>
@@ -81,6 +81,50 @@
           <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Dim}" FontSize="13" Margin="18,0,8,0"
                      Visibility="{Binding TotalPlayedText, Converter={StaticResource VisibleIfSet}}"/>
           <TextBlock Text="{Binding TotalPlayedText}" Foreground="{StaticResource TextSoft}" FontSize="13" VerticalAlignment="Center"/>
+          <!-- Characters with Ignore tracking on; only there while there are some. -->
+          <ToggleButton x:Name="IgnoredButton" IsChecked="{Binding ShowIgnored}" Cursor="Hand" Margin="18,0,0,0" VerticalAlignment="Center"
+                        ToolTip="Characters you stopped tracking. They're not in the list or the totals, and nothing is posted for them."
+                        Visibility="{Binding HasIgnored, Converter={StaticResource Visible}}">
+            <ToggleButton.Template>
+              <ControlTemplate TargetType="ToggleButton">
+                <Border x:Name="Bd" Padding="9,3" CornerRadius="7" BorderThickness="1" BorderBrush="{DynamicResource Line}" Background="Transparent">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE8F8;" FontSize="12" Foreground="{StaticResource Dim}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding IgnoredText}" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Border>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+                  <Trigger Property="IsChecked" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate>
+            </ToggleButton.Template>
+          </ToggleButton>
+          <Popup x:Name="IgnoredPopup" IsOpen="{Binding ShowIgnored}" StaysOpen="False" PlacementTarget="{Binding ElementName=IgnoredButton}" Placement="Top"
+                 VerticalOffset="-6" AllowsTransparency="True" PopupAnimation="Fade">
+            <Border Width="320" Padding="14,12" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10">
+              <StackPanel>
+                <TextBlock Text="Ignored characters" FontWeight="SemiBold" Foreground="White"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,8" Text="Not tracked: nothing is posted, announced or shared for them."/>
+                <ItemsControl ItemsSource="{Binding IgnoredCharacters}" Focusable="False">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:CharacterRow}">
+                      <DockPanel Margin="0,4">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="10,3" ToolTip="Track this character again"
+                                Command="{Binding DataContext.TrackAgainCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                          <TextBlock Text="Track again" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+                        </Button>
+                        <StackPanel VerticalAlignment="Center">
+                          <TextBlock Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="13" FontWeight="SemiBold"/>
+                          <TextBlock FontSize="11" Foreground="{StaticResource Dim}"><Run Text="Level "/><Run Text="{Binding Level, Mode=OneWay}"/><Run Text=" "/><Run Text="{Binding ClassName, Mode=OneWay}"/></TextBlock>
+                        </StackPanel>
+                      </DockPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </Popup>
         </StackPanel>
       </Border>
       <Border Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">

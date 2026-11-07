@@ -9,9 +9,11 @@ namespace WoWCharacterTracker.ViewModels;
 sealed class UpdatesViewModel : Observable
 {
     // justUpdated: started by the updater (--updated), so the banner shows what's new instead.
-    public UpdatesViewModel(bool justUpdated)
+    // autoUpdate: the user's "Install updates automatically" setting, read when it's needed.
+    public UpdatesViewModel(bool justUpdated, Func<bool> autoUpdate)
     {
         this.justUpdated = justUpdated;
+        this.autoUpdate = autoUpdate;
         CheckUpdatesCommand = new RelayCommand(_ => CheckAsync(manual: true));
         InstallUpdateCommand = new RelayCommand(_ => InstallAsync(), _ => update is not null && !IsInstalling);
         ToggleNotesCommand = new RelayCommand(_ => ShowNotes = !ShowNotes);
@@ -19,7 +21,12 @@ sealed class UpdatesViewModel : Observable
     }
 
     readonly bool justUpdated;
+    readonly Func<bool> autoUpdate;
     Updater.Release? update;
+    Version? autoTried; // the version an automatic install was tried for
+
+    // The app sits in the tray now (App sets this), so the new version starts there too.
+    public Func<bool> InTray { get; set; } = () => false;
 
     // The new version has started and waits for this one to exit.
     public event Action? UpdateStarted;
@@ -101,6 +108,26 @@ sealed class UpdatesViewModel : Observable
         CommandManager.InvalidateRequerySuggested(); // Update now is clickable right away
         Log.Info($"Update available: {latest.Version}.");
         Found?.Invoke();
+        TryAutoInstall();
+    }
+
+    // The last game closed: half a minute for the tracker to read and post what the game saved on
+    // exit, then a waiting update may install.
+    public async Task AfterGameClosedAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(30));
+        TryAutoInstall();
+    }
+
+    // With "Install updates automatically" on: installs a waiting update, unless a game runs (then
+    // AfterGameClosedAsync tries again). Also called when the setting goes on.
+    public void TryAutoInstall()
+    {
+        if (update is null || IsInstalling) return;
+        if (!Updater.ShouldAutoInstall(autoUpdate(), Updater.CanInstall, GameProcesses.AnyClient(), autoTried == update.Version)) return;
+        autoTried = update.Version;
+        Log.Info($"Installing version {update.Version} automatically.");
+        _ = InstallAsync(automatic: true);
     }
 
     // --- installing, step by step in the banner ---
@@ -116,7 +143,8 @@ sealed class UpdatesViewModel : Observable
     string downloadText = "";
     public string DownloadText { get => downloadText; set => Set(ref downloadText, value); }
 
-    async Task InstallAsync()
+    // automatic: nobody clicked, so a failure stays in the banner instead of opening the release page.
+    async Task InstallAsync(bool automatic = false)
     {
         if (update is null || IsInstalling) return;
         Log.Info($"Updating to version {update.Version}...");
@@ -126,7 +154,7 @@ sealed class UpdatesViewModel : Observable
         ShowSteps = true;
         ShowNotes = false;
 
-        var outcome = await Updater.InstallAsync(update, new Progress<Updater.Step>(ShowStep));
+        var outcome = await Updater.InstallAsync(update, new Progress<Updater.Step>(ShowStep), background: InTray());
         if (outcome.Problem is not { } problem)
         {
             UpdateStarted?.Invoke();
@@ -141,7 +169,7 @@ sealed class UpdatesViewModel : Observable
         }
         Log.Error(problem);
         IsInstalling = false; // so Install can be tried again
-        Browser.Open(update.PageUrl);
+        if (!automatic) Browser.Open(update.PageUrl);
     }
 
     public void ShowStep(Updater.Step step)

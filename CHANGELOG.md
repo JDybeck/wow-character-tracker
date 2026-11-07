@@ -2,6 +2,24 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.37.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Install updates automatically**: a new option in the settings menu, off until you turn it on. A new version then installs by itself and the app restarts, but never while World of Warcraft is running, so nothing in game is missed. It waits for the game to close, and starts in the tray if that's where the app was.
+- **Ignore tracking**: on a character's Overview tab, or on the addon window's App tab in game. An ignored character leaves the list and the totals, and nothing is recorded, posted, announced or shared with friends for it. **Ignored** next to the total gold lists them, with Track again. Turning it back on doesn't post anything from the time it was ignored.
+- **What you share with one friend, in game**: a **Sharing** button on a friend's card (and **Your sharing** under Shared with you) opens a panel beside the window: share or not, keep what they send, and gear, talents, location, professions and gold for just them (like all friends, on or off, the same as the app's Friends page).
+- **Friend requests say what Allow gives**: the request is now a box of its own that says how many of your characters they'd get and what's in it. **Choose what they get** unfolds the choices (with Like all friends, Everything and Basics only) so you can set them up before allowing.
+- A friend's professions show on their character's Overview in the app.
+
+### Fixes and tweaks
+
+- The friend details panel opens on the side of the window that has room, instead of sliding over the window near the edge of the screen, and switches sides as you drag the window.
+- Ask again only shows for a friend who doesn't share with you yet.
+- Your characters in the app's sharing settings show their surnames, so two characters with the same first name can be told apart.
+
 ## v0.36.1
 
 Update the addon with the app (it does this by itself) and /reload in game.

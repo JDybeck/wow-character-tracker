@@ -115,6 +115,8 @@ static partial class AddonInstaller
                   + $"  askSeconds = {FlavorSettings.AskSecondsOrDefault(s.AskSeconds)},\n"
                   // Characters removed in the app and when: never shared with friends until played again.
                   + $"  removed = {{ {string.Concat(s.Removed.OrderBy(r => r.Key, StringComparer.Ordinal).Select(r => $"[{LuaString(r.Key)}] = {r.Value}, "))}}},\n"
+                  // Characters not tracked: nothing recorded, announced or shared for them (an In game setting).
+                  + $"  ignored = {{ {string.Concat(s.Ignored.Order(StringComparer.Ordinal).Select(g => $"[{LuaString(g)}] = true, "))}}},\n"
                   + $"  discord = {B(hasWebhook)},\n"
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"

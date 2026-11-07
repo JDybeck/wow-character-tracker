@@ -753,9 +753,13 @@ sealed class FlavorViewModel : Observable
         Lookup.SetItemClasses(data.ItemClasses);
         var keepTab = SelectedCharacter?.DetailTab;
         Motion.Quiet(); // the rows are rebuilt: what's open stays still
-        var rows = CharacterRow.Build(data, Flavor, Lookup)
+        var built = CharacterRow.Build(data, Flavor, Lookup)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
+        // Ignored ones only show under the footer's Ignored button, nowhere else.
+        var ignored = Settings.Ignored;
+        var rows = built.Where(r => !ignored.Contains(r.Guid)).ToList();
+        IgnoredCharacters = [.. built.Where(r => ignored.Contains(r.Guid)).OrderBy(r => r.FullName, StringComparer.CurrentCultureIgnoreCase)];
 
         allRows = rows;
         if (keepRow is not null) rows.FirstOrDefault(r => r.Guid == keep)?.KeepGearFrom(keepRow);
@@ -784,6 +788,10 @@ sealed class FlavorViewModel : Observable
         main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
+        Raise(nameof(IgnoredCharacters));
+        Raise(nameof(HasIgnored));
+        Raise(nameof(IgnoredText));
+        Raise(nameof(ShowsFooter));
         Raise(nameof(TotalGoldText));
         Raise(nameof(TotalCoins));
         Raise(nameof(TotalPlayedText));
@@ -827,6 +835,31 @@ sealed class FlavorViewModel : Observable
         main.Config.Save();
         WriteAddonSettings(); // the addon stops sharing it with friends (Settings.lua removed)
         Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");
+        ShowData(lastData);
+    }
+
+    // Characters with Ignore tracking on, for the footer's Ignored button (hidden while there are none).
+    public IReadOnlyList<CharacterRow> IgnoredCharacters { get; private set; } = [];
+    public bool HasIgnored => IgnoredCharacters.Count > 0;
+    public string IgnoredText => $"Ignored ({IgnoredCharacters.Count})";
+    public bool ShowsFooter => HasCharacters || HasIgnored; // all ignored: still a way back to them
+    bool showIgnored;
+    public bool ShowIgnored { get => showIgnored; set => Set(ref showIgnored, value); }
+    public ICommand TrackAgainCommand => trackAgain ??= new RelayCommand(p => { if (p is CharacterRow c) SetIgnored(c, false); });
+    ICommand? trackAgain;
+
+    // Ignore tracking on or off. Off doesn't bring back what happened meanwhile: the addon recorded
+    // nothing for the character, so nothing old gets posted.
+    public void SetIgnored(CharacterRow row, bool on)
+    {
+        var next = new HashSet<string>(Settings.Ignored);
+        if (on) next.Add(row.Guid); else next.Remove(row.Guid);
+        Settings.Ignored = next; // replaced, the tracker's thread reads it
+        InGameChanged(nameof(IgnoredCharacters)); // saves; the addon's own toggle is the same setting
+        Log.Info(on
+            ? $"[{Name}] Stopped tracking {row.FullName}: nothing is posted, announced or shared for it. Ignored, under the list, tracks it again."
+            : $"[{Name}] Tracking {row.FullName} again.");
+        if (next.Count == 0) ShowIgnored = false;
         ShowData(lastData);
     }
 

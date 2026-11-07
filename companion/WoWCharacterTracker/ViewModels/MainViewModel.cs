@@ -11,7 +11,7 @@ sealed class MainViewModel : Observable
     public MainViewModel(bool backfill, bool justUpdated)
     {
         Backfill = backfill;
-        Updates = new UpdatesViewModel(justUpdated);
+        Updates = new UpdatesViewModel(justUpdated, () => Config.AutoUpdate);
         Updates.Found += () => { foreach (var tab in FlavorTabs) tab.WriteAddonSettings(); };
         Discord = new DiscordViewModel(this);
         Uninstall = new UninstallViewModel(this);
@@ -52,6 +52,7 @@ sealed class MainViewModel : Observable
             else Log.Warn("The clipboard was busy, so nothing was pasted. Try again.");
         });
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
+        IgnoreCharacterCommand = new RelayCommand(p => { if (p is CharacterRow c) SelectedFlavor?.SetIgnored(c, true); });
         AskRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = true);
         CancelRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = false);
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
@@ -149,6 +150,7 @@ sealed class MainViewModel : Observable
     public ICommand CopyPostingCommand { get; }
     public ICommand PastePostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
+    public ICommand IgnoreCharacterCommand { get; }
     public ICommand AskRemoveCommand { get; }
     public ICommand CancelRemoveCommand { get; }
     public ICommand PostCharacterCommand { get; }
@@ -252,6 +254,22 @@ sealed class MainViewModel : Observable
             Config.HideWhenGameCloses = value;
             Config.Save();
             Raise(nameof(HideWhenGameCloses));
+        }
+    }
+
+    // Off until turned on: a found update installs by itself, once no game is running.
+    public bool AutoUpdate
+    {
+        get => Config.AutoUpdate;
+        set
+        {
+            Config.AutoUpdate = value;
+            Config.Save();
+            Raise(nameof(AutoUpdate));
+            Log.Info(value
+                ? "Updates now install by themselves when no game is running."
+                : "Updates no longer install by themselves. The header offers them.");
+            if (value) Updates.TryAutoInstall();
         }
     }
 

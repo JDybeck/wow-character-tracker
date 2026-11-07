@@ -46,6 +46,7 @@ public partial class App : Application
 
         vm = new MainViewModel(backfill: e.Args.Contains("--backfill"), justUpdated: e.Args.Contains("--updated"));
         vm.Updates.UpdateStarted += QuitForUpdate;
+        vm.Updates.InTray = () => MainWindow?.IsVisible == false;
         vm.Uninstall.QuitRequested += QuitAfterUninstall;
         var window = new MainWindow(vm);
         MainWindow = window;
@@ -78,7 +79,11 @@ public partial class App : Application
         // Open the window when WoW starts, put it back in the tray when the last WoW closes.
         watcher = new GameWatcher(
             started: () => Dispatcher.BeginInvoke(() => { if (vm.OpenWithWow) ShowWindow(); }),
-            stopped: () => Dispatcher.BeginInvoke(() => { if (vm.OpenWithWow && vm.HideWhenGameCloses && window.IsVisible) window.Hide(); }));
+            stopped: () => Dispatcher.BeginInvoke(() =>
+            {
+                if (vm.OpenWithWow && vm.HideWhenGameCloses && window.IsVisible) window.Hide();
+                _ = vm.Updates.AfterGameClosedAsync(); // an update that waited for the game
+            }));
     }
 
     void ShowWindow()

@@ -11,7 +11,6 @@ public class AddonWindowTests
     // Frames keep their scripts, checked state, texts and name. A font string's first text is its
     // owner's label, so tests find a control by what it says.
     const string Widgets = """
-        UIParent = {}
         UISpecialFrames = {}
         SlashCmdList = {}
         frames, texts, strings = {}, {}, {}
@@ -31,6 +30,7 @@ public class AddonWindowTests
               if s.owner and s.owner.label == nil and t ~= "" then s.owner.label = t end
             end end
             if k == "SetWidth" then return function(s, w) s.width = w end end
+            if k == "SetPoint" then return function(s, ...) s.point = { ... } end end
             if k == "SetTextColor" then return function(s, r, g, b) s.color = { r, g, b } end end
             if k == "SetChecked" then return function(s, v) s.checked = v end end
             if k == "GetChecked" then return function(s) return s.checked end end
@@ -52,6 +52,12 @@ public class AddonWindowTests
           f.kind, f.name, f.parent = kind, name, parent
           frames[#frames + 1] = f
           return f
+        end
+        UIParent = widget()
+        function named(name)
+          for _, f in ipairs(frames) do
+            if f.name == name then return f end
+          end
         end
         -- Shown, and so is everything it sits in.
         function onScreen(w)
@@ -153,6 +159,20 @@ public class AddonWindowTests
         Assert.True(Bool(c, "find('Professions').checked")); // on by default
         c.Lua("click('Professions')");
         Assert.False(Bool(c, "WoWCharacterTrackerDB.share.defaults.professions"));
+    }
+
+    // The App tab's Ignore this character is the same In game setting the app's Ignore tracking writes.
+    [Fact]
+    public void Ignore_this_character_writes_the_in_game_setting()
+    {
+        var c = Load();
+        c.Call("openWindow", "app");
+        Assert.False(Bool(c, "find('Ignore this character').checked"));
+        c.Lua("click('Ignore this character')");
+        Assert.True(Bool(c, $"WoWCharacterTrackerDB.gameSettings.ignored['{Me}'] == true"));
+        Assert.True(Bool(c, $"ns.isIgnored('{Me}')"));
+        c.Lua("click('Ignore this character')");
+        Assert.False(Bool(c, $"ns.isIgnored('{Me}')"));
     }
 
     [Fact]
@@ -315,7 +335,7 @@ public class AddonWindowTests
         Assert.Equal("", c.Lua("return rowButtons('Annie')").String);
         Assert.Equal("Ask,Share", c.Lua("return rowButtons('Bobo')").String);
         Assert.True(Bool(c, "shownText('12, Bobby (Bob#2)') ~= nil")); // level, then the label (nickname) and BattleTag
-        Assert.Equal("Ask again", c.Lua("return rowButtons('Cidro')").String);
+        Assert.Equal("Sharing", c.Lua("return rowButtons('Cidro')").String); // they share with you: no need to ask again
         Assert.True(Bool(c, "shownText('You share, shares with you') ~= nil"));
         Assert.Equal("Invite", c.Lua("return rowButtons('Danno')").String);
         Assert.Equal("Invited", c.Lua("return rowButtons('Evie')").String);
@@ -331,7 +351,8 @@ public class AddonWindowTests
     public void Each_friend_button_calls_friends_with_their_tag()
     {
         var c = FriendsTab();
-        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b); calls = {}");
+        c.Lua("online[3].sharesWithYou = false; local b = find('Find online friends'); b.scripts.OnClick(b); calls = {}");
+        Assert.Equal("Sharing,Ask again", c.Lua("return rowButtons('Cidro')").String);
         c.Lua("clickIn('Bobo', 'Ask')");
         c.Lua("clickIn('Bobo', 'Share')");
         c.Lua("clickIn('Cidro', 'Ask again')");
@@ -554,6 +575,166 @@ public class AddonWindowTests
         Assert.True(Bool(c, "onScreen(panel())"));
         c.Lua("clickChar('Bobo')");
         Assert.False(Bool(c, "onScreen(panel())"));
+    }
+
+    // Near the right edge of the screen the panel goes left of the window instead of being pushed
+    // over it, and it switches sides while the window is dragged.
+    [Fact]
+    public void The_details_panel_opens_on_the_side_with_room()
+    {
+        var c = GearTab();
+        c.Lua("""
+            UIParent.GetRight = function() return 1920 end
+            win = named('WoWCharacterTrackerWindow')
+            win.GetRight = function() return 1000 end
+            """);
+        c.Lua("clickChar('Cidra')");
+        Assert.Equal("TOPLEFT", c.Lua("return panel().point[1]").String);
+
+        c.Lua("win.GetRight = function() return 1800 end");
+        c.Call("friendsChanged");
+        Assert.Equal("TOPRIGHT", c.Lua("return panel().point[1]").String);
+
+        c.Lua("win.scripts.OnDragStart(win)");
+        Assert.True(Bool(c, "win.scripts.OnUpdate ~= nil"));
+        c.Lua("win.GetRight = function() return 900 end; win.scripts.OnUpdate()");
+        Assert.Equal("TOPLEFT", c.Lua("return panel().point[1]").String);
+        c.Lua("win.scripts.OnDragStop(win)");
+        Assert.True(Bool(c, "win.scripts.OnUpdate == nil"));
+    }
+
+    // Cid#3 a real contact (Friends.lua's own functions), and helpers for the sharing panel.
+    const string SharingStubs = """
+        WoWCharacterTrackerDB.share = { enabled = true, at = 1, contacts = { ['Cid#3'] = { share = true, receive = true } } }
+        function sharingPanel() return named('WoWCharacterTrackerSharingPanel') end
+        function sharingButtons()
+          local out = {}
+          for _, f in ipairs(frames) do
+            if f.parent == sharingPanel() and f.kind == 'Button' and f.text and f.text:find(':') then out[#out + 1] = f.text end
+          end
+          return table.concat(out, ';')
+        end
+        function clickSharing(prefix)
+          for _, f in ipairs(frames) do
+            if f.parent == sharingPanel() and f.text and f.text:sub(1, #prefix) == prefix then return f.scripts.OnClick(f) end
+          end
+          error('no ' .. prefix)
+        end
+        """;
+
+    [Fact]
+    public void Sharing_opens_what_you_share_with_that_friend_and_changes_it()
+    {
+        var c = FriendsTab();
+        c.Lua(SharingStubs);
+        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
+        c.Lua("clickIn('Cidro', 'Sharing')");
+        Assert.True(Bool(c, "onScreen(sharingPanel())"));
+        Assert.True(Bool(c, "shownText('Cid#3') ~= nil"));
+        Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Gold: like all friends (off)",
+            c.Lua("return sharingButtons()").String);
+        Assert.True(Bool(c, "shownText('They get gear, talents, location, professions.') ~= nil"));
+
+        // Like all friends, on, off, like all friends again.
+        c.Lua("clickSharing('Gold:')");
+        Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gold == true"));
+        Assert.StartsWith("Gear: like all friends (on);Talents", c.Lua("return sharingButtons()").String);
+        Assert.EndsWith("Gold: on", c.Lua("return sharingButtons()").String);
+        c.Lua("clickSharing('Gear:')"); c.Lua("clickSharing('Gear: on')");
+        Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == false"));
+        Assert.True(Bool(c, "shownText('They get talents, location, professions, gold.') ~= nil"));
+        c.Lua("clickSharing('Gear: off')");
+        Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == nil"));
+
+        c.Lua("click('Share your characters')");
+        Assert.False(Bool(c, "ns.shareSettings().contacts['Cid#3'].share"));
+        Assert.True(Bool(c, "shownText(\"They get nothing while you don't share with them.\") ~= nil"));
+        c.Lua("click('Keep what they share with you')");
+        Assert.False(Bool(c, "ns.shareSettings().contacts['Cid#3'].receive"));
+
+        // The same button again closes it; a character's details take its place.
+        c.Lua("clickIn('Cidro', 'Sharing')");
+        Assert.False(Bool(c, "onScreen(sharingPanel())"));
+    }
+
+    // A request from Zeb#2222 through the real Friends.lua, shown in the window's request box.
+    static FriendsLuaTests.Client RequestBox()
+    {
+        var c = Load();
+        c.Lua("""
+            function requestBox() return named('WoWCharacterTrackerRequestBox') end
+            function boxButton(label)
+              for _, f in ipairs(frames) do
+                if f.text == label and f.kind == 'Button' and onScreen(f) then return f end
+              end
+              error('no ' .. label)
+            end
+            function press(label) local b = boxButton(label); b.scripts.OnClick(b) end
+            ns.offerFriendRequest({ tag = 'Zeb#2222', account = 9 })
+            """);
+        return c;
+    }
+
+    [Fact]
+    public void A_request_says_what_allow_gives_and_keeps_only_the_changed_choices()
+    {
+        var c = RequestBox();
+        Assert.True(Bool(c, "onScreen(requestBox())"));
+        Assert.Equal(0, Num(c, "#shown")); // not the Blizzard popup
+        Assert.True(Bool(c, "shownText('Zeb#2222 wants to see your characters.') ~= nil"));
+        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus gear, talents, location, professions.') ~= nil"));
+        Assert.True(Bool(c, "shownText('Talents') == nil")); // folded
+
+        c.Lua("press('Choose what they get  v')");
+        c.Lua("press('Basics only')");
+        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level.') ~= nil"));
+        c.Lua("click('Talents')");
+        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus talents.') ~= nil"));
+
+        c.Lua("press('Allow')");
+        Assert.False(Bool(c, "onScreen(requestBox())"));
+        c.Lua("zeb = ns.shareSettings().contacts['Zeb#2222']");
+        Assert.True(Bool(c, "zeb.share and zeb.receive"));
+        Assert.True(Bool(c, "zeb.talents == nil and zeb.gold == nil")); // the same as for all friends: follows it
+        Assert.True(Bool(c, "zeb.gear == false and zeb.location == false and zeb.professions == false"));
+        Assert.Contains("Zeb#2222 can now see your shared characters (talents). Change it on the Friends tab (/wct).", c.Said());
+    }
+
+    [Fact]
+    public void Like_all_friends_goes_back_to_the_general_choice_and_esc_is_not_now()
+    {
+        var c = RequestBox();
+        c.Lua("press('Choose what they get  v'); press('Everything')");
+        Assert.True(Bool(c, "find('Gold').checked"));
+        c.Lua("press('Like all friends')");
+        Assert.False(Bool(c, "find('Gold').checked"));
+
+        c.Lua("requestBox():Hide(); requestBox().scripts.OnHide(requestBox())"); // Esc
+        c.Run(1);
+        Assert.Equal(0, Num(c, "#ns.pendingRequests()"));
+        Assert.True(Bool(c, "ns.shareSettings().contacts['Zeb#2222'] == nil"));
+
+        c.Lua("ns.offerFriendRequest({ tag = 'Al#4444', account = 8 })");
+        Assert.True(Bool(c, "shownText('Al#4444 wants to see your characters.') ~= nil"));
+        c.Lua("ns.answerFriendRequest(ns.pendingRequests()[1], 'never')"); // from the Friends tab's list
+        Assert.False(Bool(c, "onScreen(requestBox())"));
+    }
+
+    [Fact]
+    public void Shared_with_you_has_your_sharing_for_each_friend()
+    {
+        var c = GearTab();
+        c.Lua(SharingStubs);
+        c.Call("friendsChanged");
+        c.Lua("""
+            for _, f in ipairs(frames) do
+              if f.text == 'Your sharing' and onScreen(f) then f.scripts.OnClick(f) end
+            end
+            """);
+        Assert.True(Bool(c, "onScreen(sharingPanel())"));
+        c.Lua("clickChar('Cidra')");
+        Assert.True(Bool(c, "onScreen(panel())"));
+        Assert.False(Bool(c, "onScreen(sharingPanel())")); // one side panel at a time
     }
 
     [Fact]
