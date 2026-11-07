@@ -25,16 +25,9 @@ static partial class Format
         ["Fishing"] = "🎣", ["First Aid"] = "🩹", ["Archaeology"] = "🏺",
     };
 
-    // "Mining 150, Herbalism 75" -> "⛏️ Mining 150, 🌿 Herbalism 75"
-    public static string ProfessionsWithEmoji(string professions)
-    {
-        if (professions is "" or "None") return "";
-        return string.Join(", ", professions.Split(", ").Select(p =>
-        {
-            var name = p.TrimEnd("0123456789 ".ToCharArray());
-            return ProfessionEmoji.TryGetValue(name, out var emoji) ? $"{emoji} {p}" : p;
-        }));
-    }
+    // "Mining 150/225, Herbalism 75" -> "⛏️ Mining 150, 🌿 Herbalism 75" (posts keep their wording, no max)
+    public static string ProfessionsWithEmoji(string professions) => string.Join(", ", ProfessionSkills.Parse(professions)
+        .Select(p => ProfessionEmoji.TryGetValue(p.Name, out var emoji) ? $"{emoji} {p.Text}" : p.Text));
 
     // Crests as text: "id~qty~name,..." (or the older "Name 45, Name 120") -> "Name 45, Name 120"
     public static string Crests(string crests)

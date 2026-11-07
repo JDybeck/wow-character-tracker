@@ -61,13 +61,9 @@ sealed class CharacterLeveling
 
         var skills = new Dictionary<string, (int First, int Last)>();
         foreach (var e in all)
-            foreach (var p in e.Professions.Split(", ", StringSplitOptions.RemoveEmptyEntries))
-            {
-                var space = p.LastIndexOf(' ');
-                if (space <= 0 || !int.TryParse(p[(space + 1)..], out var skill)) continue;
-                var name = p[..space];
-                skills[name] = skills.TryGetValue(name, out var s) ? (s.First, skill) : (skill, skill);
-            }
+            foreach (var p in ProfessionSkills.Parse(e.Professions))
+                if (p.Skill is { } skill)
+                    skills[p.Name] = skills.TryGetValue(p.Name, out var s) ? (s.First, skill) : (skill, skill);
         lines.AddRange(skills.Where(s => s.Value.Last > s.Value.First).Select(s => $"{s.Key} {s.Value.First} to {s.Value.Last}"));
         return lines;
     }
