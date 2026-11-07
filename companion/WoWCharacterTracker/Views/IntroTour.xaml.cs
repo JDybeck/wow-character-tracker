@@ -47,12 +47,19 @@ public partial class IntroTour : UserControl
         if (e.PropertyName == nameof(IntroViewModel.Step) && IsVisible) Show();
     }
 
-    // After layout, so the card's size and the target's place are known.
-    void Show() => Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+    // After layout, so the card's size and the target's place are known. A target in a scrolling
+    // column (the stream panel) is scrolled into view first.
+    void Show()
     {
-        Place();
-        Motion.Pop(Card);
-    });
+        Target()?.BringIntoView();
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            Place();
+            Motion.Pop(Card);
+        });
+    }
+
+    FrameworkElement? Target() => vm?.Step.Target is { } key ? FindTarget?.Invoke(key) : null;
 
     void Place()
     {
@@ -61,7 +68,7 @@ public partial class IntroTour : UserControl
         Card.Measure(new Size(Card.Width, double.PositiveInfinity));
         var card = Card.DesiredSize;
 
-        var target = vm.Step.Target is { } key ? FindTarget?.Invoke(key) : null;
+        var target = Target();
         if (target is not { IsVisible: true })
         {
             Shade.Data = new RectangleGeometry(area);

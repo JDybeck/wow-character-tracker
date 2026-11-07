@@ -12,8 +12,8 @@
   </UserControl.Resources>
   <Border Style="{StaticResource CardBorder}" Padding="18,12">
     <StackPanel>
-      <!-- Header: click to fold; the switch turns the overlay on or off. -->
-      <DockPanel>
+      <!-- Header: click to fold; the switch turns the overlay on or off. The tour points at it. -->
+      <DockPanel x:Name="HeaderRow">
         <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="6,2" Command="{Binding TogglePanelCommand}"
                 ToolTip="Show or hide the stream options" VerticalAlignment="Center">
           <TextBlock FontSize="12" Foreground="{StaticResource Muted}">

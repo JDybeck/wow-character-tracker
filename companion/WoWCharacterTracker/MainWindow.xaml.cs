@@ -58,9 +58,14 @@ public partial class MainWindow : Window
     {
         "tabs" => HeaderView.GameTabs,
         "settings" => HeaderView.SettingsButton,
-        "pages" => PageTabs,
+        "characters" => CharacterTabs,
+        "posting" => PostingTab,
+        "followed" => FollowedTab,
+        "friends" => FriendsTab,
         "setup" => new[] { SetupAtRight, SetupAtTop, SetupAtBottom }.FirstOrDefault(s => s.IsVisible),
         "discord" => DiscordView,
+        // only the header: the open panel can be taller than the window
+        "stream" => StreamView.HeaderRow,
         _ => null,
     };
 
