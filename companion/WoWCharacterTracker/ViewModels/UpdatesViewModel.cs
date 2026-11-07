@@ -24,6 +24,10 @@ sealed class UpdatesViewModel : Observable
     // The new version has started and waits for this one to exit.
     public event Action? UpdateStarted;
 
+    // A newer version was found: the game tabs tell the addon (Settings.lua appUpdate).
+    public event Action? Found;
+    public Version? Available => update?.Version;
+
     public string VersionText => $"v{Updater.Current}";
 
     string bannerTitle = "";
@@ -96,6 +100,7 @@ sealed class UpdatesViewModel : Observable
         Raise(nameof(HasUpdate));
         CommandManager.InvalidateRequerySuggested(); // Update now is clickable right away
         Log.Info($"Update available: {latest.Version}.");
+        Found?.Invoke();
     }
 
     // --- installing, step by step in the banner ---

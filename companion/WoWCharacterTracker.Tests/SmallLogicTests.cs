@@ -218,6 +218,38 @@ public class RatingTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
+    // A newer app version found by the update check: the addon says so in chat on a login, never on
+    // a /reload, and says nothing without one.
+    [Fact]
+    public void An_app_update_is_said_in_chat_on_login_only()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-appupdate-" + Guid.NewGuid().ToString("N"));
+        var settings = Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua");
+        Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
+        try
+        {
+            string Said(Version? update, bool login)
+            {
+                AddonInstaller.WriteSettings(dir, new FlavorSettings(), appUpdate: update);
+                var script = new MoonSharp.Interpreter.Script();
+                script.DoString("C_Timer = { After = function(_, fn) fn() end }");
+                script.DoString(File.ReadAllText(settings));
+                var said = "";
+                var ns = new MoonSharp.Interpreter.Table(script) { ["say"] = (Action<string>)(s => said += s) };
+                script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+                script.Call(ns.Get("sayAppUpdate"), login);
+                return said;
+            }
+
+            Assert.StartsWith("Version 0.37.0 of the app is out.", Said(new Version(0, 37, 0), login: true));
+            Assert.Contains("appUpdate = \"0.37.0\",", File.ReadAllText(settings));
+            Assert.Equal("", Said(new Version(0, 37, 0), login: false)); // a /reload
+            Assert.Equal("", Said(null, login: true));
+            Assert.DoesNotContain("appUpdate", File.ReadAllText(settings));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     [Fact]
     public void In_game_settings_are_read_from_the_saved_file()
     {

@@ -87,6 +87,23 @@ function ns.setting(key)
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]
 end
 
+-- The chat line about a newer app version (Settings.lua appUpdate, written by the app when it
+-- finds one), or nil when there's none. Said once per login, never on /reload.
+function ns.appUpdateLine()
+  local v = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.appUpdate
+  if type(v) ~= "string" or not v:match("^%d+%.%d+%.%d+$") then return nil end
+  return "Version " .. v .. " of the app is out. Open the Character Tracker app and click Update (it updates the addon too)."
+end
+
+-- From PLAYER_ENTERING_WORLD: only a real login (isInitialLogin), not a /reload or a loading screen.
+function ns.sayAppUpdate(isInitialLogin)
+  if isInitialLogin ~= true then return end
+  C_Timer.After(8, function() -- once the chat has settled
+    local line = ns.appUpdateLine()
+    if line then ns.say(line) end
+  end)
+end
+
 -- A deep copy of a table (anything else as it is).
 function ns.copy(v)
   if type(v) ~= "table" then return v end
