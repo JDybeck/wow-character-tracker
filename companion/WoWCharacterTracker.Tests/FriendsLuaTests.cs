@@ -577,6 +577,23 @@ public class FriendsLuaTests
         Assert.True(a.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000C')").Boolean);
     }
 
+    // A friend's character they no longer share (hidden, removed, deleted) disappears on your side.
+    [Fact]
+    public void Characters_a_friend_no_longer_shares_disappear()
+    {
+        var (a, b) = Friends();
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Talk(a, b);
+        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C']").IsNil());
+        a.Lua("WoWCharacterTrackerDB.share.chars['Player-1-0000000C'] = false"); // Drygbeck hidden
+        a.Run(31);
+        b.Run(31);
+        b.Call("friendsCommand", "ask Jesper#1111");
+        Talk(a, b);
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000C']").IsNil());
+        Assert.False(b.Lua("return WoWCharacterTrackerDB.friends['Jesper#1111'].chars['Player-1-0000000A']").IsNil()); // still shared
+    }
+
     [Fact]
     public void Alts_go_once_a_session_and_asking_again_too_soon_waits()
     {
