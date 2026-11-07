@@ -212,13 +212,7 @@ end
 
 local function classColor(fs, classFile) fs:SetTextColor(classRgb(classFile)) end
 
-local function ago(at)
-  local s = math.max(0, time() - (at or time()))
-  if s < 60 then return "just now" end
-  if s < 3600 then return math.floor(s / 60) .. "m ago" end
-  if s < DAY then return math.floor(s / 3600) .. "h ago" end
-  return math.floor(s / DAY) .. "d ago"
-end
+local ago = ns.ago
 
 -- "12g 34s 56c" from copper.
 local function gold(copper)

@@ -22,6 +22,8 @@ Ask.lua
 Comms.lua
 Friends.lua
 FriendMap.lua
+MapPins.lua
+MapPins.xml
 NoteBox.lua
 Ui.lua
 Window.lua
