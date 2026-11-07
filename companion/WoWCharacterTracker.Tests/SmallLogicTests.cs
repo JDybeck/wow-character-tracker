@@ -706,7 +706,7 @@ public class IntroTests
     public void Tour_steps_start_with_a_welcome_and_point_at_known_parts()
     {
         Assert.Null(IntroViewModel.Steps[0].Target);
-        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "setup", "discord", "pages", "settings" }));
+        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "setup", "characters", "posting", "followed", "friends", "discord", "stream", "settings" }));
     }
 }
 

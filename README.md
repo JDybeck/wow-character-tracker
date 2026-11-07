@@ -7,14 +7,15 @@
 Made for WoW Forever (Classic+), and works for Retail too. An addon in the game plus a small Windows app.
 
 - **Every character at a glance**: level, item level, gold, talents, professions, gear, bags and bank, and how long every level took.
-- **Find any item** across all your characters, with Wowhead tooltips.
+- **Find any item** across all your characters, with Wowhead tooltips, and see who can craft what.
+- **Share with Battle.net friends** (optional): see the characters friends share with you, and pick what they get of yours.
 - **Discord posts** (optional): level-ups, end boss kills (Mythic+ runs on Retail), epic loot, new mounts, hardcore deaths and more, the moment they happen, with an in-game screenshot if you like.
 - **Stream overlay** (optional): your character, records and big **DING!** alerts in OBS or Streamlabs.
 - **Stays out of the way**: waits in the tray, opens with WoW, updates itself, and uninstalls everything it added.
 
 Nothing leaves your PC unless you set it up. See [Privacy](#privacy).
 
-> **Still young, testers wanted.** It works day to day, but few people have run it so far, especially on Forever, which launches on November 4, 2026. If something looks off, or you have an idea, say so in [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) or [Issues](https://github.com/JDybeck/wow-character-tracker/issues).
+> **Still young, testers wanted.** It works day to day, but few people have run it so far, especially on Forever, which only just launched. If something looks off, or you have an idea, say so in [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) or [Issues](https://github.com/JDybeck/wow-character-tracker/issues).
 
 ![The app on the Forever tab, with a character's details open](docs/images/characters.png)
 
@@ -25,7 +26,7 @@ Nothing leaves your PC unless you set it up. See [Privacy](#privacy).
 3. Optional: add a Discord webhook in the Discord panel ([how to make one](docs/GUIDE.md#making-a-discord-webhook)) so your moments get posted.
 4. In game, type `/wct test`. The app's console says instant posting works within a few seconds.
 
-From then on the app waits in the tray and opens when you start WoW.
+From then on the app waits in the tray and opens when you start WoW. On the first start a short tour shows what everything does; the **?** at the top brings it back.
 
 ## A quick tour
 
@@ -36,6 +37,10 @@ From then on the app waits in the tray and opens when you start WoW.
 **Items**: everything your characters carry, per server. Search it, or show only what's worn, in bags or in the bank.
 
 ![The Items page: every item with who has it and where](docs/images/items.png)
+
+**Professions**: every profession on every character, with skill and max, so you see who can craft what.
+
+**Friends**: Battle.net friends with the addon can share their characters with you, gear and talents included, and you pick what they get of yours (gold and location only if you allow it). Nothing is shared until you say so.
 
 **What gets posted**: pick what goes to Discord, per game, with a Test button for each. Posts come with the item's tooltip as a picture, or your in-game screenshot.
 
@@ -62,6 +67,7 @@ Like it? Tips are welcome at [streamlabs.com/zebdryg/tip](https://streamlabs.com
 The app and addon only send data where you point them, plus a few lookups to show things nicely:
 
 - **Your Discord webhooks**: the posts you've chosen to send, and a check that a webhook works when you add it.
+- **Battle.net friends you share with**: the characters and details you picked for them, sent in game through Battle.net while you're both online. Nothing goes out until you allow a friend or share with one.
 - **GitHub**: the update check (this repo's latest release).
 - **Wowhead** (icons, item and talent names), **Raider.IO** (Retail character pictures, by realm and name) and **Warcraft Wiki** (the tab logos): public lookups, cached on your PC.
 

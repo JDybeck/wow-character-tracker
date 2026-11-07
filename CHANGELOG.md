@@ -2,6 +2,13 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.37.1
+
+### Fixes and tweaks
+
+- The tour (the **?** at the top) now covers the newer parts too: Items and Professions, What gets posted, Followed items, Friends and the stream overlay, besides the games, setup checks, Discord and Settings.
+- The in-game commands under the (i) icon are up to date: `/wct` opens the addon window, level times moved to `/wct times`, and the note box, friends and options commands are listed too.
+
 ## v0.37.0
 
 Update the addon with the app (it does this by itself) and /reload in game.

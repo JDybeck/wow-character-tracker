@@ -25,7 +25,7 @@ Everything the app and the addon do, page by page. New here? The [README](../REA
    - **Addon**: click **Install** once to put the addon in that game's AddOns folder. After that the app keeps it up to date on its own, including the interface number after patches.
    - **Discord**: paste a webhook link in the Discord panel (it explains how to get one). It's checked with Discord before saving. **Send test** shows you a sample post.
 3. That's it. With **Open with World of Warcraft** on (the default), the app waits in the system tray and opens when you start WoW. When you close WoW it goes back to the tray, and it keeps tracking the whole time. Closing the window also sends it to the tray; right-click the tray icon to quit. Untick the option at the top to use it as a normal app instead.
-4. In game, type `/wct test`. The console in the app should say instant posting works within a few seconds. The addon reminds you of `/wct help` when you log in, and the (i) icon at the top of the app lists the commands.
+4. In game, type `/wct test`. The console in the app should say instant posting works within a few seconds. The addon reminds you of `/wct help` when you log in, and the (i) icon at the top of the app lists the commands. The **?** next to it shows the tour of the app again.
 
 ## What gets posted
 
@@ -145,6 +145,7 @@ It all goes through Battle.net while you're both online: the character you're on
 
   <img src="images/webhook-options.png" alt="Webhooks with their options: games and Forever rulesets" width="340">
 
+- **The tour**: on the first start a short tour points at each part of the window (the games, setup checks, pages, Friends, Discord, the stream overlay and Settings). The **?** button at the top, next to the (i) icon, starts it again any time. Arrow keys go back and forth, Esc closes it.
 - **Hover for info**: most buttons and options say what they do when you hover them for a moment.
 - **Console**: what the app is doing, like posts sent and anything that needs your attention. Instant posts say how long they took to reach Discord, and where the time went.
 - **Sync now**: reads the game's saved data again and posts anything new. The icon spins while it works, and the console says what it found.
@@ -214,7 +215,7 @@ Treat the link like a password: anyone with it can post in that channel. The app
 - `/wct help` lists these in game.
 - `/wct popup` turns the reload popup after a ding on or off, if you'd rather not use instant posting.
 - `/wct note` shows or hides this character's note box. `/wct note lock` and `/wct note unlock` pin it in place or let you move it, and `/wct note reset` brings it back to the middle of the screen.
-- `/wct friends` lists the Battle.net friends you share with, `/wct friends help` has the commands for asking, sharing and choosing what they get (see Sharing with Battle.net friends above).
+- `/wct friends` lists the Battle.net friends you share with, `/wct friends on` or `off` turns sharing on or off, and `/wct friends help` has the commands for asking, sharing and choosing what they get (see Sharing with Battle.net friends above).
 - `/wct options` opens the addon's options page (also under Esc, Options, AddOns).
 - `/wct debug` saves what your client's talent, name and guild functions return, and the addon's recent `/played` requests and answers (for tracking down problems on new clients).
 
@@ -237,7 +238,6 @@ Not built yet, roughly in order:
 - **Forever character pictures**: Retail characters already show their real render; Forever will once it has an armory.
 - **Forever talent link with your build**: the Wowhead link opens the right class, but doesn't fill in your points yet.
 - **Dual talent specs on Forever**: once they're live, track both builds per character (talents, Wowhead links and posts for each).
-- **Minimap button** for the addon, with the commands and a test button.
 - **Per-character posting rules**, on top of each game's What gets posted.
 - **Warband bank** (Retail), maybe through Baganator's saved data.
 
