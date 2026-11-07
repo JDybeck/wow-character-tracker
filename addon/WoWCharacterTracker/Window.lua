@@ -254,23 +254,140 @@ local function fullName(c)
   return name
 end
 
+-- "Zeb Stonehand (Firemaw)": the gear panel's title and the hover tooltip's first line.
+local function charTitle(c)
+  return c.realm and string.format("%s (%s)", fullName(c), c.realm) or fullName(c)
+end
+
+-- The item's name ("item 12345" until the game has it cached) and its quality color, white without one.
+local function itemName(id)
+  local name, _, quality = ns.itemInfo(id)
+  local color = quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
+  if color then return name or ("item " .. id), color.r, color.g, color.b end
+  return name or ("item " .. id), 1, 1, 1
+end
+
 -- Gear as item names (quality colored when the game has the item) and talents.
 local function showCharTip(self)
   local c = self.char
   if not (c and GameTooltip) then return end
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:AddLine(c.realm and string.format("%s (%s)", fullName(c), c.realm) or fullName(c), 1, 1, 1)
-  for id in string.gmatch(c.gear or "", "%d+~(%d+)") do
-    local name, _, quality = ns.itemInfo(tonumber(id))
-    local color = quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
-    if color then GameTooltip:AddLine(name or ("item " .. id), color.r, color.g, color.b)
-    else GameTooltip:AddLine(name or ("item " .. id), 1, 1, 1) end
-  end
+  GameTooltip:AddLine(charTitle(c), 1, 1, 1)
+  for id in string.gmatch(c.gear or "", "%d+~(%d+)") do GameTooltip:AddLine(itemName(tonumber(id))) end
   if c.talents then GameTooltip:AddLine("Talents: " .. c.talents, 0.8, 0.8, 0.8, true) end
   GameTooltip:Show()
 end
 
 local function hideCharTip() if GameTooltip then GameTooltip:Hide() end end
+
+local function closeButton(parent, onClick)
+  local close = CreateFrame("Button", nil, parent)
+  close:SetSize(28, 28)
+  close:SetPoint("TOPRIGHT", -4, -4)
+  close:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
+  close:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
+  close:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight", "ADD")
+  close:SetScript("OnClick", onClick)
+  return close
+end
+
+-- The gear panel: a shared character's equipped items beside the window, each with the game's own
+-- item tooltip (built from the ids). Built on the first click on a character line.
+local GEAR_PANEL = "WoWCharacterTrackerGearPanel"
+local GEAR_ROW = 30
+local SLOT_NAMES = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands",
+  "Finger", "Finger", "Trinket", "Trinket", "Back", "Main Hand", "Off Hand", "Ranged", "Tabard" }
+local gearPanel, gearTitle, noGear
+local gearRows = {}
+local gearKey -- which character the panel shows
+
+local function charKey(c) return c.guid or charTitle(c) end
+
+local function itemIcon(id)
+  local f = (C_Item and C_Item.GetItemIconByID) or GetItemIcon
+  if not f then return nil end
+  local ok, icon = pcall(f, id)
+  return ok and icon or nil
+end
+
+local function showItemTip(self)
+  if not (GameTooltip and self.itemId) then return end
+  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+  GameTooltip:SetHyperlink("item:" .. self.itemId .. ":" .. (self.enchantId or ""))
+  GameTooltip:Show()
+end
+
+local function newGearRow()
+  local r = CreateFrame("Frame", nil, gearPanel)
+  r:SetSize(256, GEAR_ROW)
+  r:EnableMouse(true)
+  r.icon = r:CreateTexture(nil, "ARTWORK")
+  r.icon:SetSize(24, 24)
+  r.icon:SetPoint("LEFT", r, "LEFT", 0, 0)
+  r.slotText = ui.text(r, "GameFontDisableSmall")
+  r.slotText:SetPoint("LEFT", r, "LEFT", 30, 0)
+  r.slotText:SetWidth(62)
+  r.nameText = ui.text(r, "GameFontHighlightSmall")
+  r.nameText:SetPoint("TOPLEFT", r, "TOPLEFT", 96, -3)
+  r.nameText:SetWidth(160)
+  r.enchantText = ui.text(r, "GameFontHighlightSmall")
+  r.enchantText:SetPoint("TOPLEFT", r.nameText, "BOTTOMLEFT", 0, -2)
+  r.enchantText:SetWidth(160)
+  r.enchantText:SetTextColor(0.1, 1, 0.1)
+  r:SetScript("OnEnter", showItemTip)
+  r:SetScript("OnLeave", hideCharTip)
+  return r
+end
+
+local function buildGearPanel()
+  gearPanel = CreateFrame("Frame", GEAR_PANEL, window)
+  gearPanel:SetFrameStrata("DIALOG")
+  gearPanel:SetClampedToScreen(true)
+  gearPanel:EnableMouse(true)
+  gearPanel:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, 0)
+  if UISpecialFrames then table.insert(UISpecialFrames, GEAR_PANEL) end -- Esc closes it
+  local bg = gearPanel:CreateTexture(nil, "BACKGROUND")
+  bg:SetColorTexture(0.05, 0.05, 0.08, 0.95)
+  bg:SetAllPoints()
+  gearTitle = ui.text(gearPanel, "GameFontNormal")
+  gearTitle:SetPoint("TOPLEFT", 12, -12)
+  gearTitle:SetWidth(220)
+  closeButton(gearPanel, function() gearPanel:Hide() end)
+  noGear = ui.text(gearPanel, "GameFontDisableSmall", "No gear shared")
+  noGear:SetPoint("TOPLEFT", 12, -40)
+end
+
+local function drawGear(c)
+  gearKey = charKey(c)
+  gearTitle:SetText(charTitle(c))
+  local items = ns.friendGear(c)
+  for i, item in ipairs(items) do
+    local r = pooled(gearRows, i, newGearRow)
+    r.itemId, r.enchantId = item.id, item.enchantId
+    r.icon:SetTexture(itemIcon(item.id))
+    r.slotText:SetText(SLOT_NAMES[item.slot] or "")
+    local name, red, green, blue = itemName(item.id)
+    r.nameText:SetText(name)
+    r.nameText:SetTextColor(red, green, blue)
+    r.enchantText:SetText(item.enchant or "")
+    r.enchantText:SetShown(item.enchant ~= nil)
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", gearPanel, "TOPLEFT", 12, -36 - (i - 1) * GEAR_ROW)
+    r:Show()
+  end
+  hideFrom(gearRows, #items + 1)
+  noGear:SetShown(#items == 0)
+  gearPanel:SetSize(280, 48 + math.max(1, #items) * GEAR_ROW)
+  gearPanel:Show()
+end
+
+-- A click on a character line: opens its gear, or closes the panel when it already shows it.
+local function toggleGear(self)
+  local c = self.char
+  if not c then return end
+  if not gearPanel then buildGearPanel() end
+  if gearPanel:IsShown() and gearKey == charKey(c) then gearPanel:Hide() else drawGear(c) end
+end
 
 local function charInfo(c)
   local parts = {}
@@ -349,6 +466,7 @@ local function buildFriends(p)
     l.infoText = rowText(l, "GameFontHighlightSmall", 124, 500)
     l:SetScript("OnEnter", showCharTip)
     l:SetScript("OnLeave", hideCharTip)
+    l:SetScript("OnMouseUp", toggleGear)
     return l
   end
 
@@ -420,6 +538,7 @@ local function buildFriends(p)
       y = y + 20
     end
     local heads, lines = 0, 0
+    local gearChar -- the open panel's character in the new data
     for _, friend in ipairs(shared) do
       heads = heads + 1
       local h = pooled(sharedHeads, heads, function() return ui.text(p, "GameFontNormalSmall") end)
@@ -430,6 +549,7 @@ local function buildFriends(p)
         lines = lines + 1
         local l = pooled(charLines, lines, newCharLine)
         l.char = c
+        if charKey(c) == gearKey then gearChar = c end
         l.nameText:SetText(fullName(c))
         classColor(l.nameText, c.classFile)
         l.infoText:SetText(charInfo(c))
@@ -440,6 +560,9 @@ local function buildFriends(p)
     end
     hideFrom(sharedHeads, heads + 1)
     hideFrom(charLines, lines + 1)
+    if gearPanel and gearPanel:IsShown() then
+      if gearChar then drawGear(gearChar) else gearPanel:Hide() end
+    end
 
     p:SetHeight(y + 10)
   end
@@ -596,13 +719,7 @@ local function build()
   version = ui.text(window, "GameFontDisableSmall")
   version:SetPoint("LEFT", title, "RIGHT", 8, -1)
 
-  local close = CreateFrame("Button", nil, window)
-  close:SetSize(28, 28)
-  close:SetPoint("TOPRIGHT", -4, -4)
-  close:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
-  close:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
-  close:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight", "ADD")
-  close:SetScript("OnClick", function() window:Hide() end)
+  closeButton(window, function() window:Hide() end)
 
   local last
   for _, t in ipairs(TABS) do

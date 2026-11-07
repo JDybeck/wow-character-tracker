@@ -416,6 +416,117 @@ public class AddonWindowTests
         Assert.False(Bool(c, "GameTooltip.up"));
     }
 
+    // A second character, items 100 (cached, epic), 200 and 300 (not cached), and a tooltip that
+    // records what it was given. gearRows() is the shown panel rows as "slot:name:enchant".
+    const string GearStubs = """
+        local cid = shared[1].chars
+        cid[1].gear = '5~200,1~100,16~300'
+        cid[1].enchants = '1~100~+8 Stamina~1234\n16~300~Crusader~0'
+        cid[2] = { char = 'Cidra', realm = 'Firemaw', level = 20, gear = '1~400' }
+        ITEM_QUALITY_COLORS = { [4] = { r = 0.64, g = 0.21, b = 0.93 } }
+        ns.itemInfo = function(id) if id == 100 then return 'Frostfire Circlet', nil, 4 end end
+        GameTooltip = {
+          SetOwner = function(self, owner) self.owner = owner; self.lines = {}; self.link = nil end,
+          AddLine = function(self, s) table.insert(self.lines, s) end,
+          SetHyperlink = function(self, link) self.link = link end,
+          Show = function(self) self.up = true end,
+          Hide = function(self) self.up = false end,
+        }
+        function panel()
+          for _, f in ipairs(frames) do if f.name == 'WoWCharacterTrackerGearPanel' then return f end end
+        end
+        function gearRows()
+          local out = {}
+          for _, f in ipairs(frames) do
+            if f.parent == panel() and f.slotText and onScreen(f) then
+              out[#out + 1] = f.slotText.text .. ':' .. f.nameText.text .. ':' .. (f.enchantText.shown and f.enchantText.text or '')
+            end
+          end
+          return table.concat(out, ';')
+        end
+        function gearRow(i)
+          local n = 0
+          for _, f in ipairs(frames) do
+            if f.parent == panel() and f.slotText and onScreen(f) then
+              n = n + 1
+              if n == i then return f end
+            end
+          end
+        end
+        function clickChar(name) local l = shownText(name).owner; l.scripts.OnMouseUp(l, 'LeftButton') end
+        """;
+
+    static FriendsLuaTests.Client GearTab()
+    {
+        var c = FriendsTab();
+        c.Lua(GearStubs);
+        c.Call("friendsChanged");
+        return c;
+    }
+
+    [Fact]
+    public void Clicking_a_shared_character_opens_its_gear_in_slot_order()
+    {
+        var c = GearTab();
+        Assert.True(Bool(c, "panel() == nil")); // built on the first click
+        c.Lua("clickChar('Cidrin Frostmane')");
+        Assert.True(Bool(c, "onScreen(panel())"));
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane (Firemaw)') ~= nil"));
+        Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
+        Assert.Equal(0.64, Num(c, "gearRow(1).nameText.color[1]"), 3);
+        Assert.Equal("1,1,1", c.Lua("return table.concat(gearRow(2).nameText.color, ',')").String);
+        Assert.Contains("WoWCharacterTrackerGearPanel", c.Lua("return table.concat(UISpecialFrames, ',')").String);
+    }
+
+    [Fact]
+    public void Hovering_a_gear_row_shows_the_real_item_tooltip()
+    {
+        var c = GearTab();
+        c.Lua("clickChar('Cidrin Frostmane')");
+        c.Lua("r = gearRow(1); r.scripts.OnEnter(r)");
+        Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == r"));
+        Assert.Equal("item:100:1234", c.Lua("return GameTooltip.link").String);
+        c.Lua("r.scripts.OnLeave(r)");
+        Assert.False(Bool(c, "GameTooltip.up"));
+
+        c.Lua("r = gearRow(2); r.scripts.OnEnter(r)");
+        Assert.Equal("item:200:", c.Lua("return GameTooltip.link").String);
+        c.Lua("r = gearRow(3); r.scripts.OnEnter(r)");
+        Assert.Equal("item:300:", c.Lua("return GameTooltip.link").String); // enchant id 0: none known
+    }
+
+    [Fact]
+    public void Clicking_another_character_switches_the_panel_and_the_same_one_closes_it()
+    {
+        var c = GearTab();
+        c.Lua("clickChar('Cidrin Frostmane')");
+        var built = Num(c, "#frames");
+        c.Lua("clickChar('Cidra')");
+        Assert.Equal(built, Num(c, "#frames"));
+        Assert.Equal("Head:item 400:", c.Lua("return gearRows()").String);
+        Assert.True(Bool(c, "shownText('Cidra (Firemaw)') ~= nil"));
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane (Firemaw)') == nil"));
+
+        c.Lua("clickChar('Cidra')");
+        Assert.False(Bool(c, "onScreen(panel())"));
+        c.Lua("clickChar('Cidrin Frostmane')");
+        Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
+        Assert.Equal(built, Num(c, "#frames"));
+    }
+
+    [Fact]
+    public void A_character_without_gear_says_no_gear_shared()
+    {
+        var c = GearTab();
+        c.Lua("shared[1].chars[2].gear = nil");
+        c.Call("friendsChanged");
+        c.Lua("clickChar('Cidra')");
+        Assert.True(Bool(c, "shownText('No gear shared') ~= nil"));
+        Assert.Equal("", c.Lua("return gearRows()").String);
+        c.Lua("clickChar('Cidrin Frostmane')");
+        Assert.True(Bool(c, "shownText('No gear shared') == nil"));
+    }
+
     [Fact]
     public void The_friends_tab_says_when_nobody_is_online_and_nothing_is_shared()
     {
