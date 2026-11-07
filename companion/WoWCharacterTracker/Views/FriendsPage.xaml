@@ -160,6 +160,8 @@
             <CheckBox Style="{StaticResource OptionChip}" Content="Talents" IsChecked="{Binding ShareTalents}" Margin="0,0,6,6"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Location" IsChecked="{Binding ShareLocation}" Margin="0,0,6,6" ToolTip="The zone you're in"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Professions" IsChecked="{Binding ShareProfessions}" Margin="0,0,6,6" ToolTip="Each profession with its skill"/>
+            <CheckBox Style="{StaticResource OptionChip}" Content="Highlights" IsChecked="{Binding ShareHighlights}" Margin="0,0,6,6"
+                      ToolTip="Each character's newest 10 boss kills, rare loot, mounts, duels, milestones and deaths. Who was in your group stays with you"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Gold" IsChecked="{Binding ShareGold}" Margin="0,0,6,6" ToolTip="Off until you turn it on"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Map position" IsChecked="{Binding ShareMap}" Margin="0,0,6,6"
                       ToolTip="Your spot on their world map, while they have it open. Off until you turn it on"/>

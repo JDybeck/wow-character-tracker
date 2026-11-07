@@ -126,6 +126,31 @@ public class FriendsViewModelTests
         Assert.Null(f.Settings.Share.Contacts["Zeb#2222"].Gold);
     }
 
+    // A friend's highlights show in their character's details; posting them stays yours to do.
+    [Fact]
+    public void Highlights_are_a_category_and_a_friends_show_on_their_character()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }");
+        Assert.True(f.Vm.ShareHighlights);
+        var row = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.Equal("Highlights: like all friends (on)", row.Categories.Single(c => c.Key == "highlights").Text);
+        row.CycleCommand.Execute("highlights");
+        Assert.True(f.Settings.Share!.Contacts["Zeb#2222"].Highlights);
+
+        var script = new Script();
+        var data = f.Data with
+        {
+            Friends = FriendData.ReadFriends(script.DoString("""
+                return { ['Zeb#2222'] = { chars = { ['Player-1-0000000B'] = { guid = 'Player-1-0000000B', char = 'Zeb', level = 42, classFile = 'WARRIOR', at = 1900,
+                  highlights = 'boss~1800~42~Hogger~Elwynn~5\nloot~1700~41~Thunderfury~19019~5' } } } }
+                """)),
+        };
+        f.Vm.Show(data);
+        var zeb = f.Vm.Characters.Single(c => c.Name == "Zeb");
+        Assert.Equal(["Killed Hogger (Elwynn)", "Looted Thunderfury"], zeb.Highlights.Select(h => h.Text));
+        Assert.False(zeb.IsOwn); // no Post button (CharacterOverview)
+    }
+
     [Fact]
     public void Map_position_is_a_category_and_the_rate_a_choice()
     {

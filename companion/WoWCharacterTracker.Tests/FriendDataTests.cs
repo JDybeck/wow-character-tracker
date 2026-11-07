@@ -33,6 +33,53 @@ public class FriendDataTests
         Assert.Equal("Crusader", Assert.Single(inv.Enchants).Text);
     }
 
+    // Every highlight kind the addon sends becomes an event the app can show, in the addon's field order.
+    [Fact]
+    public void Highlights_from_the_addon_become_the_characters_events()
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "FriendData.lua"]);
+        c.Lua("""
+            events = {
+              { kind = 'boss', at = 11, level = 60, boss = 'Ragnaros', instance = 'Molten Core', groupSize = 40 },
+              { kind = 'keyrun', at = 10, level = 80, instance = 'Ara-Kara', keyLevel = 12, upgrades = 2 },
+              { kind = 'loot', at = 9, level = 60, item = 'Thunderfury', itemId = 19019, quality = 5 },
+              { kind = 'mount', at = 8, level = 40, mount = 'Horse', itemId = 2411, bought = true },
+              { kind = 'duel', at = 7, level = 40, opponent = 'Grimtusk', lost = true, fled = true },
+              { kind = 'makgora', at = 6, level = 40, opponent = 'Zug' },
+              { kind = 'bg', at = 5, level = 40, instance = 'Warsong Gulch', lost = true },
+              { kind = 'profession', at = 4, level = 40, profession = 'Mining', step = 150 },
+              { kind = 'mplus', at = 3, level = 80, step = 2000, rating = 2034 },
+              { kind = 'pvp', at = 2, level = 80, step = 1800, bracket = '3v3', rating = 1812 },
+              { kind = 'death', at = 1, level = 42, killer = 'Hogger', played = 3600, gold = 5000, zone = 'Elwynn Forest' },
+            }
+            back = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000B', { char = 'Zeb', lastSeen = 20 }, nil, { highlights = true, gold = true, location = true }, events))
+            """);
+        Assert.All(EventKinds.Highlights, k => Assert.True(c.Lua($"return ns.isFriendHighlight({{ kind = '{k}', at = 1 }})").Boolean));
+        c.Lua("friends = { ['Zeb#2222'] = { chars = { ['Player-1-0000000B'] = back } } }");
+        var events = Assert.Single(FriendData.ReadFriends(c.Lua("return friends"))).Events;
+        Assert.Equal(10, events.Count); // the newest 10: the death is the 11th
+        Assert.All(events, e => Assert.Equal(("Player-1-0000000B", "Zeb"), (e.Guid, e.Char)));
+        Assert.Equal(
+            ["Killed Ragnaros (Molten Core)", "Timed +12 Ara-Kara (+2)", "Looted Thunderfury", "Bought Horse", "Ran from a duel with Grimtusk",
+             "Won a Mak'gora against Zug", "Lost Warsong Gulch", "Reached 150 Mining", "Reached 2000 Mythic+ rating (2034)", "Reached 1800 in 3v3 (1812)"],
+            events.Select(HighlightText.Text));
+        Assert.Equal((19019, 5), (events[2].ItemId, events[2].Quality));
+        Assert.Equal(40, events[0].GroupSize);
+    }
+
+    [Fact]
+    public void A_death_highlight_keeps_what_it_cost_and_bad_lines_are_dropped()
+    {
+        var zeb = Assert.Single(FriendData.ReadFriends(Lua("""
+            { ['Zeb#2222'] = { chars = { a = { guid = 'Player-1-0000000B', char = 'Zeb', at = 5, highlights =
+              'death~300~42~Hogger~3600~5000~Elwynn Forest\nnope~1~1~x\nloot~-5~1~X~1~3\nloot~abc~1~X~1~3\nboss\nloot~7~60~Big~99999999999999999~4' } } } }
+            """)));
+        Assert.Equal(2, zeb.Events.Count);
+        var death = zeb.Events[0];
+        Assert.Equal(("death", 300L, 42, "Hogger", 3600L, 5000L, "Elwynn Forest"), (death.Kind, death.At, death.Level, death.Killer, death.Played, death.Gold, death.Zone));
+        Assert.Equal(0, zeb.Events[1].ItemId); // too big a number reads as none
+    }
+
     [Fact]
     public void Hostile_friend_data_is_cleaned_or_dropped()
     {
@@ -256,5 +303,27 @@ public class FriendDataTests
         Assert.Equal(5, old.MapRate);
         Assert.False(old.Defaults.Map);
         Assert.Null(old.Contacts["Zeb#2222"].Map);
+        Assert.True(old.Defaults.Highlights); // on, like the addon's default
+        Assert.Null(old.Contacts["Zeb#2222"].Highlights);
+    }
+
+    [Fact]
+    public void The_addon_reads_the_highlights_choice_the_app_wrote()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-share-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var s = new FlavorSettings();
+            s.TakeShare(FriendData.ReadShare(Lua("{ enabled = true, at = 200, defaults = { highlights = false }, contacts = { ['Zeb#2222'] = { share = true, highlights = true }, ['Kalle#3333'] = { share = true } } }")));
+            Assert.False(s.Share!.Defaults.Highlights);
+            Assert.True(s.Share.Contacts["Zeb#2222"].Highlights);
+            var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", db: "{ share = { enabled = false, at = 100 } }");
+            c.Lua(File.ReadAllText(WriteSettings(dir, s)));
+            Assert.True(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).highlights").Boolean);
+            Assert.False(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Kalle#3333']).highlights").Boolean);
+            var fresh = new FriendsLuaTests.Client("Player-1-0000000A", "{}", db: "{ share = { enabled = true, at = 100 } }");
+            Assert.True(fresh.Lua("return ns.allowedFor(ns.shareSettings(), nil).highlights").Boolean); // on unless turned off
+        }
+        finally { Directory.Delete(dir, recursive: true); }
     }
 }

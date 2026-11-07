@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using MoonSharp.Interpreter;
 
@@ -15,6 +16,24 @@ static partial class FriendData
     {
         ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16, ["sex"] = 6,
         ["faction"] = 10, ["spec"] = 32, ["talents"] = 1024, ["talentCalc"] = 256, ["gear"] = 512, ["enchants"] = 2048, ["zone"] = 64, ["professions"] = 256,
+        ["highlights"] = 1024,
+    };
+
+    // A highlight line is "kind~at~level" and then these, in the addon's order (FriendData.lua HIGHLIGHT_FIELDS).
+    const int MaxHighlights = 10;
+    static readonly Dictionary<string, string[]> HighlightFields = new()
+    {
+        ["boss"] = ["boss", "instance", "groupSize"],
+        ["keyrun"] = ["instance", "keyLevel", "upgrades"],
+        ["loot"] = ["item", "itemId", "quality"],
+        ["mount"] = ["mount", "itemId", "bought"],
+        ["duel"] = ["opponent", "lost", "fled"],
+        ["makgora"] = ["opponent", "lost"],
+        ["bg"] = ["instance", "lost"],
+        ["profession"] = ["profession", "step"],
+        ["mplus"] = ["step", "rating"],
+        ["pvp"] = ["step", "bracket", "rating"],
+        ["death"] = ["killer", "played", "gold", "zone"],
     };
 
     public static List<FriendContact> ReadFriends(DynValue friends)
@@ -28,7 +47,8 @@ static partial class FriendData
             var version = t.Get("version").Type == DataType.String && VersionText().IsMatch(t.Get("version").String) ? t.Get("version").String : "";
             var chars = ReadCharacters(t.Get("chars"));
             list.Add(new FriendContact(p.Key.String, (long)Number(t.Get("seen")), version, (int)Number(t.Get("protocol")),
-                Number(t.Get("refused")) > 0, [.. chars.Select(c => c.Snapshot)], [.. chars.Select(c => c.Inventory).OfType<Inventory>()]));
+                Number(t.Get("refused")) > 0, [.. chars.Select(c => c.Snapshot)], [.. chars.Select(c => c.Inventory).OfType<Inventory>()],
+                [.. chars.SelectMany(c => c.Highlights)]));
         }
         return list;
     }
@@ -37,15 +57,15 @@ static partial class FriendData
     public static List<FriendContact> Merge(IEnumerable<List<FriendContact>> perAccount) =>
         [.. perAccount.SelectMany(f => f).GroupBy(f => f.Tag).Select(g => g.MaxBy(f => f.Seen)!)];
 
-    static List<(Snapshot Snapshot, Inventory? Inventory)> ReadCharacters(DynValue chars)
+    static List<(Snapshot Snapshot, Inventory? Inventory, List<Entry> Highlights)> ReadCharacters(DynValue chars)
     {
-        var list = new List<(Snapshot, Inventory?)>();
+        var list = new List<(Snapshot, Inventory?, List<Entry>)>();
         if (chars.Type != DataType.Table) return list;
         foreach (var p in chars.Table.Pairs)
         {
             if (p.Value.Type != DataType.Table) continue;
             var t = p.Value.Table;
-            string S(string key) => Text(t.Get(key), Max[key], lines: key == "enchants");
+            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights");
             double N(string key) => Number(t.Get(key));
             var guid = t.Get("guid").Type == DataType.String ? t.Get("guid").String : "";
             var name = S("char");
@@ -55,10 +75,29 @@ static partial class FriendData
                 LastSeen: (long)N("at"), Hardcore: false, Ruleset: "", Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction")) { Surname = S("surname") };
             // No gear shared: no inventory, so the gear tab says it isn't shared.
             var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;
-            list.Add((snapshot, inventory));
+            list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights"))]));
         }
         // At most MaxCharacters: the ones seen longest ago go.
         return [.. list.OrderByDescending(c => c.Item1.LastSeen).Take(MaxCharacters)];
+    }
+
+    // The character's highlights, one per line, as events of that character. Unknown kinds and
+    // lines without a time are dropped, numbers must be whole and not negative.
+    static IEnumerable<Entry> ReadHighlights(Snapshot c, string text)
+    {
+        foreach (var line in text.Split('\n').Take(MaxHighlights))
+        {
+            var p = line.Split('~');
+            if (p.Length < 3 || !HighlightFields.TryGetValue(p[0], out var keys)
+                || !long.TryParse(p[1], NumberStyles.None, CultureInfo.InvariantCulture, out var at) || at <= 0) continue;
+            var values = new Dictionary<string, string>
+            {
+                ["id"] = $"{c.Guid}:{p[0]}:{at}", ["kind"] = p[0], ["at"] = p[1], ["level"] = p[2], ["guid"] = c.Guid, ["char"] = c.Char, ["realm"] = c.Realm,
+            };
+            for (var i = 0; i < keys.Length && i + 3 < p.Length; i++) values[keys[i]] = p[i + 3];
+            yield return Entry.From(k => values.GetValueOrDefault(k, ""),
+                k => long.TryParse(values.GetValueOrDefault(k), NumberStyles.None, CultureInfo.InvariantCulture, out var n) && n < 1_000_000_000_000 ? n : 0);
+        }
     }
 
     public static ShareSettings? ReadShare(DynValue share)
@@ -71,7 +110,7 @@ static partial class FriendData
         if (d is not null)
             general = new(Flag(d, "gear") ?? general.Gear, Flag(d, "talents") ?? general.Talents,
                 Flag(d, "location") ?? general.Location, Flag(d, "gold") ?? general.Gold, Flag(d, "professions") ?? general.Professions,
-                Flag(d, "map") ?? general.Map, Flag(d, "otherFaction") ?? general.OtherFaction);
+                Flag(d, "map") ?? general.Map, Flag(d, "otherFaction") ?? general.OtherFaction, Flag(d, "highlights") ?? general.Highlights);
         var chars = new Dictionary<string, bool>();
         foreach (var p in Pairs(t.Get("chars")))
             if (p.Value.Type == DataType.Boolean) chars[p.Key.String] = p.Value.Boolean;
@@ -82,7 +121,7 @@ static partial class FriendData
                 var c = p.Value.Table;
                 contacts[p.Key.String] = new(Flag(c, "share") == true, Flag(c, "receive") == true,
                     Flag(c, "gear"), Flag(c, "talents"), Flag(c, "location"), Flag(c, "gold"), Flag(c, "professions"),
-                    Flag(c, "map"), Flag(c, "otherFaction"));
+                    Flag(c, "map"), Flag(c, "otherFaction"), Flag(c, "highlights"));
             }
         var blocked = Pairs(t.Get("blocked")).Where(p => p.Value.CastToBool()).Select(p => p.Key.String).ToHashSet();
         var rate = (int)Number(t.Get("mapRate"));

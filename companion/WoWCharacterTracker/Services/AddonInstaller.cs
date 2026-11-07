@@ -147,11 +147,11 @@ static partial class AddonInstaller
         var contacts = string.Concat(share.Contacts.OrderBy(c => c.Key, StringComparer.Ordinal).Select(c =>
             $"[{LuaString(c.Key)}] = {{ share = {B(c.Value.Share)}, receive = {B(c.Value.Receive)}"
             + Opt("gear", c.Value.Gear) + Opt("talents", c.Value.Talents) + Opt("location", c.Value.Location) + Opt("gold", c.Value.Gold) + Opt("professions", c.Value.Professions)
-            + Opt("map", c.Value.Map) + Opt("otherFaction", c.Value.OtherFaction) + " }, "));
+            + Opt("map", c.Value.Map) + Opt("otherFaction", c.Value.OtherFaction) + Opt("highlights", c.Value.Highlights) + " }, "));
         var chars = string.Concat(share.Chars.OrderBy(c => c.Key, StringComparer.Ordinal).Select(c => $"[{LuaString(c.Key)}] = {B(c.Value)}, "));
         var blocked = string.Concat(share.Blocked.Order(StringComparer.Ordinal).Select(t => $"[{LuaString(t)}] = true, "));
         return $"  share = {{ enabled = {B(share.Enabled)}, newChars = {B(share.NewChars)}, at = {share.At}, mapRate = {share.MapRate},\n"
-               + $"    defaults = {{ gear = {B(d.Gear)}, talents = {B(d.Talents)}, location = {B(d.Location)}, gold = {B(d.Gold)}, professions = {B(d.Professions)}, map = {B(d.Map)}, otherFaction = {B(d.OtherFaction)} }},\n"
+               + $"    defaults = {{ gear = {B(d.Gear)}, talents = {B(d.Talents)}, location = {B(d.Location)}, gold = {B(d.Gold)}, professions = {B(d.Professions)}, map = {B(d.Map)}, otherFaction = {B(d.OtherFaction)}, highlights = {B(d.Highlights)} }},\n"
                + $"    contacts = {{ {contacts}}},\n"
                + $"    chars = {{ {chars}}},\n"
                + $"    blocked = {{ {blocked}}} }},\n";
