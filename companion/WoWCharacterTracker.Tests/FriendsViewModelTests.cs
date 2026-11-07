@@ -127,6 +127,29 @@ public class FriendsViewModelTests
     }
 
     [Fact]
+    public void Map_position_is_a_category_and_the_rate_a_choice()
+    {
+        var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }");
+        Assert.False(f.Vm.ShareMap);
+        Assert.False(f.Vm.ShareOtherFaction);
+        Assert.True(f.Vm.IsMapLive);
+        var zeb = f.Vm.ContactRows.Single(c => c.Tag == "Zeb#2222");
+        Assert.Equal("Map position: like all friends (off)", zeb.Categories.Single(c => c.Key == "map").Text);
+        Assert.Equal("Map for the other faction: like all friends (off)", zeb.Categories.Single(c => c.Key == "otherFaction").Text);
+        zeb.CycleCommand.Execute("map");
+        Assert.True(f.Settings.Share!.Contacts["Zeb#2222"].Map);
+        zeb.CycleCommand.Execute("otherFaction");
+        Assert.True(f.Settings.Share.Contacts["Zeb#2222"].OtherFaction);
+        f.Vm.ShareMap = true;
+        Assert.True(f.Settings.Share.Defaults.Map);
+        f.Vm.MapRateCommand.Execute("60");
+        Assert.Equal(60, f.Settings.Share.MapRate);
+        Assert.True(f.Vm.IsMapMinute);
+        f.Vm.MapRateCommand.Execute("7"); // not a step
+        Assert.Equal(60, f.Settings.Share.MapRate);
+    }
+
+    [Fact]
     public void Professions_are_a_category_like_the_others()
     {
         var f = new Fixture("{ enabled = true, at = 100, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }");

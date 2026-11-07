@@ -161,6 +161,25 @@
             <CheckBox Style="{StaticResource OptionChip}" Content="Location" IsChecked="{Binding ShareLocation}" Margin="0,0,6,6" ToolTip="The zone you're in"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Professions" IsChecked="{Binding ShareProfessions}" Margin="0,0,6,6" ToolTip="Each profession with its skill"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Gold" IsChecked="{Binding ShareGold}" Margin="0,0,6,6" ToolTip="Off until you turn it on"/>
+            <CheckBox Style="{StaticResource OptionChip}" Content="Map position" IsChecked="{Binding ShareMap}" Margin="0,0,6,6"
+                      ToolTip="Your spot on their world map, while they have it open. Off until you turn it on"/>
+          </WrapPanel>
+
+          <TextBlock Style="{StaticResource FactLabel}" Text="MAP POSITION"/>
+          <TextBlock FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,0,6" TextWrapping="Wrap"
+                     Text="Only for friends who get Map position. It goes out only while a friend has their world map open, and never from a dungeon, raid or battleground."/>
+          <WrapPanel>
+            <CheckBox Style="{StaticResource OptionChip}" Content="Show to the other faction" IsChecked="{Binding ShareOtherFaction}" Margin="0,0,6,6"
+                      ToolTip="Off: a friend playing the other faction doesn't see you on the map"/>
+          </WrapPanel>
+          <!-- No GroupName: both game tabs have this page, and radio buttons group by their panel without one. -->
+          <WrapPanel>
+            <RadioButton Style="{StaticResource ChoiceChip}" Margin="0,0,6,6" Content="Live" IsChecked="{Binding IsMapLive, Mode=OneWay}"
+                         Command="{Binding MapRateCommand}" CommandParameter="5" ToolTip="Every few seconds while they look"/>
+            <RadioButton Style="{StaticResource ChoiceChip}" Margin="0,0,6,6" Content="Every minute" IsChecked="{Binding IsMapMinute, Mode=OneWay}"
+                         Command="{Binding MapRateCommand}" CommandParameter="60"/>
+            <RadioButton Style="{StaticResource ChoiceChip}" Margin="0,0,6,6" Content="Every 5 minutes" IsChecked="{Binding IsMapFiveMinutes, Mode=OneWay}"
+                         Command="{Binding MapRateCommand}" CommandParameter="300"/>
           </WrapPanel>
 
           <TextBlock Style="{StaticResource FactLabel}" Text="FRIENDS"/>

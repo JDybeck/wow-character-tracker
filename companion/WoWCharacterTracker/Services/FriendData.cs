@@ -70,7 +70,8 @@ static partial class FriendData
         var general = new GeneralCategories();
         if (d is not null)
             general = new(Flag(d, "gear") ?? general.Gear, Flag(d, "talents") ?? general.Talents,
-                Flag(d, "location") ?? general.Location, Flag(d, "gold") ?? general.Gold, Flag(d, "professions") ?? general.Professions);
+                Flag(d, "location") ?? general.Location, Flag(d, "gold") ?? general.Gold, Flag(d, "professions") ?? general.Professions,
+                Flag(d, "map") ?? general.Map, Flag(d, "otherFaction") ?? general.OtherFaction);
         var chars = new Dictionary<string, bool>();
         foreach (var p in Pairs(t.Get("chars")))
             if (p.Value.Type == DataType.Boolean) chars[p.Key.String] = p.Value.Boolean;
@@ -80,10 +81,13 @@ static partial class FriendData
             {
                 var c = p.Value.Table;
                 contacts[p.Key.String] = new(Flag(c, "share") == true, Flag(c, "receive") == true,
-                    Flag(c, "gear"), Flag(c, "talents"), Flag(c, "location"), Flag(c, "gold"), Flag(c, "professions"));
+                    Flag(c, "gear"), Flag(c, "talents"), Flag(c, "location"), Flag(c, "gold"), Flag(c, "professions"),
+                    Flag(c, "map"), Flag(c, "otherFaction"));
             }
         var blocked = Pairs(t.Get("blocked")).Where(p => p.Value.CastToBool()).Select(p => p.Key.String).ToHashSet();
-        return new(Flag(t, "enabled") ?? true, Flag(t, "newChars") ?? true, general, chars, contacts, blocked, (long)Number(t.Get("at")));
+        var rate = (int)Number(t.Get("mapRate"));
+        return new(Flag(t, "enabled") ?? true, Flag(t, "newChars") ?? true, general, chars, contacts, blocked, (long)Number(t.Get("at")),
+            ShareSettings.MapRates.Contains(rate) ? rate : 5);
     }
 
     // A table's pairs with string keys (anything else is ignored).

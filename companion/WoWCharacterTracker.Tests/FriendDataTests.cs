@@ -211,4 +211,50 @@ public class FriendDataTests
         Assert.Contains("Bad#1", share.Blocked);
         Assert.Null(FriendData.ReadShare(Lua("nil")));
     }
+
+    [Fact]
+    public void Map_settings_are_off_and_live_unless_set()
+    {
+        var empty = FriendData.ReadShare(Lua("{ at = 5 }"))!;
+        Assert.False(empty.Defaults.Map);
+        Assert.False(empty.Defaults.OtherFaction);
+        Assert.Equal(5, empty.MapRate);
+        Assert.Equal(5, FriendData.ReadShare(Lua("{ at = 5, mapRate = 7 }"))!.MapRate); // not a step
+        var share = FriendData.ReadShare(Lua("{ at = 5, mapRate = 300, defaults = { map = true }, contacts = { ['Zeb#2222'] = { share = true, map = false, otherFaction = true } } }"))!;
+        Assert.True(share.Defaults.Map);
+        Assert.Equal(300, share.MapRate);
+        Assert.False(share.Contacts["Zeb#2222"].Map);
+        Assert.True(share.Contacts["Zeb#2222"].OtherFaction);
+    }
+
+    [Fact]
+    public void The_addon_reads_the_map_settings_the_app_wrote()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-share-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var s = new FlavorSettings();
+            s.TakeShare(FriendData.ReadShare(Lua("{ enabled = true, at = 200, mapRate = 60, defaults = { otherFaction = true }, contacts = { ['Zeb#2222'] = { share = true, map = true }, ['Kalle#3333'] = { share = true, otherFaction = false } } }")));
+            var file = WriteSettings(dir, s);
+            var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", db: "{ share = { enabled = false, at = 100 } }");
+            c.Lua(File.ReadAllText(file));
+            Assert.Equal(60, c.Lua("return ns.shareSettings().mapRate").Number);
+            Assert.True(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).map").Boolean);
+            Assert.True(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Zeb#2222']).otherFaction").Boolean);
+            Assert.False(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Kalle#3333']).otherFaction").Boolean);
+            Assert.False(c.Lua("local s = ns.shareSettings(); return ns.allowedFor(s, s.contacts['Kalle#3333']).map").Boolean);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // Config.json saved before map sharing has none of it: live, and both off.
+    [Fact]
+    public void An_old_config_without_map_settings_reads_as_live_and_off()
+    {
+        var old = System.Text.Json.JsonSerializer.Deserialize<ShareSettings>(
+            """{"Enabled":true,"NewChars":true,"Defaults":{"Gear":true},"Chars":{},"Contacts":{"Zeb#2222":{"Share":true,"Receive":true}},"Blocked":[],"At":5}""")!;
+        Assert.Equal(5, old.MapRate);
+        Assert.False(old.Defaults.Map);
+        Assert.Null(old.Contacts["Zeb#2222"].Map);
+    }
 }
