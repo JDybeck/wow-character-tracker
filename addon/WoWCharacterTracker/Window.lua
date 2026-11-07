@@ -365,13 +365,26 @@ local function newGearRow()
   return r
 end
 
+-- Beside the window on the side with room: clamped to the screen on the full side, it would slide
+-- over the window.
+local function placeDetails()
+  if not details then return end
+  details:ClearAllPoints()
+  local right, screen = window:GetRight(), UIParent:GetRight()
+  if right and screen and right + 4 + DETAILS_WIDTH > screen then
+    details:SetPoint("TOPRIGHT", window, "TOPLEFT", -4, 0)
+  else
+    details:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, 0)
+  end
+end
+
 local function buildDetails()
   details = CreateFrame("Frame", DETAILS_PANEL, window)
   details:SetFrameStrata("DIALOG")
   details:SetClampedToScreen(true)
   details:EnableMouse(true)
   details:SetWidth(DETAILS_WIDTH)
-  details:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, 0)
+  placeDetails()
   if UISpecialFrames then table.insert(UISpecialFrames, DETAILS_PANEL) end -- Esc closes it
   ui.box(details, C.window, C.border)
   detailsTitle = ui.text(details, "GameFontHighlightLarge")
@@ -481,6 +494,7 @@ local function drawDetails(c, friend)
   end
   hideFrom(gearRows, #items + 1)
   details:SetHeight(y + 14)
+  placeDetails()
   details:Show()
 end
 
@@ -848,8 +862,16 @@ local function selectTab(key)
   ui.refresh(tabs[key].page)
 end
 
+-- While the window is dragged, the details panel switches sides as it runs out of room.
+local function startDrag(self)
+  self:StartMoving()
+  if details then details:SetScript("OnUpdate", placeDetails) end
+end
+
 local function savePosition(self)
   self:StopMovingOrSizing()
+  if details then details:SetScript("OnUpdate", nil) end
+  placeDetails()
   local point, _, relative, x, y = self:GetPoint()
   local s = saved()
   s.point, s.relative, s.x, s.y = point, relative, x, y
@@ -864,7 +886,7 @@ local function build()
   window:EnableMouse(true)
   window:SetMovable(true)
   window:RegisterForDrag("LeftButton")
-  window:SetScript("OnDragStart", window.StartMoving)
+  window:SetScript("OnDragStart", startDrag)
   window:SetScript("OnDragStop", savePosition)
   local s = saved()
   if s.point then window:SetPoint(s.point, UIParent, s.relative or s.point, s.x or 0, s.y or 0)

@@ -11,7 +11,6 @@ public class AddonWindowTests
     // Frames keep their scripts, checked state, texts and name. A font string's first text is its
     // owner's label, so tests find a control by what it says.
     const string Widgets = """
-        UIParent = {}
         UISpecialFrames = {}
         SlashCmdList = {}
         frames, texts, strings = {}, {}, {}
@@ -31,6 +30,7 @@ public class AddonWindowTests
               if s.owner and s.owner.label == nil and t ~= "" then s.owner.label = t end
             end end
             if k == "SetWidth" then return function(s, w) s.width = w end end
+            if k == "SetPoint" then return function(s, ...) s.point = { ... } end end
             if k == "SetTextColor" then return function(s, r, g, b) s.color = { r, g, b } end end
             if k == "SetChecked" then return function(s, v) s.checked = v end end
             if k == "GetChecked" then return function(s) return s.checked end end
@@ -52,6 +52,12 @@ public class AddonWindowTests
           f.kind, f.name, f.parent = kind, name, parent
           frames[#frames + 1] = f
           return f
+        end
+        UIParent = widget()
+        function named(name)
+          for _, f in ipairs(frames) do
+            if f.name == name then return f end
+          end
         end
         -- Shown, and so is everything it sits in.
         function onScreen(w)
@@ -554,6 +560,32 @@ public class AddonWindowTests
         Assert.True(Bool(c, "onScreen(panel())"));
         c.Lua("clickChar('Bobo')");
         Assert.False(Bool(c, "onScreen(panel())"));
+    }
+
+    // Near the right edge of the screen the panel goes left of the window instead of being pushed
+    // over it, and it switches sides while the window is dragged.
+    [Fact]
+    public void The_details_panel_opens_on_the_side_with_room()
+    {
+        var c = GearTab();
+        c.Lua("""
+            UIParent.GetRight = function() return 1920 end
+            win = named('WoWCharacterTrackerWindow')
+            win.GetRight = function() return 1000 end
+            """);
+        c.Lua("clickChar('Cidra')");
+        Assert.Equal("TOPLEFT", c.Lua("return panel().point[1]").String);
+
+        c.Lua("win.GetRight = function() return 1800 end");
+        c.Call("friendsChanged");
+        Assert.Equal("TOPRIGHT", c.Lua("return panel().point[1]").String);
+
+        c.Lua("win.scripts.OnDragStart(win)");
+        Assert.True(Bool(c, "panel().scripts.OnUpdate ~= nil"));
+        c.Lua("win.GetRight = function() return 900 end; panel().scripts.OnUpdate()");
+        Assert.Equal("TOPLEFT", c.Lua("return panel().point[1]").String);
+        c.Lua("win.scripts.OnDragStop(win)");
+        Assert.True(Bool(c, "panel().scripts.OnUpdate == nil"));
     }
 
     [Fact]
