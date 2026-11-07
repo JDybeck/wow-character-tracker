@@ -1538,7 +1538,7 @@ and after that `WrapPanel`, before the FRIENDS label:
 - [ ] **Step 7: Run all tests**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo`
-Expected: all PASS except the known `RatingTests` changelog failure. If `An_old_config_without_map_settings_reads_as_live_and_off` fails with `MapRate == 0`, System.Text.Json didn't use the parameter default: give `ShareSettings` a `[JsonConstructor]`-free fix by reading `MapRate` through `ShareSettings.MapRates.Contains(MapRate) ? MapRate : 5` where the app writes and shows it (`ShareLua`, `IsMapLive`), and keep the test.
+Expected: all PASS except the known `RatingTests` changelog failure. If `An_old_config_without_map_settings_reads_as_live_and_off` fails with `MapRate == 0`, System.Text.Json didn't use the parameter default. Then fix it where config loads (`Config.cs`, next to the other migrations around line 210): any flavor's `Share` with a `MapRate` not in `ShareSettings.MapRates` becomes `Share with { MapRate = 5 }`, and change the test to go through that load. Keep the test either way.
 
 - [ ] **Step 8: Render the sharing settings**
 
