@@ -300,6 +300,35 @@ public class RatingTests
         Assert.Equal("BOTTOMRIGHT", s.GridCorner);
     }
 
+    // Ignore tracking: an In game setting both ways, and nothing of that character is posted.
+    [Fact]
+    public void An_ignored_character_is_never_posted_and_the_setting_goes_both_ways()
+    {
+        var s = new FlavorSettings { InGameAt = 1000, PostLevels = true, LevelSplit = 0 };
+        var ding = new Entry { Id = "a", Guid = "Player-1-0000000A", Kind = "level", Level = 10 };
+        Assert.True(s.Wants(ding, []));
+
+        var read = SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString(
+            "return { at = 1100, ignored = { ['Player-1-0000000A'] = true, ['Player-1-0000000B'] = false } }"));
+        Assert.Equal(["Player-1-0000000A"], read!.Ignored);
+        Assert.True(s.TakeInGame(read));
+        Assert.False(s.Wants(ding, []));
+        Assert.True(s.Wants(ding with { Guid = "Player-1-0000000B" }, []));
+
+        // A change from an older addon without the setting keeps the app's.
+        Assert.True(s.TakeInGame(new InGameSettings(1200, true, false, ["level"], null, null, null, false, null, null, null)));
+        Assert.Contains("Player-1-0000000A", s.Ignored);
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-ignored-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, s);
+            Assert.Contains("ignored = { [\"Player-1-0000000A\"] = true, },", File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // Clicking Post in game: always wanted, whatever the rules say, and posted as the moment it carries.
     [Fact]
     public void A_request_to_post_is_posted_as_its_moment()

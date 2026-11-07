@@ -390,6 +390,7 @@ end
 function ns.sendLive(e)
   -- Without the app, nobody reads the grid and its screenshots would just pile up.
   if ns.loggingOut or not ns.hasApp() or WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
+  if e and ns.isIgnored(e.guid) then return end -- Ignore tracking: not even the check-in
   table.insert(shotQueue, { bits = toBits(encode(e)), portrait = e.kind == "snapshot" })
   ns.processShots()
 end

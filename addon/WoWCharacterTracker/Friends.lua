@@ -80,9 +80,9 @@ local function removedInApp(guid)
 end
 
 -- One of your characters goes to friends: its own choice, else the one for new characters. Never
--- one removed in the app.
+-- one removed in the app, or one with Ignore tracking on.
 function ns.isCharShared(s, guid)
-  if not guid or removedInApp(guid) then return false end
+  if not guid or removedInApp(guid) or ns.isIgnored(guid) then return false end
   local v = s.chars[guid]
   if v == nil then return s.newChars ~= false end
   return v == true

@@ -157,6 +157,15 @@
             <TextBlock Text="Remove from list" FontSize="12" Foreground="{StaticResource Red}"/>
           </StackPanel>
         </Button>
+        <Button Style="{StaticResource GhostButton}" Padding="12,5"
+                ToolTip="Stop tracking this character: nothing is posted, announced or shared with friends for it, and it leaves the list. Ignored, under the list, tracks it again."
+                Command="{Binding DataContext.IgnoreCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE8F8;" FontSize="12" Foreground="{StaticResource Dim}" Margin="0,0,7,0"/>
+            <TextBlock Text="Ignore tracking" FontSize="12" Foreground="{StaticResource Dim}"/>
+          </StackPanel>
+        </Button>
         <!-- Armory proof of concept (ArmoryExport), kept quiet on purpose. -->
         <Button Style="{StaticResource GhostButton}" Padding="12,5"
                 ToolTip="Preview: save this character as a JSON file to share on an armory site. Gold, last zone, notes, tags, bags and bank are left out."

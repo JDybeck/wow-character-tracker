@@ -52,6 +52,7 @@ sealed class MainViewModel : Observable
             else Log.Warn("The clipboard was busy, so nothing was pasted. Try again.");
         });
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
+        IgnoreCharacterCommand = new RelayCommand(p => { if (p is CharacterRow c) SelectedFlavor?.SetIgnored(c, true); });
         AskRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = true);
         CancelRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = false);
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
@@ -149,6 +150,7 @@ sealed class MainViewModel : Observable
     public ICommand CopyPostingCommand { get; }
     public ICommand PastePostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
+    public ICommand IgnoreCharacterCommand { get; }
     public ICommand AskRemoveCommand { get; }
     public ICommand CancelRemoveCommand { get; }
     public ICommand PostCharacterCommand { get; }

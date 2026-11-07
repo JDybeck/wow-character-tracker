@@ -1045,7 +1045,20 @@ local function appSummary()
 end
 
 local function buildApp(p)
-  local appTitle = ui.heading(p, "Set in the Character Tracker app")
+  local thisTitle = ui.heading(p, "This character")
+  local ignore = ui.checkbox(p, "Ignore this character",
+    "Not tracked: nothing is recorded, posted, announced or shared with friends for it. In the app it moves to Ignored, under the character list.",
+    function() return ns.isIgnored(UnitGUID("player")) end,
+    function(on)
+      local me = UnitGUID("player")
+      if not me then return end
+      ns.editSettings(function(s)
+        s.ignored = s.ignored or {}
+        s.ignored[me] = on or nil
+      end)
+    end)
+  ignore:SetPoint("TOPLEFT", thisTitle, "BOTTOMLEFT", -2, -6)
+  local appTitle = ui.heading(p, "Set in the Character Tracker app", ignore, -40)
   local appText = ui.text(p, "GameFontHighlightSmall")
   appText:SetPoint("TOPLEFT", appTitle, "BOTTOMLEFT", 0, -6)
   appText:SetWidth(PAGE_WIDTH - 40)
@@ -1062,7 +1075,7 @@ local TABS = {
   { key = "note", label = "Note", height = 330, build = buildNote },
   { key = "friends", label = "Friends", height = 600, build = buildFriends }, -- grows with its lists
   { key = "sharing", label = "Sharing", height = 300, build = buildSharing },
-  { key = "app", label = "App", height = 200, build = buildApp },
+  { key = "app", label = "App", height = 300, build = buildApp },
 }
 local BY_KEY = {}
 for _, t in ipairs(TABS) do BY_KEY[t.key] = t end

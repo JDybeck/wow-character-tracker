@@ -161,6 +161,20 @@ public class AddonWindowTests
         Assert.False(Bool(c, "WoWCharacterTrackerDB.share.defaults.professions"));
     }
 
+    // The App tab's Ignore this character is the same In game setting the app's Ignore tracking writes.
+    [Fact]
+    public void Ignore_this_character_writes_the_in_game_setting()
+    {
+        var c = Load();
+        c.Call("openWindow", "app");
+        Assert.False(Bool(c, "find('Ignore this character').checked"));
+        c.Lua("click('Ignore this character')");
+        Assert.True(Bool(c, $"WoWCharacterTrackerDB.gameSettings.ignored['{Me}'] == true"));
+        Assert.True(Bool(c, $"ns.isIgnored('{Me}')"));
+        c.Lua("click('Ignore this character')");
+        Assert.False(Bool(c, $"ns.isIgnored('{Me}')"));
+    }
+
     [Fact]
     public void The_minimap_checkbox_uses_the_minimap_button_when_there_is_one()
     {

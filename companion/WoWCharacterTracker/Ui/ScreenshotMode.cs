@@ -71,6 +71,7 @@ static class ScreenshotMode
                 await Task.Delay(5000);
             }
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
+            if (Part(3) == "ignored" && vm.SelectedFlavor is { HasIgnored: true } ig) ig.ShowIgnored = true; // the footer's Ignored list (saved as <name>-ignored.png too)
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
             if (Part(2) == "nofolder") vm.SelectedFlavor?.ShowFolderMissing();
@@ -147,6 +148,8 @@ static class ScreenshotMode
             Save(window, target);
             if (Part(2) == "settings" && Find<Views.Header>(window)?.FindName("SettingsMenu") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement menu })
                 Save(menu, Path.ChangeExtension(target, null) + "-settings.png");
+            if (Part(3) == "ignored" && Find<Views.CharactersPage>(window)?.FindName("IgnoredPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement ignoredList })
+                Save(ignoredList, Path.ChangeExtension(target, null) + "-ignored.png");
             if (Part(2) == "changelog" && Find<Views.Header>(window)?.FindName("ChangelogPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement changes })
                 Save(changes, Path.ChangeExtension(target, null) + "-changelog.png");
             window.Close();

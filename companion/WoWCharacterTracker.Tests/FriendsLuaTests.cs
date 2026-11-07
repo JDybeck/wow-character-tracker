@@ -91,6 +91,23 @@ public class FriendsLuaTests
         Assert.Equal(2, c.Lua("return shown[2].data.n").Number);
     }
 
+    // Ignore tracking (Settings.lua ignored, an In game setting): nothing recorded, never shared.
+    [Fact]
+    public void An_ignored_character_records_nothing_and_is_never_shared()
+    {
+        var c = new Client("Player-1-0000000A", "{}", "{ chars = { ['Player-1-0000000A'] = { lastSeen = 1 } }, items = {}, events = {} }",
+            "{ ignored = { ['Player-1-0000000A'] = true } }");
+        Assert.True(c.Lua("return ns.isIgnored('Player-1-0000000A')").Boolean);
+        Assert.False(c.Lua("return ns.isIgnored('Player-1-0000000B')").Boolean);
+        Assert.True(c.Lua("return ns.record('level', { level = 5 })").IsNil());
+        Assert.Equal(0, c.Lua("return #WoWCharacterTrackerDB.events").Number);
+        Assert.False(c.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000A')").Boolean);
+
+        c.Lua("ns.editSettings(function(s) s.ignored['Player-1-0000000A'] = nil end)"); // turned off in game
+        Assert.False(c.Lua("return ns.isIgnored('Player-1-0000000A')").Boolean);
+        Assert.True(c.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000A')").Boolean);
+    }
+
     static readonly string[] DataFiles = ["Shared.lua", "FriendData.lua"];
 
     const string Deadbeck = "{ char = 'Deadbeck', realm = 'Firemaw', level = 42, class = 'Warrior', classFile = 'WARRIOR', race = 'Orc', raceFile = 'Orc', faction = 'Horde', ilvl = 38, spec = 'Arms', zone = 'Stranglethorn Vale', money = 123456, talents = 'a;b\\\\c', guild = 'Secret', lastSeen = 900 }";

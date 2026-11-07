@@ -215,10 +215,11 @@ sealed class FriendsViewModel : Observable
     {
         var share = Share;
         var removed = settings().Removed; // removed on the Characters page, until played again
+        var ignored = settings().Ignored; // never shared (Ignore tracking)
         // With the surname (Forever), so two Zebs can be told apart; the newest snapshot that has one.
         OwnCharacters = [.. data.Characters.GroupBy(c => c.Guid)
             .Select(g => (Last: g.MaxBy(c => c.LastSeen)!, Surname: g.OrderByDescending(c => c.LastSeen).FirstOrDefault(c => c.Surname.Length > 0)?.Surname ?? ""))
-            .Where(x => !(removed.TryGetValue(x.Last.Guid, out var at) && x.Last.LastSeen <= at))
+            .Where(x => !(removed.TryGetValue(x.Last.Guid, out var at) && x.Last.LastSeen <= at) && !ignored.Contains(x.Last.Guid))
             .Select(x => (x.Last, Name: Format.Name(x.Last.Char, x.Surname, "full")))
             .OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase)
             .Select(x => new OwnCharacterShare(x.Last.Guid, x.Name, share.Chars.TryGetValue(x.Last.Guid, out var on) ? on : share.NewChars, this))];
