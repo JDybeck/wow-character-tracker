@@ -234,6 +234,71 @@ public class FriendMapLuaTests
         Assert.DoesNotContain(b.Sent(), m => m.Get("text").String.Contains(":WATCH:"));
     }
 
+    // A pin kept from an earlier look only comes back if the friend still allows it (review finding).
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_pin_from_before_a_watch_gap_comes_back_only_if_still_allowed(bool hidden)
+    {
+        var (a, b) = Pair(aShare: "mapRate = 300,");
+        b.Call("setMapOpen", true);
+        Pass(a, b, 3);
+        b.Call("setMapOpen", false);
+        Pass(a, b, 40); // the watch ends
+        if (hidden) a.Call("friendsCommand", "hide");
+        b.Call("setMapOpen", true);
+        Pass(a, b, 6);
+        Assert.Equal(!hidden, Pin(b) is not null);
+    }
+
+    [Fact]
+    public void A_pin_goes_when_the_friend_logs_onto_another_character()
+    {
+        var (a, b) = Pair();
+        b.Call("setMapOpen", true);
+        Pass(a, b, 3);
+        b.Lua("friends[1].guid = 'Player-1-0000000C'; friends[1].char = 'Drygbeck'");
+        Assert.Null(Pin(b));
+    }
+
+    [Theory]
+    [InlineData("ns.setContactReceive('JDybeck#1111', false)")]
+    [InlineData("ns.friendsCommand('off')")]
+    [InlineData("ns.editShare(function(s) s.blocked['JDybeck#1111'] = true end)")]
+    [InlineData("ns.editShare(function(s) s.contacts['JDybeck#1111'] = nil end)")]
+    public void Your_own_changes_take_the_pin_away_at_once(string change)
+    {
+        var (a, b) = Pair();
+        b.Call("setMapOpen", true);
+        Pass(a, b, 3);
+        Assert.NotNull(Pin(b));
+        b.Lua(change);
+        Assert.Null(Pin(b));
+    }
+
+    // Comms holds everything in combat: nothing piles up meanwhile, and the next position is fresh.
+    [Fact]
+    public void Nothing_piles_up_in_combat()
+    {
+        var (a, b) = Pair();
+        b.Call("setMapOpen", true);
+        Pass(a, b, 3);
+        a.Lua("inCombat = true");
+        b.Lua("inCombat = true");
+        for (var i = 0; i < 60; i++)
+        {
+            a.Lua("myX = myX + 0.005");
+            Pass(a, b, 1);
+        }
+        Assert.Equal(0, a.Lua("return ns.comms.pending()").Number);
+        Assert.Equal(0, b.Lua("return ns.comms.pending()").Number);
+        a.Lua("inCombat = false");
+        b.Lua("inCombat = false");
+        var after = Pass(a, b, 25);
+        Assert.NotEmpty(after);
+        Assert.EndsWith(",5,0", after[^1], StringComparison.Ordinal); // read just now, not a minute ago
+    }
+
     [Fact]
     public void Positions_are_never_saved()
     {
