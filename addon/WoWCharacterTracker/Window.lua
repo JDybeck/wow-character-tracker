@@ -247,12 +247,19 @@ local function friendState(f)
   return "No addon", { "Invite", ns.inviteFriend }
 end
 
+-- "Zeb Stonehand" with a Forever surname, else the name.
+local function fullName(c)
+  local name = c.char or "?"
+  if c.surname and c.surname ~= "" then return name .. " " .. c.surname end
+  return name
+end
+
 -- Gear as item names (quality colored when the game has the item) and talents.
 local function showCharTip(self)
   local c = self.char
   if not (c and GameTooltip) then return end
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:AddLine(c.realm and string.format("%s (%s)", c.char or "?", c.realm) or (c.char or "?"), 1, 1, 1)
+  GameTooltip:AddLine(c.realm and string.format("%s (%s)", fullName(c), c.realm) or fullName(c), 1, 1, 1)
   for id in string.gmatch(c.gear or "", "%d+~(%d+)") do
     local name, _, quality = ns.itemInfo(tonumber(id))
     local color = quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
@@ -423,7 +430,7 @@ local function buildFriends(p)
         lines = lines + 1
         local l = pooled(charLines, lines, newCharLine)
         l.char = c
-        l.nameText:SetText(c.char or "?")
+        l.nameText:SetText(fullName(c))
         classColor(l.nameText, c.classFile)
         l.infoText:SetText(charInfo(c))
         place(l, p, 24, y)
