@@ -16,6 +16,19 @@ static partial class Format
     // "1 character", "3 characters" (plural defaults to the word plus "s").
     public static string Count(int n, string word, string? plural = null) => $"{n} {(n == 1 ? word : plural ?? word + "s")}";
 
+    // Forever realms are named like "CAMWOW EU5 Realm 6 PvP": only the realm type at the end means
+    // anything to players. Other realm names stay as they are.
+    static readonly string[] RealmTypes = ["PvP", "PvE", "RP", "RPPvP", "RP-PvP", "Normal"];
+
+    // "EU · Tarren Mill", "EU · PvP" (region first when known, so same-named realms stand apart).
+    public static string Realm(string region, string realm)
+    {
+        var last = realm.LastIndexOf(' ');
+        var type = last > 0 ? realm[(last + 1)..] : "";
+        var name = RealmTypes.FirstOrDefault(t => t.Equals(type, StringComparison.OrdinalIgnoreCase)) ?? realm;
+        return region.Length > 0 ? $"{region.ToUpperInvariant()} · {name}" : name;
+    }
+
     // Discord can't show item icons in text, so professions get a plain emoji each.
     static readonly Dictionary<string, string> ProfessionEmoji = new(StringComparer.OrdinalIgnoreCase)
     {
