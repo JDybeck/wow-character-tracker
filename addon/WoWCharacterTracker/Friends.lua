@@ -486,11 +486,24 @@ function ns.pendingRequests()
   return out
 end
 
-function ns.showNextFriendRequest()
-  if showing or #waitingRequests == 0 then return end
-  if InCombatLockdown and InCombatLockdown() then return end
-  showing = table.remove(waitingRequests, 1)
-  local dialog = ns.popup("CHARACTERTRACKER_FRIEND_REQUEST", {
+-- Your characters friends would get: the shared ones, the one being played included.
+local function sharedCount()
+  local n, me = #sharedAlts(), UnitGUID("player")
+  if me and ns.isCharShared(ns.shareSettings(), me) then n = n + 1 end
+  return n
+end
+
+-- What the request box shows for f: { label, chars (how many of yours they'd get), choices (the
+-- categories Allow gives them now: your general choice, or what you set for them before), general }.
+function ns.requestInfo(f)
+  local s = ns.shareSettings()
+  return { label = label(f.tag), chars = sharedCount(), choices = ns.allowedFor(s, s.contacts[f.tag]), general = ns.allowedFor(s, nil) }
+end
+
+-- Shows a request: the window's own box (Window.lua, with the choices), else a Blizzard popup.
+local function showRequest(f)
+  if ns.showRequestBox then return ns.showRequestBox(f) end
+  return ns.popup("CHARACTERTRACKER_FRIEND_REQUEST", {
     text = "%s wants to see your characters (Character Tracker).",
     button1 = "Allow", button2 = "Not now", button3 = "Never",
     OnAccept = function(_, data) ns.answerFriendRequest(data, "allow") end,
@@ -503,7 +516,19 @@ function ns.showNextFriendRequest()
         ns.showNextFriendRequest()
       end
     end,
-  }, label(showing.tag), showing)
+  }, label(f.tag), f)
+end
+
+local function hideRequest()
+  if ns.hideRequestBox then ns.hideRequestBox() end
+  if StaticPopup_Hide then StaticPopup_Hide("CHARACTERTRACKER_FRIEND_REQUEST") end
+end
+
+function ns.showNextFriendRequest()
+  if showing or #waitingRequests == 0 then return end
+  if InCombatLockdown and InCombatLockdown() then return end
+  showing = table.remove(waitingRequests, 1)
+  local dialog = showRequest(showing)
   if not dialog then -- the game had no room for it: try again in a moment
     table.insert(waitingRequests, 1, showing)
     showing = nil
@@ -511,22 +536,42 @@ function ns.showNextFriendRequest()
   end
 end
 
+-- Allow with choices (category -> on, from the request box): only what differs from your general
+-- choice is kept for them, so the rest still follows it.
+local function keepChoices(tag, choices)
+  if not choices then return end
+  ns.editShare(function(s)
+    local c = s.contacts[tag]
+    for _, k in ipairs(CATEGORIES) do
+      if choices[k] ~= nil then
+        local on = choices[k] == true
+        if on == (s.defaults[k] == true) then c[k] = nil else c[k] = on end
+      end
+    end
+  end)
+end
+
 -- Allow shares with them, Not now waits for the next session, Never blocks them and tells their
--- addon to stop asking. From the popup (f is the one showing) or the Friends tab's list (a copy),
--- which closes the popup when it's theirs.
-function ns.answerFriendRequest(f, choice)
+-- addon to stop asking. From the request box (f is the one showing) or the Friends tab's list (a
+-- copy), which closes the box when it's theirs. choices: see keepChoices.
+function ns.answerFriendRequest(f, choice, choices)
   if not f or (showing and showing.tag == f.tag) then
     local fromList = f and showing ~= f
     showing = nil
-    if fromList and StaticPopup_Hide then StaticPopup_Hide("CHARACTERTRACKER_FRIEND_REQUEST") end
+    if fromList then hideRequest() end
   end
   if f then
     for i = #waitingRequests, 1, -1 do
       if waitingRequests[i].tag == f.tag then table.remove(waitingRequests, i) end
     end
     if choice == "allow" then
-      answer(f, addContact(f.tag, true))
-      ns.say(label(f.tag) .. " can now see your shared characters. /wct friends to change what they get.")
+      addContact(f.tag, true)
+      keepChoices(f.tag, choices)
+      local s = ns.shareSettings()
+      local contact = s.contacts[f.tag]
+      answer(f, contact)
+      ns.say(string.format("%s can now see your shared characters (%s). Change it on the Friends tab (/wct).",
+        label(f.tag), ns.shareSummary(ns.allowedFor(s, contact))))
     elseif choice == "never" then
       ns.editShare(function(s) s.blocked[f.tag] = true end)
       saidNo[f.tag] = true
@@ -573,6 +618,8 @@ local function picked(allowed)
   end
   return #out > 0 and table.concat(out, ", ") or "only the basics"
 end
+-- "gear, talents, professions" from { category = on }, for the request box, its chat line and /wct friends.
+ns.shareSummary = picked
 
 local function listContacts()
   local s, me = ns.shareSettings(), UnitGUID("player")

@@ -618,6 +618,129 @@ openSharing = function(tag)
   return nil
 end
 
+-- The request box: a friend asks for your characters. It says what Allow gives them, and "Choose
+-- what they get" unfolds the categories with three shortcuts, to set them up before allowing.
+-- Friends.lua queues the requests and shows one at a time, never in combat. Closing it is Not now.
+local REQUEST_BOX = "WoWCharacterTrackerRequestBox"
+local REQUEST_WIDTH = 440
+local REQUEST_SHORT, REQUEST_TALL = 150, 262
+local PRESETS = {
+  { "Like all friends" },
+  { "Everything", { gear = true, talents = true, location = true, professions = true, gold = true } },
+  { "Basics only", { gear = false, talents = false, location = false, professions = false, gold = false } },
+}
+local requestBox
+
+-- "Allow gives them 3 of your characters: name, level, class and item level, plus gear and talents."
+local function requestText(box)
+  if box.chars == 0 then return "You don't share any characters right now, so Allow gives them nothing until you do (Sharing tab)." end
+  local what = ns.shareSummary and ns.shareSummary(box.choices) or ""
+  return string.format("Allow gives them %s: name, level, class and item level%s.",
+    box.chars == 1 and "1 of your characters" or (box.chars .. " of your characters"),
+    what == "only the basics" and "" or (", plus " .. what))
+end
+
+local function drawRequest(box)
+  box.info:SetText(requestText(box))
+  box.toggle:SetText(box.open and "Choose what they get  ^" or "Choose what they get  v")
+  box.choicesFrame:SetShown(box.open)
+  box:SetHeight(box.open and REQUEST_TALL or REQUEST_SHORT)
+  ui.refresh(box.choicesFrame) -- the checkboxes
+end
+
+local function answerRequest(box, choice)
+  local f = box.request
+  box.answered, box.request = true, nil
+  box:Hide()
+  if f then ns.answerFriendRequest(f, choice, choice == "allow" and box.choices or nil) end
+end
+
+local function buildRequestBox()
+  local box = CreateFrame("Frame", REQUEST_BOX, UIParent)
+  box:SetFrameStrata("DIALOG")
+  box:SetClampedToScreen(true)
+  box:EnableMouse(true)
+  box:SetWidth(REQUEST_WIDTH)
+  box:SetPoint("TOP", UIParent, "TOP", 0, -135)
+  if UISpecialFrames then table.insert(UISpecialFrames, REQUEST_BOX) end
+  ui.box(box, C.window, C.accent)
+  local title = ui.heading(box, "Friend request")
+  box.line = ui.text(box, "GameFontHighlight")
+  box.line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+  box.line:SetWidth(REQUEST_WIDTH - 32)
+  box.info = ui.text(box, "GameFontDisableSmall")
+  box.info:SetPoint("TOPLEFT", box.line, "BOTTOMLEFT", 0, -6)
+  box.info:SetWidth(REQUEST_WIDTH - 32)
+  box.toggle = ui.button(box, "", 170, function()
+    box.open = not box.open
+    drawRequest(box)
+  end)
+  box.toggle:SetPoint("TOPLEFT", box.info, "BOTTOMLEFT", 0, -10)
+
+  -- The unfolded part: the shortcuts, then a checkbox per category in two columns.
+  local choices = CreateFrame("Frame", nil, box)
+  choices:SetPoint("TOPLEFT", box.toggle, "BOTTOMLEFT", 0, -8)
+  choices:SetSize(REQUEST_WIDTH - 32, 110)
+  box.choicesFrame = choices
+  local last
+  for i, preset in ipairs(PRESETS) do
+    local b = ui.button(choices, preset[1], 120, function()
+      box.choices = ns.copy(preset[2] or box.general)
+      drawRequest(box)
+    end)
+    if last then b:SetPoint("LEFT", last, "RIGHT", 6, 0) else b:SetPoint("TOPLEFT", choices, "TOPLEFT", 0, 0) end
+    last = b
+    if i == 1 then box.firstPreset = b end
+  end
+  for i, key in ipairs(ns.SHARE_CATEGORIES or {}) do
+    local cb = ui.checkbox(choices, CATEGORY_NAMES[key] or key, nil,
+      function() return box.choices and box.choices[key] == true end,
+      function(on)
+        box.choices[key] = on
+        drawRequest(box)
+      end)
+    local row, column = math.floor((i - 1) / 2), (i - 1) % 2
+    cb:SetPoint("TOPLEFT", box.firstPreset, "BOTTOMLEFT", column * 200 - 2, -8 - row * 26)
+  end
+
+  local allow = ui.button(box, "Allow", 90, function() answerRequest(box, "allow") end, "primary")
+  local notNow = ui.button(box, "Not now", 90, function() answerRequest(box, "notnow") end)
+  local never = ui.button(box, "Never", 90, function() answerRequest(box, "never") end)
+  never:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -14, 14)
+  notNow:SetPoint("RIGHT", never, "LEFT", -6, 0)
+  allow:SetPoint("RIGHT", notNow, "LEFT", -6, 0)
+
+  -- Closed with Esc: Not now, a moment later so the next request doesn't open while this one closes.
+  box:SetScript("OnHide", function(self)
+    local f = self.request
+    if self.answered or not f then return end
+    self.request = nil
+    C_Timer.After(0, function() ns.answerFriendRequest(f, "notnow") end)
+  end)
+  requestBox = box
+end
+
+-- Friends.lua's: shows f's request. Returns the box (a popup that couldn't show returns nil).
+function ns.showRequestBox(f)
+  if not ns.requestInfo then return nil end
+  if not requestBox then buildRequestBox() end
+  local info = ns.requestInfo(f)
+  local box = requestBox
+  box.request, box.answered, box.open = f, false, false
+  box.chars, box.general, box.choices = info.chars, info.general, ns.copy(info.choices)
+  box.line:SetText(info.label .. " wants to see your characters.")
+  drawRequest(box)
+  box:Show()
+  return box
+end
+
+-- The request was answered somewhere else (the Friends tab's list).
+function ns.hideRequestBox()
+  if not (requestBox and requestBox:IsShown()) then return end
+  requestBox.answered, requestBox.request = true, nil
+  requestBox:Hide()
+end
+
 local function charInfo(c)
   local parts = {}
   if c.level then parts[#parts + 1] = "level " .. c.level end

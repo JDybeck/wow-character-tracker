@@ -643,6 +643,69 @@ public class AddonWindowTests
         Assert.False(Bool(c, "onScreen(sharingPanel())"));
     }
 
+    // A request from Zeb#2222 through the real Friends.lua, shown in the window's request box.
+    static FriendsLuaTests.Client RequestBox()
+    {
+        var c = Load();
+        c.Lua("""
+            function requestBox() return named('WoWCharacterTrackerRequestBox') end
+            function boxButton(label)
+              for _, f in ipairs(frames) do
+                if f.text == label and f.kind == 'Button' and onScreen(f) then return f end
+              end
+              error('no ' .. label)
+            end
+            function press(label) local b = boxButton(label); b.scripts.OnClick(b) end
+            ns.offerFriendRequest({ tag = 'Zeb#2222', account = 9 })
+            """);
+        return c;
+    }
+
+    [Fact]
+    public void A_request_says_what_allow_gives_and_keeps_only_the_changed_choices()
+    {
+        var c = RequestBox();
+        Assert.True(Bool(c, "onScreen(requestBox())"));
+        Assert.Equal(0, Num(c, "#shown")); // not the Blizzard popup
+        Assert.True(Bool(c, "shownText('Zeb#2222 wants to see your characters.') ~= nil"));
+        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus gear, talents, location, professions.') ~= nil"));
+        Assert.True(Bool(c, "shownText('Talents') == nil")); // folded
+
+        c.Lua("press('Choose what they get  v')");
+        c.Lua("press('Basics only')");
+        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level.') ~= nil"));
+        c.Lua("click('Talents')");
+        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus talents.') ~= nil"));
+
+        c.Lua("press('Allow')");
+        Assert.False(Bool(c, "onScreen(requestBox())"));
+        c.Lua("zeb = ns.shareSettings().contacts['Zeb#2222']");
+        Assert.True(Bool(c, "zeb.share and zeb.receive"));
+        Assert.True(Bool(c, "zeb.talents == nil and zeb.gold == nil")); // the same as for all friends: follows it
+        Assert.True(Bool(c, "zeb.gear == false and zeb.location == false and zeb.professions == false"));
+        Assert.Contains("Zeb#2222 can now see your shared characters (talents). Change it on the Friends tab (/wct).", c.Said());
+    }
+
+    [Fact]
+    public void Like_all_friends_goes_back_to_the_general_choice_and_esc_is_not_now()
+    {
+        var c = RequestBox();
+        c.Lua("press('Choose what they get  v'); press('Everything')");
+        Assert.True(Bool(c, "find('Gold').checked"));
+        c.Lua("press('Like all friends')");
+        Assert.False(Bool(c, "find('Gold').checked"));
+
+        c.Lua("requestBox():Hide(); requestBox().scripts.OnHide(requestBox())"); // Esc
+        c.Run(1);
+        Assert.Equal(0, Num(c, "#ns.pendingRequests()"));
+        Assert.True(Bool(c, "ns.shareSettings().contacts['Zeb#2222'] == nil"));
+
+        c.Lua("ns.offerFriendRequest({ tag = 'Al#4444', account = 8 })");
+        Assert.True(Bool(c, "shownText('Al#4444 wants to see your characters.') ~= nil"));
+        c.Lua("ns.answerFriendRequest(ns.pendingRequests()[1], 'never')"); // from the Friends tab's list
+        Assert.False(Bool(c, "onScreen(requestBox())"));
+    }
+
     [Fact]
     public void Shared_with_you_has_your_sharing_for_each_friend()
     {
