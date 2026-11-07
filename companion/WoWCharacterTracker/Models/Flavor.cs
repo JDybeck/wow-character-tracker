@@ -11,6 +11,8 @@ sealed record Flavor(string Key, string Name, string[] Folders, string WowheadPa
     // Characters have a ruleset (hardcore, self-found...): the list is grouped by it instead of by
     // realm, webhooks can be limited to some, cards show it, and the test characters live here.
     public bool HasRulesets { get; init; }
+    // Characters last seen before this (unix time) are from a pre-launch stress test and get cleaned once (StressTestCleanup). 0 = none.
+    public long StressTestBefore { get; init; }
     public string GroupLabel => HasRulesets ? "Ruleset" : "Realm";
 
     // UnitName gives a surname (Ronnie Raket), so posts can use the first, last or full name.
@@ -74,6 +76,7 @@ static class Flavors
     {
         LogoUrl = "https://warcraft.wiki.gg/images/thumb/WoW_Forever_Logo.png/250px-WoW_Forever_Logo.png",
         HasRulesets = true, HasSurnames = true, HasInGamePortraits = true, HasClassicTalents = true,
+        StressTestBefore = 1793746800, // 2026-11-04 00:00 Swedish time: earlier characters are from the stress test
         HasRangedSlot = true, EstimatesXp = true, ReadyMadeLists = ReadyMadeList.All, MaxLevel = 60,
         EnchantSpells = "enchant-spells-forever.json", // Forever renumbered some of Classic's enchants
     };

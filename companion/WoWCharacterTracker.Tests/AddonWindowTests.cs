@@ -275,7 +275,7 @@ public class AddonWindowTests
         requests = { { tag = 'Zeb#2222', account = 9, label = 'Zebbe', at = clock - 5 } }
         shared = {
           { tag = 'Cid#3', label = 'Cid#3', chars = {
-            { char = 'Cidrin', realm = 'Firemaw', level = 60, classFile = 'MAGE', spec = 'Frost', ilvl = 112, zone = 'Ironforge',
+            { char = 'Cidrin', surname = 'Frostmane', realm = 'Firemaw', level = 60, classFile = 'MAGE', spec = 'Frost', ilvl = 112, zone = 'Ironforge',
               gear = '1~100,5~200', talents = 'Arcane 10 / Fire 0 / Frost 41', at = clock - 7200, received = clock - 7200 },
           } },
         }
@@ -403,10 +403,10 @@ public class AddonWindowTests
             ns.itemInfo = function(id) if id == 100 then return 'Frostfire Circlet', nil, 4 end end
             """);
         c.Call("friendsChanged");
-        Assert.True(Bool(c, "shownText('Cidrin') ~= nil"));
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil")); // with the surname
         Assert.True(Bool(c, "shownText('level 60, Frost, ilvl 112, Ironforge, 2h ago') ~= nil"));
 
-        c.Lua("line = shownText('Cidrin').owner; line.scripts.OnEnter(line)");
+        c.Lua("line = shownText('Cidrin Frostmane').owner; line.scripts.OnEnter(line)");
         Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == line"));
         var lines = c.Lua("return table.concat(GameTooltip.lines, ';')").String;
         Assert.Contains("Frostfire Circlet", lines);
@@ -469,9 +469,9 @@ public class AddonWindowTests
     {
         var c = GearTab();
         Assert.True(Bool(c, "panel() == nil")); // built on the first click
-        c.Lua("clickChar('Cidrin')");
+        c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "onScreen(panel())"));
-        Assert.True(Bool(c, "shownText('Cidrin (Firemaw)') ~= nil"));
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane (Firemaw)') ~= nil"));
         Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
         Assert.Equal(0.64, Num(c, "gearRow(1).nameText.color[1]"), 3);
         Assert.Equal("1,1,1", c.Lua("return table.concat(gearRow(2).nameText.color, ',')").String);
@@ -482,7 +482,7 @@ public class AddonWindowTests
     public void Hovering_a_gear_row_shows_the_real_item_tooltip()
     {
         var c = GearTab();
-        c.Lua("clickChar('Cidrin')");
+        c.Lua("clickChar('Cidrin Frostmane')");
         c.Lua("r = gearRow(1); r.scripts.OnEnter(r)");
         Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == r"));
         Assert.Equal("item:100:1234", c.Lua("return GameTooltip.link").String);
@@ -499,17 +499,17 @@ public class AddonWindowTests
     public void Clicking_another_character_switches_the_panel_and_the_same_one_closes_it()
     {
         var c = GearTab();
-        c.Lua("clickChar('Cidrin')");
+        c.Lua("clickChar('Cidrin Frostmane')");
         var built = Num(c, "#frames");
         c.Lua("clickChar('Cidra')");
         Assert.Equal(built, Num(c, "#frames"));
         Assert.Equal("Head:item 400:", c.Lua("return gearRows()").String);
         Assert.True(Bool(c, "shownText('Cidra (Firemaw)') ~= nil"));
-        Assert.True(Bool(c, "shownText('Cidrin (Firemaw)') == nil"));
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane (Firemaw)') == nil"));
 
         c.Lua("clickChar('Cidra')");
         Assert.False(Bool(c, "onScreen(panel())"));
-        c.Lua("clickChar('Cidrin')");
+        c.Lua("clickChar('Cidrin Frostmane')");
         Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
         Assert.Equal(built, Num(c, "#frames"));
     }
@@ -523,7 +523,7 @@ public class AddonWindowTests
         c.Lua("clickChar('Cidra')");
         Assert.True(Bool(c, "shownText('No gear shared') ~= nil"));
         Assert.Equal("", c.Lua("return gearRows()").String);
-        c.Lua("clickChar('Cidrin')");
+        c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "shownText('No gear shared') == nil"));
     }
 

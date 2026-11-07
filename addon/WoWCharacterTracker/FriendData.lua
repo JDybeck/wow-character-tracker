@@ -8,6 +8,7 @@ local ADDON, ns = ...
 local FIELDS = {
   guid = { kind = "string", max = 40 },
   char = { kind = "string", max = 24 },
+  surname = { kind = "string", max = 24 }, -- Forever
   realm = { kind = "string", max = 40 },
   level = { kind = "number" },
   class = { kind = "string", max = 24 },

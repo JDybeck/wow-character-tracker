@@ -247,8 +247,16 @@ local function friendState(f)
   return "No addon", { "Invite", ns.inviteFriend }
 end
 
+-- "Zeb Stonehand" with a Forever surname, else the name.
+local function fullName(c)
+  local name = c.char or "?"
+  if c.surname and c.surname ~= "" then return name .. " " .. c.surname end
+  return name
+end
+
+-- "Zeb Stonehand (Firemaw)": the gear panel's title and the hover tooltip's first line.
 local function charTitle(c)
-  return c.realm and string.format("%s (%s)", c.char or "?", c.realm) or (c.char or "?")
+  return c.realm and string.format("%s (%s)", fullName(c), c.realm) or fullName(c)
 end
 
 -- The item's name ("item 12345" until the game has it cached) and its quality color, white without one.
@@ -542,7 +550,7 @@ local function buildFriends(p)
         local l = pooled(charLines, lines, newCharLine)
         l.char = c
         if charKey(c) == gearKey then gearChar = c end
-        l.nameText:SetText(c.char or "?")
+        l.nameText:SetText(fullName(c))
         classColor(l.nameText, c.classFile)
         l.infoText:SetText(charInfo(c))
         place(l, p, 24, y)

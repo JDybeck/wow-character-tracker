@@ -10,6 +10,7 @@
 Settings.lua
 Shared.lua
 FriendData.lua
+Cleanup.lua
 Core.lua
 Character.lua
 Inventory.lua
