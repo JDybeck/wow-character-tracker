@@ -42,7 +42,8 @@
     </Border>
 
     <!-- The character -->
-    <StackPanel Visibility="{Binding HasHero, Converter={StaticResource Visible}}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding HasHero, Converter={StaticResource Visible}}">
+    <StackPanel>
       <Border Style="{StaticResource CardBorder}" Padding="22,18" DataContext="{Binding Hero}">
         <StackPanel>
           <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
@@ -174,6 +175,7 @@
         </StackPanel>
       </Border>
     </StackPanel>
+    </ScrollViewer>
 
     <!-- The feed -->
     <Border Grid.Column="2" Style="{StaticResource CardBorder}" Padding="16,14" Visibility="{Binding HasHero, Converter={StaticResource Visible}}">
@@ -191,12 +193,27 @@
             <DataTemplate DataType="{x:Type vm:MomentRow}">
               <Border x:Name="Box" CornerRadius="10" Padding="10,8" Margin="0,0,6,4" BorderThickness="1" BorderBrush="Transparent" Background="Transparent">
                 <DockPanel>
-                  <Grid DockPanel.Dock="Left" Width="34" Height="34" Margin="0,0,12,0" DataContext="{Binding Row}" ui:ItemTip.Info="{Binding Info}">
-                    <Border CornerRadius="8" Background="{DynamicResource CardHeader}"/>
-                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="15" HorizontalAlignment="Center"
-                               Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
-                    <Image Source="{Binding IconUrl, Converter={StaticResource WebImage}}" Width="30" Height="30"
-                           Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
+                  <Grid DockPanel.Dock="Left" Width="34" Height="34" Margin="0,0,12,0">
+                    <!-- A level-up: the character's portrait. -->
+                    <Grid DataContext="{Binding Character}" Visibility="{Binding DataContext.IsLevel, RelativeSource={RelativeSource AncestorType=DockPanel}, Converter={StaticResource Visible}}">
+                      <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
+                      <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      <Image Source="{Binding PictureUrl, Converter={StaticResource WebImage}}" Stretch="UniformToFill">
+                        <Image.Clip>
+                          <EllipseGeometry Center="17,17" RadiusX="17" RadiusY="17"/>
+                        </Image.Clip>
+                      </Image>
+                      <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5"/>
+                    </Grid>
+                    <!-- Anything else: the item's icon, else the kind's glyph. -->
+                    <Grid DataContext="{Binding Row}" ui:ItemTip.Info="{Binding Info}"
+                          Visibility="{Binding DataContext.IsLevel, RelativeSource={RelativeSource AncestorType=DockPanel}, Converter={StaticResource Hidden}}">
+                      <Border CornerRadius="8" Background="{DynamicResource CardHeader}"/>
+                      <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="15" HorizontalAlignment="Center"
+                                 Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
+                      <Image Source="{Binding IconUrl, Converter={StaticResource WebImage}}" Width="30" Height="30"
+                             Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
+                    </Grid>
                   </Grid>
                   <!-- Posted, or a Share button. -->
                   <Grid DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0">

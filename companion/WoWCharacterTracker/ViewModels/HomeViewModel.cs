@@ -71,13 +71,16 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
             .OrderByDescending(e => e.At)
             .Take(FeedSize);
         Feed.Clear();
+        var portraits = new HashSet<CharacterRow>();
         foreach (var e in newest)
         {
             var row = HighlightRow.From(e);
             if (row.Text.Length == 0) continue;
             row.Info = row.ItemId > 0 ? lookup.For("item", row.ItemId) : null;
-            Feed.Add(new MomentRow(row, byGuid[e.Guid], sent.Contains(e.Id)));
-            _ = row.LoadIconAsync(flavor);
+            var who = byGuid[e.Guid];
+            Feed.Add(new MomentRow(row, who, sent.Contains(e.Id)));
+            if (e.Kind == "level") { if (portraits.Add(who)) _ = who.LoadPictureAsync(flavor); } // once per character
+            else _ = row.LoadIconAsync(flavor);
         }
         Raise(nameof(HasFeed));
     }
@@ -116,6 +119,9 @@ sealed class MomentRow(HighlightRow row, CharacterRow character, bool posted) : 
 
     bool isPosted = posted;
     public bool Posted { get => isPosted; set => Set(ref isPosted, value); }
+
+    // A level-up shows the character's portrait instead of an icon.
+    public bool IsLevel => Row.Source?.Kind == "level";
 
     // Epic and legendary loot, max level, a hardcore death: the rows that stand out.
     public bool Big => Row.Source is { } e && (e.Kind == "loot" && e.Quality >= 4 || e.MaxLevel || e.Kind is "death" or "makgora" && !e.Lost);
