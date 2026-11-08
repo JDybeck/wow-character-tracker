@@ -31,26 +31,22 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     public ObservableCollection<MomentRow> Feed { get; } = [];
     public bool HasFeed => Feed.Count > 0;
 
-    // Friends whose shared character was seen lately. The app hears from friends through your saved
-    // file (on /reload or logout), so this is "seen in the last half hour", not Battle.net's online.
-    public static readonly TimeSpan OnlineWindow = TimeSpan.FromMinutes(30);
-    public ObservableCollection<CharacterRow> FriendsOnline { get; } = [];
-    public bool HasFriendsOnline => FriendsOnline.Count > 0;
-    bool hasFriends;
-    public bool HasFriends { get => hasFriends; private set => Set(ref hasFriends, value); }
+    // Friends who share with you, the one seen last first (when isn't Battle.net's online: friends'
+    // updates reach the app through your saved file, on /reload or logout).
+    const int FriendsShown = 6;
+    public ObservableCollection<CharacterRow> Friends { get; } = [];
+    public bool HasFriends => Friends.Count > 0;
 
     public void Show(IReadOnlyList<CharacterRow> rows, IReadOnlyList<Entry> events, IReadOnlySet<string> sent, bool gameRunning,
         IEnumerable<CharacterRow> friends)
     {
-        var friendList = friends.ToList();
-        HasFriends = friendList.Count > 0;
-        FriendsOnline.Clear();
-        foreach (var f in SeenLately(friendList, DateTimeOffset.UtcNow))
+        Friends.Clear();
+        foreach (var f in LatestFriends(friends, FriendsShown))
         {
-            FriendsOnline.Add(f);
+            Friends.Add(f);
             _ = f.LoadPictureAsync(flavor);
         }
-        Raise(nameof(HasFriendsOnline));
+        Raise(nameof(HasFriends));
 
         // Real characters first: the test ones only lead when there's nothing else.
         Hero = rows.Where(r => !r.IsTest).MaxBy(r => r.LastSeen) ?? rows.MaxBy(r => r.LastSeen);
@@ -86,15 +82,12 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         Raise(nameof(HasFeed));
     }
 
-    // Each friend once, with the character they played last, when that was within the window; newest first.
-    internal static IEnumerable<CharacterRow> SeenLately(IEnumerable<CharacterRow> friends, DateTimeOffset now)
-    {
-        var since = now.Add(-OnlineWindow).ToUnixTimeSeconds();
-        return friends.GroupBy(f => f.FriendTag)
+    // Each friend once, with the character they played last; the one seen last first.
+    internal static IEnumerable<CharacterRow> LatestFriends(IEnumerable<CharacterRow> friends, int count) =>
+        friends.GroupBy(f => f.FriendTag)
             .Select(g => g.MaxBy(f => f.LastSeen)!)
-            .Where(f => f.LastSeen >= since)
-            .OrderByDescending(f => f.LastSeen);
-    }
+            .OrderByDescending(f => f.LastSeen)
+            .Take(count);
 
     // Posted just now (by the tracker or a Share click): the row says so.
     public void MarkPosted(string id)

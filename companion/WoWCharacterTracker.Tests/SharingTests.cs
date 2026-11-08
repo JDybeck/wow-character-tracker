@@ -26,9 +26,9 @@ public class HomeFeedTests
         Assert.Equal("Reached max level 60", HighlightRow.From(new Entry { Kind = "level", Level = 60, MaxLevel = true, At = 1 }).Text);
     }
 
-    // Friends online on Home: each friend once (their newest character), only when seen in the last half hour.
+    // Friends on Home: each friend once (their newest character), the one seen last first.
     [Fact]
-    public void Friends_online_are_each_friend_seen_in_the_last_half_hour()
+    public void Friends_are_each_friend_once_latest_seen_first()
     {
         var now = DateTimeOffset.FromUnixTimeSeconds(1_800_000_000);
         CharacterRow Friend(string guid, string tag, int minutesAgo)
@@ -38,8 +38,9 @@ public class HomeFeedTests
             row.FriendTag = tag;
             return row;
         }
-        var seen = HomeViewModel.SeenLately([Friend("a1", "Ann#1", 50), Friend("a2", "Ann#1", 5), Friend("b1", "Bob#2", 20), Friend("c1", "Cid#3", 45)], now);
-        Assert.Equal(["a2", "b1"], seen.Select(r => r.Guid));
+        List<CharacterRow> all = [Friend("a1", "Ann#1", 50), Friend("a2", "Ann#1", 5), Friend("b1", "Bob#2", 20), Friend("c1", "Cid#3", 4000)];
+        Assert.Equal(["a2", "b1", "c1"], HomeViewModel.LatestFriends(all, 6).Select(r => r.Guid));
+        Assert.Equal(["a2", "b1"], HomeViewModel.LatestFriends(all, 2).Select(r => r.Guid));
     }
 
     [Fact]

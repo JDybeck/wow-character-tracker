@@ -120,17 +120,15 @@
         </StackPanel>
       </Border>
 
-      <!-- Friends seen lately (their shared characters), only when you have friends sharing. Click one for the Friends page. -->
+      <!-- Friends who share with you, the one seen last first (only when there are some). Click one for the Friends page. -->
       <Border Style="{StaticResource CardBorder}" Padding="22,14" Margin="0,16,0,0" Visibility="{Binding HasFriends, Converter={StaticResource Visible}}">
         <StackPanel>
-          <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-            <Ellipse Width="8" Height="8" Fill="{StaticResource Green}" Margin="0,0,7,0" VerticalAlignment="Center"
-                     Visibility="{Binding HasFriendsOnline, Converter={StaticResource Visible}}"/>
-            <TextBlock Style="{StaticResource FactLabel}" Text="FRIENDS ONLINE" ToolTip="Friends whose character was seen in the last half hour. Friends' updates reach the app when you /reload or log out."/>
-          </StackPanel>
-          <TextBlock Style="{StaticResource Hint}" Visibility="{Binding HasFriendsOnline, Converter={StaticResource Hidden}}"
-                     Text="Nobody seen in the last half hour. Friends' updates reach the app when you /reload or log out."/>
-          <ItemsControl ItemsSource="{Binding FriendsOnline}" Focusable="False">
+          <DockPanel Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Right" Style="{StaticResource FactLabel}" Text="LAST SEEN"
+                       ToolTip="Friends' updates reach the app when you /reload or log out."/>
+            <TextBlock Style="{StaticResource FactLabel}" Text="FRIENDS"/>
+          </DockPanel>
+          <ItemsControl ItemsSource="{Binding Friends}" Focusable="False">
             <ItemsControl.ItemTemplate>
               <DataTemplate DataType="{x:Type vm:CharacterRow}">
                 <Button Cursor="Hand" Margin="0,0,0,4" ToolTip="Open on the Friends page"
