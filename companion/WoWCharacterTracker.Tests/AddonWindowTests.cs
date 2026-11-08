@@ -474,6 +474,17 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Bobber') ~= nil"));
     }
 
+    // Each friend under Shared with you says what they share and whether you share back.
+    [Fact]
+    public void Shared_with_you_says_who_shares_what()
+    {
+        var c = FriendsTab();
+        Assert.True(Bool(c, "shownText('|cff6fd67fShares 1 character with you|r    |cff9a9a9aYou don\\'t share yours|r') ~= nil"));
+        c.Lua("ns.contactSharing = function(tag) return { share = true, summary = 'gear and talents' } end");
+        c.Call("friendsChanged");
+        Assert.True(Bool(c, "shownText('|cff6fd67fShares 1 character with you|r    |cff6fd67fYou share yours: gear and talents|r') ~= nil"));
+    }
+
     [Fact]
     public void Shared_with_you_lists_characters_with_a_line_of_info()
     {
@@ -795,7 +806,7 @@ public class AddonWindowTests
         c.Call("friendsChanged");
         c.Lua("""
             for _, f in ipairs(frames) do
-              if f.text == 'Your sharing' and onScreen(f) then f.scripts.OnClick(f) end
+              if f.text == 'Options' and onScreen(f) then f.scripts.OnClick(f) end
             end
             """);
         Assert.True(Bool(c, "onScreen(sharingPanel())"));

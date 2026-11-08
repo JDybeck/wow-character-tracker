@@ -819,6 +819,21 @@ local function buildFriends(p)
   local noneOnline = note("None of your Battle.net friends are online in this game.")
   local noneShared = note("Nothing shared with you yet. Ask a friend above.")
   local requestRows, friendCards, sharedHeads, sharedButtons, charCards = {}, {}, {}, {}, {}
+  local sharedStates = {}
+
+  -- Under a friend's name in Shared with you: what they share with you, and whether (and what) you
+  -- share back, in green, or in grey when you don't.
+  local GREEN, GREY = "|cff6fd67f", "|cff9a9a9a"
+  local function shareStatus(friend)
+    local n = #(friend.chars or {})
+    local they = string.format("%sShares %d character%s with you|r", GREEN, n, n == 1 and "" or "s")
+    local o = ns.contactSharing and ns.contactSharing(friend.tag)
+    local you = GREY .. "You don't share yours|r"
+    if o and o.share then
+      you = GREEN .. "You share yours" .. ((o.summary or "") ~= "" and (": " .. o.summary) or "") .. "|r"
+    end
+    return they .. "    " .. you
+  end
 
   -- Runs fn(tag) and shows what it said (ask/share return a line, invite ok and a line).
   local function act(fn, tag)
@@ -946,11 +961,18 @@ local function buildFriends(p)
       local label = who(friend.label, friend.tag) or "?"
       h:SetText(label)
       place(h, p, 18, y + 4)
-      -- What you share with them, also when they're offline.
+      local st = pooled(sharedStates, heads, function()
+        local fs = ui.text(p, "GameFontHighlightSmall")
+        fs:SetWidth(width - 110)
+        return fs
+      end)
+      st:SetText(shareStatus(friend))
+      place(st, p, 18, y + 20)
+      -- What you share with them and what you keep of theirs, also when they're offline.
       local b = pooled(sharedButtons, heads, function() return cardButton(p, 90) end)
-      setButton(b, "Your sharing", function() openSharing(friend.tag) end)
-      place(b, p, 24 + width - 8 - 90, y)
-      y = y + 26
+      setButton(b, "Options", function() openSharing(friend.tag) end)
+      place(b, p, 24 + width - 8 - 90, y + 6)
+      y = y + 42
       for _, c in ipairs(friend.chars or {}) do
         cards = cards + 1
         local card = pooled(charCards, cards, newCharCard)
@@ -963,6 +985,7 @@ local function buildFriends(p)
       y = y + 6
     end
     hideFrom(sharedHeads, heads + 1)
+    hideFrom(sharedStates, heads + 1)
     hideFrom(sharedButtons, heads + 1)
     hideFrom(charCards, cards + 1)
     if details and details:IsShown() then
