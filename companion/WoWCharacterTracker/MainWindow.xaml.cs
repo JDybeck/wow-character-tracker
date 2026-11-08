@@ -16,8 +16,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = vm;
         SourceInitialized += (_, _) => UseDarkTitleBar();
-        RightScroll.SizeChanged += (_, _) => FitRightColumn();
-        SetupRightView.SizeChanged += (_, _) => FitRightColumn();
+        WatchConsoleHover(vm);
         vm.PageReset += () => Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ScrollPagesToTop);
         Tour.FindTarget = TourTarget;
         if (ScreenshotMode.Target is { } shot) ScreenshotMode.Attach(this, vm, shot);
@@ -40,36 +39,42 @@ public partial class MainWindow : Window
         });
     }
 
-    // The right column scrolls as one: the console takes whatever height is left under the setup
-    // checks, but never less than a readable minimum (then the column scrolls instead).
-    const double ConsoleMin = 240;
-    void FitRightColumn()
+    // The console slides out when the mouse rests on its rail button (or it's clicked) and goes away
+    // shortly after the mouse leaves both the button and the console, unless it's pinned.
+    void WatchConsoleHover(MainViewModel vm)
     {
-        // The credit row sits under the scrolling part, so it isn't counted here.
-        var others = SetupRightView.ActualHeight + ConsoleView.Margin.Top;
-        ConsoleView.Height = Math.Max(ConsoleMin, RightScroll.ActualHeight - others);
+        var open = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        var close = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        open.Tick += (_, _) => { open.Stop(); vm.ConsoleOpen = true; };
+        close.Tick += (_, _) =>
+        {
+            close.Stop();
+            if (!RailView.ConsoleButton.IsMouseOver && !ConsoleFlyout.IsMouseOver) vm.ConsoleOpen = false;
+        };
+        RailView.ConsoleButton.MouseEnter += (_, _) => { close.Stop(); open.Start(); };
+        RailView.ConsoleButton.MouseLeave += (_, _) => { open.Stop(); close.Start(); };
+        ConsoleFlyout.MouseEnter += (_, _) => close.Stop();
+        ConsoleFlyout.MouseLeave += (_, _) => close.Start();
     }
 
-    // What each tour step (IntroViewModel.Steps) points at. The setup checks are wherever Settings put them.
+    // What each tour step (IntroViewModel.Steps) points at.
     FrameworkElement? TourTarget(string key) => key switch
     {
         "tabs" => HeaderView.GameTabs,
         "settings" => HeaderView.SettingsButton,
         "characters" => CharacterTabs,
         "sharing" => SharingTab,
-        "followed" => FollowedTab,
         "friends" => FriendsTab,
-        "setup" => new[] { SetupAtRight, SetupAtTop, SetupAtBottom }.FirstOrDefault(s => s.IsVisible),
+        "rail" => RailView,
         _ => null,
     };
 
     // A page started over (its tab clicked again): every list and scroll area on it back to the top.
-    // The right column is not part of the page and stays where it is.
     void ScrollPagesToTop()
     {
         void Walk(DependencyObject d)
         {
-            if (d == RightScroll || d is UIElement { IsVisible: false }) return;
+            if (d is UIElement { IsVisible: false }) return;
             if (d is ScrollViewer scroll) scroll.ScrollToTop();
             for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Walk(VisualTreeHelper.GetChild(d, i));
         }

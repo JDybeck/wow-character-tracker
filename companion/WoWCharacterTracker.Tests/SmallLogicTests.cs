@@ -683,17 +683,12 @@ public class DiscordCreditTests
         Assert.Equal("Testy sent a test message.", embed["title"]);
     }
 }
-public class SetupPlacementTests
+public class OldConfigTests
 {
-    // Older configs have no placement: the checks go to the right column. A value this version
-    // doesn't know (hand edited, or from a newer one) reads as right too, so the checks never vanish.
-    [Theory]
-    [InlineData("{}", "right")]
-    [InlineData("{\"SetupPlacement\":\"top\"}", "top")]
-    [InlineData("{\"SetupPlacement\":\"bottom\"}", "bottom")]
-    [InlineData("{\"SetupPlacement\":\"sideways\"}", "right")]
-    public void Placement_from_config(string json, string expected) =>
-        Assert.Equal(expected, System.Text.Json.JsonSerializer.Deserialize<Config>(json)!.SetupPlace);
+    // The setup checks' placement is gone (they sit across the top now): an old config with it still loads.
+    [Fact]
+    public void Old_setup_placement_is_ignored() =>
+        Assert.False(System.Text.Json.JsonSerializer.Deserialize<Config>("{\"SetupPlacement\":\"top\",\"Animations\":false}")!.Animations);
 }
 
 public class IntroTests
@@ -718,7 +713,7 @@ public class IntroTests
     public void Tour_steps_start_with_a_welcome_and_point_at_known_parts()
     {
         Assert.Null(IntroViewModel.Steps[0].Target);
-        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "setup", "characters", "sharing", "followed", "friends", "settings" }));
+        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "characters", "sharing", "rail", "friends", "settings" }));
     }
 }
 

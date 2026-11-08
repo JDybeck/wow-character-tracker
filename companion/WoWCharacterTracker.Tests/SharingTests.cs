@@ -15,6 +15,17 @@ public class DiscordPausedTests
     }
 }
 
+public class PageMatchTests
+{
+    [Theory]
+    [InlineData("items", "characters|items|professions|followed", true)]
+    [InlineData("sharing", "sharing", true)]
+    [InlineData("friends", "characters|items", false)]
+    [InlineData(null, "characters", false)]
+    public void A_tab_can_cover_several_pages(string? page, string tab, bool expected) =>
+        Assert.Equal(expected, WoWCharacterTracker.Ui.PageMatch.Matches(page, tab));
+}
+
 public class MomentsTests
 {
     [Fact]

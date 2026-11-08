@@ -18,26 +18,20 @@ sealed class IntroViewModel(MainViewModel main) : Observable
         new("Your games",
             "Retail and Forever each have their own tab, with their own characters, settings and colors. Only play one? Turn the other off in Settings.",
             "tabs"),
-        new("Setup checks",
-            "Game folder, addon and Discord. Green means it's fine. Amber says what's missing, with a button for it. Hover a check for the details.",
-            "setup"),
         new("Your characters",
-            "Characters lists everyone you've logged in with, click one for gear, bags, leveling and notes. Items finds anything they carry, Professions shows who can craft what.",
+            "Everyone you've logged in with, click one for gear, bags, leveling and notes. The switch on the right shows Items (anything they carry), Professions (who crafts what) and Followed (your wish list).",
             "characters"),
         new("Sharing",
-            "Who hears about your moments: Discord, your guild or group, and your stream. Pick Quiet, Normal or Everything, or open Customize to choose per moment.",
+            "Who hears about your moments: Discord, your guild or group, and your stream. Pick Quiet, Normal or Everything, or open Customize to choose per moment. Your Discord webhooks and the stream overlay are here too.",
             "sharing"),
-        new("Followed items",
-            "Your wish list. Follow any item, and when one of your characters gets it, it can be posted, shown on stream and told to your guild.",
-            "followed"),
+        new("Quick switches",
+            "Discord, guild chat, group chat and the stream overlay on or off in one click, each with a dot that says how it's doing. The console at the bottom says what the app is doing.",
+            "rail"),
         new("Friends",
             "Characters your Battle.net friends share with you, and what you share back. They need the addon too, and nothing is shared until you allow it.",
             "friends"),
-        new("Discord and stream",
-            "Also on Sharing: paste a Discord webhook link to pick where posts go (Send test shows a sample), and turn on the stream overlay for OBS or Streamlabs.",
-            "sharing"),
         new("Settings",
-            "Open with WoW, automatic updates, color themes, where the setup checks sit and Uninstall. Want this tour again? The ? button next to the info icon starts it.",
+            "Open with WoW, automatic updates, games, color themes, the addon's in game options and Uninstall. Want this tour again? It's in the ? menu.",
             "settings"),
     ];
 
@@ -73,7 +67,7 @@ sealed class IntroViewModel(MainViewModel main) : Observable
 
     public void Open()
     {
-        main.ShowSettings = false;
+        main.ShowHelp = false;
         Index = 0;
         IsOpen = true;
     }

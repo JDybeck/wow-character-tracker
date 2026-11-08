@@ -127,7 +127,8 @@ static class ScreenshotMode
             }
             if (Part(2) == "settings" && Part(3) == "themes") vm.Appearance.ShowAll = true; // the theme swatches unfolded
             if (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_THEME") is { Length: > 0 } theme) vm.Appearance.PickCommand.Execute(theme);
-            if (Part(2) == "settings") vm.ShowSettings = true;
+            if (Part(2) == "help") vm.ShowHelp = true;
+            if (Part(2) == "console") vm.ConsoleOpen = true;
             if (Part(2) == "changelog") vm.Updates.ShowChangelog = true;
             if (Part(2) == "intro")
             {
@@ -148,8 +149,8 @@ static class ScreenshotMode
                 await Task.Delay(300);
             }
             Save(window, target);
-            if (Part(2) == "settings" && Find<Views.Header>(window)?.FindName("SettingsMenu") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement menu })
-                Save(menu, Path.ChangeExtension(target, null) + "-settings.png");
+            if (Part(2) == "help" && Find<Views.Header>(window)?.FindName("HelpMenu") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement menu })
+                Save(menu, Path.ChangeExtension(target, null) + "-help.png");
             if (Part(3) == "ignored" && Find<Views.CharactersPage>(window)?.FindName("IgnoredPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement ignoredList })
                 Save(ignoredList, Path.ChangeExtension(target, null) + "-ignored.png");
             if (Part(2) == "changelog" && Find<Views.Header>(window)?.FindName("ChangelogPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement changes })

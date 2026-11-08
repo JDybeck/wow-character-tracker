@@ -334,6 +334,38 @@
     </Setter>
   </Style>
 
+  <!-- A segment of a small switch (the Characters tab's views): flat, the open one (Tag "active") filled.
+       Sits in a SegmentBox. Looks unlike PageTab and DetailTab on purpose. -->
+  <Style x:Key="SegmentBox" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Card}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="3"/>
+  </Style>
+  <Style x:Key="SegmentButton" TargetType="Button">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="12,5">
+            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="12.5"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            </Trigger>
+            <Trigger Property="Tag" Value="active">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+              <Setter Property="Foreground" Value="White"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style x:Key="FactLabel" TargetType="TextBlock">
     <Setter Property="Foreground" Value="{StaticResource Dim}"/>
     <Setter Property="FontSize" Value="11"/>

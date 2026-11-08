@@ -1,0 +1,211 @@
+<!-- Settings (the gear in the header): the app's own settings, the addon's in game options for the selected
+     game, Uninstall and who made it. DataContext: MainViewModel. -->
+<UserControl x:Class="WoWCharacterTracker.Views.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels">
+  <UserControl.Resources>
+    <Style x:Key="OptionTitle" TargetType="TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style x:Key="Option" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+      <Setter Property="Margin" Value="0,0,0,12"/>
+    </Style>
+  </UserControl.Resources>
+
+  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="6"
+          Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=settings}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="26,22" MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Text="Settings" FontSize="18" FontWeight="SemiBold" Foreground="White"/>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,18" Text="How the app runs, and what the addon does in game. What gets shared lives on the Sharing tab."/>
+
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="14"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- The app -->
+          <Border Style="{StaticResource PanelBorder}" VerticalAlignment="Top">
+            <StackPanel>
+              <TextBlock Style="{StaticResource SectionTitle}" Text="The app" Margin="0,0,0,14"/>
+              <CheckBox Style="{StaticResource Option}" IsChecked="{Binding OpenWithWow}"
+                        ToolTip="Waits in the tray and opens when you start World of Warcraft. Closing the window keeps it tracking in the tray.">
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Open with World of Warcraft"/>
+              </CheckBox>
+              <CheckBox Style="{StaticResource Option}" IsChecked="{Binding HideWhenGameCloses}" Margin="24,0,0,12" IsEnabled="{Binding OpenWithWow}"
+                        ToolTip="Off: the window stays open when the game closes, so you can look things over after playing.">
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Hide the window when the game closes"/>
+              </CheckBox>
+              <CheckBox Style="{StaticResource Option}" IsChecked="{Binding AutoUpdate}"
+                        ToolTip="A new version installs by itself and the app restarts. It waits while World of Warcraft is running, so nothing in game is missed.">
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Install updates automatically"/>
+              </CheckBox>
+              <CheckBox Style="{StaticResource Option}" IsChecked="{Binding Animations}"
+                        ToolTip="Slides between pages and games, characters that unfold when opened, and the orb between the game tabs. Off: everything switches instantly.">
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Animations"/>
+              </CheckBox>
+              <CheckBox Style="{StaticResource Option}" IsChecked="{Binding ShowTestCharacters}"
+                        ToolTip="Show made-up Forever characters (Zeb, Fågelmannen, Goggo) to try the app without playing. They're never posted on their own.">
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Test characters"/>
+              </CheckBox>
+
+              <TextBlock Style="{StaticResource FactLabel}" Text="GAMES" Margin="0,8,0,8"/>
+              <ItemsControl ItemsSource="{Binding FlavorTabs}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
+                    <CheckBox IsChecked="{Binding TrackThis}" IsEnabled="{Binding CanToggle}" Margin="0,0,0,10"
+                              ToolTip="Off: the app doesn't look for this game, read its data or install the addon there. At least one game stays on.">
+                      <TextBlock Style="{StaticResource OptionTitle}"><Run Text="Track "/><Run Text="{Binding Name, Mode=OneWay}"/></TextBlock>
+                    </CheckBox>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!-- Color themes for the open game tab (AppearanceViewModel). -->
+              <TextBlock Style="{StaticResource FactLabel}" Text="{Binding Appearance.Title}" Margin="0,8,0,8"/>
+              <Button Command="{Binding Appearance.ToggleCommand}" Cursor="Hand" ToolTip="{Binding Appearance.Current.Tip}" HorizontalAlignment="Left" MinWidth="260">
+                <Button.Template>
+                  <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Padding="6,5" CornerRadius="7" BorderThickness="1" BorderBrush="{DynamicResource BlueLine}" Background="Transparent">
+                      <DockPanel>
+                        <ContentPresenter DockPanel.Dock="Left" Content="{Binding Appearance.Current}" ContentTemplate="{StaticResource ThemeSwatch}" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="Chevron" DockPanel.Dock="Right" Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="11"
+                                   Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Appearance.Current.Name}" FontSize="13" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+                      </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/>
+                      </Trigger>
+                      <DataTrigger Binding="{Binding Appearance.ShowAll}" Value="True">
+                        <Setter TargetName="Chevron" Property="Text" Value="&#xE70E;"/>
+                      </DataTrigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Button.Template>
+              </Button>
+              <ItemsControl ItemsSource="{Binding Appearance.Groups}" Focusable="False" Margin="0,8,0,0"
+                            Visibility="{Binding Appearance.ShowAll, Converter={StaticResource Visible}}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:ThemeGroup}">
+                    <StackPanel Margin="0,0,0,4">
+                      <TextBlock Text="{Binding Title}" FontSize="11" Foreground="{StaticResource Dim}" Margin="2,0,0,4"/>
+                      <ItemsControl ItemsSource="{Binding Choices}" Focusable="False" ItemsPanel="{StaticResource Wrap}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate DataType="{x:Type vm:ThemeChoice}">
+                            <Button Command="{Binding DataContext.Appearance.PickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"
+                                    CommandParameter="{Binding Key}" Cursor="Hand" ToolTip="{Binding Tip}" Margin="0,0,4,4">
+                              <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                  <Border x:Name="Bd" Padding="1" CornerRadius="7" BorderThickness="1" BorderBrush="Transparent">
+                                    <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ThemeSwatch}"/>
+                                  </Border>
+                                  <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                      <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Line}"/>
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                      <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueText}"/>
+                                    </DataTrigger>
+                                  </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                              </Button.Template>
+                            </Button>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+
+          <!-- The addon in game, for the selected game. -->
+          <Border Grid.Column="2" Style="{StaticResource PanelBorder}" VerticalAlignment="Top" DataContext="{Binding SelectedFlavor}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource SectionTitle}" Margin="0,0,0,4">
+                <Run Text="In game for"/> <Run Text="{Binding Name, Mode=OneWay}"/>
+              </TextBlock>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14" Text="Reaches the game on your next /reload. You can change these in game too (/wct), the newest change wins."/>
+              <CheckBox Style="{StaticResource Option}" ToolTip="On a flight path, offer a /reload when your bags or gear changed" IsChecked="{Binding FlightReloadPrompt}">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource OptionTitle}" Text="Offer a reload on flight paths"/>
+                  <TextBlock Style="{StaticResource Hint}" Text="Gear, bags and bank only reach the app on /reload or logout."/>
+                </StackPanel>
+              </CheckBox>
+              <CheckBox Style="{StaticResource Option}" ToolTip="Put a line in chat reminding you to /reload when your bags or gear changed" IsChecked="{Binding ChatReloadReminder}">
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Remind me in chat to /reload"/>
+              </CheckBox>
+              <CheckBox Style="{StaticResource Option}" ToolTip="Keep every loot, duel and battleground in the addon's saved file" IsChecked="{Binding KeepAllHistory}">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource OptionTitle}" Text="Keep all history"/>
+                  <TextBlock Style="{StaticResource Hint}" Text="Off keeps the newest 300 loot, duels and battlegrounds per character, so /reload stays quick."/>
+                </StackPanel>
+              </CheckBox>
+              <CheckBox Style="{StaticResource Option}" ToolTip="Turn on the game's Advanced Combat Logging setting (System, Network)" IsChecked="{Binding AdvancedCombatLog}">
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Advanced combat logging"/>
+              </CheckBox>
+              <TextBlock Style="{StaticResource FactLabel}" Text="INSTANT POSTING PATTERN" Margin="0,8,0,4"/>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8" Text="A small pattern the addon flashes for one frame per moment, so the app hears about it right away. Pick the corner that bothers you least."/>
+              <WrapPanel Margin="0,0,0,10">
+                <RadioButton Style="{StaticResource DetailTab}" Content="Top left" IsChecked="{Binding GridTopLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,6"/>
+                <RadioButton Style="{StaticResource DetailTab}" Content="Top right" IsChecked="{Binding GridTopRight}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,6"/>
+                <RadioButton Style="{StaticResource DetailTab}" Content="Bottom left" IsChecked="{Binding GridBottomLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,6"/>
+                <RadioButton Style="{StaticResource DetailTab}" Content="Bottom right" IsChecked="{Binding GridBottomRight}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,0,6"/>
+              </WrapPanel>
+              <CheckBox ToolTip="Show a small &quot;Character Tracker /wct&quot; label next to the pattern" IsChecked="{Binding GridLabel}">
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Show a small label next to it"/>
+              </CheckBox>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <DockPanel Margin="0,18,0,0">
+          <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Margin="-12,0,0,0" Padding="12,4"
+                  Command="{Binding ShowUninstallCommand}" ToolTip="Pick what to remove: the app, the addon, your data, settings">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,7,0"/>
+              <TextBlock Text="Uninstall..." FontSize="13" Foreground="{StaticResource TextSoft}"/>
+            </StackPanel>
+          </Button>
+          <!-- The maker and a tip link. -->
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
+              <Button.Template>
+                <ControlTemplate TargetType="Button">
+                  <TextBlock x:Name="Credit" Text="made by ZebDryg @ twitch" FontSize="11" Foreground="{StaticResource Faint}"/>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="Credit" Property="Foreground" Value="#9146FF"/>
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Button.Template>
+            </Button>
+            <TextBlock Text="·" FontSize="11" Foreground="{StaticResource Faint}" Margin="6,0"/>
+            <Button Cursor="Hand" ToolTip="Like the app? Tips are welcome (streamlabs.com/zebdryg/tip)" Command="{Binding OpenUrlCommand}" CommandParameter="https://streamlabs.com/zebdryg/tip">
+              <Button.Template>
+                <ControlTemplate TargetType="Button">
+                  <TextBlock x:Name="Tip" Text="tip ♥" FontSize="11" Foreground="{StaticResource Faint}"/>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="Tip" Property="Foreground" Value="#F87171"/>
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Button.Template>
+            </Button>
+          </StackPanel>
+        </DockPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </Border>
+</UserControl>

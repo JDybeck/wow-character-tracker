@@ -22,6 +22,7 @@ sealed class MainViewModel : Observable
         {
             Logs.Insert(0, line);
             while (Logs.Count > 300) Logs.RemoveAt(Logs.Count - 1);
+            if (line.Level is LogLevel.Warn or LogLevel.Error && !ConsoleOpen) ConsoleAlert = true;
         });
 
         SyncCommand = new RelayCommand(SyncNowAsync, _ => SelectedFlavor?.Tracker is not null);
@@ -67,7 +68,6 @@ sealed class MainViewModel : Observable
         OpenUrlCommand = new RelayCommand(p => Browser.Open(p as string));
         ShowUninstallCommand = new RelayCommand(_ =>
         {
-            ShowSettings = false;
             Uninstall.Refresh();
             Page = "uninstall";
         });
@@ -89,25 +89,33 @@ sealed class MainViewModel : Observable
         set { Config.Animations = Motion.Enabled = value; Config.Save(); Raise(nameof(Animations)); }
     }
 
-    // Settings, Setup checks: right column (above Discord), top or bottom of the window.
-    public string SetupPlacement
+    // The console slides out from the rail (hover or click) and hides again, unless it's pinned.
+    // ConsoleAlert: a warning or error came in since it was last open (the rail's dot).
+    bool consoleOpen;
+    public bool ConsoleOpen
     {
-        get => Config.SetupPlace;
+        get => consoleOpen || Config.ConsolePinned;
         set
         {
-            Config.SetupPlacement = value;
-            Config.Save();
-            RaiseSetupPlacement();
+            if (!Set(ref consoleOpen, value)) return;
+            if (ConsoleOpen) ConsoleAlert = false;
         }
     }
-    void RaiseSetupPlacement()
+    public bool ConsolePinned
     {
-        foreach (var name in new[] { nameof(SetupPlacement), nameof(SetupRight), nameof(SetupTop), nameof(SetupBottom) }) Raise(name);
+        get => Config.ConsolePinned;
+        set
+        {
+            Config.ConsolePinned = value;
+            Config.Save();
+            Raise(nameof(ConsolePinned));
+            Raise(nameof(ConsoleOpen));
+            if (value) ConsoleAlert = false;
+        }
     }
-    public bool SetupRight => SetupPlacement == "right";
-    public bool SetupTop => SetupPlacement == "top";
-    public bool SetupBottom => SetupPlacement == "bottom";
-    public ICommand PlaceSetupCommand => new RelayCommand(p => SetupPlacement = (string)p!);
+    bool consoleAlert;
+    public bool ConsoleAlert { get => consoleAlert; set => Set(ref consoleAlert, value); }
+    public ICommand ToggleConsoleCommand => new RelayCommand(_ => ConsoleOpen = !consoleOpen);
 
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
@@ -169,7 +177,8 @@ sealed class MainViewModel : Observable
     {
         Config = Config.Load();
         Motion.Enabled = Config.Animations;
-        RaiseSetupPlacement();
+        Raise(nameof(ConsolePinned));
+        Raise(nameof(ConsoleOpen));
         Log.Info("Character Tracker started.");
         Discord.ShowAddWebhook = Config.Webhooks.Count == 0;
 
@@ -224,10 +233,12 @@ sealed class MainViewModel : Observable
         if (d.CheckAccess()) a(); else d.BeginInvoke(a);
     }
 
-    // --- app settings (the gear in the header) ---
+    // The ? menu in the header (the tour, what's new, commands, feedback, updates).
+    bool showHelp;
+    public bool ShowHelp { get => showHelp; set => Set(ref showHelp, value); }
+    public ICommand OpenChangelogCommand => new RelayCommand(_ => { ShowHelp = false; Updates.ShowChangelog = true; });
 
-    bool showSettings;
-    public bool ShowSettings { get => showSettings; set => Set(ref showSettings, value); }
+    // --- app settings (the Settings page, the gear in the header) ---
 
     // A tray icon starts at login, the window opens when WoW starts and goes back to the tray when
     // WoW closes. Off means a normal app you open and close yourself.

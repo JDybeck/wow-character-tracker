@@ -97,7 +97,7 @@ static partial class AddonInstaller
                    + $"maxLevel = {B(s.PostMaxLevel)}, duel = {B(s.PostDuels)}, makgora = {B(s.PostMakgora)}, bg = {B(s.PostBattlegrounds)}, mplus = {B(s.PostMPlus)}, pvp = {B(s.PostPvp)}, "
                    + $"profession = {B(s.PostProfessions)}, professionSteps = {{ {string.Join(", ", s.ProfessionSteps)} }}, "
                    + $"mplusSteps = {{ {string.Join(", ", s.MPlusSteps)} }}, pvpSteps = {{ {string.Join(", ", s.PvpSteps)} }}";
-        var lua = "-- Written by the Character Tracker app from its \"What gets posted\" page. Changes apply on /reload.\n"
+        var lua = "-- Written by the Character Tracker app from its Sharing page. Changes apply on /reload.\n"
                   + "WoWCharacterTrackerSettings = {\n"
                   + $"  screenshot = {{ {shots} }},\n"
                   + $"  post = {{ {post} }},\n"

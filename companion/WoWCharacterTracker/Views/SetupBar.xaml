@@ -1,8 +1,7 @@
-<!-- Update banner, reload reminder and the three setup checks (game folder, addon, Discord) for the
-     selected game. Where it sits is a setting (Config.SetupPlacement): in the right column it's narrow,
-     at the top or bottom of the window Wide puts the checks and what needs doing side by side.
-     All fine = one quiet line of chips; a check that needs something done gets its own amber row,
-     except a missing game folder or addon, which gets the big card over the pages (SetupCard). -->
+<!-- The notices across the top of the window: update banner, reload reminder, the old beta folder and the
+     three setup checks (game folder, addon, Discord) for the selected game. All fine = nothing shows; a
+     check that needs something done shows the chips and its own amber row, except a missing game folder
+     or addon, which gets the big card over the pages (SetupCard). Wide puts the fixes side by side. -->
 <UserControl x:Class="WoWCharacterTracker.Views.SetupBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -116,7 +115,7 @@
 
   <!-- The checks: a chip each (hover for the detail, click for its action, like changing the folder),
        and a row with the fix for each one that needs something done. -->
-  <Border Style="{StaticResource CardBorder}" CornerRadius="10" Padding="8,6">
+  <Border Style="{StaticResource CardBorder}" CornerRadius="10" Padding="8,6" Visibility="{Binding SelectedFlavor.HasSetupProblems, Converter={StaticResource Visible}}">
     <DockPanel>
       <ItemsControl ItemsSource="{Binding SelectedFlavor.Steps}" Focusable="False" VerticalAlignment="Center">
         <ItemsControl.Style>

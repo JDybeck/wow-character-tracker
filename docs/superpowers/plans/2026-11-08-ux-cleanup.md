@@ -644,6 +644,22 @@ CHANGELOG's top section must match the csproj version (a test checks), so the no
 
 - Sharing: What gets posted and In game are one page now. Switch Discord, guild chat and group chat on or off at the top, pick Quiet, Normal or Everything, or open Customize for one table with a row per moment and a box for Discord, screenshot, guild, group, ask first and stream alerts. Test shows on the row under your mouse. The Discord webhooks and the stream overlay moved onto this page, and the rarely needed options are folded under Advanced.
 - Discord can be paused per game without touching your webhooks. What happens while paused isn't posted later.
+- (phase 2) Three tabs: Characters (with List, Items, Professions and Followed inside), Friends and Sharing. The right column is a slim rail of quick switches for Discord, guild chat, group chat and the stream overlay; the console slides out from it. Settings is its own page from the gear, with the addon's in game options. Search items from the header, and help, what's new and feedback live in the ? menu.
+
+## Phase 2 (branch `feat/ux-shell`, on top of phase 1)
+
+Decisions made while planning, against the spec:
+- Home waits for phase 3: an empty Home tab now is worse than none. Phase 2 ships 3 tabs (Characters, Friends, Sharing).
+- No "Synced N min ago" line: the status line already says what's watched, and a sync time needs new plumbing for little gain. Sync now becomes a small refresh icon (spins while syncing) instead of the big orange button.
+- `SetupBar` stays as a notice strip across the top: update banner, /reload reminder, old-folder note and setup problems. Its chips row only shows while something needs doing. `Config.SetupPlacement` and its three-way choice go away (old files still load: unknown keys are ignored, a test checks).
+- The credit line (made by ZebDryg, tip) moves to the bottom of the Settings page.
+
+Tasks:
+1. `ActiveIf` and `PageIs` accept `a|b|c` (one place: a shared `Matches` helper in `Ui/Converters.cs`), with a test. Characters tab active for `characters|items|professions|followed`; a view switch (List, Items, Professions, Followed) in the tab row while one of those is open. The Items, Professions and Followed items tabs go. Tour steps updated.
+2. Header: What's new, Feedback, the tour button and the info tooltip move into one `?` menu (popup): Help me set it up (the tour for now), What's new, In-game commands (the old tooltip text, shown in the menu), Feedback, Check for updates. The update button stays in the header when there is one. Sync now becomes an icon button. A search box ("Search items on all your characters") that opens Items with the text in `ItemsViewModel`'s search.
+3. Settings page (`Page = "settings"`, from the gear): App (open with WoW, hide on close, auto update, games tracked, animations, test characters, colors), In game for the selected game (the In game group moved from Sharing's Advanced), Uninstall, credit line. The settings popup goes.
+4. Rail: the right column becomes a 56 px rail: Discord (`DiscordOn`), Guild chat, Group chat, Stream (`Stream.Enabled`) as toggle buttons with a status dot, then Console (opens `ConsolePanel` as a flyout over the page: 300 ms hover or click, leaves when the mouse leaves, pin keeps it, saved in `Config.ConsolePinned`). Console dot amber after a warning or error until opened. The page gets the full width.
+5. Verify: build, tests, screenshot renders at 1320x900 and 1100x680, test build rebuilt with `-FreshData` off (keeps JDybeck's test settings).
 
 ## Later phases (planned in detail when phase 1 is merged)
 

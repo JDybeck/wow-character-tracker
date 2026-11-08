@@ -274,7 +274,7 @@
               </TextBlock.Style>
             </TextBlock>
             <TextBlock Text="Advanced" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-            <TextBlock Style="{StaticResource Hint}" Margin="10,0,0,0" VerticalAlignment="Center" Text="level steps, filters, screenshots, in game options, settings codes"/>
+            <TextBlock Style="{StaticResource Hint}" Margin="10,0,0,0" VerticalAlignment="Center" Text="level steps, filters, screenshots, settings codes"/>
           </StackPanel>
         </Button>
         <Border Style="{StaticResource PanelBorder}" Visibility="{Binding ShowAdvanced, Converter={StaticResource Visible}}">
@@ -370,36 +370,6 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </StackPanel>
-
-            <TextBlock Style="{StaticResource Group}" Text="In game"/>
-            <CheckBox ToolTip="On a flight path, offer a /reload when your bags or gear changed" IsChecked="{Binding FlightReloadPrompt}" Margin="0,0,0,10">
-              <StackPanel>
-                <TextBlock Style="{StaticResource OptionTitle}" Text="Offer a reload on flight paths"/>
-                <TextBlock Style="{StaticResource Hint}" Text="Gear, bags and bank only reach the app on /reload or logout."/>
-              </StackPanel>
-            </CheckBox>
-            <CheckBox ToolTip="Put a line in chat reminding you to /reload when your bags or gear changed" IsChecked="{Binding ChatReloadReminder}" Margin="0,0,0,10">
-              <TextBlock Style="{StaticResource OptionTitle}" Text="Remind me in chat to /reload"/>
-            </CheckBox>
-            <CheckBox ToolTip="Keep every loot, duel and battleground in the addon's saved file" IsChecked="{Binding KeepAllHistory}" Margin="0,0,0,10">
-              <StackPanel>
-                <TextBlock Style="{StaticResource OptionTitle}" Text="Keep all history"/>
-                <TextBlock Style="{StaticResource Hint}" Text="Off keeps the newest 300 loot, duels and battlegrounds per character, so /reload stays quick."/>
-              </StackPanel>
-            </CheckBox>
-            <CheckBox ToolTip="Turn on the game's Advanced Combat Logging setting (System, Network)" IsChecked="{Binding AdvancedCombatLog}" Margin="0,0,0,12">
-              <TextBlock Style="{StaticResource OptionTitle}" Text="Advanced combat logging"/>
-            </CheckBox>
-            <TextBlock Text="Instant posting pattern (one frame per event)" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,6"/>
-            <WrapPanel Margin="0,0,0,8">
-              <RadioButton Style="{StaticResource DetailTab}" Content="Top left" IsChecked="{Binding GridTopLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
-              <RadioButton Style="{StaticResource DetailTab}" Content="Top right" IsChecked="{Binding GridTopRight}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
-              <RadioButton Style="{StaticResource DetailTab}" Content="Bottom left" IsChecked="{Binding GridBottomLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
-              <RadioButton Style="{StaticResource DetailTab}" Content="Bottom right" IsChecked="{Binding GridBottomRight}" GroupName="{Binding Name, StringFormat=corner-{0}}"/>
-            </WrapPanel>
-            <CheckBox ToolTip="Show a small &quot;Character Tracker /wct&quot; label next to the pattern" IsChecked="{Binding GridLabel}">
-              <TextBlock Style="{StaticResource OptionTitle}" Text="Show a small label next to it"/>
-            </CheckBox>
 
             <TextBlock Style="{StaticResource Group}" Text="Settings codes"/>
             <StackPanel Orientation="Horizontal">

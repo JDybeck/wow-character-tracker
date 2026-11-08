@@ -5,11 +5,12 @@ namespace WoWCharacterTracker.Views;
 
 public partial class Header : UserControl
 {
-    public Header()
+    public Header() => InitializeComponent();
+
+    // Typing a search shows the results: Characters, Items.
+    void Search_TextChanged(object sender, TextChangedEventArgs e)
     {
-        InitializeComponent();
-        // Narrow windows: What's new is just its star (the tooltip names it), or it gets cut off.
-        SizeChanged += (_, _) => ChangelogLabel.Visibility = ActualWidth < 1200 ? Visibility.Collapsed : Visibility.Visible;
+        if (SearchBox.IsKeyboardFocused && SearchBox.Text.Length > 0 && DataContext is MainViewModel vm) vm.Page = "items";
     }
 
     // Switching game tabs plays the orb animation from the old tab to the new one (not at startup,
