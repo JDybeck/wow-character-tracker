@@ -39,7 +39,7 @@ static class ScreenshotMode
             if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
             if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;
-            if (Part(2) == "addhook") vm.Discord.ShowAddWebhook = true;
+            if (Part(2) == "addhook") { vm.Discord.ShowAddWebhook = true; if (vm.SelectedFlavor is { } hooks) hooks.OpenPlace = "discord"; }
             if (Part(2) == "testchars") { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             // Test buttons need a character; without a game folder, the test characters stand in.
             if (Part(2) == "testall" && vm.SelectedFlavor is { HasCharacters: false, Flavor.HasRulesets: true }) { vm.ShowTestCharacters = true; await Task.Delay(1500); }
@@ -88,7 +88,7 @@ static class ScreenshotMode
                 vm.Updates.Offer(new Updater.Release(next, $"v{next}", notes, "", ""));
                 if (notesFile is { Length: > 0 }) vm.Updates.ShowNotes = true;
             }
-            if (Part(2) == "stream") { vm.Stream.PanelOpen = true; vm.Stream.Enabled = true; }
+            if (Part(2) == "stream") { vm.Stream.PanelOpen = true; vm.Stream.Enabled = true; if (vm.SelectedFlavor is { } overlay) overlay.OpenPlace = "stream"; }
             if (Part(3) == "exclude" && vm.SelectedFlavor is { } xf) // Items: Bags focused, then Bank left out (saved as <name>-only.png first)
             {
                 await Task.Delay(2500);

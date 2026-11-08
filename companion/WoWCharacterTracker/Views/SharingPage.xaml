@@ -29,13 +29,33 @@
       <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
+    <!-- Under a place's name: opens its own settings below the row ("Webhooks v"); Tag is whether it's open. -->
+    <Style x:Key="PlaceMore" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalAlignment" Value="Left"/>
+      <Setter Property="Margin" Value="0,6,0,0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <StackPanel Orientation="Horizontal" Background="Transparent">
+              <TextBlock x:Name="Label" Text="{TemplateBinding Content}" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+              <TextBlock x:Name="Arrow" Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="9" Margin="6,1,0,0" Foreground="{DynamicResource BlueText}"/>
+            </StackPanel>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Label" Property="TextDecorations" Value="Underline"/></Trigger>
+              <Trigger Property="Tag" Value="True"><Setter TargetName="Arrow" Property="Text" Value="&#xE70E;"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <!-- A place: its name, one line and a switch. -->
     <Style x:Key="PlaceSwitch" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
   </UserControl.Resources>
 
-  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="3" DataContext="{Binding SelectedFlavor}"
+  <Border x:Name="PageRoot" Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="3" DataContext="{Binding SelectedFlavor}"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=sharing}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="26,22">
@@ -47,7 +67,7 @@
                    Text="Who hears about your moments: Discord, your guild or group, and your stream."/>
 
         <!-- Where: one switch per place. -->
-        <UniformGrid Columns="3" Margin="-5,0,-5,0">
+        <UniformGrid Columns="4" Margin="-5,0,-5,0">
           <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
             <DockPanel>
               <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding DiscordOn}"
@@ -56,6 +76,8 @@
               <StackPanel>
                 <TextBlock Style="{StaticResource OptionTitle}" Text="Discord"/>
                 <TextBlock Style="{StaticResource Hint}" Text="Posts through your webhooks"/>
+                <Button Style="{StaticResource PlaceMore}" Command="{Binding TogglePlaceCommand}" CommandParameter="discord" Tag="{Binding DiscordOpen}"
+                        Content="Webhooks" ToolTip="Add, test and pick webhooks"/>
               </StackPanel>
             </DockPanel>
           </Border>
@@ -79,9 +101,25 @@
               </StackPanel>
             </DockPanel>
           </Border>
+          <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
+            <DockPanel>
+              <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding DataContext.Stream.Enabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="On: a page only your PC can open, for OBS or Streamlabs. Shared by both games." AutomationProperties.Name="Stream overlay"/>
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Stream overlay"/>
+                <TextBlock Style="{StaticResource Hint}" Text="OBS or Streamlabs, both games"/>
+                <Button Style="{StaticResource PlaceMore}" Command="{Binding TogglePlaceCommand}" CommandParameter="stream" Tag="{Binding StreamOpen}"
+                        Content="Overlay" ToolTip="Its address, how it looks and what it shows"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
         </UniformGrid>
-        <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
-                   Text="Chat changes reach the game on your next /reload. The stream overlay has its own switch further down."/>
+        <!-- The open place's own settings, the whole width, right under the row. -->
+        <views:DiscordPanel Margin="0,10,0,0" DataContext="{Binding DataContext.Discord, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Visibility="{Binding DataContext.DiscordOpen, ElementName=PageRoot, Converter={StaticResource Visible}}"/>
+        <views:StreamPanel x:Name="StreamView" Margin="0,10,0,0" DataContext="{Binding DataContext.Stream, RelativeSource={RelativeSource AncestorType=Window}}"
+                           Visibility="{Binding DataContext.StreamOpen, ElementName=PageRoot, Converter={StaticResource Visible}}"/>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" Text="Chat changes reach the game on your next /reload."/>
 
         <!-- How much: the presets. -->
         <TextBlock Style="{StaticResource Group}" Text="How much gets shared"/>
@@ -237,16 +275,6 @@
           </StackPanel>
         </Border>
 
-        <!-- The places' own settings: webhooks and the overlay (the same panels the window had on the right). -->
-        <Grid Margin="0,18,0,0">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="14"/>
-            <ColumnDefinition Width="*"/>
-          </Grid.ColumnDefinitions>
-          <views:DiscordPanel x:Name="DiscordView" VerticalAlignment="Top" DataContext="{Binding DataContext.Discord, RelativeSource={RelativeSource AncestorType=Window}}"/>
-          <views:StreamPanel x:Name="StreamView" Grid.Column="2" VerticalAlignment="Top" DataContext="{Binding DataContext.Stream, RelativeSource={RelativeSource AncestorType=Window}}"/>
-        </Grid>
 
         <!-- Advanced: the rest of what the old What gets posted and In game pages had, always open. -->
         <StackPanel Orientation="Horizontal" Margin="0,18,0,8">

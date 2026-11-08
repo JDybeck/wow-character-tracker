@@ -300,6 +300,24 @@ sealed class FlavorViewModel : Observable
             Raise(name);
     }
 
+    // Which place's own settings show under the Sharing page's top row: "discord" (webhooks), "stream"
+    // (the overlay) or "" (none). One at a time; clicking the open one closes it.
+    string openPlace = "";
+    public string OpenPlace
+    {
+        get => openPlace;
+        set
+        {
+            if (!Set(ref openPlace, value)) return;
+            Raise(nameof(DiscordOpen));
+            Raise(nameof(StreamOpen));
+            if (value == "stream") main.Stream.PanelOpen = true; // its options, not just its header
+        }
+    }
+    public bool DiscordOpen => openPlace == "discord";
+    public bool StreamOpen => openPlace == "stream";
+    public ICommand TogglePlaceCommand => new RelayCommand(p => OpenPlace = OpenPlace == (string)p! ? "" : (string)p!);
+
     // The Sharing page's fold: the table opens by itself when the choices are custom (Advanced is always open).
     bool? showCustomize;
     public bool ShowCustomize { get => showCustomize ??= IsCustom; set { showCustomize = value; Raise(nameof(ShowCustomize)); } }
