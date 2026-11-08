@@ -41,7 +41,7 @@
           <Run Text="{Binding Name, Mode=OneWay}"/>
         </TextBlock>
         <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,2,0,10"
-                   Text="Your own wish list or BiS list: get one of these, however it comes and whatever its quality, and you hear about it once. Rare and better work right away, anything below reaches the game on your next /reload or login. What happens then is set under What gets posted, In game and the stream overlay."/>
+                   Text="Your own wish list or BiS list: get one of these, however it comes and whatever its quality, and you hear about it once. Rare and better work right away, anything below reaches the game on your next /reload or login. What happens then is set on Sharing, in the Followed items row."/>
       </StackPanel>
 
       <Grid Grid.Row="1" DataContext="{Binding FollowedItems}">

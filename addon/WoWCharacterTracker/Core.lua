@@ -33,6 +33,7 @@ local EVENTS = {
   "PLAYER_LEVEL_UP", "TIME_PLAYED_MSG",                                  -- level times
   "ENCOUNTER_END", "CHAT_MSG_LOOT", "PLAYER_DEAD",                       -- bosses, loot, deaths
   "MERCHANT_SHOW", "MERCHANT_CLOSED", "NEW_MOUNT_ADDED",                 -- mounts (bought or learned)
+  "LEARNED_SPELL_IN_TAB", "LEARNED_SPELL_IN_SKILL_LINE",                -- class mounts (each client has one of these)
   "CHAT_MSG_SYSTEM", "DUEL_REQUESTED", "CHALLENGE_MODE_COMPLETED", "PVP_RATED_STATS_UPDATE", -- duels, Mak'gora, ratings
   "UPDATE_BATTLEFIELD_STATUS", "PVP_MATCH_COMPLETE",                     -- battleground results
   "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL",                               -- profession milestones

@@ -16,7 +16,7 @@ sealed class UninstallViewModel : Observable
         KeepDataCommand = new RelayCommand(_ => Preset(k => k is Uninstaller.Kind.App or Uninstaller.Kind.Addon));
         OnlyAppCommand = new RelayCommand(_ => Preset(k => k == Uninstaller.Kind.App));
         UninstallCommand = new RelayCommand(_ => Uninstall(), _ => !Done && Rows.Any(r => r.IsOn) && Blocked.Length == 0);
-        CancelCommand = new RelayCommand(_ => main.Page = "characters");
+        CancelCommand = new RelayCommand(_ => main.Page = "settings");
         CloseCommand = new RelayCommand(_ => QuitRequested?.Invoke());
     }
 

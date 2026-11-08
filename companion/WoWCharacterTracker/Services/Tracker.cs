@@ -41,6 +41,13 @@ sealed class Tracker : IDisposable
     string? shownStamp;
     volatile bool disposed;
 
+    // Events that went to at least one webhook (Home marks them Posted). A new set after each sync, so
+    // the UI thread reads it without the gate.
+    volatile IReadOnlySet<string> sentIds = new HashSet<string>();
+    public IReadOnlySet<string> SentIds => sentIds;
+    internal static HashSet<string> SentIdsOf(IEnumerable<string> posted) =>
+        [.. posted.Where(k => k.Contains('@')).Select(k => k[..k.IndexOf('@')])];
+
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
     public event Action<Entry>? Posted;
@@ -186,6 +193,7 @@ sealed class Tracker : IDisposable
 
             if (posted.Count != handled || firstRun && !File.Exists(statePath)) // only ever grows
                 Files.WriteAtomic(statePath, JsonSerializer.Serialize(posted));
+            if (posted.Count != handled || sentIds.Count == 0) sentIds = SentIdsOf(posted);
             if (report)
             {
                 var chars = data.Characters.Select(c => c.Guid).Concat(data.Events.Select(e => e.Guid)).Distinct().Count();
@@ -241,7 +249,11 @@ sealed class Tracker : IDisposable
     {
         foreach (var e in pending.Where(e => !s.Wants(e, history)))
         {
-            if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
+            if (s.HeldForRun(e))
+            {
+                if (e.Kind == "boss") Log.Info($"{Tag}Not posting {e.Boss} on its own: it goes in the dungeon run's post.");
+            }
+            else if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
                 Log.Info($"{Tag}Not posting {e.Boss}: {who.Name} is in the group (they post it).");
             else if (e.Kind == "boss" && s.PostBosses && s.IsRepeatKill(e, history))
                 Log.Info($"{Tag}Not posting {e.Boss}: {e.Char} has killed it before (only first kills are posted).");

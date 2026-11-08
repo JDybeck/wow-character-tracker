@@ -96,7 +96,7 @@
           <RowDefinition Height="*"/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ListBox ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
+        <ListBox x:Name="CharacterList" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
                  Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}" Padding="0,6"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True"
                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel">

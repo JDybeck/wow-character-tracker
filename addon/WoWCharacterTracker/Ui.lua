@@ -121,6 +121,31 @@ function ui.button(parent, label, width, onClick, style)
   return b
 end
 
+-- A row of buttons where one is picked (presets, reload reminders). items: { { key, label }, ... };
+-- get() says the picked key (a key not among them picks none), set(key) picks one. Returns the row.
+function ui.choice(parent, items, get, set, width)
+  local row = CreateFrame("Frame", nil, parent)
+  local w = width or 104
+  row:SetSize(#items * (w + 6), 24)
+  local buttons = {}
+  local function draw()
+    local now = get()
+    for _, b in ipairs(buttons) do ui.styleButton(b, b.key == now and "selected" or nil) end
+  end
+  for i, item in ipairs(items) do
+    local b = ui.button(row, item[2], w, function()
+      set(item[1])
+      draw()
+    end)
+    b.key = item[1]
+    b:SetHeight(24)
+    b:SetPoint("LEFT", row, "LEFT", (i - 1) * (w + 6), 0)
+    buttons[i] = b
+  end
+  ui.onRefresh(parent, draw)
+  return row
+end
+
 -- A plain slider from 0 to 100 in steps of 5 (the game's slider templates differ between clients).
 function ui.slider(parent, label, get, set)
   local s = CreateFrame("Slider", nil, parent)

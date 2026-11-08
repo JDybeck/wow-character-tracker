@@ -1,5 +1,6 @@
--- A small box that offers to post a highlight no setting posts: a boss kill or looted blue or purple
--- gear. Which ones comes from the `ask` setting (the In game page, or the game's options). Post sends
+-- A small box that offers to post a moment no setting posts: a boss kill, blue or purple gear, a
+-- level-up, a mount, a win, a milestone... Which ones comes from the `ask` setting (the Sharing
+-- table's Ask first column, or the addon window). Post sends
 -- the app a separate "ask" event carrying the moment, so the moment itself isn't counted twice in the
 -- app's history. The box is our own frame and takes no action Blizzard protects, so no taint. It
 -- never pops up in combat, and goes away by itself.
@@ -18,13 +19,23 @@ local current
 local shownAt = 0 -- which showing a timer belongs to
 local box
 
+-- The kinds offered as themselves (wins only: a lost duel or battleground is never offered).
+local ASKED_AS_KIND = { mount = true, keyrun = true, death = true, profession = true, mplus = true, pvp = true,
+  duel = true, makgora = true, bg = true }
+
 -- The `ask` switch that covers this moment, or nil when it's never offered.
 local function askKind(e)
-  if e.kind == "boss" then return "boss" end
-  if e.kind ~= "loot" or e.mat then return nil end
-  if (e.quality or 0) == 3 then return "rare" end
-  if (e.quality or 0) == 4 then return "epic" end
-  return nil
+  local k = e.kind
+  if k == "boss" then return "boss" end
+  if k == "level" then return e.maxLevel and "maxlevel" or "level" end
+  if k == "loot" then
+    if e.mat then return nil end
+    if (e.quality or 0) == 3 then return "rare" end
+    if (e.quality or 0) == 4 then return "epic" end
+    return nil
+  end
+  if e.lost then return nil end
+  return ASKED_AS_KIND[k] and k or nil
 end
 
 -- Only with the app and a webhook on the other end: otherwise a post can't go anywhere.
@@ -39,7 +50,8 @@ local function describe(e)
   if e.kind == "boss" then
     return string.format("Killed %s%s", e.boss, (e.instance and e.instance ~= "") and (" in " .. e.instance) or "")
   end
-  return "Looted " .. ns.itemLink(e.itemId, e.item)
+  if e.kind == "loot" then return "Looted " .. ns.itemLink(e.itemId, e.item) end
+  return (ns.momentLine and ns.momentLine(e)) or e.kind -- the same words as the chat line (Announce.lua)
 end
 
 local function buildBox()
@@ -117,7 +129,7 @@ function ns.answerAsk(post)
     for k, v in pairs(e) do fields[k] = v end
     fields.id, fields.kind, fields.shot = nil, nil, nil
     fields.askedKind = e.kind
-    ns.record("ask", fields, string.format("ask:%s:%d", tostring(e.boss or e.itemId), e.at or time()))
+    ns.record("ask", fields, string.format("ask:%s:%d", tostring(e.boss or e.itemId or e.kind), e.at or time()))
     ns.say(WoWCharacterTrackerDB.live == false and "It posts on your next /reload or logout." or "Sent to the app to post.")
   end
   ns.showNextAsk()

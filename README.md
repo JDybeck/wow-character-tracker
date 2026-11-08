@@ -22,35 +22,34 @@ Nothing leaves your PC unless you set it up. See [Privacy](#privacy).
 ## Install
 
 1. Download `WoWCharacterTracker.exe` from the [latest release](https://github.com/JDybeck/wow-character-tracker/releases/latest) and run it. Nothing else to install. Windows may show a SmartScreen warning since the exe isn't signed yet: click **More info**, then **Run anyway**.
-2. Pick **Retail** or **Forever** at the top. The app finds your game folder by itself; click **Install** to add the addon to the game.
-3. Optional: add a Discord webhook in the Discord panel ([how to make one](docs/GUIDE.md#making-a-discord-webhook)) so your moments get posted.
-4. In game, type `/wct test`. The app's console says instant posting works within a few seconds.
+2. **Help me set it up** opens by itself: it finds your game folders, installs the addon with one click, takes a Discord webhook if you want your moments posted ([how to make one](docs/GUIDE.md#making-a-discord-webhook)), and asks how chatty it should be. Every step can be skipped; the **?** at the top brings it back.
+3. In game, type `/wct test`. The app's console says instant posting works within a few seconds.
 
-From then on the app waits in the tray and opens when you start WoW. On the first start a short tour shows what everything does; the **?** at the top brings it back.
+From then on the app waits in the tray and opens when you start WoW.
 
 ## A quick tour
+
+**Home**: the character you're playing, how fast it's leveling, and your newest dings, kills, loot and mounts, each one a click from Discord.
 
 **Characters**: click a character for its overview, gear and bags, leveling and notes. Gear shows set bonuses, effects and enchants; Equipment Manager sets show what's in your bags or bank.
 
 <img src="docs/images/gear-and-bags.png" alt="A character's gear and bags in the app" width="640">
 
-**Items**: everything your characters carry, per server. Search it, or show only what's worn, in bags or in the bank.
+**Items** (on Characters): everything your characters carry, per server. Search it, or show only what's worn, in bags or in the bank.
 
 ![The Items page: every item with who has it and where](docs/images/items.png)
 
-**Professions**: every profession on every character, with skill and max, so you see who can craft what.
+**Professions** (on Characters): every profession on every character, with skill and max, so you see who can craft what.
 
 **Friends**: Battle.net friends with the addon can share their characters with you, gear and talents included, and you pick what they get of yours (gold and location only if you allow it). Nothing is shared until you say so.
 
-**What gets posted**: pick what goes to Discord, per game, with a Test button for each. Posts come with the item's tooltip as a picture, or your in-game screenshot.
-
-![What gets posted, in General, PvE and PvP columns](docs/images/what-gets-posted.png)
+**Sharing**: who hears about your moments. Pick Quiet, Normal or Everything, or choose per moment where it goes: Discord, a screenshot, guild chat, group chat or the stream overlay. Posts come with the item's tooltip as a picture, or your in-game screenshot. Quick switches for each sit on the right edge of the window.
 
 In Discord: a level-up with the screenshot the addon took in game, and a character card posted from the app.
 
 <img src="docs/images/level-up-post.png" alt="A level-up post in Discord with an in-game screenshot" width="420"> <img src="docs/images/character-card.png" alt="A character card as posted to Discord" width="300">
 
-**Stream overlay**: turn it on in its panel, copy the address into OBS as a Browser source.
+**Stream overlay**: turn it on (Sharing, or the switch on the right edge), copy the address into OBS as a Browser source.
 
 <img src="docs/images/stream-overlay.png" alt="The stream overlay: the card, the highlights box and an alert" width="640">
 

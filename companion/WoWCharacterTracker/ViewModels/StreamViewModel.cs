@@ -225,6 +225,16 @@ sealed class StreamViewModel : Observable
         ? "Counting since " + DateTimeOffset.FromUnixTimeSeconds(Options.Since).LocalDateTime.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)
         : "Start counting now";
 
+    // The alert kinds changed outside the panel (the Sharing table): rebuild the chips that show them.
+    public void AlertsChanged()
+    {
+        alertKinds = null;
+        gameSections = null;
+        Raise(nameof(AlertKinds));
+        Raise(nameof(GameSections));
+        OptionsChanged();
+    }
+
     void OptionsChanged()
     {
         main.SaveSoon(); // sliders change many times a second
@@ -343,7 +353,7 @@ sealed class StreamViewModel : Observable
 
     public void Shutdown() => server?.Dispose();
 
-    static StreamCharacter Character(CharacterRow r, Flavor flavor) => new(
+    internal static StreamCharacter Character(CharacterRow r, Flavor flavor) => new(
         r.Guid, r.FullName, flavor.Name, r.Level, r.ClassName,
         GameColors.Class(r.ClassFile) is int color ? GameColors.Hex(color) : "#FFFFFF",
         r.Race, r.RealmText, r.Zone, r.Played > 0 ? Format.Played(r.Played) : "", r.ItemLevel > 0 ? r.ItemLevel.ToString("0") : "",

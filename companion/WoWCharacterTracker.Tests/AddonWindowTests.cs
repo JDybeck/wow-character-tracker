@@ -1,4 +1,4 @@
-using MoonSharp.Interpreter;
+﻿using MoonSharp.Interpreter;
 
 namespace WoWCharacterTracker.Tests;
 
@@ -112,11 +112,11 @@ public class AddonWindowTests
     static bool Bool(FriendsLuaTests.Client c, string expr) => c.Lua("return " + expr).CastToBool();
 
     [Fact]
-    public void The_window_has_seven_tabs_and_builds_each_tab_once()
+    public void The_window_has_four_tabs_and_builds_each_tab_once()
     {
         var c = Load();
         c.Call("openWindow", "general");
-        foreach (var tab in new[] { "General", "Chat", "Highlights", "Note", "Friends", "Sharing", "App" })
+        foreach (var tab in new[] { "Sharing", "Friends", "Note", "Settings" })
             Assert.True(Bool(c, $"find('{tab}') ~= nil"), tab);
         Assert.True(Bool(c, "ns.windowShown()"));
         Assert.True(Bool(c, "find('Guild chat') == nil")); // not built until opened
@@ -152,7 +152,7 @@ public class AddonWindowTests
         c.Lua("local s = find('Background opacity'); s.scripts.OnValueChanged(s, 30)");
         Assert.Equal(0.3, Num(c, "gotAlpha"), 3);
 
-        c.Call("openWindow", "sharing");
+        c.Call("openWindow", "friends"); // what all friends get sits under the Friends tab's lists
         Assert.False(Bool(c, "find('Gold').checked"));
         c.Lua("click('Gold')");
         Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.gold"));
@@ -162,10 +162,10 @@ public class AddonWindowTests
     }
 
     [Fact]
-    public void The_sharing_tab_sets_map_position_the_other_faction_and_the_map_rate()
+    public void What_you_share_sets_map_position_the_other_faction_and_the_map_rate()
     {
         var c = Load();
-        c.Call("openWindow", "sharing");
+        c.Call("openWindow", "friends");
         Assert.False(Bool(c, "find('Map position').checked"));
         c.Lua("click('Map position')");
         Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.map"));
@@ -254,7 +254,7 @@ public class AddonWindowTests
         c.Lua("SlashCmdList.CHARACTERTRACKER('times')");
         Assert.Contains("No level times recorded yet for this character.", c.Said());
         c.Lua("SlashCmdList.CHARACTERTRACKER('help')");
-        Assert.Contains(c.Said(), s => s.StartsWith("/wct times", StringComparison.Ordinal));
+        Assert.Contains(c.Said(), s => s.StartsWith("/wct note", StringComparison.Ordinal));
         c.Lua("SlashCmdList.CHARACTERTRACKER('friends Ask Zeb#2222')");
         Assert.Equal(" Ask Zeb#2222", c.Lua("return gotFriends").String);
         Assert.Equal(1, Num(c, "opened"));
@@ -262,13 +262,58 @@ public class AddonWindowTests
 
     // Highlights: how long the post box stays, 10 by default, cycling through the choices.
     [Fact]
-    public void The_post_box_time_can_be_changed_on_the_highlights_tab()
+    public void The_post_box_time_can_be_changed_on_the_sharing_tab()
     {
-        var c = Load();
-        c.Call("openWindow", "highlights");
+        var c = Load(settings: "{ post = {} }"); // the ask box needs the app
+        c.Call("openWindow", "sharing");
         c.Lua("local b = find('Box stays: 10 seconds'); b.scripts.OnClick(b)");
         Assert.Equal(15, Num(c, "ns.setting('askSeconds')"));
         Assert.True(Bool(c, "find('Box stays: 15 seconds') ~= nil"));
+    }
+
+    // Reload reminders: one choice over the ding popup, the flight box and the chat line. The
+    // defaults (no popup, flight box and chat line on) are Gentle.
+    [Fact]
+    public void Reload_reminders_are_one_choice_over_three_settings()
+    {
+        var c = Load();
+        c.Call("openWindow", "settings");
+        Assert.Equal("gentle", c.Lua("return ns.reloadChoice()").String);
+        c.Lua("click('Every chance')");
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == true and ns.setting('flightReload') and ns.setting('chatReminder')"));
+        c.Lua("click('Off')");
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == false and ns.setting('flightReload') == false and ns.setting('chatReminder') == false"));
+        c.Lua("WoWCharacterTrackerDB.popup = true");
+        Assert.Equal("custom", c.Lua("return ns.reloadChoice()").String);
+    }
+
+    // With the app: the preset is picked here (an In game setting the app applies on sync), and the
+    // per-moment chat table is the app's. Without it: no preset, the whole chat table.
+    [Fact]
+    public void The_sharing_tab_picks_a_preset_with_the_app_and_shows_the_chat_table_without()
+    {
+        var c = Load(settings: "{ post = {}, preset = 'normal' }");
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "shownText('Level-ups') == nil"));
+        c.Lua("click('Quiet')");
+        Assert.Equal("quiet", c.Lua("return WoWCharacterTrackerDB.gameSettings.preset").String);
+        Assert.Equal("quiet", c.Lua("return ns.setting('preset')").String);
+
+        var alone = Load();
+        alone.Call("openWindow", "sharing");
+        Assert.True(Bool(alone, "find('Quiet') == nil"));
+        Assert.True(Bool(alone, "shownText('Level-ups') ~= nil"));
+    }
+
+    // A last tab saved by an older version (or a /wct command) opens where its options went.
+    [Fact]
+    public void Old_tab_names_open_the_new_tabs()
+    {
+        var c = Load();
+        c.Call("openWindow", "highlights");
+        Assert.Equal("sharing", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
+        c.Call("openWindow", "app");
+        Assert.Equal("settings", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
     }
 
     // The window opens in combat, so /wct options doesn't need to wait for it to end.
@@ -429,6 +474,17 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Bobber') ~= nil"));
     }
 
+    // Each friend under Shared with you says what they share and whether you share back.
+    [Fact]
+    public void Shared_with_you_says_who_shares_what()
+    {
+        var c = FriendsTab();
+        Assert.True(Bool(c, "shownText('|cff6fd67fShares 1 character with you|r    |cff9a9a9aYou don\\'t share yours|r') ~= nil"));
+        c.Lua("ns.contactSharing = function(tag) return { share = true, summary = 'gear and talents' } end");
+        c.Call("friendsChanged");
+        Assert.True(Bool(c, "shownText('|cff6fd67fShares 1 character with you|r    |cff6fd67fYou share yours: gear and talents|r') ~= nil"));
+    }
+
     [Fact]
     public void Shared_with_you_lists_characters_with_a_line_of_info()
     {
@@ -480,6 +536,12 @@ public class AddonWindowTests
         end
         function title() return titleText().text end
         function clickChar(name) local l = shownText(name).owner; l.scripts.OnMouseUp(l, 'LeftButton') end
+        -- A label in the details panel (What you share, under the lists, has some of the same words).
+        function factText(s)
+          for _, fs in ipairs(strings) do
+            if onScreen(fs) and fs.text == s and fs.owner.valueText then return fs end
+          end
+        end
         """;
 
     static FriendsLuaTests.Client GearTab()
@@ -555,13 +617,13 @@ public class AddonWindowTests
             ("Friend", "Cid#3"), ("Realm", "Firemaw"), ("Race", "Female Gnome, Alliance"), ("Item level", "112"), ("Zone", "Ironforge"), ("Gold", "123g 45s 67c"),
             ("Professions", "Tailoring 300/300, Enchanting 280/300"), ("Talents", "Arcane 10 / Fire 0 / Frost 41"), ("Updated", "2h ago") })
         {
-            Assert.Equal(value, c.Lua($"return shownText('{label}').owner.valueText.text").String);
+            Assert.Equal(value, c.Lua($"return factText('{label}').owner.valueText.text").String);
         }
         Assert.Equal(0.25, Num(c, "titleText().color[1]"), 3); // class colored
 
         c.Lua("clickChar('Cidra')"); // little shared: only what's there
         Assert.True(Bool(c, "shownText('Level 20') ~= nil"));
-        Assert.True(Bool(c, "shownText('Gold') == nil and shownText('Talents') == nil"));
+        Assert.True(Bool(c, "factText('Gold') == nil and factText('Talents') == nil"));
     }
 
     // An online friend's card opens their shared character when they share the one they're on,
@@ -673,6 +735,44 @@ public class AddonWindowTests
         Assert.False(Bool(c, "onScreen(sharingPanel())"));
     }
 
+    [Fact]
+    public void The_sharing_panel_asks_a_friend_for_what_you_picked()
+    {
+        var c = FriendsTab();
+        c.Lua(SharingStubs);
+        c.Lua("asked = {}; ns.askFriend = function(tag, wants) asked = { tag = tag, wants = table.concat(wants, ',') }; return 'Asked them.' end");
+        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
+        c.Lua("clickIn('Cidro', 'Sharing')");
+        Assert.True(Bool(c, "shownText('Ask them to share:') ~= nil"));
+        c.Lua("""
+            function chip(label)
+              for _, f in ipairs(frames) do
+                if f.parent == sharingPanel() and f.text == label then return f.scripts.OnClick(f) end
+              end
+              error('no ' .. label)
+            end
+            """);
+        c.Lua("chip('Map position')");
+        c.Lua("chip('Gold')");
+        c.Lua("chip('Gold')"); // picked, then not
+        c.Lua("chip('Ask')");
+        Assert.Equal("Cid#3", c.Lua("return asked.tag").String);
+        Assert.Equal("map", c.Lua("return asked.wants").String);
+        Assert.True(Bool(c, "shownText('Asked them.') ~= nil"));
+    }
+
+    [Fact]
+    public void A_request_for_more_has_no_never_button()
+    {
+        var c = Load();
+        c.Lua("""
+            WoWCharacterTrackerDB.share = { enabled = true, at = 1, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }
+            ns.offerFriendRequest({ tag = 'Zeb#2222', account = 9, wants = { 'map' }, more = true })
+            """);
+        Assert.True(Bool(c, "shownText('Zeb#2222 asks to also see your map position.') ~= nil"));
+        Assert.False(Bool(c, "(function() for _, f in ipairs(frames) do if f.text == 'Never' and onScreen(f) then return true end end return false end)()"));
+    }
+
     // A request from Zeb#2222 through the real Friends.lua, shown in the window's request box.
     static FriendsLuaTests.Client RequestBox()
     {
@@ -744,7 +844,7 @@ public class AddonWindowTests
         c.Call("friendsChanged");
         c.Lua("""
             for _, f in ipairs(frames) do
-              if f.text == 'Your sharing' and onScreen(f) then f.scripts.OnClick(f) end
+              if f.text == 'Options' and onScreen(f) then f.scripts.OnClick(f) end
             end
             """);
         Assert.True(Bool(c, "onScreen(sharingPanel())"));

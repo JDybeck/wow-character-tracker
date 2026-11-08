@@ -21,7 +21,8 @@ record Snapshot(string Guid, string Char, string Realm, int Level, string Class,
 // The In game page's settings as last changed in game (the addon's options page), and when. Null:
 // the change doesn't have that setting (an older addon), so the app's own value stays, as in the addon.
 record InGameSettings(long At, bool? AnnounceGuild, bool? AnnounceParty, List<string>? AnnounceKinds, List<string>? AnnouncePartyKinds, List<string>? AskKinds,
-    bool? FlightReload, bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null);
+    bool? FlightReload, bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null,
+    string? Preset = null);
 
 // Everything read for one game tab: events, character snapshots, what each character carries, and
 // the XP each level needs on that client ([level] = XP).

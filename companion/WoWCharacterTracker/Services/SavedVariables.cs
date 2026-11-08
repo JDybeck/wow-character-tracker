@@ -55,7 +55,8 @@ static class SavedVariables
             t.Get("gridCorner").Type == DataType.String ? t.Get("gridCorner").String : null,
             Flag("gridLabel"), Flag("keepAllHistory"),
             t.Get("askSeconds").CastToNumber() is double seconds ? (int)seconds : null,
-            t.Get("ignored").Type == DataType.Table ? On(t.Get("ignored")) : null);
+            t.Get("ignored").Type == DataType.Table ? On(t.Get("ignored")) : null,
+            t.Get("preset").Type == DataType.String ? t.Get("preset").String : null);
     }
 
     // notes[guid] = { text, at }: notes edited in game. The game keeps "|" as "||".

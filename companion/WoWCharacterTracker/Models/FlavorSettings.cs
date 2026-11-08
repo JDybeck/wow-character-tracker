@@ -15,6 +15,10 @@ class FlavorSettings
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ActiveWebhookId { get; set; }
 
+    // The Discord switch: nothing for this game posts while paused, and what happens meanwhile isn't
+    // posted later. Webhooks stay as they are.
+    public bool DiscordPaused { get; set; }
+
     // Level-ups: up to LevelSplit, post every LevelEveryBefore levels; after that every LevelEveryAfter.
     public bool PostLevels { get; set; } = true;
     public int LevelSplit { get; set; } = 30;
@@ -44,6 +48,9 @@ class FlavorSettings
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
     public bool FirstBossKillOnly { get; set; } = true; // each character's first kill of each end boss, not the farming after
+    // Dungeon runs (Runs.lua, not on Retail): one post per 5-player dungeon run with its bosses, the
+    // group and who got what, in place of the run's boss and loot posts (legendaries still post on their own).
+    public bool PostRuns { get; set; }
 
     // Finished Mythic+ runs (Retail, in place of end boss kills): from this key level up, and
     // optionally only the ones in time.
@@ -212,7 +219,7 @@ class FlavorSettings
         (PostLevels, LevelSplit, LevelEveryBefore, LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
         (PostRare, RareBoeOnly, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.RareBoeOnly, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
         PostFollowed = d.PostFollowed; // the list itself is the user's own, not a posting setting
-        FirstBossKillOnly = d.FirstBossKillOnly;
+        (FirstBossKillOnly, PostRuns) = (d.FirstBossKillOnly, d.PostRuns);
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
         (PostProfessions, ProfessionSteps) = (d.PostProfessions, [.. d.ProfessionSteps]);
@@ -236,7 +243,7 @@ class FlavorSettings
     // Wants, plus what needs the character's history: a boss this character killed before isn't posted
     // again when only first kills are. history: every event known for the tab.
     public bool Wants(Entry e, IEnumerable<Entry> history) =>
-        !Ignored.Contains(e.Guid) && Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
+        !DiscordPaused && !Ignored.Contains(e.Guid) && Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
 
     public bool IsRepeatKill(Entry e, IEnumerable<Entry> history) =>
         FirstBossKillOnly && history.Any(o => o.Kind == "boss" && o.Guid == e.Guid && o.Boss == e.Boss && o.At < e.At);
@@ -253,14 +260,20 @@ class FlavorSettings
     public IReadOnlyList<Entry> MarkFollowed(IReadOnlyList<Entry> events) =>
         AllFollowed.Count == 0 ? events : [.. events.Select(e => Follows(e) ? e with { Followed = true } : e)];
 
+    // A dungeon run's boss kill or loot, which goes into the run's one post instead.
+    public bool HeldForRun(Entry e) => PostRuns && e.Run > 0 && e.Kind is "loot" or "boss";
+
     public bool Wants(Entry e) => PostsAsFollowed(e) || e.Kind switch
     {
         "ask" => true, // the player clicked Post in game
 
         "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),
-        "loot" => e.Quality >= 5 ? !e.Mat : (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly)),
+        "loot" when e.Quality >= 5 => !e.Mat,
+        _ when HeldForRun(e) => false,
+        "loot" => e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly),
         "mount" => PostMounts,
         "boss" => PostBosses && SkipBossBecause(e) is null,
+        "run" => PostRuns && (e.Cleared || e.Drops.Length > 0) && SkipBossBecause(e) is null,
         "keyrun" => PostKeyRuns && e.KeyLevel >= KeyRunMinLevel && (e.Timed || !KeyRunTimedOnly),
         "death" => PostDeaths,
         "duel" => PostDuels && !e.Lost, // only wins are posted

@@ -795,7 +795,7 @@ public class FriendsLuaTests
     {
         var a = Asked("{ friendNames = { ['Zeb#2222'] = 'Zebbe' } }");
         Assert.Equal("CHARACTERTRACKER_FRIEND_REQUEST", Str(a, "shown[1].name"));
-        Assert.Equal("Zebbe (Zeb#2222)", Str(a, "shown[1].arg"));
+        Assert.Equal("Zebbe (Zeb#2222) wants to see your characters.", Str(a, "shown[1].arg"));
         Answer(a, "allow");
         a.Run(1);
         Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].share").Boolean);
@@ -803,6 +803,56 @@ public class FriendsLuaTests
         Assert.Contains(a.Sent(), m => m.Get("text").String.Contains("char=Deadbeck"));
         Assert.Contains(a.Sent(), m => m.Get("text").String.Contains("char=Drygbeck"));
         Assert.DoesNotContain(a.Sent(), m => m.Get("text").String.Contains("money=")); // gold is off by default
+    }
+
+    [Fact]
+    public void Asking_for_categories_sends_the_known_ones_in_the_request()
+    {
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        b.Call("friendsCommand", "ask JDybeck#1111 map Gold");
+        b.Run(1);
+        Assert.Contains(b.Sent(), m => m.Get("text").String.Contains(":REQ:") && m.Get("text").String.EndsWith(":gold,map", StringComparison.Ordinal));
+        Assert.Contains(b.Said(), s => s.Contains("for gold, map position"));
+        b.Run(31);
+        b.Call("friendsCommand", "ask JDybeck#1111 wings");
+        Assert.Contains(b.Said(), s => s.StartsWith("/wct friends ask", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_request_for_more_asks_a_friend_you_share_with_and_allow_turns_on_only_that()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        a.Receive("1:REQ:1:1:1:map", BAccount);
+        a.Run(1);
+        Assert.Contains(a.Sent(), m => m.Get("text").String.Contains("char=Deadbeck")); // what they get already goes out
+        Assert.Equal("Zeb#2222 asks to also see your map position.", Str(a, "shown[1].arg"));
+        Assert.True(a.Lua("return ns.pendingRequests()[1].more").Boolean);
+        a.Lua("ns.answerFriendRequest(ns.pendingRequests()[1], 'allow')"); // from the list: no choices given
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].map").Boolean);
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].gold").IsNil());
+        Assert.False(a.Lua("return ns.allowedFor(ns.shareSettings(), nil).map").Boolean); // only for them
+    }
+
+    [Fact]
+    public void A_request_for_what_they_already_get_is_just_answered()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        a.Receive("1:REQ:1:1:1:location,wings", BAccount);
+        a.Run(1);
+        Assert.Equal(0, a.Lua("return #shown").Number);
+        Assert.Contains(a.Sent(), m => m.Get("text").String.Contains("char=Deadbeck"));
+    }
+
+    [Fact]
+    public void A_first_request_with_categories_ticks_them_in_the_box()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        a.Receive("1:REQ:1:1:1:map", BAccount);
+        Assert.Equal("Zeb#2222 wants to see your characters, with your map position.", Str(a, "shown[1].arg"));
+        Assert.True(a.Lua("return ns.requestInfo(shown[1].data).choices.map").Boolean);
+        Assert.False(a.Lua("return ns.requestInfo(shown[1].data).more").Boolean);
+        Answer(a, "allow");
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].map").Boolean);
     }
 
     [Fact]

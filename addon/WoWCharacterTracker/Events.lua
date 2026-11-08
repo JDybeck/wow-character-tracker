@@ -136,7 +136,11 @@ function ns.onFlightStart()
     nil, "Not for 30 min", function() WoWCharacterTrackerDB.flightSnoozeUntil = time() + FLIGHT_SNOOZE end)
 end
 
-function ns.onFlightEnd() askedThisFlight = false end
+-- Landed: the box is about the flight, so an unanswered one goes away.
+function ns.onFlightEnd()
+  askedThisFlight = false
+  if StaticPopup_Hide then StaticPopup_Hide("CHARACTERTRACKER_FLIGHT_RELOAD") end
+end
 
 -- A line in chat when gear or bags changed since the last save: at good moments (moment = true:
 -- after the bank, mailbox, a vendor or the auction house, leaving a dungeon), at most every 10
@@ -315,8 +319,17 @@ function ns.onInspectReady()
   C_Timer.After(1.5, inspectNext) -- the server limits how quickly inspects may follow
 end
 
+-- The role the group gave a member (the group finder or a role check): TANK, HEALER, DAMAGER, else "".
+local function groupRole(unit)
+  if not UnitGroupRolesAssigned then return "" end
+  local ok, role = pcall(UnitGroupRolesAssigned, unit)
+  role = ok and ns.plain(role)
+  return (role == "TANK" or role == "HEALER" or role == "DAMAGER") and role or ""
+end
+
 -- The other people in the party: "Name~level~CLASSFILE~Class~Race~Realm~Spec" per member (spec on
--- Retail when known), joined by commas. Raids list only how many there are, since 40 names don't fit a post.
+-- Retail when known), plus "~Role" when the group set one, joined by commas. Raids list only how many
+-- there are, since 40 names don't fit a post.
 getGroup = function()
   if not IsInGroup or not IsInGroup() then return nil, 1 end
   local size = GetNumGroupMembers and GetNumGroupMembers() or 1
@@ -333,12 +346,16 @@ getGroup = function()
       local className, classFile = UnitClass(unit)
       local raceName = UnitRace(unit)
       local spec = (name and groupSpecs[name]) or specName(unit)
-      table.insert(members, table.concat({ name or "?", UnitLevel(unit) or 0, classFile or "", className or "",
-        raceName or "", (realm and realm ~= "") and realm or "", spec or "" }, "~"))
+      local fields = { name or "?", UnitLevel(unit) or 0, classFile or "", className or "",
+        raceName or "", (realm and realm ~= "") and realm or "", spec or "" }
+      local role = groupRole(unit)
+      if role ~= "" then table.insert(fields, role) end
+      table.insert(members, table.concat(fields, "~"))
     end
   end
   return table.concat(members, ","), size
 end
+ns.getGroup = getGroup
 
 function ns.recordBoss(name)
   local now = time()
@@ -346,12 +363,14 @@ function ns.recordBoss(name)
   ns.recentBosses[name] = now
 
   local group, groupSize = getGroup()
+  local instance = END_BOSSES[name]
+  -- With dungeon runs summed up (Runs.lua), the kill goes into the run's post instead of its own.
+  local run = ns.runBossDown and ns.runBossDown(name, instance ~= nil, group, groupSize)
   -- END_BOSSES is Classic's list; on Retail it only matched old raids soloed for transmog. Retail
   -- records finished Mythic+ runs instead (ns.recordKeyRun). Any other boss isn't a recorded moment
   -- (first kills and the stream's dungeon alert count end bosses), but can be posted on request.
-  local instance = END_BOSSES[name]
   if ns.IS_RETAIL or not instance then
-    if ns.offerAsk then
+    if ns.offerAsk and not run then
       ns.offerAsk({ kind = "boss", boss = name, midBoss = true, instance = GetInstanceInfo and GetInstanceInfo() or nil,
         group = group, groupSize = groupSize, at = now })
     end
@@ -359,7 +378,7 @@ function ns.recordBoss(name)
   end
 
   ns.record("boss", { boss = name, instance = (GetInstanceInfo and GetInstanceInfo()) or instance,
-    group = group, groupSize = groupSize, at = now }, string.format("boss:%s:%d", name, now))
+    group = group, groupSize = groupSize, run = run, at = now }, string.format("boss:%s:%d", name, now))
   ns.say(string.format("End boss down: %s.", name))
 end
 
@@ -438,25 +457,45 @@ local function matchAny(list, text)
   return nil
 end
 
-local lastItemMountAt, lastMountName, lastMountAt = 0, nil, 0
+local lastItemMountAt, lastMountName, lastMountSpell, lastMountAt = 0, nil, nil, 0
 
--- itemId when the mount came as an item, spellId when it was learned straight into the mount journal.
+-- itemId when the mount came as an item, spellId when it was learned (the mount journal, or a class
+-- mount from a trainer or quest).
 function ns.recordMount(name, itemId, spellId)
   local now = time()
-  -- The same mount twice in a row (looted and pushed), or a mount item and then learning it on
-  -- clients with a mount journal (the item and the mount have different names): once. Any other
-  -- mount, however soon after, counts.
-  if name == lastMountName and now - lastMountAt < 120 then return end
+  -- The same mount twice in a row (looted and pushed, or a class mount seen both as a learned spell
+  -- and by the mount journal), or a mount item and then learning it on clients with a mount journal
+  -- (the item and the mount have different names): once. Any other mount, however soon after, counts.
+  if (name == lastMountName or (spellId and spellId == lastMountSpell)) and now - lastMountAt < 120 then return end
   if not itemId and now - lastItemMountAt < 120 then
     lastItemMountAt = 0 -- that item's learning; the next one is a mount of its own
     return
   end
-  lastMountName, lastMountAt = name, now
+  lastMountName, lastMountSpell, lastMountAt = name, spellId, now
   if itemId then lastItemMountAt = now end
 
   ns.record("mount", { mount = name, itemId = itemId, spellId = spellId, bought = ns.merchantOpen or nil, at = now },
     string.format("mount:%s:%d", name, now))
   ns.say(string.format("New mount: %s.", name))
+end
+
+-- Class mounts are learned as spells, from a trainer or a quest, with no item to loot, and clients
+-- without a mount journal say nothing else. Spell ids from Forever's and Retail's data (wago.tools):
+-- warlock Felsteed and Dreadsteed; paladin Warhorse and Charger, the undead paladin's Forsaken Charger
+-- and Skeletal Steed, and the Thalassian ones.
+local CLASS_MOUNTS = {
+  [5784] = true, [23161] = true,
+  [13819] = true, [13820] = true, [1279399] = true, [1279400] = true, [23214] = true, [23215] = true,
+  [1296534] = true, [1296537] = true, [370637] = true, [381598] = true, [381599] = true,
+  [34769] = true, [34767] = true,
+}
+
+-- A spell was just learned (LEARNED_SPELL_IN_TAB, or LEARNED_SPELL_IN_SKILL_LINE on newer clients).
+function ns.onSpellLearned(spellId)
+  if not CLASS_MOUNTS[spellId] then return end
+  local name = (C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellId))
+    or (GetSpellInfo and GetSpellInfo(spellId)) or "Class mount"
+  ns.recordMount((name:gsub("^Summon ", "")), nil, spellId) -- "Summon Felsteed" posts as Felsteed
 end
 
 -- Mount items are class 15 (miscellaneous), subclass 5 (mount).
@@ -478,6 +517,12 @@ local function qualityFromLink(link)
   if named then return tonumber(named) end
   local color = link:match("|c(%x%x%x%x%x%x%x%x)")
   return color and QUALITY_BY_COLOR[color:lower()]
+end
+
+-- An item's quality from the game, else from its link (a drop the game doesn't know yet).
+function ns.itemQuality(link)
+  local _, _, quality = ns.itemInfo(link)
+  return quality or qualityFromLink(link)
 end
 
 -- text is hidden from addons during a boss fight on Midnight-era clients (a secret value), so loot
@@ -517,7 +562,8 @@ function ns.recordLoot(text, retried)
   if not followed and (not quality or quality < 3) then return end -- rare (blue) and better only
 
   local now = time()
-  ns.record("loot", { item = name, itemId = itemId, quality = quality, boe = bindType == 2 or nil, mat = isNotGear(link) or nil, at = now },
+  ns.record("loot", { item = name, itemId = itemId, quality = quality, boe = bindType == 2 or nil, mat = isNotGear(link) or nil,
+    run = ns.runId and ns.runId() or nil, at = now },
     string.format("loot:%d:%d", itemId, now))
 end
 

@@ -48,17 +48,14 @@ sealed class FlavorViewModel : Observable
         WatchSetup();
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
+        Home = new HomeViewModel(flavor, Lookup);
         FollowedItems = new FollowedItemsViewModel(flavor, Lookup, () => Settings, FollowedChanged);
         Friends = new FriendsViewModel(flavor, Lookup, main.Config, () => Settings, AddonSettingsChanged, main.Config.Save);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
         _ = LoadLogoAsync();
-        Shots = EventKinds.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
-
-    // Screenshot options per kind of event, bound as Shots[level].Take and so on.
-    public Dictionary<string, ShotOption> Shots { get; }
 
     // Settings the addon reads (Settings.lua): saved, written for the addon, and the reload banner
     // shown if the game is running.
@@ -110,7 +107,11 @@ sealed class FlavorViewModel : Observable
     public void WriteAddonSettings()
     {
         if (flavorDir is null) return;
-        try { AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0, main.Config.FriendNicknames, main.Updates.Available); }
+        try
+        {
+            AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0, main.Config.FriendNicknames, main.Updates.Available,
+                SharingPresets.Detect(Settings, Flavor));
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log.Warn($"[{Name}] Couldn't save the screenshot settings for the addon: {ex.Message}");
@@ -241,28 +242,110 @@ sealed class FlavorViewModel : Observable
     void TakeInGameSettings(InGameSettings? game)
     {
         if (!Settings.TakeInGame(game)) return;
+        if (SharingPresets.TakeFromGame(Settings, Flavor, game!.Preset)) Log.Info($"[{Name}] Sharing set to {game.Preset} in game.");
         main.Config.Save();
         WriteAddonSettings();
-        announceKinds = null;
-        askKinds = null;
         RefreshAskSeconds();
-        foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces), nameof(AnnounceKinds), nameof(AskKinds),
+        SharingChanged();
+        foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces),
             nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
             nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight) })
             Raise(name);
         Log.Info($"[{Name}] Took the In game settings you changed in the game.");
     }
 
-    // Offering to post a highlight no setting posts (In game page; the addon's Ask.lua).
-    static readonly (string Kind, string Name, string Tip)[] AskNames =
-    [
-        ("boss", "Boss kills", "Any boss, not only the last one of a dungeon or raid."),
-        ("rare", "Rare gear", "Blue weapons and armor you loot."),
-        ("epic", "Epic gear", "Purple weapons and armor you loot."),
-    ];
-    ObservableCollection<ToggleOption>? askKinds;
-    public ObservableCollection<ToggleOption> AskKinds => askKinds ??=
-        ToggleOption.Kinds(AskNames, Settings.AskKinds ??= [], () => InGameChanged());
+    // The Sharing table (Models/Moments): one row per moment this game has.
+    IReadOnlyList<SharingRow>? sharingRows;
+    public IReadOnlyList<SharingRow> SharingRows => sharingRows ??=
+        [.. Moments.For(Flavor).Select(m => new SharingRow(m, Settings, () => main.Config.StreamOptions.AlertKinds,
+            () => Changed(nameof(Preset)), () => InGameChanged(nameof(Preset)), main.Stream.AlertsChanged))];
+
+    // How much gets shared: Quiet, Normal or Everything, or Custom when the table matches none of them.
+    // Picking one over custom choices asks first (ConfirmPreset).
+    public string Preset => SharingPresets.Detect(Settings, Flavor);
+    public bool IsCustom => Preset == SharingPresets.Custom;
+    public bool PresetQuiet { get => Preset == SharingPresets.Quiet; set { if (value) PickPreset(SharingPresets.Quiet); } }
+    public bool PresetNormal { get => Preset == SharingPresets.Normal; set { if (value) PickPreset(SharingPresets.Normal); } }
+    public bool PresetEverything { get => Preset == SharingPresets.Everything; set { if (value) PickPreset(SharingPresets.Everything); } }
+
+    string? pendingPreset;
+    public bool ConfirmPreset => pendingPreset is not null;
+    public ICommand ConfirmPresetCommand => new RelayCommand(_ => { if (pendingPreset is { } key) ApplyPreset(key); });
+    public ICommand CancelPresetCommand => new RelayCommand(_ => { pendingPreset = null; PresetChanged(); });
+
+    void PickPreset(string key)
+    {
+        if (Preset == key) return;
+        if (IsCustom)
+        {
+            pendingPreset = key;
+            PresetChanged();
+            return;
+        }
+        ApplyPreset(key);
+    }
+
+    void ApplyPreset(string key)
+    {
+        pendingPreset = null;
+        SharingPresets.Apply(Settings, Flavor, key);
+        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); // chat and ask lists changed too
+        PostingReplaced();
+        Log.Info($"[{Name}] Sharing set to {key}.");
+    }
+
+    void PresetChanged()
+    {
+        foreach (var name in new[] { nameof(Preset), nameof(IsCustom), nameof(PresetQuiet), nameof(PresetNormal), nameof(PresetEverything), nameof(ConfirmPreset) })
+            Raise(name);
+    }
+
+    // Which place's own settings show under the Sharing page's top row: "discord" (webhooks), "stream"
+    // (the overlay) or "" (none). One at a time; clicking the open one closes it.
+    string openPlace = "";
+    public string OpenPlace
+    {
+        get => openPlace;
+        set
+        {
+            if (!Set(ref openPlace, value)) return;
+            Raise(nameof(DiscordOpen));
+            Raise(nameof(StreamOpen));
+            if (value == "stream") main.Stream.PanelOpen = true; // its options, not just its header
+        }
+    }
+    public bool DiscordOpen => openPlace == "discord";
+    public bool StreamOpen => openPlace == "stream";
+    public ICommand TogglePlaceCommand => new RelayCommand(p => OpenPlace = OpenPlace == (string)p! ? "" : (string)p!);
+
+    // The Sharing page's fold: the table opens by itself when the choices are custom (Advanced is always open).
+    bool? showCustomize;
+    public bool ShowCustomize { get => showCustomize ??= IsCustom; set { showCustomize = value; Raise(nameof(ShowCustomize)); } }
+    public ICommand ToggleCustomizeCommand => new RelayCommand(_ => ShowCustomize = !ShowCustomize);
+
+    // The table's screenshot box takes and attaches; off here keeps them in the Screenshots folder only.
+    public bool AttachShots
+    {
+        get => EventKinds.ShotKinds.Where(Settings.Shoots).All(Settings.PostsShot);
+        set
+        {
+            foreach (var k in EventKinds.ShotKinds) Settings.PostScreenshot[k] = value;
+            Changed();
+        }
+    }
+
+    // The Discord switch: off pauses this game's posts without forgetting its webhooks.
+    public bool DiscordOn
+    {
+        get => !Settings.DiscordPaused;
+        set
+        {
+            Settings.DiscordPaused = !value;
+            main.Config.Save();
+            Raise(nameof(DiscordOn));
+            Log.Info(value ? $"[{Name}] Posting to Discord again." : $"[{Name}] Discord posts paused. What happens meanwhile won't be posted later.");
+        }
+    }
 
     // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
     // for a note that came from the game: it has it already.
@@ -277,30 +360,6 @@ sealed class FlavorViewModel : Observable
     public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; InGameChanged(); Raise(nameof(Announces)); } }
     public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; InGameChanged(); Raise(nameof(Announces)); } }
     public bool Announces => AnnounceGuild || AnnounceParty;
-    // Tip is shown on the page: a sample of the line the addon writes (Announce.lua's message).
-    static readonly (string Kind, string Name, string Tip)[] AnnounceNames =
-    [
-        ("level", "Level-ups", "\"Ding! Level 23. 22 to 23 took 41m 12s.\""), ("maxlevel", "Max level", "\"Reached max level 60! Total played 6d 4h 12m.\""),
-        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\""),
-        ("keyrun", "Mythic+ runs", "\"Timed +12 Ara-Kara, City of Echoes (+2)!\" From the lowest key level set for Discord."), ("loot", "Epic loot", "\"Looted [Item]!\" For epic and legendary items."),
-        ("followed", "Followed items", "\"Got [Item] from my followed items!\" For anything on your Followed items tab."),
-        ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
-        ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
-        ("profession", "Professions", "\"Reached 150 Mining!\" At the steps set for Discord."),
-        ("mplus", "Mythic+", "\"Reached 2500 Mythic+ rating!\""), ("pvp", "PvP rating", "\"Reached 1800 rating in 3v3!\""), ("death", "Deaths", "\"Fell at level 34 to Hogger. Rest in peace.\""),
-    ];
-    // One row per kind, with a box for guild chat and one for group chat: each has its own list.
-    ObservableCollection<AnnounceRow>? announceKinds;
-    public ObservableCollection<AnnounceRow> AnnounceKinds => announceKinds ??= AnnounceTable();
-
-    ObservableCollection<AnnounceRow> AnnounceTable()
-    {
-        var names = EventKinds.Offered(AnnounceNames, Flavor.HasRatings).ToList();
-        var guild = ToggleOption.Kinds(names, Settings.AnnounceKinds, () => InGameChanged());
-        var party = ToggleOption.Kinds(names, Settings.AnnouncePartyKinds ??= [.. Settings.AnnounceKinds], () => InGameChanged());
-        return [.. names.Select((n, i) => new AnnounceRow(n.Name, n.Tip, guild[i], party[i]))];
-    }
-
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; InGameChanged(); } }
     public bool GridTopLeft { get => Corner == "TOPLEFT"; set { if (value) SetCorner("TOPLEFT"); } }
@@ -366,6 +425,14 @@ sealed class FlavorViewModel : Observable
         AddonSettingsChanged(); // the addon only sends live (and screenshots) what will be posted
         Raise(name!);
         Raise(nameof(LevelPreview));
+        SharingChanged();
+    }
+
+    // Rules under the table's names and which preset matches follow every posting change.
+    void SharingChanged()
+    {
+        foreach (var row in sharingRows ?? []) row.Refresh();
+        PresetChanged();
     }
 
     // Like Changed, for boxes that change with every keystroke: the config and the addon's Settings.lua
@@ -375,6 +442,7 @@ sealed class FlavorViewModel : Observable
         main.SaveSoon(addonSettings: true);
         Raise(name!);
         Raise(nameof(LevelPreview));
+        SharingChanged();
     }
 
     public void ResetPosting()
@@ -401,7 +469,7 @@ sealed class FlavorViewModel : Observable
     void PostingReplaced()
     {
         AddonSettingsChanged();
-        foreach (var o in Shots.Values) o.Refresh();
+        SharingChanged();
         Raise(string.Empty); // every property
     }
 
@@ -570,7 +638,7 @@ sealed class FlavorViewModel : Observable
         // A sync that finds nothing new doesn't raise DataChanged, so a game that closed without
         // writing its saved file (a crash) clears the reload banner this way.
         tracker.GameClosed += () => MainViewModel.OnUi(CheckReloaded);
-        tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
+        tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); Home.MarkPosted(e.Id); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
         // Logging in on a game switches the app to that game's tab, with the character picked.
         tracker.CheckedIn += e => MainViewModel.OnUi(() =>
@@ -720,6 +788,12 @@ sealed class FlavorViewModel : Observable
     });
     ICommand? sortCommand;
 
+    // Home: rebuilt with the character list, and when the game starts or stops (playing now or not).
+    public HomeViewModel Home { get; }
+    IReadOnlyList<Entry> homeEvents = [];
+    public void RefreshHome() =>
+        Home.Show(allRows, homeEvents, tracker?.SentIds ?? new HashSet<string>(), flavorDir is not null && Wow.IsRunning(flavorDir), Friends.Shown);
+
     // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
     List<CharacterRow> allRows = [];
     public CharacterRow? RowFor(string guid) => allRows.FirstOrDefault(r => r.Guid == guid);
@@ -785,6 +859,8 @@ sealed class FlavorViewModel : Observable
         Items.Show(rows);
         Professions.Show(rows);
         Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
+        homeEvents = data.Events;
+        RefreshHome(); // after Friends: Home lists the friends seen lately
         main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));

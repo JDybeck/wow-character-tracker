@@ -111,6 +111,20 @@ public class AddonLuaTests
         Assert.Equal(["Ding! Level 5."], sent);
     }
 
+    // Rare loot has its own chat switch: epic's doesn't cover it, and with Bind on Equip only on (the
+    // same rule as its Discord posts) only a BoE rare gets a line.
+    [Theory]
+    [InlineData("{ loot = true }", false, false, false)]
+    [InlineData("{ rare = true }", false, false, true)]
+    [InlineData("{ rare = true }", true, false, false)]
+    [InlineData("{ rare = true }", true, true, true)]
+    public void Rare_loot_has_its_own_chat_switch(string kinds, bool rareBoe, bool boe, bool said)
+    {
+        var sent = Announce($"{{ post = {{ rareBoe = {(rareBoe ? "true" : "false")} }}, announce = {{ guild = true, kinds = {kinds} }} }}",
+            $"{{ kind = 'loot', itemId = 9372, item = 'Cruel Barb', quality = 3, boe = {(boe ? "true" : "false")} }}");
+        Assert.Equal(said, sent.Count == 1);
+    }
+
     // Runs Announce.lua with WoW's chat functions stubbed; returns what it sent ("CHANNEL: text").
     static List<string> Announce(string settings, string eventLua, bool inGuild = true, bool inGroup = false, bool inRaid = false)
     {
@@ -558,6 +572,19 @@ public class AddonLuaTests
     [Fact]
     public void Skipping_records_nothing() => Assert.Empty(Ask(AskAll, ABoss, post: false));
 
+    // Any moment with Ask first on can be offered (the Sharing table's column), a level-up as itself,
+    // max level as maxlevel; a loss never is, and a kind left off isn't.
+    [Fact]
+    public void More_moments_than_bosses_and_gear_can_be_asked()
+    {
+        const string asks = "{ post = {}, discord = true, ask = { level = true, maxlevel = true, duel = true } }";
+        Assert.Equal("level", Assert.Single(Ask(asks, "{ kind = 'level', level = 23, at = 6000 }", post: true)).Get("askedKind").String);
+        Assert.Single(Ask(asks, "{ kind = 'level', level = 60, maxLevel = true, at = 6000 }", post: true));
+        Assert.Single(Ask(asks, "{ kind = 'duel', opponent = 'Grimtusk', at = 6000 }", post: true));
+        Assert.Empty(Ask(asks, "{ kind = 'duel', opponent = 'Grimtusk', lost = true, at = 6000 }", post: true));
+        Assert.Empty(Ask(asks, "{ kind = 'mount', mount = 'Pinto', at = 6000 }", post: true));
+    }
+
     // The box stays 10 seconds, counting down on Skip, then goes away without posting.
     [Fact]
     public void The_post_box_counts_down_from_10_and_goes_away()
@@ -636,8 +663,8 @@ public class AddonLuaTests
     [Fact]
     public void The_box_waits_for_combat_to_end() => Assert.Empty(Ask(AskAll, ABoss, post: true, inCombat: true));
 
-    // Events.lua: the flight box shows once per flight; "Not for 30 min" (its third button) keeps it
-    // away on later flights until the 30 minutes are up, and is kept in the saved file.
+    // Events.lua: the flight box shows once per flight and closes on landing; "Not for 30 min" (its
+    // third button) keeps it away on later flights until the 30 minutes are up, and is kept in the saved file.
     [Fact]
     public void Snoozing_the_flight_box_skips_it_for_30_minutes()
     {
@@ -652,6 +679,8 @@ public class AddonLuaTests
             StaticPopupDialogs = {}
             shown = 0
             function StaticPopup_Show() shown = shown + 1 return {} end
+            hidden = 0
+            function StaticPopup_Hide(name) if name == "CHARACTERTRACKER_FLIGHT_RELOAD" then hidden = hidden + 1 end end
             """);
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Events.lua" })
@@ -666,6 +695,7 @@ public class AddonLuaTests
         }
 
         Assert.Equal(1, Fly(1000));
+        Assert.Equal(1, script.Globals.Get("hidden").Number); // landing closes an unanswered box
         script.DoString("StaticPopupDialogs.CHARACTERTRACKER_FLIGHT_RELOAD.OnAlt()");
         Assert.Equal(2800, script.DoString("return WoWCharacterTrackerDB.flightSnoozeUntil").Number);
         Assert.Equal(1, Fly(2000));
@@ -1114,8 +1144,9 @@ public class AddonLuaTests
             script.Call(ns.Get("openWindow"), "app");
             Assert.Contains("boss kills", script.DoString("return texts[#texts]").String);
             var before = (int)script.DoString("return #frames").Number;
-            script.Call(ns.Get("openWindow"), "chat");
-            Assert.True(script.DoString($"return frames[{before + 2}].checked").Boolean); // guild chat, on in Settings.lua (after the tab's page)
+            script.Call(ns.Get("openWindow"), "chat"); // now the Sharing tab
+            // Guild chat is on in Settings.lua, and it's the only box on the tab that is.
+            Assert.Equal(1, script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
@@ -1449,6 +1480,26 @@ public class AddonLuaTests
         script.Call(ns.Get("recordMount"), "Swift Brown Ram", 18786); // the same one reported twice
 
         Assert.Equal(["Reins of the Black Wolf", "Swift Brown Ram"], recorded.Select(e => e.Get("mount").String));
+    }
+
+    // Class mounts are learned as spells (trainer or quest), with no item: they count as new mounts,
+    // named without "Summon". The mount journal reporting the same spell (Retail) doesn't count twice,
+    // and other spells learned are nothing.
+    [Fact]
+    public void Learning_a_class_mount_counts_once_and_other_spells_dont()
+    {
+        var (script, ns, recorded) = LoadEvents("""
+            names = { [5784] = 'Summon Felsteed', [1296534] = 'Summon Forsaken Charger', [133] = 'Fireball' }
+            C_Spell = { GetSpellName = function(id) return names[id] end }
+            """);
+        script.Call(ns.Get("onSpellLearned"), 5784);
+        script.Call(ns.Get("recordMount"), "Felsteed", DynValue.Nil, 5784); // the mount journal on Retail
+        script.Call(ns.Get("onSpellLearned"), 133);
+        script.DoString("now = 5300");
+        script.Call(ns.Get("onSpellLearned"), 1296534); // an undead paladin's charger on Forever
+
+        Assert.Equal(["Felsteed", "Forsaken Charger"], recorded.Select(e => e.Get("mount").String));
+        Assert.Equal(5784, recorded[0].Get("spellId").Number);
     }
 
     // Shared.lua's formatPattern: the game's loot and duel strings as patterns, with arguments in

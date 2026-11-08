@@ -683,17 +683,12 @@ public class DiscordCreditTests
         Assert.Equal("Testy sent a test message.", embed["title"]);
     }
 }
-public class SetupPlacementTests
+public class OldConfigTests
 {
-    // Older configs have no placement: the checks go to the right column. A value this version
-    // doesn't know (hand edited, or from a newer one) reads as right too, so the checks never vanish.
-    [Theory]
-    [InlineData("{}", "right")]
-    [InlineData("{\"SetupPlacement\":\"top\"}", "top")]
-    [InlineData("{\"SetupPlacement\":\"bottom\"}", "bottom")]
-    [InlineData("{\"SetupPlacement\":\"sideways\"}", "right")]
-    public void Placement_from_config(string json, string expected) =>
-        Assert.Equal(expected, System.Text.Json.JsonSerializer.Deserialize<Config>(json)!.SetupPlace);
+    // The setup checks' placement is gone (they sit across the top now): an old config with it still loads.
+    [Fact]
+    public void Old_setup_placement_is_ignored() =>
+        Assert.False(System.Text.Json.JsonSerializer.Deserialize<Config>("{\"SetupPlacement\":\"top\",\"Animations\":false}")!.Animations);
 }
 
 public class IntroTests
@@ -714,11 +709,20 @@ public class IntroTests
         Assert.Equal(expected, config.WantsIntro);
     }
 
+    // The setup helper's steps, in order; the view shows each step's part by its key.
     [Fact]
-    public void Tour_steps_start_with_a_welcome_and_point_at_known_parts()
+    public void Setup_goes_games_addon_discord_sharing_done() =>
+        Assert.Equal(["games", "addon", "discord", "sharing", "done"], IntroViewModel.Steps.Select(s => s.Key));
+
+    // (Closing saves the config, which other tests write too, so only opening is checked here.)
+    [Fact]
+    public void Setup_opens_at_the_step_asked_for()
     {
-        Assert.Null(IntroViewModel.Steps[0].Target);
-        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "setup", "characters", "posting", "followed", "friends", "discord", "stream", "settings" }));
+        var main = new MainViewModel(backfill: false, justUpdated: false);
+        main.Intro.OpenAt("discord");
+        Assert.True(main.Intro.IsOpen);
+        Assert.Equal("discord", main.Intro.Step.Key);
+        Assert.Equal(["done", "done", "open", "", ""], main.Intro.Progress);
     }
 }
 

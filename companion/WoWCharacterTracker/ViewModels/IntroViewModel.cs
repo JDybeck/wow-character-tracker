@@ -2,46 +2,26 @@ using System.Windows.Input;
 
 namespace WoWCharacterTracker.ViewModels;
 
-// One stop on the tour: what it says and which part of the window it points at (Views/IntroTour
-// finds it by Target; null = a card in the middle).
-sealed record IntroStep(string Title, string Text, string? Target);
+// One step of the setup helper: its title, one line, and the key the view shows its part by.
+sealed record IntroStep(string Key, string Title, string Text);
 
-// The first-run tour: a few cards pointing at the parts of the window. Opens by itself for a new
-// install (Config.WantsIntro), and from the ? button in the header.
+// "Help me set it up": game folders, the addon, Discord and how much gets shared, one step at a time,
+// each one doing the setup right there (the same checks and buttons as the rest of the app) and each
+// one skippable. Opens by itself for a new install (Config.WantsIntro) and from the ? menu.
 sealed class IntroViewModel(MainViewModel main) : Observable
 {
     public static readonly IReadOnlyList<IntroStep> Steps =
     [
-        new("Welcome to Character Tracker",
-            "All your WoW characters in one place, and the good moments in Discord and on stream if you want them there: dings, boss kills, epic loot, mounts. Here's a quick look around.",
-            null),
-        new("Your games",
-            "Retail and Forever each have their own tab, with their own characters, settings and colors. Only play one? Turn the other off in Settings.",
-            "tabs"),
-        new("Setup checks",
-            "Game folder, addon and Discord. Green means it's fine. Amber says what's missing, with a button for it. Hover a check for the details.",
-            "setup"),
-        new("Your characters",
-            "Characters lists everyone you've logged in with, click one for gear, bags, leveling and notes. Items finds anything they carry, Professions shows who can craft what.",
-            "characters"),
-        new("What gets posted",
-            "Pick which moments go to Discord, per game, with a Test button for each. In game, next to it, has the addon's own options: lines in guild chat, reload reminders, the note box.",
-            "posting"),
-        new("Followed items",
-            "Your wish list. Follow any item, and when one of your characters gets it, it can be posted, shown on stream and told to your guild.",
-            "followed"),
-        new("Friends",
-            "Characters your Battle.net friends share with you, and what you share back. They need the addon too, and nothing is shared until you allow it.",
-            "friends"),
-        new("Discord",
-            "Paste a webhook link here to pick where posts go. Send test shows what a post looks like. You can add several and choose per game.",
-            "discord"),
-        new("Stream overlay",
-            "Your character, highlights and DING! alerts in OBS or Streamlabs. Off until you tick On, then copy the address into a Browser source.",
-            "stream"),
-        new("Settings",
-            "Open with WoW, automatic updates, color themes, where the setup checks sit and Uninstall. Want this tour again? The ? button next to the info icon starts it.",
-            "settings"),
+        new("games", "Your games",
+            "Welcome! First, where your games are. The app found what it could; change a folder, or turn off a game you don't play."),
+        new("addon", "The addon",
+            "The addon notices your dings, kills, loot and mounts in game and hands them to the app. Nothing is written to the game folder until you click Install."),
+        new("discord", "Where should your moments go?",
+            "Paste a Discord webhook (channel settings, Integrations, Webhooks, Copy URL). Send test shows what a post looks like. No Discord? Skip this."),
+        new("sharing", "How much gets shared?",
+            "Pick how chatty it is. You can change it any time, or choose per moment, on Sharing."),
+        new("done", "You're all set",
+            "That's it. Play, and your moments show up here. Where things live:"),
     ];
 
     bool isOpen;
@@ -54,38 +34,37 @@ sealed class IntroViewModel(MainViewModel main) : Observable
         set
         {
             if (!Set(ref index, Math.Clamp(value, 0, Steps.Count - 1))) return;
-            foreach (var name in new[] { nameof(Step), nameof(Counter), nameof(IsFirst), nameof(IsLast), nameof(NextText) }) Raise(name);
+            foreach (var name in new[] { nameof(Step), nameof(Counter), nameof(IsFirst), nameof(IsLast), nameof(NextText), nameof(Progress) }) Raise(name);
         }
     }
 
     public IntroStep Step => Steps[index];
-    public string Counter => $"{index + 1} of {Steps.Count}";
+    public string Counter => $"Step {index + 1} of {Steps.Count}";
     public bool IsFirst => index == 0;
     public bool IsLast => index == Steps.Count - 1;
-    public string NextText => IsLast ? "Done" : IsFirst ? "Show me" : "Next";
+    public string NextText => IsLast ? "Let's go" : "Next";
+    // One bar per step: done, the open one, or still to come.
+    public IReadOnlyList<string> Progress => [.. Steps.Select((_, i) => i < index ? "done" : i == index ? "open" : "")];
 
-    // Ticked by default: closing the tour usually means "got it". Unticked, it comes back next start
-    // (only while the app still looks new, see Config.WantsIntro).
-    bool dontShowAgain = true;
-    public bool DontShowAgain { get => dontShowAgain; set => Set(ref dontShowAgain, value); }
-
-    public ICommand OpenCommand => new RelayCommand(_ => Open());
-    public ICommand NextCommand => new RelayCommand(_ => { if (IsLast) Close(finished: true); else Index++; });
+    public ICommand OpenCommand => new RelayCommand(_ => OpenAt(Steps[0].Key));
+    public ICommand NextCommand => new RelayCommand(_ => { if (IsLast) Close(); else Index++; });
     public ICommand BackCommand => new RelayCommand(_ => Index--);
-    public ICommand CloseCommand => new RelayCommand(_ => Close(finished: false));
+    public ICommand CloseCommand => new RelayCommand(_ => Close());
 
-    public void Open()
+    public void OpenAt(string key)
     {
-        main.ShowSettings = false;
-        Index = 0;
+        main.ShowHelp = false;
+        Index = Math.Max(0, Steps.ToList().FindIndex(s => s.Key == key));
         IsOpen = true;
     }
 
-    void Close(bool finished)
+    // Closing counts as done: it doesn't open by itself again, the ? menu brings it back.
+    void Close()
     {
+        var finished = IsLast;
         IsOpen = false;
-        if (!finished && !DontShowAgain) return;
         main.Config.IntroDone = true;
         main.Config.Save();
+        if (finished) main.Page = "home";
     }
 }

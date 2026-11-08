@@ -135,7 +135,7 @@ sealed partial class DiscordWebhook(string url)
                 }
 
                 if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
-                    Log.Error("The Discord webhook no longer works (was it deleted?). Add a new one in the Discord panel.");
+                    Log.Error("The Discord webhook no longer works (was it deleted?). Add a new one on Sharing.");
                 else
                     Log.Warn($"Discord returned {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
                 return Result.Failed;

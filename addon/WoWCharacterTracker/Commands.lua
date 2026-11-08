@@ -105,15 +105,11 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     ns.resetNoteBox()
     ns.say("Note box moved back to the middle of the screen.")
   elseif msg == "help" then
+    -- The four most need; the rest (times, live, popup, options, debug, note lock/reset) still work.
     ns.say("/wct opens the addon's window with every option (the minimap button does too).")
-    ns.say("/wct times shows your last 10 level times.")
-    ns.say("/wct test checks that instant posting reaches the companion app.")
-    ns.say("/wct live turns instant posting on or off.")
-    ns.say("/wct popup turns the reload popup after a ding on or off.")
-    ns.say("/wct note shows or hides this character's note (Edit in the box to change it). /wct note lock or unlock pins it in place, /wct note reset brings it back to the middle.")
+    ns.say("/wct note shows or hides this character's note.")
     ns.say("/wct friends shares your characters with Battle.net friends who have the addon. /wct friends help for more.")
-    ns.say("/wct options opens the addon's page under Esc, Options, AddOns.")
-    ns.say("/wct debug saves details for tracking down problems.")
+    ns.say("/wct test checks that instant posting reaches the companion app.")
   else
     ns.say("Unknown command. /wct help lists them.")
   end

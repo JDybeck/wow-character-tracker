@@ -63,11 +63,8 @@ class Config
     // Slides, fades and the tab orb (Ui/Motion). Off: everything switches instantly.
     public bool Animations { get; set; } = true;
 
-    // Where the setup checks and the update banner sit (Settings menu): "right" (above the Discord
-    // panel, the default), "top" (over the pages) or "bottom" (under them). Anything else reads as right.
-    public string SetupPlacement { get; set; } = "right";
-    public static readonly string[] SetupPlaces = ["right", "top", "bottom"];
-    public string SetupPlace => SetupPlaces.Contains(SetupPlacement) ? SetupPlacement : "right";
+    // The console stays open next to the rail instead of sliding out on hover.
+    public bool ConsolePinned { get; set; }
 
     // The first-run tour (ViewModels/IntroViewModel) was finished or closed with "Don't show again".
     public bool IntroDone { get; set; }

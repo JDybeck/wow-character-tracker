@@ -89,14 +89,28 @@ record Entry
     public int KeyLevel { get; init; }           // keyrun: the keystone's level (the dungeon is Instance, the run's time Seconds)
     public int Upgrades { get; init; }           // keyrun: 1-3 when timed, 0 over time
     public bool Timed => Upgrades > 0;
+    // Dungeon runs (kind "run", Runs.lua): the bosses killed, the party's loot, whether the end boss
+    // died; the dungeon is Instance, the time in Seconds. Run: the run a boss kill or loot belongs to.
+    public long Run { get; init; }
+    public string Bosses { get; init; } = "";    // "Name^Name"
+    public string Drops { get; init; } = "";     // "who~itemId~quality~name^...", who "" = this character
+    public bool Cleared { get; init; }
+    public IReadOnlyList<string> BossList => Bosses.Length == 0 ? [] : Bosses.Split('^');
+    public IReadOnlyList<RunDrop> DropList => Drops.Length == 0 ? [] : [.. Drops.Split('^')
+        .Select(d => d.Split('~'))
+        .Where(p => p.Length >= 4 && int.TryParse(p[1], out _))
+        .Select(p => new RunDrop(p[0], int.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture),
+            int.TryParse(p[2], out var q) ? q : 0, p[3]))];
     public string TalentExport { get; init; } = ""; // check-ins: the talent loadout code
     public string TalentCalc { get; init; } = "";   // check-ins (Forever): Wowhead talent calculator code
 
-    // "Name~level~CLASSFILE~Class~Race~Realm~Spec,..." as the addon writes it (Spec from 0.28.0, Retail, when known).
+    // "Name~level~CLASSFILE~Class~Race~Realm~Spec~Role,..." as the addon writes it (Spec from 0.28.0,
+    // Retail, when known; Role when the group set one).
     public IReadOnlyList<GroupMember> Members => Group.Length == 0 ? [] : Group.Split(',')
         .Select(m => m.Split('~'))
         .Where(p => p.Length >= 5)
-        .Select(p => new GroupMember(p[0], int.TryParse(p[1], out var l) ? l : 0, p[2], p[3], p[4], p.Length > 5 ? p[5] : "", p.Length > 6 ? p[6] : ""))
+        .Select(p => new GroupMember(p[0], int.TryParse(p[1], out var l) ? l : 0, p[2], p[3], p[4], p.Length > 5 ? p[5] : "",
+            p.Length > 6 ? p[6] : "", p.Length > 7 ? p[7] : ""))
         .ToList();
 
     // Builds an entry from the addon's key/value data, wherever it came from.
@@ -168,6 +182,10 @@ record Entry
             Upgrades = (int)n("upgrades"),
             TalentExport = s("talentExport"),
             TalentCalc = s("talentCalc"),
+            Run = (long)n("run"),
+            Bosses = s("bosses"),
+            Drops = s("drops"),
+            Cleared = s("cleared") is "true" or "1",
         };
     }
 
@@ -175,7 +193,11 @@ record Entry
     static string GuidFromId(string id) => id.IndexOf(':') is var i and > 0 ? id[..i] : id;
 }
 
-record GroupMember(string Name, int Level, string ClassFile, string Class, string Race, string Realm, string Spec = "")
+// An item someone in a dungeon run got. Who is "" for the run's own character.
+record RunDrop(string Who, int ItemId, int Quality, string Name);
+
+// Role: "TANK", "HEALER", "DAMAGER" when the group set one, else "".
+record GroupMember(string Name, int Level, string ClassFile, string Class, string Race, string Realm, string Spec = "", string Role = "")
 {
     public string FullName => Realm.Length > 0 ? $"{Name}-{Realm}" : Name;
 

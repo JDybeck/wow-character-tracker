@@ -82,8 +82,9 @@ static partial class AddonInstaller
     // (by GUID, with when they were written) for /wct note. The game reads it on /reload or login.
     // hasWebhook: the tab has somewhere to post, so the addon may offer to post a highlight.
     // appUpdate: a newer app version, which the addon mentions in chat on the next login.
+    // preset: which Sharing preset the settings match (or "custom"), for the addon window's choice.
     public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null, bool hasWebhook = false,
-        IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null)
+        IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null, string? preset = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -92,12 +93,12 @@ static partial class AddonInstaller
         var shots = string.Join(", ", EventKinds.ShotKinds.Select(k => $"{k} = {B(s.Shoots(k))}"));
         // What gets posted, so the addon only sends those events live and screenshots only them.
         var post = $"level = {{ on = {B(s.PostLevels)}, split = {s.LevelSplit}, before = {s.LevelEveryBefore}, after = {s.LevelEveryAfter} }}, "
-                   + $"rare = {B(s.PostRare)}, followed = {B(s.PostFollowed)}, rareBoe = {B(s.RareBoeOnly)}, epic = {B(s.PostEpic)}, mount = {B(s.PostMounts)}, boss = {B(s.PostBosses)}, death = {B(s.PostDeaths)}, "
+                   + $"rare = {B(s.PostRare)}, followed = {B(s.PostFollowed)}, rareBoe = {B(s.RareBoeOnly)}, epic = {B(s.PostEpic)}, mount = {B(s.PostMounts)}, boss = {B(s.PostBosses)}, run = {B(s.PostRuns)}, death = {B(s.PostDeaths)}, "
                    + $"keyrun = {{ on = {B(s.PostKeyRuns)}, min = {s.KeyRunMinLevel}, timed = {B(s.KeyRunTimedOnly)} }}, "
                    + $"maxLevel = {B(s.PostMaxLevel)}, duel = {B(s.PostDuels)}, makgora = {B(s.PostMakgora)}, bg = {B(s.PostBattlegrounds)}, mplus = {B(s.PostMPlus)}, pvp = {B(s.PostPvp)}, "
                    + $"profession = {B(s.PostProfessions)}, professionSteps = {{ {string.Join(", ", s.ProfessionSteps)} }}, "
                    + $"mplusSteps = {{ {string.Join(", ", s.MPlusSteps)} }}, pvpSteps = {{ {string.Join(", ", s.PvpSteps)} }}";
-        var lua = "-- Written by the Character Tracker app from its \"What gets posted\" page. Changes apply on /reload.\n"
+        var lua = "-- Written by the Character Tracker app from its Sharing page. Changes apply on /reload.\n"
                   + "WoWCharacterTrackerSettings = {\n"
                   + $"  screenshot = {{ {shots} }},\n"
                   + $"  post = {{ {post} }},\n"
@@ -121,6 +122,7 @@ static partial class AddonInstaller
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
                   + (appUpdate is { } update ? $"  appUpdate = \"{update.ToString(3)}\",\n" : "")
+                  + (preset is { Length: > 0 } ? $"  preset = {LuaString(preset)},\n" : "")
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")
                   + "  notes = {\n"
                   + string.Concat((notes ?? []).OrderBy(n => n.Guid, StringComparer.Ordinal)

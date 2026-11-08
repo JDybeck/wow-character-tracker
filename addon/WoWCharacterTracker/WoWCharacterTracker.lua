@@ -46,6 +46,7 @@ end
 function on.PLAYER_LOGOUT() -- also on /reload, right before the game writes the saved file
   ns.stopShots()
   ns.noteSaved() -- (no inventory scan: the game has emptied the bags by now)
+  ns.checkRun(true) -- a dungeon run left behind ends here, one still inside goes on after login
   ns.onLogout()
 end
 
@@ -75,6 +76,7 @@ function on.PLAYER_ENTERING_WORLD(isInitialLogin)
   local inInstance = IsInInstance and IsInInstance() or false
   if ns.wasInInstance and not inInstance then remindSoon() end
   ns.wasInInstance = inInstance
+  ns.checkRun() -- into or out of a dungeon (Runs.lua)
   ns.checkBattleground() -- out of a battleground: ready for the next one
 end
 
@@ -102,7 +104,10 @@ function on.TIME_PLAYED_MSG(total, thisLevel) ns.onTimePlayed(total, thisLevel) 
 function on.ENCOUNTER_END(_, encounterName, _, _, success)
   if success == 1 or success == true then ns.recordBoss(encounterName) end
 end
-function on.CHAT_MSG_LOOT(text) ns.recordLoot(text) end
+function on.CHAT_MSG_LOOT(text)
+  ns.recordLoot(text)
+  ns.runLoot(text) -- the dungeon run's list, the party's loot too (Runs.lua)
+end
 function on.PLAYER_DEAD() ns.recordDeath() end
 function on.CHAT_MSG_SYSTEM(text) ns.onSystemMessage(text) end -- duels and Mak'gora
 function on.DUEL_REQUESTED(name) ns.onDuelRequested(name) end -- remembers the challenger's class and level
@@ -129,6 +134,8 @@ function on.MERCHANT_CLOSED()
   C_Timer.After(2, function() ns.merchantOpen = false end) -- the item can arrive just after the window closes
   remindSoon()
 end
+function on.LEARNED_SPELL_IN_TAB(spellID) ns.onSpellLearned(spellID) end
+function on.LEARNED_SPELL_IN_SKILL_LINE(spellID) ns.onSpellLearned(spellID) end
 function on.NEW_MOUNT_ADDED(mountID)
   if not (C_MountJournal and C_MountJournal.GetMountInfoByID) then return end
   -- The spell is what Wowhead knows a learned mount by (name and icon for the Discord post).
