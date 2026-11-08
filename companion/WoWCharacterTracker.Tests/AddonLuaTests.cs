@@ -1455,6 +1455,26 @@ public class AddonLuaTests
         Assert.Equal(["Reins of the Black Wolf", "Swift Brown Ram"], recorded.Select(e => e.Get("mount").String));
     }
 
+    // Class mounts are learned as spells (trainer or quest), with no item: they count as new mounts,
+    // named without "Summon". The mount journal reporting the same spell (Retail) doesn't count twice,
+    // and other spells learned are nothing.
+    [Fact]
+    public void Learning_a_class_mount_counts_once_and_other_spells_dont()
+    {
+        var (script, ns, recorded) = LoadEvents("""
+            names = { [5784] = 'Summon Felsteed', [1296534] = 'Summon Forsaken Charger', [133] = 'Fireball' }
+            C_Spell = { GetSpellName = function(id) return names[id] end }
+            """);
+        script.Call(ns.Get("onSpellLearned"), 5784);
+        script.Call(ns.Get("recordMount"), "Felsteed", DynValue.Nil, 5784); // the mount journal on Retail
+        script.Call(ns.Get("onSpellLearned"), 133);
+        script.DoString("now = 5300");
+        script.Call(ns.Get("onSpellLearned"), 1296534); // an undead paladin's charger on Forever
+
+        Assert.Equal(["Felsteed", "Forsaken Charger"], recorded.Select(e => e.Get("mount").String));
+        Assert.Equal(5784, recorded[0].Get("spellId").Number);
+    }
+
     // Shared.lua's formatPattern: the game's loot and duel strings as patterns, with arguments in
     // the order the string numbers them, and everything else matched literally.
     [Theory]

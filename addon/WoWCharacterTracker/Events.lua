@@ -438,25 +438,45 @@ local function matchAny(list, text)
   return nil
 end
 
-local lastItemMountAt, lastMountName, lastMountAt = 0, nil, 0
+local lastItemMountAt, lastMountName, lastMountSpell, lastMountAt = 0, nil, nil, 0
 
--- itemId when the mount came as an item, spellId when it was learned straight into the mount journal.
+-- itemId when the mount came as an item, spellId when it was learned (the mount journal, or a class
+-- mount from a trainer or quest).
 function ns.recordMount(name, itemId, spellId)
   local now = time()
-  -- The same mount twice in a row (looted and pushed), or a mount item and then learning it on
-  -- clients with a mount journal (the item and the mount have different names): once. Any other
-  -- mount, however soon after, counts.
-  if name == lastMountName and now - lastMountAt < 120 then return end
+  -- The same mount twice in a row (looted and pushed, or a class mount seen both as a learned spell
+  -- and by the mount journal), or a mount item and then learning it on clients with a mount journal
+  -- (the item and the mount have different names): once. Any other mount, however soon after, counts.
+  if (name == lastMountName or (spellId and spellId == lastMountSpell)) and now - lastMountAt < 120 then return end
   if not itemId and now - lastItemMountAt < 120 then
     lastItemMountAt = 0 -- that item's learning; the next one is a mount of its own
     return
   end
-  lastMountName, lastMountAt = name, now
+  lastMountName, lastMountSpell, lastMountAt = name, spellId, now
   if itemId then lastItemMountAt = now end
 
   ns.record("mount", { mount = name, itemId = itemId, spellId = spellId, bought = ns.merchantOpen or nil, at = now },
     string.format("mount:%s:%d", name, now))
   ns.say(string.format("New mount: %s.", name))
+end
+
+-- Class mounts are learned as spells, from a trainer or a quest, with no item to loot, and clients
+-- without a mount journal say nothing else. Spell ids from Forever's and Retail's data (wago.tools):
+-- warlock Felsteed and Dreadsteed; paladin Warhorse and Charger, the undead paladin's Forsaken Charger
+-- and Skeletal Steed, and the Thalassian ones.
+local CLASS_MOUNTS = {
+  [5784] = true, [23161] = true,
+  [13819] = true, [13820] = true, [1279399] = true, [1279400] = true, [23214] = true, [23215] = true,
+  [1296534] = true, [1296537] = true, [370637] = true, [381598] = true, [381599] = true,
+  [34769] = true, [34767] = true,
+}
+
+-- A spell was just learned (LEARNED_SPELL_IN_TAB, or LEARNED_SPELL_IN_SKILL_LINE on newer clients).
+function ns.onSpellLearned(spellId)
+  if not CLASS_MOUNTS[spellId] then return end
+  local name = (C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellId))
+    or (GetSpellInfo and GetSpellInfo(spellId)) or "Class mount"
+  ns.recordMount((name:gsub("^Summon ", "")), nil, spellId) -- "Summon Felsteed" posts as Felsteed
 end
 
 -- Mount items are class 15 (miscellaneous), subclass 5 (mount).

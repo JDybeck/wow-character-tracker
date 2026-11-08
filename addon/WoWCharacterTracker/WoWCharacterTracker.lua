@@ -129,6 +129,8 @@ function on.MERCHANT_CLOSED()
   C_Timer.After(2, function() ns.merchantOpen = false end) -- the item can arrive just after the window closes
   remindSoon()
 end
+function on.LEARNED_SPELL_IN_TAB(spellID) ns.onSpellLearned(spellID) end
+function on.LEARNED_SPELL_IN_SKILL_LINE(spellID) ns.onSpellLearned(spellID) end
 function on.NEW_MOUNT_ADDED(mountID)
   if not (C_MountJournal and C_MountJournal.GetMountInfoByID) then return end
   -- The spell is what Wowhead knows a learned mount by (name and icon for the Discord post).
