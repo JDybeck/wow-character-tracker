@@ -709,11 +709,20 @@ public class IntroTests
         Assert.Equal(expected, config.WantsIntro);
     }
 
+    // The setup helper's steps, in order; the view shows each step's part by its key.
     [Fact]
-    public void Tour_steps_start_with_a_welcome_and_point_at_known_parts()
+    public void Setup_goes_games_addon_discord_sharing_done() =>
+        Assert.Equal(["games", "addon", "discord", "sharing", "done"], IntroViewModel.Steps.Select(s => s.Key));
+
+    // (Closing saves the config, which other tests write too, so only opening is checked here.)
+    [Fact]
+    public void Setup_opens_at_the_step_asked_for()
     {
-        Assert.Null(IntroViewModel.Steps[0].Target);
-        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "home", "characters", "sharing", "rail", "friends", "settings" }));
+        var main = new MainViewModel(backfill: false, justUpdated: false);
+        main.Intro.OpenAt("discord");
+        Assert.True(main.Intro.IsOpen);
+        Assert.Equal("discord", main.Intro.Step.Key);
+        Assert.Equal(["done", "done", "open", "", ""], main.Intro.Progress);
     }
 }
 

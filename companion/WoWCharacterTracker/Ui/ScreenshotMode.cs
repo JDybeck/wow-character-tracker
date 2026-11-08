@@ -132,7 +132,7 @@ static class ScreenshotMode
             if (Part(2) == "changelog") vm.Updates.ShowChangelog = true;
             if (Part(2) == "intro")
             {
-                vm.Intro.Open();
+                vm.Intro.OpenAt(IntroViewModel.Steps[0].Key);
                 vm.Intro.Index = int.TryParse(Part(3), out var step) ? step - 1 : 0;
             }
             await Task.Delay(2500);

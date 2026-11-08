@@ -366,6 +366,29 @@
     </Setter>
   </Style>
 
+  <!-- A preset (Sharing, the setup helper): a card that lights up when picked. -->
+  <Style x:Key="PresetCard" TargetType="RadioButton">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Box" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="16,14">
+            <ContentPresenter/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Box" Property="Background" Value="{DynamicResource BlueSoft}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style x:Key="FactLabel" TargetType="TextBlock">
     <Setter Property="Foreground" Value="{StaticResource Dim}"/>
     <Setter Property="FontSize" Value="11"/>

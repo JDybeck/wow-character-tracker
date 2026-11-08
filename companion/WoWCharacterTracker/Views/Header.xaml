@@ -144,10 +144,10 @@
              Placement="Bottom" HorizontalOffset="-220" VerticalOffset="6" AllowsTransparency="True" PopupAnimation="Fade">
         <Border Width="260" Padding="6" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10">
           <StackPanel>
-            <Button Style="{StaticResource MenuLine}" Command="{Binding Intro.OpenCommand}" ToolTip="A short walk through the app">
+            <Button Style="{StaticResource MenuLine}" Command="{Binding Intro.OpenCommand}" ToolTip="Game folders, the addon, Discord and how much gets shared, one step at a time">
               <StackPanel Orientation="Horizontal">
                 <TextBlock Style="{StaticResource Icon}" Text="&#xE7C3;" FontSize="13" Width="22" Foreground="{StaticResource Muted}"/>
-                <TextBlock Text="Show me around" FontSize="13" Foreground="{StaticResource Text}"/>
+                <TextBlock Text="Help me set it up" FontSize="13" Foreground="{StaticResource Text}"/>
               </StackPanel>
             </Button>
             <Button Style="{StaticResource MenuLine}" Command="{Binding OpenChangelogCommand}" ToolTip="What changed in the last three versions">

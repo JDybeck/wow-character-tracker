@@ -1,0 +1,176 @@
+<!-- "Help me set it up" (IntroViewModel): a card over the dimmed window, one step at a time, each doing
+     its part right there with the app's own checks and buttons: game folders (FolderStep), the addon
+     (AddonStep), Discord (the Discord panel itself) and how much gets shared (the preset cards).
+     DataContext: IntroViewModel; the window's DataContext is MainViewModel. -->
+<UserControl x:Class="WoWCharacterTracker.Views.SetupHelper"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
+             xmlns:views="clr-namespace:WoWCharacterTracker.Views"
+             Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+  <UserControl.Resources>
+    <!-- A game's check (its folder or its addon): name, what's going on, and the button that fixes it. -->
+    <DataTemplate x:Key="CheckRow" DataType="{x:Type vm:SetupItem}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Padding="12,5" VerticalAlignment="Center" Margin="10,0,0,0"
+                Content="{Binding ActionText}" Command="{Binding ActionCommand}" ToolTip="{Binding ActionTooltip}"
+                Visibility="{Binding ActionText, Converter={StaticResource VisibleIfSet}}"/>
+        <TextBlock x:Name="Mark" DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE73E;" Foreground="{StaticResource Green}" FontSize="13" Margin="0,0,10,0"/>
+        <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      </DockPanel>
+      <DataTemplate.Triggers>
+        <DataTrigger Binding="{Binding Ok}" Value="False">
+          <Setter TargetName="Mark" Property="Text" Value="&#xE7BA;"/>
+          <Setter TargetName="Mark" Property="Foreground" Value="{StaticResource Amber}"/>
+        </DataTrigger>
+      </DataTemplate.Triggers>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid>
+    <Border Background="#B3000000"/>
+    <Border Style="{StaticResource CardBorder}" Width="640" Padding="26,22" BorderBrush="{DynamicResource BlueLine}"
+            HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40">
+      <DockPanel>
+        <!-- Progress and close -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+          <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="6,3" Margin="12,-4,-10,0" Command="{Binding CloseCommand}" ToolTip="Close (it's in the ? menu any time)">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="10" Foreground="{StaticResource Muted}"/>
+          </Button>
+          <ItemsControl ItemsSource="{Binding Progress}" Focusable="False" VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border x:Name="Bar" Height="4" CornerRadius="2" Margin="0,0,6,0" Background="{DynamicResource Line}"/>
+                <DataTemplate.Triggers>
+                  <DataTrigger Binding="{Binding}" Value="done"><Setter TargetName="Bar" Property="Background" Value="{DynamicResource Blue}"/></DataTrigger>
+                  <DataTrigger Binding="{Binding}" Value="open"><Setter TargetName="Bar" Property="Background" Value="{DynamicResource BlueTextBright}"/></DataTrigger>
+                </DataTemplate.Triggers>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </DockPanel>
+
+        <!-- Back, Skip, Next -->
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,20,0,0">
+          <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Content="Back" Command="{Binding BackCommand}" Padding="12,7"
+                  Visibility="{Binding IsFirst, Converter={StaticResource Hidden}}"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Style="{StaticResource GhostButton}" Content="Skip" Command="{Binding NextCommand}" Padding="12,7" Margin="0,0,6,0"
+                    ToolTip="Leave this for now. You can do it later on Sharing or in Settings."
+                    Visibility="{Binding IsLast, Converter={StaticResource Hidden}}"/>
+            <Button Style="{StaticResource PrimaryButton}" Content="{Binding NextText}" Command="{Binding NextCommand}" Padding="20,7"/>
+          </StackPanel>
+        </DockPanel>
+
+        <StackPanel>
+          <TextBlock Text="{Binding Counter}" FontSize="11" Foreground="{StaticResource Dim}"/>
+          <TextBlock Text="{Binding Step.Title}" FontSize="22" FontWeight="SemiBold" Foreground="White" Margin="0,4,0,6"/>
+          <TextBlock Text="{Binding Step.Text}" FontSize="13" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" LineHeight="19" Margin="0,0,0,16"/>
+
+          <!-- Games: each game's folder, and whether to track it. -->
+          <ItemsControl ItemsSource="{Binding DataContext.FlavorTabs, RelativeSource={RelativeSource AncestorType=Window}}" Focusable="False"
+                        Visibility="{Binding Step.Key, Converter={StaticResource PageIs}, ConverterParameter=games}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
+                <Border Style="{StaticResource PanelBorder}" Padding="14,10" Margin="0,0,0,8">
+                  <DockPanel>
+                    <CheckBox DockPanel.Dock="Right" IsChecked="{Binding TrackThis}" IsEnabled="{Binding CanToggle}" VerticalAlignment="Center" Margin="12,0,0,0"
+                              ToolTip="Off: the app doesn't look for this game. At least one game stays on.">
+                      <TextBlock Text="Track" FontSize="12" Foreground="{StaticResource TextSoft}"/>
+                    </CheckBox>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,4"/>
+                      <ContentPresenter Content="{Binding FolderStep}" ContentTemplate="{StaticResource CheckRow}" IsEnabled="{Binding IsOn}"/>
+                    </StackPanel>
+                  </DockPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Addon: installed in each tracked game. -->
+          <ItemsControl ItemsSource="{Binding DataContext.FlavorTabs, RelativeSource={RelativeSource AncestorType=Window}}" Focusable="False"
+                        Visibility="{Binding Step.Key, Converter={StaticResource PageIs}, ConverterParameter=addon}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
+                <Border Style="{StaticResource PanelBorder}" Padding="14,10" Margin="0,0,0,8" Visibility="{Binding IsOn, Converter={StaticResource Visible}}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,4"/>
+                    <ContentPresenter Content="{Binding AddonStep}" ContentTemplate="{StaticResource CheckRow}"/>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Discord: the same panel as on Sharing. -->
+          <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto"
+                        Visibility="{Binding Step.Key, Converter={StaticResource PageIs}, ConverterParameter=discord}">
+            <views:DiscordPanel DataContext="{Binding DataContext.Discord, RelativeSource={RelativeSource AncestorType=Window}}"/>
+          </ScrollViewer>
+
+          <!-- How much: the presets and guild chat, for the open game. -->
+          <StackPanel DataContext="{Binding DataContext.SelectedFlavor, RelativeSource={RelativeSource AncestorType=Window}}"
+                      Visibility="{Binding DataContext.Step.Key, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource PageIs}, ConverterParameter=sharing}">
+            <UniformGrid Columns="3" Margin="-5,0">
+              <RadioButton Style="{StaticResource PresetCard}" Margin="5,0" IsChecked="{Binding PresetQuiet}" GroupName="{Binding Name, StringFormat=setup-preset-{0}}">
+                <StackPanel>
+                  <TextBlock Text="Quiet" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                  <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="Every 10th level, max level, epic loot and followed items."/>
+                </StackPanel>
+              </RadioButton>
+              <RadioButton Style="{StaticResource PresetCard}" Margin="5,0" IsChecked="{Binding PresetNormal}" GroupName="{Binding Name, StringFormat=setup-preset-{0}}">
+                <StackPanel>
+                  <TextBlock Text="Normal" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                  <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="The big moments, with screenshots for the best ones."/>
+                </StackPanel>
+              </RadioButton>
+              <RadioButton Style="{StaticResource PresetCard}" Margin="5,0" IsChecked="{Binding PresetEverything}" GroupName="{Binding Name, StringFormat=setup-preset-{0}}">
+                <StackPanel>
+                  <TextBlock Text="Everything" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                  <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="Every moment and every level, with screenshots."/>
+                </StackPanel>
+              </RadioButton>
+            </UniformGrid>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" Visibility="{Binding IsCustom, Converter={StaticResource Visible}}"
+                       Text="You have your own picks now (Custom). Pick one of these to start from it instead."/>
+            <Border Style="{StaticResource PanelBorder}" Margin="0,10,0,0" Padding="16,10" Visibility="{Binding ConfirmPreset, Converter={StaticResource Visible}}">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                  <Button Style="{StaticResource PrimaryButton}" Content="Replace" Command="{Binding ConfirmPresetCommand}" Margin="0,0,8,0"/>
+                  <Button Style="{StaticResource GhostButton}" Content="Keep mine" Command="{Binding CancelPresetCommand}"/>
+                </StackPanel>
+                <TextBlock FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}" VerticalAlignment="Center" Text="Replace your custom choices?"/>
+              </DockPanel>
+            </Border>
+            <CheckBox IsChecked="{Binding AnnounceGuild}" Margin="0,16,0,0" ToolTip="A line in guild chat as you, out of combat">
+              <StackPanel>
+                <TextBlock Text="Tell my guild too" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                <TextBlock Style="{StaticResource Hint}" Text="A short line in guild chat when something happens. Reaches the game on your next /reload."/>
+              </StackPanel>
+            </CheckBox>
+          </StackPanel>
+
+          <!-- Done: where things are. -->
+          <StackPanel Visibility="{Binding Step.Key, Converter={StaticResource PageIs}, ConverterParameter=done}">
+            <DockPanel Margin="0,0,0,10">
+              <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE80F;" FontSize="16" Foreground="{DynamicResource BlueText}" Width="28"/>
+              <TextBlock Style="{StaticResource Hint}" FontSize="13" TextWrapping="Wrap" Text="Home: your character and the newest moments, with Share."/>
+            </DockPanel>
+            <DockPanel Margin="0,0,0,10">
+              <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE8BD;" FontSize="16" Foreground="{DynamicResource BlueText}" Width="28"/>
+              <TextBlock Style="{StaticResource Hint}" FontSize="13" TextWrapping="Wrap" Text="The right edge: quick switches for Discord, guild chat, group chat and the stream, and the console."/>
+            </DockPanel>
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE9CE;" FontSize="16" Foreground="{DynamicResource BlueText}" Width="28"/>
+              <TextBlock Style="{StaticResource Hint}" FontSize="13" TextWrapping="Wrap" Text="The ? at the top: this helper again, what's new and the in game commands."/>
+            </DockPanel>
+          </StackPanel>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+  </Grid>
+</UserControl>

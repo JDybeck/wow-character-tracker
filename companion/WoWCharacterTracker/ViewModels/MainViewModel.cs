@@ -211,7 +211,7 @@ sealed class MainViewModel : Observable
         Stream.Apply();
         // A new install gets the tour (screenshot runs only when they ask for it). Checked before the
         // tabs start, since finding the game saves its folder.
-        if (Config.WantsIntro && ScreenshotMode.Target is null) Intro.Open();
+        if (Config.WantsIntro && ScreenshotMode.Target is null) Intro.OpenAt(IntroViewModel.Steps[0].Key);
         foreach (var tab in FlavorTabs) tab.Start();
         _ = Task.Run(ExtractedFiles.CleanUp); // what older versions unpacked into %TEMP%
         try { Directory.Delete(Path.Combine(Config.Dir, "logos"), recursive: true); } // before 0.27.2; ImageCache keeps them now

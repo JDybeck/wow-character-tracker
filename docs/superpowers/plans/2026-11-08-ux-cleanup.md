@@ -674,6 +674,15 @@ Tasks:
 4. `HomePage.xaml`: two columns, hero card left with today under it, feed right with Share on unposted rows. Home is the first tab and the start page. Share posts through the existing `PostHighlightCommand`, now taking the character with it.
 5. Tour, screenshot views (`forever:home:testchars`), test build, renders at both sizes.
 
+## Phase 4 (branch `feat/ux-setup`, on top of phase 3)
+
+The helper replaces the tour in place: `IntroViewModel` keeps its name, `Config.IntroDone`/`WantsIntro` keep their meaning, `Views/IntroTour` (the spotlight) is replaced by `Views/SetupHelper` (a card over the dimmed window).
+
+1. Steps, each with Back, Skip (or Next) and its own action: **Games** (each game's `FolderStep` with its Browse/Change button and the Track switch), **Addon** (each tracked game's `AddonStep` with Install/Update), **Discord** (the whole `DiscordPanel`: add a webhook, Send test), **How much** (the preset cards and guild chat for the selected game), **Done** (where the quick switches and Home are). Step content shows by `Step.Key` through `PageIs` (no new converter).
+2. `PresetCard` moves from `SharingPage` to `Templates.xaml` so both use one style.
+3. Closing or finishing marks `IntroDone`; the ? menu's first line ("Help me set it up") opens it again. `OpenAt(key)` opens it at a step. The "Don't show again" box goes (closing is the answer).
+4. `MainWindow` loses the tour's targets (`TourTarget`, `FindTarget`); tests on the step keys; screenshot view `forever:home:intro:N` keeps working.
+
 ## Later phases (planned in detail when phase 1 is merged)
 
 - **Phase 2, shell:** 4 tabs (Home placeholder until phase 3), Characters with List/Items/Professions/Followed switch, header search + `?` menu + "Synced" line, Settings page from the gear (with the In game advanced group moved there from Sharing), the rail of quick toggles replacing `SetupBar` and the right column, console flyout with pin. Stream kind tables in `StreamViewModel` read names from `Moments` where they overlap.

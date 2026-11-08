@@ -18,7 +18,6 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => UseDarkTitleBar();
         WatchConsoleHover(vm);
         vm.PageReset += () => Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ScrollPagesToTop);
-        Tour.FindTarget = TourTarget;
         if (ScreenshotMode.Target is { } shot) ScreenshotMode.Attach(this, vm, shot);
         else if (Motion.Enabled) FadeInWhenReady();
     }
@@ -56,19 +55,6 @@ public partial class MainWindow : Window
         ConsoleFlyout.MouseEnter += (_, _) => close.Stop();
         ConsoleFlyout.MouseLeave += (_, _) => close.Start();
     }
-
-    // What each tour step (IntroViewModel.Steps) points at.
-    FrameworkElement? TourTarget(string key) => key switch
-    {
-        "tabs" => HeaderView.GameTabs,
-        "settings" => HeaderView.SettingsButton,
-        "home" => HomeTab,
-        "characters" => CharacterTabs,
-        "sharing" => SharingTab,
-        "friends" => FriendsTab,
-        "rail" => RailView,
-        _ => null,
-    };
 
     // A page started over (its tab clicked again): every list and scroll area on it back to the top.
     void ScrollPagesToTop()

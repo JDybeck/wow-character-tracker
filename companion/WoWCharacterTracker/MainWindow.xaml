@@ -118,6 +118,6 @@
   </Border>
   <views:Rail x:Name="RailView" Grid.Column="1"/>
   <!-- The first-run tour, over everything (MainWindow.TourTarget says where each step points). -->
-  <views:IntroTour x:Name="Tour" Grid.ColumnSpan="2" DataContext="{Binding Intro}"/>
+  <views:SetupHelper Grid.ColumnSpan="2" DataContext="{Binding Intro}"/>
   </Grid>
 </Window>
