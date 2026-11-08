@@ -661,6 +661,19 @@ Tasks:
 4. Rail: the right column becomes a 56 px rail: Discord (`DiscordOn`), Guild chat, Group chat, Stream (`Stream.Enabled`) as toggle buttons with a status dot, then Console (opens `ConsolePanel` as a flyout over the page: 300 ms hover or click, leaves when the mouse leaves, pin keeps it, saved in `Config.ConsolePinned`). Console dot amber after a warning or error until opened. The page gets the full width.
 5. Verify: build, tests, screenshot renders at 1320x900 and 1100x680, test build rebuilt with `-FreshData` off (keeps JDybeck's test settings).
 
+## Phase 3 (branch `feat/ux-home`, on top of phase 2)
+
+Decisions against the spec:
+- "Posted" needs no new file: `Tracker` already keeps `id@webhook` keys for every post that went out. It exposes the ids (`Tracker.SentIds`, a snapshot refreshed after each sync and post). A Share from Home marks its row for the session.
+- "This session" becomes **Today** (levels, boss kills, epics and posts since midnight, all characters of the tab): the session start needs the game's process start time, and today reads the same and needs nothing new.
+
+Tasks:
+1. `HighlightRow.From(Entry)` and `HighlightRow.LoadIconAsync(GameLookup, Flavor)` move out of `CharacterRow` (one builder, one icon loader); level-ups get a line ("Reached level 40", took 1h 12m). Tests on the text.
+2. `Tracker.SentIds` (ids posted to at least one webhook), with a test on the key parsing.
+3. `HomeViewModel` per game tab (like `ItemsViewModel`): the hero (newest character, `StreamSnapshot.Build` for its leveling numbers, playing when `Wow.IsRunning`), today's counts, the feed (`MomentRow`: the highlight, who, when, posted, big). Built in `FlavorViewModel.ShowData`, refreshed on `Tracker.Posted` and when a game starts or stops.
+4. `HomePage.xaml`: two columns, hero card left with today under it, feed right with Share on unposted rows. Home is the first tab and the start page. Share posts through the existing `PostHighlightCommand`, now taking the character with it.
+5. Tour, screenshot views (`forever:home:testchars`), test build, renders at both sizes.
+
 ## Later phases (planned in detail when phase 1 is merged)
 
 - **Phase 2, shell:** 4 tabs (Home placeholder until phase 3), Characters with List/Items/Professions/Followed switch, header search + `?` menu + "Synced" line, Settings page from the gear (with the In game advanced group moved there from Sharing), the rail of quick toggles replacing `SetupBar` and the right column, console flyout with pin. Stream kind tables in `StreamViewModel` read names from `Moments` where they overlap.

@@ -48,6 +48,7 @@ sealed class FlavorViewModel : Observable
         WatchSetup();
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
+        Home = new HomeViewModel(flavor, Lookup);
         FollowedItems = new FollowedItemsViewModel(flavor, Lookup, () => Settings, FollowedChanged);
         Friends = new FriendsViewModel(flavor, Lookup, main.Config, () => Settings, AddonSettingsChanged, main.Config.Save);
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
@@ -617,7 +618,7 @@ sealed class FlavorViewModel : Observable
         // A sync that finds nothing new doesn't raise DataChanged, so a game that closed without
         // writing its saved file (a crash) clears the reload banner this way.
         tracker.GameClosed += () => MainViewModel.OnUi(CheckReloaded);
-        tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
+        tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); Home.MarkPosted(e.Id); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
         // Logging in on a game switches the app to that game's tab, with the character picked.
         tracker.CheckedIn += e => MainViewModel.OnUi(() =>
@@ -767,6 +768,12 @@ sealed class FlavorViewModel : Observable
     });
     ICommand? sortCommand;
 
+    // Home: rebuilt with the character list, and when the game starts or stops (playing now or not).
+    public HomeViewModel Home { get; }
+    IReadOnlyList<Entry> homeEvents = [];
+    public void RefreshHome() =>
+        Home.Show(allRows, homeEvents, tracker?.SentIds ?? new HashSet<string>(), flavorDir is not null && Wow.IsRunning(flavorDir));
+
     // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
     List<CharacterRow> allRows = [];
     public CharacterRow? RowFor(string guid) => allRows.FirstOrDefault(r => r.Guid == guid);
@@ -831,6 +838,8 @@ sealed class FlavorViewModel : Observable
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
         Professions.Show(rows);
+        homeEvents = data.Events;
+        RefreshHome();
         Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
         main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins

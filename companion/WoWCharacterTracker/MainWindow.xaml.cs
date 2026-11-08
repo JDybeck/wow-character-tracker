@@ -62,6 +62,7 @@ public partial class MainWindow : Window
     {
         "tabs" => HeaderView.GameTabs,
         "settings" => HeaderView.SettingsButton,
+        "home" => HomeTab,
         "characters" => CharacterTabs,
         "sharing" => SharingTab,
         "friends" => FriendsTab,

@@ -7,6 +7,7 @@ static class HighlightText
 {
     public static (string Verb, string Subject) Of(Entry e) => e.Kind switch
     {
+        "level" => (e.MaxLevel ? "Reached max level " : "Reached level ", e.Level.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         "boss" => ("Killed ", e.Boss + (e.Instance.Length > 0 ? $" ({e.Instance})" : "")),
         "keyrun" => (e.Timed ? "Timed " : "Finished ", Format.KeyRun(e) + (e.Timed ? $" (+{e.Upgrades})" : " (over time)")),
         "loot" => ("Looted ", e.Item),

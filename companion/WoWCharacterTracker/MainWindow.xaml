@@ -39,6 +39,10 @@
       <DockPanel Margin="2,0,0,10">
         <!-- The pages, as boxed tabs: icon and name, the open one filled. -->
         <StackPanel x:Name="PageTabs" Orientation="Horizontal">
+          <Button x:Name="HomeTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=home}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="home">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE80F;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Home"/></StackPanel>
+          </Button>
           <Button x:Name="CharacterTabs" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters|items|professions|followed}"
                   Command="{Binding ShowPageCommand}" CommandParameter="characters">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Characters"/></StackPanel>
@@ -89,6 +93,7 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
             <Grid>
+              <views:HomePage/>
               <views:CharactersPage/>
               <views:ItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="1" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
               <views:ProfessionsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}"/>

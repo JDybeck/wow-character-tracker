@@ -15,6 +15,25 @@ public class DiscordPausedTests
     }
 }
 
+public class HomeFeedTests
+{
+    [Fact]
+    public void Level_ups_get_a_line_with_how_long_they_took()
+    {
+        var row = HighlightRow.From(new Entry { Kind = "level", Level = 40, Seconds = 3600 + 12 * 60, At = 1 });
+        Assert.Equal("Reached level 40", row.Text);
+        Assert.Equal("Took 1h 12m", row.Detail);
+        Assert.Equal("Reached max level 60", HighlightRow.From(new Entry { Kind = "level", Level = 60, MaxLevel = true, At = 1 }).Text);
+    }
+
+    [Fact]
+    public void Sent_ids_are_the_events_posted_to_a_webhook()
+    {
+        var sent = Tracker.SentIdsOf(["a", "b@hook1", "b@hook2", "c@hook1"]);
+        Assert.Equal(["b", "c"], sent.Order());
+    }
+}
+
 public class PageMatchTests
 {
     [Theory]

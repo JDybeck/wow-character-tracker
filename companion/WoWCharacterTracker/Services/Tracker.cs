@@ -41,6 +41,13 @@ sealed class Tracker : IDisposable
     string? shownStamp;
     volatile bool disposed;
 
+    // Events that went to at least one webhook (Home marks them Posted). A new set after each sync, so
+    // the UI thread reads it without the gate.
+    volatile IReadOnlySet<string> sentIds = new HashSet<string>();
+    public IReadOnlySet<string> SentIds => sentIds;
+    internal static HashSet<string> SentIdsOf(IEnumerable<string> posted) =>
+        [.. posted.Where(k => k.Contains('@')).Select(k => k[..k.IndexOf('@')])];
+
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
     public event Action<Entry>? Posted;
@@ -186,6 +193,7 @@ sealed class Tracker : IDisposable
 
             if (posted.Count != handled || firstRun && !File.Exists(statePath)) // only ever grows
                 Files.WriteAtomic(statePath, JsonSerializer.Serialize(posted));
+            if (posted.Count != handled || sentIds.Count == 0) sentIds = SentIdsOf(posted);
             if (report)
             {
                 var chars = data.Characters.Select(c => c.Guid).Concat(data.Events.Select(e => e.Guid)).Distinct().Count();

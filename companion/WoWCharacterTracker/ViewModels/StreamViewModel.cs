@@ -353,7 +353,7 @@ sealed class StreamViewModel : Observable
 
     public void Shutdown() => server?.Dispose();
 
-    static StreamCharacter Character(CharacterRow r, Flavor flavor) => new(
+    internal static StreamCharacter Character(CharacterRow r, Flavor flavor) => new(
         r.Guid, r.FullName, flavor.Name, r.Level, r.ClassName,
         GameColors.Class(r.ClassFile) is int color ? GameColors.Hex(color) : "#FFFFFF",
         r.Race, r.RealmText, r.Zone, r.Played > 0 ? Format.Played(r.Played) : "", r.ItemLevel > 0 ? r.ItemLevel.ToString("0") : "",

@@ -170,12 +170,7 @@ sealed class CharacterRow : Observable
             chip.IconUrl = chip.Info.IconUrl;
             if (chip.Info.Name.Length > 0) chip.Text = $"{chip.Info.Name} {chip.Text}";
         }
-        foreach (var h in Highlights.Where(h => h.Info is not null))
-        {
-            await h.Info!.LoadAsync(flavor);
-            h.IconUrl = h.Info.IconUrl;
-            if (h.Info.Quality >= 0) h.Brush = h.Info.Brush;
-        }
+        foreach (var h in Highlights) await h.LoadIconAsync(flavor);
     }
 
     // The user's tags as on/off chips for this character, and the box for making a new one.
@@ -338,7 +333,7 @@ sealed class CharacterRow : Observable
                 Highlights = all
                     .Where(e => EventKinds.Highlights.Contains(e.Kind))
                     .OrderByDescending(e => e.At)
-                    .Select(Highlight)
+                    .Select(HighlightRow.From)
                     .ToList(),
                 Events = all,
                 Lookup = lookup,
@@ -349,46 +344,6 @@ sealed class CharacterRow : Observable
         }
 
         return rows.OrderByDescending(r => r.LastSeen).ToList();
-    }
-
-    // A highlight row, keeping its event so it can be posted from the details. Boss kills and Mythic+
-    // runs say who was there, deaths what was lost.
-    static HighlightRow Highlight(Entry e)
-    {
-        var row = Row(e);
-        row.Source = e;
-        if (e.Kind is "boss" or "keyrun") row.Group = GroupPart.Of(e.Members);
-        row.Detail = e.Kind switch
-        {
-            "boss" when e.GroupSize > 5 => $"With a raid of {e.GroupSize}",
-            "duel" or "makgora" when e.OpponentText.Length > 0 => char.ToUpperInvariant(e.OpponentText[0]) + e.OpponentText[1..],
-            "death" => string.Join(", ", new[] { e.Played > 0 ? $"{Format.Played(e.Played)} played" : "", $"lost {Format.Money(e.Gold)}", e.Zone }.Where(p => p.Length > 0)),
-            _ => "",
-        };
-        return row;
-    }
-
-    // The text is HighlightText's (shared with the stream overlay); the glyph and color are the app's.
-    static HighlightRow Row(Entry e)
-    {
-        var (verb, subject) = HighlightText.Of(e);
-        var (glyph, color) = e.Kind switch
-        {
-            "boss" => ("", 0xFBBF24),
-            "loot" => ("", 0),
-            "duel" when e.Lost => ("", 0x94A3B8),
-            "duel" => ("", 0x93C5FD),
-            "bg" when e.Lost => ("", 0x94A3B8),
-            "bg" => ("", 0x93C5FD),
-            "makgora" when e.Lost => ("", 0x94A3B8),
-            "mplus" or "keyrun" => ("", 0xC084FC),
-            "pvp" => ("", 0xF87171),
-            "mount" => ("", 0x4ADE80),
-            "profession" => ("", 0xFCD34D), // a wrench
-            _ => ("", 0xF87171), // Mak'gora wins, deaths
-        };
-        var brush = e.Kind == "loot" ? HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD) : ClassColors.Hex(color);
-        return new(glyph, brush, verb, subject, When(e.At), e.Kind is "loot" or "mount" ? e.ItemId : 0);
     }
 
     // Forever talent picks, "spellID~rank~maxRank~tree,...": a chip per talent ("5/5" until
