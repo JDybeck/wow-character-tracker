@@ -82,8 +82,9 @@ static partial class AddonInstaller
     // (by GUID, with when they were written) for /wct note. The game reads it on /reload or login.
     // hasWebhook: the tab has somewhere to post, so the addon may offer to post a highlight.
     // appUpdate: a newer app version, which the addon mentions in chat on the next login.
+    // preset: which Sharing preset the settings match (or "custom"), for the addon window's choice.
     public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null, bool hasWebhook = false,
-        IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null)
+        IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null, string? preset = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -121,6 +122,7 @@ static partial class AddonInstaller
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
                   + (appUpdate is { } update ? $"  appUpdate = \"{update.ToString(3)}\",\n" : "")
+                  + (preset is { Length: > 0 } ? $"  preset = {LuaString(preset)},\n" : "")
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")
                   + "  notes = {\n"
                   + string.Concat((notes ?? []).OrderBy(n => n.Guid, StringComparer.Ordinal)

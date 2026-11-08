@@ -51,6 +51,15 @@ static class SharingPresets
         s.AskKinds = preset == Everything ? [] : [.. d.AskKinds ?? []];
     }
 
+    // A preset picked in game (the addon window's Sharing tab, an In game setting): applied when it's
+    // one of the three and the settings don't match it yet. True when something changed.
+    public static bool TakeFromGame(FlavorSettings s, Flavor flavor, string? preset)
+    {
+        if (preset is null || !Keys.Contains(preset) || Detect(s, flavor) == preset) return false;
+        Apply(s, flavor, preset);
+        return true;
+    }
+
     // The preset these settings match, or Custom.
     public static string Detect(FlavorSettings s, Flavor flavor)
     {

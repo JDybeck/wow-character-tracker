@@ -1,6 +1,6 @@
 -- The minimap button: our icon on the minimap's edge. A click opens or closes the addon window,
 -- dragging moves it around the edge. Where it sits (`angle`, degrees, 0 = right, 90 = up) and
--- whether it's hidden (General tab) are kept in WoWCharacterTrackerDB.minimap.
+-- whether it's hidden (Settings tab) are kept in WoWCharacterTrackerDB.minimap.
 local ADDON, ns = ...
 
 local ICON = "Interface\\AddOns\\WoWCharacterTracker\\Icon"

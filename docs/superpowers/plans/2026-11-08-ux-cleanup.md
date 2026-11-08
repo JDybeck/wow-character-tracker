@@ -644,6 +644,9 @@ CHANGELOG's top section must match the csproj version (a test checks), so the no
 
 - Sharing: What gets posted and In game are one page now. Switch Discord, guild chat and group chat on or off at the top, pick Quiet, Normal or Everything, or open Customize for one table with a row per moment and a box for Discord, screenshot, guild, group, ask first and stream alerts. Test shows on the row under your mouse. The Discord webhooks and the stream overlay moved onto this page, and the rarely needed options are folded under Advanced.
 - Discord can be paused per game without touching your webhooks. What happens while paused isn't posted later.
+- (phase 3) Home: the character you're playing, today's moments and a feed of every character's newest moments with Share.
+- (phase 4) Help me set it up replaces the tour: game folders, the addon, Discord and how much gets shared, one step at a time.
+- (phase 5, addon) The /wct window has four tabs: Sharing (pick Quiet, Normal or Everything in game), Friends, Note and Settings. Reload reminders are one choice: Off, Gentle or Every chance. /wct help lists the four commands you need.
 - (phase 2) Three tabs: Characters (with List, Items, Professions and Followed inside), Friends and Sharing. The right column is a slim rail of quick switches for Discord, guild chat, group chat and the stream overlay; the console slides out from it. Settings is its own page from the gear, with the addon's in game options. Search items from the header, and help, what's new and feedback live in the ? menu.
 
 ## Phase 2 (branch `feat/ux-shell`, on top of phase 1)
@@ -682,6 +685,21 @@ The helper replaces the tour in place: `IntroViewModel` keeps its name, `Config.
 2. `PresetCard` moves from `SharingPage` to `Templates.xaml` so both use one style.
 3. Closing or finishing marks `IntroDone`; the ? menu's first line ("Help me set it up") opens it again. `OpenAt(key)` opens it at a step. The "Don't show again" box goes (closing is the answer).
 4. `MainWindow` loses the tour's targets (`TourTarget`, `FindTarget`); tests on the step keys; screenshot view `forever:home:intro:N` keeps working.
+
+## Phase 5 (branch `feat/ux-addon`, on top of phase 4)
+
+1. `ui.choice` in Ui.lua: a row of buttons, one picked. Used by the preset and the reload reminders.
+2. Window tabs: **Sharing** (preset with the app; guild/party; ask box and its time; without the app the whole chat table), **Friends** (unchanged lists, then "What you share with friends" in a frame placed after them), **Note**, **Settings** (instant posting, reload reminders, minimap, Advanced: corner, label, keep all history; this character; what the app set). Old tab keys (`general`, `app`, `chat`, `highlights`) map to the new ones.
+3. Reload reminders: Off / Gentle / Every chance over `popup`, `flightReload`, `chatReminder`, no new key. Against the spec: **Gentle = the chat line and the flight box** (today's defaults), so nobody's reminders change; Every chance adds the ding popup.
+4. `preset` In game key: the app writes `preset = SharingPresets.Detect(...)` into Settings.lua; the addon window edits it; `SavedVariables.ReadInGame` reads it; `SharingPresets.TakeFromGame` applies it after `TakeInGame`.
+5. `/wct help` lists `/wct`, `/wct note`, `/wct friends`, `/wct test`; the rest still work. The Options page already was one line and a button.
+6. GUIDE and README rewritten for the new layout.
+
+## Release step (after all five PRs are merged)
+
+- Bump the app (csproj) and the addon (.toc, since `addon/` changed), and move the release notes draft above into CHANGELOG.
+- Retake the pictures (README picture process in testing.md): Home, Sharing, Settings, the setup helper, the addon window. Remove `what-gets-posted.png`, `in-game.png` and `settings.png`, which nothing links to anymore.
+- JDybeck checks in game: the addon window's four tabs, the preset round trip (pick Quiet in game, /reload, the app shows Quiet), reload reminders.
 
 ## Later phases (planned in detail when phase 1 is merged)
 

@@ -111,7 +111,7 @@ The 11x2 chat grid and the ask kinds list leave the addon window (they're in the
 **Reload reminders, three checkboxes to one choice:** Off / Gentle / Every chance.
 
 - Off: no ding popup, no flight box, no chat reminder.
-- Gentle (default): the chat reminder only.
+- Gentle (default): the chat reminder and the flight path box (today's defaults, so nobody's reminders change).
 - Every chance: all three.
 - It's a view over the existing keys (`popup`, `flightReload`, `chatReminder`), no new saved key. Any other mix shows as "Custom" with the three checkboxes under Advanced.
 

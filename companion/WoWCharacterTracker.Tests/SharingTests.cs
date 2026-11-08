@@ -229,6 +229,34 @@ public class SharingPresetsTests
         Assert.Equal(SharingPresets.Custom, SharingPresets.Detect(s, Flavors.Forever));
     }
 
+    // A preset picked in the addon window comes back in gameSettings and is applied on sync.
+    [Fact]
+    public void A_preset_picked_in_game_is_read_and_applied()
+    {
+        var game = SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString("return { at = 5, preset = 'quiet' }"));
+        Assert.Equal("quiet", game!.Preset);
+
+        var s = Flavors.Forever.Defaults();
+        Assert.True(SharingPresets.TakeFromGame(s, Flavors.Forever, game.Preset));
+        Assert.Equal(SharingPresets.Quiet, SharingPresets.Detect(s, Flavors.Forever));
+        Assert.False(SharingPresets.TakeFromGame(s, Flavors.Forever, "quiet")); // already so
+        Assert.False(SharingPresets.TakeFromGame(s, Flavors.Forever, "custom")); // not something to apply
+        Assert.False(SharingPresets.TakeFromGame(s, Flavors.Forever, null)); // an older addon
+    }
+
+    [Fact]
+    public void Settings_lua_says_which_preset_matches()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-preset-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(AddonInstaller.TargetDir(dir));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, Flavors.Forever.Defaults(), preset: SharingPresets.Normal);
+            Assert.Contains("preset = \"normal\",", File.ReadAllText(Path.Combine(AddonInstaller.TargetDir(dir), "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     [Fact]
     public void Everything_posts_every_level()
     {

@@ -1,7 +1,7 @@
 -- The addon window (/wct, the minimap button): every in-game option in tabs. Settings the game
 -- keeps (WoWCharacterTrackerDB) and the In game settings shared with the app (ns.editSettings, the
 -- newest change wins) apply right away. What gets posted to Discord comes from the app
--- (Settings.lua) and is listed read-only on the App tab. Plain frames only, so it opens in combat.
+-- (Settings.lua) and is listed read-only on the Settings tab. Plain frames only, so it opens in combat.
 -- Built on first open, each tab on its first showing.
 local ADDON, ns = ...
 local ui = ns.ui
@@ -32,58 +32,25 @@ local function currentCorner()
   return CORNER_NAMES[c] and c or "TOPLEFT"
 end
 
-local function buildGeneral(p)
-  local live = ui.checkbox(p, "Instant posting", "Tell the app about events right away (a one-frame pattern and screenshot). Off: they arrive on /reload or logout.",
-    function() return WoWCharacterTrackerDB.live ~= false end,
-    function(on) WoWCharacterTrackerDB.live = on end)
-  live:SetPoint("TOPLEFT", 14, -12)
+-- Reload reminders: one choice over the three settings that ask for a /reload (the ding popup, the
+-- flight path box and the chat line). Gentle is how they start; any other mix is "custom".
+local RELOAD_CHOICES = { { "off", "Off" }, { "gentle", "Gentle" }, { "all", "Every chance" } }
+local RELOAD_SETS = { off = { false, false, false }, gentle = { false, true, true }, all = { true, true, true } }
 
-  local popup = ui.checkbox(p, "Reload popup after a ding", "Offer a /reload right after you level, so the app gets everything.",
-    function() return WoWCharacterTrackerDB.popup == true end,
-    function(on) WoWCharacterTrackerDB.popup = on end)
-  popup:SetPoint("TOPLEFT", live, "BOTTOMLEFT", 0, -18)
+local function reloadChoice()
+  local now = { WoWCharacterTrackerDB.popup == true, isOn("flightReload"), isOn("chatReminder") }
+  for key, set in pairs(RELOAD_SETS) do
+    if set[1] == now[1] and set[2] == now[2] and set[3] == now[3] then return key end
+  end
+  return "custom"
+end
+ns.reloadChoice = reloadChoice -- for the tests
 
-  local reloadTitle = ui.heading(p, "Keeping the app up to date", popup)
-  local flightReload = ui.checkbox(p, "Offer a reload on flight paths", nil,
-    function() return isOn("flightReload") end,
-    function(on) ns.editSettings(function(s) s.flightReload = on end) end)
-  flightReload:SetPoint("TOPLEFT", reloadTitle, "BOTTOMLEFT", -2, -6)
-  local chatReminder = ui.checkbox(p, "Remind me in chat to /reload", nil,
-    function() return isOn("chatReminder") end,
-    function(on) ns.editSettings(function(s) s.chatReminder = on end) end)
-  chatReminder:SetPoint("TOPLEFT", flightReload, "BOTTOMLEFT", 0, -2)
-
-  local gridTitle = ui.heading(p, "Instant post pattern", chatReminder)
-  local cornerButton
-  local function showCorner() cornerButton:SetText("Corner: " .. CORNER_NAMES[currentCorner()]) end
-  cornerButton = ui.button(p, "", 170, function()
-    local now = currentCorner()
-    for i, c in ipairs(CORNERS) do
-      if c == now then
-        local nextCorner = CORNERS[i % #CORNERS + 1]
-        ns.editSettings(function(s) s.gridCorner = nextCorner end)
-        break
-      end
-    end
-    showCorner()
-  end)
-  cornerButton:SetPoint("TOPLEFT", gridTitle, "BOTTOMLEFT", 2, -8)
-  ui.onRefresh(p, showCorner)
-  local gridLabel = ui.checkbox(p, "Show a small label next to it", nil,
-    function() return isOn("gridLabel") end,
-    function(on) ns.editSettings(function(s) s.gridLabel = on end) end)
-  gridLabel:SetPoint("TOPLEFT", cornerButton, "BOTTOMLEFT", -4, -6)
-
-  local keepAll = ui.checkbox(p, "Keep all history", "On: every loot, duel and battleground stays in the saved file, which keeps growing. Applies on your next /reload.",
-    function() return ns.setting("keepAllHistory") == true end,
-    function(on) ns.editSettings(function(s) s.keepAllHistory = on end) end)
-  keepAll:SetPoint("TOPLEFT", gridLabel, "BOTTOMLEFT", 0, -10)
-
-  -- Minimap.lua's, loaded after this file.
-  local minimap = ui.checkbox(p, "Show the minimap button", "Hidden, /wct still opens this window.",
-    function() return not ns.minimapButtonShown or ns.minimapButtonShown() end,
-    function(on) if ns.setMinimapButtonShown then ns.setMinimapButtonShown(on) end end)
-  minimap:SetPoint("TOPLEFT", keepAll, "BOTTOMLEFT", 0, -26)
+local function setReloadChoice(key)
+  local set = RELOAD_SETS[key]
+  if not set then return end
+  WoWCharacterTrackerDB.popup = set[1]
+  ns.editSettings(function(s) s.flightReload, s.chatReminder = set[2], set[3] end)
 end
 
 -- Chat ------------------------------------------------------------------------------------------
@@ -101,8 +68,28 @@ local function announceKinds(a, column)
   return column == "guild" and a.kinds or (a.partyKinds or a.kinds)
 end
 
-local function buildChat(p)
-  local chatTitle = ui.heading(p, "Tell your guild or group")
+-- The Sharing tab: how much gets shared (the app's preset, which the app applies on your next
+-- /reload), the guild and group lines, and the ask box. The per-moment table is the app's; without
+-- the app the chat table is here instead, since nothing else sets it.
+local PRESETS_SHOWN = { { "quiet", "Quiet" }, { "normal", "Normal" }, { "everything", "Everything" } }
+local ASK_KINDS = { "boss", "rare", "epic" }
+
+local function buildSharingTab(p)
+  local withApp = ns.hasApp()
+  local top
+  if withApp then
+    local presetTitle = ui.heading(p, "How much gets shared")
+    local presetHint = ui.hint(p, "What goes to Discord, chat and the ask box. The app picks it up on your next /reload; choose per moment on the app's Sharing page.", presetTitle)
+    local presets = ui.choice(p, PRESETS_SHOWN, function() return ns.setting("preset") end,
+      function(key) ns.editSettings(function(s) s.preset = key end) end)
+    presets:SetPoint("TOPLEFT", presetHint, "BOTTOMLEFT", 0, -10)
+    local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own picks from the app.")
+    custom:SetPoint("LEFT", presets, "RIGHT", 6, 0)
+    ui.onRefresh(p, function() custom:SetShown(ns.setting("preset") == "custom") end)
+    top = presets
+  end
+
+  local chatTitle = ui.heading(p, "Tell in chat", top, top and -24 or nil)
   local chatHint = ui.hint(p, "One line in chat as you when something happens. Lines wait until you're out of combat.", chatTitle)
   local whereLast = ui.checkGrid(p, { { "guild", "Guild chat" }, { "party", "Party / raid chat" } }, chatHint,
     function(key)
@@ -110,26 +97,27 @@ local function buildChat(p)
       return a[key] == true
     end,
     function(key, on) ns.editSettings(function(s) s.announce[key] = on end) end)
-  ui.checkTable(p, ANNOUNCE_KINDS, { { "guild", "Guild chat" }, { "party", "Group chat" } }, whereLast,
-    function(column, key)
-      local kinds = announceKinds(ns.setting("announce") or {}, column)
-      return kinds ~= nil and kinds[key] == true
-    end,
-    function(column, key, on) ns.editSettings(function(s) announceKinds(s.announce, column)[key] = on or nil end) end)
-end
+  local last = whereLast
+  if not withApp then
+    last = ui.checkTable(p, ANNOUNCE_KINDS, { { "guild", "Guild chat" }, { "party", "Group chat" } }, whereLast,
+      function(column, key)
+        local kinds = announceKinds(ns.setting("announce") or {}, column)
+        return kinds ~= nil and kinds[key] == true
+      end,
+      function(column, key, on) ns.editSettings(function(s) announceKinds(s.announce, column)[key] = on or nil end) end)
+  end
 
--- Highlights ------------------------------------------------------------------------------------
-local function buildHighlights(p)
-  local askTitle = ui.heading(p, "Ask before a highlight goes unposted")
-  local askHint = ui.hint(p, "A small box offers to post it to Discord, for what What gets posted in the app doesn't post by itself. Needs the app and a webhook.", askTitle)
-  local kindsLast = ui.checkGrid(p, { { "boss", "Boss kills" }, { "rare", "Rare gear" }, { "epic", "Epic gear" } }, askHint,
-    function(key)
-      local ask = ns.setting("ask") or {}
-      return ask[key] == true
+  if not withApp then return end
+  local askTitle = ui.heading(p, "Ask before skipping", last)
+  local ask = ui.checkbox(p, "Offer to post what Discord skips", "Boss kills and gear the app doesn't post by itself: a small Post or Skip box, out of combat.",
+    function()
+      local kinds = ns.setting("ask") or {}
+      return kinds.boss == true or kinds.rare == true or kinds.epic == true
     end,
-    function(key, on) ns.editSettings(function(s) s.ask[key] = on or nil end) end)
+    function(on) ns.editSettings(function(s) for _, k in ipairs(ASK_KINDS) do s.ask[k] = on or nil end end) end)
+  ask:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", -2, -6)
 
-  -- How long the box stays (askSeconds, the same choices as the app's In game page): click for the next.
+  -- How long the box stays (askSeconds, the same choices as the app): click for the next.
   local CHOICES = { 5, 10, 15, 30, 60 }
   local function current() return tonumber(ns.setting("askSeconds")) or 10 end
   local secondsButton
@@ -142,7 +130,7 @@ local function buildHighlights(p)
     ns.editSettings(function(s) s.askSeconds = nextChoice end)
     showSeconds()
   end)
-  secondsButton:SetPoint("TOPLEFT", kindsLast, "BOTTOMLEFT", 2, -14)
+  secondsButton:SetPoint("TOPLEFT", ask, "BOTTOMLEFT", 32, -22)
   ui.onRefresh(p, showSeconds)
 end
 
@@ -185,6 +173,8 @@ local CARD = 40     -- a friend or character card
 local REQUEST = 34  -- a request banner
 local drawFriends
 local openSharing -- opens what you share with one contact beside the window (set further down)
+local buildShareDefaults -- what all friends get, under the Friends tab's lists (set further down)
+local SHARE_DEFAULTS_HEIGHT = 400
 local searched = false -- Find online friends was clicked this session
 
 local function rowsOf(fn) return fn and fn() or {} end
@@ -628,7 +618,7 @@ local requestBox
 
 -- "Allow gives them 3 of your characters: name, level, class and item level, plus gear and talents."
 local function requestText(box)
-  if box.chars == 0 then return "You don't share any characters right now, so Allow gives them nothing until you do (Sharing tab)." end
+  if box.chars == 0 then return "You don't share any characters right now, so Allow gives them nothing until you do (Friends tab, What you share)." end
   local what = ns.shareSummary and ns.shareSummary(box.choices) or ""
   return string.format("Allow gives them %s: name, level, class and item level%s.",
     box.chars == 1 and "1 of your characters" or (box.chars .. " of your characters"),
@@ -820,6 +810,11 @@ local function buildFriends(p)
     return fs
   end
   local requestsTitle, sharedTitle = title("Requests"), title("Shared with you")
+  -- What all friends get, after the lists (it moves down as they grow).
+  local yours = CreateFrame("Frame", nil, p)
+  yours:SetSize(width + 16, SHARE_DEFAULTS_HEIGHT)
+  buildShareDefaults(yours)
+  ui.onRefresh(p, function() ui.refresh(yours) end)
   local prompt = note("Click Find online friends to see who's on.")
   local noneOnline = note("None of your Battle.net friends are online in this game.")
   local noneShared = note("Nothing shared with you yet. Ask a friend above.")
@@ -975,6 +970,8 @@ local function buildFriends(p)
     end
     if sharing and sharing:IsShown() then drawSharing() end
 
+    place(yours, p, 0, y + 8)
+    y = y + 8 + SHARE_DEFAULTS_HEIGHT
     p:SetHeight(y + 10)
   end
   ui.onRefresh(p, drawFriends)
@@ -986,9 +983,9 @@ function ns.friendsChanged()
   if drawFriends and ns.windowShown() and t and t.holder and t.holder:IsShown() then drawFriends() end
 end
 
--- Sharing ---------------------------------------------------------------------------------------
-local function buildSharing(p)
-  local friendsTitle = ui.heading(p, "Share with Battle.net friends")
+-- What you share (under the Friends tab's lists) ---------------------------------------------
+buildShareDefaults = function(p)
+  local friendsTitle = ui.heading(p, "What you share with friends")
   local friendsHint = ui.hint(p, "Friends who have the addon can ask to see your characters; nothing is shared until you allow it. Contacts: /wct friends.", friendsTitle)
   local shareOn = ui.checkbox(p, "Share with friends", "Off: nothing is sent, and nothing friends send is kept.",
     function() return ns.shareSettings().enabled == true end,
@@ -1049,13 +1046,60 @@ local function appSummary()
     "Posted to Discord: " .. picked(postKinds, KINDS),
     "Screenshots: " .. picked(ns.setting("screenshot"), KINDS),
     " ",
-    "Change these in the app's What gets posted page. They reach the game on your next /reload.",
+    "Change these on the app's Sharing page. They reach the game on your next /reload.",
     "What you change in this window reaches the app on your next /reload or logout. The newest change wins.",
   }, "\n")
 end
 
-local function buildApp(p)
-  local thisTitle = ui.heading(p, "This character")
+-- The Settings tab: how the addon runs, then the rarely touched options, this character and what
+-- the app set.
+local function buildSettings(p)
+  local live = ui.checkbox(p, "Instant posting", "Tell the app about events right away (a one-frame pattern and screenshot). Off: they arrive on /reload or logout.",
+    function() return WoWCharacterTrackerDB.live ~= false end,
+    function(on) WoWCharacterTrackerDB.live = on end)
+  live:SetPoint("TOPLEFT", 14, -12)
+
+  local reloadTitle = ui.heading(p, "Reload reminders", live, -40)
+  local reloadHint = ui.hint(p, "Gear, bags and bank reach the app on /reload or logout. Gentle: a chat line and a box on flight paths when they changed. Every chance: also a popup after each ding.", reloadTitle)
+  local reload = ui.choice(p, RELOAD_CHOICES, reloadChoice, setReloadChoice)
+  reload:SetPoint("TOPLEFT", reloadHint, "BOTTOMLEFT", 0, -10)
+  local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own mix (/wct popup turns the ding popup on or off).")
+  custom:SetPoint("LEFT", reload, "RIGHT", 6, 0)
+  custom:SetWidth(200)
+  ui.onRefresh(p, function() custom:SetShown(reloadChoice() == "custom") end)
+
+  -- Minimap.lua's, loaded after this file.
+  local minimap = ui.checkbox(p, "Show the minimap button", "Hidden, /wct still opens this window.",
+    function() return not ns.minimapButtonShown or ns.minimapButtonShown() end,
+    function(on) if ns.setMinimapButtonShown then ns.setMinimapButtonShown(on) end end)
+  minimap:SetPoint("TOPLEFT", reload, "BOTTOMLEFT", -2, -22)
+
+  local advancedTitle = ui.heading(p, "Advanced", minimap, -40)
+  local cornerButton
+  local function showCorner() cornerButton:SetText("Pattern corner: " .. CORNER_NAMES[currentCorner()]) end
+  cornerButton = ui.button(p, "", 200, function()
+    local now = currentCorner()
+    for i, c in ipairs(CORNERS) do
+      if c == now then
+        local nextCorner = CORNERS[i % #CORNERS + 1]
+        ns.editSettings(function(s) s.gridCorner = nextCorner end)
+        break
+      end
+    end
+    showCorner()
+  end)
+  cornerButton:SetPoint("TOPLEFT", advancedTitle, "BOTTOMLEFT", 2, -8)
+  ui.onRefresh(p, showCorner)
+  local gridLabel = ui.checkbox(p, "Show a small label next to the pattern", nil,
+    function() return isOn("gridLabel") end,
+    function(on) ns.editSettings(function(s) s.gridLabel = on end) end)
+  gridLabel:SetPoint("TOPLEFT", cornerButton, "BOTTOMLEFT", -4, -6)
+  local keepAll = ui.checkbox(p, "Keep all history", "On: every loot, duel and battleground stays in the saved file, which keeps growing. Applies on your next /reload.",
+    function() return ns.setting("keepAllHistory") == true end,
+    function(on) ns.editSettings(function(s) s.keepAllHistory = on end) end)
+  keepAll:SetPoint("TOPLEFT", gridLabel, "BOTTOMLEFT", 0, -2)
+
+  local thisTitle = ui.heading(p, "This character", keepAll, -40)
   local ignore = ui.checkbox(p, "Ignore this character",
     "Not tracked: nothing is recorded, posted, announced or shared with friends for it. In the app it moves to Ignored, under the character list.",
     function() return ns.isIgnored(UnitGUID("player")) end,
@@ -1079,16 +1123,15 @@ end
 -- The window ------------------------------------------------------------------------------------
 -- height: how tall the tab's content is; taller than the window gets a scroll frame.
 local TABS = {
-  { key = "general", label = "General", height = 470, build = buildGeneral },
-  { key = "chat", label = "Chat", height = 440, build = buildChat },
-  { key = "highlights", label = "Highlights", height = 200, build = buildHighlights },
+  { key = "sharing", label = "Sharing", height = 560, build = buildSharingTab }, -- without the app: the whole chat table
+  { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
-  { key = "friends", label = "Friends", height = 600, build = buildFriends }, -- grows with its lists
-  { key = "sharing", label = "Sharing", height = 426, build = buildSharing },
-  { key = "app", label = "App", height = 300, build = buildApp },
+  { key = "settings", label = "Settings", height = 700, build = buildSettings },
 }
 local BY_KEY = {}
 for _, t in ipairs(TABS) do BY_KEY[t.key] = t end
+-- Tabs from before 0.39 (a saved last tab, a /wct command) open where their options went.
+local OLD_TABS = { general = "settings", app = "settings", chat = "sharing", highlights = "sharing" }
 
 local function buildTab(tab)
   local holder, page
@@ -1109,7 +1152,8 @@ local function buildTab(tab)
 end
 
 local function selectTab(key)
-  if not BY_KEY[key] then key = "general" end
+  key = OLD_TABS[key] or key
+  if not BY_KEY[key] then key = "sharing" end
   current = key
   saved().tab = key
   for _, t in ipairs(TABS) do

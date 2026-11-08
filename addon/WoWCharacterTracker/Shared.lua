@@ -70,7 +70,7 @@ end
 -- right away, the app takes it from the saved file, and a later change in the app (Settings.lua
 -- inGameAt) wins over it.
 local IN_GAME = { announce = true, ask = true, flightReload = true, chatReminder = true,
-  gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true }
+  gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true, preset = true }
 
 local function changedInGame()
   local changed = WoWCharacterTrackerDB and WoWCharacterTrackerDB.gameSettings

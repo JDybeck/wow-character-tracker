@@ -107,7 +107,11 @@ sealed class FlavorViewModel : Observable
     public void WriteAddonSettings()
     {
         if (flavorDir is null) return;
-        try { AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0, main.Config.FriendNicknames, main.Updates.Available); }
+        try
+        {
+            AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0, main.Config.FriendNicknames, main.Updates.Available,
+                SharingPresets.Detect(Settings, Flavor));
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log.Warn($"[{Name}] Couldn't save the screenshot settings for the addon: {ex.Message}");
@@ -238,6 +242,7 @@ sealed class FlavorViewModel : Observable
     void TakeInGameSettings(InGameSettings? game)
     {
         if (!Settings.TakeInGame(game)) return;
+        if (SharingPresets.TakeFromGame(Settings, Flavor, game!.Preset)) Log.Info($"[{Name}] Sharing set to {game.Preset} in game.");
         main.Config.Save();
         WriteAddonSettings();
         RefreshAskSeconds();

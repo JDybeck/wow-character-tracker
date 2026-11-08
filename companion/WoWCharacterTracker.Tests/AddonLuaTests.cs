@@ -1117,8 +1117,9 @@ public class AddonLuaTests
             script.Call(ns.Get("openWindow"), "app");
             Assert.Contains("boss kills", script.DoString("return texts[#texts]").String);
             var before = (int)script.DoString("return #frames").Number;
-            script.Call(ns.Get("openWindow"), "chat");
-            Assert.True(script.DoString($"return frames[{before + 2}].checked").Boolean); // guild chat, on in Settings.lua (after the tab's page)
+            script.Call(ns.Get("openWindow"), "chat"); // now the Sharing tab
+            // Guild chat is on in Settings.lua, and it's the only box on the tab that is.
+            Assert.Equal(1, script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
