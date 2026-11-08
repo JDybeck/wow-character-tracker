@@ -249,7 +249,11 @@ sealed class Tracker : IDisposable
     {
         foreach (var e in pending.Where(e => !s.Wants(e, history)))
         {
-            if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
+            if (s.HeldForRun(e))
+            {
+                if (e.Kind == "boss") Log.Info($"{Tag}Not posting {e.Boss} on its own: it goes in the dungeon run's post.");
+            }
+            else if (e.Kind == "boss" && s.PostBosses && s.SkipBossBecause(e) is { } who)
                 Log.Info($"{Tag}Not posting {e.Boss}: {who.Name} is in the group (they post it).");
             else if (e.Kind == "boss" && s.PostBosses && s.IsRepeatKill(e, history))
                 Log.Info($"{Tag}Not posting {e.Boss}: {e.Char} has killed it before (only first kills are posted).");

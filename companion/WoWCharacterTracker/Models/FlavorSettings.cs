@@ -48,6 +48,9 @@ class FlavorSettings
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
     public bool FirstBossKillOnly { get; set; } = true; // each character's first kill of each end boss, not the farming after
+    // Dungeon runs (Runs.lua, not on Retail): one post per 5-player dungeon run with its bosses, the
+    // group and who got what, in place of the run's boss and loot posts (legendaries still post on their own).
+    public bool PostRuns { get; set; }
 
     // Finished Mythic+ runs (Retail, in place of end boss kills): from this key level up, and
     // optionally only the ones in time.
@@ -216,7 +219,7 @@ class FlavorSettings
         (PostLevels, LevelSplit, LevelEveryBefore, LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
         (PostRare, RareBoeOnly, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.RareBoeOnly, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
         PostFollowed = d.PostFollowed; // the list itself is the user's own, not a posting setting
-        FirstBossKillOnly = d.FirstBossKillOnly;
+        (FirstBossKillOnly, PostRuns) = (d.FirstBossKillOnly, d.PostRuns);
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
         (PostProfessions, ProfessionSteps) = (d.PostProfessions, [.. d.ProfessionSteps]);
@@ -257,14 +260,20 @@ class FlavorSettings
     public IReadOnlyList<Entry> MarkFollowed(IReadOnlyList<Entry> events) =>
         AllFollowed.Count == 0 ? events : [.. events.Select(e => Follows(e) ? e with { Followed = true } : e)];
 
+    // A dungeon run's boss kill or loot, which goes into the run's one post instead.
+    public bool HeldForRun(Entry e) => PostRuns && e.Run > 0 && e.Kind is "loot" or "boss";
+
     public bool Wants(Entry e) => PostsAsFollowed(e) || e.Kind switch
     {
         "ask" => true, // the player clicked Post in game
 
         "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),
-        "loot" => e.Quality >= 5 ? !e.Mat : (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly)),
+        "loot" when e.Quality >= 5 => !e.Mat,
+        _ when HeldForRun(e) => false,
+        "loot" => e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly),
         "mount" => PostMounts,
         "boss" => PostBosses && SkipBossBecause(e) is null,
+        "run" => PostRuns && (e.Cleared || e.Drops.Length > 0) && SkipBossBecause(e) is null,
         "keyrun" => PostKeyRuns && e.KeyLevel >= KeyRunMinLevel && (e.Timed || !KeyRunTimedOnly),
         "death" => PostDeaths,
         "duel" => PostDuels && !e.Lost, // only wins are posted

@@ -25,6 +25,7 @@ sealed class EventEmbeds(Flavor flavor)
         {
             "boss" => BossText(e),
             "keyrun" => KeyRunText(e),
+            "run" => RunText(e),
             "loot" when e.Quality >= 5 => LegendaryText(e),
             "loot" => LootText(e, itemPicture),
             "mount" => MountText(e, itemPicture),
@@ -142,6 +143,63 @@ sealed class EventEmbeds(Flavor flavor)
         AddGroup(e, lines);
         return (e.Timed ? $"\U0001F5DD️ {e.Char} timed {Format.KeyRun(e)}!" : $"{e.Char} finished {Format.KeyRun(e)}", lines);
     }
+
+    // A dungeon run in one post: how long, the bosses, the group by role, and who got what.
+    (string, List<string>) RunText(Entry e)
+    {
+        var bosses = e.BossList;
+        var time = e.Seconds > 0 ? $" in **{Format.Duration(e.Seconds)}**" : "";
+        var lines = new List<string>
+        {
+            e.Cleared ? $"Cleared{time}, {Format.Count(bosses.Count, "boss", "bosses")} down." : $"Left{time} with {Format.Count(bosses.Count, "boss", "bosses")} down.",
+        };
+        if (bosses.Count > 0) lines.Add($"**Bosses:** {string.Join(", ", bosses)}");
+
+        var retail = flavor.HasRatings;
+        var party = new[] { (Name: e.Char, Role: Roles.Of(e.Role, e.ClassFile, e.Spec, retail), Line: Who(e.Char, e.Level, e.Race, e.Spec, e.Class)) }
+            .Concat(e.Members.Select(m => (m.Name, Role: Roles.Of(m.Role, m.ClassFile, m.Spec, retail), Line: Who(m.Name, m.Level, m.Race, m.Spec, m.Class))))
+            .OrderBy(p => p.Role switch { Roles.Tank => 0, Roles.Healer => 1, "" => 3, _ => 2 })
+            .ToList();
+        if (party.Count > 1)
+        {
+            lines.Add("");
+            lines.Add("**Group:**");
+            lines.AddRange(party.Select(p => RoleEmoji(p.Role) is { } icon ? $"{icon} {p.Line}" : p.Line));
+        }
+
+        var drops = e.DropList;
+        if (drops.Count > 0)
+        {
+            const int shown = 20; // the post's text has room for about that many
+            lines.Add("");
+            lines.Add("**Loot:**");
+            lines.AddRange(drops.Take(shown).Select(d =>
+                $"{QualityEmoji(d.Quality)} {(d.Who.Length > 0 ? d.Who : e.Char)}: [{d.Name}]({ItemUrl(d.ItemId)})".TrimStart()));
+            if (drops.Count > shown) lines.Add($"...and {Format.Count(drops.Count - shown, "more item")}.");
+        }
+        return (e.Cleared ? $"{e.Char} cleared {e.Instance}!" : $"{e.Char} ran {e.Instance}", lines);
+    }
+
+    static string Who(string name, int level, string race, string spec, string cls) =>
+        $"{name}, {level} {race} {spec} {cls}".Replace("  ", " ").TrimEnd();
+
+    static string? RoleEmoji(string role) => role switch
+    {
+        Roles.Tank => "\U0001F6E1️",
+        Roles.Healer => "\U0001F49A",
+        Roles.Melee => "⚔️",
+        Roles.Ranged => "\U0001F3F9",
+        Roles.Caster => "\U0001F52E",
+        _ => null,
+    };
+
+    static string QualityEmoji(int quality) => quality switch
+    {
+        3 => "\U0001F7E6",
+        4 => "\U0001F7EA",
+        >= 5 => "\U0001F7E7",
+        _ => "",
+    };
 
     // The team: this character first, then the rest of the party.
     static void AddGroup(Entry e, List<string> lines)

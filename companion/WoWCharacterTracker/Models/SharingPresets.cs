@@ -17,7 +17,7 @@ static class SharingPresets
         {
             Quiet => rows.Where(m => m.Key is "level" or "maxlevel" or "epic" or "followed"),
             Normal => rows.Where(m => m.GetPost(d)),
-            _ => rows,
+            _ => rows.Where(m => m.Key != "run"), // runs trade the boss and loot posts for one, a style, not more
         };
         var keys = on.Select(m => m.Key).ToHashSet();
         foreach (var m in Moments.All) m.SetPost(s, keys.Contains(m.Key));

@@ -15,6 +15,7 @@ static class EventKinds
         new("loot", "Loot", Shot: true, Highlight: true),
         new("mount", "Mounts", Shot: true, Highlight: true),
         new("boss", "Boss kills", Shot: true, Highlight: true, NoRatings: true),
+        new("run", "Dungeon runs", NoRatings: true), // no screenshot: it's saved minutes after the moment
         new("keyrun", "Mythic+ runs", Shot: true, Highlight: true, RatingsOnly: true),
         new("death", "Deaths", Shot: true, Highlight: true, NoRatings: true),
         new("duel", "Duels", Shot: true, Highlight: true),

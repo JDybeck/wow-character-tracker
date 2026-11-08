@@ -11,7 +11,7 @@ local SHORT = {
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
   maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V", keystone = "W", zoneType = "f",
-  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", mat = "mt", askedKind = "ak", midBoss = "mb", -- single letters are used up, so new keys get two
+  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", mat = "mt", askedKind = "ak", midBoss = "mb", run = "rn", bosses = "bs", drops = "dr", cleared = "cl", -- single letters are used up, so new keys get two
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
@@ -402,12 +402,20 @@ local SHOT_DELAY = { level = 1.0, boss = 1.5, keyrun = 2.0, loot = 0.3, mount = 
 -- Will the app post this event? Settings.lua carries the app's "What gets posted" choices, so
 -- the addon only sends events live (and screenshots them) when they'll actually be posted.
 -- Without those settings (an older app), everything counts as wanted.
+
+-- A dungeon run's boss kill or loot, which goes into the run's one post (Runs.lua).
+local function heldForRun(e, post)
+  return e.run ~= nil and post and post.run == true and (e.kind == "loot" or e.kind == "boss")
+end
+
 local function wanted(e)
   local post = ns.setting("post")
   if not post then return true end
   if e.kind == "ask" then return true end -- the player clicked Post (Ask.lua)
   if post.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then return true end
   if e.kind == "loot" and (e.quality or 0) >= 5 then return not e.mat end -- legendary gear: always worth a post, materials never
+  if heldForRun(e, post) then return false end
+  if e.kind == "run" then return post.run == true and (e.cleared or (e.drops or "") ~= "") and true or false end
   if e.maxLevel and post.maxLevel ~= false then return true end -- max level has its own switch
   if e.kind == "level" then
     local l = post.level
@@ -446,7 +454,8 @@ function ns.addEvent(e)
     table.insert(shotQueue, { delay = SHOT_DELAY[e.kind] or 0.5, kind = e.kind })
     ns.processShots()
   end
-  if not posted and ns.offerAsk then ns.offerAsk(e) end -- not posted by itself: maybe on request
+  -- not posted by itself: maybe on request (not a run's kill or loot, the run's post has those)
+  if not posted and ns.offerAsk and not heldForRun(e, ns.setting("post")) then ns.offerAsk(e) end
 end
 
 -- One live check-in per login, so the app shows the character (level, gear, zone) right away.
