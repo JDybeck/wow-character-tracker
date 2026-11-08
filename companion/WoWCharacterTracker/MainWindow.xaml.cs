@@ -17,8 +17,6 @@ public partial class MainWindow : Window
         DataContext = vm;
         SourceInitialized += (_, _) => UseDarkTitleBar();
         RightScroll.SizeChanged += (_, _) => FitRightColumn();
-        DiscordView.SizeChanged += (_, _) => FitRightColumn();
-        StreamView.SizeChanged += (_, _) => FitRightColumn();
         SetupRightView.SizeChanged += (_, _) => FitRightColumn();
         vm.PageReset += () => Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ScrollPagesToTop);
         Tour.FindTarget = TourTarget;
@@ -43,13 +41,12 @@ public partial class MainWindow : Window
     }
 
     // The right column scrolls as one: the console takes whatever height is left under the setup
-    // checks, Discord and the stream panel, but never less than a readable minimum (then the column
-    // scrolls instead).
+    // checks, but never less than a readable minimum (then the column scrolls instead).
     const double ConsoleMin = 240;
     void FitRightColumn()
     {
         // The credit row sits under the scrolling part, so it isn't counted here.
-        var others = SetupRightView.ActualHeight + DiscordView.ActualHeight + StreamView.ActualHeight + StreamView.Margin.Top + ConsoleView.Margin.Top;
+        var others = SetupRightView.ActualHeight + ConsoleView.Margin.Top;
         ConsoleView.Height = Math.Max(ConsoleMin, RightScroll.ActualHeight - others);
     }
 
@@ -59,13 +56,10 @@ public partial class MainWindow : Window
         "tabs" => HeaderView.GameTabs,
         "settings" => HeaderView.SettingsButton,
         "characters" => CharacterTabs,
-        "posting" => PostingTab,
+        "sharing" => SharingTab,
         "followed" => FollowedTab,
         "friends" => FriendsTab,
         "setup" => new[] { SetupAtRight, SetupAtTop, SetupAtBottom }.FirstOrDefault(s => s.IsVisible),
-        "discord" => DiscordView,
-        // only the header: the open panel can be taller than the window
-        "stream" => StreamView.HeaderRow,
         _ => null,
     };
 

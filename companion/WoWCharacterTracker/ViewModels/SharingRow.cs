@@ -18,16 +18,16 @@ sealed class SharingRow(Moment moment, FlavorSettings settings, Func<List<string
         set { Moment.SetPost(settings, value); posted(); Raise(nameof(Post)); }
     }
 
-    // One box for the screenshot: taken in game and attached to the post.
+    // One box for the screenshot: taken in game and attached to the post (Advanced can keep them unattached).
     public bool HasShot => Moment.Shot is not null;
     public bool Shot
     {
-        get => Moment.Shot is { } k && settings.PostsShot(k);
+        get => Moment.Shot is { } k && settings.Shoots(k);
         set
         {
             if (Moment.Shot is not { } k) return;
             settings.Screenshot[k] = value;
-            settings.PostScreenshot[k] = value;
+            if (value && !settings.PostScreenshot.ContainsKey(k)) settings.PostScreenshot[k] = true;
             posted();
             Raise(nameof(Shot));
         }

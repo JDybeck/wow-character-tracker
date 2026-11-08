@@ -133,7 +133,7 @@ sealed class MainViewModel : Observable
         }
     }
 
-    // "characters" or "posting".
+    // "characters", "sharing" and so on.
     string page = "characters";
     public string Page { get => page; set { if (Set(ref page, value)) ShowItemsWhereOpen(); } }
 

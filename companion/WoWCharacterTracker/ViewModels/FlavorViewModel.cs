@@ -54,11 +54,7 @@ sealed class FlavorViewModel : Observable
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
         _ = LoadLogoAsync();
-        Shots = EventKinds.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
-
-    // Screenshot options per kind of event, bound as Shots[level].Take and so on.
-    public Dictionary<string, ShotOption> Shots { get; }
 
     // Settings the addon reads (Settings.lua): saved, written for the addon, and the reload banner
     // shown if the game is running.
@@ -243,27 +239,14 @@ sealed class FlavorViewModel : Observable
         if (!Settings.TakeInGame(game)) return;
         main.Config.Save();
         WriteAddonSettings();
-        announceKinds = null;
-        askKinds = null;
         RefreshAskSeconds();
         SharingChanged();
-        foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces), nameof(AnnounceKinds), nameof(AskKinds),
+        foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces),
             nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
             nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight) })
             Raise(name);
         Log.Info($"[{Name}] Took the In game settings you changed in the game.");
     }
-
-    // Offering to post a highlight no setting posts (In game page; the addon's Ask.lua).
-    static readonly (string Kind, string Name, string Tip)[] AskNames =
-    [
-        ("boss", "Boss kills", "Any boss, not only the last one of a dungeon or raid."),
-        ("rare", "Rare gear", "Blue weapons and armor you loot."),
-        ("epic", "Epic gear", "Purple weapons and armor you loot."),
-    ];
-    ObservableCollection<ToggleOption>? askKinds;
-    public ObservableCollection<ToggleOption> AskKinds => askKinds ??=
-        ToggleOption.Kinds(AskNames, Settings.AskKinds ??= [], () => InGameChanged());
 
     // The Sharing table (Models/Moments): one row per moment this game has.
     IReadOnlyList<SharingRow>? sharingRows;
@@ -311,6 +294,25 @@ sealed class FlavorViewModel : Observable
             Raise(name);
     }
 
+    // The Sharing page's folds: the table opens by itself when the choices are custom.
+    bool? showCustomize;
+    public bool ShowCustomize { get => showCustomize ??= IsCustom; set { showCustomize = value; Raise(nameof(ShowCustomize)); } }
+    bool showAdvanced;
+    public bool ShowAdvanced { get => showAdvanced; set => Set(ref showAdvanced, value); }
+    public ICommand ToggleCustomizeCommand => new RelayCommand(_ => ShowCustomize = !ShowCustomize);
+    public ICommand ToggleAdvancedCommand => new RelayCommand(_ => ShowAdvanced = !ShowAdvanced);
+
+    // The table's screenshot box takes and attaches; off here keeps them in the Screenshots folder only.
+    public bool AttachShots
+    {
+        get => EventKinds.ShotKinds.Where(Settings.Shoots).All(Settings.PostsShot);
+        set
+        {
+            foreach (var k in EventKinds.ShotKinds) Settings.PostScreenshot[k] = value;
+            Changed();
+        }
+    }
+
     // The Discord switch: off pauses this game's posts without forgetting its webhooks.
     public bool DiscordOn
     {
@@ -337,30 +339,6 @@ sealed class FlavorViewModel : Observable
     public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; InGameChanged(); Raise(nameof(Announces)); } }
     public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; InGameChanged(); Raise(nameof(Announces)); } }
     public bool Announces => AnnounceGuild || AnnounceParty;
-    // Tip is shown on the page: a sample of the line the addon writes (Announce.lua's message).
-    static readonly (string Kind, string Name, string Tip)[] AnnounceNames =
-    [
-        ("level", "Level-ups", "\"Ding! Level 23. 22 to 23 took 41m 12s.\""), ("maxlevel", "Max level", "\"Reached max level 60! Total played 6d 4h 12m.\""),
-        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\""),
-        ("keyrun", "Mythic+ runs", "\"Timed +12 Ara-Kara, City of Echoes (+2)!\" From the lowest key level set for Discord."), ("loot", "Epic loot", "\"Looted [Item]!\" For epic and legendary items."),
-        ("followed", "Followed items", "\"Got [Item] from my followed items!\" For anything on your Followed items tab."),
-        ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
-        ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
-        ("profession", "Professions", "\"Reached 150 Mining!\" At the steps set for Discord."),
-        ("mplus", "Mythic+", "\"Reached 2500 Mythic+ rating!\""), ("pvp", "PvP rating", "\"Reached 1800 rating in 3v3!\""), ("death", "Deaths", "\"Fell at level 34 to Hogger. Rest in peace.\""),
-    ];
-    // One row per kind, with a box for guild chat and one for group chat: each has its own list.
-    ObservableCollection<AnnounceRow>? announceKinds;
-    public ObservableCollection<AnnounceRow> AnnounceKinds => announceKinds ??= AnnounceTable();
-
-    ObservableCollection<AnnounceRow> AnnounceTable()
-    {
-        var names = EventKinds.Offered(AnnounceNames, Flavor.HasRatings).ToList();
-        var guild = ToggleOption.Kinds(names, Settings.AnnounceKinds, () => InGameChanged());
-        var party = ToggleOption.Kinds(names, Settings.AnnouncePartyKinds ??= [.. Settings.AnnounceKinds], () => InGameChanged());
-        return [.. names.Select((n, i) => new AnnounceRow(n.Name, n.Tip, guild[i], party[i]))];
-    }
-
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; InGameChanged(); } }
     public bool GridTopLeft { get => Corner == "TOPLEFT"; set { if (value) SetCorner("TOPLEFT"); } }
@@ -470,7 +448,6 @@ sealed class FlavorViewModel : Observable
     void PostingReplaced()
     {
         AddonSettingsChanged();
-        foreach (var o in Shots.Values) o.Refresh();
         SharingChanged();
         Raise(string.Empty); // every property
     }

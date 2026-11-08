@@ -6,7 +6,7 @@ namespace WoWCharacterTracker.Ui;
 
 // For testing: CHARACTERTRACKER_SCREENSHOT=<png> renders the window to that file and quits, so
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
-// to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
+// to show, as "tab:page[:extra[:extra2]]", e.g. "forever:sharing:custom:advanced" or "forever:characters:testchars:post".
 //   extra:  rename | options (a webhook) | removehook | addhook (the Add form open) | testchars | updating (the update banner mid-download) | updateready (a new version offered)
 //           | stream (the Stream overlay panel on and open) | testall (every Test button; test characters on when Forever has none) | addonupdate
 //           | nofolder (the tab as if no game folder was found, faked: no detection runs) | betafolder (the still-on-the-beta-folder reminder)
@@ -33,7 +33,9 @@ static class ScreenshotMode
 
             if (vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Part(0)) is { } tab) vm.SelectedFlavor = tab;
             if (Part(1) == "uninstall") vm.ShowUninstallCommand.Execute(null); // fills the list too
+            else if (Part(1) is "posting" or "ingame") vm.Page = "sharing"; // the two pages Sharing replaced
             else if (Part(1).Length > 0) vm.Page = Part(1);
+            if (Part(2) == "custom" && vm.SelectedFlavor is { } sharing) { sharing.ShowCustomize = true; sharing.ShowAdvanced = Part(3) == "advanced"; }
             if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
             if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;

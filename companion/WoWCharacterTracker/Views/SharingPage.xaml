@@ -1,0 +1,418 @@
+<!-- Sharing: who hears about your moments. The switches for each place, how much (a preset), the table
+     with a row per moment and a box per place (Models/Moments), then Discord's webhooks, the stream
+     overlay and the rarely needed options folded under Advanced. DataContext: the selected game tab. -->
+<UserControl x:Class="WoWCharacterTracker.Views.SharingPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
+             xmlns:views="clr-namespace:WoWCharacterTracker.Views">
+  <UserControl.Resources>
+    <Style x:Key="OptionTitle" TargetType="TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style x:Key="Group" TargetType="TextBlock" BasedOn="{StaticResource SectionTitle}">
+      <Setter Property="Margin" Value="0,18,0,10"/>
+    </Style>
+    <Style x:Key="TableCell" TargetType="Grid">
+      <Setter Property="Width" Value="84"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="Dash" TargetType="TextBlock">
+      <Setter Property="Text" Value="–"/>
+      <Setter Property="Foreground" Value="{StaticResource Faint}"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="Cell" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <!-- A preset: a card that lights up when picked. -->
+    <Style x:Key="PresetCard" TargetType="RadioButton">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="Box" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="16,14">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+                <Setter TargetName="Box" Property="Background" Value="{DynamicResource BlueSoft}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- A place: its name, one line and a switch. -->
+    <Style x:Key="PlaceSwitch" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Resources>
+
+  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="3" DataContext="{Binding SelectedFlavor}"
+          Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=sharing}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="26,22">
+        <TextBlock FontSize="18" FontWeight="SemiBold" Foreground="White">
+          <Run Text="Sharing for"/>
+          <Run Text="{Binding Name, Mode=OneWay}"/>
+        </TextBlock>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,16"
+                   Text="Who hears about your moments: Discord, your guild or group, and your stream."/>
+
+        <!-- Where: one switch per place. -->
+        <UniformGrid Columns="3" Margin="-5,0,-5,0">
+          <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
+            <DockPanel>
+              <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding DiscordOn}"
+                        ToolTip="Off pauses this game's posts. Your webhooks stay, and what happens meanwhile isn't posted later."
+                        AutomationProperties.Name="Post to Discord"/>
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Discord"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Posts through your webhooks"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+          <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
+            <DockPanel>
+              <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding AnnounceGuild}"
+                        ToolTip="Write in guild chat (when you're in a guild)" AutomationProperties.Name="Guild chat"/>
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Guild chat"/>
+                <TextBlock Style="{StaticResource Hint}" Text="A line as you, out of combat"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+          <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
+            <DockPanel>
+              <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding AnnounceParty}"
+                        ToolTip="Write to your group: party, raid or instance chat" AutomationProperties.Name="Party and raid chat"/>
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Party / raid chat"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Your group, out of combat"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+        </UniformGrid>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
+                   Text="Chat changes reach the game on your next /reload. The stream overlay has its own switch further down."/>
+
+        <!-- How much: the presets. -->
+        <TextBlock Style="{StaticResource Group}" Text="How much gets shared"/>
+        <UniformGrid Columns="3" Margin="-5,0,-5,0">
+          <RadioButton Style="{StaticResource PresetCard}" Margin="5,0" IsChecked="{Binding PresetQuiet}" GroupName="{Binding Name, StringFormat=preset-{0}}">
+            <StackPanel>
+              <TextBlock Text="Quiet" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="Every 10th level, max level, epic loot and followed items."/>
+            </StackPanel>
+          </RadioButton>
+          <RadioButton Style="{StaticResource PresetCard}" Margin="5,0" IsChecked="{Binding PresetNormal}" GroupName="{Binding Name, StringFormat=preset-{0}}">
+            <StackPanel>
+              <TextBlock Text="Normal" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="What new players start with: the big moments, with screenshots for the best ones."/>
+            </StackPanel>
+          </RadioButton>
+          <RadioButton Style="{StaticResource PresetCard}" Margin="5,0" IsChecked="{Binding PresetEverything}" GroupName="{Binding Name, StringFormat=preset-{0}}">
+            <StackPanel>
+              <TextBlock Text="Everything" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="Every moment and every level, with screenshots."/>
+            </StackPanel>
+          </RadioButton>
+        </UniformGrid>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" Visibility="{Binding IsCustom, Converter={StaticResource Visible}}"
+                   Text="Custom: your own picks in the table below."/>
+        <Border Style="{StaticResource PanelBorder}" Margin="0,10,0,0" Padding="16,10" Visibility="{Binding ConfirmPreset, Converter={StaticResource Visible}}">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <Button Style="{StaticResource PrimaryButton}" Content="Replace" Command="{Binding ConfirmPresetCommand}" Margin="0,0,8,0"/>
+              <Button Style="{StaticResource GhostButton}" Content="Keep mine" Command="{Binding CancelPresetCommand}"/>
+            </StackPanel>
+            <TextBlock Style="{StaticResource OptionTitle}" VerticalAlignment="Center" Text="Replace your custom choices with the preset?"/>
+          </DockPanel>
+        </Border>
+
+        <!-- Customize: a row per moment, a box per place. Test shows on the row under the mouse. -->
+        <Button Style="{StaticResource GhostButton}" Padding="0" Margin="0,18,0,8" HorizontalAlignment="Left" Command="{Binding ToggleCustomizeCommand}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,8,0">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                  <Setter Property="Text" Value="&#xE76C;"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding ShowCustomize}" Value="True"><Setter Property="Text" Value="&#xE70D;"/></DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+            <TextBlock Text="Customize" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+            <TextBlock Style="{StaticResource Hint}" Margin="10,0,0,0" VerticalAlignment="Center" Text="pick per moment and per place"/>
+          </StackPanel>
+        </Button>
+        <Border Style="{StaticResource PanelBorder}" Padding="14,8" Visibility="{Binding ShowCustomize, Converter={StaticResource Visible}}">
+          <StackPanel>
+            <Grid Margin="8,4,8,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="60"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource FactLabel}" Text="MOMENT"/>
+              <TextBlock Grid.Column="1" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="DISCORD" ToolTip="Post it to your webhooks"/>
+              <TextBlock Grid.Column="2" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="SCREENSHOT" ToolTip="Take a screenshot in game and attach it to the post"/>
+              <TextBlock Grid.Column="3" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="GUILD" ToolTip="A line in guild chat"/>
+              <TextBlock Grid.Column="4" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="GROUP" ToolTip="A line in party or raid chat"/>
+              <TextBlock Grid.Column="5" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="ASK FIRST"
+                         ToolTip="When Discord doesn't post it, a small box in game offers Post or Skip. Needs a webhook."/>
+              <TextBlock Grid.Column="6" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="STREAM" ToolTip="The big alert on the stream overlay (shared by both games)"/>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding SharingRows}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border x:Name="RowBox" CornerRadius="8" Padding="8,7" Background="Transparent" BorderBrush="{DynamicResource LineSoft}" BorderThickness="0,1,0,0">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="60"/>
+                      </Grid.ColumnDefinitions>
+                      <StackPanel VerticalAlignment="Center" ToolTip="{Binding Tip}">
+                        <TextBlock Style="{StaticResource OptionTitle}" Text="{Binding Name}"/>
+                        <TextBlock Style="{StaticResource Hint}" FontSize="11" Text="{Binding Rule}" Visibility="{Binding HasRule, Converter={StaticResource Visible}}"/>
+                      </StackPanel>
+                      <Grid Grid.Column="1" Style="{StaticResource TableCell}">
+                        <CheckBox x:Name="DiscordBox" Style="{StaticResource Cell}" IsChecked="{Binding Post}" AutomationProperties.Name="{Binding Name, StringFormat={}{0} to Discord}"/>
+                      </Grid>
+                      <Grid Grid.Column="2" Style="{StaticResource TableCell}">
+                        <CheckBox Style="{StaticResource Cell}" IsChecked="{Binding Shot}" Visibility="{Binding HasShot, Converter={StaticResource Visible}}"
+                                  AutomationProperties.Name="{Binding Name, StringFormat={}{0} screenshot}"/>
+                        <TextBlock Style="{StaticResource Dash}" Visibility="{Binding HasShot, Converter={StaticResource Hidden}}"/>
+                      </Grid>
+                      <Grid Grid.Column="3" Style="{StaticResource TableCell}">
+                        <CheckBox x:Name="GuildBox" Style="{StaticResource Cell}" IsChecked="{Binding Guild}" ToolTip="{Binding AnnounceSample}" Visibility="{Binding HasAnnounce, Converter={StaticResource Visible}}"
+                                  AutomationProperties.Name="{Binding Name, StringFormat={}{0} in guild chat}"/>
+                        <TextBlock Style="{StaticResource Dash}" Visibility="{Binding HasAnnounce, Converter={StaticResource Hidden}}"/>
+                      </Grid>
+                      <Grid Grid.Column="4" Style="{StaticResource TableCell}">
+                        <CheckBox x:Name="GroupBox" Style="{StaticResource Cell}" IsChecked="{Binding Group}" ToolTip="{Binding AnnounceSample}" Visibility="{Binding HasAnnounce, Converter={StaticResource Visible}}"
+                                  AutomationProperties.Name="{Binding Name, StringFormat={}{0} in group chat}"/>
+                        <TextBlock Style="{StaticResource Dash}" Visibility="{Binding HasAnnounce, Converter={StaticResource Hidden}}"/>
+                      </Grid>
+                      <Grid Grid.Column="5" Style="{StaticResource TableCell}">
+                        <CheckBox Style="{StaticResource Cell}" IsChecked="{Binding Ask}" Visibility="{Binding HasAsk, Converter={StaticResource Visible}}"
+                                  AutomationProperties.Name="{Binding Name, StringFormat={}{0}: ask first}"/>
+                        <TextBlock Style="{StaticResource Dash}" Visibility="{Binding HasAsk, Converter={StaticResource Hidden}}"/>
+                      </Grid>
+                      <Grid Grid.Column="6" Style="{StaticResource TableCell}">
+                        <CheckBox Style="{StaticResource Cell}" IsChecked="{Binding Alert}" Visibility="{Binding HasAlert, Converter={StaticResource Visible}}"
+                                  AutomationProperties.Name="{Binding Name, StringFormat={}{0} stream alert}"/>
+                        <TextBlock Style="{StaticResource Dash}" Visibility="{Binding HasAlert, Converter={StaticResource Hidden}}"/>
+                      </Grid>
+                      <Button x:Name="TestButton" Grid.Column="7" Style="{StaticResource ChipButton}" Content="Test" Opacity="0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                              Command="{Binding DataContext.TestKindCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Moment.Test}"
+                              ToolTip="Send a sample post of this kind to Discord, to see how it looks"/>
+                    </Grid>
+                  </Border>
+                  <DataTemplate.Triggers>
+                    <Trigger SourceName="RowBox" Property="IsMouseOver" Value="True">
+                      <Setter TargetName="RowBox" Property="Background" Value="{DynamicResource Hover}"/>
+                      <Setter TargetName="TestButton" Property="Opacity" Value="1"/>
+                    </Trigger>
+                    <Trigger SourceName="TestButton" Property="IsKeyboardFocused" Value="True">
+                      <Setter TargetName="TestButton" Property="Opacity" Value="1"/>
+                    </Trigger>
+                    <!-- A place that's switched off: its boxes fade but can still be picked ahead. -->
+                    <DataTrigger Binding="{Binding DataContext.DiscordOn, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="False">
+                      <Setter TargetName="DiscordBox" Property="Opacity" Value="0.4"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding DataContext.AnnounceGuild, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="False">
+                      <Setter TargetName="GuildBox" Property="Opacity" Value="0.4"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding DataContext.AnnounceParty, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="False">
+                      <Setter TargetName="GroupBox" Property="Opacity" Value="0.4"/>
+                    </DataTrigger>
+                  </DataTemplate.Triggers>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Style="{StaticResource Hint}" Margin="8,8,8,4" Foreground="#FB923C"
+                       Text="Legendary gear is always posted. Things switched off are skipped, and they won't be posted later if you switch them on."/>
+          </StackPanel>
+        </Border>
+
+        <!-- The places' own settings: webhooks and the overlay (the same panels the window had on the right). -->
+        <Grid Margin="0,18,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="14"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <views:DiscordPanel x:Name="DiscordView" VerticalAlignment="Top" DataContext="{Binding DataContext.Discord, RelativeSource={RelativeSource AncestorType=Window}}"/>
+          <views:StreamPanel x:Name="StreamView" Grid.Column="2" VerticalAlignment="Top" DataContext="{Binding DataContext.Stream, RelativeSource={RelativeSource AncestorType=Window}}"/>
+        </Grid>
+
+        <!-- Advanced: the rest of what the old What gets posted and In game pages had. -->
+        <Button Style="{StaticResource GhostButton}" Padding="0" Margin="0,18,0,8" HorizontalAlignment="Left" Command="{Binding ToggleAdvancedCommand}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,8,0">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                  <Setter Property="Text" Value="&#xE76C;"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding ShowAdvanced}" Value="True"><Setter Property="Text" Value="&#xE70D;"/></DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+            <TextBlock Text="Advanced" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+            <TextBlock Style="{StaticResource Hint}" Margin="10,0,0,0" VerticalAlignment="Center" Text="level steps, filters, screenshots, in game options, settings codes"/>
+          </StackPanel>
+        </Button>
+        <Border Style="{StaticResource PanelBorder}" Visibility="{Binding ShowAdvanced, Converter={StaticResource Visible}}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Level-ups"/>
+            <Grid Margin="0,10,0,0" IsEnabled="{Binding PostLevels}" HorizontalAlignment="Left">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+              <TextBlock Text="Up to level" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <TextBox Grid.Column="1" Style="{StaticResource GridNumberBox}" ToolTip="The level where the first rule stops and the second one starts" Text="{Binding LevelSplit, UpdateSourceTrigger=PropertyChanged}"/>
+              <TextBlock Grid.Row="1" Text="post every" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource GridNumberBox}" ToolTip="Post every this many levels up to that level" Text="{Binding LevelEveryBefore, UpdateSourceTrigger=PropertyChanged}"/>
+              <TextBlock Grid.Row="1" Grid.Column="2" Text="levels" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="2" Text="then every" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource GridNumberBox}" ToolTip="Post every this many levels after that level" Text="{Binding LevelEveryAfter, UpdateSourceTrigger=PropertyChanged}"/>
+              <TextBlock Grid.Row="2" Grid.Column="2" Text="level(s)" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+            </Grid>
+            <TextBlock Text="{Binding LevelPreview}" Foreground="{StaticResource Green}" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"/>
+
+            <TextBlock Style="{StaticResource Group}" Text="Filters"/>
+            <WrapPanel>
+              <CheckBox Style="{StaticResource ChipCheck}" Content="Rares: Bind on Equip only" IsChecked="{Binding RareBoeOnly}"
+                        ToolTip="Only rare items that bind when equipped: world drops worth a shout, not every dungeon blue. Every rare still shows in the app's highlights."/>
+              <CheckBox Style="{StaticResource ChipCheck}" Content="End bosses: first kill only" IsChecked="{Binding FirstBossKillOnly}" Visibility="{Binding IsRetail, Converter={StaticResource Hidden}}"
+                        ToolTip="Post each character's first kill of each end boss, not the runs after it. Every kill still shows in the app's highlights."/>
+              <CheckBox Style="{StaticResource ChipCheck}" Content="Mythic+: timed only" IsChecked="{Binding KeyRunTimedOnly}" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}"
+                        ToolTip="Only keys beaten in time. Every run still shows in the app's highlights."/>
+            </WrapPanel>
+            <Grid Margin="0,10,0,0" HorizontalAlignment="Left" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock Text="Mythic+ from key level" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <TextBox Grid.Column="1" Style="{StaticResource GridNumberBox}" ToolTip="Keys below this level aren't posted (2 or less = every key)" Text="{Binding KeyRunMinLevel, UpdateSourceTrigger=PropertyChanged}"/>
+              <TextBlock Grid.Column="2" Text="and up" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+            </Grid>
+            <StackPanel Margin="0,12,0,0" Visibility="{Binding IsRetail, Converter={StaticResource Hidden}}">
+              <TextBlock Text="Skip a boss kill when someone in the group matches (regex)" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,4"/>
+              <Grid MaxWidth="420" HorizontalAlignment="Left">
+                <TextBox Width="420" ToolTip="Skip the kill post when a group member's name matches this regex" Text="{Binding SkipBossGroupRegex, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
+                <TextBlock Text="e.g. ^(Grimtusk|Pellia)$" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" FontFamily="{StaticResource Mono}"
+                           VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding SkipBossGroupRegex, Converter={StaticResource HiddenIfSet}}"/>
+              </Grid>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="For friends who run the tracker too, so a kill isn't posted twice."/>
+              <TextBlock Text="{Binding SkipRegexProblem}" Foreground="{StaticResource Red}" FontSize="12" Visibility="{Binding SkipRegexProblem, Converter={StaticResource VisibleIfSet}}"/>
+            </StackPanel>
+
+            <TextBlock Style="{StaticResource Group}" Text="Steps"/>
+            <Grid HorizontalAlignment="Left" Width="420">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+              <TextBlock Text="Profession skill" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="1" Margin="0,0,0,6" ToolTip="Skill levels that trigger a post, separated by commas" Text="{Binding ProfessionStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
+              <TextBlock Grid.Row="1" Text="Mythic+ rating" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}"/>
+              <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" ToolTip="Ratings that trigger a post, separated by commas" Text="{Binding MPlusStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"
+                       Visibility="{Binding IsRetail, Converter={StaticResource Visible}}"/>
+              <TextBlock Grid.Row="2" Text="PvP rating" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center" Visibility="{Binding IsRetail, Converter={StaticResource Visible}}"/>
+              <TextBox Grid.Row="2" Grid.Column="1" ToolTip="Ratings that trigger a post, separated by commas" Text="{Binding PvpStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"
+                       Visibility="{Binding IsRetail, Converter={StaticResource Visible}}"/>
+            </Grid>
+
+            <StackPanel Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
+              <TextBlock Style="{StaticResource Group}" Text="Name in posts"/>
+              <StackPanel Orientation="Horizontal">
+                <CheckBox Style="{StaticResource OptionChip}" Content="Full name (Ronnie Raket)" ToolTip="Posts and cards use first name and surname" IsChecked="{Binding NameFull}" Margin="0,0,6,0"/>
+                <CheckBox Style="{StaticResource OptionChip}" Content="First name (Ronnie)" ToolTip="Posts and cards use just the first name" IsChecked="{Binding NameFirst}" Margin="0,0,6,0"/>
+                <CheckBox Style="{StaticResource OptionChip}" Content="Surname (Raket)" ToolTip="Posts and cards use just the surname" IsChecked="{Binding NameLast}"/>
+              </StackPanel>
+            </StackPanel>
+
+            <TextBlock Style="{StaticResource Group}" Text="Screenshots"/>
+            <CheckBox IsChecked="{Binding AttachShots}" Margin="0,0,0,10" ToolTip="Off: screenshots are only saved in your Screenshots folder">
+              <TextBlock Style="{StaticResource OptionTitle}" Text="Attach screenshots to Discord posts"/>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding HideChatInShots}" Margin="0,0,0,10" ToolTip="Hide the chat windows for the moment a screenshot is taken">
+              <TextBlock Style="{StaticResource OptionTitle}" Text="Hide chat in screenshots"/>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding HideUiInShots}" ToolTip="Just your character and the world: action bars, minimap, chat and frames are hidden for a split second. Nameplates stay.">
+              <TextBlock Style="{StaticResource OptionTitle}" Text="Hide the whole interface in screenshots (like Alt+Z)"/>
+            </CheckBox>
+
+            <TextBlock Style="{StaticResource Group}" Text="The ask box in game"/>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="It stays" Foreground="{StaticResource TextSoft}" FontSize="13" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <ItemsControl ItemsSource="{Binding AskSecondsChoices}" Focusable="False" ItemsPanel="{StaticResource Row}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <RadioButton Style="{StaticResource DetailTab}" Content="{Binding Label}" IsChecked="{Binding IsOn}" Margin="0,0,6,0"
+                                 GroupName="{Binding Group}" ToolTip="How long the box stays before it goes away by itself"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <TextBlock Style="{StaticResource Group}" Text="In game"/>
+            <CheckBox ToolTip="On a flight path, offer a /reload when your bags or gear changed" IsChecked="{Binding FlightReloadPrompt}" Margin="0,0,0,10">
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Offer a reload on flight paths"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Gear, bags and bank only reach the app on /reload or logout."/>
+              </StackPanel>
+            </CheckBox>
+            <CheckBox ToolTip="Put a line in chat reminding you to /reload when your bags or gear changed" IsChecked="{Binding ChatReloadReminder}" Margin="0,0,0,10">
+              <TextBlock Style="{StaticResource OptionTitle}" Text="Remind me in chat to /reload"/>
+            </CheckBox>
+            <CheckBox ToolTip="Keep every loot, duel and battleground in the addon's saved file" IsChecked="{Binding KeepAllHistory}" Margin="0,0,0,10">
+              <StackPanel>
+                <TextBlock Style="{StaticResource OptionTitle}" Text="Keep all history"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Off keeps the newest 300 loot, duels and battlegrounds per character, so /reload stays quick."/>
+              </StackPanel>
+            </CheckBox>
+            <CheckBox ToolTip="Turn on the game's Advanced Combat Logging setting (System, Network)" IsChecked="{Binding AdvancedCombatLog}" Margin="0,0,0,12">
+              <TextBlock Style="{StaticResource OptionTitle}" Text="Advanced combat logging"/>
+            </CheckBox>
+            <TextBlock Text="Instant posting pattern (one frame per event)" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,6"/>
+            <WrapPanel Margin="0,0,0,8">
+              <RadioButton Style="{StaticResource DetailTab}" Content="Top left" IsChecked="{Binding GridTopLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Top right" IsChecked="{Binding GridTopRight}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Bottom left" IsChecked="{Binding GridBottomLeft}" GroupName="{Binding Name, StringFormat=corner-{0}}" Margin="0,0,6,0"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Bottom right" IsChecked="{Binding GridBottomRight}" GroupName="{Binding Name, StringFormat=corner-{0}}"/>
+            </WrapPanel>
+            <CheckBox ToolTip="Show a small &quot;Character Tracker /wct&quot; label next to the pattern" IsChecked="{Binding GridLabel}">
+              <TextBlock Style="{StaticResource OptionTitle}" Text="Show a small label next to it"/>
+            </CheckBox>
+
+            <TextBlock Style="{StaticResource Group}" Text="Settings codes"/>
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource GhostButton}" Content="Copy settings" ToolTip="Copy these settings as a code to share with friends"
+                      Command="{Binding DataContext.CopyPostingCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+              <Button Style="{StaticResource GhostButton}" Content="Paste settings" ToolTip="Use a settings code someone shared (copy it first)"
+                      Command="{Binding DataContext.PastePostingCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+              <Button Style="{StaticResource GhostButton}" Content="Reset to defaults" ToolTip="Put every posting setting for this game back to how it started"
+                      Command="{Binding DataContext.ResetPostingCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Border>
+</UserControl>

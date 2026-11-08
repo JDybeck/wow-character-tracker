@@ -62,13 +62,9 @@
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE90F;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Professions"/></StackPanel>
           </Button>
           </StackPanel>
-          <Button x:Name="PostingTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=posting}"
-                  Command="{Binding ShowPageCommand}" CommandParameter="posting">
-            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="What gets posted"/></StackPanel>
-          </Button>
-          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=ingame}"
-                  Command="{Binding ShowPageCommand}" CommandParameter="ingame">
-            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7FC;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="In game"/></StackPanel>
+          <Button x:Name="SharingTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=sharing}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="sharing">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Sharing"/></StackPanel>
           </Button>
           <Button x:Name="FollowedTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=followed}"
                   Command="{Binding ShowPageCommand}" CommandParameter="followed">
@@ -111,8 +107,7 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <views:PostingPage Grid.Row="2"/>
-      <views:InGamePage Grid.Row="2"/>
+      <views:SharingPage x:Name="SharingView" Grid.Row="2"/>
       <views:UninstallPage Grid.Row="2"/>
       <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
       <views:GameOffPage Grid.Row="0" Grid.RowSpan="3"/>
@@ -130,9 +125,7 @@
           <Border x:Name="SetupRightView" Visibility="{Binding SetupRight, Converter={StaticResource Visible}}">
             <views:SetupBar x:Name="SetupAtRight" Margin="0,0,0,16" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
           </Border>
-          <views:DiscordPanel x:Name="DiscordView" DataContext="{Binding Discord}"/>
-          <views:StreamPanel x:Name="StreamView" Margin="0,16,0,0" DataContext="{Binding Stream}"/>
-          <views:ConsolePanel x:Name="ConsoleView" Margin="0,16,0,0"/>
+          <views:ConsolePanel x:Name="ConsoleView"/>
         </StackPanel>
         </ScrollViewer>
         <!-- The maker and a tip link, quietly in the corner, always in view (outside the scrolling). -->
