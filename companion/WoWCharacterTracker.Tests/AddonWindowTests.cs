@@ -735,6 +735,44 @@ public class AddonWindowTests
         Assert.False(Bool(c, "onScreen(sharingPanel())"));
     }
 
+    [Fact]
+    public void The_sharing_panel_asks_a_friend_for_what_you_picked()
+    {
+        var c = FriendsTab();
+        c.Lua(SharingStubs);
+        c.Lua("asked = {}; ns.askFriend = function(tag, wants) asked = { tag = tag, wants = table.concat(wants, ',') }; return 'Asked them.' end");
+        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
+        c.Lua("clickIn('Cidro', 'Sharing')");
+        Assert.True(Bool(c, "shownText('Ask them to share:') ~= nil"));
+        c.Lua("""
+            function chip(label)
+              for _, f in ipairs(frames) do
+                if f.parent == sharingPanel() and f.text == label then return f.scripts.OnClick(f) end
+              end
+              error('no ' .. label)
+            end
+            """);
+        c.Lua("chip('Map position')");
+        c.Lua("chip('Gold')");
+        c.Lua("chip('Gold')"); // picked, then not
+        c.Lua("chip('Ask')");
+        Assert.Equal("Cid#3", c.Lua("return asked.tag").String);
+        Assert.Equal("map", c.Lua("return asked.wants").String);
+        Assert.True(Bool(c, "shownText('Asked them.') ~= nil"));
+    }
+
+    [Fact]
+    public void A_request_for_more_has_no_never_button()
+    {
+        var c = Load();
+        c.Lua("""
+            WoWCharacterTrackerDB.share = { enabled = true, at = 1, contacts = { ['Zeb#2222'] = { share = true, receive = true } } }
+            ns.offerFriendRequest({ tag = 'Zeb#2222', account = 9, wants = { 'map' }, more = true })
+            """);
+        Assert.True(Bool(c, "shownText('Zeb#2222 asks to also see your map position.') ~= nil"));
+        Assert.False(Bool(c, "(function() for _, f in ipairs(frames) do if f.text == 'Never' and onScreen(f) then return true end end return false end)()"));
+    }
+
     // A request from Zeb#2222 through the real Friends.lua, shown in the window's request box.
     static FriendsLuaTests.Client RequestBox()
     {

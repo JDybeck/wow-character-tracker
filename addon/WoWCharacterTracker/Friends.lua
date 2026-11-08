@@ -415,7 +415,7 @@ ns.comms.onReceive = function(account, kind, body)
   end
   local contact = s.contacts[tag]
   if kind == "REQ" then
-    if on.REQ then on.REQ(f, contact) end
+    if on.REQ then on.REQ(f, contact, body) end
   elseif contact and on[kind] then
     on[kind](f, contact, body)
   end
@@ -489,13 +489,50 @@ local function addContact(tag, share)
   return ns.shareSettings().contacts[tag]
 end
 
+-- The categories a request asks for ("map,gold"), known ones only, in CATEGORIES order. Older
+-- addons send an empty body and ignore one.
+local function wantsOf(body)
+  local asked, out = {}, {}
+  for k in tostring(body or ""):gmatch("[^,]+") do asked[k] = true end
+  for _, k in ipairs(CATEGORIES) do
+    if asked[k] then out[#out + 1] = k end
+  end
+  return out
+end
+
+local function asSet(list)
+  local out = {}
+  for _, k in ipairs(list or {}) do out[k] = true end
+  return out
+end
+
 -- A friend asks for our characters: answered when we share with them, else asked about in a popup.
-function on.REQ(f, contact)
+-- Asking for categories they don't get yet (map position, gold) asks about those, even when we share.
+function on.REQ(f, contact, body)
   local now = time()
   if requested[f.tag] and now - requested[f.tag] < REQUEST_COOLDOWN then return end
   requested[f.tag] = now
-  if contact and contact.share then return answer(f, contact) end
+  local wants = wantsOf(body)
+  if contact and contact.share then
+    answer(f, contact)
+    local allowed, missing = ns.allowedFor(ns.shareSettings(), contact), {}
+    for _, k in ipairs(wants) do
+      if not allowed[k] then missing[#missing + 1] = k end
+    end
+    if #missing == 0 then return end
+    f.wants, f.more = missing, true
+  else
+    f.wants = wants
+  end
   if not notNow[f.tag] then ns.offerFriendRequest(f) end
+end
+
+-- "wants to see your characters", "... with your map position" or "asks to also see your gold".
+local function asks(f)
+  local what = #(f.wants or {}) > 0 and ns.shareSummary(asSet(f.wants)) or nil
+  if f.more then return "asks to also see your " .. (what or "characters") end
+  if what then return "wants to see your characters, with your " .. what end
+  return "wants to see your characters"
 end
 
 -- The popup: one at a time, never in combat (PLAYER_REGEN_ENABLED shows the next one). The Friends
@@ -514,10 +551,12 @@ function ns.offerFriendRequest(f)
   changed()
 end
 
--- Requests waiting for an answer, oldest first: { tag, account, label, at }.
+-- Requests waiting for an answer, oldest first: { tag, account, label, at, wants, more, asks }.
 function ns.pendingRequests()
   local out = {}
-  local function add(f) out[#out + 1] = { tag = f.tag, account = f.account, label = label(f.tag), at = f.at } end
+  local function add(f)
+    out[#out + 1] = { tag = f.tag, account = f.account, label = label(f.tag), at = f.at, wants = f.wants, more = f.more, asks = asks(f) }
+  end
   if showing then add(showing) end
   for _, w in ipairs(waitingRequests) do add(w) end
   return out
@@ -530,18 +569,22 @@ local function sharedCount()
   return n
 end
 
--- What the request box shows for f: { label, chars (how many of yours they'd get), choices (the
--- categories Allow gives them now: your general choice, or what you set for them before), general }.
+-- What the request box shows for f: { label, line, more, chars (how many of yours they'd get),
+-- choices (the categories Allow gives them: your general choice, or what you set for them before,
+-- plus what they asked for), general }.
 function ns.requestInfo(f)
   local s = ns.shareSettings()
-  return { label = label(f.tag), chars = sharedCount(), choices = ns.allowedFor(s, s.contacts[f.tag]), general = ns.allowedFor(s, nil) }
+  local choices = ns.allowedFor(s, s.contacts[f.tag])
+  for _, k in ipairs(f.wants or {}) do choices[k] = true end
+  return { label = label(f.tag), line = label(f.tag) .. " " .. asks(f) .. ".", more = f.more == true, chars = sharedCount(),
+    choices = choices, general = ns.allowedFor(s, nil) }
 end
 
 -- Shows a request: the window's own box (Window.lua, with the choices), else a Blizzard popup.
 local function showRequest(f)
   if ns.showRequestBox then return ns.showRequestBox(f) end
   return ns.popup("CHARACTERTRACKER_FRIEND_REQUEST", {
-    text = "%s wants to see your characters (Character Tracker).",
+    text = "%s (Character Tracker)",
     button1 = "Allow", button2 = "Not now", button3 = "Never",
     OnAccept = function(_, data) ns.answerFriendRequest(data, "allow") end,
     OnCancel = function(_, data) ns.answerFriendRequest(data, "notnow") end,
@@ -553,7 +596,7 @@ local function showRequest(f)
         ns.showNextFriendRequest()
       end
     end,
-  }, label(f.tag), f)
+  }, ns.requestInfo(f).line, f)
 end
 
 local function hideRequest()
@@ -603,6 +646,8 @@ function ns.answerFriendRequest(f, choice, choices)
     end
     if choice == "allow" then
       addContact(f.tag, true)
+      -- From the list there are no choices: what they asked for comes along.
+      if not choices and #(f.wants or {}) > 0 then choices = ns.requestInfo(f).choices end
       keepChoices(f.tag, choices)
       local s = ns.shareSettings()
       local contact = s.contacts[f.tag]
@@ -636,7 +681,7 @@ end
 local HELP = {
   "/wct friends lists your contacts and what they get.",
   "/wct friends on or off turns sharing with Battle.net friends on or off.",
-  "/wct friends ask <BattleTag> asks a friend for their characters.",
+  "/wct friends ask <BattleTag> [map gold ...] asks a friend for their characters, or for more of them, like their map position.",
   "/wct friends share <BattleTag> shares your characters with them.",
   "/wct friends set all gear/talents/location/professions/highlights/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
   "/wct friends set <BattleTag> gear/talents/location/professions/highlights/gold/map on/off/default changes it for one friend.",
@@ -690,7 +735,8 @@ local function tell(message)
   return message
 end
 
-local function ask(tag)
+-- Asks tag for their characters, and for the categories in wants (a list, optional).
+local function ask(tag, wants)
   local now = time()
   if asked[tag] and now - asked[tag] < REQUEST_COOLDOWN then return tell("Asked " .. label(tag) .. " a moment ago.") end
   local got = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[tag]
@@ -699,8 +745,10 @@ local function ask(tag)
   local accounts = accountsOf(tag)
   if #accounts == 0 then return tell(label(tag) .. " isn't online in this game right now.") end
   asked[tag] = now
-  for _, account in ipairs(accounts) do ns.comms.send(account, "REQ", "") end
-  return tell("Asked " .. label(tag) .. ". What they share reaches the app on your next /reload or logout.")
+  local list = wantsOf(table.concat(wants or {}, ","))
+  for _, account in ipairs(accounts) do ns.comms.send(account, "REQ", table.concat(list, ",")) end
+  local what = #list > 0 and (" for " .. picked(asSet(list))) or ""
+  return tell("Asked " .. label(tag) .. what .. ". What they share reaches the app on your next /reload or logout.")
 end
 
 local function share(tag)
@@ -816,7 +864,19 @@ function ns.friendsCommand(args)
   end
   local tag = ns.findFriendTag(typed)
   if not tag then return ns.say((typed or "That") .. " isn't on your Battle.net friends list.") end
-  if cmd == "ask" then return ask(tag) end
+  if cmd == "ask" then
+    local wants, first = {}, true
+    for word in rest:gmatch("%S+") do
+      if first then
+        first = false -- the BattleTag
+      else
+        local key = CHOICE_BY_WORD[word:lower()]
+        if not key or key == "otherFaction" then return ns.say(HELP[3]) end
+        wants[#wants + 1] = key
+      end
+    end
+    return ask(tag, wants)
+  end
   if cmd == "share" then return share(tag) end
   if cmd == "unblock" then
     ns.editShare(function(s) s.blocked[tag] = nil end)

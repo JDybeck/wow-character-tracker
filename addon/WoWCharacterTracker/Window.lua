@@ -512,11 +512,12 @@ end
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
 local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
-local SHARING_HEIGHT = 438
+local SHARING_HEIGHT = 570
 local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", highlights = "Highlights",
   gold = "Gold", map = "Map position", otherFaction = "Map for the other faction" }
-local sharingTag, sharingTitle, sharingSummary
-local categoryButtons = {}
+local sharingTag, sharingTitle, sharingSummary, askSaid
+local categoryButtons, askButtons = {}, {}
+local askWants = {} -- [category] = true: picked to ask them for
 
 -- "Gear: like all friends (on)", "Gear: on" or "Gear: off".
 local function categoryText(cat)
@@ -543,6 +544,7 @@ local function drawSharing()
     end
   end
   sharingSummary:SetText(o.share and ("They get " .. o.summary .. ".") or "They get nothing while you don't share with them.")
+  for _, b in ipairs(askButtons) do ui.styleButton(b, askWants[b.key] and "selected" or nil) end
   ui.refresh(sharing) -- the checkboxes
 end
 
@@ -587,6 +589,39 @@ local function buildSharing()
   sharingSummary = ui.text(sharing, "GameFontHighlightSmall")
   sharingSummary:SetPoint("TOPLEFT", cycleHint, "BOTTOMLEFT", 0, -12)
   sharingSummary:SetWidth(DETAILS_WIDTH - 28)
+
+  -- Asking them for more of theirs: pick what, then Ask. Their box asks them with those ticked.
+  local askTitle = ui.text(sharing, "GameFontNormalSmall", "Ask them to share:")
+  askTitle:SetPoint("TOPLEFT", sharingSummary, "BOTTOMLEFT", 0, -16)
+  local chip = math.floor((DETAILS_WIDTH - 28 - 12) / 3)
+  local categories = ns.SHARE_CATEGORIES or {}
+  local function slot(b, i)
+    local row, column = math.floor((i - 1) / 3), (i - 1) % 3
+    b:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", column * (chip + 6), -6 - row * 26)
+  end
+  for i, key in ipairs(categories) do
+    local b = ui.button(sharing, CATEGORY_NAMES[key] or key, chip, function()
+      askWants[key] = not askWants[key] or nil
+      drawSharing()
+    end)
+    b.key = key
+    slot(b, i)
+    askButtons[i] = b
+  end
+  local askButton = ui.button(sharing, "Ask", chip, function()
+    if not (sharingTag and ns.askFriend) then return end
+    local list = {}
+    for _, key in ipairs(categories) do
+      if askWants[key] then list[#list + 1] = key end
+    end
+    askSaid:SetText(ns.askFriend(sharingTag, list) or "")
+    askWants = {}
+    drawSharing()
+  end, "primary")
+  slot(askButton, #categories + 1)
+  askSaid = ui.text(sharing, "GameFontDisableSmall")
+  askSaid:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", 0, -12 - math.ceil((#categories + 1) / 3) * 26)
+  askSaid:SetWidth(DETAILS_WIDTH - 28)
 end
 
 -- Opens what you share with tag (a contact), or closes it when it already shows them. Returns nil
@@ -597,6 +632,10 @@ openSharing = function(tag)
   if sharing:IsShown() and sharingTag == tag then
     sharing:Hide()
     return nil
+  end
+  if sharingTag ~= tag then
+    askWants = {}
+    askSaid:SetText("")
   end
   sharingTag = tag
   if details then details:Hide() end -- one side panel at a time
@@ -697,6 +736,7 @@ local function buildRequestBox()
   never:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -14, 14)
   notNow:SetPoint("RIGHT", never, "LEFT", -6, 0)
   allow:SetPoint("RIGHT", notNow, "LEFT", -6, 0)
+  box.never = never
 
   -- Closed with Esc: Not now, a moment later so the next request doesn't open while this one closes.
   box:SetScript("OnHide", function(self)
@@ -716,7 +756,8 @@ function ns.showRequestBox(f)
   local box = requestBox
   box.request, box.answered, box.open = f, false, false
   box.chars, box.general, box.choices = info.chars, info.general, ns.copy(info.choices)
-  box.line:SetText(info.label .. " wants to see your characters.")
+  box.line:SetText(info.line or (info.label .. " wants to see your characters."))
+  box.never:SetShown(not info.more) -- asking for more of what you share doesn't need a block
   drawRequest(box)
   box:Show()
   return box
@@ -894,12 +935,16 @@ local function buildFriends(p)
     end
     for i, req in ipairs(requests) do
       local r = pooled(requestRows, i, newRequestRow)
-      r.line:SetText(who(req.label, req.tag) .. " wants to see your characters")
+      r.line:SetText(who(req.label, req.tag) .. " " .. (req.asks or "wants to see your characters"))
       for j, choice in ipairs(CHOICES) do
-        setButton(r.buttons[j], choice[1], ns.answerFriendRequest and function()
-          ns.answerFriendRequest(req, choice[2])
-          drawFriends()
-        end, choice[3])
+        if req.more and choice[2] == "never" then
+          r.buttons[j]:Hide()
+        else
+          setButton(r.buttons[j], choice[1], ns.answerFriendRequest and function()
+            ns.answerFriendRequest(req, choice[2])
+            drawFriends()
+          end, choice[3])
+        end
       end
       alignButtons(r, r.buttons)
       place(r, p, 16, y)
