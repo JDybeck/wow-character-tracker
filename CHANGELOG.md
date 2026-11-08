@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.38.2
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- Guild and group chat lines now actually go out. The game moved its chat function and the addon was still calling the old one, so nothing was said. Lines that come up during a boss fight now wait until the game allows chat again.
+
 ## v0.38.1
 
 Update the addon with the app (it does this by itself) and /reload in game.
