@@ -133,7 +133,7 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate DataType="{x:Type vm:CharacterRow}">
                 <Button Cursor="Hand" Margin="0,0,0,4" ToolTip="Open on the Friends page"
-                        Command="{Binding DataContext.ShowPageCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="friends">
+                        Command="{Binding DataContext.OpenFriendCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
                   <Button.Template>
                     <ControlTemplate TargetType="Button">
                       <Border x:Name="Bd" CornerRadius="8" Padding="6,5" Background="Transparent">

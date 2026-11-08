@@ -118,6 +118,22 @@ sealed class FriendsViewModel : Observable
         ShowRows();
     }
 
+    // A friend's character from Home: the list back on screen with that character open (FriendsPage scrolls to it).
+    public event Action<CharacterRow>? Opened;
+    public void Open(CharacterRow row)
+    {
+        ShowSettings = false;
+        ShowProfessions = false;
+        if (!Contacts.Matches(row.FriendTag))
+        {
+            Contacts.Reset();
+            ShowRows();
+        }
+        if (Characters.FirstOrDefault(c => c.Guid == row.Guid) is not { } shown) return;
+        SelectedCharacter = shown;
+        Opened?.Invoke(shown);
+    }
+
     // The shown friends' professions (the same view as the Professions page), by friend first.
     public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions from friends yet. Friends who share professions show up here." };
 
