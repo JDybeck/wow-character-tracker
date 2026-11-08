@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.38.1
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- Friends on the world map: a friend on your own realm no longer shows as "On another realm" (the game and Battle.net write realm names differently). On Forever, a friend on the same ruleset but another layer now says **On another layer**, and one on another ruleset says which, like "On another realm: Normal".
+
 ## v0.38.0
 
 Update the addon with the app (it does this by itself) and /reload in game.

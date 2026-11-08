@@ -299,6 +299,27 @@ public class FriendMapLuaTests
         Assert.EndsWith(",5,0", after[^1], StringComparison.Ordinal); // read just now, not a minute ago
     }
 
+    // The game writes our realm with spaces, Battle.net theirs without. On Forever the number before
+    // the ruleset is a layer ("CAMWOW EU5 Realm 6 PvP"), so the same ruleset means another layer.
+    [Theory]
+    [InlineData(false, "CAMWOW EU5 Realm 6 PvP", "CAMWOWEU5Realm6PvP", false, null)]
+    [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm6PvP", true, "On another layer")]
+    [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm2Normal", true, "On another realm: Normal")]
+    [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm1RPPvP", true, "On another realm: RP-PvP")]
+    [InlineData(false, "Firemaw", "Gehennas", true, "On another realm: Gehennas")]
+    [InlineData(true, "Tarren Mill", "TarrenMill", false, null)]
+    [InlineData(true, "Firemaw", "TarrenMill", true, "On another realm: TarrenMill")]
+    public void A_friend_elsewhere_reads_as_another_layer_or_realm(bool retail, string mine, string theirs, bool other, string? note)
+    {
+        var (a, b) = Pair();
+        b.Lua($"ns.IS_RETAIL = {(retail ? "true" : "false")}; function GetRealmName() return '{mine}' end; friends[1].realm = '{theirs}'");
+        b.Call("setMapOpen", true);
+        Pass(a, b, 3);
+        var pin = Pin(b)!;
+        Assert.Equal(other, pin.Get("otherRealm").Boolean);
+        Assert.Equal(note, pin.Get("realmNote").IsNil() ? null : pin.Get("realmNote").String);
+    }
+
     [Fact]
     public void Positions_are_never_saved()
     {
