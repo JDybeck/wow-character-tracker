@@ -163,6 +163,36 @@ end)
 -- Faded after the first, gone after the second (seconds), by the sender's rate.
 local function limits(rate) return math.max(30, 2 * rate), math.max(120, 4 * rate) end
 
+-- A realm name as Battle.net writes it: no spaces, hyphens or apostrophes ("TarrenMill"). The game
+-- writes ours with them ("CAMWOW EU5 Realm 6 PvP"), so both go through this before comparing.
+local function plainRealm(name)
+  if type(name) ~= "string" or name == "" then return nil end
+  return (name:gsub("[%s%-']", ""))
+end
+
+-- Forever's realms end in their ruleset after a number ("CAMWOWEU5Realm6PvP"); nil for other names.
+local RULESETS = { { "RPPVP", "RP-PvP" }, { "PVP", "PvP" }, { "PVE", "PvE" }, { "NORMAL", "Normal" }, { "RP", "RP" } }
+local function ruleset(plain)
+  local upper = plain:upper()
+  if not upper:match("REALM%d+%a+$") then return nil end
+  for _, r in ipairs(RULESETS) do
+    if upper:sub(-#r[1]) == r[1] then return r[2] end
+  end
+  return nil
+end
+
+-- How a friend's realm differs from ours, for the tooltip; nil when it's the same. On Forever the
+-- number is a layer, so the same ruleset means another layer of it.
+local function realmNote(theirs, mine)
+  if not theirs or not mine or theirs == mine then return nil end
+  if not ns.IS_RETAIL then
+    local their, our = ruleset(theirs), ruleset(mine)
+    if their and their == our then return "On another layer" end
+    if their then return "On another realm: " .. their end
+  end
+  return "On another realm: " .. theirs
+end
+
 -- Still ours to show: sharing on, a contact we keep things from, not blocked, the same character.
 local function stillShown(f, p)
   return f ~= nil and f.contact ~= nil and f.contact.receive and not f.blocked and f.guid == p.guid
@@ -174,7 +204,7 @@ function ns.friendPins()
   if ns.shareSettings().enabled then
     for _, f in ipairs(online()) do rows[f.account] = f end
   end
-  local myRealm = GetRealmName and GetRealmName()
+  local myRealm = plainRealm(GetRealmName and GetRealmName())
   for account, p in pairs(positions) do
     local fade, gone = limits(p.rate)
     local age = math.max(0, now - p.readAt)
@@ -182,8 +212,9 @@ function ns.friendPins()
     if not stillShown(f, p) or age > gone then
       positions[account] = nil
     else
+      local note = realmNote(plainRealm(f.realm), myRealm)
       out[#out + 1] = { tag = f.tag, label = f.label, character = f.character, classFile = f.classFile, level = f.level,
-        realm = f.realm, otherRealm = f.realm ~= nil and myRealm ~= nil and f.realm ~= myRealm,
+        realm = f.realm, otherRealm = note ~= nil, realmNote = note,
         mapID = p.mapID, x = p.x, y = p.y, age = age, faded = age > fade }
     end
   end

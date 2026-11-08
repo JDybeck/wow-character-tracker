@@ -72,7 +72,7 @@ local function buildPin()
     self.icon = circle(self, "ARTWORK", RING, 1, 1, 1)
   end
 
-  -- Class icon in a class colored ring (grey: another realm); a class colored dot without the atlas.
+  -- Class icon in a class colored ring (grey: another realm or layer); a class colored dot without the atlas.
   function Pin:OnAcquired(friend, x, y)
     self.friend = friend
     self:SetPosition(x, y)
@@ -103,7 +103,7 @@ local function buildPin()
     GameTooltip:AddLine(string.format("%s, level %s%s", f.character or "?", tostring(f.level or "?"), className and (" " .. className) or ""), r, g, b)
     local info = C_Map.GetMapInfo and C_Map.GetMapInfo(f.mapID)
     if info and info.name then GameTooltip:AddLine(info.name, 0.8, 0.8, 0.8) end
-    if f.otherRealm then GameTooltip:AddLine("On another realm: " .. (f.realm or "?"), 1, 0.6, 0.2) end
+    if f.realmNote then GameTooltip:AddLine(f.realmNote, 1, 0.6, 0.2) end
     GameTooltip:AddLine(ns.ago(time() - (f.age or 0)), 0.6, 0.6, 0.6)
     GameTooltip:Show()
   end
