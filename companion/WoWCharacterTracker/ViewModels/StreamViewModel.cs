@@ -225,6 +225,16 @@ sealed class StreamViewModel : Observable
         ? "Counting since " + DateTimeOffset.FromUnixTimeSeconds(Options.Since).LocalDateTime.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)
         : "Start counting now";
 
+    // The alert kinds changed outside the panel (the Sharing table): rebuild the chips that show them.
+    public void AlertsChanged()
+    {
+        alertKinds = null;
+        gameSections = null;
+        Raise(nameof(AlertKinds));
+        Raise(nameof(GameSections));
+        OptionsChanged();
+    }
+
     void OptionsChanged()
     {
         main.SaveSoon(); // sliders change many times a second

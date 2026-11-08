@@ -70,6 +70,62 @@ public class MomentsTests
     }
 }
 
+public class SharingRowTests
+{
+    static SharingRow Row(string key, FlavorSettings s, Action? inGame = null, List<string>? alerts = null) =>
+        new(Moments.All.Single(m => m.Key == key), s, () => alerts ?? [], () => { }, inGame ?? (() => { }), () => { });
+
+    [Fact]
+    public void Guild_box_edits_the_announce_list_and_marks_in_game_changed()
+    {
+        var s = Flavors.Forever.Defaults();
+        s.AnnounceKinds = [];
+        var inGame = 0;
+        var row = Row("mount", s, () => inGame++);
+        row.Guild = true;
+        Assert.Contains("mount", s.AnnounceKinds);
+        Assert.Equal(1, inGame);
+        Assert.False(row.Group);
+    }
+
+    [Fact]
+    public void Group_box_starts_from_the_guild_list_in_old_configs()
+    {
+        var s = new FlavorSettings { AnnounceKinds = ["level", "mount"], AnnouncePartyKinds = null };
+        var row = Row("level", s);
+        Assert.True(row.Group);
+        row.Group = false;
+        Assert.Equal(["mount"], s.AnnouncePartyKinds);
+        Assert.Contains("level", s.AnnounceKinds);
+    }
+
+    [Fact]
+    public void Shot_box_shoots_and_attaches()
+    {
+        var s = new FlavorSettings();
+        var row = Row("boss", s);
+        row.Shot = true;
+        Assert.True(s.PostsShot("boss"));
+    }
+
+    [Fact]
+    public void Alert_box_edits_the_stream_list()
+    {
+        List<string> alerts = [];
+        Row("duel", new FlavorSettings(), alerts: alerts).Alert = true;
+        Assert.Equal(["duel"], alerts);
+    }
+
+    [Fact]
+    public void Rows_without_a_column_say_so()
+    {
+        var rare = Row("rare", new FlavorSettings());
+        Assert.False(rare.HasShot);
+        Assert.False(rare.HasAnnounce);
+        Assert.True(rare.HasAsk);
+    }
+}
+
 public class SharingPresetsTests
 {
     public static TheoryData<string, string> Cases()

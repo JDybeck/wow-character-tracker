@@ -246,6 +246,7 @@ sealed class FlavorViewModel : Observable
         announceKinds = null;
         askKinds = null;
         RefreshAskSeconds();
+        SharingChanged();
         foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces), nameof(AnnounceKinds), nameof(AskKinds),
             nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
             nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight) })
@@ -263,6 +264,65 @@ sealed class FlavorViewModel : Observable
     ObservableCollection<ToggleOption>? askKinds;
     public ObservableCollection<ToggleOption> AskKinds => askKinds ??=
         ToggleOption.Kinds(AskNames, Settings.AskKinds ??= [], () => InGameChanged());
+
+    // The Sharing table (Models/Moments): one row per moment this game has.
+    IReadOnlyList<SharingRow>? sharingRows;
+    public IReadOnlyList<SharingRow> SharingRows => sharingRows ??=
+        [.. Moments.For(Flavor).Select(m => new SharingRow(m, Settings, () => main.Config.StreamOptions.AlertKinds,
+            () => Changed(nameof(Preset)), () => InGameChanged(nameof(Preset)), main.Stream.AlertsChanged))];
+
+    // How much gets shared: Quiet, Normal or Everything, or Custom when the table matches none of them.
+    // Picking one over custom choices asks first (ConfirmPreset).
+    public string Preset => SharingPresets.Detect(Settings, Flavor);
+    public bool IsCustom => Preset == SharingPresets.Custom;
+    public bool PresetQuiet { get => Preset == SharingPresets.Quiet; set { if (value) PickPreset(SharingPresets.Quiet); } }
+    public bool PresetNormal { get => Preset == SharingPresets.Normal; set { if (value) PickPreset(SharingPresets.Normal); } }
+    public bool PresetEverything { get => Preset == SharingPresets.Everything; set { if (value) PickPreset(SharingPresets.Everything); } }
+
+    string? pendingPreset;
+    public bool ConfirmPreset => pendingPreset is not null;
+    public ICommand ConfirmPresetCommand => new RelayCommand(_ => { if (pendingPreset is { } key) ApplyPreset(key); });
+    public ICommand CancelPresetCommand => new RelayCommand(_ => { pendingPreset = null; PresetChanged(); });
+
+    void PickPreset(string key)
+    {
+        if (Preset == key) return;
+        if (IsCustom)
+        {
+            pendingPreset = key;
+            PresetChanged();
+            return;
+        }
+        ApplyPreset(key);
+    }
+
+    void ApplyPreset(string key)
+    {
+        pendingPreset = null;
+        SharingPresets.Apply(Settings, Flavor, key);
+        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); // chat and ask lists changed too
+        PostingReplaced();
+        Log.Info($"[{Name}] Sharing set to {key}.");
+    }
+
+    void PresetChanged()
+    {
+        foreach (var name in new[] { nameof(Preset), nameof(IsCustom), nameof(PresetQuiet), nameof(PresetNormal), nameof(PresetEverything), nameof(ConfirmPreset) })
+            Raise(name);
+    }
+
+    // The Discord switch: off pauses this game's posts without forgetting its webhooks.
+    public bool DiscordOn
+    {
+        get => !Settings.DiscordPaused;
+        set
+        {
+            Settings.DiscordPaused = !value;
+            main.Config.Save();
+            Raise(nameof(DiscordOn));
+            Log.Info(value ? $"[{Name}] Posting to Discord again." : $"[{Name}] Discord posts paused. What happens meanwhile won't be posted later.");
+        }
+    }
 
     // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
     // for a note that came from the game: it has it already.
@@ -366,6 +426,14 @@ sealed class FlavorViewModel : Observable
         AddonSettingsChanged(); // the addon only sends live (and screenshots) what will be posted
         Raise(name!);
         Raise(nameof(LevelPreview));
+        SharingChanged();
+    }
+
+    // Rules under the table's names and which preset matches follow every posting change.
+    void SharingChanged()
+    {
+        foreach (var row in sharingRows ?? []) row.Refresh();
+        PresetChanged();
     }
 
     // Like Changed, for boxes that change with every keystroke: the config and the addon's Settings.lua
@@ -375,6 +443,7 @@ sealed class FlavorViewModel : Observable
         main.SaveSoon(addonSettings: true);
         Raise(name!);
         Raise(nameof(LevelPreview));
+        SharingChanged();
     }
 
     public void ResetPosting()
@@ -402,6 +471,7 @@ sealed class FlavorViewModel : Observable
     {
         AddonSettingsChanged();
         foreach (var o in Shots.Values) o.Refresh();
+        SharingChanged();
         Raise(string.Empty); // every property
     }
 
