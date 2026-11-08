@@ -300,13 +300,10 @@ sealed class FlavorViewModel : Observable
             Raise(name);
     }
 
-    // The Sharing page's folds: the table opens by itself when the choices are custom.
+    // The Sharing page's fold: the table opens by itself when the choices are custom (Advanced is always open).
     bool? showCustomize;
     public bool ShowCustomize { get => showCustomize ??= IsCustom; set { showCustomize = value; Raise(nameof(ShowCustomize)); } }
-    bool showAdvanced;
-    public bool ShowAdvanced { get => showAdvanced; set => Set(ref showAdvanced, value); }
     public ICommand ToggleCustomizeCommand => new RelayCommand(_ => ShowCustomize = !ShowCustomize);
-    public ICommand ToggleAdvancedCommand => new RelayCommand(_ => ShowAdvanced = !ShowAdvanced);
 
     // The table's screenshot box takes and attaches; off here keeps them in the Screenshots folder only.
     public bool AttachShots

@@ -35,7 +35,7 @@ static class ScreenshotMode
             if (Part(1) == "uninstall") vm.ShowUninstallCommand.Execute(null); // fills the list too
             else if (Part(1) is "posting" or "ingame") vm.Page = "sharing"; // the two pages Sharing replaced
             else if (Part(1).Length > 0) vm.Page = Part(1);
-            if (Part(2) == "custom" && vm.SelectedFlavor is { } sharing) { sharing.ShowCustomize = true; sharing.ShowAdvanced = Part(3) == "advanced"; }
+            if (Part(2) == "custom" && vm.SelectedFlavor is { } sharing) sharing.ShowCustomize = true;
             if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
             if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;
