@@ -636,8 +636,8 @@ public class AddonLuaTests
     [Fact]
     public void The_box_waits_for_combat_to_end() => Assert.Empty(Ask(AskAll, ABoss, post: true, inCombat: true));
 
-    // Events.lua: the flight box shows once per flight; "Not for 30 min" (its third button) keeps it
-    // away on later flights until the 30 minutes are up, and is kept in the saved file.
+    // Events.lua: the flight box shows once per flight and closes on landing; "Not for 30 min" (its
+    // third button) keeps it away on later flights until the 30 minutes are up, and is kept in the saved file.
     [Fact]
     public void Snoozing_the_flight_box_skips_it_for_30_minutes()
     {
@@ -652,6 +652,8 @@ public class AddonLuaTests
             StaticPopupDialogs = {}
             shown = 0
             function StaticPopup_Show() shown = shown + 1 return {} end
+            hidden = 0
+            function StaticPopup_Hide(name) if name == "CHARACTERTRACKER_FLIGHT_RELOAD" then hidden = hidden + 1 end end
             """);
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Events.lua" })
@@ -666,6 +668,7 @@ public class AddonLuaTests
         }
 
         Assert.Equal(1, Fly(1000));
+        Assert.Equal(1, script.Globals.Get("hidden").Number); // landing closes an unanswered box
         script.DoString("StaticPopupDialogs.CHARACTERTRACKER_FLIGHT_RELOAD.OnAlt()");
         Assert.Equal(2800, script.DoString("return WoWCharacterTrackerDB.flightSnoozeUntil").Number);
         Assert.Equal(1, Fly(2000));

@@ -15,6 +15,10 @@ class FlavorSettings
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ActiveWebhookId { get; set; }
 
+    // The Discord switch: nothing for this game posts while paused, and what happens meanwhile isn't
+    // posted later. Webhooks stay as they are.
+    public bool DiscordPaused { get; set; }
+
     // Level-ups: up to LevelSplit, post every LevelEveryBefore levels; after that every LevelEveryAfter.
     public bool PostLevels { get; set; } = true;
     public int LevelSplit { get; set; } = 30;
@@ -236,7 +240,7 @@ class FlavorSettings
     // Wants, plus what needs the character's history: a boss this character killed before isn't posted
     // again when only first kills are. history: every event known for the tab.
     public bool Wants(Entry e, IEnumerable<Entry> history) =>
-        !Ignored.Contains(e.Guid) && Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
+        !DiscordPaused && !Ignored.Contains(e.Guid) && Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
 
     public bool IsRepeatKill(Entry e, IEnumerable<Entry> history) =>
         FirstBossKillOnly && history.Any(o => o.Kind == "boss" && o.Guid == e.Guid && o.Boss == e.Boss && o.At < e.At);
