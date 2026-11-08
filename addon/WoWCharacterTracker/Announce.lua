@@ -53,20 +53,27 @@ end
 -- Guild chat is shared, and the game can throttle a burst: one line every 2 seconds, at most 8 a
 -- minute. What's over that waits its turn, nothing is dropped.
 local SPACING, PER_MINUTE = 2, 8
+local LOCKDOWN_RETRY = 10 -- seconds between looks while the game's chat lockdown is on
 local pending = {}
 local sentAt = {}
 local flushWaiting = false
 
+-- Newer clients only have C_ChatInfo's: the global is a deprecation fallback, off by default.
+local function chatSender()
+  return (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+end
+
 -- line = { msg, guild = true/nil, party = true/nil }: which chats get it was settled in ns.announce.
 local function send(line)
-  if type(SendChatMessage) ~= "function" then return end
+  local say = chatSender()
+  if type(say) ~= "function" then return end
   local msg = line.msg
-  if line.guild and IsInGuild and IsInGuild() then pcall(SendChatMessage, msg, "GUILD") end
+  if line.guild and IsInGuild and IsInGuild() then pcall(say, msg, "GUILD") end
   if line.party and IsInGroup and IsInGroup() then
     local channel = "PARTY"
     if IsInRaid and IsInRaid() then channel = "RAID"
     elseif LE_PARTY_CATEGORY_HOME and not IsInGroup(LE_PARTY_CATEGORY_HOME) then channel = "INSTANCE_CHAT" end -- only a dungeon finder group
-    pcall(SendChatMessage, msg, channel)
+    pcall(say, msg, channel)
   end
 end
 
@@ -81,7 +88,7 @@ end
 
 function ns.flushAnnouncements()
   if flushWaiting or #pending == 0 or (InCombatLockdown and InCombatLockdown()) then return end
-  local wait = waitBeforeNext()
+  local wait = ns.chatLocked() and LOCKDOWN_RETRY or waitBeforeNext()
   if wait <= 0 then
     send(table.remove(pending, 1))
     table.insert(sentAt, GetTime())
