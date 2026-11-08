@@ -25,6 +25,8 @@ Everything the app and the addon do, page by page. New here? The [README](../REA
    - **The addon**: click **Install** once to put the addon in that game's AddOns folder. After that the app keeps it up to date on its own, including the interface number after patches.
    - **Discord**: paste a webhook link (it explains how to get one). It's checked with Discord before saving. **Send test** shows you a sample post.
    - **How much gets shared**: Quiet, Normal or Everything (see [Sharing](#sharing)), and whether to tell your guild.
+
+   <img src="images/setup-helper.png" alt="Help me set it up, on the How much gets shared step" width="640">
 3. That's it. With **Open with World of Warcraft** on (the default), the app waits in the system tray and opens when you start WoW. When you close WoW it goes back to the tray, and it keeps tracking the whole time. Closing the window also sends it to the tray; right-click the tray icon to quit. Untick the option at the top to use it as a normal app instead.
 4. In game, type `/wct test`. The console in the app (the bottom icon on the right edge) should say instant posting works within a few seconds. The addon reminds you of `/wct help` when you log in, and **In game commands** in the app's **?** menu lists them all.
 
@@ -32,9 +34,11 @@ Everything the app and the addon do, page by page. New here? The [README](../REA
 
 Each game has a **Sharing** page: who hears about your moments, and which moments.
 
-- **At the top**, a switch each for **Discord** (off pauses this game's posts without forgetting your webhooks; what happens meanwhile isn't posted later), **Guild chat** and **Party / raid chat**. The same switches sit on the rail at the right edge of the window, under **Share to**, each saying **on**, **off** or **set up** (when something is missing).
+- **At the top**, a switch each for **Discord** (off pauses this game's posts without forgetting your webhooks; what happens meanwhile isn't posted later), **Guild chat**, **Party / raid chat** and the **Stream overlay**. **Webhooks** under Discord and **Overlay** under the stream open their settings right under the row, one at a time. The same switches sit on the rail at the right edge of the window, under **Share to**, each saying **on**, **off** or **set up** (when something is missing).
 - **How much gets shared**: **Quiet** (every 10th level, max level, epic loot and followed items), **Normal** (what a new player starts with: the game's defaults) or **Everything** (every moment and every level, with screenshots). Change anything below and it says **Custom**; picking a preset over custom choices asks first. The preset can be picked in game too, on the addon window's Sharing tab.
 - **Customize**: one table, a row per moment and a box per place: **Discord**, **Screenshot** (the addon takes one in game a moment after it happens, and it's attached to the post), **Guild**, **Group**, **Ask first** and **Stream** (the big alert on the overlay, shared by both games). Hover a row for its **Test** button, which posts a sample using the selected character. A dash means that place doesn't do that moment.
+
+  ![The Sharing page: the four places at the top, the presets and the Customize table](images/sharing.png)
 - **Discord** and **Stream overlay** panels: your webhooks (see [Discord](#the-app) under The app) and the overlay's address and looks.
 - **Advanced**: the level rule numbers, Mythic+ and profession steps, the filters (rares Bind on Equip only, end bosses first kill only, the group regex), **Name in posts** on Forever, the screenshot options and settings codes.
 
@@ -132,12 +136,15 @@ It all goes through Battle.net while you're both online: the character you're on
 
 ## The app
 
-![The app on the Forever tab, with a character's details open](images/characters.png)
+![Home: the last played character with today's numbers, and the recent moments with Share](images/home.png)
 
 The window has four tabs, **Home**, **Characters**, **Friends** and **Sharing**, a search box, sync, the **?** menu and the gear (Settings) at the top, and the rail at the right edge.
 
 - **Home**, where the app opens: the character you played last (**Playing now** with a green dot while the game runs), with its level, zone, how long the last level took against your average, item level, gold, played and time on this level, the time left to max on Forever, and **Share this character**. Under it, **Today**: levels, boss kills (keys on Retail), epics and posts since midnight, over all characters. On the right, **Recent moments**: the newest 30 dings, kills, loot, mounts, duels and milestones of every character, with real item icons and tooltips, each with **Share** (posts it to Discord) or **Posted**. The big ones (epic loot, max level, a hardcore death, a Mak'gora win) stand out. The numbers are the same ones the stream overlay shows.
 - **Characters**: every character you've logged in with the addon, with class, spec and its icon (or a role icon, tank, healer, or melee, ranged or caster damage, until the spec is known), level, item level, gold and when you last played. Click a column title to sort by it, again to flip it; race, played time and rating (Retail) sort from next to CHARACTER. The order is remembered per game. The bottom of the list shows the total gold and total played for the realm (Retail) or ruleset (Forever) you've filtered on. Hardcore characters are marked. Click one for its details, in four tabs:
+
+  ![The Characters tab on Forever, with a character's details open](images/characters.png)
+
   - **Overview**: guild, total played, gold, crests and your Mythic Keystone (Retail), professions, talents, stats (each with its icon), last zone (with an icon for what kind of place it is: dungeon, raid, battleground, city, town or the open world) and highlights. Boss kills and Mythic+ runs say who was there (names in class colors; on Retail with their spec, which the addon checks when a key starts), deaths what they cost. On Forever, talents are split into the class's three trees and every talent you picked is shown with its icon and rank. On Retail, **Open in Wowhead talent calculator** opens your build there. **Post talents to Discord** posts the build on its own: level, race and class, the points per tree, the talents picked and the Wowhead calculator link.
   - **Gear and bags**: what the character wears, laid out like the character window, then its bags and its bank (as of the last time you opened it), with icons, quality colors and Wowhead tooltips, and how many slots are free in each bag. Next to the gear: the sets you're wearing ("4/5") with each bonus and how many pieces it needs (the active ones lit green, tier bonuses for your spec), every Equip: and Use: effect, and your enchants. Your Equipment Manager sets can be picked above the gear, showing which pieces are in your bags, in the bank or missing. Click an item to open it on Wowhead. Crests, talents and looted items in the highlights show the same tooltips and links.
 
@@ -163,7 +170,7 @@ The window has four tabs, **Home**, **Characters**, **Friends** and **Sharing**,
 - **Filter**: chips at the top of the Characters and Items pages filter by realm on Retail and by ruleset (Hardcore, Self-found, Normal) on Forever. With lots of realms they wrap onto more lines.
 - **Discord** (on Sharing): add as many webhooks as you like. Click one to turn it on or off for the game tab you're on; posts go to every webhook that's on. The gear opens its options: which games it posts for, on Forever which rulesets (so a hardcore channel only gets hardcore characters), and which character tags (none picked means every character). Click the pencil to rename a webhook, like "#leveling / My Guild". Hover a webhook to see its masked link.
 
-  <img src="images/webhook-options.png" alt="Webhooks with their options: games and Forever rulesets" width="340">
+  <img src="images/webhook-options.png" alt="Webhooks under the Discord switch, one with its options open: games and Forever rulesets" width="640">
 
 - **Help me set it up**: on the first start it walks through the game folders, the addon, Discord and how much gets shared, and the **?** menu at the top starts it again any time. Every step can be skipped, Esc closes it.
 - **The ? menu**: Help me set it up, What's new, **In game commands** (hover it for the list, and what reaches the app right away or on `/reload`), Feedback and Check for updates.
@@ -174,21 +181,23 @@ The window has four tabs, **Home**, **Characters**, **Friends** and **Sharing**,
 - **Sync**: the round arrow at the top reads the game's saved data again and posts anything new (it also happens by itself). The icon spins while it works, and the console says what it found.
 - **Settings** (the gear at the top) is a page: the app on one side, the addon's in game options for the open game on the other (see [In game](#in-game)), and Uninstall.
 
+  <img src="images/settings.png" alt="The Settings page: the app on the left, in game for Forever on the right" width="640">
+
   **Animations** (on by default): characters unfold when opened, pages and games slide in from the side, and an orb flies between the game tabs. Untick it to have everything switch instantly. **Open with World of Warcraft** (the app waits in the tray and opens when the game starts), **Hide the window when the game closes**, **Install updates automatically** (off until you turn it on, see Updates below), and **Test characters**, three made-up Forever characters (Zeb, Fågelmannen and Goggo) to try everything without playing. They're never posted on their own. **Track Retail** / **Track Forever** turn a game off if you only play the other one: the app then doesn't look at it at all (no addon installed there, its data isn't read), and its tab offers to turn it back on or remove the addon from it. **Colors for** the open game picks its theme.
 - **Updates**: the app checks for a new version when it starts and every few hours. **Check for updates** next to the version number checks right away. A new version shows up as a filled **Update to v...** button at the top and a banner; **Update now** downloads it and restarts, and the addon mentions it in chat once when you next log in (not on /reload). With **Install updates automatically** on (Settings), a new version installs by itself instead, but never while World of Warcraft runs: it waits until the game has closed (and the app has read what the game saved), then restarts, in the tray if that's where it was. If that install fails, the banner says why and Update now stays there. **What's new** shows the notes from [CHANGELOG.md](../CHANGELOG.md). The **What's new** button at the top of the window shows the last three versions at any time, new features apart from fixes and tweaks, with a link to the full changelog.
 
   ![A new version available: the Update button at the top and the banner with Update now](images/update-available.png)
 
-- **Stream overlay** (the panel between Discord and the console): see [Streaming](#streaming).
+- **Stream overlay** (on Sharing, **Overlay** under its switch): see [Streaming](#streaming).
 - **Uninstall** (Settings, at the bottom): lists everything the app and the addon put on your PC, with every path and its size, and you pick what goes: the app (with its Start menu shortcut and the files Windows unpacked for it in your temp folder), the addon in each game, your character data in each game, and the app's settings and caches. **Keep my data** (the default) removes the app and the addon but keeps your characters and settings for later, **Remove everything** removes it all, **Only the app** leaves the addon running. Afterwards it shows what was removed, closes, and the app deletes itself a moment later. Close the game first, since it writes the addon's files again when it exits. Your screenshots, your webhooks in Discord and the game's Advanced combat logging setting stay either way.
 
   <img src="images/uninstall.png" alt="The Uninstall page: every part with its paths and size" width="640">
 
 ## Streaming
 
-Optional, and off until you turn it on: show your character, your records, your highlights and your big moments on stream, in OBS or Streamlabs. Everything is in the **Stream overlay** panel, between Discord and the console (click its title to fold it away).
+Optional, and off until you turn it on: show your character, your records, your highlights and your big moments on stream, in OBS or Streamlabs. Everything is on the **Sharing** page: tick **Stream overlay** at the top and click **Overlay** under it for its settings, which open across the page.
 
-<img src="images/stream-panel.png" alt="The Stream overlay panel: the addresses, background, what the card shows, highlights, alerts and what it counts" width="384">
+<img src="images/stream-panel.png" alt="The Stream overlay settings under the switch on Sharing: the addresses, background, size and colors" width="640">
 
 1. Tick **On** in the Stream overlay panel.
 2. Click **Copy all** for one source with everything (the address is `http://localhost:8721/`), or copy **Card**, **Highlights** and **Alert** one by one to add them as separate sources and place each where you like. A part on its own fills its whole Browser source, so its box in OBS fits it snugly: resize the source to resize the part. Give the alert a roomy source: its glow fades out softly at the edges.

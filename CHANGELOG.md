@@ -2,14 +2,28 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
-## v0.38.2
+## v0.39.0
 
-Update the addon with the app (it does this by itself) and /reload in game.
+A cleaner app: fewer buttons, a Home page, one Sharing page and a helper that sets everything up. Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Home**: the character you're playing with today's levels, boss kills and loot, a feed of every character's newest moments (with a **Share** button for the ones not posted yet, and portraits on level-ups), and your friends by when they were last seen.
+- **Sharing**: What gets posted and In game are one page now. Discord, guild chat, party / raid chat and the stream overlay sit side by side at the top, and **Webhooks** and **Overlay** open their settings right under them. Pick **Quiet**, **Normal** or **Everything**, or open **Customize** for one table with a row per moment and a box for Discord, screenshot, guild, group, ask first and stream alerts. Test shows on the row under your mouse, and the rules under a moment (every 10th level, profession steps) jump to where you change them.
+- **Pause Discord** per game without touching your webhooks. What happens while paused isn't posted later.
+- **Help me set it up** replaces the tour: game folders, the addon, Discord and how much gets shared, one step at a time. It's in the **?** menu, with What's new, the in-game commands and feedback.
+- **Three tabs and a rail**: Home, Characters (with List, Items, Professions and Followed inside), Friends and Sharing. The right side is a slim rail of quick switches for Discord, guild chat, group chat and the stream overlay, each saying on or off; the console slides out from it. Settings is its own page from the gear, and you can search items from the header.
+- **Dungeon runs** (Forever, off by default): one Discord post per 5-player dungeon run instead of one per boss and item, with the time, every boss, the group by role and who got what.
+- **The addon window** has four tabs: Sharing (pick Quiet, Normal or Everything in game), Friends, Note and Settings. Reload reminders are one choice: Off, Gentle or Every chance. Under Shared with you it says who shares what with you and what you share back, with an **Options** button.
+- **Ask a friend for more**, like their map position or gold: pick it under **Ask them to share** in a friend's Options and click **Ask**. Their box asks with those ticked.
+- **Guild and group chat for rare loot** gets its own switch, and the in-game ask box can ask about any moment Discord skips, not only bosses and gear: level-ups, mounts, wins, milestones, Mythic+ runs and deaths.
 
 ### Fixes and tweaks
 
 - Guild and group chat lines now actually go out. The game moved its chat function and the addon was still calling the old one, so nothing was said. Lines that come up during a boss fight now wait until the game allows chat again.
-
+- The addon shows its minimap icon in the game's addon list.
+- The reload box on a flight closes when you land.
+- Screenshots for more moments: max level, rare loot, battlegrounds and profession steps.
 ## v0.38.1
 
 Update the addon with the app (it does this by itself) and /reload in game.

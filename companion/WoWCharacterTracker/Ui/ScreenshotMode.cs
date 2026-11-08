@@ -39,7 +39,8 @@ static class ScreenshotMode
             if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
             if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;
-            if (Part(2) == "addhook") { vm.Discord.ShowAddWebhook = true; if (vm.SelectedFlavor is { } hooks) hooks.OpenPlace = "discord"; }
+            if (Part(2) == "addhook") vm.Discord.ShowAddWebhook = true;
+            if (Part(2) is "addhook" or "options" or "rename" or "removehook" && vm.SelectedFlavor is { } hooks) hooks.OpenPlace = "discord"; // the webhooks fold
             if (Part(2) == "testchars") { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             // Test buttons need a character; without a game folder, the test characters stand in.
             if (Part(2) == "testall" && vm.SelectedFlavor is { HasCharacters: false, Flavor.HasRulesets: true }) { vm.ShowTestCharacters = true; await Task.Delay(1500); }
