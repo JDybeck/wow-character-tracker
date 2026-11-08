@@ -2,7 +2,8 @@ namespace WoWCharacterTracker.Models;
 
 // The Sharing table: one row per moment, a column per place it can go. Each row reads and writes the
 // FlavorSettings fields and kind lists that already exist, so configs and Settings.lua don't change.
-// Shot: the screenshot kind (loot's is shared by epic and rare, shown on epic). Announce/Ask: the addon's
+// Shot: the screenshot kind (shared where the moment is the same event: max level is a level-up, epic
+// and rare are both loot). Announce/Ask: the addon's
 // kind keys. Alert: the stream overlay's alert key. Test: the sample post (SampleEvents).
 sealed record Moment(string Key, string Name, string Tip,
     Func<FlavorSettings, bool> GetPost, Action<FlavorSettings, bool> SetPost,
@@ -16,10 +17,10 @@ static class Moments
         new("level", "Level-ups", "Dings, with how long the level took", s => s.PostLevels, (s, on) => s.PostLevels = on,
             Shot: "level", Announce: "level", AnnounceSample: "\"Ding! Level 23. 22 to 23 took 41m 12s.\"", Alert: "level", Test: "level"),
         new("maxlevel", "Max level", "Posted with extra flair, even when the level rule skips that level", s => s.PostMaxLevel, (s, on) => s.PostMaxLevel = on,
-            Announce: "maxlevel", AnnounceSample: "\"Reached max level 60! Total played 6d 4h 12m.\"", Alert: "maxlevel", Test: "max"),
+            Shot: "level", Announce: "maxlevel", AnnounceSample: "\"Reached max level 60! Total played 6d 4h 12m.\"", Alert: "maxlevel", Test: "max"),
         new("epic", "Epic loot", "Purple items. Legendary gear is always posted. The screenshot is for any posted loot.", s => s.PostEpic, (s, on) => s.PostEpic = on,
             Shot: "loot", Announce: "loot", AnnounceSample: "\"Looted [Item]!\" For epic and legendary items.", Ask: "epic", Alert: "epic", Test: "epic"),
-        new("rare", "Rare loot", "Blue items", s => s.PostRare, (s, on) => s.PostRare = on, Ask: "rare", Alert: "rare", Test: "rare"),
+        new("rare", "Rare loot", "Blue items", s => s.PostRare, (s, on) => s.PostRare = on, Shot: "loot", Ask: "rare", Alert: "rare", Test: "rare"),
         new("followed", "Followed items", "Anything on your Followed items list, whatever its quality", s => s.PostFollowed, (s, on) => s.PostFollowed = on,
             Announce: "followed", AnnounceSample: "\"Got [Item] from my followed items!\"", Alert: "followed", Test: "followed"),
         new("mount", "New mounts", "Bought or learned", s => s.PostMounts, (s, on) => s.PostMounts = on,
@@ -35,9 +36,9 @@ static class Moments
         new("makgora", "Mak'gora won", "The hardcore duel to the death", s => s.PostMakgora, (s, on) => s.PostMakgora = on,
             Shot: "makgora", Announce: "makgora", AnnounceSample: "\"Won a Mak'gora against Grimtusk!\"", Alert: "makgora", Test: "makgora"),
         new("bg", "Battleground wins", "Which battleground you won", s => s.PostBattlegrounds, (s, on) => s.PostBattlegrounds = on,
-            Announce: "bg", AnnounceSample: "\"Won Warsong Gulch!\"", Alert: "bg", Test: "bg"),
+            Shot: "bg", Announce: "bg", AnnounceSample: "\"Won Warsong Gulch!\"", Alert: "bg", Test: "bg"),
         new("profession", "Profession milestones", "A main profession passing one of the steps", s => s.PostProfessions, (s, on) => s.PostProfessions = on,
-            Announce: "profession", AnnounceSample: "\"Reached 150 Mining!\"", Alert: "profession", Test: "profession"),
+            Shot: "profession", Announce: "profession", AnnounceSample: "\"Reached 150 Mining!\"", Alert: "profession", Test: "profession"),
         new("mplus", "Mythic+ rating", "Passing a rating step", s => s.PostMPlus, (s, on) => s.PostMPlus = on,
             Announce: "mplus", AnnounceSample: "\"Reached 2500 Mythic+ rating!\"", Alert: "mplus", Test: "mplus"),
         new("pvp", "PvP rating", "Passing a rating step", s => s.PostPvp, (s, on) => s.PostPvp = on,

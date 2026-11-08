@@ -167,9 +167,22 @@ public class SharingRowTests
     public void Rows_without_a_column_say_so()
     {
         var rare = Row("rare", new FlavorSettings());
-        Assert.False(rare.HasShot);
+        Assert.True(rare.HasShot); // loot's, shared with epic
         Assert.False(rare.HasAnnounce);
         Assert.True(rare.HasAsk);
+        Assert.False(Row("followed", new FlavorSettings()).HasShot); // loot or a mount: no one kind to shoot
+    }
+
+    // Max level is a level-up and rare loot is loot: their screenshot box is that event's, so ticking
+    // one ticks the other.
+    [Fact]
+    public void Same_event_rows_share_their_screenshot()
+    {
+        var s = new FlavorSettings();
+        Row("maxlevel", s).Shot = true;
+        Assert.True(Row("level", s).Shot);
+        Row("rare", s).Shot = true;
+        Assert.True(Row("epic", s).Shot);
     }
 }
 
