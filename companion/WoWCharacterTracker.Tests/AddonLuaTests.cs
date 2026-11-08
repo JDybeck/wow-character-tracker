@@ -111,6 +111,20 @@ public class AddonLuaTests
         Assert.Equal(["Ding! Level 5."], sent);
     }
 
+    // Rare loot has its own chat switch: epic's doesn't cover it, and with Bind on Equip only on (the
+    // same rule as its Discord posts) only a BoE rare gets a line.
+    [Theory]
+    [InlineData("{ loot = true }", false, false, false)]
+    [InlineData("{ rare = true }", false, false, true)]
+    [InlineData("{ rare = true }", true, false, false)]
+    [InlineData("{ rare = true }", true, true, true)]
+    public void Rare_loot_has_its_own_chat_switch(string kinds, bool rareBoe, bool boe, bool said)
+    {
+        var sent = Announce($"{{ post = {{ rareBoe = {(rareBoe ? "true" : "false")} }}, announce = {{ guild = true, kinds = {kinds} }} }}",
+            $"{{ kind = 'loot', itemId = 9372, item = 'Cruel Barb', quality = 3, boe = {(boe ? "true" : "false")} }}");
+        Assert.Equal(said, sent.Count == 1);
+    }
+
     // Runs Announce.lua with WoW's chat functions stubbed; returns what it sent ("CHANNEL: text").
     static List<string> Announce(string settings, string eventLua, bool inGuild = true, bool inGroup = false, bool inRaid = false)
     {
@@ -557,6 +571,19 @@ public class AddonLuaTests
 
     [Fact]
     public void Skipping_records_nothing() => Assert.Empty(Ask(AskAll, ABoss, post: false));
+
+    // Any moment with Ask first on can be offered (the Sharing table's column), a level-up as itself,
+    // max level as maxlevel; a loss never is, and a kind left off isn't.
+    [Fact]
+    public void More_moments_than_bosses_and_gear_can_be_asked()
+    {
+        const string asks = "{ post = {}, discord = true, ask = { level = true, maxlevel = true, duel = true } }";
+        Assert.Equal("level", Assert.Single(Ask(asks, "{ kind = 'level', level = 23, at = 6000 }", post: true)).Get("askedKind").String);
+        Assert.Single(Ask(asks, "{ kind = 'level', level = 60, maxLevel = true, at = 6000 }", post: true));
+        Assert.Single(Ask(asks, "{ kind = 'duel', opponent = 'Grimtusk', at = 6000 }", post: true));
+        Assert.Empty(Ask(asks, "{ kind = 'duel', opponent = 'Grimtusk', lost = true, at = 6000 }", post: true));
+        Assert.Empty(Ask(asks, "{ kind = 'mount', mount = 'Pinto', at = 6000 }", post: true));
+    }
 
     // The box stays 10 seconds, counting down on Skip, then goes away without posting.
     [Fact]

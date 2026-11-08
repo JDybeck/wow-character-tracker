@@ -1,5 +1,5 @@
 -- Tells your guild and/or group about a moment, in the game's own chat: level-ups, max level, end
--- bosses, Mythic+ runs, epic loot (as an item link), new mounts, PvP wins, profession and rating milestones, hardcore deaths.
+-- bosses, Mythic+ runs, epic and rare loot (as an item link), new mounts, PvP wins, profession and rating milestones, hardcore deaths.
 -- What and where come from Settings.lua `announce` (the app's In game page): `kinds` for guild chat,
 -- `partyKinds` for group chat. Messages wait until
 -- you're out of combat, and boss kills don't list the group (they're right there).
@@ -12,7 +12,8 @@ local function itemLink(id, name)
 end
 ns.itemLink = itemLink
 
--- The line for an event, or nil when it's nothing to tell (losses, rare loot...).
+-- The line for an event, or nil when it's nothing to tell (losses, common loot...). The ask box says
+-- the same (Ask.lua).
 local function message(e)
   local k = e.kind
   if k == "level" and e.maxLevel then
@@ -21,7 +22,7 @@ local function message(e)
     return string.format("Ding! Level %d.", e.level) .. (e.seconds and string.format(" %d to %d took %s.", e.level - 1, e.level, ns.formatDuration(e.seconds)) or "")
   elseif k == "boss" then
     return string.format("Killed %s%s!", e.boss, (e.instance and e.instance ~= "") and (" in " .. e.instance) or "")
-  elseif k == "loot" and (e.quality or 0) >= 4 and not ((e.quality or 0) >= 5 and e.mat) then -- not legendary materials
+  elseif k == "loot" and (e.quality or 0) >= 3 and not ((e.quality or 0) >= 5 and e.mat) then -- not legendary materials
     return "Looted " .. itemLink(e.itemId, e.item) .. "!"
   elseif k == "mount" then
     return (e.bought and "Bought a new mount: " or "Got a new mount: ") .. (e.itemId and itemLink(e.itemId, e.mount) or e.mount) .. "!"
@@ -48,6 +49,19 @@ local function message(e)
     return string.format("Fell at level %d%s. Rest in peace.", e.level or 0, killer)
   end
   return nil
+end
+ns.momentLine = message
+
+-- The chat switch an event falls under: rare loot has its own (and follows Bind on Equip only, like
+-- its Discord posts), epic and better is "loot", max level "maxlevel".
+local function announceKey(e)
+  if e.maxLevel then return "maxlevel" end
+  if e.kind == "loot" and (e.quality or 0) == 3 then
+    local post = ns.setting("post") or {}
+    if post.rareBoe and not e.boe then return nil end
+    return "rare"
+  end
+  return e.kind
 end
 
 -- Guild chat is shared, and the game can throttle a burst: one line every 2 seconds, at most 8 a
@@ -109,7 +123,8 @@ local function lineFor(e, kinds)
   if kinds.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then
     return string.format("Got %s from my followed items!", itemLink(e.itemId, e.item or e.mount))
   end
-  if not kinds[e.maxLevel and "maxlevel" or e.kind] then return nil end
+  local key = announceKey(e)
+  if not key or not kinds[key] then return nil end
   return message(e)
 end
 

@@ -67,9 +67,11 @@ public class MomentsTests
     [Fact]
     public void Every_announce_and_ask_kind_has_a_row()
     {
-        string[] announced = ["level", "maxlevel", "boss", "keyrun", "loot", "followed", "mount", "duel", "makgora", "bg", "profession", "mplus", "pvp", "death"];
+        string[] announced = ["level", "maxlevel", "boss", "keyrun", "loot", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "mplus", "pvp", "death"];
         Assert.Equal(announced.Order(), Moments.All.Select(m => m.Announce).OfType<string>().Order());
-        Assert.Equal(FlavorSettings.AllAskKinds.Order(), Moments.All.Select(m => m.Ask).OfType<string>().Order());
+        // The defaults (boss, rare, epic) are among the moments that can be asked about.
+        Assert.Subset(Moments.All.Select(m => m.Ask).OfType<string>().ToHashSet(), FlavorSettings.AllAskKinds.ToHashSet());
+        Assert.Equal(["followed"], Moments.All.Where(m => m.Ask is null).Select(m => m.Key).Where(k => k != "run"));
     }
 
     [Fact]
@@ -168,8 +170,9 @@ public class SharingRowTests
     {
         var rare = Row("rare", new FlavorSettings());
         Assert.True(rare.HasShot); // loot's, shared with epic
-        Assert.False(rare.HasAnnounce);
+        Assert.True(rare.HasAnnounce); // its own chat switch
         Assert.True(rare.HasAsk);
+        Assert.False(Row("followed", new FlavorSettings()).HasAsk); // always posted when Discord is on
         Assert.False(Row("followed", new FlavorSettings()).HasShot); // loot or a mount: no one kind to shoot
     }
 

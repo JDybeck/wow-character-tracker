@@ -55,7 +55,7 @@ end
 
 -- Chat ------------------------------------------------------------------------------------------
 -- The same kinds and names as the app's In game page (FlavorViewModel.AnnounceNames).
-local ANNOUNCE_KINDS = { { "level", "Level-ups" }, { "maxlevel", "Max level" }, { "loot", "Epic loot" }, { "followed", "Followed items" },
+local ANNOUNCE_KINDS = { { "level", "Level-ups" }, { "maxlevel", "Max level" }, { "loot", "Epic loot" }, { "rare", "Rare loot" }, { "followed", "Followed items" },
   { "mount", "Mounts" }, { "duel", "Duel wins" }, { "bg", "Battleground wins" }, { "profession", "Professions" } }
 for _, kind in ipairs(ns.IS_RETAIL
   and { { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
@@ -109,12 +109,15 @@ local function buildSharingTab(p)
 
   if not withApp then return end
   local askTitle = ui.heading(p, "Ask before skipping", last)
-  local ask = ui.checkbox(p, "Offer to post what Discord skips", "Boss kills and gear the app doesn't post by itself: a small Post or Skip box, out of combat.",
-    function()
-      local kinds = ns.setting("ask") or {}
-      return kinds.boss == true or kinds.rare == true or kinds.epic == true
-    end,
-    function(on) ns.editSettings(function(s) for _, k in ipairs(ASK_KINDS) do s.ask[k] = on or nil end end) end)
+  -- On: boss kills and gear, the usual three (the app's Sharing table picks any moment). Off: none at all.
+  local ask = ui.checkbox(p, "Offer to post what Discord skips", "Boss kills and gear the app doesn't post by itself: a small Post or Skip box, out of combat. More moments in the app's Sharing table.",
+    function() return next(ns.setting("ask") or {}) ~= nil end,
+    function(on)
+      ns.editSettings(function(s)
+        s.ask = {}
+        if on then for _, k in ipairs(ASK_KINDS) do s.ask[k] = true end end
+      end)
+    end)
   ask:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", -2, -6)
 
   -- How long the box stays (askSeconds, the same choices as the app): click for the next.
