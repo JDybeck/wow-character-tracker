@@ -136,7 +136,11 @@ function ns.onFlightStart()
     nil, "Not for 30 min", function() WoWCharacterTrackerDB.flightSnoozeUntil = time() + FLIGHT_SNOOZE end)
 end
 
-function ns.onFlightEnd() askedThisFlight = false end
+-- Landed: the box is about the flight, so an unanswered one goes away.
+function ns.onFlightEnd()
+  askedThisFlight = false
+  if StaticPopup_Hide then StaticPopup_Hide("CHARACTERTRACKER_FLIGHT_RELOAD") end
+end
 
 -- A line in chat when gear or bags changed since the last save: at good moments (moment = true:
 -- after the bank, mailbox, a vendor or the auction house, leaving a dungeon), at most every 10
