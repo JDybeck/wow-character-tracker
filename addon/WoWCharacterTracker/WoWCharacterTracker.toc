@@ -2,6 +2,7 @@
 ## Title: WoW Character Tracker
 ## Notes: Tells your guild or group about your big moments, and with the free app posts them to Discord and tracks all your characters.
 ## Author: JDybeck
+## IconTexture: Interface\AddOns\WoWCharacterTracker\Icon
 ## X-License: GPL-3.0
 ## X-Website: https://github.com/JDybeck/wow-character-tracker
 ## Version: 0.38.2
