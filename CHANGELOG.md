@@ -2,13 +2,6 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
-## v0.39.0
-
-### New
-
-- Sharing: What gets posted and In game are one page now. Switch Discord, guild chat and group chat on or off at the top, pick Quiet, Normal or Everything, or open Customize for one table with a row per moment and a box for Discord, screenshot, guild, group, ask first and stream alerts. Test shows on the row under your mouse. The Discord webhooks and the stream overlay moved onto this page, and the rarely needed options are folded under Advanced.
-- Discord can be paused per game without touching your webhooks. What happens while paused isn't posted later.
-
 ## v0.38.2
 
 Update the addon with the app (it does this by itself) and /reload in game.

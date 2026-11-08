@@ -638,6 +638,13 @@ Write-Host "Test app ready: $out\Run test app.cmd"
 
 ---
 
+## Release notes draft
+
+CHANGELOG's top section must match the csproj version (a test checks), so the notes wait here until the release step bumps the version:
+
+- Sharing: What gets posted and In game are one page now. Switch Discord, guild chat and group chat on or off at the top, pick Quiet, Normal or Everything, or open Customize for one table with a row per moment and a box for Discord, screenshot, guild, group, ask first and stream alerts. Test shows on the row under your mouse. The Discord webhooks and the stream overlay moved onto this page, and the rarely needed options are folded under Advanced.
+- Discord can be paused per game without touching your webhooks. What happens while paused isn't posted later.
+
 ## Later phases (planned in detail when phase 1 is merged)
 
 - **Phase 2, shell:** 4 tabs (Home placeholder until phase 3), Characters with List/Items/Professions/Followed switch, header search + `?` menu + "Synced" line, Settings page from the gear (with the In game advanced group moved there from Sharing), the rail of quick toggles replacing `SetupBar` and the right column, console flyout with pin. Stream kind tables in `StreamViewModel` read names from `Moments` where they overlap.
