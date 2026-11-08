@@ -26,6 +26,22 @@ public class HomeFeedTests
         Assert.Equal("Reached max level 60", HighlightRow.From(new Entry { Kind = "level", Level = 60, MaxLevel = true, At = 1 }).Text);
     }
 
+    // Friends online on Home: each friend once (their newest character), only when seen in the last half hour.
+    [Fact]
+    public void Friends_online_are_each_friend_seen_in_the_last_half_hour()
+    {
+        var now = DateTimeOffset.FromUnixTimeSeconds(1_800_000_000);
+        CharacterRow Friend(string guid, string tag, int minutesAgo)
+        {
+            var snap = Snapshot.Of(new Entry { Guid = guid, Char = guid, Realm = "Firemaw", Level = 40, At = now.AddMinutes(-minutesAgo).ToUnixTimeSeconds() });
+            var row = CharacterRow.Build(new TrackerData([], [snap]), Flavors.Forever, new GameLookup(Flavors.Forever, () => { })).Single();
+            row.FriendTag = tag;
+            return row;
+        }
+        var seen = HomeViewModel.SeenLately([Friend("a1", "Ann#1", 50), Friend("a2", "Ann#1", 5), Friend("b1", "Bob#2", 20), Friend("c1", "Cid#3", 45)], now);
+        Assert.Equal(["a2", "b1"], seen.Select(r => r.Guid));
+    }
+
     [Fact]
     public void Sent_ids_are_the_events_posted_to_a_webhook()
     {

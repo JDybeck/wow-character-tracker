@@ -53,6 +53,9 @@ sealed class FriendsViewModel : Observable
 
     string NameOf(string tag) => config.FriendNicknames.TryGetValue(tag, out var n) && n.Length > 0 ? n : tag;
 
+    // Every friend character you keep and haven't hidden (Home lists the ones seen lately).
+    public IEnumerable<CharacterRow> Shown => allRows.Where(r => !config.HiddenFriendCharacters.Contains(r.Guid));
+
     // After every sync: friends' rows rebuilt, the picked chip and open character kept.
     public void Show(TrackerData data)
     {

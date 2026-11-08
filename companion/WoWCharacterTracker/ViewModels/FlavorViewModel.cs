@@ -777,7 +777,7 @@ sealed class FlavorViewModel : Observable
     public HomeViewModel Home { get; }
     IReadOnlyList<Entry> homeEvents = [];
     public void RefreshHome() =>
-        Home.Show(allRows, homeEvents, tracker?.SentIds ?? new HashSet<string>(), flavorDir is not null && Wow.IsRunning(flavorDir));
+        Home.Show(allRows, homeEvents, tracker?.SentIds ?? new HashSet<string>(), flavorDir is not null && Wow.IsRunning(flavorDir), Friends.Shown);
 
     // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
     List<CharacterRow> allRows = [];
@@ -843,9 +843,9 @@ sealed class FlavorViewModel : Observable
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
         Professions.Show(rows);
-        homeEvents = data.Events;
-        RefreshHome();
         Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
+        homeEvents = data.Events;
+        RefreshHome(); // after Friends: Home lists the friends seen lately
         main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
