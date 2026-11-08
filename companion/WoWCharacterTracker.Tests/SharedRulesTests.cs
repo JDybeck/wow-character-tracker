@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Media;
 using MoonSharp.Interpreter;
@@ -182,7 +183,7 @@ public class SharedRulesTests
             var ns = new Table(script);
             foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
                 script.Call(script.LoadString(AddonFile(file)), "WoWCharacterTracker", ns);
-            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, mat = {(e.Mat ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades}, itemId = {e.ItemId} }}");
+            var ev = script.DoString($"return {{ kind = '{e.Kind}', level = {e.Level}, quality = {e.Quality}, maxLevel = {(e.MaxLevel ? "true" : "nil")}, lost = {(e.Lost ? "true" : "nil")}, boe = {(e.Boe ? "true" : "nil")}, mat = {(e.Mat ? "true" : "nil")}, keyLevel = {e.KeyLevel}, upgrades = {e.Upgrades}, itemId = {e.ItemId}, run = {(e.Run > 0 ? e.Run.ToString(CultureInfo.InvariantCulture) : "nil")}, cleared = {(e.Cleared ? "true" : "nil")}, drops = [[{e.Drops}]] }}");
             return script.Call(ns.Get("wanted"), ev).Boolean;
         }
         finally { Directory.Delete(dir, recursive: true); }

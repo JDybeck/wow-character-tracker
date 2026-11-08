@@ -36,6 +36,12 @@ static class SampleEvents
             "mount" => e with { Kind = "mount", Mount = "Pinto Bridle", ItemId = 2414, Bought = true },
             "boss" => e with { Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", Group = group, GroupSize = 5 },
             "dungeon" => e with { Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", ZoneType = "dungeon", Group = group, GroupSize = 5 },
+            "run" => e with
+            {
+                Kind = "run", Instance = "The Deadmines", Seconds = 47 * 60 + 12, Cleared = true, Group = group, GroupSize = 5,
+                Bosses = "Rhahk'Zor^Sneed^Gilnid^Mr. Smite^Cookie^Edwin VanCleef",
+                Drops = (others.FirstOrDefault(o => o != c)?.Name ?? "Tanky") + "~5191~3~Cruel Barb^~872~3~Rockslicer^~5193~3~Cape of the Brotherhood",
+            },
             "keyrun" => e with { Kind = "keyrun", Instance = "Ara-Kara, City of Echoes", KeyLevel = 12, Upgrades = 2, Seconds = 26 * 60 + 41, Rating = 2847, Group = group, GroupSize = 5 },
             "death" => e with { Kind = "death", Killer = "Defias Pillager", Gold = 123456, Hardcore = true },
             "duel" => e with { Kind = "duel", Opponent = "Grimtusk", OpponentInfo = $"{Math.Max(e.Level, 2)}~WARRIOR~Warrior~Orc" },

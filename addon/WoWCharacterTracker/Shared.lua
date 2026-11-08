@@ -34,7 +34,7 @@ end
 -- else stay. Events are appended as they happen, so the end of the list is the newest.
 -- (The duel and battleground records the app shows count what's kept.) Settings.lua keepAllHistory
 -- (the app's In game page) turns it off; ADDON_LOADED checks that.
-local TRIM_KINDS = { loot = true, duel = true, bg = true, keyrun = true, ask = true }
+local TRIM_KINDS = { loot = true, duel = true, bg = true, keyrun = true, ask = true, run = true }
 local TRIM_KEEP = 300
 
 -- Trims the saved list in place. Returns how many events went.

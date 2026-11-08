@@ -16,6 +16,7 @@ Character.lua
 Inventory.lua
 LiveGrid.lua
 Events.lua
+Runs.lua
 PvP.lua
 Announce.lua
 Ask.lua
