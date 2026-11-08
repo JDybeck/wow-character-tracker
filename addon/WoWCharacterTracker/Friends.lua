@@ -883,7 +883,7 @@ function ns.inviteFriend(tag)
   if at and time() - at < INVITE_EVERY then return false, "You invited " .. label(tag) .. " today already." end
   local whisper = (C_BattleNet and C_BattleNet.SendWhisper) or BNSendWhisper
   if not (whisper and friend.bnet) then return false, "Can't whisper " .. label(tag) .. " from here." end
-  if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then
+  if ns.chatLocked() then
     return false, "Can't whisper right now. Try again after the fight."
   end
   if not pcall(whisper, friend.bnet, INVITE) then return false, "The whisper to " .. label(tag) .. " didn't go." end

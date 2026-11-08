@@ -32,7 +32,7 @@ end
 function comms.canSend()
   if InCombatLockdown and InCombatLockdown() then return false end
   if IsEncounterInProgress and IsEncounterInProgress() then return false end
-  if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return false end
+  if ns.chatLocked() then return false end
   return sendGameData() ~= nil
 end
 

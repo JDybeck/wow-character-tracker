@@ -49,7 +49,7 @@ public class AddonLuaTests
         var sent = new List<double>();
         var script = new Script();
         script.DoString(FakeTimers);
-        script.Globals["SendChatMessage"] = (Action<string, string>)((_, _) => sent.Add(script.Globals.Get("clock").Number));
+        StubChat(script, (_, _) => sent.Add(script.Globals.Get("clock").Number));
         script.Globals["IsInGuild"] = (Func<bool>)(() => true);
         script.DoString("WoWCharacterTrackerSettings = { announce = { guild = true, kinds = { level = true } } }");
         var ns = new Table(script);
@@ -64,13 +64,60 @@ public class AddonLuaTests
         Assert.True(sent[8] - sent[0] >= 60); // the 9th waits until the first is a minute old
     }
 
+    // The chat function as the game has it now: C_ChatInfo's, without the old global (only there
+    // with the loadDeprecationFallbacks CVar, off by default).
+    static void StubChat(Script script, Action<string, string> send)
+    {
+        script.Globals["chatSent"] = send;
+        script.DoString("C_ChatInfo = { SendChatMessage = function(msg, channel) chatSent(msg, channel) end }");
+    }
+
+    // Older clients only have the global: lines still go out.
+    [Fact]
+    public void Lines_use_the_old_global_when_c_chat_info_has_none()
+    {
+        var sent = new List<string>();
+        var script = new Script();
+        script.DoString(FakeTimers);
+        script.Globals["SendChatMessage"] = (Action<string, string>)((msg, channel) => sent.Add($"{channel}: {msg}"));
+        script.Globals["IsInGuild"] = (Func<bool>)(() => true);
+        script.DoString("WoWCharacterTrackerSettings = { announce = { guild = true, kinds = { level = true } } }");
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Announce.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        script.Call(ns.Get("announce"), script.DoString("return { kind = 'level', level = 5 }"));
+        script.DoString("runTimers(1100)");
+        Assert.Equal(["GUILD: Ding! Level 5."], sent);
+    }
+
+    // During the game's chat lockdown (a boss fight) the line waits and goes out after it.
+    [Fact]
+    public void Lines_wait_out_the_chat_lockdown()
+    {
+        var sent = new List<string>();
+        var script = new Script();
+        script.DoString(FakeTimers);
+        StubChat(script, (msg, _) => sent.Add(msg));
+        script.DoString("locked = true; C_ChatInfo.InChatMessagingLockdown = function() return locked end");
+        script.Globals["IsInGuild"] = (Func<bool>)(() => true);
+        script.DoString("WoWCharacterTrackerSettings = { announce = { guild = true, kinds = { level = true } } }");
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Announce.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        script.Call(ns.Get("announce"), script.DoString("return { kind = 'level', level = 5 }"));
+        script.DoString("runTimers(1100)");
+        Assert.Empty(sent);
+        script.DoString("locked = false; runTimers(1200)");
+        Assert.Equal(["Ding! Level 5."], sent);
+    }
+
     // Runs Announce.lua with WoW's chat functions stubbed; returns what it sent ("CHANNEL: text").
     static List<string> Announce(string settings, string eventLua, bool inGuild = true, bool inGroup = false, bool inRaid = false)
     {
         var sent = new List<string>();
         var script = new Script();
         script.DoString(FakeTimers);
-        script.Globals["SendChatMessage"] = (Action<string, string>)((msg, channel) => sent.Add($"{channel}: {msg}"));
+        StubChat(script, (msg, channel) => sent.Add($"{channel}: {msg}"));
         script.Globals["IsInGuild"] = (Func<bool>)(() => inGuild);
         script.Globals["IsInGroup"] = (Func<bool>)(() => inGroup);
         script.Globals["IsInRaid"] = (Func<bool>)(() => inRaid);
@@ -129,7 +176,7 @@ public class AddonLuaTests
         var sent = new List<string>();
         var script = new Script();
         script.DoString(FakeTimers);
-        script.Globals["SendChatMessage"] = (Action<string, string>)((msg, _) => sent.Add(msg));
+        StubChat(script, (msg, _) => sent.Add(msg));
         script.Globals["IsInGuild"] = (Func<bool>)(() => true);
         script.DoString("""
             C_Item = { GetItemInfo = function(id) return 'X', '|cnIQ4:|Hitem:'..id..'|h[X]|h|r' end }

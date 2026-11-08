@@ -149,6 +149,11 @@ function ns.plain(v)
   return v
 end
 
+-- The game's chat lockdown (Midnight-era clients, boss fights and the like): no chat, whispers or addon messages.
+function ns.chatLocked()
+  return (C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()) and true or false
+end
+
 -- On the app's Followed items list (Settings.lua `followed`, read at /reload or login).
 function ns.isFollowed(itemId)
   local list = ns.setting("followed")
