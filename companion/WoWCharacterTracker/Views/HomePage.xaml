@@ -91,6 +91,18 @@
 
           <TextBlock Text="{Binding Leveling.EstimateText}" Style="{StaticResource Hint}" Margin="0,12,0,0"
                      Visibility="{Binding Leveling.HasEstimate, Converter={StaticResource Visible}}"/>
+          <!-- A mini level times chart (the last 40 levels), the Leveling tab's at half height. -->
+          <ItemsControl ItemsSource="{Binding Leveling.Bars}" Height="74" Margin="0,12,0,0" ItemTemplate="{StaticResource LevelBarTemplate}" Focusable="False"
+                        HorizontalAlignment="Left" Visibility="{Binding Leveling.HasStats, Converter={StaticResource Visible}}">
+            <ItemsControl.LayoutTransform>
+              <ScaleTransform ScaleY="0.5"/>
+            </ItemsControl.LayoutTransform>
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
           <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="-12,10,0,0" Padding="12,4" ToolTip="Post this character's card to Discord"
                   Command="{Binding DataContext.PostCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
             <StackPanel Orientation="Horizontal">

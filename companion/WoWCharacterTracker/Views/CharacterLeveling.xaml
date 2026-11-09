@@ -47,24 +47,12 @@
       <!-- One bar per level (the last 40), fastest and slowest highlighted. -->
       <StackPanel Visibility="{Binding Leveling.HasStats, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="LEVEL TIMES"/>
-        <ItemsControl ItemsSource="{Binding Leveling.Bars}" Height="74" Margin="0,4,0,0">
+        <ItemsControl ItemsSource="{Binding Leveling.Bars}" Height="74" Margin="0,4,0,0" ItemTemplate="{StaticResource LevelBarTemplate}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="{x:Type vm:LevelBar}">
-              <Border x:Name="Bar" Width="9" Height="{Binding Height}" Margin="0,0,3,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0"
-                      Background="{DynamicResource IndigoMid}" Opacity="0.55" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="50"/>
-              <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding Highlight}" Value="True">
-                  <Setter TargetName="Bar" Property="Background" Value="{DynamicResource Indigo}"/>
-                  <Setter TargetName="Bar" Property="Opacity" Value="1"/>
-                </DataTrigger>
-              </DataTemplate.Triggers>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
         </ItemsControl>
       </StackPanel>
 
