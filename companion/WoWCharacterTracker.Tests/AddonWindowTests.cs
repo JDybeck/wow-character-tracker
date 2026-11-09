@@ -141,7 +141,12 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Level 45 Night Elf Warrior') ~= nil"));
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m  ·  average 1h 57m') ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
-        Assert.True(Bool(c, "shownText('XP 1,000 / 4,000 (25%)') ~= nil"));
+        // The level history is folded until opened, and stays as you left it.
+        Assert.False(Bool(c, "find('44 to 45') and onScreen(find('44 to 45'))"));
+        c.Lua("click('Level history  v')");
+        Assert.True(Bool(c, "shownText('44 to 45') ~= nil"));
+        Assert.True(Bool(c, "shownText('2h 54m') ~= nil"));
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.window.homeHistory == true"));
     }
 
     [Fact]

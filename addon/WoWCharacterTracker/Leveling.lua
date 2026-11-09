@@ -18,7 +18,7 @@ function ns.levelTimes(events, guid)
   for _, e in ipairs(events or {}) do
     if type(e) == "table" and (e.kind == nil or e.kind == "level") and e.guid == guid
       and type(e.level) == "number" and type(e.seconds) == "number" and e.seconds > 0 then
-      byLevel[e.level] = { level = e.level, seconds = e.seconds, at = e.at or 0 }
+      byLevel[e.level] = { level = e.level, seconds = e.seconds, at = e.at or 0, zone = e.zone }
     end
   end
   local out = {}

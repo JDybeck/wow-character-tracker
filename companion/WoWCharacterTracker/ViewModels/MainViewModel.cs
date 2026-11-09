@@ -44,6 +44,12 @@ sealed class MainViewModel : Observable
             Page = "friends";
             tab.Friends.Open(row);
         });
+        OpenCharacterCommand = new RelayCommand(p =>
+        {
+            if (p is not CharacterRow row || SelectedFlavor is not { } tab) return;
+            Page = "characters";
+            tab.OpenCharacter(row);
+        });
         ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
         CopyPostingCommand = new RelayCommand(_ =>
         {
@@ -167,6 +173,7 @@ sealed class MainViewModel : Observable
     public ICommand ShowPageCommand { get; }
     public event Action? PageReset;
     public ICommand OpenFriendCommand { get; }
+    public ICommand OpenCharacterCommand { get; }
     public ICommand ResetPostingCommand { get; }
     public ICommand CopyPostingCommand { get; }
     public ICommand PastePostingCommand { get; }

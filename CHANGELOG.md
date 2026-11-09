@@ -8,9 +8,9 @@ A Home page in game and level times for friends. Update the addon with the app (
 
 ### New
 
-- **Home in game**: `/wct` opens a Home tab like the app's. The character you're playing with item level, gold, played time and time on this level, your XP bar, the last level's time and your average, and on Forever how long to max level at your recent pace. Below it a chart of your level times, today's levels, bosses, epics and mounts, the newest moments of all your characters and the friends who share with you.
+- **Home in game**: `/wct` opens a Home tab like the app's. The character you're playing with item level, gold, played time and time on this level, the last level's time and your average, on Forever how long to max level at your recent pace, and a small chart of your level times. **Level history** under the chart folds open your average, fastest and slowest level and the newest 20 levels. Below the card today's levels, bosses, epics and mounts, the newest moments of all your characters and the friends who share with you.
 - **Level times for friends**: friends now see how long each of your levels took, your played time and XP bar, on by default (**Level times** in what friends get, off for one friend or all). The app shows a friend's level times on a new **Leveling** tab with the chart and the time to max level, and in game a friend's details list their last level, average, fastest and slowest.
-- **Level chart on Home**: the app's Home card shows a small chart of your level times under the time to max level, hover a bar for its time.
+- **Level chart on Home**: the app's Home card shows a small chart of your level times under the time to max level, hover a bar for its time. Click the character at the top of the card to open it on the Characters page.
 - **A sharing reminder**: when you share with no friends, one line in chat a minute after you log in. Not after a /reload, and not when sharing is off.
 
 ### Fixes and tweaks

@@ -1,13 +1,18 @@
 -- The window's Home tab (/wct), like the app's Home page: the character you're playing with its
--- level times (Leveling.lua), today's moments, the newest moments of all your characters and the
--- friends who share with you. Redrawn every few seconds while it's shown, so played time ticks.
+-- level times (Leveling.lua) as a small chart and a level history that folds open, today's moments,
+-- the newest moments of all your characters and the friends who share with you. Redrawn every few
+-- seconds while it's shown, so played time ticks.
 local ADDON, ns = ...
 local ui = ns.ui
 local C = ui.COLOR
 
 local WIDTH = 640  -- the page's content width
+local INNER = WIDTH - 28 -- inside the card
 local CHART_BARS = 40
-local CHART_HEIGHT = 64
+local CHART_HEIGHT = 36
+local BAR_STEP = 12 -- a bar and its gap
+local HISTORY_ROWS = 20
+local ROW = 16
 local FEED_SIZE = 6
 local FRIENDS_SHOWN = 4
 local REDRAW_EVERY = 2 -- seconds
@@ -16,6 +21,14 @@ local SLOW_EVERY = 15  -- redraws
 local MUTED = { 0.55, 0.5, 0.45 }
 
 local function db() return WoWCharacterTrackerDB or {} end
+
+-- Whether the level history is open, kept with the window's other choices.
+local function historyOpen() return (db().window or {}).homeHistory == true end
+local function setHistoryOpen(on)
+  local d = db()
+  d.window = d.window or {}
+  d.window.homeHistory = on
+end
 
 -- Live numbers for the character being played, from the game where it's cheap, else its snapshot.
 local function playing()
@@ -38,7 +51,6 @@ local function playing()
     levelTime = ns.levelTimeNow(),
     xp = UnitXP and UnitXP("player"),
     xpMax = UnitXPMax and UnitXPMax("player"),
-    rested = GetXPExhaustion and GetXPExhaustion(),
     maxLevel = maxLevel,
   }
 end
@@ -46,12 +58,6 @@ end
 local function midnight()
   local t = date("*t")
   return time({ year = t.year, month = t.month, day = t.day, hour = 0 })
-end
-
-local function fmtNumber(n)
-  local s = tostring(math.floor(n or 0))
-  local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
-  return (out:gsub("^,", ""))
 end
 
 -- A tile: a small box with a big value over a label.
@@ -80,11 +86,17 @@ end
 
 local function hideTip() if GameTooltip then GameTooltip:Hide() end end
 
+-- At y below the card's top edge.
+local function at(w, card, y, x)
+  w:ClearAllPoints()
+  w:SetPoint("TOPLEFT", card, "TOPLEFT", 14 + (x or 0), -y)
+end
+
 function ns.buildHomeTab(p)
   -- Playing now ---------------------------------------------------------------------------------
   local card = CreateFrame("Frame", nil, p)
   card:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -12)
-  card:SetSize(WIDTH, 286)
+  card:SetSize(WIDTH, 300)
   ui.box(card, C.card, C.border)
 
   local dot = card:CreateTexture(nil, "ARTWORK")
@@ -105,77 +117,33 @@ function ns.buildHomeTab(p)
   zone:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -3)
 
   local pace = ui.text(card, "GameFontHighlightSmall")
-  pace:SetPoint("TOPLEFT", portrait, "BOTTOMLEFT", 0, -12)
-  pace:SetWidth(WIDTH - 28)
+  at(pace, card, 108)
+  pace:SetWidth(INNER)
 
-  local tileWidth = math.floor((WIDTH - 28 - 3 * 8) / 4)
+  local tileWidth = math.floor((INNER - 3 * 8) / 4)
   local tiles = {}
   for i = 1, 4 do
     tiles[i] = newTile(card, tileWidth)
-    tiles[i]:SetPoint("TOPLEFT", pace, "BOTTOMLEFT", (i - 1) * (tileWidth + 8), -10)
+    at(tiles[i], card, 128, (i - 1) * (tileWidth + 8))
   end
+  local TILES_END = 128 + 46
 
-  -- The XP bar: rested XP a paler shade past the filled part.
-  local bar = CreateFrame("Frame", nil, card)
-  bar:SetSize(WIDTH - 28, 12)
-  bar:SetPoint("TOPLEFT", tiles[1], "BOTTOMLEFT", 0, -14)
-  ui.box(bar, C.bar, C.border)
-  local rested = bar:CreateTexture(nil, "ARTWORK")
-  rested:SetColorTexture(0.25, 0.45, 0.8, 0.45)
-  rested:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-  rested:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 1, 1)
-  local fill = bar:CreateTexture(nil, "OVERLAY")
-  fill:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 0.9)
-  fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 1, -1)
-  fill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 1, 1)
-  local xpText = ui.text(card, "GameFontDisableSmall")
-  xpText:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -5)
   local estimate = ui.text(card, "GameFontDisableSmall")
-  estimate:SetPoint("TOPLEFT", xpText, "BOTTOMLEFT", 0, -6)
-  estimate:SetWidth(WIDTH - 28)
+  estimate:SetWidth(INNER)
 
-  local line = card:CreateTexture(nil, "ARTWORK")
-  ui.fill(line, C.border)
-  line:SetHeight(1)
-  line:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 14, 52)
-  line:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -14, 52)
-  local todayLabel = ui.text(card, "GameFontDisableSmall", "TODAY")
-  todayLabel:SetPoint("TOPLEFT", line, "BOTTOMLEFT", 0, -8)
-  local today = {}
-  local todayWidth = math.floor((WIDTH - 28) / 4)
-  for i = 1, 4 do
-    local fs = ui.text(card, "GameFontHighlight")
-    fs:SetPoint("TOPLEFT", todayLabel, "BOTTOMLEFT", (i - 1) * todayWidth, -6)
-    today[i] = fs
-  end
-
-  -- Leveling: the facts and a bar per level, the fastest and slowest in the accent color.
-  local levelTitle = ui.heading(p, "Leveling", card, -18)
-  levelTitle:ClearAllPoints()
-  levelTitle:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -18)
-  local noLevels = ui.text(p, "GameFontDisableSmall", "No timed levels yet for this character. The next ding starts the clock.")
-  noLevels:SetPoint("TOPLEFT", levelTitle, "BOTTOMLEFT", 0, -6)
-  local factLines = {}
-  for i = 1, 2 do
-    local fs = ui.text(p, "GameFontHighlightSmall")
-    fs:SetPoint("TOPLEFT", levelTitle, "BOTTOMLEFT", 0, -6 - (i - 1) * 16)
-    fs:SetWidth(WIDTH)
-    factLines[i] = fs
-  end
-  local chart = CreateFrame("Frame", nil, p)
-  chart:SetSize(WIDTH, CHART_HEIGHT)
-  chart:SetPoint("TOPLEFT", levelTitle, "BOTTOMLEFT", 0, -44)
+  -- The mini chart: a bar per level (the last CHART_BARS), the fastest and slowest in the accent color.
+  local chart = CreateFrame("Frame", nil, card)
+  chart:SetSize(CHART_BARS * BAR_STEP, CHART_HEIGHT)
   local base = chart:CreateTexture(nil, "BACKGROUND")
   ui.fill(base, C.border)
   base:SetHeight(1)
   base:SetPoint("BOTTOMLEFT")
   base:SetPoint("BOTTOMRIGHT")
   local bars = {}
-  local barWidth = math.floor(WIDTH / CHART_BARS)
   for i = 1, CHART_BARS do
     local b = CreateFrame("Frame", nil, chart)
-    b:SetWidth(barWidth - 3)
-    b:SetPoint("BOTTOMLEFT", chart, "BOTTOMLEFT", (i - 1) * barWidth, 1)
+    b:SetWidth(BAR_STEP - 3)
+    b:SetPoint("BOTTOMLEFT", chart, "BOTTOMLEFT", (i - 1) * BAR_STEP, 1)
     b:EnableMouse(true)
     b.fill = b:CreateTexture(nil, "ARTWORK")
     b.fill:SetAllPoints()
@@ -184,10 +152,48 @@ function ns.buildHomeTab(p)
     bars[i] = b
   end
 
+  -- The level history, folded until opened: the numbers, then the newest levels.
+  local layout -- below
+  local toggle = ui.button(card, "", 150, function()
+    setHistoryOpen(not historyOpen())
+    layout()
+  end)
+  local factLines = {}
+  for i = 1, 2 do
+    local fs = ui.text(card, "GameFontHighlightSmall")
+    fs:SetWidth(INNER)
+    factLines[i] = fs
+  end
+  local history = {}
+  for i = 1, HISTORY_ROWS do
+    local row = CreateFrame("Frame", nil, card)
+    row:SetSize(INNER, ROW)
+    row.level = ui.text(row, "GameFontHighlightSmall")
+    row.level:SetPoint("LEFT", row, "LEFT", 0, 0)
+    row.took = ui.text(row, "GameFontHighlightSmall")
+    row.took:SetPoint("LEFT", row, "LEFT", 80, 0)
+    row.took:SetTextColor(0.45, 0.85, 0.5)
+    row.zone = ui.text(row, "GameFontDisableSmall")
+    row.zone:SetPoint("LEFT", row, "LEFT", 170, 0)
+    row.zone:SetWidth(INNER - 170 - 80)
+    row.zone:SetWordWrap(false)
+    row.when = ui.text(row, "GameFontDisableSmall")
+    row.when:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+    history[i] = row
+  end
+
+  local line = card:CreateTexture(nil, "ARTWORK")
+  ui.fill(line, C.border)
+  line:SetHeight(1)
+  local todayLabel = ui.text(card, "GameFontDisableSmall", "TODAY")
+  local today = {}
+  local todayWidth = math.floor(INNER / 4)
+  for i = 1, 4 do today[i] = ui.text(card, "GameFontHighlight") end
+
   -- Latest moments of all your characters ------------------------------------------------------
   local feedTitle = ui.heading(p, "Latest moments")
   feedTitle:ClearAllPoints()
-  feedTitle:SetPoint("TOPLEFT", chart, "BOTTOMLEFT", 0, -22)
+  feedTitle:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -22)
   local noFeed = ui.text(p, "GameFontDisableSmall", "Nothing yet. Level-ups, boss kills and loot show up here.")
   noFeed:SetPoint("TOPLEFT", feedTitle, "BOTTOMLEFT", 0, -6)
   local feed = {}
@@ -232,13 +238,72 @@ function ns.buildHomeTab(p)
     row.when:SetPoint("RIGHT", row, "RIGHT", 0, 0)
     friendRows[i] = row
   end
+  local BELOW_CARD = 22 + 26 + FEED_SIZE * 20 + 16 + 26 + FRIENDS_SHOWN * 20 + 20 -- the feed and friends under the card
 
   -- What only changes with new events is worked out again only then (the redraw runs every few
   -- seconds, and the list holds thousands): level times, today's counts and the feed.
   local seenList, seenCount, seenGuid
   local levels, summary = {}, nil
 
-  -- The parts that change while you play: name, tiles, the XP bar and the estimate.
+  -- Places what's shown in the card from the top down, and sizes the card and the page.
+  layout = function()
+    local y = TILES_END + 12
+    local hasEstimate = (estimate:GetText() or "") ~= ""
+    estimate:SetShown(hasEstimate)
+    if hasEstimate then
+      at(estimate, card, y)
+      y = y + 18
+    end
+    local open = historyOpen()
+    chart:SetShown(summary ~= nil)
+    toggle:SetShown(summary ~= nil)
+    if summary then
+      at(chart, card, y + 4)
+      y = y + 4 + CHART_HEIGHT + 10
+      toggle:SetText(open and "Level history  ^" or "Level history  v")
+      at(toggle, card, y)
+      y = y + 22 + 8
+    end
+    local shownRows = 0
+    for i, fs in ipairs(factLines) do
+      local show = summary ~= nil and open and (fs:GetText() or "") ~= ""
+      fs:SetShown(show)
+      if show then
+        at(fs, card, y)
+        y = y + ROW
+      end
+    end
+    if summary and open then
+      y = y + 4
+      for i = 1, HISTORY_ROWS do
+        local l = levels[#levels - i + 1]
+        local row = history[i]
+        if l then
+          row.level:SetText(string.format("%d to %d", l.level - 1, l.level))
+          row.took:SetText(ns.formatDuration(l.seconds))
+          row.zone:SetText(l.zone or "")
+          row.when:SetText((l.at or 0) > 0 and ns.ago(l.at) or "")
+          at(row, card, y)
+          row:Show()
+          y = y + ROW
+          shownRows = shownRows + 1
+        else
+          row:Hide()
+        end
+      end
+    end
+    for i = shownRows + 1, HISTORY_ROWS do history[i]:Hide() end
+
+    line:ClearAllPoints()
+    line:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -(y + 6))
+    line:SetPoint("TOPRIGHT", card, "TOPRIGHT", -14, -(y + 6))
+    at(todayLabel, card, y + 14)
+    for i, fs in ipairs(today) do at(fs, card, y + 30, (i - 1) * todayWidth) end
+    card:SetHeight(y + 56)
+    p:SetHeight(12 + y + 56 + BELOW_CARD)
+  end
+
+  -- The parts that change while you play: name, tiles and the estimate.
   local function drawLive(me)
     if SetPortraitTexture then SetPortraitTexture(portrait, "player") end
     name:SetText(me.name or "?")
@@ -253,19 +318,7 @@ function ns.buildHomeTab(p)
     if atMax then setTile(tiles[4], "Max", "Level " .. me.level)
     else setTile(tiles[4], me.levelTime and ns.formatDuration(me.levelTime) or "?", "This level") end
 
-    local barWidth = WIDTH - 30
-    local xp, xpMax = me.xp or 0, me.xpMax or 0
-    bar:SetShown(not atMax and xpMax > 0)
-    xpText:SetShown(not atMax and xpMax > 0)
-    if not atMax and xpMax > 0 then
-      local share = math.min(1, xp / xpMax)
-      fill:SetWidth(math.max(1, barWidth * share))
-      local restedShare = math.min(1, (xp + (me.rested or 0)) / xpMax)
-      rested:SetWidth(math.max(1, barWidth * restedShare))
-      xpText:SetText(string.format("XP %s / %s (%d%%)%s", fmtNumber(xp), fmtNumber(xpMax), math.floor(share * 100),
-        (me.rested or 0) > 0 and ("  ·  rested " .. fmtNumber(me.rested)) or ""))
-    end
-    local left = not atMax and not ns.IS_RETAIL and ns.timeToMax(levels, db().xpTable, me.level, xp, xpMax, me.maxLevel)
+    local left = not atMax and not ns.IS_RETAIL and ns.timeToMax(levels, db().xpTable, me.level, me.xp, me.xpMax, me.maxLevel)
     estimate:SetText(left and string.format("About %s played to level %d, at your recent pace", ns.formatPlayed(left), me.maxLevel) or "")
   end
 
@@ -276,7 +329,7 @@ function ns.buildHomeTab(p)
     local paceParts = {}
     if #levels > 0 then paceParts[#paceParts + 1] = ns.levelText(levels[#levels]) end
     if summary then paceParts[#paceParts + 1] = "average " .. ns.formatDuration(summary.average) end
-    pace:SetText(#paceParts > 0 and table.concat(paceParts, "  ·  ") or "No level times yet")
+    pace:SetText(#paceParts > 0 and table.concat(paceParts, "  ·  ") or "No level times yet. The next ding starts the clock.")
 
     local since = midnight()
     local counts = { 0, 0, 0, 0 }
@@ -291,9 +344,6 @@ function ns.buildHomeTab(p)
     local names = { "levels", ns.IS_RETAIL and "keys" or "bosses", "epics", "mounts" }
     for i, fs in ipairs(today) do fs:SetText(string.format("%d |cff9a9a9a%s|r", counts[i], names[i])) end
 
-    -- The chart and its facts.
-    noLevels:SetShown(summary == nil)
-    chart:SetShown(summary ~= nil)
     factLines[1]:SetText(summary and string.format("%d timed level%s, average %s", summary.count, summary.count == 1 and "" or "s",
       ns.formatDuration(summary.average)) or "")
     factLines[2]:SetText(summary and summary.count > 1 and string.format("Fastest %s (%d to %d)   Slowest %s (%d to %d)",
@@ -306,7 +356,7 @@ function ns.buildHomeTab(p)
     for i, b in ipairs(bars) do
       local l = shown[i]
       if l then
-        b:SetHeight(math.max(3, (CHART_HEIGHT - 2) * l.seconds / slowest))
+        b:SetHeight(math.max(2, (CHART_HEIGHT - 2) * l.seconds / slowest))
         local mark = summary and (l == summary.fastest or l == summary.slowest)
         if mark then b.fill:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 1)
         else b.fill:SetColorTexture(MUTED[1], MUTED[2], MUTED[3], 0.6) end
@@ -376,6 +426,7 @@ function ns.buildHomeTab(p)
     end
     if all then drawFriends() end
     drawLive(me)
+    layout()
   end
 
   ui.onRefresh(p, function() draw(true) end)
