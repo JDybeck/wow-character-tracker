@@ -150,6 +150,30 @@ function ns.friendLevels(c)
   return out
 end
 
+-- A friend character's highlights as events ({ kind, at, level, the kind's fields }), newest first;
+-- unknown kinds and lines without a time are skipped. Numbers come back as numbers, "1" flags as true.
+local FLAGS = { bought = true, lost = true, fled = true }
+function ns.friendHighlights(c)
+  local out = {}
+  for line in string.gmatch(c and c.highlights or "", "[^\n]+") do
+    local p = {}
+    for v in string.gmatch(line .. "~", "([^~]*)~") do p[#p + 1] = v end
+    local keys, at = HIGHLIGHT_FIELDS[p[1]], tonumber(p[2])
+    if keys and at and at > 0 then
+      local e = { kind = p[1], at = at, level = tonumber(p[3]) }
+      for i, key in ipairs(keys) do
+        local v = p[i + 3]
+        if v and v ~= "" then
+          if FLAGS[key] then e[key] = v == "1" else e[key] = tonumber(v) or v end
+        end
+      end
+      out[#out + 1] = e
+    end
+  end
+  table.sort(out, function(x, y) return x.at > y.at end)
+  return out
+end
+
 -- The text for one of your characters, and the same without the volatile fields (`at` changes with
 -- every snapshot, so change detection compares that one). allowed: the categories the friend may
 -- see; events: the character's highlights (ns.isFriendHighlight), or nil; levels: its level times.

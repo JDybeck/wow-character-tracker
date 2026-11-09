@@ -421,7 +421,7 @@ local function facts(c, friend)
   add("Gold", c.money and gold(c.money))
   add("Professions", c.professions)
   add("Talents", c.talents)
-  for _, line in ipairs(ns.levelingFacts(ns.friendLevels(c), c)) do add(line[1], line[2]) end
+  for _, line in ipairs(ns.levelingFacts(c.levelList or ns.friendLevels(c), c)) do add(line[1], line[2]) end
   add("Updated", (c.received or c.at) and ago(c.received or c.at))
   return out
 end
@@ -521,6 +521,9 @@ local function toggleDetails(self)
   if not details then buildDetails() end
   if details:IsShown() and detailsKey == charKey(c) then details:Hide() else drawDetails(c, self.friend) end
 end
+
+-- Home's friend rows open the same panel.
+function ns.toggleFriendDetails(c, friend) toggleDetails({ char = c, friend = friend }) end
 
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
@@ -783,14 +786,20 @@ function ns.hideRequestBox()
   requestBox:Hide()
 end
 
+-- "Night Elf · Darkshore" under a shared character's name.
 local function charInfo(c)
   local parts = {}
-  if c.level then parts[#parts + 1] = "level " .. c.level end
-  if c.spec then parts[#parts + 1] = c.spec end
-  if c.ilvl then parts[#parts + 1] = "ilvl " .. math.floor(c.ilvl) end
+  if c.race then parts[#parts + 1] = c.race end
   if c.zone then parts[#parts + 1] = c.zone end
-  parts[#parts + 1] = ago(c.received or c.at)
-  return table.concat(parts, ", ")
+  return table.concat(parts, "  ·  ")
+end
+
+-- Folded friends in Shared with you, kept with the window's other choices.
+local function isCollapsed(tag) return (saved().collapsedFriends or {})[tag] == true end
+local function toggleCollapsed(tag)
+  local s = saved()
+  s.collapsedFriends = s.collapsedFriends or {}
+  s.collapsedFriends[tag] = not s.collapsedFriends[tag] or nil
 end
 
 -- "60, Orgrimmar, Bobby (Bob#2)" under an online friend's name.
@@ -845,6 +854,45 @@ local function setCard(card, name, classFile, info)
   card.infoText:SetText(info)
 end
 
+-- A small box with a number in it (level, item level), like the app's row pills.
+local function newPill(parent, width)
+  local pill = CreateFrame("Frame", nil, parent)
+  pill:SetSize(width, 20)
+  ui.box(pill, C.bar, C.border)
+  pill.text = ui.text(pill, "GameFontHighlightSmall")
+  pill.text:SetPoint("CENTER", pill, "CENTER", 0, 0)
+  return pill
+end
+
+-- A shared character's row, like the app's: name and race/zone, then class and spec, level and
+-- item level in pills, and when it was last seen. Clicking it opens the details.
+local function newCharRow(p, width)
+  local row = newCard(p, width)
+  row.infoText:SetWidth(width - 380)
+  row.classText = ui.text(row, "GameFontHighlightSmall")
+  row.classText:SetPoint("LEFT", row, "RIGHT", -360, 0)
+  row.classText:SetWidth(150)
+  row.classText:SetWordWrap(false)
+  row.level = newPill(row, 36)
+  row.level:SetPoint("LEFT", row, "RIGHT", -200, 0)
+  row.ilvl = newPill(row, 36)
+  row.ilvl:SetPoint("LEFT", row, "RIGHT", -158, 0)
+  row.when = ui.text(row, "GameFontDisableSmall")
+  row.when:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+  row.when:SetJustifyH("RIGHT")
+  return row
+end
+
+local function setCharRow(row, c)
+  setCard(row, fullName(c), c.classFile, charInfo(c))
+  local class = c.class or ""
+  row.classText:SetText(c.spec and (c.spec .. " " .. class) or class)
+  classColor(row.classText, c.classFile)
+  row.level.text:SetText(c.level and tostring(c.level) or "-")
+  row.ilvl.text:SetText(c.ilvl and tostring(math.floor(c.ilvl)) or "-")
+  row.when:SetText(ago(c.received or c.at))
+end
+
 local function buildFriends(p)
   local width = PAGE_WIDTH - 30
   local status, said = nil, "" -- said: what the last button said, shown under the hint
@@ -875,8 +923,7 @@ local function buildFriends(p)
   local prompt = note("Click Find online friends to see who's on.")
   local noneOnline = note("None of your Battle.net friends are online in this game.")
   local noneShared = note("Nothing shared with you yet. Ask a friend above.")
-  local requestRows, friendCards, sharedHeads, sharedButtons, charCards = {}, {}, {}, {}, {}
-  local sharedStates = {}
+  local requestRows, friendCards, sharedHeads, charCards = {}, {}, {}, {}
 
   -- Under a friend's name in Shared with you: what they share with you, and whether (and what) you
   -- share back, in green, or in grey when you don't.
@@ -923,7 +970,41 @@ local function buildFriends(p)
     return card
   end
 
-  local function newCharCard() return newCard(p, width - 8) end
+  local function newCharCard() return newCharRow(p, width - 12) end
+
+  -- A friend's header in Shared with you: +/- folds their characters (a click anywhere on it does),
+  -- their name and character count, what you share both ways, and Options.
+  local function newFriendHead()
+    local h = CreateFrame("Frame", nil, p)
+    h:SetSize(width, 44)
+    h:EnableMouse(true)
+    ui.box(h, C.bar, C.border)
+    h.hover = h:CreateTexture(nil, "ARTWORK")
+    ui.fill(h.hover, C.hover)
+    h.hover:SetAllPoints()
+    h.hover:Hide()
+    h.fold = h:CreateTexture(nil, "ARTWORK")
+    h.fold:SetSize(14, 14)
+    h.fold:SetPoint("LEFT", h, "LEFT", 10, 0)
+    h.name = ui.text(h, "GameFontNormal")
+    h.name:SetPoint("TOPLEFT", h, "TOPLEFT", 32, -7)
+    h.count = ui.text(h, "GameFontDisableSmall")
+    h.count:SetPoint("LEFT", h.name, "RIGHT", 8, 0)
+    h.status = ui.text(h, "GameFontHighlightSmall")
+    h.status:SetPoint("TOPLEFT", h, "TOPLEFT", 32, -25)
+    h.status:SetWidth(width - 140)
+    h.status:SetWordWrap(false)
+    h.options = cardButton(h, 90)
+    h.options:SetPoint("RIGHT", h, "RIGHT", -10, 0)
+    h:SetScript("OnEnter", showHover)
+    h:SetScript("OnLeave", hideHover)
+    h:SetScript("OnMouseUp", function(self)
+      if not self.tag then return end
+      toggleCollapsed(self.tag)
+      drawFriends()
+    end)
+    return h
+  end
 
   local CHOICES = { { "Allow", "allow", "primary" }, { "Not now", "notnow" }, { "Never", "never" } }
 
@@ -1018,36 +1099,33 @@ local function buildFriends(p)
     local heads, cards = 0, 0
     for _, friend in ipairs(shared) do
       heads = heads + 1
-      local h = pooled(sharedHeads, heads, function() return ui.text(p, "GameFontNormalSmall") end)
+      local h = pooled(sharedHeads, heads, newFriendHead)
       local label = who(friend.label, friend.tag) or "?"
-      h:SetText(label)
-      place(h, p, 18, y + 4)
-      local st = pooled(sharedStates, heads, function()
-        local fs = ui.text(p, "GameFontHighlightSmall")
-        fs:SetWidth(width - 110)
-        return fs
-      end)
-      st:SetText(shareStatus(friend))
-      place(st, p, 18, y + 20)
+      local folded = isCollapsed(friend.tag)
+      local n = #(friend.chars or {})
+      h.tag = friend.tag
+      h.fold:SetTexture(folded and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
+      h.name:SetText(label)
+      h.count:SetText(string.format("%d character%s", n, n == 1 and "" or "s"))
+      h.status:SetText(shareStatus(friend))
       -- What you share with them and what you keep of theirs, also when they're offline.
-      local b = pooled(sharedButtons, heads, function() return cardButton(p, 90) end)
-      setButton(b, "Options", function() openSharing(friend.tag) end)
-      place(b, p, 24 + width - 8 - 90, y + 6)
-      y = y + 42
-      for _, c in ipairs(friend.chars or {}) do
-        cards = cards + 1
-        local card = pooled(charCards, cards, newCharCard)
-        card.char, card.friend = c, label
-        if charKey(c) == detailsKey then open, openFriend = c, label end
-        setCard(card, fullName(c), c.classFile, charInfo(c))
-        place(card, p, 24, y)
-        y = y + CARD + 6
+      setButton(h.options, "Options", function() openSharing(friend.tag) end)
+      place(h, p, 16, y)
+      y = y + 44 + 4
+      if not folded then
+        for _, c in ipairs(friend.chars or {}) do
+          cards = cards + 1
+          local card = pooled(charCards, cards, newCharCard)
+          card.char, card.friend = c, label
+          if charKey(c) == detailsKey then open, openFriend = c, label end
+          setCharRow(card, c)
+          place(card, p, 28, y)
+          y = y + CARD + 4
+        end
       end
-      y = y + 6
+      y = y + 8
     end
     hideFrom(sharedHeads, heads + 1)
-    hideFrom(sharedStates, heads + 1)
-    hideFrom(sharedButtons, heads + 1)
     hideFrom(charCards, cards + 1)
     if details and details:IsShown() then
       if open then drawDetails(open, openFriend) else details:Hide() end
@@ -1059,6 +1137,54 @@ local function buildFriends(p)
     p:SetHeight(y + 10)
   end
   ui.onRefresh(p, drawFriends)
+end
+
+-- Characters ------------------------------------------------------------------------------------
+-- Your own characters on this WoW account (the saved file's snapshots, gear and level times), in the
+-- same rows as friends' and opening the same details panel. The app shows every account's.
+local function ownChars()
+  local db = WoWCharacterTrackerDB or {}
+  local out = {}
+  for guid, snap in pairs(db.chars or {}) do
+    if not ns.isIgnored(guid) then
+      local c = ns.copy(snap)
+      local items = db.items and db.items[guid]
+      c.guid, c.at = guid, snap.lastSeen
+      c.gear, c.enchants = items and items.gear, items and items.enchants
+      c.levelList = ns.levelTimes(db.events, guid)
+      out[#out + 1] = c
+    end
+  end
+  table.sort(out, function(a, b) return (a.at or 0) > (b.at or 0) end)
+  return out
+end
+
+local function buildCharacters(p)
+  local width = PAGE_WIDTH - 30
+  local title = ui.heading(p, "Your characters")
+  local hint = ui.hint(p, "The characters you've played on this WoW account, newest first. Click one for its details, gear and level times. The app shows all your accounts.", title)
+  hint:SetWidth(width)
+  local none = ui.text(p, "GameFontDisableSmall", "None saved yet. Characters show up here once you've played them with the addon.")
+  local rows = {}
+  local function draw()
+    local list = ownChars()
+    local y = 56
+    none:SetShown(#list == 0)
+    if #list == 0 then place(none, p, 16, y) end
+    local open
+    for i, c in ipairs(list) do
+      local row = pooled(rows, i, function() return newCharRow(p, width) end)
+      row.char, row.friend = c, nil
+      if charKey(c) == detailsKey then open = c end
+      setCharRow(row, c)
+      place(row, p, 16, y)
+      y = y + CARD + 4
+    end
+    hideFrom(rows, #list + 1)
+    if open and details and details:IsShown() then drawDetails(open) end
+    p:SetHeight(y + 10)
+  end
+  ui.onRefresh(p, draw)
 end
 
 -- Friends.lua calls this when a friend answers, asks, or sends something: redraws the tab if it's up.
@@ -1208,6 +1334,7 @@ end
 -- height: how tall the tab's content is; taller than the window gets a scroll frame.
 local TABS = {
   { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
+  { key = "characters", label = "Characters", height = 1000, build = buildCharacters }, -- grows with the list
   { key = "sharing", label = "Sharing", height = 560, build = buildSharingTab }, -- without the app: the whole chat table
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
