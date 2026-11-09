@@ -7,7 +7,7 @@ local ADDON, ns = ...
 local ui = ns.ui
 
 local NAME = "WoWCharacterTrackerWindow"
-local WIDTH, HEIGHT = 720, 590
+local WIDTH, HEIGHT = 760, 590
 local TITLE_BAR, TAB_BAR = 44, 40
 local AREA_HEIGHT = HEIGHT - TITLE_BAR - TAB_BAR - 8 -- below the title and the tab row
 local PAGE_WIDTH = WIDTH - 50
@@ -252,11 +252,7 @@ local function friendState(f)
 end
 
 -- "Zeb Stonehand" with a Forever surname, else the name.
-local function fullName(c)
-  local name = c.char or "?"
-  if c.surname and c.surname ~= "" then return name .. " " .. c.surname end
-  return name
-end
+local fullName = ns.fullName
 
 -- "Zeb Stonehand (Firemaw)": tells characters apart when there's no guid.
 local function charTitle(c)
@@ -292,7 +288,7 @@ local GEAR_ROW = 30
 local SLOT_NAMES = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands",
   "Finger", "Finger", "Trinket", "Trinket", "Back", "Main Hand", "Off Hand", "Ranged", "Tabard" }
 local details, detailsTitle, detailsSub, detailsLine, gearTitle, noGear, notShared
-local factRows, gearRows = {}, {}
+local gearRows = {}
 local detailsKey -- which character the panel shows
 
 local function charKey(c) return c.guid or charTitle(c) end
@@ -311,15 +307,16 @@ local function showItemTip(self)
   GameTooltip:Show()
 end
 
-local function newFactRow()
-  local r = CreateFrame("Frame", nil, details)
-  r:SetSize(DETAILS_WIDTH - 28, 16)
+-- A label and its value, the value wrapping in what's left of width.
+local function newFactRow(parent, width)
+  local r = CreateFrame("Frame", nil, parent)
+  r:SetSize(width, 16)
   r.labelText = ui.text(r, "GameFontDisableSmall")
   r.labelText:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
   r.labelText:SetWidth(86)
   r.valueText = ui.text(r, "GameFontHighlightSmall")
   r.valueText:SetPoint("TOPLEFT", r, "TOPLEFT", 92, 0)
-  r.valueText:SetWidth(DETAILS_WIDTH - 28 - 92)
+  r.valueText:SetWidth(width - 92)
   return r
 end
 
@@ -410,7 +407,7 @@ local function headline(c)
   return table.concat(parts, " ")
 end
 
--- The label and value lines the panel lists, each only when known.
+-- The label and value lines a character's info lists, each only when known.
 local function facts(c, friend)
   local out = {}
   local function add(label, value) if value and value ~= "" then out[#out + 1] = { label, value } end end
@@ -423,10 +420,12 @@ local function facts(c, friend)
   add("Gold", c.money and gold(c.money))
   add("Professions", c.professions)
   add("Talents", c.talents)
-  for _, line in ipairs(ns.levelingFacts(c.levelList or ns.friendLevels(c), c)) do add(line[1], line[2]) end
   add("Updated", (c.received or c.at) and ago(c.received or c.at))
   return out
 end
+
+-- A character's level times: its own (c.levelList) or what a friend shared.
+local function levelsOf(c) return c.levelList or ns.friendLevels(c) end
 
 local drawDetails
 local detailsChar, detailsFriend -- what the panel shows, for a redraw once item names arrive
@@ -466,19 +465,7 @@ drawDetails = function(c, friend)
   detailsLine:ClearAllPoints()
   detailsLine:SetPoint("TOPLEFT", details, "TOPLEFT", 14, -y)
   detailsLine:SetPoint("TOPRIGHT", details, "TOPRIGHT", -14, -y)
-  y = y + 10
-
-  local list = facts(c, friend)
-  for i, fact in ipairs(list) do
-    local r = pooled(factRows, i, newFactRow)
-    r.labelText:SetText(fact[1])
-    r.valueText:SetText(fact[2])
-    local h = math.max(14, textHeight(r.valueText, 14))
-    r:SetHeight(h)
-    place(r, details, 14, y)
-    y = y + h + 7
-  end
-  hideFrom(factRows, #list + 1)
+  y = y + 2
 
   notShared:SetShown(c.notShared == true)
   local items = c.notShared and {} or ns.friendGear(c)
@@ -520,16 +507,92 @@ drawDetails = function(c, friend)
   details:Show()
 end
 
--- A click on a card: opens its character, or closes the panel when it already shows it.
+-- The character whose info is unfolded under its row (one at a time, on the Friends and
+-- Characters tabs); its gear is in the side panel, which also closes on its own.
+local expandedKey
+
+local function redrawTab() if current and tabs[current] and tabs[current].page then ui.refresh(tabs[current].page) end end
+
+-- A click on a card: unfolds its info and opens its gear beside the window, or folds both away
+-- when it's the one open.
 local function toggleDetails(self)
   local c = self.char
   if not c then return end
   if not details then buildDetails() end
-  if details:IsShown() and detailsKey == charKey(c) then details:Hide() else drawDetails(c, self.friend) end
+  if expandedKey == charKey(c) then
+    expandedKey = nil
+    details:Hide()
+  else
+    expandedKey = charKey(c)
+    drawDetails(c, self.friend)
+  end
+  redrawTab()
 end
 
--- Home's friend rows open the same panel.
-function ns.toggleFriendDetails(c, friend) toggleDetails({ char = c, friend = friend }) end
+-- Home's friend rows: the Friends tab with that character unfolded.
+local selectTab -- the window's, further down
+function ns.toggleFriendDetails(c, friend)
+  if not details then buildDetails() end
+  expandedKey = charKey(c)
+  selectTab("friends")
+  drawDetails(c, friend)
+end
+
+-- The unfolded info under a row: the facts on the left, the level times and their chart on the
+-- right. One per tab page, placed under whichever row is open.
+local EXPAND_CHART = 30
+local function newExpansion(p, width)
+  local ex = CreateFrame("Frame", nil, p)
+  ex:SetWidth(width)
+  ui.box(ex, C.bar, C.border)
+  ex.half = math.floor((width - 36) / 2)
+  ex.left, ex.right = {}, {}
+  ex.levelTitle = ui.text(ex, "GameFontNormalSmall", "Level times")
+  ui.tint(ex.levelTitle, C.accent)
+  ex.noLevels = ui.text(ex, "GameFontDisableSmall", "No level times shared.")
+  ex.chart = ui.levelChart(ex, 30, EXPAND_CHART, math.floor(ex.half / 30))
+  return ex
+end
+
+-- Lists rows of { label, value } in a column from y; returns the y under them.
+local function factColumn(ex, pool, list, x, y)
+  for i, fact in ipairs(list) do
+    local r = pooled(pool, i, function() return newFactRow(ex, ex.half) end)
+    r.labelText:SetText(fact[1])
+    r.valueText:SetText(fact[2])
+    local h = math.max(14, textHeight(r.valueText, 14))
+    r:SetHeight(h)
+    place(r, ex, x, y)
+    y = y + h + 5
+  end
+  hideFrom(pool, #list + 1)
+  return y
+end
+
+-- Fills the info for c and returns its height.
+local function drawExpansion(ex, c, friend)
+  local left = factColumn(ex, ex.left, facts(c, friend), 12, 10)
+  local x = 24 + ex.half
+  place(ex.levelTitle, ex, x, 10)
+  local levels = levelsOf(c)
+  local right = factColumn(ex, ex.right, ns.levelingFacts(levels, c), x, 28)
+  ex.noLevels:SetShown(#levels == 0)
+  if #levels == 0 then
+    place(ex.noLevels, ex, x, right)
+    right = right + 16
+  end
+  ex.chart:SetShown(#levels > 0)
+  if #levels > 0 then
+    place(ex.chart, ex, x, right + 4)
+    local playing = (c.levelTime or 0) > 0 and c.level and not (c.maxLevel and c.level >= c.maxLevel)
+    ex.chart.draw(levels, playing and { level = c.level + 1, seconds = c.levelTime } or nil)
+    right = right + 4 + EXPAND_CHART
+  end
+  local h = math.max(left, right) + 10
+  ex:SetHeight(h)
+  ex:Show()
+  return h
+end
 
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
@@ -977,6 +1040,7 @@ local function buildFriends(p)
   end
 
   local function newCharCard() return newCharRow(p, width - 12) end
+  local expansion -- the open row's info (newExpansion), built on the first click
 
   -- A friend's header in Shared with you: +/- folds their characters (a click anywhere on it does),
   -- their name and character count, what you share both ways, and Options.
@@ -1024,6 +1088,16 @@ local function buildFriends(p)
     end
     local open -- the open panel's character in the new data, and its friend
     local openFriend
+    -- The open row's info goes under it, once (an online friend's and the same shared character match).
+    local unfolded = false
+    local function unfold(c, friend, y)
+      if unfolded or expandedKey ~= charKey(c) then return y end
+      unfolded = true
+      expansion = expansion or newExpansion(p, width - 12)
+      local h = drawExpansion(expansion, c, friend)
+      place(expansion, p, 28, y - 2)
+      return y - 2 + h + 8
+    end
 
     local y = 14
     local requests = rowsOf(ns.pendingRequests)
@@ -1091,6 +1165,7 @@ local function buildFriends(p)
       alignButtons(card, { card.b1, card.b2 })
       place(card, p, 16, y)
       y = y + CARD + 6
+      y = unfold(card.char, card.friend, y)
     end
     hideFrom(friendCards, #online + 1)
     y = y + 12
@@ -1127,12 +1202,14 @@ local function buildFriends(p)
           setCharRow(card, c)
           place(card, p, 28, y)
           y = y + CARD + 4
+          y = unfold(c, label, y)
         end
       end
       y = y + 8
     end
     hideFrom(sharedHeads, heads + 1)
     hideFrom(charCards, cards + 1)
+    if not unfolded and expansion then expansion:Hide() end
     if details and details:IsShown() then
       if open then drawDetails(open, openFriend) else details:Hide() end
     end
@@ -1172,12 +1249,13 @@ local function buildCharacters(p)
   hint:SetWidth(width)
   local none = ui.text(p, "GameFontDisableSmall", "None saved yet. Characters show up here once you've played them with the addon.")
   local rows = {}
+  local expansion -- the open row's info, built on the first click
   local function draw()
     local list = ownChars()
     local y = 56
     none:SetShown(#list == 0)
     if #list == 0 then place(none, p, 16, y) end
-    local open
+    local open, unfolded
     for i, c in ipairs(list) do
       local row = pooled(rows, i, function() return newCharRow(p, width) end)
       row.char, row.friend = c, nil
@@ -1185,7 +1263,14 @@ local function buildCharacters(p)
       setCharRow(row, c)
       place(row, p, 16, y)
       y = y + CARD + 4
+      if expandedKey == charKey(c) then
+        unfolded = true
+        expansion = expansion or newExpansion(p, width - 12)
+        place(expansion, p, 28, y - 2)
+        y = y - 2 + drawExpansion(expansion, c) + 8
+      end
     end
+    if expansion and not unfolded then expansion:Hide() end
     hideFrom(rows, #list + 1)
     if open and details and details:IsShown() then drawDetails(open) end
     p:SetHeight(y + 10)
@@ -1377,7 +1462,7 @@ local function buildTab(tab)
   tabs[tab.key].holder, tabs[tab.key].page = holder, page
 end
 
-local function selectTab(key)
+selectTab = function(key)
   key = OLD_TABS[key] or key
   if not BY_KEY[key] then key = "home" end
   current = key

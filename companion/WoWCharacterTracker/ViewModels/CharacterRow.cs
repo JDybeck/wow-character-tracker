@@ -288,6 +288,13 @@ sealed class CharacterRow : Observable
             var level = Math.Max(s?.Level ?? 0, all.Count > 0 ? all.Max(e => e.Level) : 0);
             // The newest of the snapshot and the last event says what the character has now.
             var newer = last is not null && last.At > (s?.LastSeen ?? 0) ? last : null;
+            // Played on the level being played: since the ding (played then), else what the addon saved
+            // (a friend's shared levelTime). Nothing at max level.
+            var played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0);
+            var ding = levels.Where(e => e.Level == level && e.Played > 0).MaxBy(e => e.At);
+            var thisLevel = ding is not null && played > ding.Played ? played - ding.Played : s is { LevelTime: > 0 } && s.Level == level ? s.LevelTime : 0;
+            var cap = Math.Max(xpSnaps.GetValueOrDefault(guid)?.MaxLevel ?? 0, s?.MaxLevel ?? 0);
+            if (cap > 0 && level >= cap || all.Any(e => e.MaxLevel)) thisLevel = 0;
 
             rows.Add(new CharacterRow
             {
@@ -305,7 +312,7 @@ sealed class CharacterRow : Observable
                 Role = s?.Role ?? "",
                 IsRetail = flavor.HasSpecs,
                 ItemLevel = s?.ItemLevel is > 0 ? s.ItemLevel : last?.ItemLevel ?? 0,
-                Played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0),
+                Played = played,
                 Zone = Pick(s?.Zone, last?.Zone),
                 ZoneType = s?.Zone is { Length: > 0 } ? s.ZoneType : last?.ZoneType ?? "", // from where the zone came from
                 Professions = Pick(s?.Professions, last?.Professions),
@@ -339,7 +346,7 @@ sealed class CharacterRow : Observable
                 Lookup = lookup,
                 Inventory = inventories.GetValueOrDefault(guid),
                 MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile), Pick(s?.Spec, last?.Spec)),
-                Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor.EstimatesXp),
+                Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor.EstimatesXp, thisLevel),
             });
         }
 

@@ -281,6 +281,13 @@ function ns.recordOnce(kind, fields, idSuffix)
   return ns.record(kind, fields, idSuffix)
 end
 
+-- "Zeb Stonehand" with a Forever surname, else the name: a character, event or friend's character.
+function ns.fullName(c)
+  local name = c.char or "?"
+  if c.surname and c.surname ~= "" then return name .. " " .. c.surname end
+  return name
+end
+
 -- "just now", "3m ago", "2h ago" or "1d ago" since at (a time()).
 function ns.ago(at)
   local s = math.max(0, time() - (at or time()))

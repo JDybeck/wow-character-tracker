@@ -754,4 +754,23 @@ public class LevelingEstimateTests
         Assert.StartsWith("About ", stale);
         Assert.Equal(whole, stale);
     }
+
+    // The chart ends with a paler bar for the level being played: played since the last ding, or the
+    // time the addon saved (a friend's); none at max level.
+    [Fact]
+    public void The_chart_has_a_bar_for_the_level_being_played()
+    {
+        static IReadOnlyList<LevelBar> Bars(List<Entry> dings, Snapshot saved) =>
+            CharacterRow.Build(new TrackerData(dings, [saved]), Flavors.Forever, new GameLookup(Flavors.Forever, () => { })).Single().Leveling.Bars;
+        List<Entry> played = [.. Dings.Select(d => d.Level == 11 ? new Entry { Kind = "level", Guid = "Player-1", Level = 11, Seconds = 600, At = 1011, Played = 6000 } : d)];
+        var bars = Bars(played, Saved(11, 3000, 7600) with { Played = 6300 });
+        Assert.Equal(11, bars.Count);
+        Assert.Equal((12, true, "11 to 12 so far: 5m 0s"), (bars[^1].Level, bars[^1].Current, bars[^1].Tooltip));
+
+        var shared = Bars(Dings, Saved(11, 3000, 7600) with { LevelTime = 900 }); // a friend's, no played at the ding
+        Assert.Equal("11 to 12 so far: 15m 0s", shared[^1].Tooltip);
+        Assert.Equal(70, shared[^1].Height); // the tallest bar now
+
+        Assert.DoesNotContain(Bars(Dings, Saved(60, 0, 0) with { LevelTime = 900 }), b => b.Current); // max level
+    }
 }

@@ -144,6 +144,11 @@
         <Setter TargetName="Bar" Property="Background" Value="{DynamicResource Indigo}"/>
         <Setter TargetName="Bar" Property="Opacity" Value="1"/>
       </DataTrigger>
+      <!-- The level being played: the accent, paler, as it isn't done yet. -->
+      <DataTrigger Binding="{Binding Current}" Value="True">
+        <Setter TargetName="Bar" Property="Background" Value="{DynamicResource Indigo}"/>
+        <Setter TargetName="Bar" Property="Opacity" Value="0.35"/>
+      </DataTrigger>
     </DataTemplate.Triggers>
   </DataTemplate>
 

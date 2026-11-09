@@ -238,6 +238,64 @@ function ui.slider(parent, label, get, set)
   return s
 end
 
+-- A small level times chart: a bar per level (the last `count`), the fastest and slowest in the
+-- accent color, the time on hover. chart.draw(levels) takes { level, seconds } oldest first.
+local MUTED = { 0.55, 0.5, 0.45, 0.6 }
+
+local function showBarTip(self)
+  if not (GameTooltip and self.text) then return end
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText(self.text, 1, 1, 1)
+  GameTooltip:Show()
+end
+local function hideBarTip() if GameTooltip then GameTooltip:Hide() end end
+
+function ui.levelChart(parent, count, height, step)
+  local chart = CreateFrame("Frame", nil, parent)
+  chart:SetSize(count * step, height)
+  local base = chart:CreateTexture(nil, "BACKGROUND")
+  ui.fill(base, COLOR.border)
+  base:SetHeight(1)
+  base:SetPoint("BOTTOMLEFT")
+  base:SetPoint("BOTTOMRIGHT")
+  local bars = {}
+  for i = 1, count do
+    local b = CreateFrame("Frame", nil, chart)
+    b:SetWidth(step - 3)
+    b:SetPoint("BOTTOMLEFT", chart, "BOTTOMLEFT", (i - 1) * step, 1)
+    b:EnableMouse(true)
+    b.fill = b:CreateTexture(nil, "ARTWORK")
+    b.fill:SetAllPoints()
+    b:SetScript("OnEnter", showBarTip)
+    b:SetScript("OnLeave", hideBarTip)
+    bars[i] = b
+  end
+  -- now: { level, seconds } for the level being played (time so far), drawn as a paler last bar.
+  function chart.draw(levels, now)
+    local shown = {}
+    local room = now and count - 1 or count
+    for i = math.max(1, #levels - room + 1), #levels do shown[#shown + 1] = levels[i] end
+    local summary = ns.levelSummary(shown)
+    local slowest = math.max(summary and summary.slowest.seconds or 1, now and now.seconds or 1)
+    if now then shown[#shown + 1] = now end
+    for i, b in ipairs(bars) do
+      local l = shown[i]
+      if l then
+        b:SetHeight(math.max(2, (height - 2) * l.seconds / slowest))
+        local marked = l == now or (summary ~= nil and (l == summary.fastest or l == summary.slowest))
+        local c = marked and COLOR.accent or MUTED
+        b.fill:SetColorTexture(c[1], c[2], c[3], l == now and 0.35 or (c[4] or 1))
+        b.text = l == now and string.format("%d to %d so far: %s", l.level - 1, l.level, ns.formatDuration(l.seconds))
+          or string.format("%d to %d: %s", l.level - 1, l.level, ns.formatDuration(l.seconds))
+        b:Show()
+      else
+        b:Hide()
+      end
+    end
+  end
+  return chart
+end
+
 -- Under anchor, or at the top of the page without one.
 function ui.heading(parent, s, anchor, gap)
   local h = ui.text(parent, "GameFontNormal", s)

@@ -19,17 +19,21 @@ sealed class CharacterLeveling
     public bool HasDuels => DuelText.Length > 0;
 
     // all: the character's events, oldest first. xp: the newest snapshot that has XP (saved file).
-    public static CharacterLeveling From(IReadOnlyList<Entry> all, int level, Snapshot? xp, IReadOnlyDictionary<int, long> xpTable, bool estimate)
+    // thisLevel: played seconds on the level being played so far (0: unknown, or max level), a paler last bar.
+    public static CharacterLeveling From(IReadOnlyList<Entry> all, int level, Snapshot? xp, IReadOnlyDictionary<int, long> xpTable, bool estimate,
+        long thisLevel = 0)
     {
         var timed = all.Where(e => e.Kind == "level" && e.Seconds > 0)
             .GroupBy(e => e.Level).Select(g => new LevelStats.Level(g.Key, g.Last().Seconds))
             .OrderBy(l => l.Number).ToList();
         var summary = LevelStats.Summarize(timed);
 
-        var shown = timed.TakeLast(40).ToList();
-        var slowest = shown.Count > 0 ? shown.Max(l => l.Seconds) : 1;
+        var shown = timed.TakeLast(thisLevel > 0 ? 39 : 40).ToList();
+        var slowest = Math.Max(shown.Count > 0 ? shown.Max(l => l.Seconds) : 1, thisLevel);
         var bars = shown.Select(l => new LevelBar(l.Number, Math.Max(3, ChartHeight * l.Seconds / slowest),
             $"{l.Number - 1} to {l.Number}: {Format.Duration(l.Seconds)}", l == summary?.Fastest || l == summary?.Slowest)).ToList();
+        if (thisLevel > 0 && shown.Count > 0)
+            bars.Add(new LevelBar(level + 1, Math.Max(3, ChartHeight * thisLevel / slowest), $"{level} to {level + 1} so far: {Format.Duration(thisLevel)}", false, Current: true));
 
         // A bar saved at an earlier level (dinged since, the saved file not written yet) says nothing
         // about this one, so then the whole level counts.
