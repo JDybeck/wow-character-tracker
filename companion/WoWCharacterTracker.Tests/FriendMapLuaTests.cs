@@ -320,6 +320,39 @@ public class FriendMapLuaTests
         Assert.Equal(note, pin.Get("realmNote").IsNil() ? null : pin.Get("realmNote").String);
     }
 
+    // The game shows group members on the map itself, so ours would be a second pin on top.
+    [Fact]
+    public void A_friend_in_your_group_gets_no_pin_and_no_watch()
+    {
+        var (a, b) = Pair();
+        b.Call("setMapOpen", true);
+        Pass(a, b, 3);
+        Assert.NotNull(Pin(b));
+        b.Lua($"groupGuids = {{ '{A}' }}");
+        Assert.Null(Pin(b));
+        b.Lua("sent = {}");
+        Pass(a, b, 25);
+        Assert.DoesNotContain(b.Sent(), m => m.Get("text").String.Contains(":WATCH:"));
+        b.Lua("groupGuids = {}");
+        Pass(a, b, 25); // the next watch round
+        Assert.NotNull(Pin(b));
+    }
+
+    [Theory]
+    [InlineData("CAMWOW EU5 Realm 6 PvP", "PvP", 6)]
+    [InlineData("CAMWOWEU5Realm2Normal", "Normal", 2)]
+    [InlineData("CAMWOW EU5 Realm 12 RP-PvP", "RP-PvP", 12)]
+    [InlineData("CAMWOWEU5Realm1RPPvP", "RP-PvP", 1)]
+    [InlineData("Firemaw", null, null)]
+    [InlineData("", null, null)]
+    public void The_realm_type_and_layer_come_from_the_end_of_a_Forever_realm_name(string realm, string? type, int? layer)
+    {
+        var (_, b) = Pair();
+        var got = b.Lua($"return {{ ns.realmType('{realm}') }}").Table;
+        Assert.Equal(type, got.Get(1).IsNil() ? null : got.Get(1).String);
+        Assert.Equal(layer, got.Get(2).IsNil() ? null : (int)got.Get(2).Number);
+    }
+
     [Fact]
     public void Positions_are_never_saved()
     {

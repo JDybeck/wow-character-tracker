@@ -455,8 +455,13 @@ local function facts(c, friend)
   local out = {}
   local function add(label, value) if value and value ~= "" then out[#out + 1] = { label, value } end end
   add("Friend", friend)
-  -- On Forever the realm's name is mostly its ruleset ("CAMWOW EU5 Realm 6 PvP"), so that's what counts.
-  if not ns.IS_RETAIL and c.ruleset and c.ruleset ~= "" then add("Ruleset", c.ruleset) else add("Realm", c.realm) end
+  -- Forever's realm names are a type and a layer ("CAMWOW EU5 Realm 6 PvP" -> PvP, layer 6). The
+  -- ruleset (Hardcore, Self-found) only when it isn't the usual one.
+  local realmType, layer
+  if not ns.IS_RETAIL then realmType, layer = ns.realmType(c.realm) end
+  add("Realm", realmType or c.realm)
+  add("Layer", layer and tostring(layer))
+  if c.ruleset ~= "Normal" then add("Ruleset", c.ruleset) end
   local race = c.race and (c.sex == "female" and "Female " or (c.sex == "male" and "Male " or "")) .. c.race
   add("Race", race and (c.faction and string.format("%s, %s", race, c.faction) or race))
   add("Item level", c.ilvl and tostring(math.floor(c.ilvl)))
