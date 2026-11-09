@@ -15,6 +15,7 @@ local HISTORY_ROWS = 20
 local ROW = 16
 local FEED_SIZE = 6
 local FRIENDS_SHOWN = 4
+local TODAY_MAX = 12 -- room for every stat Today.lua has
 local REDRAW_EVERY = 2 -- seconds
 local SLOW_EVERY = 15  -- redraws
 
@@ -26,6 +27,13 @@ local function setHistoryOpen(on)
   local d = db()
   d.window = d.window or {}
   d.window.homeHistory = on
+end
+
+local function todayOpen() return (db().window or {}).homeToday == true end
+local function setTodayOpen(on)
+  local d = db()
+  d.window = d.window or {}
+  d.window.homeToday = on
 end
 
 -- Live numbers for the character being played, from the game where it's cheap, else its snapshot.
@@ -244,10 +252,15 @@ function ns.buildHomeTab(p)
   local line = card:CreateTexture(nil, "ARTWORK")
   ui.fill(line, C.border)
   line:SetHeight(1)
+  -- Today: the four that matter most (Today.lua ns.todayStats), the rest folded behind "+N more".
   local todayLabel = ui.text(card, "GameFontDisableSmall", "TODAY")
-  local today = {}
-  local todayWidth = math.floor(INNER / 4)
-  for i = 1, 4 do today[i] = ui.text(card, "GameFontHighlight") end
+  local today, todayStats = {}, {}
+  local todayWidth = math.floor(INNER / ns.TODAY_SHOWN)
+  for i = 1, TODAY_MAX do today[i] = ui.text(card, "GameFontHighlight") end
+  local todayToggle = ui.button(card, "", 90, function()
+    setTodayOpen(not todayOpen())
+    layout()
+  end)
 
   -- The newest moments: yours on the left, friends' on the right, a bar between them to drag ------
   local moments = CreateFrame("Frame", nil, p)
@@ -397,9 +410,24 @@ function ns.buildHomeTab(p)
     line:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -(y + 6))
     line:SetPoint("TOPRIGHT", card, "TOPRIGHT", -14, -(y + 6))
     at(todayLabel, card, y + 14)
-    for i, fs in ipairs(today) do at(fs, card, y + 30, (i - 1) * todayWidth) end
-    card:SetHeight(y + 56)
-    p:SetHeight(12 + y + 56 + BELOW_CARD)
+    local more = #todayStats - ns.TODAY_SHOWN
+    todayToggle:SetShown(more > 0)
+    if more > 0 then
+      todayToggle:SetText(todayOpen() and "Less  ^" or string.format("+%d more  v", more))
+      todayToggle:ClearAllPoints()
+      todayToggle:SetPoint("TOPRIGHT", card, "TOPRIGHT", -14, -(y + 10))
+    end
+    local shown = todayOpen() and #todayStats or math.min(#todayStats, ns.TODAY_SHOWN)
+    for i, fs in ipairs(today) do
+      fs:SetShown(i <= shown)
+      if i <= shown then
+        local col, row = (i - 1) % ns.TODAY_SHOWN, math.floor((i - 1) / ns.TODAY_SHOWN)
+        at(fs, card, y + 30 + row * 22, col * todayWidth)
+      end
+    end
+    local bottom = y + 56 + (math.ceil(math.max(shown, 1) / ns.TODAY_SHOWN) - 1) * 22
+    card:SetHeight(bottom)
+    p:SetHeight(12 + bottom + BELOW_CARD)
   end
 
   -- The parts that change while you play: name, tiles and the estimate.
@@ -431,19 +459,6 @@ function ns.buildHomeTab(p)
     if #levels > 0 then paceParts[#paceParts + 1] = ns.levelText(levels[#levels]) end
     if summary then paceParts[#paceParts + 1] = "average " .. ns.formatDuration(summary.average) end
     pace:SetText(#paceParts > 0 and table.concat(paceParts, "  ·  ") or "No level times yet. The next ding starts the clock.")
-
-    local since = midnight()
-    local counts = { 0, 0, 0, 0 }
-    for _, e in ipairs(events) do
-      if type(e) == "table" and (e.at or 0) >= since then
-        if e.kind == "level" or e.kind == nil then counts[1] = counts[1] + 1
-        elseif e.kind == "boss" or e.kind == "keyrun" then counts[2] = counts[2] + 1
-        elseif e.kind == "loot" and (e.quality or 0) >= 4 then counts[3] = counts[3] + 1
-        elseif e.kind == "mount" then counts[4] = counts[4] + 1 end
-      end
-    end
-    local names = { "levels", ns.IS_RETAIL and "keys" or "bosses", "epics", "mounts" }
-    for i, fs in ipairs(today) do fs:SetText(string.format("%d |cff9a9a9a%s|r", counts[i], names[i])) end
 
     factLines[1]:SetText(summary and string.format("%d timed level%s, average %s", summary.count, summary.count == 1 and "" or "s",
       ns.formatDuration(summary.average)) or "")
@@ -502,6 +517,12 @@ function ns.buildHomeTab(p)
     if all or events ~= seenList or #events ~= seenCount or me.guid ~= seenGuid then
       seenList, seenCount, seenGuid = events, #events, me.guid
       drawEvents(events, me.guid)
+      -- Today: with new events, and every slow redraw for quests, gold and gathering.
+      todayStats = ns.todayStats(events, db().today, date("%Y-%m-%d"), midnight(), ns.IS_RETAIL)
+      for i, fs in ipairs(today) do
+        local s = todayStats[i]
+        fs:SetText(s and string.format("%s |cff9a9a9a%s|r", ns.todayValue(s), s.name) or "")
+      end
     end
     if all then drawFriends() end
     drawLive(me)

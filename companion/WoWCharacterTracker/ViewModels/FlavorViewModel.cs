@@ -798,8 +798,9 @@ sealed class FlavorViewModel : Observable
     // Home: rebuilt with the character list, and when the game starts or stops (playing now or not).
     public HomeViewModel Home { get; }
     IReadOnlyList<Entry> homeEvents = [];
+    IReadOnlyList<DayTotals> homeDays = [];
     public void RefreshHome() =>
-        Home.Show(allRows, homeEvents, tracker?.SentIds ?? new HashSet<string>(), flavorDir is not null && Wow.IsRunning(flavorDir), Friends.Shown);
+        Home.Show(allRows, homeEvents, homeDays, tracker?.SentIds ?? new HashSet<string>(), flavorDir is not null && Wow.IsRunning(flavorDir), Friends.Shown);
 
     // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
     List<CharacterRow> allRows = [];
@@ -822,6 +823,7 @@ sealed class FlavorViewModel : Observable
                 XpTable = data.XpTable.Count > 0 ? data.XpTable : test.XpTable,
                 ItemClasses = data.ItemClasses,
                 Notes = data.Notes,
+                Today = data.Today,
             };
         }
         main.TakeGameNotes(data.Notes); // notes edited in game, newer than the app's
@@ -867,6 +869,7 @@ sealed class FlavorViewModel : Observable
         Professions.Show(rows);
         Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
         homeEvents = data.Events;
+        homeDays = data.Today;
         RefreshHome(); // after Friends: Home lists the friends seen lately
         main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins

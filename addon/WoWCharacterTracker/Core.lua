@@ -44,12 +44,15 @@ local EVENTS = {
   "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED", "TAXIMAP_CLOSED",                 -- flight paths (the reload box)
   "MAIL_CLOSED", "AUCTION_HOUSE_CLOSED",                                          -- moments for the reload reminder
   "BN_CHAT_MSG_ADDON", "BN_FRIEND_INFO_CHANGED",                                  -- sharing with Battle.net friends
+  "QUEST_TURNED_IN", "LOOT_OPENED",                                               -- today's numbers (Today.lua)
   -- Refresh the character snapshot when these change, while the game has the data.
   "PLAYER_EQUIPMENT_CHANGED", "PLAYER_MONEY", "CURRENCY_DISPLAY_UPDATE", "PLAYER_SPECIALIZATION_CHANGED",
   "TRAIT_CONFIG_UPDATED", "CHARACTER_POINTS_CHANGED", "PLAYER_GUILD_UPDATE",
 }
 ns.frame = CreateFrame("Frame")
 for _, event in ipairs(EVENTS) do pcall(ns.frame.RegisterEvent, ns.frame, event) end
+-- Gathering casts (Today.lua): only our own, not every unit's.
+if ns.frame.RegisterUnitEvent then pcall(ns.frame.RegisterUnitEvent, ns.frame, "UNIT_SPELLCAST_SUCCEEDED", "player") end
 
 -- What the addon did last, saved with any "blocked from an action" report.
 local lastDoing = "nothing yet"

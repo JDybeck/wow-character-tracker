@@ -103,7 +103,7 @@ public class AddonWindowTests
     {
         var c = new FriendsLuaTests.Client(Me, "{}", db, settings);
         c.Lua(Widgets);
-        foreach (var file in new[] { "NoteBox.lua", "Ui.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
+        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
             c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file)), codeFriendlyName: file), "WoWCharacterTracker", c.Ns);
         return c;
     }
@@ -147,6 +147,30 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('44 to 45') ~= nil"));
         Assert.True(Bool(c, "shownText('2h 54m') ~= nil"));
         Assert.True(Bool(c, "WoWCharacterTrackerDB.window.homeHistory == true"));
+    }
+
+    // TODAY shows the four that matter most; the rest unfold with "+N more".
+    [Fact]
+    public void Home_folds_the_rest_of_today_behind_more()
+    {
+        var c = Load("""
+            { chars = {}, items = {}, events = {}, today = { ['Player-1-0000000A'] =
+              { day = '2026-11-09', quests = 4, herbs = 2, ore = 3, skins = 1, fish = 5, ilvlStart = 30, ilvl = 31 } } }
+            """);
+        c.Lua("""
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitLevel() return 45 end
+            function date(f) if f == '*t' then return { year = 2026, month = 11, day = 9 } end return '2026-11-09' end
+            ns.playedNow = function() return 100 end
+            ns.levelTimeNow = function() return 10 end
+            """);
+        c.Lua("SlashCmdList.CHARACTERTRACKER('')");
+        Assert.True(Bool(c, "shownText('+1 |cff9a9a9aitem level|r') ~= nil"));
+        Assert.True(Bool(c, "shownText('3 |cff9a9a9aveins|r') ~= nil"));
+        Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') == nil"));
+        c.Lua("click('+2 more  v')");
+        Assert.True(Bool(c, "shownText('1 |cff9a9a9askins|r') ~= nil"));
+        Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') ~= nil"));
     }
 
     [Fact]

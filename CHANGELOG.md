@@ -2,6 +2,18 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.39.6
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **More of today**: Home's Today row (in the app and in game) now also counts item level gained, quests turned in, gold earned, and herbs, veins, skins and fish gathered. The four biggest numbers show, **+N more** opens the rest. A vein mined twice counts once.
+
+### Fixes and tweaks
+
+- Rare crafting materials (trade goods and reagents) are no longer a moment: not posted, announced or shared with friends, and friends' ones aren't shown in game. Followed items still count.
+
 ## v0.39.5
 
 Update the addon with the app (it does this by itself) and /reload in game.

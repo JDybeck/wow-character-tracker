@@ -62,8 +62,14 @@ local HIGHLIGHT_FIELDS = {
 local FIELD_CATEGORY = { gold = "gold", zone = "location" }
 ns.FRIEND_HIGHLIGHTS = MAX_HIGHLIGHTS
 
+-- Rare crafting materials recorded before they stopped being moments (Shared.lua ns.isRareReagent)
+-- are skipped both ways: not shared, and not shown when an older addon sends them.
+local function isReagentLoot(e)
+  return e.kind == "loot" and type(e.itemId) == "number" and ns.isRareReagent(e.itemId, e.quality)
+end
+
 function ns.isFriendHighlight(e)
-  return type(e) == "table" and HIGHLIGHT_FIELDS[e.kind] ~= nil and type(e.at) == "number"
+  return type(e) == "table" and HIGHLIGHT_FIELDS[e.kind] ~= nil and type(e.at) == "number" and not isReagentLoot(e)
 end
 
 -- `\`, `;` (between fields) and line breaks are escaped, so the text is one line.
@@ -168,7 +174,7 @@ function ns.friendHighlights(c)
           if FLAGS[key] then e[key] = v == "1" else e[key] = tonumber(v) or v end
         end
       end
-      out[#out + 1] = e
+      if not isReagentLoot(e) then out[#out + 1] = e end
     end
   end
   table.sort(out, function(x, y) return x.at > y.at end)

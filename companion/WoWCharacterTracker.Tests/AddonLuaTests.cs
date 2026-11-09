@@ -952,6 +952,34 @@ public class AddonLuaTests
         Assert.Equal(mat, Assert.Single(recorded).Get("mat").CastToBool());
     }
 
+    // Rare crafting materials (Trade Goods 7, Reagent 5) aren't moments; rare gear and epic mats are.
+    [Theory]
+    [InlineData(3, "7", false)]
+    [InlineData(3, "5", false)]
+    [InlineData(3, "4", true)]
+    [InlineData(4, "7", true)]
+    public void Rare_reagents_are_not_recorded(int quality, string classId, bool kept)
+    {
+        var script = new Script();
+        script.DoString($$"""
+            LOOT_ITEM_SELF = "You receive loot: %s."
+            function time() return 5000 end
+            function GetItemInfo(link) return 'Thing', link, {{quality}} end
+            function GetItemInfoInstant(link) return 12360, 'x', 'y', 'z', 'i', {{classId}}, 0 end
+            """);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Events.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+
+        script.Call(ns.Get("recordLoot"), "You receive loot: |cff0070dd|Hitem:12360::::::::50:::::|h[Thing]|h|r.");
+
+        Assert.Equal(kept ? 1 : 0, recorded.Count);
+    }
+
     // Retail is told by the interface number, not by C_MythicPlus: Forever (16001) has that API too,
     // and must still record end boss kills; Retail (120105) records key runs instead.
     [Theory]
@@ -1260,12 +1288,13 @@ public class AddonLuaTests
         var script = new Script();
         script.DoString("""
             function time() return 1000 end
+            function date() return '2026-11-09' end
             function UnitGUID() return "Player-1" end
             WoWCharacterTrackerDB = { xpTable = {}, chars = { ["Player-1"] = { level = 11, xp = 3000, xpMax = 7600 } } }
             """);
         var ns = new Table(script);
         ns["doing"] = (Action<string>)(_ => { });
-        foreach (var file in new[] { "Shared.lua", "Character.lua" })
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Today.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         ns["playedNow"] = (Func<double>)(() => 5000);
         ns["characterInfo"] = (Func<Table>)(() => script.DoString($"return {{ guid = 'Player-1', level = {level}, xp = {xp}, xpMax = {xpMax} }}").Table);
@@ -1591,12 +1620,13 @@ public class AddonLuaTests
         var script = new Script();
         script.DoString("""
             function time() return 1000 end
+            function date() return '2026-11-09' end
             function UnitGUID() return "Player-1" end
             WoWCharacterTrackerDB = { xpTable = {}, chars = { ["Player-1"] = { level = 11, money = 4200 } } }
             """);
         var ns = new Table(script);
         ns["doing"] = (Action<string>)(_ => { });
-        foreach (var file in new[] { "Shared.lua", "Character.lua" })
+        foreach (var file in new[] { "Shared.lua", "Character.lua", "Today.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
         ns["playedNow"] = (Func<double>)(() => 5000);
         ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 11, money = 0 }").Table);

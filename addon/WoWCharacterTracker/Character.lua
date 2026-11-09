@@ -528,6 +528,7 @@ function ns.saveSnapshot(atLogout)
   if info.spec == info.class then info.spec = nil end
   if not ns.IS_RETAIL then info.role = nil end
   WoWCharacterTrackerDB.chars[guid] = info
+  if atLogout ~= true then ns.todaySnapshot(info) end -- (at logout the money can read 0)
   -- The XP each level needs on this client, so the app can estimate time to max level.
   if info.level and info.xpMax and info.xpMax > 0 and WoWCharacterTrackerDB.xpTable then
     WoWCharacterTrackerDB.xpTable[info.level] = info.xpMax
@@ -541,7 +542,10 @@ function ns.saveMoney()
   local saved = guid and WoWCharacterTrackerDB.chars[guid]
   if not saved then return ns.saveSnapshot() end
   local money = num(safe(GetMoney))
-  if money then saved.money = money end
+  if money then
+    saved.money = money
+    ns.todaySnapshot({ guid = guid, money = money })
+  end
   local crests = safe(getCrests)
   if crests then saved.crests = crests end
   saved.lastSeen = time()
