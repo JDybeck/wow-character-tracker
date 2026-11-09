@@ -17,8 +17,6 @@
       <StackPanel Visibility="{Binding Leveling.HasStats, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="AVERAGE LEVEL"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.AverageText}"/>
-        <TextBlock Style="{StaticResource FactLabel}" Text="FASTEST"/>
-        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.FastestText}"/>
         <TextBlock Style="{StaticResource FactLabel}" Text="SLOWEST"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.SlowestText}"/>
       </StackPanel>
@@ -44,7 +42,7 @@
     </StackPanel>
 
     <StackPanel Grid.Column="2">
-      <!-- One bar per level (the last 40), fastest and slowest highlighted. -->
+      <!-- One bar per level (the last 40), the slowest highlighted, then the level being played. -->
       <StackPanel Visibility="{Binding Leveling.HasStats, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="LEVEL TIMES"/>
         <ItemsControl ItemsSource="{Binding Leveling.Bars}" Height="74" Margin="0,4,0,0" ItemTemplate="{StaticResource LevelBarTemplate}">

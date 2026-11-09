@@ -447,8 +447,7 @@ function ns.buildHomeTab(p)
 
     factLines[1]:SetText(summary and string.format("%d timed level%s, average %s", summary.count, summary.count == 1 and "" or "s",
       ns.formatDuration(summary.average)) or "")
-    factLines[2]:SetText(summary and summary.count > 1 and string.format("Fastest %s (%d to %d)   Slowest %s (%d to %d)",
-      ns.formatDuration(summary.fastest.seconds), summary.fastest.level - 1, summary.fastest.level,
+    factLines[2]:SetText(summary and summary.count > 1 and string.format("Slowest %s (%d to %d)",
       ns.formatDuration(summary.slowest.seconds), summary.slowest.level - 1, summary.slowest.level) or "")
 
     -- Your newest moments with a line (ns.momentLine), any of your characters.

@@ -1,13 +1,12 @@
 namespace WoWCharacterTracker.ViewModels;
 
-// The Leveling tab of the character details: average, fastest and slowest level, a chart of level
+// The Leveling tab of the character details: average and slowest level (the fastest is nearly always 1 to 2), a chart of level
 // times, the time-to-max estimate (Forever), how gear and professions grew, and the duel record.
 sealed class CharacterLeveling
 {
     const double ChartHeight = 70;
 
     public string AverageText { get; init; } = "";
-    public string FastestText { get; init; } = "";
     public string SlowestText { get; init; } = "";
     public bool HasStats { get; init; }
     public string EstimateText { get; init; } = "";
@@ -31,7 +30,7 @@ sealed class CharacterLeveling
         var shown = timed.TakeLast(thisLevel > 0 ? 39 : 40).ToList();
         var slowest = Math.Max(shown.Count > 0 ? shown.Max(l => l.Seconds) : 1, thisLevel);
         var bars = shown.Select(l => new LevelBar(l.Number, Math.Max(3, ChartHeight * l.Seconds / slowest),
-            $"{l.Number - 1} to {l.Number}: {Format.Duration(l.Seconds)}", l == summary?.Fastest || l == summary?.Slowest)).ToList();
+            $"{l.Number - 1} to {l.Number}: {Format.Duration(l.Seconds)}", l == summary?.Slowest)).ToList();
         if (thisLevel > 0 && shown.Count > 0)
             bars.Add(new LevelBar(level + 1, Math.Max(3, ChartHeight * thisLevel / slowest), $"{level} to {level + 1} so far: {Format.Duration(thisLevel)}", false, Current: true));
 
@@ -46,7 +45,6 @@ sealed class CharacterLeveling
         {
             HasStats = summary is not null,
             AverageText = summary is null ? "" : Format.Duration(summary.Average),
-            FastestText = summary is null ? "" : $"{Format.Duration(summary.Fastest.Seconds)} ({summary.Fastest.Number - 1} to {summary.Fastest.Number})",
             SlowestText = summary is null ? "" : $"{Format.Duration(summary.Slowest.Seconds)} ({summary.Slowest.Number - 1} to {summary.Slowest.Number})",
             EstimateText = toMax is long left ? $"About {Format.Played(left)} played to level {(xp!.MaxLevel > 0 ? xp.MaxLevel : 60)}, at your recent pace" : "",
             Bars = bars,

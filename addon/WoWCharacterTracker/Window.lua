@@ -412,7 +412,8 @@ local function facts(c, friend)
   local out = {}
   local function add(label, value) if value and value ~= "" then out[#out + 1] = { label, value } end end
   add("Friend", friend)
-  add("Realm", c.realm)
+  -- On Forever the realm's name is mostly its ruleset ("CAMWOW EU5 Realm 6 PvP"), so that's what counts.
+  if not ns.IS_RETAIL and c.ruleset and c.ruleset ~= "" then add("Ruleset", c.ruleset) else add("Realm", c.realm) end
   local race = c.race and (c.sex == "female" and "Female " or (c.sex == "male" and "Male " or "")) .. c.race
   add("Race", race and (c.faction and string.format("%s, %s", race, c.faction) or race))
   add("Item level", c.ilvl and tostring(math.floor(c.ilvl)))
@@ -544,6 +545,7 @@ local EXPAND_CHART = 30
 local function newExpansion(p, width)
   local ex = CreateFrame("Frame", nil, p)
   ex:SetWidth(width)
+  ex.width = width
   ui.box(ex, C.bar, C.border)
   ex.half = math.floor((width - 36) / 2)
   ex.left, ex.right = {}, {}
@@ -569,6 +571,27 @@ local function factColumn(ex, pool, list, x, y)
   return y
 end
 
+-- Hidden characters (yours or friends'), by charKey, kept with the window's choices. Shown again,
+-- dimmed, while "show them" is on (this session).
+local showHidden = false
+local function isHidden(c) return (saved().hiddenChars or {})[charKey(c)] == true end
+local function setHidden(c, on)
+  local s = saved()
+  s.hiddenChars = s.hiddenChars or {}
+  s.hiddenChars[charKey(c)] = on or nil
+end
+
+-- "2 hidden characters, show them" under a list (nil without any hidden): a button that flips it.
+local function hiddenLink(p, count)
+  p.hiddenLink = p.hiddenLink or ui.button(p, "", 260, function()
+    showHidden = not showHidden
+    redrawTab()
+  end)
+  p.hiddenLink:SetText(string.format("%d hidden character%s, %s", count, count == 1 and "" or "s", showHidden and "hide them" or "show them"))
+  p.hiddenLink:SetShown(count > 0)
+  return count > 0 and p.hiddenLink or nil
+end
+
 -- Fills the info for c and returns its height.
 local function drawExpansion(ex, c, friend)
   local left = factColumn(ex, ex.left, facts(c, friend), 12, 10)
@@ -588,7 +611,18 @@ local function drawExpansion(ex, c, friend)
     ex.chart.draw(levels, playing and { level = c.level + 1, seconds = c.levelTime } or nil)
     right = right + 4 + EXPAND_CHART
   end
+  -- Hide (or show again): out of the list, and the info folds away.
+  ex.hide = ex.hide or cardButton(ex, 110)
+  local hidden = isHidden(c)
+  setButton(ex.hide, hidden and "Show again" or "Hide", function()
+    setHidden(c, not hidden)
+    expandedKey = nil
+    if details then details:Hide() end
+    redrawTab()
+  end)
   local h = math.max(left, right) + 10
+  place(ex.hide, ex, ex.width - 122, h)
+  h = h + 30
   ex:SetHeight(h)
   ex:Show()
   return h
@@ -1177,7 +1211,7 @@ local function buildFriends(p)
       place(noneShared, p, 16, y)
       y = y + 20
     end
-    local heads, cards = 0, 0
+    local heads, cards, hiddenCount = 0, 0, 0
     for _, friend in ipairs(shared) do
       heads = heads + 1
       local h = pooled(sharedHeads, heads, newFriendHead)
@@ -1195,14 +1229,19 @@ local function buildFriends(p)
       y = y + 44 + 4
       if not folded then
         for _, c in ipairs(friend.chars or {}) do
-          cards = cards + 1
-          local card = pooled(charCards, cards, newCharCard)
-          card.char, card.friend = c, label
-          if charKey(c) == detailsKey then open, openFriend = c, label end
-          setCharRow(card, c)
-          place(card, p, 28, y)
-          y = y + CARD + 4
-          y = unfold(c, label, y)
+          local hidden = isHidden(c)
+          if hidden then hiddenCount = hiddenCount + 1 end
+          if not hidden or showHidden then
+            cards = cards + 1
+            local card = pooled(charCards, cards, newCharCard)
+            card.char, card.friend = c, label
+            if charKey(c) == detailsKey then open, openFriend = c, label end
+            setCharRow(card, c)
+            card:SetAlpha(hidden and 0.5 or 1)
+            place(card, p, 28, y)
+            y = y + CARD + 4
+            y = unfold(c, label, y)
+          end
         end
       end
       y = y + 8
@@ -1214,6 +1253,12 @@ local function buildFriends(p)
       if open then drawDetails(open, openFriend) else details:Hide() end
     end
     if sharing and sharing:IsShown() then drawSharing() end
+
+    local link = hiddenLink(p, hiddenCount)
+    if link then
+      place(link, p, 16, y)
+      y = y + 30
+    end
 
     place(yours, p, 0, y + 8)
     y = y + 8 + SHARE_DEFAULTS_HEIGHT
@@ -1256,22 +1301,34 @@ local function buildCharacters(p)
     none:SetShown(#list == 0)
     if #list == 0 then place(none, p, 16, y) end
     local open, unfolded
-    for i, c in ipairs(list) do
-      local row = pooled(rows, i, function() return newCharRow(p, width) end)
-      row.char, row.friend = c, nil
-      if charKey(c) == detailsKey then open = c end
-      setCharRow(row, c)
-      place(row, p, 16, y)
-      y = y + CARD + 4
-      if expandedKey == charKey(c) then
-        unfolded = true
-        expansion = expansion or newExpansion(p, width - 12)
-        place(expansion, p, 28, y - 2)
-        y = y - 2 + drawExpansion(expansion, c) + 8
+    local shownCount, hiddenCount = 0, 0
+    for _, c in ipairs(list) do
+      local hidden = isHidden(c)
+      if hidden then hiddenCount = hiddenCount + 1 end
+      if not hidden or showHidden then
+        shownCount = shownCount + 1
+        local row = pooled(rows, shownCount, function() return newCharRow(p, width) end)
+        row.char, row.friend = c, nil
+        if charKey(c) == detailsKey then open = c end
+        setCharRow(row, c)
+        row:SetAlpha(hidden and 0.5 or 1)
+        place(row, p, 16, y)
+        y = y + CARD + 4
+        if expandedKey == charKey(c) then
+          unfolded = true
+          expansion = expansion or newExpansion(p, width - 12)
+          place(expansion, p, 28, y - 2)
+          y = y - 2 + drawExpansion(expansion, c) + 8
+        end
       end
     end
     if expansion and not unfolded then expansion:Hide() end
-    hideFrom(rows, #list + 1)
+    hideFrom(rows, shownCount + 1)
+    local link = hiddenLink(p, hiddenCount)
+    if link then
+      place(link, p, 16, y + 4)
+      y = y + 34
+    end
     if open and details and details:IsShown() then drawDetails(open) end
     p:SetHeight(y + 10)
   end

@@ -238,7 +238,7 @@ function ui.slider(parent, label, get, set)
   return s
 end
 
--- A small level times chart: a bar per level (the last `count`), the fastest and slowest in the
+-- A small level times chart: a bar per level (the last `count`), the slowest in the
 -- accent color, the time on hover. chart.draw(levels) takes { level, seconds } oldest first.
 local MUTED = { 0.55, 0.5, 0.45, 0.6 }
 
@@ -282,7 +282,7 @@ function ui.levelChart(parent, count, height, step)
       local l = shown[i]
       if l then
         b:SetHeight(math.max(2, (height - 2) * l.seconds / slowest))
-        local marked = l == now or (summary ~= nil and (l == summary.fastest or l == summary.slowest))
+        local marked = l == now or (summary ~= nil and l == summary.slowest)
         local c = marked and COLOR.accent or MUTED
         b.fill:SetColorTexture(c[1], c[2], c[3], l == now and 0.35 or (c[4] or 1))
         b.text = l == now and string.format("%d to %d so far: %s", l.level - 1, l.level, ns.formatDuration(l.seconds))

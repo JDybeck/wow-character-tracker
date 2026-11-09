@@ -135,7 +135,7 @@
   </DataTemplate>
 
   <!-- Tabs inside the character details: Overview, Gear and bags, Leveling. -->
-  <!-- One bar of a level times chart (the Leveling tab, Home's card): fastest and slowest highlighted. -->
+  <!-- One bar of a level times chart (the Leveling tab, Home's card): the slowest highlighted. -->
   <DataTemplate x:Key="LevelBarTemplate" DataType="{x:Type vm:LevelBar}">
     <Border x:Name="Bar" Width="9" Height="{Binding Height}" Margin="0,0,3,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0"
             Background="{DynamicResource IndigoMid}" Opacity="0.55" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="50"/>
