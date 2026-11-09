@@ -66,6 +66,10 @@ local function saveDebug()
   add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
   add("hardcore: " .. dump(ns.isHardcore()))
   add("comms error: " .. tostring(ns.lastCommsError)) -- the last friend message our code couldn't handle
+  if UpdateAddOnMemoryUsage and GetAddOnMemoryUsage then
+    UpdateAddOnMemoryUsage()
+    add(string.format("memory: %d KB, %d events", GetAddOnMemoryUsage(ADDON) or 0, #(WoWCharacterTrackerDB.events or {})))
+  end
 
   WoWCharacterTrackerDB.debug = out
   for _, s in ipairs(out) do if #s < 250 then ns.say(s) end end
@@ -77,8 +81,8 @@ SLASH_CHARACTERTRACKER2 = "/wct"
 SlashCmdList["CHARACTERTRACKER"] = function(msg)
   local typed = strtrim(msg or "")
   msg = typed:lower()
-  if msg == "" then
-    ns.openWindow()
+  if msg == "" or msg == "home" then
+    ns.openWindow("home")
   elseif msg == "times" then
     showHistory()
   elseif msg == "friends" or msg:match("^friends%s") then
@@ -106,7 +110,7 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     ns.say("Note box moved back to the middle of the screen.")
   elseif msg == "help" then
     -- The four most need; the rest (times, live, popup, options, debug, note lock/reset) still work.
-    ns.say("/wct opens the addon's window with every option (the minimap button does too).")
+    ns.say("/wct opens the addon's window on Home: the character you play, its level times and your friends. The minimap button opens it too.")
     ns.say("/wct note shows or hides this character's note.")
     ns.say("/wct friends shares your characters with Battle.net friends who have the addon. /wct friends help for more.")
     ns.say("/wct test checks that instant posting reaches the companion app.")

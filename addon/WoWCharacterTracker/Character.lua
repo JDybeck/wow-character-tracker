@@ -407,6 +407,15 @@ function ns.playedNow()
   return ns.lastPlayed + (time() - ns.lastPlayedAt)
 end
 
+-- Played time on the current level so far, nil when its start isn't known (Events.lua keeps it).
+function ns.levelTimeNow()
+  local guid, played = UnitGUID("player"), ns.playedNow()
+  local db = WoWCharacterTrackerDB
+  local start = db and db.start and db.start[guid]
+  if not (played and start and db.startLevel and db.startLevel[guid] == UnitLevel("player")) then return nil end
+  return math.max(0, played - start)
+end
+
 -- Guild name, "" when not in one, nil when the game doesn't know yet (right after login).
 local function getGuild()
   if not (IsInGuild and IsInGuild()) then return "" end
@@ -498,6 +507,7 @@ function ns.saveSnapshot(atLogout)
   if not guid then return end
   local info = ns.characterInfo()
   info.played = ns.playedNow()
+  info.levelTime = ns.levelTimeNow()
   info.lastSeen = time()
   local old = WoWCharacterTrackerDB.chars[guid]
   if old then

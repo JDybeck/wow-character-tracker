@@ -197,21 +197,11 @@ local function hideFrom(pool, first)
   for i = first, #pool do pool[i]:Hide() end
 end
 
-local function classRgb(classFile)
-  local c = RAID_CLASS_COLORS and classFile and RAID_CLASS_COLORS[classFile]
-  if c then return c.r, c.g, c.b end
-  return 1, 1, 1
-end
+local classRgb, gold = ui.classRgb, ui.gold
 
 local function classColor(fs, classFile) fs:SetTextColor(classRgb(classFile)) end
 
 local ago = ns.ago
-
--- "12g 34s 56c" from copper.
-local function gold(copper)
-  copper = math.floor(copper)
-  return string.format("%dg %ds %dc", math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100)
-end
 
 -- Friends.lua's label ("Zebbe (Zeb#2222)" with a nickname), else the BattleTag.
 local function who(label, tag) return label or tag end
@@ -431,12 +421,34 @@ local function facts(c, friend)
   add("Gold", c.money and gold(c.money))
   add("Professions", c.professions)
   add("Talents", c.talents)
+  for _, line in ipairs(ns.levelingFacts(ns.friendLevels(c), c)) do add(line[1], line[2]) end
   add("Updated", (c.received or c.at) and ago(c.received or c.at))
   return out
 end
 
+local drawDetails
+local detailsChar, detailsFriend -- what the panel shows, for a redraw once item names arrive
+local redrawSoon = false
+
+-- An item the game hasn't cached yet shows as "item 12345": ask for it, and redraw the panel (once
+-- for a batch) when it arrives.
+local function whenLoaded(id)
+  if not (Item and Item.CreateFromItemID) then return end
+  local ok, item = pcall(Item.CreateFromItemID, Item, id)
+  if not (ok and item and item.ContinueOnItemLoad) then return end
+  item:ContinueOnItemLoad(function()
+    if redrawSoon then return end
+    redrawSoon = true
+    C_Timer.After(0.2, function()
+      redrawSoon = false
+      if details and details:IsShown() and detailsChar then drawDetails(detailsChar, detailsFriend) end
+    end)
+  end)
+end
+
 -- c: a shared character, or what Battle.net says about an online one (c.notShared).
-local function drawDetails(c, friend)
+drawDetails = function(c, friend)
+  detailsChar, detailsFriend = c, friend
   detailsKey = charKey(c)
   detailsTitle:SetText(fullName(c))
   classColor(detailsTitle, c.classFile)
@@ -487,6 +499,7 @@ local function drawDetails(c, friend)
     r.icon:SetTexture(itemIcon(item.id))
     r.slotText:SetText(SLOT_NAMES[item.slot] or "")
     local name, red, green, blue = itemName(item.id)
+    if not ns.itemInfo(item.id) then whenLoaded(item.id) end
     r.nameText:SetText(name)
     r.nameText:SetTextColor(red, green, blue)
     r.enchantText:SetText(item.enchant or "")
@@ -512,8 +525,8 @@ end
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
 local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
-local SHARING_HEIGHT = 570
-local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", highlights = "Highlights",
+local SHARING_HEIGHT = 596
+local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", highlights = "Highlights", leveling = "Level times",
   gold = "Gold", map = "Map position", otherFaction = "Map for the other faction" }
 local sharingTag, sharingTitle, sharingSummary, askSaid
 local categoryButtons, askButtons = {}, {}
@@ -653,8 +666,8 @@ local REQUEST_WIDTH = 440
 local REQUEST_SHORT, REQUEST_TALL = 150, 288
 local PRESETS = {
   { "Like all friends" },
-  { "Everything", { gear = true, talents = true, location = true, professions = true, highlights = true, gold = true, map = true } },
-  { "Basics only", { gear = false, talents = false, location = false, professions = false, highlights = false, gold = false, map = false } },
+  { "Everything", { gear = true, talents = true, location = true, professions = true, highlights = true, leveling = true, gold = true, map = true } },
+  { "Basics only", { gear = false, talents = false, location = false, professions = false, highlights = false, leveling = false, gold = false, map = false } },
 }
 local requestBox
 
@@ -1076,7 +1089,7 @@ buildShareDefaults = function(p)
   local whatTitle = ui.text(p, "GameFontNormalSmall", "What friends get (name, level, class and item level always)")
   whatTitle:SetPoint("TOPLEFT", shareNew, "BOTTOMLEFT", 4, -24)
   local gridLast = ui.checkGrid(p, { { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "professions", "Professions" },
-    { "highlights", "Highlights" }, { "gold", "Gold" }, { "map", "Map position" } }, whatTitle,
+    { "highlights", "Highlights" }, { "leveling", "Level times" }, { "gold", "Gold" }, { "map", "Map position" } }, whatTitle,
     function(key) return ns.shareSettings().defaults[key] == true end,
     function(key, on) ns.editShare(function(s) s.defaults[key] = on end) end)
   local otherFaction = ui.checkbox(p, "Show my map position to the other faction",
@@ -1194,6 +1207,7 @@ end
 -- The window ------------------------------------------------------------------------------------
 -- height: how tall the tab's content is; taller than the window gets a scroll frame.
 local TABS = {
+  { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
   { key = "sharing", label = "Sharing", height = 560, build = buildSharingTab }, -- without the app: the whole chat table
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
@@ -1224,7 +1238,7 @@ end
 
 local function selectTab(key)
   key = OLD_TABS[key] or key
-  if not BY_KEY[key] then key = "sharing" end
+  if not BY_KEY[key] then key = "home" end
   current = key
   saved().tab = key
   for _, t in ipairs(TABS) do

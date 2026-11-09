@@ -172,7 +172,7 @@ sealed class FriendsViewModel : Observable
 
     void RaiseSharing()
     {
-        foreach (var name in new[] { nameof(Enabled), nameof(NewChars), nameof(ShareGear), nameof(ShareTalents), nameof(ShareLocation), nameof(ShareProfessions), nameof(ShareHighlights), nameof(ShareGold), nameof(ShareMap), nameof(ShareOtherFaction),
+        foreach (var name in new[] { nameof(Enabled), nameof(NewChars), nameof(ShareGear), nameof(ShareTalents), nameof(ShareLocation), nameof(ShareProfessions), nameof(ShareHighlights), nameof(ShareLeveling), nameof(ShareGold), nameof(ShareMap), nameof(ShareOtherFaction),
             nameof(IsMapLive), nameof(IsMapMinute), nameof(IsMapFiveMinutes), nameof(Blocked), nameof(HasBlocked) })
             Raise(name);
     }
@@ -184,6 +184,7 @@ sealed class FriendsViewModel : Observable
     public bool ShareLocation { get => Share.Defaults.Location; set => Edit(s => s with { Defaults = s.Defaults with { Location = value } }); }
     public bool ShareProfessions { get => Share.Defaults.Professions; set => Edit(s => s with { Defaults = s.Defaults with { Professions = value } }); }
     public bool ShareHighlights { get => Share.Defaults.Highlights; set => Edit(s => s with { Defaults = s.Defaults with { Highlights = value } }); }
+    public bool ShareLeveling { get => Share.Defaults.Leveling; set => Edit(s => s with { Defaults = s.Defaults with { Leveling = value } }); }
     public bool ShareGold { get => Share.Defaults.Gold; set => Edit(s => s with { Defaults = s.Defaults with { Gold = value } }); }
     public bool ShareMap { get => Share.Defaults.Map; set => Edit(s => s with { Defaults = s.Defaults with { Map = value } }); }
     public bool ShareOtherFaction { get => Share.Defaults.OtherFaction; set => Edit(s => s with { Defaults = s.Defaults with { OtherFaction = value } }); }
@@ -227,6 +228,7 @@ sealed class FriendsViewModel : Observable
         "location" => Share.Defaults.Location,
         "professions" => Share.Defaults.Professions,
         "highlights" => Share.Defaults.Highlights,
+        "leveling" => Share.Defaults.Leveling,
         "map" => Share.Defaults.Map,
         "otherFaction" => Share.Defaults.OtherFaction,
         _ => Share.Defaults.Gold,
@@ -293,16 +295,17 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
     public bool? Location { get => C.Location; set => owner.EditContact(Tag, c => c with { Location = value }); }
     public bool? Professions { get => C.Professions; set => owner.EditContact(Tag, c => c with { Professions = value }); }
     public bool? Highlights { get => C.Highlights; set => owner.EditContact(Tag, c => c with { Highlights = value }); }
+    public bool? Leveling { get => C.Leveling; set => owner.EditContact(Tag, c => c with { Leveling = value }); }
     public bool? Gold { get => C.Gold; set => owner.EditContact(Tag, c => c with { Gold = value }); }
     public bool? Map { get => C.Map; set => owner.EditContact(Tag, c => c with { Map = value }); }
     public bool? OtherFaction { get => C.OtherFaction; set => owner.EditContact(Tag, c => c with { OtherFaction = value }); }
 
     // A chip per category that cycles: like all friends, on, off (a checkbox's third state looks unticked).
     static readonly (string Key, string Name)[] Names = [("gear", "Gear"), ("talents", "Talents"), ("location", "Location"), ("professions", "Professions"),
-        ("highlights", "Highlights"), ("gold", "Gold"), ("map", "Map position"), ("otherFaction", "Map for the other faction")];
+        ("highlights", "Highlights"), ("leveling", "Level times"), ("gold", "Gold"), ("map", "Map position"), ("otherFaction", "Map for the other faction")];
     bool? Own(string key) => key switch
     {
-        "gear" => Gear, "talents" => Talents, "location" => Location, "professions" => Professions, "highlights" => Highlights,
+        "gear" => Gear, "talents" => Talents, "location" => Location, "professions" => Professions, "highlights" => Highlights, "leveling" => Leveling,
         "map" => Map, "otherFaction" => OtherFaction, _ => Gold,
     };
     public IReadOnlyList<CategoryChip> Categories => [.. Names.Select(n => Own(n.Key) switch
@@ -322,6 +325,7 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
             case "location": Location = next; break;
             case "professions": Professions = next; break;
             case "highlights": Highlights = next; break;
+            case "leveling": Leveling = next; break;
             case "map": Map = next; break;
             case "otherFaction": OtherFaction = next; break;
             default: Gold = next; break;

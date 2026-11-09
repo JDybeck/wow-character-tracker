@@ -28,8 +28,18 @@ local FIELDS = {
   professions = { kind = "string", max = 256, category = "professions" },
   money = { kind = "number", category = "gold" },
   highlights = { kind = "string", max = 1024, category = "highlights", lines = true },
+  -- Leveling: level times as "level~seconds~at" lines, played, time on this level, the XP bar.
+  levels = { kind = "string", max = 1600, category = "leveling", lines = true },
+  played = { kind = "number", category = "leveling" },
+  levelTime = { kind = "number", category = "leveling" },
+  xp = { kind = "number", category = "leveling" },
+  xpMax = { kind = "number", category = "leveling" },
+  maxLevel = { kind = "number", category = "leveling" },
 }
 local MAX_TEXT = 8192
+-- Sent, but left out of the change key like `at`: they tick along while nothing else changes.
+local VOLATILE = { at = true, played = true, levelTime = true, xp = true }
+local MAX_LEVELS = 80
 
 -- Highlights go as one line each, newest first: "kind~at~level" and then the kind's own fields in
 -- this order. A field with a category (FIELD_CATEGORY) stays empty unless that one is allowed too.
@@ -114,25 +124,55 @@ local function encodeHighlights(events, allowed)
   return #lines > 0 and table.concat(lines, "\n") or nil
 end
 
--- The text for one of your characters, and the same without `at` (it changes with every snapshot,
--- so change detection compares that one). allowed: the categories the friend may see; events: the
--- character's highlights (ns.isFriendHighlight), or nil.
-function ns.encodeFriendChar(guid, char, items, allowed, events)
+-- Level times ({ level, seconds, at }, any order) as lines, the newest MAX_LEVELS levels, nil without any.
+local function encodeLevels(levels)
+  local list = {}
+  for _, l in ipairs(levels or {}) do
+    if type(l.level) == "number" and type(l.seconds) == "number" and finite(l.seconds) and l.seconds > 0 then list[#list + 1] = l end
+  end
+  table.sort(list, function(x, y) return x.level > y.level end)
+  local lines = {}
+  for i = math.min(#list, MAX_LEVELS), 1, -1 do -- oldest of the kept first
+    local l = list[i]
+    lines[#lines + 1] = string.format("%d~%d~%d", l.level, math.floor(l.seconds), math.floor(finite(l.at) and l.at or 0))
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
+-- A friend character's level times, oldest first: { level, seconds, at }; bad lines are skipped.
+function ns.friendLevels(c)
+  local out = {}
+  for level, seconds, at in string.gmatch(c and c.levels or "", "(%d+)~(%d+)~(%d+)") do
+    level, seconds = tonumber(level), tonumber(seconds)
+    if level >= 2 and level <= 200 and seconds > 0 then out[#out + 1] = { level = level, seconds = seconds, at = tonumber(at) } end
+  end
+  table.sort(out, function(a, b) return a.level < b.level end)
+  return out
+end
+
+-- The text for one of your characters, and the same without the volatile fields (`at` changes with
+-- every snapshot, so change detection compares that one). allowed: the categories the friend may
+-- see; events: the character's highlights (ns.isFriendHighlight), or nil; levels: its level times.
+function ns.encodeFriendChar(guid, char, items, allowed, events, levels)
   local values = {}
   for key in pairs(FIELDS) do values[key] = char[key] end
   values.guid, values.at = guid, char.lastSeen
   values.gear, values.enchants = items and items.gear, items and items.enchants
   values.highlights = allowed.highlights and encodeHighlights(events, allowed) or nil
-  local parts = {}
+  values.levels = allowed.leveling and encodeLevels(levels) or nil
+  local parts, volatile = {}, {}
   for key, field in pairs(FIELDS) do
     local v = values[key]
     if key ~= "at" and type(v) == field.kind and (not field.category or allowed[field.category]) then
-      parts[#parts + 1] = key .. "=" .. escape(tostring(v))
+      local part = key .. "=" .. escape(tostring(v))
+      if VOLATILE[key] then volatile[#volatile + 1] = part else parts[#parts + 1] = part end
     end
   end
   table.sort(parts) -- the same character is the same text
+  table.sort(volatile)
   local key = table.concat(parts, ";")
-  return key .. ";at=" .. tostring(values.at or 0), key
+  volatile[#volatile + 1] = "at=" .. tostring(values.at or 0)
+  return key .. ";" .. table.concat(volatile, ";"), key
 end
 
 -- A friend character's gear in slot order: { slot, id, enchant, enchantId } (enchant and

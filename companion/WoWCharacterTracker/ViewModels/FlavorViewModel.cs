@@ -171,6 +171,13 @@ sealed class FlavorViewModel : Observable
 
     // Clicking the open page's tab again: that page as it is when first opened (the sort order is a
     // saved choice, so it stays).
+    // A character from Home: open on the Characters page, its filters reset when they hide it.
+    public void OpenCharacter(CharacterRow row)
+    {
+        if (!Characters.Any(c => c.Guid == row.Guid)) ResetPage("characters");
+        SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == row.Guid);
+    }
+
     public void ResetPage(string page)
     {
         if (page == "characters")

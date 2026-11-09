@@ -13,11 +13,11 @@ local MAX_CHARS = 50     -- characters kept per contact
 local TICK = 30
 
 -- What friends get, unless set for one of them. Gold and map position stay off until turned on.
-local CATEGORIES = { "gear", "talents", "location", "professions", "highlights", "gold", "map" }
+local CATEGORIES = { "gear", "talents", "location", "professions", "highlights", "leveling", "gold", "map" }
 -- Set like a category, but not data: otherFaction off means a friend playing the other faction
 -- gets no map position.
 local RULES = { "otherFaction" }
-local DEFAULTS = { gear = true, talents = true, location = true, professions = true, highlights = true, gold = false, map = false,
+local DEFAULTS = { gear = true, talents = true, location = true, professions = true, highlights = true, leveling = true, gold = false, map = false,
   otherFaction = false }
 local MAP_RATES = { [5] = true, [60] = true, [300] = true } -- seconds between two map position readings
 ns.SHARE_CATEGORIES = CATEGORIES
@@ -164,11 +164,12 @@ end
 -- The newest highlights per character (ns.FRIEND_HIGHLIGHTS of them), kept up to date like
 -- ns.hasEvent's ids: events are appended, so only new ones are read; another or shorter list
 -- (trimmed, cleaned up) is read again.
-local recentHighlights, highlightsList, highlightsCounted = {}, nil, 0
-local function highlightsOf(guid)
+-- Level times per character come along the same way ([guid][level] = { level, seconds, at }).
+local recentHighlights, recentLevels, highlightsList, highlightsCounted = {}, {}, nil, 0
+local function readEvents()
   local events = WoWCharacterTrackerDB.events or {}
   if events ~= highlightsList or #events < highlightsCounted then
-    recentHighlights, highlightsList, highlightsCounted = {}, events, 0
+    recentHighlights, recentLevels, highlightsList, highlightsCounted = {}, {}, events, 0
   end
   for i = highlightsCounted + 1, #events do
     local e = events[i]
@@ -178,10 +179,18 @@ local function highlightsOf(guid)
       table.sort(list, function(x, y) return x.at > y.at end)
       list[ns.FRIEND_HIGHLIGHTS + 1] = nil
       recentHighlights[e.guid] = list
+    elseif type(e) == "table" and (e.kind == nil or e.kind == "level") and e.guid and type(e.level) == "number" and type(e.seconds) == "number" and e.seconds > 0 then
+      recentLevels[e.guid] = recentLevels[e.guid] or {}
+      recentLevels[e.guid][e.level] = { level = e.level, seconds = e.seconds, at = e.at }
     end
   end
   highlightsCounted = #events
-  return recentHighlights[guid]
+end
+
+local function levelsOf(guid)
+  local out = {}
+  for _, l in pairs(recentLevels[guid] or {}) do out[#out + 1] = l end
+  return out
 end
 
 -- One of your characters as a contact may see it, and its change key; nil without a snapshot.
@@ -189,7 +198,9 @@ local function charText(guid, contact)
   local db = WoWCharacterTrackerDB
   local char = db.chars and db.chars[guid]
   if not char then return nil end
-  return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact), highlightsOf(guid))
+  readEvents()
+  return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact),
+    recentHighlights[guid], levelsOf(guid))
 end
 
 -- The character being played, to one contact: when due (GROUP_EVERY or ONLINE_EVERY since the
@@ -233,21 +244,28 @@ function ns.startFriends()
   if ticker or not (C_Timer and C_Timer.NewTicker) then return end
   ticker = C_Timer.NewTicker(TICK, ns.friendsTick)
   ns.friendsTick()
-  C_Timer.After(40, ns.maybeShareTip) -- a minute after login, once the chat has settled
 end
 
--- "Did you know?" in chat now and then (at most once a week) while sharing is on and you share
--- with nobody yet. WoWCharacterTrackerDB.shareTipAt remembers when.
-local TIP_EVERY = 7 * 86400
+-- One chat line a minute after a real login (never on /reload) while sharing is on but nothing
+-- reaches any friend: you share with nobody, or not this character. Turning sharing off stops it.
+function ns.remindSharing(isInitialLogin)
+  if isInitialLogin ~= true then return end
+  C_Timer.After(60, ns.maybeShareTip)
+end
+
 function ns.maybeShareTip()
-  local s, db = ns.shareSettings(), WoWCharacterTrackerDB
-  if not s.enabled or (db.shareTipAt and time() - db.shareTipAt < TIP_EVERY) then return end
-  for _, c in pairs(s.contacts) do
-    if c.share then return end
+  local s = ns.shareSettings()
+  if not s.enabled then return end
+  local anyone = false
+  for tag, c in pairs(s.contacts) do
+    if c.share and not s.blocked[tag] then anyone = true end
   end
-  db.shareTipAt = time()
-  ns.say("Did you know? Battle.net friends with the addon can see each other's characters, gear and talents. "
-    .. "/wct friends share <BattleTag> to share yours, /wct friends ask <BattleTag> to see theirs.")
+  if not anyone then
+    ns.say("You're not sharing with any friends yet. Battle.net friends with the addon can see each other's characters, "
+      .. "level times, gear and talents: /wct, Friends tab, or /wct friends share <BattleTag>.")
+  elseif not ns.isCharShared(s, UnitGUID("player")) and not ns.isIgnored(UnitGUID("player")) then
+    ns.say("This character isn't shared with your friends. /wct, Friends tab, Share this character.")
+  end
 end
 
 -- Who has the addon ---------------------------------------------------------------------------
@@ -683,8 +701,8 @@ local HELP = {
   "/wct friends on or off turns sharing with Battle.net friends on or off.",
   "/wct friends ask <BattleTag> [map gold ...] asks a friend for their characters, or for more of them, like their map position.",
   "/wct friends share <BattleTag> shares your characters with them.",
-  "/wct friends set all gear/talents/location/professions/highlights/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
-  "/wct friends set <BattleTag> gear/talents/location/professions/highlights/gold/map on/off/default changes it for one friend.",
+  "/wct friends set all gear/talents/location/professions/highlights/leveling/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
+  "/wct friends set <BattleTag> gear/talents/location/professions/highlights/leveling/gold/map on/off/default changes it for one friend.",
   "/wct friends set all/<BattleTag> otherfaction on/off/default: on lets friends playing the other faction see you on the map too.",
   "/wct friends maprate live/1m/5m sets how often friends' maps get your position.",
   "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",
@@ -698,7 +716,7 @@ for _, list in ipairs({ CATEGORIES, RULES }) do
   for _, k in ipairs(list) do IS_CHOICE[k], CHOICE_BY_WORD[k:lower()] = true, k end
 end
 
-local SUMMARY_NAMES = { map = "map position" }
+local SUMMARY_NAMES = { map = "map position", leveling = "level times" }
 
 local function picked(allowed)
   local out = {}

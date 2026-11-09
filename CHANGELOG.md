@@ -2,6 +2,22 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.39.1
+
+A Home page in game and level times for friends. Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Home in game**: `/wct` opens a Home tab like the app's. The character you're playing with item level, gold, played time and time on this level, the last level's time and your average, on Forever how long to max level at your recent pace, and a small chart of your level times. **Level history** under the chart folds open your average, fastest and slowest level and the newest 20 levels. Below the card today's levels, bosses, epics and mounts, the newest moments of all your characters and the friends who share with you.
+- **Level times for friends**: friends now see how long each of your levels took, your played time and XP bar, on by default (**Level times** in what friends get, off for one friend or all). The app shows a friend's level times on a new **Leveling** tab with the chart and the time to max level, and in game a friend's details list their last level, average, fastest and slowest.
+- **Level chart on Home**: the app's Home card shows a small chart of your level times under the time to max level, hover a bar for its time. Click the character at the top of the card to open it on the Characters page.
+- **A sharing reminder**: when you share with no friends, one line in chat a minute after you log in. Not after a /reload, and not when sharing is off.
+
+### Fixes and tweaks
+
+- A friend's gear showed "item 12345" until you clicked the character a second time. The details now fill in the names as soon as the game has them.
+- The addon uses less memory: the instant post pattern no longer builds a big table for every moment, and Home only works out level times again when something new happened.
+
 ## v0.39.0
 
 A cleaner app: fewer buttons, a Home page, one Sharing page and a helper that sets everything up. Update the addon with the app (it does this by itself) and /reload in game.
