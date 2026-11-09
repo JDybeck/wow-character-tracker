@@ -74,11 +74,54 @@ end
 local PRESETS_SHOWN = { { "quiet", "Quiet" }, { "normal", "Normal" }, { "everything", "Everything" } }
 local ASK_KINDS = { "boss", "rare", "epic" }
 
+-- Incognito (Shared.lua, Commands.lua): a while without posts or chat lines, never caught up later.
+local INCOGNITO_CHOICES = { { "30m", "30 minutes" }, { "1h", "1 hour" }, { "2h", "2 hours" }, { "4h", "4 hours" } }
+
+local function buildIncognito(p)
+  local title = ui.heading(p, "Incognito")
+  local hint = ui.hint(p, "For a while nothing is posted to Discord or said in guild or group chat, and none of it is posted later. Your own history keeps it.", title)
+  local friendsToo = false
+  local last
+  for i, choice in ipairs(INCOGNITO_CHOICES) do
+    local b = ui.button(p, choice[2], 100, function()
+      ns.goIncognito(ns.INCOGNITO_TIMES[choice[1]], friendsToo)
+      ui.refresh(p)
+    end)
+    if last then b:SetPoint("LEFT", last, "RIGHT", 6, 0) else b:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -10) end
+    last = b
+  end
+  local off = ui.button(p, "End now", 100, function()
+    ns.goIncognito(nil)
+    ui.refresh(p)
+  end, "primary")
+  off:SetPoint("LEFT", last, "RIGHT", 12, 0)
+  local status = ui.text(p, "GameFontHighlightSmall")
+  status:SetPoint("LEFT", off, "RIGHT", 10, 0)
+  local friends = ui.checkbox(p, "Keep highlights from that time from friends too", nil,
+    function()
+      local w = ns.incognitoActive()
+      if w then return w.friends == true end
+      return friendsToo
+    end,
+    function(on)
+      friendsToo = on
+      local w = ns.incognitoActive()
+      if w then w.friends = on end
+    end)
+  friends:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -2, -40)
+  ui.onRefresh(p, function()
+    local w = ns.incognitoActive()
+    off:SetShown(w ~= nil)
+    status:SetText(w and ("Until " .. date("%H:%M", w["until"])) or "")
+  end)
+  return friends
+end
+
 local function buildSharingTab(p)
   local withApp = ns.hasApp()
-  local top
+  local top = buildIncognito(p)
   if withApp then
-    local presetTitle = ui.heading(p, "How much gets shared")
+    local presetTitle = ui.heading(p, "How much gets shared", top, -30)
     local presetHint = ui.hint(p, "What goes to Discord, chat and the ask box. The app picks it up on your next /reload; choose per moment on the app's Sharing page.", presetTitle)
     local presets = ui.choice(p, PRESETS_SHOWN, function() return ns.setting("preset") end,
       function(key) ns.editSettings(function(s) s.preset = key end) end)
@@ -1491,7 +1534,7 @@ end
 local TABS = {
   { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
   { key = "characters", label = "Characters", height = 1000, build = buildCharacters }, -- grows with the list
-  { key = "sharing", label = "Sharing", height = 560, build = buildSharingTab }, -- without the app: the whole chat table
+  { key = "sharing", label = "Sharing", height = 700, build = buildSharingTab }, -- without the app: the whole chat table
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
   { key = "settings", label = "Settings", height = 780, build = buildSettings },

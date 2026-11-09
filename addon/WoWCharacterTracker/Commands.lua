@@ -76,6 +76,42 @@ local function saveDebug()
   ns.say("Saved. /reload to write it to the SavedVariables file.")
 end
 
+-- Incognito (Shared.lua) with a chat line, and one more when it runs out. seconds nil: off now.
+local INCOGNITO_TIMES = { ["30m"] = 1800, ["1h"] = 3600, ["2h"] = 7200, ["4h"] = 14400 }
+function ns.goIncognito(seconds, friends)
+  if not seconds then
+    if ns.incognitoActive() then
+      ns.endIncognito()
+      ns.say("Incognito is off. New moments post and share as usual; what happened meanwhile stays unposted.")
+    end
+    return
+  end
+  ns.startIncognito(seconds, friends)
+  local w = ns.incognitoActive()
+  ns.say(string.format("Incognito until %s: nothing is posted to Discord or said in chat%s, and none of it is posted later.",
+    date("%H:%M", w["until"]), friends and ", and friends don't get these highlights" or ""))
+  C_Timer.After(seconds + 1, function()
+    if not ns.incognitoActive() and w["until"] <= time() and not w.said then
+      w.said = true
+      ns.say("Incognito is over. New moments post and share as usual.")
+    end
+  end)
+end
+
+local function incognitoCommand(arg)
+  local word, friends = arg:match("^(%S*)%s*(%S*)$")
+  if word == "off" then return ns.goIncognito(nil) end
+  local seconds = INCOGNITO_TIMES[word or ""]
+  if not seconds then
+    local w = ns.incognitoActive()
+    ns.say(w and string.format("Incognito until %s. /wct incognito off ends it.", date("%H:%M", w["until"]))
+      or "/wct incognito 30m, 1h, 2h or 4h (add friends to keep those highlights from friends too), /wct incognito off.")
+    return
+  end
+  ns.goIncognito(seconds, friends == "friends")
+end
+ns.INCOGNITO_TIMES = INCOGNITO_TIMES
+
 SLASH_CHARACTERTRACKER1 = "/charactertracker"
 SLASH_CHARACTERTRACKER2 = "/wct"
 SlashCmdList["CHARACTERTRACKER"] = function(msg)
@@ -87,6 +123,8 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     showHistory()
   elseif msg == "friends" or msg:match("^friends%s") then
     ns.friendsCommand(typed:sub(8)) -- BattleTags keep their case
+  elseif msg == "incognito" or msg:match("^incognito%s") then
+    incognitoCommand(strtrim(msg:sub(10)))
   elseif msg == "popup" then
     WoWCharacterTrackerDB.popup = not WoWCharacterTrackerDB.popup
     ns.say("Reload popup after a ding is now " .. (WoWCharacterTrackerDB.popup and "on." or "off."))
@@ -114,6 +152,7 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     ns.say("/wct note shows or hides this character's note.")
     ns.say("/wct friends shares your characters with Battle.net friends who have the addon. /wct friends help for more.")
     ns.say("/wct test checks that instant posting reaches the companion app.")
+    ns.say("/wct incognito 1h stops posting and chat lines for an hour (30m, 2h, 4h; off ends it). Nothing from it is posted later.")
   else
     ns.say("Unknown command. /wct help lists them.")
   end

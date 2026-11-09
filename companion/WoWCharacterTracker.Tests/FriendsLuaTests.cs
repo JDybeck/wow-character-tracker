@@ -181,6 +181,42 @@ public class FriendsLuaTests
         Assert.StartsWith("loot~30~42~Item 30~30~3\n", Str(c, "capped.highlights"));
     }
 
+    // Incognito with friends paused: highlights from that stretch never reach friends, later ones do.
+    [Fact]
+    public void Highlights_from_an_incognito_stretch_never_reach_friends()
+    {
+        var a = new Client(A, AFriends, ADb(AShares).Replace("items = {", """
+            incognito = { { from = 700, ['until'] = 900, friends = true } },
+            events = { { kind = 'loot', guid = 'Player-1-0000000A', at = 800, level = 42, item = 'Thunderfury', itemId = 19019, quality = 5 },
+                       { kind = 'boss', guid = 'Player-1-0000000A', at = 950, level = 42, boss = 'Onyxia', groupSize = 40 } },
+            items = {
+            """));
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        Assert.Equal("boss~950~42~Onyxia~~40", Str(b, GotDeadbeck + ".highlights"));
+    }
+
+    // Incognito: one stretch at a time, extended when started again, ended early by off; what
+    // happened inside one is covered also after it's over.
+    [Fact]
+    public void Incognito_stretches_start_extend_and_end()
+    {
+        var c = new Client(A, "{}", files: ["Shared.lua"]);
+        c.Lua("WoWCharacterTrackerDB = {}; ns.startIncognito(3600, false)");
+        Assert.True(c.Lua("return ns.incognitoActive() ~= nil").Boolean);
+        c.Run(600);
+        c.Lua("ns.startIncognito(7200, true)"); // extended, now with friends
+        Assert.Equal(1, c.Lua("return #WoWCharacterTrackerDB.incognito").Number);
+        Assert.True(c.Lua("return ns.inIncognito(clock - 300, true)").Boolean);
+        c.Lua("ns.endIncognito()");
+        Assert.True(c.Lua("return ns.incognitoActive() == nil").Boolean);
+        Assert.True(c.Lua("return ns.inIncognito(clock - 300)").Boolean); // still covered afterwards
+        c.Run(60);
+        Assert.False(c.Lua("return ns.inIncognito(clock)").Boolean);
+    }
+
     // Each character's newest highlights reach a contact, kept up to date as new events come in.
     [Fact]
     public void A_contact_gets_the_newest_highlights_and_new_ones_after_them()

@@ -188,6 +188,14 @@ sealed class Tracker : IDisposable
             }
             else if (pending.Count > 0)
             {
+                // Incognito in game: what happened then is never posted, also not later.
+                var hidden = pending.Where(e => IncognitoWindow.Any(data.Incognito, e.At)).ToList();
+                foreach (var e in hidden) posted!.Add(e.Id);
+                if (hidden.Count > 0)
+                {
+                    Log.Info($"{Tag}Not posting {Format.Count(hidden.Count, "moment")} from while you were incognito.");
+                    pending = [.. pending.Except(hidden)];
+                }
                 sent = await PostPendingAsync(pending, data.Events, settings());
             }
 
@@ -386,6 +394,7 @@ sealed class Tracker : IDisposable
         InGameSettings? inGame = null;
         var friends = new List<List<FriendContact>>();
         ShareSettings? share = null;
+        var incognito = new List<IncognitoWindow>();
         var stamp = new System.Text.StringBuilder().Append(Volatile.Read(ref liveVersion));
         foreach (var account in Wow.Accounts(flavorDir))
         {
@@ -406,6 +415,7 @@ sealed class Tracker : IDisposable
                 if (d.InGame is { } g && g.At > (inGame?.At ?? 0)) inGame = g;
                 friends.Add(d.Friends);
                 if (d.Share is { } sh && sh.At > (share?.At ?? 0)) share = sh;
+                incognito.AddRange(d.Incognito);
             }
             catch (Exception ex)
             {
@@ -417,7 +427,7 @@ sealed class Tracker : IDisposable
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(Snapshot.Of));
         return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values], InGame = inGame,
-            Friends = FriendData.Merge(friends), Share = share },
+            Friends = FriendData.Merge(friends), Share = share, Incognito = incognito },
             stamp.ToString());
     }
 

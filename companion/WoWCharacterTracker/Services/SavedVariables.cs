@@ -29,6 +29,7 @@ static class SavedVariables
             InGame = ReadInGame(db.Table.Get("gameSettings")),
             Friends = FriendData.ReadFriends(db.Table.Get("friends")),
             Share = FriendData.ReadShare(db.Table.Get("share")),
+            Incognito = IncognitoWindow.Read(db.Table.Get("incognito")),
         };
     }
 

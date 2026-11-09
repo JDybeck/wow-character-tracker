@@ -137,7 +137,7 @@ end
 
 -- A moment that won't be posted by itself: offer it, when that's switched on.
 function ns.offerAsk(e)
-  if ns.isIgnored(e.guid) or not offered(e) then return end
+  if ns.isIgnored(e.guid) or ns.incognitoActive() or not offered(e) then return end
   if #waiting >= MAX_WAITING then table.remove(waiting, 1) end
   table.insert(waiting, e)
   ns.showNextAsk()
