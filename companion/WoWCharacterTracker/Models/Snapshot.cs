@@ -35,6 +35,7 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
     public InGameSettings? InGame { get; init; } // In game page settings changed in game (Shared.lua)
     public List<FriendContact> Friends { get; init; } = []; // what Battle.net friends shared (Friends.lua), never your own characters
     public ShareSettings? Share { get; init; } // sharing settings as changed in game
+    public List<IncognitoWindow> Incognito { get; init; } = []; // stretches of incognito: nothing from them is posted (Shared.lua)
 
     public static TrackerData Empty { get; } = new([], []);
 }

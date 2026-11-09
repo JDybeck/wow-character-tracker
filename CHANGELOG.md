@@ -2,6 +2,13 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.39.3
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Incognito**: in game, on the addon window's Sharing tab or with `/wct incognito 1h` (30m, 2h, 4h, off), nothing is posted to Discord, said in guild or group chat or offered in the ask box for that time, and none of it is posted later, also not after a /reload. Tick **Keep highlights from that time from friends too** and friends never get those either. Your own history keeps everything.
 ## v0.39.2
 
 All of 0.39 in one: a cleaner app with a Home page, one Sharing page and a helper that sets everything up, a Home page and your characters in game, and level times for friends. Update the addon with the app (it does this by itself) and /reload in game.

@@ -281,6 +281,54 @@ function ns.recordOnce(kind, fields, idSuffix)
   return ns.record(kind, fields, idSuffix)
 end
 
+-- Incognito: for a while nothing goes out, and never later either. Each stretch is kept as
+-- WoWCharacterTrackerDB.incognito = { { from, ["until"], friends }, ... } (the newest last, at most
+-- INCOGNITO_KEEP): the app never posts what happened inside one, even when it arrives after a
+-- /reload, and with friends on those highlights never go to friends.
+local INCOGNITO_KEEP = 30
+
+local function windows()
+  local db = WoWCharacterTrackerDB
+  if not db then return {} end
+  db.incognito = db.incognito or {}
+  return db.incognito
+end
+
+-- The stretch going on now, or nil.
+function ns.incognitoActive()
+  local list, now = windows(), time()
+  local w = list[#list]
+  if w and now >= (w.from or 0) and now < (w["until"] or 0) then return w end
+  return nil
+end
+
+-- Whether at (a time()) fell inside a stretch; forFriends: only one that also paused friends.
+function ns.inIncognito(at, forFriends)
+  if type(at) ~= "number" then return false end
+  for _, w in ipairs(windows()) do
+    if at >= (w.from or 0) and at <= (w["until"] or 0) and (not forFriends or w.friends) then return true end
+  end
+  return false
+end
+
+-- Starts (or extends) a stretch of seconds from now; friends: also keep its highlights from friends.
+function ns.startIncognito(seconds, friends)
+  local list, now = windows(), time()
+  local w = ns.incognitoActive()
+  if w then
+    w["until"], w.friends = now + seconds, friends == true
+  else
+    list[#list + 1] = { from = now, ["until"] = now + seconds, friends = friends == true }
+    while #list > INCOGNITO_KEEP do table.remove(list, 1) end
+  end
+end
+
+-- Ends the one going on now.
+function ns.endIncognito()
+  local w = ns.incognitoActive()
+  if w then w["until"] = time() end
+end
+
 -- "Zeb Stonehand" with a Forever surname, else the name: a character, event or friend's character.
 function ns.fullName(c)
   local name = c.char or "?"

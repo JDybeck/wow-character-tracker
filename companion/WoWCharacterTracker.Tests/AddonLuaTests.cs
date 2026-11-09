@@ -1114,6 +1114,7 @@ public class AddonLuaTests
                 UIParent = {}
                 frames, texts = {}, {}
                 registered = nil
+                function time() return 1000 end -- the Sharing tab asks whether incognito is on
                 Settings = {
                   RegisterCanvasLayoutCategory = function(frame, name) return { name = name, GetID = function() return 1 end } end,
                   RegisterAddOnCategory = function(c) registered = c.name end,

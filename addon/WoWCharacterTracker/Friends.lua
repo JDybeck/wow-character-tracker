@@ -173,7 +173,7 @@ local function readEvents()
   end
   for i = highlightsCounted + 1, #events do
     local e = events[i]
-    if ns.isFriendHighlight(e) and e.guid then
+    if ns.isFriendHighlight(e) and e.guid and not ns.inIncognito(e.at, true) then -- incognito with friends paused: never shared
       local list = recentHighlights[e.guid] or {}
       list[#list + 1] = e
       table.sort(list, function(x, y) return x.at > y.at end)

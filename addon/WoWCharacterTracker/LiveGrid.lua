@@ -442,6 +442,9 @@ end
 -- a screenshot (if the app asked for one).
 function ns.addEvent(e)
   table.insert(WoWCharacterTrackerDB.events, e)
+  -- Incognito (Shared.lua): kept for your own history, but nothing goes out: no live post, chat
+  -- line, screenshot or ask box, and the app skips it when the saved file brings it.
+  if ns.incognitoActive() then return end
   if ns.announce then ns.announce(e) end -- guild/group chat (Announce.lua)
   local posted = wanted(e)
   local shot = posted and wantsScreenshot(e.kind)
