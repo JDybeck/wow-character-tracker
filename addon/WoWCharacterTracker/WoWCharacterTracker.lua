@@ -193,6 +193,11 @@ local moneyChanged = ns.debounce(3, function() ns.saveMoney() end)
 on.PLAYER_MONEY = moneyChanged
 on.CURRENCY_DISPLAY_UPDATE = moneyChanged
 
+-- Today's quests and gathering (Today.lua).
+function on.QUEST_TURNED_IN() ns.todayCount("quests") end
+function on.UNIT_SPELLCAST_SUCCEEDED(unit, castGUID, spellID) ns.onSpellcast(unit, castGUID, spellID) end
+function on.LOOT_OPENED() ns.onLootOpened() end
+
 -- Sharing with Battle.net friends (Comms.lua, Friends.lua). The friends list changes in bursts
 -- at login, so one look a few seconds after.
 function on.BN_CHAT_MSG_ADDON(prefix, text, channel, senderID) ns.comms.receive(prefix, text, channel, senderID) end

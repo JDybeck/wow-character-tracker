@@ -159,7 +159,7 @@ function ns.runLoot(text)
   local name = link:match("%[(.-)%]")
   if not itemId or not name then return end
   local quality = ns.itemQuality(link)
-  if not ns.isFollowed(itemId) and (not quality or quality < 3) then return end
+  if not ns.isFollowed(itemId) and (not quality or quality < 3 or ns.isRareReagent(link, quality)) then return end
   if #run.drops >= MAX_DROPS then return end
   table.insert(run.drops, table.concat({ who or "", itemId, quality or 0, (name:gsub("[~^]", "")) }, "~"))
   touch(run)

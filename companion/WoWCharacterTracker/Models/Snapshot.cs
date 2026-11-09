@@ -24,6 +24,11 @@ record InGameSettings(long At, bool? AnnounceGuild, bool? AnnounceParty, List<st
     bool? FlightReload, bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null,
     string? Preset = null);
 
+// One character's day (the addon's today[guid]), Day as "2026-11-09": item level and copper at the
+// day's start and now, and what was turned in and gathered.
+record DayTotals(string Guid, string Day, double IlvlStart, double Ilvl, long MoneyStart, long Money,
+    int Quests, int Herbs, int Ore, int Skins, int Fish);
+
 // Everything read for one game tab: events, character snapshots, what each character carries, and
 // the XP each level needs on that client ([level] = XP).
 record TrackerData(List<Entry> Events, List<Snapshot> Characters)
@@ -36,6 +41,7 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
     public List<FriendContact> Friends { get; init; } = []; // what Battle.net friends shared (Friends.lua), never your own characters
     public ShareSettings? Share { get; init; } // sharing settings as changed in game
     public List<IncognitoWindow> Incognito { get; init; } = []; // stretches of incognito: nothing from them is posted (Shared.lua)
+    public List<DayTotals> Today { get; init; } = []; // each character's day so far (Today.lua)
 
     public static TrackerData Empty { get; } = new([], []);
 }

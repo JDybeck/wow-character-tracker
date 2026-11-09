@@ -560,6 +560,7 @@ function ns.recordLoot(text, retried)
   end
   if not quality then quality = qualityFromLink(link) end
   if not followed and (not quality or quality < 3) then return end -- rare (blue) and better only
+  if not followed and ns.isRareReagent(link, quality) then return end
 
   local now = time()
   ns.record("loot", { item = name, itemId = itemId, quality = quality, boe = bindType == 2 or nil, mat = isNotGear(link) or nil,

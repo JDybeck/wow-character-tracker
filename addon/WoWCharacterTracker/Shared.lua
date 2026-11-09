@@ -184,6 +184,14 @@ function ns.itemClass(item)
   return nil
 end
 
+-- Rare (blue) crafting materials, Trade Goods (7) or Reagent (5): too common to be a moment, so
+-- they're never recorded, unless followed.
+function ns.isRareReagent(item, quality)
+  if quality ~= 3 then return false end
+  local classID = ns.itemClass(item)
+  return classID == 7 or classID == 5
+end
+
 -- Rated PvP brackets as GetPersonalRatedInfo numbers them (the snapshot's ratings and the milestones).
 ns.PVP_BRACKETS = { { 1, "2v2" }, { 2, "3v3" }, { 4, "Rated Battlegrounds" }, { 7, "Solo Shuffle" }, { 9, "Battleground Blitz" } }
 

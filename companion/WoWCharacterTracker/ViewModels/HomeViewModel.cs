@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 
 namespace WoWCharacterTracker.ViewModels;
 
@@ -26,7 +27,23 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     string paceText = "";
     public string PaceText { get => paceText; private set => Set(ref paceText, value); }
 
-    public IReadOnlyList<TodayCount> Today { get; private set; } = [];
+    // Today's numbers, the first TodayStats.Shown always, the rest after "more" (kept for the session).
+    IReadOnlyList<TodayCount> todayAll = [];
+    public IReadOnlyList<TodayCount> Today => todayOpen ? todayAll : [.. todayAll.Take(TodayStats.Shown)];
+    public bool HasMoreToday => todayAll.Count > TodayStats.Shown;
+    public string TodayToggleText => todayOpen ? "Less" : $"+{todayAll.Count - TodayStats.Shown} more";
+    bool todayOpen;
+    public ICommand ToggleTodayCommand => new RelayCommand(_ =>
+    {
+        todayOpen = !todayOpen;
+        RaiseToday();
+    });
+    void RaiseToday()
+    {
+        Raise(nameof(Today));
+        Raise(nameof(HasMoreToday));
+        Raise(nameof(TodayToggleText));
+    }
 
     public ObservableCollection<MomentRow> Feed { get; } = [];
     public bool HasFeed => Feed.Count > 0;
@@ -41,7 +58,7 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     public ObservableCollection<CharacterRow> Friends { get; } = [];
     public bool HasFriends => Friends.Count > 0;
 
-    public void Show(IReadOnlyList<CharacterRow> rows, IReadOnlyList<Entry> events, IReadOnlySet<string> sent, bool gameRunning,
+    public void Show(IReadOnlyList<CharacterRow> rows, IReadOnlyList<Entry> events, IReadOnlyList<DayTotals> days, IReadOnlySet<string> sent, bool gameRunning,
         IEnumerable<CharacterRow> friends)
     {
         Friends.Clear();
@@ -58,16 +75,8 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         Card = Hero is { } h ? StreamSnapshot.Build(StreamViewModel.Character(h, flavor), events, DateTimeOffset.Now) : StreamSnapshot.Empty;
         PaceText = Hero is { } p ? Pace(p) : "";
 
-        var midnight = new DateTimeOffset(DateTime.Today).ToUnixTimeSeconds();
-        var today = events.Where(e => e.At >= midnight).ToList();
-        Today =
-        [
-            new(today.Count(e => e.Kind == "level"), "levels"),
-            new(today.Count(e => e.Kind is "boss" or "keyrun"), flavor.HasRatings ? "keys" : "bosses"),
-            new(today.Count(e => e.Kind == "loot" && e.Quality >= 4), "epics"),
-            new(today.Count(e => sent.Contains(e.Id)), "posted"),
-        ];
-        Raise(nameof(Today));
+        todayAll = TodayStats.Build(events, days, sent, flavor.HasRatings, DateTime.Now);
+        RaiseToday();
 
         Fill(Feed, rows.ToDictionary(r => r.Guid), events, sent);
         Raise(nameof(HasFeed));
@@ -121,8 +130,6 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         return string.Join(" · ", parts);
     }
 }
-
-public sealed record TodayCount(int Count, string What);
 
 // A moment in Home's feed: the highlight line, whose it is and whether it went to Discord.
 sealed class MomentRow(HighlightRow row, CharacterRow character, bool posted) : Observable

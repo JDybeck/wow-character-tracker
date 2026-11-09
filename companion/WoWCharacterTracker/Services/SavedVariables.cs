@@ -30,7 +30,22 @@ static class SavedVariables
             Friends = FriendData.ReadFriends(db.Table.Get("friends")),
             Share = FriendData.ReadShare(db.Table.Get("share")),
             Incognito = IncognitoWindow.Read(db.Table.Get("incognito")),
+            Today = ReadToday(db.Table.Get("today")),
         };
+    }
+
+    // today[guid] = { day, ilvlStart, ilvl, moneyStart, money, quests, herbs, ore, skins, fish } (Today.lua).
+    internal static List<DayTotals> ReadToday(DynValue table)
+    {
+        if (table.Type != DataType.Table) return [];
+        return [.. table.Table.Pairs
+            .Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
+            .Select(p =>
+            {
+                var t = p.Value.Table;
+                return new DayTotals(p.Key.String, S(t, "day"), N(t, "ilvlStart"), N(t, "ilvl"), (long)N(t, "moneyStart"), (long)N(t, "money"),
+                    (int)N(t, "quests"), (int)N(t, "herbs"), (int)N(t, "ore"), (int)N(t, "skins"), (int)N(t, "fish"));
+            })];
     }
 
     // gameSettings: the In game settings as changed in the addon's options page (Shared.lua editSettings).
