@@ -21,6 +21,71 @@
       <Setter Property="Foreground" Value="White"/>
       <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     </Style>
+    <!-- A scrolling list of moments (MomentRow): the feed and the friends' one under it. -->
+    <Style x:Key="MomentList" TargetType="ItemsControl">
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ItemsControl">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsPresenter/></ScrollViewer>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Setter Property="ItemTemplate">
+        <Setter.Value>
+          <DataTemplate DataType="{x:Type vm:MomentRow}">
+            <Border x:Name="Box" CornerRadius="10" Padding="10,8" Margin="0,0,6,4" BorderThickness="1" BorderBrush="Transparent" Background="Transparent">
+              <DockPanel>
+                <Grid DockPanel.Dock="Left" Width="34" Height="34" Margin="0,0,12,0">
+                  <!-- A level-up: the character's portrait. -->
+                  <Grid DataContext="{Binding Character}" Visibility="{Binding DataContext.IsLevel, RelativeSource={RelativeSource AncestorType=DockPanel}, Converter={StaticResource Visible}}">
+                    <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
+                    <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Image Source="{Binding PictureUrl, Converter={StaticResource WebImage}}" Stretch="UniformToFill">
+                      <Image.Clip>
+                        <EllipseGeometry Center="17,17" RadiusX="17" RadiusY="17"/>
+                      </Image.Clip>
+                    </Image>
+                    <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5"/>
+                  </Grid>
+                  <!-- Anything else: the item's icon, else the kind's glyph. -->
+                  <Grid DataContext="{Binding Row}" ui:ItemTip.Info="{Binding Info}"
+                        Visibility="{Binding DataContext.IsLevel, RelativeSource={RelativeSource AncestorType=DockPanel}, Converter={StaticResource Hidden}}">
+                    <Border CornerRadius="8" Background="{DynamicResource CardHeader}"/>
+                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="15" HorizontalAlignment="Center"
+                               Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
+                    <Image Source="{Binding IconUrl, Converter={StaticResource WebImage}}" Width="30" Height="30"
+                           Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
+                  </Grid>
+                </Grid>
+                <!-- Posted, or a Share button (your own moments only). -->
+                <Grid DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0"
+                      Visibility="{Binding Character.IsOwn, Converter={StaticResource Visible}}">
+                  <TextBlock Text="&#x2713; Posted" FontSize="11" Foreground="{StaticResource Green}" VerticalAlignment="Center"
+                             Visibility="{Binding Posted, Converter={StaticResource Visible}}"/>
+                  <Button Style="{StaticResource ChipButton}" Content="Share" ToolTip="Post this moment to Discord"
+                          Command="{Binding DataContext.PostHighlightCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
+                          Visibility="{Binding Posted, Converter={StaticResource Hidden}}"/>
+                </Grid>
+                <StackPanel VerticalAlignment="Center" DataContext="{Binding Row}">
+                  <TextBlock FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                    <Run Text="{Binding Verb, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run Text="{Binding Subject, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/>
+                  </TextBlock>
+                  <TextBlock FontSize="11" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis"
+                             Text="{Binding DataContext.Who, RelativeSource={RelativeSource AncestorType=DockPanel}}"/>
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <DataTemplate.Triggers>
+              <DataTrigger Binding="{Binding Big}" Value="True">
+                <Setter TargetName="Box" Property="Background" Value="{DynamicResource BlueSoft}"/>
+                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+              </DataTrigger>
+            </DataTemplate.Triggers>
+          </DataTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </UserControl.Resources>
 
   <Grid x:Name="Root" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="-1" DataContext="{Binding Home}"
@@ -204,71 +269,30 @@
     </StackPanel>
     </ScrollViewer>
 
-    <!-- The feed -->
+    <!-- The feed: your moments, and under them your friends' (when they share some). The friends' part
+         grows from the bottom up to half the card, yours gets the rest. -->
     <Border Grid.Column="2" Style="{StaticResource CardBorder}" Padding="16,14" Visibility="{Binding HasHero, Converter={StaticResource Visible}}">
-      <DockPanel>
-        <TextBlock DockPanel.Dock="Top" Style="{StaticResource FactLabel}" Text="RECENT MOMENTS" Margin="6,0,0,8"/>
-        <TextBlock DockPanel.Dock="Top" Style="{StaticResource Hint}" Margin="6,0,0,0" Text="Nothing yet. Dings, kills, loot and mounts show up here."
-                   Visibility="{Binding HasFeed, Converter={StaticResource Hidden}}"/>
-        <ItemsControl ItemsSource="{Binding Feed}" Focusable="False">
-          <ItemsControl.Template>
-            <ControlTemplate TargetType="ItemsControl">
-              <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsPresenter/></ScrollViewer>
-            </ControlTemplate>
-          </ItemsControl.Template>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="{x:Type vm:MomentRow}">
-              <Border x:Name="Box" CornerRadius="10" Padding="10,8" Margin="0,0,6,4" BorderThickness="1" BorderBrush="Transparent" Background="Transparent">
-                <DockPanel>
-                  <Grid DockPanel.Dock="Left" Width="34" Height="34" Margin="0,0,12,0">
-                    <!-- A level-up: the character's portrait. -->
-                    <Grid DataContext="{Binding Character}" Visibility="{Binding DataContext.IsLevel, RelativeSource={RelativeSource AncestorType=DockPanel}, Converter={StaticResource Visible}}">
-                      <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
-                      <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                      <Image Source="{Binding PictureUrl, Converter={StaticResource WebImage}}" Stretch="UniformToFill">
-                        <Image.Clip>
-                          <EllipseGeometry Center="17,17" RadiusX="17" RadiusY="17"/>
-                        </Image.Clip>
-                      </Image>
-                      <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5"/>
-                    </Grid>
-                    <!-- Anything else: the item's icon, else the kind's glyph. -->
-                    <Grid DataContext="{Binding Row}" ui:ItemTip.Info="{Binding Info}"
-                          Visibility="{Binding DataContext.IsLevel, RelativeSource={RelativeSource AncestorType=DockPanel}, Converter={StaticResource Hidden}}">
-                      <Border CornerRadius="8" Background="{DynamicResource CardHeader}"/>
-                      <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="15" HorizontalAlignment="Center"
-                                 Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
-                      <Image Source="{Binding IconUrl, Converter={StaticResource WebImage}}" Width="30" Height="30"
-                             Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
-                    </Grid>
-                  </Grid>
-                  <!-- Posted, or a Share button. -->
-                  <Grid DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0">
-                    <TextBlock Text="&#x2713; Posted" FontSize="11" Foreground="{StaticResource Green}" VerticalAlignment="Center"
-                               Visibility="{Binding Posted, Converter={StaticResource Visible}}"/>
-                    <Button Style="{StaticResource ChipButton}" Content="Share" ToolTip="Post this moment to Discord"
-                            Command="{Binding DataContext.PostHighlightCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
-                            Visibility="{Binding Posted, Converter={StaticResource Hidden}}"/>
-                  </Grid>
-                  <StackPanel VerticalAlignment="Center" DataContext="{Binding Row}">
-                    <TextBlock FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
-                      <Run Text="{Binding Verb, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run Text="{Binding Subject, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/>
-                    </TextBlock>
-                    <TextBlock FontSize="11" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis"
-                               Text="{Binding DataContext.Who, RelativeSource={RelativeSource AncestorType=DockPanel}}"/>
-                  </StackPanel>
-                </DockPanel>
-              </Border>
-              <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding Big}" Value="True">
-                  <Setter TargetName="Box" Property="Background" Value="{DynamicResource BlueSoft}"/>
-                  <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
-                </DataTrigger>
-              </DataTemplate.Triggers>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </DockPanel>
+      <Grid x:Name="FeedSplit">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Style="{StaticResource FactLabel}" Text="RECENT MOMENTS" Margin="6,0,0,8"/>
+          <TextBlock DockPanel.Dock="Top" Style="{StaticResource Hint}" Margin="6,0,0,0" Text="Nothing yet. Dings, kills, loot and mounts show up here."
+                     Visibility="{Binding HasFeed, Converter={StaticResource Hidden}}"/>
+          <ItemsControl ItemsSource="{Binding Feed}" Style="{StaticResource MomentList}"/>
+        </DockPanel>
+        <Border Grid.Row="1" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,10,0,0" Padding="0,12,0,0"
+                MaxHeight="{Binding ActualHeight, ElementName=FeedSplit, Converter={StaticResource Times}, ConverterParameter=0.5}"
+                Visibility="{Binding HasFriendFeed, Converter={StaticResource Visible}}">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Style="{StaticResource FactLabel}" Text="FRIENDS' MOMENTS" Margin="6,0,0,8"
+                       ToolTip="Friends' updates reach the app when you /reload or log out."/>
+            <ItemsControl ItemsSource="{Binding FriendFeed}" Style="{StaticResource MomentList}"/>
+          </DockPanel>
+        </Border>
+      </Grid>
     </Border>
   </Grid>
 </UserControl>

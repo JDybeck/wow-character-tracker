@@ -49,6 +49,16 @@ sealed class ActiveIf : IValueConverter
         throw new NotSupportedException();
 }
 
+// A number times the ConverterParameter, e.g. half of a panel's height for a MaxHeight.
+sealed class Times : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+        value is double d && double.TryParse(parameter?.ToString(), CultureInfo.InvariantCulture, out var f) ? d * f : value;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 sealed class NullToVisibility : IValueConverter
 {
     public bool Invert { get; set; }

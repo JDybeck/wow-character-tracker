@@ -31,6 +31,10 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     public ObservableCollection<MomentRow> Feed { get; } = [];
     public bool HasFeed => Feed.Count > 0;
 
+    // Under your own moments, those of friends who share them.
+    public ObservableCollection<MomentRow> FriendFeed { get; } = [];
+    public bool HasFriendFeed => FriendFeed.Count > 0;
+
     // Friends who share with you, the one seen last first (when isn't Battle.net's online: friends'
     // updates reach the app through your saved file, on /reload or logout).
     const int FriendsShown = 6;
@@ -65,12 +69,23 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         ];
         Raise(nameof(Today));
 
-        var byGuid = rows.ToDictionary(r => r.Guid);
+        Fill(Feed, rows.ToDictionary(r => r.Guid), events, sent);
+        Raise(nameof(HasFeed));
+
+        // Friends' moments come with their rows (the highlights and level times they share).
+        var friendRows = friends.GroupBy(f => f.Guid).ToDictionary(g => g.Key, g => g.First());
+        Fill(FriendFeed, friendRows, friendRows.Values.SelectMany(f => f.Events), sent);
+        Raise(nameof(HasFriendFeed));
+    }
+
+    // The newest level-ups and highlights of these characters, newest first.
+    void Fill(ObservableCollection<MomentRow> feed, Dictionary<string, CharacterRow> byGuid, IEnumerable<Entry> events, IReadOnlySet<string> sent)
+    {
         var newest = events
             .Where(e => byGuid.ContainsKey(e.Guid) && (e.Kind == "level" || EventKinds.Highlights.Contains(e.Kind)))
             .OrderByDescending(e => e.At)
             .Take(FeedSize);
-        Feed.Clear();
+        feed.Clear();
         var portraits = new HashSet<CharacterRow>();
         foreach (var e in newest)
         {
@@ -78,11 +93,10 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
             if (row.Text.Length == 0) continue;
             row.Info = row.ItemId > 0 ? lookup.For("item", row.ItemId) : null;
             var who = byGuid[e.Guid];
-            Feed.Add(new MomentRow(row, who, sent.Contains(e.Id)));
+            feed.Add(new MomentRow(row, who, who.IsOwn && sent.Contains(e.Id)));
             if (e.Kind == "level") { if (portraits.Add(who)) _ = who.LoadPictureAsync(flavor); } // once per character
             else _ = row.LoadIconAsync(flavor);
         }
-        Raise(nameof(HasFeed));
     }
 
     // Each friend once, with the character they played last; the one seen last first.
@@ -115,7 +129,9 @@ sealed class MomentRow(HighlightRow row, CharacterRow character, bool posted) : 
 {
     public HighlightRow Row { get; } = row;
     public CharacterRow Character { get; } = character;
-    public string Who => $"{Character.FullName} · {Format.Ago(Row.Source?.At ?? 0)}";
+    public string Who => Character.IsFriend
+        ? $"{Character.FullName} ({Character.FriendName}) · {Format.Ago(Row.Source?.At ?? 0)}"
+        : $"{Character.FullName} · {Format.Ago(Row.Source?.At ?? 0)}";
 
     bool isPosted = posted;
     public bool Posted { get => isPosted; set => Set(ref isPosted, value); }
