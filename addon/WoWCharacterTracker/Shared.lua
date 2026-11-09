@@ -192,6 +192,40 @@ function ns.withoutRealm(name)
   return name and (name:gsub("%-.*$", "")) or nil
 end
 
+-- A realm name as Battle.net writes it: no spaces, hyphens or apostrophes ("TarrenMill"). The game
+-- writes ours with them ("CAMWOW EU5 Realm 6 PvP"), so both go through this before comparing.
+function ns.plainRealm(name)
+  if type(name) ~= "string" or name == "" then return nil end
+  return (name:gsub("[%s%-']", ""))
+end
+
+-- Forever's realms end in a layer number and their type ("CAMWOW EU5 Realm 6 PvP" -> "PvP", 6),
+-- written either way; nil for other names.
+local REALM_TYPES = { { "RPPVP", "RP-PvP" }, { "PVP", "PvP" }, { "PVE", "PvE" }, { "NORMAL", "Normal" }, { "RP", "RP" } }
+function ns.realmType(name)
+  local plain = ns.plainRealm(name)
+  if not plain then return nil end
+  local upper = plain:upper()
+  local layer = upper:match("REALM(%d+)%a+$")
+  if not layer then return nil end
+  for _, r in ipairs(REALM_TYPES) do
+    if upper:sub(-#r[1]) == r[1] then return r[2], tonumber(layer) end
+  end
+  return nil
+end
+
+-- The GUIDs of everyone in your party or raid, as a set.
+function ns.groupGuids()
+  local set = {}
+  if not (IsInGroup and IsInGroup()) then return set end
+  local raid = IsInRaid and IsInRaid()
+  for i = 1, (GetNumGroupMembers and GetNumGroupMembers() or 0) do
+    local guid = UnitGUID((raid and "raid" or "party") .. i)
+    if guid then set[guid] = true end
+  end
+  return set
+end
+
 -- Text matched literally inside a Lua pattern ("Set:" -> "Set%:").
 function ns.escapePattern(s)
   return (s:gsub("%W", "%%%0"))

@@ -144,17 +144,6 @@ local function tagOf(account)
   return nil
 end
 
-local function groupGuids()
-  local set = {}
-  if not (IsInGroup and IsInGroup()) then return set end
-  local raid = IsInRaid and IsInRaid()
-  for i = 1, (GetNumGroupMembers and GetNumGroupMembers() or 0) do
-    local guid = UnitGUID((raid and "raid" or "party") .. i)
-    if guid then set[guid] = true end
-  end
-  return set
-end
-
 local function version()
   local metadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
   return metadata and tostring(metadata(ADDON, "Version") or "") or ""
@@ -225,7 +214,7 @@ end
 function ns.friendsTick()
   local s = ns.shareSettings()
   if not s.enabled then return end
-  local group = groupGuids()
+  local group = ns.groupGuids()
   for _, f in ipairs(online()) do
     local contact = s.contacts[f.tag]
     if contact and not s.blocked[f.tag] then

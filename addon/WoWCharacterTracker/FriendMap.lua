@@ -163,30 +163,12 @@ end)
 -- Faded after the first, gone after the second (seconds), by the sender's rate.
 local function limits(rate) return math.max(30, 2 * rate), math.max(120, 4 * rate) end
 
--- A realm name as Battle.net writes it: no spaces, hyphens or apostrophes ("TarrenMill"). The game
--- writes ours with them ("CAMWOW EU5 Realm 6 PvP"), so both go through this before comparing.
-local function plainRealm(name)
-  if type(name) ~= "string" or name == "" then return nil end
-  return (name:gsub("[%s%-']", ""))
-end
-
--- Forever's realms end in their ruleset after a number ("CAMWOWEU5Realm6PvP"); nil for other names.
-local RULESETS = { { "RPPVP", "RP-PvP" }, { "PVP", "PvP" }, { "PVE", "PvE" }, { "NORMAL", "Normal" }, { "RP", "RP" } }
-local function ruleset(plain)
-  local upper = plain:upper()
-  if not upper:match("REALM%d+%a+$") then return nil end
-  for _, r in ipairs(RULESETS) do
-    if upper:sub(-#r[1]) == r[1] then return r[2] end
-  end
-  return nil
-end
-
 -- How a friend's realm differs from ours, for the tooltip; nil when it's the same. On Forever the
--- number is a layer, so the same ruleset means another layer of it.
+-- number is a layer, so the same realm type means another layer of it.
 local function realmNote(theirs, mine)
   if not theirs or not mine or theirs == mine then return nil end
   if not ns.IS_RETAIL then
-    local their, our = ruleset(theirs), ruleset(mine)
+    local their, our = ns.realmType(theirs), ns.realmType(mine)
     if their and their == our then return "On another layer" end
     if their then return "On another realm: " .. their end
   end
@@ -198,21 +180,22 @@ local function stillShown(f, p)
   return f ~= nil and f.contact ~= nil and f.contact.receive and not f.blocked and f.guid == p.guid
 end
 
--- What MapPins.lua draws: friends online here with a position that isn't too old, by label.
+-- What MapPins.lua draws: friends online here with a position that isn't too old, by label. Not
+-- those in your group: the game shows them itself.
 function ns.friendPins()
-  local now, out, rows = time(), {}, {}
+  local now, out, rows, group = time(), {}, {}, ns.groupGuids()
   if ns.shareSettings().enabled then
     for _, f in ipairs(online()) do rows[f.account] = f end
   end
-  local myRealm = plainRealm(GetRealmName and GetRealmName())
+  local myRealm = ns.plainRealm(GetRealmName and GetRealmName())
   for account, p in pairs(positions) do
     local fade, gone = limits(p.rate)
     local age = math.max(0, now - p.readAt)
     local f = rows[account]
     if not stillShown(f, p) or age > gone then
       positions[account] = nil
-    else
-      local note = realmNote(plainRealm(f.realm), myRealm)
+    elseif not group[p.guid] then
+      local note = realmNote(ns.plainRealm(f.realm), myRealm)
       out[#out + 1] = { tag = f.tag, label = f.label, character = f.character, classFile = f.classFile, level = f.level,
         realm = f.realm, otherRealm = note ~= nil, realmNote = note,
         mapID = p.mapID, x = p.x, y = p.y, age = age, faded = age > fade }
@@ -223,14 +206,16 @@ function ns.friendPins()
 end
 
 -- WATCH to every contact online here we keep things from, at most every WATCH_EVERY seconds each
--- (a second less, so the renewal timer never just misses it). Not while Comms holds everything back.
+-- (a second less, so the renewal timer never just misses it). Not while Comms holds everything back,
+-- and not to someone in your group (the game shows them already).
 -- A new watch after a gap drops what we kept from before: the friend sends it again if they still may.
 local function sendWatches()
   if not ns.shareSettings().enabled or (ns.comms.canSend and not ns.comms.canSend()) then return end
-  local now, dropped = time(), false
+  local now, dropped, group = time(), false, ns.groupGuids()
   for _, f in ipairs(online()) do
     local c, last = f.contact, watchSentAt[f.account]
-    if c and c.receive and not f.blocked and f.hasAddon ~= false and (not last or now - last >= WATCH_EVERY - 1) then
+    if c and c.receive and not f.blocked and f.hasAddon ~= false and not (f.guid and group[f.guid])
+      and (not last or now - last >= WATCH_EVERY - 1) then
       if ns.comms.send(f.account, "WATCH", "") then
         watchSentAt[f.account] = now
         if last and now - last > WATCH_LASTS and positions[f.account] then
