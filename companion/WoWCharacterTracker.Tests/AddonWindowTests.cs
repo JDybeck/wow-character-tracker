@@ -422,6 +422,65 @@ public class AddonWindowTests
 
     static string Calls(FriendsLuaTests.Client c) => c.Lua("return table.concat(calls, ';')").String;
 
+    // Shared with you: a click on a friend's header folds their characters away, and it stays folded.
+    [Fact]
+    public void A_friend_in_shared_with_you_folds_and_stays_folded()
+    {
+        var c = FriendsTab();
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
+        Assert.True(Bool(c, "shownText('1 character') ~= nil"));
+        Assert.True(Bool(c, "shownText('Frost Mage') ~= nil or shownText('Frost ') ~= nil"));
+        c.Lua("local h = shownText('Cid#3').owner; h.scripts.OnMouseUp(h)");
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane') == nil"));
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.window.collapsedFriends['Cid#3'] == true"));
+        c.Lua("local h = shownText('Cid#3').owner; h.scripts.OnMouseUp(h)");
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
+    }
+
+    // Characters: your own characters from the saved file, newest first, opening the details panel
+    // with their gear and level times. Ignored ones stay out.
+    [Fact]
+    public void The_characters_tab_lists_your_own_characters()
+    {
+        var c = Load("""
+            { chars = {
+                ['Player-1-0000000A'] = { char = 'Zeb', realm = 'Firemaw', level = 45, class = 'Warrior', classFile = 'WARRIOR', race = 'Night Elf', ilvl = 35, zone = 'Tanaris', lastSeen = 200, money = 70000 },
+                ['Player-1-0000000C'] = { char = 'Alt', realm = 'Firemaw', level = 12, class = 'Mage', classFile = 'MAGE', race = 'Gnome', lastSeen = 100 } },
+              items = { ['Player-1-0000000A'] = { gear = '1~100' } },
+              events = { { kind = 'level', guid = 'Player-1-0000000A', level = 45, seconds = 10440, at = 150 } } }
+            """, "{ ignored = { ['Player-1-0000000C'] = true } }");
+        c.Call("openWindow", "characters");
+        Assert.True(Bool(c, "shownText('Zeb') ~= nil"));
+        Assert.True(Bool(c, "shownText('Alt') == nil")); // ignored
+        c.Lua("local r = shownText('Zeb').owner; r.scripts.OnMouseUp(r)");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+        Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m') ~= nil")); // its level times
+        Assert.True(Bool(c, "shownText('7g 0s 0c') ~= nil"));
+    }
+
+    // Home: friends' moments beside yours, and a friend's row opens their details like the Friends tab.
+    [Fact]
+    public void Home_lists_friends_moments_and_opens_a_friends_character()
+    {
+        var c = Load();
+        c.Lua(FriendStubs);
+        c.Lua("""
+            shared[1].chars[1].highlights = 'boss~99000~60~Ragnaros~Molten Core~40'
+            function UnitLevel() return 10 end
+            function UnitClass() return 'Mage', 'MAGE' end
+            function date() return { year = 2026, month = 11, day = 9 } end
+            ns.playedNow = function() return 1000 end
+            ns.levelTimeNow = function() return nil end
+            """);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Call("openWindow", "home");
+        Assert.True(Bool(c, "shownText(\"Friends' moments\") ~= nil"));
+        Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
+        c.Lua("local r = shownText('Killed Ragnaros in Molten Core!').owner; r.scripts.OnMouseUp(r)");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
+    }
+
     [Fact]
     public void Find_online_friends_lists_each_friend_with_the_buttons_for_their_state()
     {
@@ -524,11 +583,13 @@ public class AddonWindowTests
     }
 
     [Fact]
-    public void Shared_with_you_lists_characters_with_a_line_of_info()
+    public void Shared_with_you_lists_characters_like_the_app()
     {
         var c = FriendsTab();
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil")); // with the surname
-        Assert.True(Bool(c, "shownText('level 60, Frost, ilvl 112, Ironforge, 2h ago') ~= nil"));
+        Assert.True(Bool(c, "shownText('Ironforge') ~= nil")); // under the name
+        Assert.True(Bool(c, "shownText('60') ~= nil and shownText('112') ~= nil")); // level and item level pills
+        Assert.True(Bool(c, "shownText('2h ago') ~= nil"));
         Assert.True(Bool(c, "shownText('Cid#3') ~= nil")); // whose characters they are
     }
 

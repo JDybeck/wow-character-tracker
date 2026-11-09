@@ -86,6 +86,90 @@ end
 
 local function hideTip() if GameTooltip then GameTooltip:Hide() end end
 
+-- Where the two moment columns meet, dragged by the player and kept with the window's choices.
+local SPLIT_MIN, SPLIT_MAX = 180, WIDTH - 180
+local function split()
+  local s = tonumber((db().window or {}).homeSplit) or WIDTH / 2
+  return math.max(SPLIT_MIN, math.min(SPLIT_MAX, s))
+end
+local function setSplit(x)
+  local d = db()
+  d.window = d.window or {}
+  d.window.homeSplit = math.floor(math.max(SPLIT_MIN, math.min(SPLIT_MAX, x)))
+end
+
+-- The whole line on hover, for a moment cut short by its column.
+local function showRowTip(self)
+  if not (GameTooltip and self.full) then return end
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText(self.full, 1, 1, 1, 1, true)
+  GameTooltip:Show()
+end
+
+local function rowEnter(self)
+  self.hover:SetShown(self.open ~= nil)
+  showRowTip(self)
+end
+local function rowLeave(self)
+  self.hover:Hide()
+  hideTip()
+end
+local function rowClick(self) if self.open then self.open() end end
+
+-- A moment line: who, what (cut to the column) and when. A friend's opens their details.
+local function newMomentRow(parent)
+  local row = CreateFrame("Frame", nil, parent)
+  row:SetHeight(18)
+  row:EnableMouse(true)
+  row.hover = row:CreateTexture(nil, "BACKGROUND")
+  ui.fill(row.hover, C.hover)
+  row.hover:SetAllPoints()
+  row.hover:Hide()
+  row.who = ui.text(row, "GameFontNormalSmall")
+  row.who:SetPoint("LEFT", row, "LEFT", 0, 0)
+  row.who:SetWidth(80)
+  row.who:SetWordWrap(false)
+  row.what = ui.text(row, "GameFontHighlightSmall")
+  row.what:SetPoint("LEFT", row, "LEFT", 84, 0)
+  row.what:SetWordWrap(false)
+  row.when = ui.text(row, "GameFontDisableSmall")
+  row.when:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+  row:SetScript("OnEnter", rowEnter)
+  row:SetScript("OnLeave", rowLeave)
+  row:SetScript("OnMouseUp", rowClick)
+  return row
+end
+
+-- open: what a click does (nil: nothing, no hover).
+local function setMomentRow(row, who, classFile, what, at, open)
+  row.who:SetText(who)
+  row.who:SetTextColor(ui.classRgb(classFile))
+  row.what:SetText(what)
+  row.when:SetText(ns.ago(at))
+  row.full, row.open = who .. ": " .. what, open
+  row:Show()
+end
+
+-- A column of moments from list ({ e, c, label }: c and label for a friend's, whose click opens it).
+local function fillColumn(col, list)
+  for i, row in ipairs(col.rows) do
+    local item = list[i]
+    if item then
+      local e = item.e
+      local open = item.c and function() ns.toggleFriendDetails(item.c, item.label) end or nil
+      setMomentRow(row, e.char or "?", e.classFile, ns.momentLine(e), e.at, open)
+    else
+      row:Hide()
+    end
+  end
+  col.empty:SetShown(#list == 0)
+end
+
+local function sizeMomentRow(row, width)
+  row:SetWidth(width)
+  row.what:SetWidth(math.max(40, width - 84 - 56))
+end
+
 -- At y below the card's top edge.
 local function at(w, card, y, x)
   w:ClearAllPoints()
@@ -190,33 +274,76 @@ function ns.buildHomeTab(p)
   local todayWidth = math.floor(INNER / 4)
   for i = 1, 4 do today[i] = ui.text(card, "GameFontHighlight") end
 
-  -- Latest moments of all your characters ------------------------------------------------------
-  local feedTitle = ui.heading(p, "Latest moments")
-  feedTitle:ClearAllPoints()
-  feedTitle:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -22)
-  local noFeed = ui.text(p, "GameFontDisableSmall", "Nothing yet. Level-ups, boss kills and loot show up here.")
-  noFeed:SetPoint("TOPLEFT", feedTitle, "BOTTOMLEFT", 0, -6)
-  local feed = {}
-  for i = 1, FEED_SIZE do
-    local row = CreateFrame("Frame", nil, p)
-    row:SetSize(WIDTH, 18)
-    row:SetPoint("TOPLEFT", feedTitle, "BOTTOMLEFT", 0, -6 - (i - 1) * 20)
-    row.who = ui.text(row, "GameFontNormalSmall")
-    row.who:SetPoint("LEFT", row, "LEFT", 0, 0)
-    row.who:SetWidth(130)
-    row.what = ui.text(row, "GameFontHighlightSmall")
-    row.what:SetPoint("LEFT", row, "LEFT", 136, 0)
-    row.what:SetWidth(WIDTH - 136 - 80)
-    row.what:SetWordWrap(false)
-    row.when = ui.text(row, "GameFontDisableSmall")
-    row.when:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-    feed[i] = row
+  -- The newest moments: yours on the left, friends' on the right, a bar between them to drag ------
+  local moments = CreateFrame("Frame", nil, p)
+  moments:SetSize(WIDTH, 26 + FEED_SIZE * 20)
+  moments:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -18)
+  local function column(title, empty)
+    local col = { title = ui.text(moments, "GameFontNormal", title), rows = {} }
+    col.title:SetTextColor(C.accent[1], C.accent[2], C.accent[3])
+    col.empty = ui.text(moments, "GameFontDisableSmall", empty)
+    for i = 1, FEED_SIZE do col.rows[i] = newMomentRow(moments) end
+    return col
   end
+  local mine = column("Latest moments", "Nothing yet. Level-ups, boss kills and loot show up here.")
+  local theirs = column("Friends' moments", "Nothing from friends yet.")
+  local divider = CreateFrame("Frame", nil, moments)
+  divider:SetWidth(10)
+  divider:EnableMouse(true)
+  local dividerLine = divider:CreateTexture(nil, "ARTWORK")
+  ui.fill(dividerLine, C.border)
+  dividerLine:SetWidth(1)
+  dividerLine:SetPoint("TOP")
+  dividerLine:SetPoint("BOTTOM")
+
+  local function placeColumn(col, x, w)
+    col.title:ClearAllPoints()
+    col.title:SetPoint("TOPLEFT", moments, "TOPLEFT", x, 0)
+    col.empty:ClearAllPoints()
+    col.empty:SetPoint("TOPLEFT", moments, "TOPLEFT", x, -24)
+    col.empty:SetWidth(w)
+    for i, row in ipairs(col.rows) do
+      row:ClearAllPoints()
+      row:SetPoint("TOPLEFT", moments, "TOPLEFT", x, -24 - (i - 1) * 20)
+      sizeMomentRow(row, w)
+    end
+  end
+  local function placeMoments()
+    local s = split()
+    placeColumn(mine, 0, s - 8)
+    placeColumn(theirs, s + 8, WIDTH - s - 8)
+    divider:ClearAllPoints()
+    divider:SetPoint("TOPLEFT", moments, "TOPLEFT", s - 5, 0)
+    divider:SetPoint("BOTTOMLEFT", moments, "BOTTOMLEFT", s - 5, 0)
+  end
+  placeMoments()
+  -- Dragging the bar moves the split; the hand cursor and a lighter line say it can be dragged.
+  divider:SetScript("OnEnter", function()
+    ui.fill(dividerLine, C.accent)
+    if SetCursor then SetCursor("Interface\\CURSOR\\UI-Cursor-SizeRight") end
+  end)
+  divider:SetScript("OnLeave", function()
+    if not divider.dragging then ui.fill(dividerLine, C.border) end
+    if ResetCursor then ResetCursor() end
+  end)
+  divider:SetScript("OnMouseDown", function(self)
+    self.dragging = true
+    self:SetScript("OnUpdate", function()
+      local x = GetCursorPosition() / (moments:GetEffectiveScale() or 1)
+      setSplit(x - (moments:GetLeft() or 0))
+      placeMoments()
+    end)
+  end)
+  divider:SetScript("OnMouseUp", function(self)
+    self.dragging = false
+    self:SetScript("OnUpdate", nil)
+    ui.fill(dividerLine, C.border)
+  end)
 
   -- Friends who share with you, the one seen last first -----------------------------------------
   local friendsTitle = ui.heading(p, "Friends")
   friendsTitle:ClearAllPoints()
-  friendsTitle:SetPoint("TOPLEFT", feedTitle, "BOTTOMLEFT", 0, -16 - FEED_SIZE * 20)
+  friendsTitle:SetPoint("TOPLEFT", moments, "BOTTOMLEFT", 0, -16)
   local openFriends = ui.button(p, "Friends tab", 110, function() ns.openWindow("friends") end)
   openFriends:SetPoint("BOTTOMRIGHT", friendsTitle, "BOTTOMLEFT", WIDTH, -4)
   local noFriends = ui.text(p, "GameFontDisableSmall", "Nobody shares with you yet. Ask a friend on the Friends tab, they see your characters and level times too when you share.")
@@ -224,21 +351,18 @@ function ns.buildHomeTab(p)
   noFriends:SetWidth(WIDTH)
   local friendRows = {}
   for i = 1, FRIENDS_SHOWN do
-    local row = CreateFrame("Frame", nil, p)
-    row:SetSize(WIDTH, 18)
+    -- A moment row with room for the name; a click opens the character like on the Friends tab.
+    local row = newMomentRow(p)
     row:SetPoint("TOPLEFT", friendsTitle, "BOTTOMLEFT", 0, -6 - (i - 1) * 20)
-    row.name = ui.text(row, "GameFontHighlightSmall")
-    row.name:SetPoint("LEFT", row, "LEFT", 0, 0)
-    row.name:SetWidth(170)
-    row.info = ui.text(row, "GameFontDisableSmall")
-    row.info:SetPoint("LEFT", row, "LEFT", 176, 0)
-    row.info:SetWidth(WIDTH - 176 - 70)
-    row.info:SetWordWrap(false)
-    row.when = ui.text(row, "GameFontDisableSmall")
-    row.when:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+    row.who:SetWidth(170)
+    row.what:ClearAllPoints()
+    row.what:SetPoint("LEFT", row, "LEFT", 176, 0)
+    row.what:SetFontObject("GameFontDisableSmall")
+    row:SetWidth(WIDTH)
+    row.what:SetWidth(WIDTH - 176 - 70)
     friendRows[i] = row
   end
-  local BELOW_CARD = 22 + 26 + FEED_SIZE * 20 + 16 + 26 + FRIENDS_SHOWN * 20 + 20 -- the feed and friends under the card
+  local BELOW_CARD = 18 + 26 + FEED_SIZE * 20 + 16 + 26 + FRIENDS_SHOWN * 20 + 20 -- the moments and friends under the card
 
   -- What only changes with new events is worked out again only then (the redraw runs every few
   -- seconds, and the list holds thousands): level times, today's counts and the feed.
@@ -367,55 +491,51 @@ function ns.buildHomeTab(p)
       end
     end
 
-    -- The feed: the newest moments with a line (ns.momentLine), any of your characters.
-    local n = 0
+    -- Your newest moments with a line (ns.momentLine), any of your characters.
+    local list = {}
     for i = #events, 1, -1 do
-      if n >= FEED_SIZE then break end
+      if #list >= FEED_SIZE then break end
       local e = events[i]
-      local text = type(e) == "table" and e.kind ~= "ask" and ns.momentLine and ns.momentLine(e)
-      if text then
-        n = n + 1
-        local row = feed[n]
-        row.who:SetText(e.char or "?")
-        row.who:SetTextColor(ui.classRgb(e.classFile))
-        row.what:SetText(text)
-        row.when:SetText(ns.ago(e.at))
-        row:Show()
-      end
+      if type(e) == "table" and e.kind ~= "ask" and ns.momentLine and ns.momentLine(e) then list[#list + 1] = { e = e } end
     end
-    for i = n + 1, FEED_SIZE do feed[i]:Hide() end
-    noFeed:SetShown(n == 0)
+    fillColumn(mine, list)
   end
 
-  -- Friends: each one's newest character.
+  -- Friends: each one's newest character, and the newest of their characters' highlights.
   local function drawFriends()
-    local latest = {}
+    local latest, happened = {}, {}
     for _, f in ipairs(ns.sharedWithYou and ns.sharedWithYou() or {}) do
+      local label = f.label or f.tag
       local c = f.chars and f.chars[1]
-      if c then latest[#latest + 1] = { label = f.label or f.tag, c = c, at = c.received or c.at or 0 } end
+      if c then latest[#latest + 1] = { label = label, c = c, at = c.received or c.at or 0 } end
+      for _, char in ipairs(f.chars or {}) do
+        for _, e in ipairs(ns.friendHighlights(char)) do
+          e.char, e.classFile = char.char, char.classFile
+          if ns.momentLine(e) then happened[#happened + 1] = { e = e, c = char, label = label } end
+        end
+      end
     end
+    table.sort(happened, function(a, b) return a.e.at > b.e.at end)
+    for i = #happened, FEED_SIZE + 1, -1 do happened[i] = nil end
+    fillColumn(theirs, happened)
+
     table.sort(latest, function(a, b) return a.at > b.at end)
     for i, row in ipairs(friendRows) do
       local f = latest[i]
       if f then
         local c = f.c
-        row.name:SetText(c.char or "?")
-        row.name:SetTextColor(ui.classRgb(c.classFile))
         local bits = { string.format("%s %s", c.level or "?", c.class or "") }
         local fl = ns.friendLevels(c)
         if #fl > 0 then bits[#bits + 1] = ns.levelText(fl[#fl]) end
         if c.zone then bits[#bits + 1] = c.zone end
         bits[#bits + 1] = f.label
-        row.info:SetText(table.concat(bits, "  ·  "))
-        row.when:SetText(ns.ago(f.at))
-        row:Show()
+        setMomentRow(row, c.char or "?", c.classFile, table.concat(bits, "  ·  "), f.at, function() ns.toggleFriendDetails(c, f.label) end)
       else
         row:Hide()
       end
     end
     noFriends:SetShown(#latest == 0)
   end
-
   -- all: everything (opening the tab, and every SLOW_EVERY redraws for the "ago" times and friends).
   local function draw(all)
     local me = playing()
