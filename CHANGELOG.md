@@ -4,42 +4,30 @@ The app shows the notes for a new version when it finds an update, and the newes
 
 ## v0.39.1
 
-A Home page in game and level times for friends. Update the addon with the app (it does this by itself) and /reload in game.
+All of 0.39 in one: a cleaner app with a Home page, one Sharing page and a helper that sets everything up, a Home page and your characters in game, and level times for friends. Update the addon with the app (it does this by itself) and /reload in game.
 
 ### New
 
-- **Home in game**: `/wct` opens a Home tab like the app's. The character you're playing with item level, gold, played time and time on this level, the last level's time and your average, on Forever how long to max level at your recent pace, and a small chart of your level times. **Level history** under the chart folds open your average, fastest and slowest level and the newest 20 levels. Below the card today's levels, bosses, epics and mounts, the newest moments of all your characters and the friends who share with you.
-- **Level times for friends**: friends now see how long each of your levels took, your played time and XP bar, on by default (**Level times** in what friends get, off for one friend or all). The app shows a friend's level times on a new **Leveling** tab with the chart and the time to max level, and in game a friend's details list their last level, average, fastest and slowest.
-- **Level chart on Home**: the app's Home card shows a small chart of your level times under the time to max level, hover a bar for its time. Click the character at the top of the card to open it on the Characters page.
+- **Home**: the character you're playing with today's levels, boss kills and loot, a small chart of your level times, a feed of every character's newest moments (with a **Share** button for the ones not posted yet, and portraits on level-ups), and your friends by when they were last seen. Click the character at the top to open it on the Characters page.
+- **Home in game**: `/wct` opens a Home tab like the app's. The character you're playing with item level, gold, played time and time on this level, the last level's time and your average, on Forever how long to max level at your recent pace, and a small chart of your level times. **Level history** under the chart folds open your average, fastest and slowest level and the newest 20 levels. Below it today's levels, bosses, epics and mounts, your newest moments on the left and your friends' on the right (drag the bar between them for more room, hover a line for all of it), and the friends who share with you.
 - **Characters in game**: the addon window has a Characters tab with your characters on this WoW account, newest first, in rows like the app's. Click one for its details, gear and level times.
-- **Friends tab, cleaner**: each friend under Shared with you is one header with a +/- to fold their characters away (it stays folded), and their characters are rows like the app's: name, race and zone, class, level and item level, and when they were last seen.
-- **Moments side by side**: Home shows your newest moments on the left and your friends' on the right. Drag the bar between them to give either side more room, and hover a line for all of it. Clicking a friend's moment or a friend under Friends opens their details, like on the Friends tab.
-- **A sharing reminder**: when you share with no friends, one line in chat a minute after you log in. Not after a /reload, and not when sharing is off.
-
-### Fixes and tweaks
-
-- A friend's gear showed "item 12345" until you clicked the character a second time. The details now fill in the names as soon as the game has them.
-- The addon uses less memory: the instant post pattern no longer builds a big table for every moment, and Home only works out level times again when something new happened.
-
-## v0.39.0
-
-A cleaner app: fewer buttons, a Home page, one Sharing page and a helper that sets everything up. Update the addon with the app (it does this by itself) and /reload in game.
-
-### New
-
-- **Home**: the character you're playing with today's levels, boss kills and loot, a feed of every character's newest moments (with a **Share** button for the ones not posted yet, and portraits on level-ups), and your friends by when they were last seen.
+- **Level times for friends**: friends now see how long each of your levels took, your played time and XP bar, on by default (**Level times** in what friends get, off for one friend or all). The app shows a friend's level times on a new **Leveling** tab with the chart and the time to max level, and in game a friend's details list their last level, average, fastest and slowest.
 - **Sharing**: What gets posted and In game are one page now. Discord, guild chat, party / raid chat and the stream overlay sit side by side at the top, and **Webhooks** and **Overlay** open their settings right under them. Pick **Quiet**, **Normal** or **Everything**, or open **Customize** for one table with a row per moment and a box for Discord, screenshot, guild, group, ask first and stream alerts. Test shows on the row under your mouse, and the rules under a moment (every 10th level, profession steps) jump to where you change them.
 - **Pause Discord** per game without touching your webhooks. What happens while paused isn't posted later.
 - **Help me set it up** replaces the tour: game folders, the addon, Discord and how much gets shared, one step at a time. It's in the **?** menu, with What's new, the in-game commands and feedback.
 - **Three tabs and a rail**: Home, Characters (with List, Items, Professions and Followed inside), Friends and Sharing. The right side is a slim rail of quick switches for Discord, guild chat, group chat and the stream overlay, each saying on or off; the console slides out from it. Settings is its own page from the gear, and you can search items from the header.
 - **Dungeon runs** (Forever, off by default): one Discord post per 5-player dungeon run instead of one per boss and item, with the time, every boss, the group by role and who got what.
-- **The addon window** has four tabs: Sharing (pick Quiet, Normal or Everything in game), Friends, Note and Settings. Reload reminders are one choice: Off, Gentle or Every chance. Under Shared with you it says who shares what with you and what you share back, with an **Options** button.
+- **The addon window** has six tabs: Home, Characters, Sharing (pick Quiet, Normal or Everything in game), Friends, Note and Settings. Reload reminders are one choice: Off, Gentle or Every chance.
+- **Friends in game, cleaner**: each friend under Shared with you is one header with a +/- to fold their characters away (it stays folded), with what they share with you and what you share back and an **Options** button. Their characters are rows like the app's: name, race and zone, class, level and item level, and when they were last seen.
 - **Ask a friend for more**, like their map position or gold: pick it under **Ask them to share** in a friend's Options and click **Ask**. Their box asks with those ticked.
 - **Guild and group chat for rare loot** gets its own switch, and the in-game ask box can ask about any moment Discord skips, not only bosses and gear: level-ups, mounts, wins, milestones, Mythic+ runs and deaths.
+- **A sharing reminder**: when you share with no friends, one line in chat a minute after you log in. Not after a /reload, and not when sharing is off.
 
 ### Fixes and tweaks
 
 - Guild and group chat lines now actually go out. The game moved its chat function and the addon was still calling the old one, so nothing was said. Lines that come up during a boss fight now wait until the game allows chat again.
+- A friend's gear showed "item 12345" until you clicked the character a second time. The details now fill in the names as soon as the game has them.
+- The addon uses less memory: the instant post pattern no longer builds a big table for every moment, and Home only works out level times again when something new happened.
 - The addon shows its minimap icon in the game's addon list.
 - The reload box on a flight closes when you land.
 - Screenshots for more moments: max level, rare loot, battlegrounds and profession steps.
