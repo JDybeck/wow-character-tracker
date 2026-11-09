@@ -117,6 +117,7 @@ static class SavedVariables
                 Xp = (long)N(t, "xp"),
                 XpMax = (long)N(t, "xpMax"),
                 MaxLevel = (int)N(t, "maxLevel"),
+                LevelTime = (long)N(t, "levelTime"),
             });
         }
 

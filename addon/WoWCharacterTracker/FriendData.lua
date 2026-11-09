@@ -10,6 +10,7 @@ local FIELDS = {
   char = { kind = "string", max = 24 },
   surname = { kind = "string", max = 24 }, -- Forever
   realm = { kind = "string", max = 40 },
+  ruleset = { kind = "string", max = 24 }, -- Forever: "PvP", "Hardcore"...
   level = { kind = "number" },
   class = { kind = "string", max = 24 },
   classFile = { kind = "string", max = 16 },

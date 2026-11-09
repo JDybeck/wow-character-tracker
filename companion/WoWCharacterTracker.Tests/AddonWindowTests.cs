@@ -437,6 +437,67 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
     }
 
+    // A click on a character unfolds its info under the row and its gear beside the window; the
+    // panel's X closes only the panel, a second click on the row folds both away.
+    [Fact]
+    public void A_character_unfolds_under_its_row_and_folds_with_its_gear()
+    {
+        var c = FriendsTab();
+        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') ~= nil")); // the info, under the row
+        Assert.True(Bool(c, "shownText('Level times') ~= nil"));
+        c.Lua("named('WoWCharacterTrackerDetailsPanel'):Hide()"); // its X
+        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') ~= nil")); // still unfolded
+        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') == nil"));
+        Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+    }
+
+    // Hide in a character's info takes it out of the list, "show them" brings it back dimmed, and
+    // Show again undoes it.
+    [Fact]
+    public void A_character_can_be_hidden_and_shown_again()
+    {
+        var c = FriendsTab();
+        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        c.Lua("local b = find('Hide'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane') == nil"));
+        Assert.True(Bool(c, "find('1 hidden character, show them') ~= nil"));
+        c.Lua("local b = find('1 hidden character, show them'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
+        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        c.Lua("local b = find('Show again'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "next(WoWCharacterTrackerDB.window.hiddenChars) == nil"));
+    }
+
+    // On Forever the realm's name is its ruleset, so the info says the ruleset.
+    [Fact]
+    public void A_forever_character_shows_its_ruleset()
+    {
+        var c = FriendsTab();
+        c.Lua("shared[1].chars[1].ruleset = 'PvP'; ns.friendsChanged()");
+        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        Assert.True(Bool(c, "shownText('Ruleset') ~= nil and shownText('PvP') ~= nil"));
+        Assert.True(Bool(c, "shownText('Firemaw') == nil"));
+    }
+
+    // Settings, Look: picking a look repaints what's built and is kept; Classic gold until then.
+    [Fact]
+    public void A_look_repaints_the_window_and_is_kept()
+    {
+        var c = Load();
+        c.Lua("ns.ui.applyTheme()");
+        c.Call("openWindow", "settings");
+        Assert.Equal("classic", c.Lua("return ns.ui.theme()").String);
+        c.Lua("heading = shownText('Look')");
+        Assert.Equal(0xFC / 255.0, Num(c, "heading.color[1]"), 3); // the app's #FCD34D
+        c.Lua("local b = find('Forever wisp'); b.scripts.OnClick(b)");
+        Assert.Equal("wisp", c.Lua("return WoWCharacterTrackerDB.window.theme").String);
+        Assert.Equal(0x67 / 255.0, Num(c, "heading.color[1]"), 3); // #67E8F9, repainted in place
+        Assert.Equal(0x67 / 255.0, Num(c, "ns.ui.COLOR.accent[1]"), 3);
+    }
+
     // Characters: your own characters from the saved file, newest first, opening the details panel
     // with their gear and level times. Ignored ones stay out.
     [Fact]

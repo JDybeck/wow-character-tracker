@@ -54,7 +54,6 @@ function ns.levelingFacts(levels, c, xpTable)
     add("Last level", ns.levelText(levels[#levels]))
     add("Average", string.format("%s over %d level%s", ns.formatDuration(summary.average), summary.count, summary.count == 1 and "" or "s"))
     if summary.count > 1 then
-      add("Fastest", string.format("%s (%d to %d)", ns.formatDuration(summary.fastest.seconds), summary.fastest.level - 1, summary.fastest.level))
       add("Slowest", string.format("%s (%d to %d)", ns.formatDuration(summary.slowest.seconds), summary.slowest.level - 1, summary.slowest.level))
     end
   end

@@ -24,6 +24,7 @@ function on.ADDON_LOADED(name)
   db.xpTable = db.xpTable or {}           -- [level] = XP that level needs, on this client
   db.friends = db.friends or {}           -- [battleTag] = what that friend shares (Friends.lua)
   if db.popup == nil then db.popup = false end
+  ns.ui.applyTheme() -- the window's look (Ui.lua), before anything is built
   ns.flushBlocked()
 end
 

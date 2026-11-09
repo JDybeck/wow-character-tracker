@@ -6,7 +6,7 @@ local ADDON, ns = ...
 local ui = ns.ui
 local C = ui.COLOR
 
-local WIDTH = 640  -- the page's content width
+local WIDTH = 680  -- the page's content width
 local INNER = WIDTH - 28 -- inside the card
 local CHART_BARS = 40
 local CHART_HEIGHT = 36
@@ -17,8 +17,6 @@ local FEED_SIZE = 6
 local FRIENDS_SHOWN = 4
 local REDRAW_EVERY = 2 -- seconds
 local SLOW_EVERY = 15  -- redraws
-
-local MUTED = { 0.55, 0.5, 0.45 }
 
 local function db() return WoWCharacterTrackerDB or {} end
 
@@ -77,13 +75,6 @@ local function setTile(t, value, label)
   t.label:SetText(label)
 end
 
-local function showBarTip(self)
-  if not (GameTooltip and self.text) then return end
-  GameTooltip:SetOwner(self, "ANCHOR_TOP")
-  GameTooltip:SetText(self.text, 1, 1, 1)
-  GameTooltip:Show()
-end
-
 local function hideTip() if GameTooltip then GameTooltip:Hide() end end
 
 -- Where the two moment columns meet, dragged by the player and kept with the window's choices.
@@ -116,6 +107,8 @@ local function rowLeave(self)
 end
 local function rowClick(self) if self.open then self.open() end end
 
+local WHO = 120 -- room for a full name in a moment line
+
 -- A moment line: who, what (cut to the column) and when. A friend's opens their details.
 local function newMomentRow(parent)
   local row = CreateFrame("Frame", nil, parent)
@@ -127,10 +120,10 @@ local function newMomentRow(parent)
   row.hover:Hide()
   row.who = ui.text(row, "GameFontNormalSmall")
   row.who:SetPoint("LEFT", row, "LEFT", 0, 0)
-  row.who:SetWidth(80)
+  row.who:SetWidth(WHO)
   row.who:SetWordWrap(false)
   row.what = ui.text(row, "GameFontHighlightSmall")
-  row.what:SetPoint("LEFT", row, "LEFT", 84, 0)
+  row.what:SetPoint("LEFT", row, "LEFT", WHO + 4, 0)
   row.what:SetWordWrap(false)
   row.when = ui.text(row, "GameFontDisableSmall")
   row.when:SetPoint("RIGHT", row, "RIGHT", 0, 0)
@@ -157,7 +150,7 @@ local function fillColumn(col, list)
     if item then
       local e = item.e
       local open = item.c and function() ns.toggleFriendDetails(item.c, item.label) end or nil
-      setMomentRow(row, e.char or "?", e.classFile, ns.momentLine(e), e.at, open)
+      setMomentRow(row, ns.fullName(e), e.classFile, ns.momentLine(e), e.at, open)
     else
       row:Hide()
     end
@@ -167,7 +160,7 @@ end
 
 local function sizeMomentRow(row, width)
   row:SetWidth(width)
-  row.what:SetWidth(math.max(40, width - 84 - 56))
+  row.what:SetWidth(math.max(40, width - WHO - 4 - 56))
 end
 
 -- At y below the card's top edge.
@@ -215,26 +208,8 @@ function ns.buildHomeTab(p)
   local estimate = ui.text(card, "GameFontDisableSmall")
   estimate:SetWidth(INNER)
 
-  -- The mini chart: a bar per level (the last CHART_BARS), the fastest and slowest in the accent color.
-  local chart = CreateFrame("Frame", nil, card)
-  chart:SetSize(CHART_BARS * BAR_STEP, CHART_HEIGHT)
-  local base = chart:CreateTexture(nil, "BACKGROUND")
-  ui.fill(base, C.border)
-  base:SetHeight(1)
-  base:SetPoint("BOTTOMLEFT")
-  base:SetPoint("BOTTOMRIGHT")
-  local bars = {}
-  for i = 1, CHART_BARS do
-    local b = CreateFrame("Frame", nil, chart)
-    b:SetWidth(BAR_STEP - 3)
-    b:SetPoint("BOTTOMLEFT", chart, "BOTTOMLEFT", (i - 1) * BAR_STEP, 1)
-    b:EnableMouse(true)
-    b.fill = b:CreateTexture(nil, "ARTWORK")
-    b.fill:SetAllPoints()
-    b:SetScript("OnEnter", showBarTip)
-    b:SetScript("OnLeave", hideTip)
-    bars[i] = b
-  end
+  -- The mini chart (Ui.lua): a bar per level, the last CHART_BARS.
+  local chart = ui.levelChart(card, CHART_BARS, CHART_HEIGHT, BAR_STEP)
 
   -- The level history, folded until opened: the numbers, then the newest levels.
   local layout -- below
@@ -280,7 +255,7 @@ function ns.buildHomeTab(p)
   moments:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -18)
   local function column(title, empty)
     local col = { title = ui.text(moments, "GameFontNormal", title), rows = {} }
-    col.title:SetTextColor(C.accent[1], C.accent[2], C.accent[3])
+    ui.tint(col.title, C.accent)
     col.empty = ui.text(moments, "GameFontDisableSmall", empty)
     for i = 1, FEED_SIZE do col.rows[i] = newMomentRow(moments) end
     return col
@@ -354,12 +329,12 @@ function ns.buildHomeTab(p)
     -- A moment row with room for the name; a click opens the character like on the Friends tab.
     local row = newMomentRow(p)
     row:SetPoint("TOPLEFT", friendsTitle, "BOTTOMLEFT", 0, -6 - (i - 1) * 20)
-    row.who:SetWidth(170)
+    row.who:SetWidth(190)
     row.what:ClearAllPoints()
-    row.what:SetPoint("LEFT", row, "LEFT", 176, 0)
+    row.what:SetPoint("LEFT", row, "LEFT", 196, 0)
     row.what:SetFontObject("GameFontDisableSmall")
     row:SetWidth(WIDTH)
-    row.what:SetWidth(WIDTH - 176 - 70)
+    row.what:SetWidth(WIDTH - 196 - 70)
     friendRows[i] = row
   end
   local BELOW_CARD = 18 + 26 + FEED_SIZE * 20 + 16 + 26 + FRIENDS_SHOWN * 20 + 20 -- the moments and friends under the card
@@ -442,6 +417,8 @@ function ns.buildHomeTab(p)
     if atMax then setTile(tiles[4], "Max", "Level " .. me.level)
     else setTile(tiles[4], me.levelTime and ns.formatDuration(me.levelTime) or "?", "This level") end
 
+    -- The chart, with the level being played as a paler last bar.
+    chart.draw(levels, not atMax and me.levelTime and me.level and { level = me.level + 1, seconds = me.levelTime } or nil)
     local left = not atMax and not ns.IS_RETAIL and ns.timeToMax(levels, db().xpTable, me.level, me.xp, me.xpMax, me.maxLevel)
     estimate:SetText(left and string.format("About %s played to level %d, at your recent pace", ns.formatPlayed(left), me.maxLevel) or "")
   end
@@ -470,26 +447,8 @@ function ns.buildHomeTab(p)
 
     factLines[1]:SetText(summary and string.format("%d timed level%s, average %s", summary.count, summary.count == 1 and "" or "s",
       ns.formatDuration(summary.average)) or "")
-    factLines[2]:SetText(summary and summary.count > 1 and string.format("Fastest %s (%d to %d)   Slowest %s (%d to %d)",
-      ns.formatDuration(summary.fastest.seconds), summary.fastest.level - 1, summary.fastest.level,
+    factLines[2]:SetText(summary and summary.count > 1 and string.format("Slowest %s (%d to %d)",
       ns.formatDuration(summary.slowest.seconds), summary.slowest.level - 1, summary.slowest.level) or "")
-    local shown = {}
-    for i = math.max(1, #levels - CHART_BARS + 1), #levels do shown[#shown + 1] = levels[i] end
-    local slowest = 1
-    for _, l in ipairs(shown) do slowest = math.max(slowest, l.seconds) end
-    for i, b in ipairs(bars) do
-      local l = shown[i]
-      if l then
-        b:SetHeight(math.max(2, (CHART_HEIGHT - 2) * l.seconds / slowest))
-        local mark = summary and (l == summary.fastest or l == summary.slowest)
-        if mark then b.fill:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], 1)
-        else b.fill:SetColorTexture(MUTED[1], MUTED[2], MUTED[3], 0.6) end
-        b.text = string.format("%d to %d: %s", l.level - 1, l.level, ns.formatDuration(l.seconds))
-        b:Show()
-      else
-        b:Hide()
-      end
-    end
 
     -- Your newest moments with a line (ns.momentLine), any of your characters.
     local list = {}
@@ -510,7 +469,7 @@ function ns.buildHomeTab(p)
       if c then latest[#latest + 1] = { label = label, c = c, at = c.received or c.at or 0 } end
       for _, char in ipairs(f.chars or {}) do
         for _, e in ipairs(ns.friendHighlights(char)) do
-          e.char, e.classFile = char.char, char.classFile
+          e.char, e.surname, e.classFile = char.char, char.surname, char.classFile
           if ns.momentLine(e) then happened[#happened + 1] = { e = e, c = char, label = label } end
         end
       end
@@ -529,7 +488,7 @@ function ns.buildHomeTab(p)
         if #fl > 0 then bits[#bits + 1] = ns.levelText(fl[#fl]) end
         if c.zone then bits[#bits + 1] = c.zone end
         bits[#bits + 1] = f.label
-        setMomentRow(row, c.char or "?", c.classFile, table.concat(bits, "  ·  "), f.at, function() ns.toggleFriendDetails(c, f.label) end)
+        setMomentRow(row, ns.fullName(c), c.classFile, table.concat(bits, "  ·  "), f.at, function() ns.toggleFriendDetails(c, f.label) end)
       else
         row:Hide()
       end

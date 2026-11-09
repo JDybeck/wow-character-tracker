@@ -14,7 +14,7 @@ static partial class FriendData
     // Longest length per text field (the addon's FIELDS).
     static readonly Dictionary<string, int> Max = new()
     {
-        ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16, ["sex"] = 6,
+        ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["ruleset"] = 24, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16, ["sex"] = 6,
         ["faction"] = 10, ["spec"] = 32, ["talents"] = 1024, ["talentCalc"] = 256, ["gear"] = 512, ["enchants"] = 2048, ["zone"] = 64, ["professions"] = 256,
         ["highlights"] = 1024, ["levels"] = 1600,
     };
@@ -73,8 +73,8 @@ static partial class FriendData
             if (!PlayerGuid().IsMatch(guid) || name.Length == 0) continue;
             var snapshot = new Snapshot(guid, name, S("realm"), (int)N("level"), S("class"), S("classFile"), S("race"), S("raceFile"),
                 Sex: S("sex") == "female" ? "female" : "male", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: Whole(N("played")), Zone: S("zone"), Professions: S("professions"), Talents: S("talents"),
-                LastSeen: (long)N("at"), Hardcore: false, Ruleset: "", Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction"),
-                Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200)) { Surname = S("surname") };
+                LastSeen: (long)N("at"), Hardcore: false, Ruleset: S("ruleset"), Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction"),
+                Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200), LevelTime: Whole(N("levelTime"))) { Surname = S("surname") };
             // No gear shared: no inventory, so the gear tab says it isn't shared.
             var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;
             list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights")), .. ReadLevels(snapshot, S("levels"))]));
