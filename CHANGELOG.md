@@ -2,7 +2,7 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
-## v0.39.1
+## v0.39.2
 
 All of 0.39 in one: a cleaner app with a Home page, one Sharing page and a helper that sets everything up, a Home page and your characters in game, and level times for friends. Update the addon with the app (it does this by itself) and /reload in game.
 
@@ -21,6 +21,7 @@ All of 0.39 in one: a cleaner app with a Home page, one Sharing page and a helpe
 - **Friends in game, cleaner**: each friend under Shared with you is one header with a +/- to fold their characters away (it stays folded), with what they share with you and what you share back and an **Options** button. Their characters are rows like the app's: name, race and zone, class, level and item level, and when they were last seen.
 - **Ask a friend for more**, like their map position or gold: pick it under **Ask them to share** in a friend's Options and click **Ask**. Their box asks with those ticked.
 - **Guild and group chat for rare loot** gets its own switch, and the in-game ask box can ask about any moment Discord skips, not only bosses and gear: level-ups, mounts, wins, milestones, Mythic+ runs and deaths.
+- **Looks for the addon window**: pick Classic gold, Forever wisp, Emerald Dream or Blackrock ember on its Settings tab, the same colors as the app's Forever looks.
 - **A sharing reminder**: when you share with no friends, one line in chat a minute after you log in. Not after a /reload, and not when sharing is off.
 
 ### Fixes and tweaks

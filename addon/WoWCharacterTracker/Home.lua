@@ -280,7 +280,7 @@ function ns.buildHomeTab(p)
   moments:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -18)
   local function column(title, empty)
     local col = { title = ui.text(moments, "GameFontNormal", title), rows = {} }
-    col.title:SetTextColor(C.accent[1], C.accent[2], C.accent[3])
+    ui.tint(col.title, C.accent)
     col.empty = ui.text(moments, "GameFontDisableSmall", empty)
     for i = 1, FEED_SIZE do col.rows[i] = newMomentRow(moments) end
     return col

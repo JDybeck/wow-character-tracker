@@ -25,6 +25,54 @@ local COLOR = {
 }
 ui.COLOR = COLOR
 
+-- Themes: the app's Forever looks (Ui/Theme.cs, the same hex values). Picking one copies its values
+-- into COLOR (the tables stay the same, so everything that holds one keeps working) and repaints
+-- what's on screen. Kept in WoWCharacterTrackerDB.window.theme. Good, bad and hover stay in every theme.
+local function hex(s, alpha)
+  return { tonumber(s:sub(2, 3), 16) / 255, tonumber(s:sub(4, 5), 16) / 255, tonumber(s:sub(6, 7), 16) / 255, alpha or 1 }
+end
+
+-- From the app's palette: background, card, card header, line, accent, accent text, second deep.
+local function look(bg, card, header, line, accent, accentText, deep)
+  return { window = hex(card, 0.97), bar = hex(bg), card = hex(header), border = hex(line), accent = hex(accentText),
+    primary = hex(accent), selected = hex(line), request = hex(header), requestBorder = hex(deep) }
+end
+
+local THEMES = {
+  classic = look("#080604", "#120E08", "#19130B", "#2B2216", "#B45309", "#FCD34D", "#713F12"),
+  wisp = look("#03080D", "#07121B", "#0B1A26", "#15303F", "#0E7490", "#67E8F9", "#1E3A8A"),
+  emerald = look("#030A06", "#08140C", "#0C1D12", "#17331F", "#15803D", "#86EFAC", "#134E4A"),
+  ember = look("#0A0503", "#140A06", "#1C0F08", "#35190E", "#C2410C", "#FDBA74", "#7F1D1D"),
+}
+ui.THEMES = { { "classic", "Classic gold" }, { "wisp", "Forever wisp" }, { "emerald", "Emerald Dream" }, { "ember", "Blackrock ember" } }
+-- What was painted with which colors, so a theme change can paint it again (weak: frames that go away go).
+local painted = setmetatable({}, { __mode = "k" }) -- [texture] = color
+local tinted = setmetatable({}, { __mode = "k" })  -- [font string] = color
+
+function ui.theme()
+  local key = WoWCharacterTrackerDB and WoWCharacterTrackerDB.window and WoWCharacterTrackerDB.window.theme
+  return THEMES[key] and key or "classic"
+end
+
+-- Applies the saved theme (save: pick key first). Everything painted so far changes with it.
+function ui.applyTheme(key)
+  if key and THEMES[key] and WoWCharacterTrackerDB then
+    WoWCharacterTrackerDB.window = WoWCharacterTrackerDB.window or {}
+    WoWCharacterTrackerDB.window.theme = key
+  end
+  for name, values in pairs(THEMES[ui.theme()]) do
+    for i, v in ipairs(values) do COLOR[name][i] = v end
+  end
+  for texture, c in pairs(painted) do texture:SetColorTexture(c[1], c[2], c[3], c[4] or 1) end
+  for fs, c in pairs(tinted) do fs:SetTextColor(c[1], c[2], c[3]) end
+end
+
+-- A font string in one of the theme's colors (headings in the accent).
+function ui.tint(fs, c)
+  tinted[fs] = c
+  fs:SetTextColor(c[1], c[2], c[3])
+end
+
 -- A class's color as r, g, b (white when unknown).
 function ui.classRgb(classFile)
   local c = RAID_CLASS_COLORS and classFile and RAID_CLASS_COLORS[classFile]
@@ -38,7 +86,10 @@ function ui.gold(copper)
   return string.format("%dg %ds %dc", math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100)
 end
 
-function ui.fill(texture, c) texture:SetColorTexture(c[1], c[2], c[3], c[4] or 1) end
+function ui.fill(texture, c)
+  painted[texture] = c
+  texture:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
+end
 
 local SIDES = { "TOP", "BOTTOM", "LEFT", "RIGHT" }
 
@@ -190,7 +241,7 @@ end
 -- Under anchor, or at the top of the page without one.
 function ui.heading(parent, s, anchor, gap)
   local h = ui.text(parent, "GameFontNormal", s)
-  h:SetTextColor(COLOR.accent[1], COLOR.accent[2], COLOR.accent[3])
+  ui.tint(h, COLOR.accent)
   if anchor then h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 2, gap or -26)
   else h:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -14) end
   return h

@@ -437,6 +437,22 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
     }
 
+    // Settings, Look: picking a look repaints what's built and is kept; Classic gold until then.
+    [Fact]
+    public void A_look_repaints_the_window_and_is_kept()
+    {
+        var c = Load();
+        c.Lua("ns.ui.applyTheme()");
+        c.Call("openWindow", "settings");
+        Assert.Equal("classic", c.Lua("return ns.ui.theme()").String);
+        c.Lua("heading = shownText('Look')");
+        Assert.Equal(0xFC / 255.0, Num(c, "heading.color[1]"), 3); // the app's #FCD34D
+        c.Lua("local b = find('Forever wisp'); b.scripts.OnClick(b)");
+        Assert.Equal("wisp", c.Lua("return WoWCharacterTrackerDB.window.theme").String);
+        Assert.Equal(0x67 / 255.0, Num(c, "heading.color[1]"), 3); // #67E8F9, repainted in place
+        Assert.Equal(0x67 / 255.0, Num(c, "ns.ui.COLOR.accent[1]"), 3);
+    }
+
     // Characters: your own characters from the saved file, newest first, opening the details panel
     // with their gear and level times. Ignored ones stay out.
     [Fact]

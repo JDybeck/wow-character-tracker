@@ -334,11 +334,13 @@ local function newGearRow()
   r.slotText:SetPoint("LEFT", r, "LEFT", 30, 0)
   r.slotText:SetWidth(62)
   r.nameText = ui.text(r, "GameFontHighlightSmall")
-  r.nameText:SetPoint("TOPLEFT", r, "TOPLEFT", 96, -3)
+  r.nameText:SetPoint("LEFT", r, "LEFT", 96, 0)
   r.nameText:SetWidth(DETAILS_WIDTH - 24 - 96)
+  r.nameText:SetWordWrap(false)
   r.enchantText = ui.text(r, "GameFontHighlightSmall")
   r.enchantText:SetPoint("TOPLEFT", r.nameText, "BOTTOMLEFT", 0, -2)
   r.enchantText:SetWidth(DETAILS_WIDTH - 24 - 96)
+  r.enchantText:SetWordWrap(false)
   r.enchantText:SetTextColor(0.1, 1, 0.1)
   r:SetScript("OnEnter", showItemTip)
   r:SetScript("OnLeave", hideTip)
@@ -504,6 +506,10 @@ drawDetails = function(c, friend)
     r.nameText:SetTextColor(red, green, blue)
     r.enchantText:SetText(item.enchant or "")
     r.enchantText:SetShown(item.enchant ~= nil)
+    -- One line sits level with the slot name; with an enchant the two lines center on it together.
+    r.nameText:ClearAllPoints()
+    if item.enchant then r.nameText:SetPoint("BOTTOMLEFT", r, "LEFT", 96, 1)
+    else r.nameText:SetPoint("LEFT", r, "LEFT", 96, 0) end
     place(r, details, 14, y)
     y = y + GEAR_ROW
   end
@@ -1284,7 +1290,15 @@ local function buildSettings(p)
     function(on) if ns.setMinimapButtonShown then ns.setMinimapButtonShown(on) end end)
   minimap:SetPoint("TOPLEFT", reload, "BOTTOMLEFT", -2, -22)
 
-  local advancedTitle = ui.heading(p, "Advanced", minimap, -40)
+  -- The window's colors, the app's Forever looks. Changes right away.
+  local lookTitle = ui.heading(p, "Look", minimap, -40)
+  local look = ui.choice(p, ui.THEMES, ui.theme, function(key)
+    ui.applyTheme(key)
+    ui.refresh(tabs[current].page) -- what each page colors as it draws (charts, tabs)
+  end, 120)
+  look:SetPoint("TOPLEFT", lookTitle, "BOTTOMLEFT", 0, -10)
+
+  local advancedTitle = ui.heading(p, "Advanced", look, -30)
   local cornerButton
   local function showCorner() cornerButton:SetText("Pattern corner: " .. CORNER_NAMES[currentCorner()]) end
   cornerButton = ui.button(p, "", 200, function()
@@ -1338,7 +1352,7 @@ local TABS = {
   { key = "sharing", label = "Sharing", height = 560, build = buildSharingTab }, -- without the app: the whole chat table
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
-  { key = "settings", label = "Settings", height = 700, build = buildSettings },
+  { key = "settings", label = "Settings", height = 780, build = buildSettings },
 }
 local BY_KEY = {}
 for _, t in ipairs(TABS) do BY_KEY[t.key] = t end
