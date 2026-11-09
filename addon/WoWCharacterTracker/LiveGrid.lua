@@ -53,22 +53,19 @@ local GRID_COLS = 160
 local CELL = 2
 local MAGIC = 0xC8
 
+-- The grid's bytes as one string; drawGrid reads the bits straight from it (a table of 0/1 per bit
+-- was eight numbers per byte, for every event).
 local function toBits(data)
-  local bytes = { MAGIC, math.floor(#data / 256), #data % 256 }
   local sum = 0
-  for i = 1, #data do
-    local b = data:byte(i)
-    table.insert(bytes, b)
-    sum = (sum + b) % 65536
-  end
-  table.insert(bytes, math.floor(sum / 256))
-  table.insert(bytes, sum % 256)
+  for i = 1, #data do sum = (sum + data:byte(i)) % 65536 end
+  return string.char(MAGIC, math.floor(#data / 256), #data % 256) .. data .. string.char(math.floor(sum / 256), sum % 256)
+end
 
-  local bits = {}
-  for _, b in ipairs(bytes) do
-    for i = 7, 0, -1 do bits[#bits + 1] = math.floor(b / 2 ^ i) % 2 end
-  end
-  return bits
+-- Bit n (1-based, most significant first) of the bytes, 0 past the end.
+local function bitAt(bytes, n)
+  local b = bytes:byte(math.floor((n - 1) / 8) + 1)
+  if not b then return 0 end
+  return math.floor(b / 2 ^ (7 - (n - 1) % 8)) % 2
 end
 
 -- Which screen corner the grid sits in (Settings.lua gridCorner): row 0 and column 0 (the clock) are always
@@ -145,7 +142,7 @@ local function drawGrid(bits)
   local f = gridFrame()
   f:SetScale(pixelScale())
   local dataCols = GRID_COLS - 1
-  local rows = math.ceil(#bits / dataCols) + 1
+  local rows = math.ceil(#bits * 8 / dataCols) + 1
   local where = corner()
   local right, bottom = where:find("RIGHT") ~= nil, where:find("BOTTOM") ~= nil
   f:ClearAllPoints()
@@ -182,7 +179,7 @@ local function drawGrid(bits)
   local function cell(r, c)
     if r == 0 then return c % 2 end      -- clock row: white, black, white...
     if c == 0 then return r % 2 end      -- clock column
-    return bits[(r - 1) * dataCols + c] or 0
+    return bitAt(bits, (r - 1) * dataCols + c)
   end
 
   for r = 0, rows - 1 do

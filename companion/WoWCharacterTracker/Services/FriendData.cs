@@ -16,8 +16,9 @@ static partial class FriendData
     {
         ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16, ["sex"] = 6,
         ["faction"] = 10, ["spec"] = 32, ["talents"] = 1024, ["talentCalc"] = 256, ["gear"] = 512, ["enchants"] = 2048, ["zone"] = 64, ["professions"] = 256,
-        ["highlights"] = 1024,
+        ["highlights"] = 1024, ["levels"] = 1600,
     };
+    const int MaxLevels = 80;
 
     // A highlight line is "kind~at~level" and then these, in the addon's order (FriendData.lua HIGHLIGHT_FIELDS).
     const int MaxHighlights = 10;
@@ -65,17 +66,18 @@ static partial class FriendData
         {
             if (p.Value.Type != DataType.Table) continue;
             var t = p.Value.Table;
-            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights");
+            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights" or "levels");
             double N(string key) => Number(t.Get(key));
             var guid = t.Get("guid").Type == DataType.String ? t.Get("guid").String : "";
             var name = S("char");
             if (!PlayerGuid().IsMatch(guid) || name.Length == 0) continue;
             var snapshot = new Snapshot(guid, name, S("realm"), (int)N("level"), S("class"), S("classFile"), S("race"), S("raceFile"),
-                Sex: S("sex") == "female" ? "female" : "male", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: 0, Zone: S("zone"), Professions: S("professions"), Talents: S("talents"),
-                LastSeen: (long)N("at"), Hardcore: false, Ruleset: "", Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction")) { Surname = S("surname") };
+                Sex: S("sex") == "female" ? "female" : "male", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: Whole(N("played")), Zone: S("zone"), Professions: S("professions"), Talents: S("talents"),
+                LastSeen: (long)N("at"), Hardcore: false, Ruleset: "", Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction"),
+                Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200)) { Surname = S("surname") };
             // No gear shared: no inventory, so the gear tab says it isn't shared.
             var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;
-            list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights"))]));
+            list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights")), .. ReadLevels(snapshot, S("levels"))]));
         }
         // At most MaxCharacters: the ones seen longest ago go.
         return [.. list.OrderByDescending(c => c.Item1.LastSeen).Take(MaxCharacters)];
@@ -100,6 +102,29 @@ static partial class FriendData
         }
     }
 
+    // The character's level times, "level~seconds~at" per line (FriendData.lua), as level events, so
+    // the Leveling tab works as for your own. Bad lines are dropped, one per level.
+    static IEnumerable<Entry> ReadLevels(Snapshot c, string text)
+    {
+        var seen = new HashSet<int>();
+        foreach (var line in text.Split('\n').Take(MaxLevels))
+        {
+            var p = line.Split('~');
+            if (p.Length != 3 || !int.TryParse(p[0], NumberStyles.None, CultureInfo.InvariantCulture, out var level) || level is < 2 or > 200
+                || !long.TryParse(p[1], NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) || seconds <= 0 || seconds > 100_000_000
+                || !long.TryParse(p[2], NumberStyles.None, CultureInfo.InvariantCulture, out var at) || at >= 1_000_000_000_000 || !seen.Add(level)) continue;
+            var values = new Dictionary<string, string>
+            {
+                ["id"] = $"{c.Guid}:{level}", ["kind"] = "level", ["guid"] = c.Guid, ["char"] = c.Char, ["realm"] = c.Realm,
+            };
+            var numbers = new Dictionary<string, long> { ["level"] = level, ["seconds"] = seconds, ["at"] = at };
+            yield return Entry.From(k => values.GetValueOrDefault(k, ""), k => numbers.GetValueOrDefault(k));
+        }
+    }
+
+    // A count from a friend: whole, not negative, and not absurdly large.
+    static long Whole(double n) => n is >= 0 and < 1_000_000_000_000 ? (long)n : 0;
+
     public static ShareSettings? ReadShare(DynValue share)
     {
         if (share.Type != DataType.Table) return null;
@@ -110,7 +135,7 @@ static partial class FriendData
         if (d is not null)
             general = new(Flag(d, "gear") ?? general.Gear, Flag(d, "talents") ?? general.Talents,
                 Flag(d, "location") ?? general.Location, Flag(d, "gold") ?? general.Gold, Flag(d, "professions") ?? general.Professions,
-                Flag(d, "map") ?? general.Map, Flag(d, "otherFaction") ?? general.OtherFaction, Flag(d, "highlights") ?? general.Highlights);
+                Flag(d, "map") ?? general.Map, Flag(d, "otherFaction") ?? general.OtherFaction, Flag(d, "highlights") ?? general.Highlights, Flag(d, "leveling") ?? general.Leveling);
         var chars = new Dictionary<string, bool>();
         foreach (var p in Pairs(t.Get("chars")))
             if (p.Value.Type == DataType.Boolean) chars[p.Key.String] = p.Value.Boolean;
@@ -121,7 +146,7 @@ static partial class FriendData
                 var c = p.Value.Table;
                 contacts[p.Key.String] = new(Flag(c, "share") == true, Flag(c, "receive") == true,
                     Flag(c, "gear"), Flag(c, "talents"), Flag(c, "location"), Flag(c, "gold"), Flag(c, "professions"),
-                    Flag(c, "map"), Flag(c, "otherFaction"), Flag(c, "highlights"));
+                    Flag(c, "map"), Flag(c, "otherFaction"), Flag(c, "highlights"), Flag(c, "leveling"));
             }
         var blocked = Pairs(t.Get("blocked")).Where(p => p.Value.CastToBool()).Select(p => p.Key.String).ToHashSet();
         var rate = (int)Number(t.Get("mapRate"));

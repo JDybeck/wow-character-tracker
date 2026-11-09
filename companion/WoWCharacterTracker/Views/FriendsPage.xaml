@@ -14,6 +14,7 @@
           <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
             <RadioButton Style="{StaticResource DetailTab}" Content="Overview" ToolTip="Who the character is and what your friend shares" IsChecked="{Binding IsOverviewTab}" GroupName="{Binding Guid}"/>
             <RadioButton Style="{StaticResource DetailTab}" Content="Gear" ToolTip="What they wear, when they share gear" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>
+            <RadioButton Style="{StaticResource DetailTab}" Content="Leveling" ToolTip="Their level times, when they share them" IsChecked="{Binding IsLevelingTab}" GroupName="{Binding Guid}"/>
           </StackPanel>
           <ContentControl Content="{Binding}" Focusable="False">
             <ContentControl.Style>
@@ -28,6 +29,13 @@
                     <Setter Property="ContentTemplate">
                       <Setter.Value>
                         <DataTemplate><views:CharacterGear ui:Motion.FadeIn="True"/></DataTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding DetailTab}" Value="leveling">
+                    <Setter Property="ContentTemplate">
+                      <Setter.Value>
+                        <DataTemplate><views:CharacterLeveling ui:Motion.FadeIn="True"/></DataTemplate>
                       </Setter.Value>
                     </Setter>
                   </DataTrigger>
@@ -162,6 +170,8 @@
             <CheckBox Style="{StaticResource OptionChip}" Content="Professions" IsChecked="{Binding ShareProfessions}" Margin="0,0,6,6" ToolTip="Each profession with its skill"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Highlights" IsChecked="{Binding ShareHighlights}" Margin="0,0,6,6"
                       ToolTip="Each character's newest 10 boss kills, rare loot, mounts, duels, milestones and deaths. Who was in your group stays with you"/>
+            <CheckBox Style="{StaticResource OptionChip}" Content="Level times" IsChecked="{Binding ShareLeveling}" Margin="0,0,6,6"
+                      ToolTip="How long each level took, played time and the XP bar, so they can follow your leveling"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Gold" IsChecked="{Binding ShareGold}" Margin="0,0,6,6" ToolTip="Off until you turn it on"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Map position" IsChecked="{Binding ShareMap}" Margin="0,0,6,6"
                       ToolTip="Your spot on their world map, while they have it open. Off until you turn it on"/>

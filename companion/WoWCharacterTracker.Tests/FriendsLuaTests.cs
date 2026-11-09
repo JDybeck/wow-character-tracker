@@ -44,7 +44,7 @@ public class FriendsLuaTests
         function GetAddOnMetadata() return '0.33.0' end
         """;
 
-    internal static readonly string[] AllFiles = ["Shared.lua", "FriendData.lua", "Comms.lua", "Friends.lua"];
+    internal static readonly string[] AllFiles = ["Shared.lua", "Leveling.lua", "FriendData.lua", "Comms.lua", "Friends.lua"];
 
     // One game client. me: this player's GUID; friendsLua: the Battle.net friends list as a Lua
     // table of { tag, account, guid, online }; db and settings: the saved file and Settings.lua.
@@ -451,7 +451,7 @@ public class FriendsLuaTests
         a.Call("friendsCommand", "set all map on");
         Assert.True(a.Lua("return ns.shareSettings().defaults.map").Boolean);
         Assert.Contains("Friends now get map: on.", a.Said());
-        Assert.Equal("gear, talents, location, professions, highlights, map position", Str(a, "ns.shareSummary(ns.allowedFor(ns.shareSettings(), nil))"));
+        Assert.Equal("gear, talents, location, professions, highlights, level times, map position", Str(a, "ns.shareSummary(ns.allowedFor(ns.shareSettings(), nil))"));
     }
 
     [Fact]
@@ -459,11 +459,11 @@ public class FriendsLuaTests
     {
         var a = new Client(A, AFriends, ADb(AShares));
         a.Lua("o = ns.contactSharing('Zeb#2222')");
-        Assert.Equal(8, a.Lua("return #o.categories").Number);
-        Assert.Equal("map", Str(a, "o.categories[7].key"));
-        Assert.Equal("otherFaction", Str(a, "o.categories[8].key"));
-        Assert.True(a.Lua("return o.categories[8].rule").Boolean);
-        Assert.True(a.Lua("return o.categories[7].rule").IsNil());
+        Assert.Equal(9, a.Lua("return #o.categories").Number);
+        Assert.Equal("map", Str(a, "o.categories[8].key"));
+        Assert.Equal("otherFaction", Str(a, "o.categories[9].key"));
+        Assert.True(a.Lua("return o.categories[9].rule").Boolean);
+        Assert.True(a.Lua("return o.categories[8].rule").IsNil());
         a.Call("cycleContactCategory", "Zeb#2222", "otherFaction");
         Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].otherFaction").Boolean);
     }
@@ -522,26 +522,30 @@ public class FriendsLuaTests
         Assert.Empty(a.Sent());
     }
 
-    // A "Did you know?" line now and then (at most once a week) while you share with nobody yet.
+    // One line a minute after a real login (never a /reload) while sharing is on but you share with
+    // nobody; nothing while you share, or with sharing off.
     [Fact]
-    public void The_sharing_tip_shows_at_most_weekly_and_only_while_you_share_with_nobody()
+    public void The_sharing_reminder_comes_once_a_minute_after_login_while_you_share_with_nobody()
     {
+        static bool Reminder(string s) => s.StartsWith("You're not sharing with any friends", StringComparison.Ordinal);
         var a = new Client(A, AFriends, ADb("nil"));
-        a.Call("maybeShareTip");
-        Assert.Single(a.Said(), s => s.StartsWith("Did you know?"));
-        a.Run(6 * 86400);
-        a.Call("maybeShareTip");
-        Assert.Single(a.Said(), s => s.StartsWith("Did you know?")); // not again within the week
-        a.Run(2 * 86400);
-        a.Call("maybeShareTip");
-        Assert.Equal(2, a.Said().Count(s => s.StartsWith("Did you know?")));
+        a.Call("remindSharing", false); // a /reload
+        a.Run(120);
+        Assert.DoesNotContain(a.Said(), Reminder);
+        a.Call("remindSharing", true);
+        a.Run(30);
+        Assert.DoesNotContain(a.Said(), Reminder); // not yet
+        a.Run(40);
+        Assert.Single(a.Said(), Reminder);
+        a.Run(3600);
+        Assert.Single(a.Said(), Reminder); // and not again
 
         var sharing = new Client(A, AFriends, ADb(AShares));
         sharing.Call("maybeShareTip");
-        Assert.DoesNotContain(sharing.Said(), s => s.StartsWith("Did you know?"));
+        Assert.DoesNotContain(sharing.Said(), Reminder);
         var off = new Client(A, AFriends, ADb("{ enabled = false, at = 100 }"));
         off.Call("maybeShareTip");
-        Assert.DoesNotContain(off.Said(), s => s.StartsWith("Did you know?"));
+        Assert.Empty(off.Said());
     }
 
     // In WoW chat | starts a code (|t is a texture): "gear|talents" showed as "gearalents".
@@ -553,7 +557,7 @@ public class FriendsLuaTests
         a.Call("friendsCommand", "set all nonsense on");
         Assert.NotEmpty(a.Said());
         Assert.All(a.Said(), s => Assert.DoesNotContain("|", s));
-        Assert.Contains(a.Said(), s => s.Contains("gear/talents/location/professions/highlights/gold", StringComparison.Ordinal));
+        Assert.Contains(a.Said(), s => s.Contains("gear/talents/location/professions/highlights/leveling/gold", StringComparison.Ordinal));
     }
 
     [Fact]

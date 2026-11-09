@@ -103,13 +103,46 @@ public class AddonWindowTests
     {
         var c = new FriendsLuaTests.Client(Me, "{}", db, settings);
         c.Lua(Widgets);
-        foreach (var file in new[] { "NoteBox.lua", "Ui.lua", "Window.lua", "Options.lua", "Commands.lua" })
+        foreach (var file in new[] { "NoteBox.lua", "Ui.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
             c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file)), codeFriendlyName: file), "WoWCharacterTracker", c.Ns);
         return c;
     }
 
     static double Num(FriendsLuaTests.Client c, string expr) => c.Lua("return " + expr).Number;
     static bool Bool(FriendsLuaTests.Client c, string expr) => c.Lua("return " + expr).CastToBool();
+
+    // /wct opens Home: the character being played with its level times, today's moments, the newest
+    // moments and friends.
+    [Fact]
+    public void Home_shows_the_character_with_its_level_times()
+    {
+        var c = Load("""
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', ilvl = 35, played = 90000 } }, items = {}, events = {
+              { kind = 'level', guid = 'Player-1-0000000A', char = 'Zeb', level = 44, seconds = 3600, at = 10 },
+              { kind = 'level', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, seconds = 10440, at = 20 },
+              { kind = 'boss', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, boss = 'Archaedas', instance = 'Uldaman', at = 30 } } }
+            """);
+        c.Lua("""
+            function UnitName() return 'Zeb' end
+            function UnitLevel() return 45 end
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitRace() return 'Night Elf' end
+            function UnitXP() return 1000 end
+            function UnitXPMax() return 4000 end
+            function GetMaxPlayerLevel() return 60 end
+            function date() return { year = 2026, month = 11, day = 9 } end
+            ns.playedNow = function() return 100000 end -- Character.lua's
+            ns.levelTimeNow = function() return 1200 end
+            """);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns); // the moment lines
+        c.Lua("SlashCmdList.CHARACTERTRACKER('')");
+        Assert.True(Bool(c, "shownText('PLAYING NOW') ~= nil"));
+        Assert.True(Bool(c, "shownText('Zeb') ~= nil"));
+        Assert.True(Bool(c, "shownText('Level 45 Night Elf Warrior') ~= nil"));
+        Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m  ·  average 1h 57m') ~= nil"));
+        Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
+        Assert.True(Bool(c, "shownText('XP 1,000 / 4,000 (25%)') ~= nil"));
+    }
 
     [Fact]
     public void The_window_has_four_tabs_and_builds_each_tab_once()
@@ -709,9 +742,9 @@ public class AddonWindowTests
         c.Lua("clickIn('Cidro', 'Sharing')");
         Assert.True(Bool(c, "onScreen(sharingPanel())"));
         Assert.True(Bool(c, "shownText('Cid#3') ~= nil"));
-        Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Highlights: like all friends (on);Gold: like all friends (off);Map position: like all friends (off);Map for the other faction: like all friends (off)",
+        Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Highlights: like all friends (on);Level times: like all friends (on);Gold: like all friends (off);Map position: like all friends (off);Map for the other faction: like all friends (off)",
             c.Lua("return sharingButtons()").String);
-        Assert.True(Bool(c, "shownText('They get gear, talents, location, professions, highlights.') ~= nil"));
+        Assert.True(Bool(c, "shownText('They get gear, talents, location, professions, highlights, level times.') ~= nil"));
 
         // Like all friends, on, off, like all friends again.
         c.Lua("clickSharing('Gold:')");
@@ -720,7 +753,7 @@ public class AddonWindowTests
         Assert.Contains(";Gold: on;Map position", c.Lua("return sharingButtons()").String);
         c.Lua("clickSharing('Gear:')"); c.Lua("clickSharing('Gear: on')");
         Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == false"));
-        Assert.True(Bool(c, "shownText('They get talents, location, professions, highlights, gold.') ~= nil"));
+        Assert.True(Bool(c, "shownText('They get talents, location, professions, highlights, level times, gold.') ~= nil"));
         c.Lua("clickSharing('Gear: off')");
         Assert.True(Bool(c, "ns.shareSettings().contacts['Cid#3'].gear == nil"));
 
@@ -798,7 +831,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "onScreen(requestBox())"));
         Assert.Equal(0, Num(c, "#shown")); // not the Blizzard popup
         Assert.True(Bool(c, "shownText('Zeb#2222 wants to see your characters.') ~= nil"));
-        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus gear, talents, location, professions, highlights.') ~= nil"));
+        Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus gear, talents, location, professions, highlights, level times.') ~= nil"));
         Assert.True(Bool(c, "shownText('Talents') == nil")); // folded
 
         c.Lua("press('Choose what they get  v')");
@@ -812,7 +845,7 @@ public class AddonWindowTests
         c.Lua("zeb = ns.shareSettings().contacts['Zeb#2222']");
         Assert.True(Bool(c, "zeb.share and zeb.receive"));
         Assert.True(Bool(c, "zeb.talents == nil and zeb.gold == nil")); // the same as for all friends: follows it
-        Assert.True(Bool(c, "zeb.gear == false and zeb.location == false and zeb.professions == false and zeb.highlights == false"));
+        Assert.True(Bool(c, "zeb.gear == false and zeb.location == false and zeb.professions == false and zeb.highlights == false and zeb.leveling == false"));
         Assert.Contains("Zeb#2222 can now see your shared characters (talents). Change it on the Friends tab (/wct).", c.Said());
     }
 

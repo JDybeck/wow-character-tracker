@@ -59,6 +59,7 @@ local enteredWorld = false
 function on.PLAYER_ENTERING_WORLD(isInitialLogin)
   C_Timer.After(2, ns.applyGameSettings)
   ns.sayAppUpdate(isInitialLogin)
+  ns.remindSharing(isInitialLogin)
   -- Once per login or /reload, not on every loading screen (bags, gear and professions don't change
   -- by zoning; their own events keep them current). Gear and spec info can take a few seconds.
   if not enteredWorld then

@@ -67,6 +67,63 @@ public class FriendDataTests
         Assert.Equal(40, events[0].GroupSize);
     }
 
+    // Level times go out with Level times on (and only then), and the app reads them as level events,
+    // with played time and the XP bar on the character.
+    [Fact]
+    public void Level_times_from_the_addon_become_level_events()
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "FriendData.lua"]);
+        c.Lua("""
+            char = { char = 'Zeb', lastSeen = 20, level = 12, played = 9000, levelTime = 600, xp = 300, xpMax = 7600, maxLevel = 60 }
+            levels = { { level = 11, seconds = 1500, at = 15 }, { level = 10, seconds = 1200, at = 10 }, { level = 12, seconds = 0, at = 16 } }
+            on, onKey = ns.encodeFriendChar('Player-1-0000000B', char, nil, { leveling = true }, nil, levels)
+            off = ns.encodeFriendChar('Player-1-0000000B', char, nil, {}, nil, levels)
+            char.played, char.levelTime = 9500, 1100
+            _, laterKey = ns.encodeFriendChar('Player-1-0000000B', char, nil, { leveling = true }, nil, levels)
+            friends = { ['Zeb#2222'] = { chars = { ['Player-1-0000000B'] = ns.decodeFriendChar(on) } } }
+            """);
+        Assert.DoesNotContain("levels=", c.Lua("return off").String);
+        Assert.DoesNotContain("played=", c.Lua("return off").String);
+        Assert.Equal(c.Lua("return onKey").String, c.Lua("return laterKey").String); // played time alone doesn't resend
+        Assert.Equal(2, c.Lua("return #ns.friendLevels(friends['Zeb#2222'].chars['Player-1-0000000B'])").Number);
+
+        var zeb = Assert.Single(FriendData.ReadFriends(c.Lua("return friends")));
+        Assert.Equal([(10, 1200L, 10L), (11, 1500L, 15L)], zeb.Events.Select(e => (e.Level, e.Seconds, e.At)).OrderBy(e => e.Level));
+        Assert.All(zeb.Events, e => Assert.Equal(("level", "Player-1-0000000B"), (e.Kind, e.Guid)));
+        var s = Assert.Single(zeb.Characters);
+        Assert.Equal((9000L, 300L, 7600L, 60), (s.Played, s.Xp, s.XpMax, s.MaxLevel));
+    }
+
+    [Fact]
+    public void Bad_level_lines_are_dropped()
+    {
+        var zeb = Assert.Single(FriendData.ReadFriends(Lua("""
+            { ['Zeb#2222'] = { chars = { a = { guid = 'Player-1-0000000B', char = 'Zeb', at = 5, played = -5, xp = 1/0,
+              levels = '10~1200~10\n10~999~11\n1~50~1\nx~1~1\n12~-3~1\n13~100\n14~200~5~9\n15~300~7' } } } }
+            """)));
+        Assert.Equal([10, 15], zeb.Events.Select(e => e.Level));
+        Assert.Equal(1200, zeb.Events[0].Seconds); // the first line for a level counts
+        var s = Assert.Single(zeb.Characters);
+        Assert.Equal((0L, 0L), (s.Played, s.Xp));
+    }
+
+    // The addon window's estimate (Leveling.lua) is the app's (LevelStats), the same numbers in.
+    [Fact]
+    public void The_addon_estimates_time_to_max_like_the_app()
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua"]);
+        var timed = new[] { (20, 2400L), (21, 2600L), (22, 2500L), (23, 3100L), (24, 2900L), (25, 3300L) };
+        c.Lua("levels = { " + string.Join(", ", timed.Select(l => $"{{ level = {l.Item1}, seconds = {l.Item2} }}")) + " }");
+        var lua = (long)c.Lua("return ns.timeToMax(levels, { [24] = 34000, [25] = 36000 }, 25, 5000, 36000, 60)").Number;
+        var app = LevelStats.TimeToMax([.. timed.Select(l => new LevelStats.Level(l.Item1, l.Item2))],
+            new Dictionary<int, long> { [24] = 34000, [25] = 36000 }, 25, 5000, 36000, 60);
+        Assert.NotNull(app);
+        Assert.InRange(lua, app.Value - 1, app.Value + 1); // rounding
+        Assert.True(c.Lua("return ns.timeToMax({ levels[1] }, nil, 25, 0, 0, 60) == nil").Boolean); // one level is too little
+        c.Lua("summary = ns.levelSummary(levels)");
+        Assert.Equal((6, 20, 25), ((int)c.Lua("return summary.count").Number, (int)c.Lua("return summary.fastest.level").Number, (int)c.Lua("return summary.slowest.level").Number));
+    }
+
     [Fact]
     public void A_death_highlight_keeps_what_it_cost_and_bad_lines_are_dropped()
     {

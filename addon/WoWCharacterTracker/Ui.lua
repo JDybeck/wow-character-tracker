@@ -25,6 +25,19 @@ local COLOR = {
 }
 ui.COLOR = COLOR
 
+-- A class's color as r, g, b (white when unknown).
+function ui.classRgb(classFile)
+  local c = RAID_CLASS_COLORS and classFile and RAID_CLASS_COLORS[classFile]
+  if c then return c.r, c.g, c.b end
+  return 1, 1, 1
+end
+
+-- "12g 34s 56c" from copper.
+function ui.gold(copper)
+  copper = math.floor(copper)
+  return string.format("%dg %ds %dc", math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100)
+end
+
 function ui.fill(texture, c) texture:SetColorTexture(c[1], c[2], c[3], c[4] or 1) end
 
 local SIDES = { "TOP", "BOTTOM", "LEFT", "RIGHT" }
