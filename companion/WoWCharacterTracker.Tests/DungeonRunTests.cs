@@ -79,12 +79,13 @@ public class DungeonRunTests
         Assert.Equal("Tanky~20~WARRIOR~Warrior~Dwarf~~~TANK", run.Get("group").String);
         Assert.Equal("Player-1:run:5000", run.Get("id").String);
 
-        // The end boss and the loot belong to the run, and with runs on they wait for its post.
+        // The end boss and the loot belong to the run. The loot waits for its post, the end boss still
+        // posts on its own (with its screenshot, taken at the kill).
         var boss = Assert.Single(recorded, e => e.Get("kind").String == "boss");
         var drop = Assert.Single(recorded, e => e.Get("kind").String == "loot");
         Assert.Equal(5000, boss.Get("run").Number);
         Assert.Equal(5000, drop.Get("run").Number);
-        Assert.False(script.Call(ns.Get("wanted"), boss).Boolean);
+        Assert.True(script.Call(ns.Get("wanted"), boss).Boolean);
         Assert.False(script.Call(ns.Get("wanted"), drop).Boolean);
         Assert.True(script.Call(ns.Get("wanted"), run).Boolean);
     }
@@ -143,15 +144,15 @@ public class DungeonRunTests
         Assert.Equal("TANK", Assert.Single(e.Members).Role);
     }
 
-    // With runs on, a run's kills and loot wait for its post (legendaries still post on their own);
-    // the addon's wanted() agrees.
+    // With runs on, a run's loot waits for its post (legendaries and the end boss still post on their
+    // own); the addon's wanted() agrees.
     [Theory]
-    [InlineData("boss", 0, 5000, false)]
+    [InlineData("boss", 0, 5000, true)]
     [InlineData("boss", 0, 0, true)]
     [InlineData("loot", 4, 5000, false)]
     [InlineData("loot", 4, 0, true)]
     [InlineData("loot", 5, 5000, true)]
-    public void A_runs_kills_and_loot_wait_for_its_post(string kind, int quality, long run, bool posted)
+    public void A_runs_loot_waits_for_its_post(string kind, int quality, long run, bool posted)
     {
         var s = new FlavorSettings { PostRuns = true, PostBosses = true, PostEpic = true, FirstBossKillOnly = false };
         var e = new Entry { Kind = kind, Level = 20, Quality = quality, Run = run };
