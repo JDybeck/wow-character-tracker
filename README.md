@@ -4,7 +4,7 @@
 
 **All your World of Warcraft characters in one place, and your best moments in Discord and on stream, if you want them there.**
 
-Made for WoW Forever (Classic+), and works for Retail too. An addon in the game plus a small Windows app.
+Made for WoW Forever (Classic+), and works for Retail too. An addon that works on its own, plus a free Windows app that adds Discord, the stream overlay and the rest.
 
 - **Every character at a glance**: level, item level, gold, talents, professions, gear, bags and bank, and how long every level took.
 - **Find any item** across all your characters, with Wowhead tooltips, and see who can craft what.
@@ -19,6 +19,21 @@ Nothing leaves your PC unless you set it up. See [Privacy](#privacy).
 
 ![The app on the Forever tab, with a character's details open](docs/images/characters.png)
 
+## The addon alone, or with the app
+
+**The addon on its own**, nothing else to install:
+
+- **Guild and group lines**: one line in guild or party / raid chat for dings, end boss kills, epic loot, new mounts, wins, profession milestones and hardcore deaths. You pick which.
+- **A window in game** (`/wct`): the character you're on with its level times and today's numbers, your characters on this account with gear and talents, and your notes.
+- **Sharing with Battle.net friends**: their characters in your window, yours in theirs, and their spot on your map if they allow it.
+
+**With the app on top** (Windows):
+
+- **Discord posts**, with an in-game screenshot, and a box in game that offers to post what didn't go out.
+- **Stream overlay** and **DING!** alerts in OBS or Streamlabs.
+- **Every character on every WoW account**, every item in bags and bank searchable, and every profession side by side.
+- **Keeps the addon up to date** for you.
+
 ## Install
 
 1. Download `WoWCharacterTracker.exe` from the [latest release](https://github.com/JDybeck/wow-character-tracker/releases/latest) and run it. Nothing else to install. Windows may show a SmartScreen warning since the exe isn't signed yet: click **More info**, then **Run anyway**.
@@ -26,6 +41,8 @@ Nothing leaves your PC unless you set it up. See [Privacy](#privacy).
 3. In game, type `/wct test`. The app's console says instant posting works within a few seconds.
 
 From then on the app waits in the tray and opens when you start WoW.
+
+**Only the addon?** Copy the `addon/WoWCharacterTracker` folder from the latest release's source code into `Interface\AddOns` in your game folder. You can add the app later, it picks up everything the addon saved.
 
 ## A quick tour
 

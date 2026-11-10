@@ -1443,7 +1443,7 @@ end
 
 local function appSummary()
   if not ns.hasApp() then
-    return "No app found. Discord posts, screenshots and the character overview need the free Character Tracker app. Guild and group lines work without it."
+    return "No app found. Discord posts, screenshots, the stream overlay and characters from other WoW accounts need the free Character Tracker app. Guild and group lines, this window, friends and notes work without it."
   end
   local post = ns.setting("post") or {}
   local postKinds = {}

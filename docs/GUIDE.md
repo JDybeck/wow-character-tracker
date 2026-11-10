@@ -118,7 +118,7 @@ What the addon does in game besides posting to Discord. The chat lines and the a
   - **Settings**: instant posting, **Reload reminders** (**Off**, **Gentle**: the chat line and the box on flight paths, or **Every chance**: also a popup after each ding; your own mix shows as custom), the minimap button, **Look** (Classic gold, Forever wisp, Emerald Dream or Blackrock ember, the app's Forever colors, changing right away), and under Advanced the instant post pattern's corner and label, Keep all history, Ignore this character and what the app set, read-only.
 
   Esc closes it, and it opens in combat too. What you change there applies right away, reaches the app on your next `/reload` or logout, and the newest change wins, like notes. The per-moment table, screenshots and Advanced combat logging stay in the app. Esc, Options, AddOns, WoW Character Tracker has a button that opens the window.
-- **The addon without the app**: guild and group lines, deaths named and the options page all work with the addon alone. Discord, screenshots and the character overview need the app.
+- **The addon without the app**: guild and group lines, the addon window (Home, your characters on this account, Sharing, Friends, Note, Settings), friends sharing and notes all work with the addon alone. Discord posts, screenshots, the ask box, the stream overlay, characters from other WoW accounts and the Items and Professions pages need the app.
 
 ### Sharing with Battle.net friends (new)
 
