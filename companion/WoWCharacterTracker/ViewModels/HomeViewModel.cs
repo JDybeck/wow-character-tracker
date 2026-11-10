@@ -27,23 +27,9 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     string paceText = "";
     public string PaceText { get => paceText; private set => Set(ref paceText, value); }
 
-    // Today's numbers, the first TodayStats.Shown always, the rest after "more" (kept for the session).
-    IReadOnlyList<TodayCount> todayAll = [];
-    public IReadOnlyList<TodayCount> Today => todayOpen ? todayAll : [.. todayAll.Take(TodayStats.Shown)];
-    public bool HasMoreToday => todayAll.Count > TodayStats.Shown;
-    public string TodayToggleText => todayOpen ? "Less" : $"+{todayAll.Count - TodayStats.Shown} more";
-    bool todayOpen;
-    public ICommand ToggleTodayCommand => new RelayCommand(_ =>
-    {
-        todayOpen = !todayOpen;
-        RaiseToday();
-    });
-    void RaiseToday()
-    {
-        Raise(nameof(Today));
-        Raise(nameof(HasMoreToday));
-        Raise(nameof(TodayToggleText));
-    }
+    // Today for the hero, and every character of the game below it once more than one was played.
+    public TodaySection Today { get; } = new("TODAY");
+    public TodaySection AccountToday { get; } = new("ACCOUNT TODAY");
 
     public ObservableCollection<MomentRow> Feed { get; } = [];
     public bool HasFeed => Feed.Count > 0;
@@ -75,8 +61,7 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         Card = Hero is { } h ? StreamSnapshot.Build(StreamViewModel.Character(h, flavor), events, DateTimeOffset.Now) : StreamSnapshot.Empty;
         PaceText = Hero is { } p ? Pace(p) : "";
 
-        todayAll = TodayStats.Build(events, days, sent, flavor.HasRatings, DateTime.Now);
-        RaiseToday();
+        ShowToday(events, days, sent, DateTime.Now);
 
         Fill(Feed, rows.ToDictionary(r => r.Guid), events, sent);
         Raise(nameof(HasFeed));
@@ -85,6 +70,18 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         var friendRows = friends.GroupBy(f => f.Guid).ToDictionary(g => g.Key, g => g.First());
         Fill(FriendFeed, friendRows, friendRows.Values.SelectMany(f => f.Events), sent);
         Raise(nameof(HasFriendFeed));
+    }
+
+    void ShowToday(IReadOnlyList<Entry> events, IReadOnlyList<DayTotals> days, IReadOnlySet<string> sent, DateTime now)
+    {
+        var keys = flavor.HasRatings;
+        var hero = Hero?.Guid;
+        var played = TodayStats.Characters(events, days, now);
+        Today.Show(TodayStats.Build(events, days, sent, keys, now, hero));
+        // Only worth a row when someone else was played too.
+        AccountToday.Visible = hero is not null && played.Any(g => g != hero);
+        AccountToday.Note = played.Count == 1 ? "· 1 character" : $"· {played.Count} characters";
+        if (AccountToday.Visible) AccountToday.Show(TodayStats.Build(events, days, sent, keys, now));
     }
 
     // The newest level-ups and highlights of these characters, newest first.

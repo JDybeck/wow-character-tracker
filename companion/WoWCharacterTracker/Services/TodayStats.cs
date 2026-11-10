@@ -2,9 +2,9 @@ using System.Globalization;
 
 namespace WoWCharacterTracker.Services;
 
-// Home's TODAY row over every character of the game, most important first: the addon's
-// ns.todayStats (Today.lua) with the same order, plus what the app posted. Only stats above 0,
-// padded to Shown with the main ones at 0; the rest folds behind "more".
+// Home's TODAY rows, one character's or every character of the game (guid null), most important
+// first: the addon's ns.todayStats (Today.lua) with the same order, plus what the app posted. Only
+// stats above 0, padded to Shown with the main ones at 0; the rest folds behind "more".
 static class TodayStats
 {
     public const int Shown = 4;
@@ -17,13 +17,12 @@ static class TodayStats
         ["quests"] = "quests", ["gold"] = "gold", ["herbs"] = "herbs", ["ore"] = "veins", ["skins"] = "skins", ["fish"] = "fish", ["posted"] = "posted",
     };
 
-    public static List<TodayCount> Build(IEnumerable<Entry> events, IEnumerable<DayTotals> days, IReadOnlySet<string> sent, bool keys, DateTime now)
+    public static List<TodayCount> Build(IEnumerable<Entry> events, IEnumerable<DayTotals> days, IReadOnlySet<string> sent, bool keys, DateTime now,
+        string? guid = null)
     {
-        var since = new DateTimeOffset(now.Date).ToUnixTimeSeconds();
-        var day = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var v = Order.ToDictionary(k => k, _ => 0.0);
 
-        foreach (var e in events.Where(e => e.At >= since))
+        foreach (var e in EventsOf(events, now).Where(e => guid is null || e.Guid == guid))
         {
             if (e.Kind == "level") v["levels"]++;
             else if (e.Kind is "boss" or "keyrun") v["bosses"]++;
@@ -31,7 +30,7 @@ static class TodayStats
             else if (e.Kind == "mount") v["mounts"]++;
             if (sent.Contains(e.Id)) v["posted"]++;
         }
-        foreach (var d in days.Where(d => d.Day == day))
+        foreach (var d in DaysOf(days, now).Where(d => guid is null || d.Guid == guid))
         {
             v["quests"] += d.Quests;
             v["herbs"] += d.Herbs;
@@ -47,6 +46,22 @@ static class TodayStats
         var shown = Order.Where(k => v[k] > 0).ToList();
         shown.AddRange(Main.Where(k => v[k] == 0).Take(Math.Max(0, Shown - shown.Count)));
         return [.. shown.Select(k => new TodayCount(Value(k, v[k]), k == "bosses" && keys ? "keys" : Names[k]))];
+    }
+
+    // The characters played today: a moment since midnight or the addon's day counters.
+    public static HashSet<string> Characters(IEnumerable<Entry> events, IEnumerable<DayTotals> days, DateTime now) =>
+        [.. EventsOf(events, now).Select(e => e.Guid).Concat(DaysOf(days, now).Select(d => d.Guid)).Where(g => g.Length > 0)];
+
+    static IEnumerable<Entry> EventsOf(IEnumerable<Entry> events, DateTime now)
+    {
+        var since = new DateTimeOffset(now.Date).ToUnixTimeSeconds();
+        return events.Where(e => e.At >= since);
+    }
+
+    static IEnumerable<DayTotals> DaysOf(IEnumerable<DayTotals> days, DateTime now)
+    {
+        var day = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return days.Where(d => d.Day == day);
     }
 
     // "+2.5" item levels, "12g" or "40s", else the count (the addon's ns.todayValue).

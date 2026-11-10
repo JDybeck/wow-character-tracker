@@ -9,6 +9,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 ### Fixes and tweaks
 
 - Less lag when moments come in bursts. Each moment used to reach the app through its own data screenshot, and every screenshot holds the game for a moment, so a boss kill and two blues meant three hitches. The addon now waits a few seconds and sends them together in one. Instant posts arrive a few seconds later, and moments from a fight still go out once it ends.
+- Home's Today row counts only the character you're on. Once you've played another character that day, an Account today row below adds up all of them.
 
 ## v0.39.7
 
