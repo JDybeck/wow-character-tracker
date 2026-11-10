@@ -8,9 +8,10 @@ enum GridResult { NotAGrid, Damaged, Ok }
 
 static class GridDecoder
 {
-    // 0xC8: 160 columns of 2 px, short keys (current). 0xC7: 128 columns of 5 px, long keys (older addon).
+    // 0xC9: 160 columns of 2 px, short keys, one event per line (current). 0xC8: the same with one
+    // event per grid. 0xC7: 128 columns of 5 px, long keys (older addons).
     const int ColsSmall = 160, ColsOld = 128;
-    const int MagicSmall = 0xC8, MagicOld = 0xC7;
+    const int MagicLines = 0xC9, MagicSmall = 0xC8, MagicOld = 0xC7;
 
     // The corners the addon can draw in (Settings.lua gridCorner). The grid's clock row and column
     // always start at the screen corner, so for the right and bottom corners it's mirrored.
@@ -119,7 +120,7 @@ static class GridDecoder
         }
 
         var magic = ReadByte(0);
-        if (magic == MagicSmall) dataCols = ColsSmall - 1;
+        if (magic is MagicLines or MagicSmall) dataCols = ColsSmall - 1;
         else if (magic == MagicOld) dataCols = ColsOld - 1;
         else return GridResult.NotAGrid;
         int hi = ReadByte(1), lo = ReadByte(2);

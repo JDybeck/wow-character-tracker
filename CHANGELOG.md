@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.39.8
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- Less lag when moments come in bursts. Each moment used to reach the app through its own data screenshot, and every screenshot holds the game for a moment, so a boss kill and two blues meant three hitches. The addon now waits a few seconds and sends them together in one. Instant posts arrive a few seconds later, and moments from a fight still go out once it ends.
+
 ## v0.39.7
 
 Update the addon with the app (it does this by itself) and /reload in game.
