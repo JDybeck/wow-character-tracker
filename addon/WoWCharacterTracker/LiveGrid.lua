@@ -27,7 +27,8 @@ local function leftOut(k, v, kind)
 end
 
 -- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
--- character's GUID in front (it's in g already). Characters that would break it are %XX.
+-- character's GUID in front (it's in g already). Characters that would break it are %XX, line
+-- breaks too (they separate the events of one grid).
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
@@ -36,7 +37,7 @@ local function encode(t)
       if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
       if k == "sex" then v = (v == "female") and "f" or "m" end
       if k == "guid" and type(v) == "string" then v = v:gsub("^Player%-", "") end -- the app puts it back
-      local s = tostring(v):gsub("[%%;=#|]", function(c) return string.format("%%%02X", c:byte()) end)
+      local s = tostring(v):gsub("[%%;=#|\n]", function(c) return string.format("%%%02X", c:byte()) end)
       table.insert(parts, (SHORT[k] or k) .. "=" .. s)
     end
   end
@@ -46,12 +47,12 @@ end
 
 -- The grid: 160 cells across, 2 pixels each, black or white, saved as a high-quality JPEG (fast for the game to write; tested to read back cleanly). Row 0
 -- and column 0 alternate white/black so the app can measure the cell size in the picture; the
--- other cells hold the bits (black = 1): a magic byte (0xC8: this layout and short keys), the
--- payload length (2 bytes), the payload, and a 2-byte checksum. (0xC7 was the older 128 x 5 px
--- layout with long keys; the app still reads it.)
+-- other cells hold the bits (black = 1): a magic byte (0xC9: this layout, short keys, one event
+-- per line), the payload length (2 bytes), the payload, and a 2-byte checksum. (0xC8 was one event
+-- per grid, 0xC7 the older 128 x 5 px layout with long keys; the app still reads both.)
 local GRID_COLS = 160
 local CELL = 2
-local MAGIC = 0xC8
+local MAGIC = 0xC9
 
 -- The grid's bytes as one string; drawGrid reads the bits straight from it (a table of 0/1 per bit
 -- was eight numbers per byte, for every event).
@@ -197,8 +198,8 @@ local function drawGrid(bits)
   for i = used + 1, #gridTextures do gridTextures[i]:Hide() end
 end
 
--- Screenshots are taken one at a time from a queue: a data grid for every event, and a normal
--- screenshot after it when the app asked for one.
+-- Screenshots are taken one at a time from a queue: a data grid for a batch of events (see
+-- sendLive), and a normal screenshot for an event when the app asked for one.
 local shotQueue = {}
 local shotBusy = false
 local shotItem
@@ -384,12 +385,52 @@ function ns.stopShots()
   if savedCVars and not InCombatLockdown() then restoreShotSettings() end
 end
 
+-- Live events wait a moment and go out together. Every grid is a screenshot, which holds the game
+-- for a moment (about a quarter second at 1440p), and moments come in bursts: a boss and its
+-- screenshot, two blues off it. So one grid, an event per line, BATCH_QUIET seconds after the
+-- latest event and at most BATCH_MAX after the first. A batch that would outgrow the grid
+-- (BATCH_BYTES, the app reads 400 px of rows) goes as it is and the event starts the next one.
+-- An event's own screenshot is still taken right away; the app finds it by its time.
+local BATCH_QUIET, BATCH_MAX, BATCH_BYTES = 3, 10, 3800
+local batch, batchBytes, batchStarted, batchPortrait = {}, 0, 0, false
+local batchDue, batchTimer = false, 0
+
+local function queueBatch()
+  if #batch == 0 then return end
+  table.insert(shotQueue, { bits = toBits(table.concat(batch, "\n")), portrait = batchPortrait })
+  batch, batchBytes, batchPortrait, batchDue = {}, 0, false, false
+  ns.processShots()
+end
+
+-- The batch, once it's due. In combat it waits (grids do anyway), so the rest of the fight joins
+-- it; PLAYER_REGEN_ENABLED calls this again.
+function ns.flushLive()
+  if not batchDue or (InCombatLockdown and InCombatLockdown()) then return end
+  queueBatch()
+end
+
+local function scheduleBatch()
+  batchTimer = batchTimer + 1
+  local mine = batchTimer
+  local wait = math.max(0, math.min(BATCH_QUIET, batchStarted + BATCH_MAX - time()))
+  C_Timer.After(wait, function()
+    if mine ~= batchTimer then return end -- a newer event moved it
+    batchDue = true
+    ns.flushLive()
+  end)
+end
+
 function ns.sendLive(e)
   -- Without the app, nobody reads the grid and its screenshots would just pile up.
   if ns.loggingOut or not ns.hasApp() or WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
   if e and ns.isIgnored(e.guid) then return end -- Ignore tracking: not even the check-in
-  table.insert(shotQueue, { bits = toBits(encode(e)), portrait = e.kind == "snapshot" })
-  ns.processShots()
+  local line = encode(e)
+  if #batch > 0 and batchBytes + 1 + #line > BATCH_BYTES then queueBatch() end
+  if #batch == 0 then batchStarted = time() end
+  batchBytes = batchBytes + (#batch > 0 and 1 or 0) + #line
+  batch[#batch + 1] = line
+  if e.kind == "snapshot" then batchPortrait = true end
+  scheduleBatch()
 end
 
 -- How long to wait before a normal screenshot, so the moment is on screen (the ding glow, the

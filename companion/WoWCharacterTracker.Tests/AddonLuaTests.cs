@@ -791,23 +791,34 @@ public class AddonLuaTests
         Assert.True(script.Globals.Get("cvars").IsNil());
     }
 
-    // A fight can start between a grid shot and the game's answer. The player's screenshot settings
-    // only come back once it's over: no CVar changes in combat.
-    [Fact]
-    public void A_grid_shot_ending_in_combat_restores_the_settings_after_it()
+    // LiveGrid.lua with the app present, a clock (now), timers that run when `wait(seconds)` passes,
+    // frames whose OnUpdate is the next frame (`frame()`), and Screenshot counting shots.
+    static (Script Script, Table Ns) LiveScript()
     {
         var script = new Script();
         script.DoString("""
             WoWCharacterTrackerDB = { events = {} }
             WoWCharacterTrackerSettings = { post = {} }
-            inCombat, cvars, scripts = false, {}, {}
+            inCombat, cvars, scripts, timers, now, shots = false, {}, {}, {}, 1000, 0
             function InCombatLockdown() return inCombat end
-            function time() return 1000 end
+            function time() return math.floor(now) end
             function date() return '12:00:00' end
-            function Screenshot() shots = (shots or 0) + 1 end
+            function Screenshot() shots = shots + 1 end
             function SetCVar(name, value) table.insert(cvars, name .. '=' .. value) end
             function GetCVar(name) return name == 'screenshotFormat' and 'png' or '10' end
-            C_Timer = { After = function() end }
+            C_Timer = { After = function(delay, fn) table.insert(timers, { at = now + delay, fn = fn }) end }
+            function wait(seconds)
+              local stop = now + seconds
+              while true do
+                table.sort(timers, function(a, b) return a.at < b.at end)
+                local t = timers[1]
+                if not t or t.at > stop then break end
+                table.remove(timers, 1)
+                now = math.max(now, t.at)
+                t.fn()
+              end
+              now = stop
+            end
             local function stub()
               return setmetatable({}, { __index = function(_, k)
                 if k == 'SetScript' then return function(_, name, fn) scripts[name] = fn end end
@@ -815,15 +826,91 @@ public class AddonLuaTests
               end })
             end
             CreateFrame = stub
+            function frame() if scripts.OnUpdate then scripts.OnUpdate(CreateFrame()) end end
             """);
         var ns = new Table(script);
         ns["doing"] = (Action<string>)(_ => { });
         foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        return (script, ns);
+    }
+
+    static void SendLive(Script script, Table ns, string kind) =>
+        script.Call(ns.Get("sendLive"), script.DoString($"return {{ kind = '{kind}', id = 'x{kind}', level = 12 }}"));
+
+    // Each grid is a screenshot, which holds the game for a moment, so events a few seconds apart
+    // (a boss, then its loot) go out as one grid a moment after the last.
+    [Fact]
+    public void Live_events_close_together_go_in_one_grid()
+    {
+        var (script, ns) = LiveScript();
+        SendLive(script, ns, "boss");
+        script.DoString("wait(2)");
+        SendLive(script, ns, "loot");
+        script.DoString("wait(2.5) frame()");
+        Assert.Equal(0, script.Globals.Get("shots").Number); // still waiting: the loot was 2.5 s ago
+
+        script.DoString("wait(1) frame()");
+        Assert.Equal(1, script.Globals.Get("shots").Number);
+    }
+
+    // A steady stream of events (looting a pile of blues) still goes out, at most 10 s after the first.
+    [Fact]
+    public void A_steady_stream_of_events_goes_out_within_ten_seconds()
+    {
+        var (script, ns) = LiveScript();
+        for (var i = 0; i < 6; i++)
+        {
+            SendLive(script, ns, "loot");
+            script.DoString("wait(2) frame()");
+        }
+        Assert.Equal(1, script.Globals.Get("shots").Number);
+    }
+
+    // Events during a fight wait for its end (no grids in combat) and then all go in one grid.
+    [Fact]
+    public void Events_in_a_fight_go_out_together_after_it()
+    {
+        var (script, ns) = LiveScript();
+        script.DoString("inCombat = true");
+        SendLive(script, ns, "boss");
+        script.DoString("wait(30) frame()");
+        SendLive(script, ns, "loot");
+        script.DoString("wait(30) frame()");
+        Assert.Equal(0, script.Globals.Get("shots").Number);
+
+        script.DoString("inCombat = false");
+        script.Call(ns.Get("flushLive")); // PLAYER_REGEN_ENABLED
+        script.DoString("frame()");
+        Assert.Equal(1, script.Globals.Get("shots").Number);
+    }
+
+    // A grid holds about 3.8 KB: a batch that would outgrow it goes as it is.
+    [Fact]
+    public void A_batch_too_big_for_one_grid_goes_as_two()
+    {
+        var (script, ns) = LiveScript();
+        var big = new string('a', 2000);
+        script.Call(ns.Get("sendLive"), script.DoString($"return {{ kind = 'loot', id = 'a', item = '{big}' }}"));
+        script.Call(ns.Get("sendLive"), script.DoString($"return {{ kind = 'loot', id = 'b', item = '{big}' }}"));
+        script.DoString("frame()"); // the first, right away
+        Assert.Equal(1, script.Globals.Get("shots").Number);
+
+        script.Call(ns.Get("onScreenshotEvent"), true);
+        script.DoString("wait(4) frame()");
+        Assert.Equal(2, script.Globals.Get("shots").Number);
+    }
+
+    // A fight can start between a grid shot and the game's answer. The player's screenshot settings
+    // only come back once it's over: no CVar changes in combat.
+    [Fact]
+    public void A_grid_shot_ending_in_combat_restores_the_settings_after_it()
+    {
+        var (script, ns) = LiveScript();
         string Cvars() => script.DoString("return table.concat(cvars, ',')").String;
 
-        script.Call(ns.Get("sendLive"), script.DoString("return { kind = 'level', id = 'x', level = 12 }"));
-        script.DoString("scripts.OnUpdate(CreateFrame())"); // the next frame: the shot
+        SendLive(script, ns, "level");
+        script.DoString("wait(3) frame()"); // the batch is due, the next frame: the shot
         Assert.Equal(1, script.Globals.Get("shots").Number);
         Assert.Equal("screenshotFormat=jpeg,screenshotQuality=3", Cvars());
 

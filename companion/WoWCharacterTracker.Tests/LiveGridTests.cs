@@ -14,12 +14,12 @@ public class LiveGridTests(ITestOutputHelper output)
 {
     const int Cols = 160, Cell = 2;
 
-    // The addon's toBits: magic 0xC8, 2-byte length, payload, 2-byte sum; then the cells (black = 1)
-    // with the clock row and column, mirrored for the right and bottom corners.
-    static byte[] Shot(string payload, string corner, int quality = 90, int width = 1280, int height = 720)
+    // The addon's toBits: magic (0xC9 now, 0xC8 before batching), 2-byte length, payload, 2-byte sum;
+    // then the cells (black = 1) with the clock row and column, mirrored for the right and bottom corners.
+    static byte[] Shot(string payload, string corner, int quality = 90, int width = 1280, int height = 720, int magic = 0xC9)
     {
         var data = Encoding.UTF8.GetBytes(payload);
-        var bytes = new List<int> { 0xC8, data.Length / 256, data.Length % 256 };
+        var bytes = new List<int> { magic, data.Length / 256, data.Length % 256 };
         var sum = 0;
         foreach (var b in data) { bytes.Add(b); sum = (sum + b) % 65536; }
         bytes.Add(sum / 256); bytes.Add(sum % 256);
@@ -94,6 +94,42 @@ public class LiveGridTests(ITestOutputHelper output)
     {
         foreach (var corner in GridDecoder.Corners)
             Assert.Equal(GridResult.Ok, GridDecoder.Decode(Shot(Level, corner, quality, 2568, 1360), out _, out _, out _, corner));
+    }
+
+    // The addon sends a few seconds of events in one grid, one per line; a line break inside a value
+    // comes as %0A.
+    [Fact]
+    public void A_grid_with_several_events_reads_them_all()
+    {
+        const string loot = "a=1792101310;g=4619-00B6511D;i=:loot:872:1792101310;k=loot;m=Rock%0Aslicer;M=872;n=Ronnie;q=3";
+        var shot = Shot(Level + "\n" + loot, "TOPLEFT", 81, 2568, 1360);
+        Assert.Equal(GridResult.Ok, GridDecoder.Decode(shot, out var payload));
+        var events = Payload.ParseAll(payload!);
+        Assert.Equal(["level", "loot"], events.Select(e => e.Kind));
+        Assert.Equal("Rock\nslicer", events[1].Item);
+        Assert.Equal("Player-4619-00B6511D:loot:872:1792101310", events[1].Id);
+    }
+
+    // A grid as full as the addon makes them (3.8 KB) still fits the area the app reads.
+    [Fact]
+    public void A_full_grid_reads()
+    {
+        var lines = Enumerable.Range(0, 30).Select(i => Level.Replace("i=:22", $"i=:{i}") + ";z=" + new string('x', 40)).ToList();
+        var payload = string.Join("\n", lines);
+        while (Encoding.UTF8.GetByteCount(payload) > 3800) { lines.RemoveAt(lines.Count - 1); payload = string.Join("\n", lines); }
+        foreach (var corner in GridDecoder.Corners)
+        {
+            Assert.Equal(GridResult.Ok, GridDecoder.Decode(Shot(payload, corner, 81, 2568, 1360), out var read, out _, out _, corner));
+            Assert.Equal(lines.Count, Payload.ParseAll(read!).Count);
+        }
+    }
+
+    // Grids from before batching (0xC8, one event) still read.
+    [Fact]
+    public void A_one_event_grid_from_an_older_addon_reads()
+    {
+        Assert.Equal(GridResult.Ok, GridDecoder.Decode(Shot(Level, "TOPLEFT", magic: 0xC8), out var payload));
+        Assert.Equal("level", Assert.Single(Payload.ParseAll(payload!)).Kind);
     }
 
     [Fact]

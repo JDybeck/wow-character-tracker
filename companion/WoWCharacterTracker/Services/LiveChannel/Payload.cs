@@ -19,6 +19,11 @@ static class Payload
         ["j"] = "mplusScore", ["pr"] = "pvpRatings", ["fa"] = "faction", ["sp"] = "spellId", ["kl"] = "keyLevel", ["ku"] = "upgrades", ["pf"] = "profession", ["be"] = "boe", ["mt"] = "mat", ["ak"] = "askedKind", ["mb"] = "midBoss", ["rn"] = "run", ["bs"] = "bosses", ["dr"] = "drops", ["cl"] = "cleared", // single letters are used up, so new keys get two
     };
 
+    // A grid's events: one per line (the addon sends a few seconds of them together; older addons
+    // one per grid, which is one line). Line breaks inside values come escaped.
+    public static IReadOnlyList<Entry> ParseAll(string data) =>
+        [.. data.Split('\n').Select(Parse).OfType<Entry>()];
+
     public static Entry? Parse(string data)
     {
         var values = new Dictionary<string, string>();

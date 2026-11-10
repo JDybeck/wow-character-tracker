@@ -98,7 +98,7 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
                         seen[file] = true;
                         var shotAt = File.GetCreationTime(file);
                         Files.TryDelete(file);
-                        if (Payload.Parse(payload!) is { } entry)
+                        foreach (var entry in Payload.ParseAll(payload!))
                             EntryReceived?.Invoke(entry, shotAt, entry.Kind == "snapshot" ? GridDecoder.CropPortrait(frame!, cellSize, where) : null);
                         break;
                     case GridResult.Damaged when age < Settle:

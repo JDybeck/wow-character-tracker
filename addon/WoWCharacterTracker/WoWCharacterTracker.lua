@@ -83,6 +83,7 @@ function on.PLAYER_ENTERING_WORLD(isInitialLogin)
 end
 
 function on.PLAYER_REGEN_ENABLED()
+  ns.flushLive() -- live events that came during the fight, as one grid
   ns.processShots() -- data grids held back during combat
   ns.flushAnnouncements() -- guild/group messages held back during combat
   ns.showNextAsk() -- and the box offering to post a highlight
