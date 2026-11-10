@@ -403,6 +403,23 @@ public class FriendsLuaTests
         Assert.Single(c.Sent());
     }
 
+    // Map messages go in combat and pass what waits for it to end; the chat lockdown holds them too.
+    [Fact]
+    public void Map_messages_go_in_combat_past_what_waits()
+    {
+        var c = CommsClient();
+        c.Lua("inCombat = true; ns.comms.send(2, 'HI', 'x'); ns.comms.send(2, 'POS', 'p'); ns.comms.send(2, 'WATCH', '')");
+        c.Run(20);
+        Assert.Equal(["POS", "WATCH"], c.Sent().Select(m => m.Get("text").String.Split(':')[1]));
+        c.Lua("inCombat = false");
+        c.Run(6);
+        Assert.Equal("HI", c.Sent().Last().Get("text").String.Split(':')[1]);
+
+        c.Lua("lockdown = true; ns.comms.send(2, 'POS', 'q')");
+        c.Run(20);
+        Assert.Equal(3, c.Sent().Count);
+    }
+
     [Fact]
     public void A_throttled_send_is_tried_three_times_then_dropped()
     {

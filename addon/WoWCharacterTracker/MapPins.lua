@@ -104,7 +104,8 @@ local function buildPin()
     local info = C_Map.GetMapInfo and C_Map.GetMapInfo(f.mapID)
     if info and info.name then GameTooltip:AddLine(info.name, 0.8, 0.8, 0.8) end
     if f.realmNote then GameTooltip:AddLine(f.realmNote, 1, 0.6, 0.2) end
-    GameTooltip:AddLine(ns.ago(time() - (f.age or 0)), 0.6, 0.6, 0.6)
+    local ago = ns.ago(time() - (f.age or 0))
+    GameTooltip:AddLine(f.faded and ("Last seen " .. ago) or ago, 0.6, 0.6, 0.6)
     GameTooltip:Show()
   end
 

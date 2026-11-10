@@ -1,6 +1,6 @@
 -- Addon messages between friends' game clients over Battle.net (C_BattleNet.SendGameData, received
 -- on BN_CHAT_MSG_ADDON). The only file that sends or receives them. Long texts go in parts and are
--- put back together, sends are paced and wait out combat, boss fights and the game's chat lockdown,
+-- put back together, sends are paced and wait out combat (map messages excepted), boss fights and the game's chat lockdown,
 -- and nothing is ever printed. What to send and what to keep is Friends.lua's (comms.onReceive).
 local ADDON, ns = ...
 
@@ -28,15 +28,28 @@ local function sendGameData()
   return (C_BattleNet and C_BattleNet.SendGameData) or BNSendGameData
 end
 
--- Not in combat, a boss fight or the game's chat lockdown (Midnight-era clients).
-function comms.canSend()
-  if InCombatLockdown and InCombatLockdown() then return false end
+-- Map kinds are tiny and FriendMap.lua paces them, so they go in combat too.
+local IN_COMBAT = { WATCH = true, POS = true }
+
+-- Not in a boss fight or the game's chat lockdown (Midnight-era clients), and out of combat
+-- unless kind is one of IN_COMBAT.
+function comms.canSend(kind)
   if IsEncounterInProgress and IsEncounterInProgress() then return false end
   if ns.chatLocked() then return false end
-  return sendGameData() ~= nil
+  if sendGameData() == nil then return false end
+  if InCombatLockdown and InCombatLockdown() then return IN_COMBAT[kind] == true end
+  return true
 end
 
-local queue = {} -- { to, text, tries }
+local queue = {} -- { to, kind, text, tries }
+
+-- The first message that may go right now: in combat a map message passes what waits for it to end.
+local function nextSendable()
+  for i, item in ipairs(queue) do
+    if comms.canSend(item.kind) then return i, item end
+  end
+  return nil
+end
 local nextId = 0
 local waiting = false
 
@@ -48,15 +61,15 @@ end
 function comms.flush()
   if waiting or #queue == 0 then return end
   local wait = RETRY
-  if comms.canSend() then
-    local item = queue[1]
+  local index, item = nextSendable()
+  if item then
     wait = SPACING
     if accepted(pcall(sendGameData(), item.to, comms.PREFIX, item.text)) then
-      table.remove(queue, 1)
+      table.remove(queue, index)
     else
       item.tries = item.tries + 1
       wait = BACKOFF
-      if item.tries >= MAX_TRIES then table.remove(queue, 1) end
+      if item.tries >= MAX_TRIES then table.remove(queue, index) end
     end
     if #queue == 0 then return end
   end
@@ -91,7 +104,7 @@ function comms.send(account, kind, body)
   if #parts > MAX_PARTS or #queue + #parts > MAX_QUEUE then return false end
   nextId = nextId % 9999 + 1
   for part, chunk in ipairs(parts) do
-    queue[#queue + 1] = { to = account, tries = 0,
+    queue[#queue + 1] = { to = account, kind = kind, tries = 0,
       text = string.format("%d:%s:%d:%d:%d:%s", comms.PROTOCOL, kind, nextId, part, #parts, chunk) }
   end
   comms.flush()
