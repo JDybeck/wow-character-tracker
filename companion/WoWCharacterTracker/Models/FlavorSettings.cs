@@ -49,7 +49,7 @@ class FlavorSettings
     public bool PostDeaths { get; set; }
     public bool FirstBossKillOnly { get; set; } = true; // each character's first kill of each end boss, not the farming after
     // Dungeon runs (Runs.lua, not on Retail): one post per 5-player dungeon run with its bosses, the
-    // group and who got what, in place of the run's boss and loot posts (legendaries still post on their own).
+    // group and who got what, in place of the run's loot posts (legendaries and the end boss still post on their own).
     public bool PostRuns { get; set; }
 
     // Finished Mythic+ runs (Retail, in place of end boss kills): from this key level up, and
@@ -260,8 +260,9 @@ class FlavorSettings
     public IReadOnlyList<Entry> MarkFollowed(IReadOnlyList<Entry> events) =>
         AllFollowed.Count == 0 ? events : [.. events.Select(e => Follows(e) ? e with { Followed = true } : e)];
 
-    // A dungeon run's boss kill or loot, which goes into the run's one post instead.
-    public bool HeldForRun(Entry e) => PostRuns && e.Run > 0 && e.Kind is "loot" or "boss";
+    // A dungeon run's loot, which goes into the run's one post instead. The end boss still posts on
+    // its own (with its screenshot): the run is saved minutes later, often on a loading screen.
+    public bool HeldForRun(Entry e) => PostRuns && e.Run > 0 && e.Kind == "loot";
 
     public bool Wants(Entry e) => PostsAsFollowed(e) || e.Kind switch
     {

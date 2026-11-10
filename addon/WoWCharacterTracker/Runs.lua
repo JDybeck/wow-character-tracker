@@ -1,5 +1,6 @@
 -- Dungeon runs: with the app's "Dungeon runs" on (Settings.lua post.run), a 5-player dungeon's boss
--- kills and loot go into one event, kind "run", instead of a post each. A run starts on entering
+-- kills and loot go into one event, kind "run", and its loot doesn't post on its own (the end boss
+-- still does, with its screenshot). A run starts on entering
 -- the dungeon and ends a few minutes after its end boss (the boss's loot and rolls come after the
 -- kill), on leaving after it, or a while after leaving without it (a corpse run comes back). Kept
 -- per character in WoWCharacterTrackerDB.runs, so a /reload or logout inside keeps it going.

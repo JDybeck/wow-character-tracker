@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.39.7
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- With **Dungeon runs** on, the end boss kill posts on its own again, with its screenshot if that's ticked. The run's post still lists every boss, and the run's loot still waits for it. (The run itself is saved minutes after the kill, often on a loading screen, so it gets no picture.)
+
 ## v0.39.6
 
 Update the addon with the app (it does this by itself) and /reload in game.

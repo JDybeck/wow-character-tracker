@@ -400,9 +400,10 @@ local SHOT_DELAY = { level = 1.0, boss = 1.5, keyrun = 2.0, loot = 0.3, mount = 
 -- the addon only sends events live (and screenshots them) when they'll actually be posted.
 -- Without those settings (an older app), everything counts as wanted.
 
--- A dungeon run's boss kill or loot, which goes into the run's one post (Runs.lua).
+-- A dungeon run's loot, which goes into the run's one post (Runs.lua). The end boss still posts on
+-- its own, with its screenshot (the run is saved minutes later, often on a loading screen).
 local function heldForRun(e, post)
-  return e.run ~= nil and post and post.run == true and (e.kind == "loot" or e.kind == "boss")
+  return e.run ~= nil and post and post.run == true and e.kind == "loot"
 end
 
 local function wanted(e)
@@ -454,7 +455,7 @@ function ns.addEvent(e)
     table.insert(shotQueue, { delay = SHOT_DELAY[e.kind] or 0.5, kind = e.kind })
     ns.processShots()
   end
-  -- not posted by itself: maybe on request (not a run's kill or loot, the run's post has those)
+  -- not posted by itself: maybe on request (not a run's loot, the run's post has it)
   if not posted and ns.offerAsk and not heldForRun(e, ns.setting("post")) then ns.offerAsk(e) end
 end
 
