@@ -826,7 +826,7 @@ public class AddonLuaTests
               end })
             end
             CreateFrame = stub
-            function frame() if scripts.OnUpdate then scripts.OnUpdate(CreateFrame()) end end
+            function frame(elapsed) if scripts.OnUpdate then scripts.OnUpdate(CreateFrame(), elapsed or 0.016) end end
             """);
         var ns = new Table(script);
         ns["doing"] = (Action<string>)(_ => { });
@@ -883,6 +883,23 @@ public class AddonLuaTests
         script.Call(ns.Get("flushLive")); // PLAYER_REGEN_ENABLED
         script.DoString("frame()");
         Assert.Equal(1, script.Globals.Get("shots").Number);
+    }
+
+    // The shot log says how long the frame with the screenshot took (the hitch a player feels),
+    // whether the game's answer comes before that next frame or after it.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_shot_log_has_the_screenshots_frame_time(bool answerFirst)
+    {
+        var (script, ns) = LiveScript();
+        SendLive(script, ns, "loot");
+        script.DoString("wait(3) frame()"); // the shot
+        if (answerFirst) script.Call(ns.Get("onScreenshotEvent"), true);
+        script.DoString("frame(0.28)"); // the frame it held
+        if (!answerFirst) script.Call(ns.Get("onScreenshotEvent"), true);
+        Assert.Equal("12:00:00 grid ok frame 280ms", script.DoString("return WoWCharacterTrackerDB.shotLog[1]").String);
+        Assert.Equal(1, script.DoString("return #WoWCharacterTrackerDB.shotLog").Number);
     }
 
     // A grid holds about 3.8 KB: a batch that would outgrow it goes as it is.

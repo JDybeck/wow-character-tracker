@@ -290,6 +290,7 @@ local SNAPSHOT_ONLY = { "talentPicks", "talentExport", "stats", "xp", "xpMax" }
 -- The id is "<guid>:<idSuffix>", or "<guid>:<kind>:<time>" without one. Returns the event.
 function ns.record(kind, fields, idSuffix)
   if ns.isIgnored(UnitGUID and UnitGUID("player")) then return nil end
+  local started = debugprofilestop and debugprofilestop()
   local e = ns.characterInfo(true)
   -- characterInfo's maxLevel is the game's level cap (for the saved snapshot). On an event,
   -- maxLevel means "this ding reached it", so only a max level ding sets it.
@@ -300,6 +301,12 @@ function ns.record(kind, fields, idSuffix)
   e.at = e.at or time()
   e.id = eventId(e.guid, kind, e.at, idSuffix)
   ns.addEvent(e)
+  -- How long recording took (reading the character, saving, chat lines), for /wct debug: the
+  -- screenshots are logged in shotLog, so a hitch at a moment can be told apart from them.
+  if started and WoWCharacterTrackerDB then
+    WoWCharacterTrackerDB.perfLog = ns.appendCapped(WoWCharacterTrackerDB.perfLog or {},
+      string.format("%s %s %.1fms", date("%H:%M:%S"), kind, debugprofilestop() - started), 20)
+  end
   return e
 end
 
