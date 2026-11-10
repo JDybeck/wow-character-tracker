@@ -111,6 +111,22 @@ public class TodayStatsTests
     }
 
     [Fact]
+    public void One_character_counts_only_its_own_day()
+    {
+        var events = new List<Entry>
+        {
+            new() { Id = "1", Guid = "a", Kind = "level", At = At(10) }, new() { Id = "2", Guid = "b", Kind = "level", At = At(11) },
+            new() { Id = "3", Guid = "b", Kind = "level", At = At(12) }, new() { Id = "4", Guid = "c", Kind = "level", At = At(-5) }, // c: yesterday
+        };
+        var days = new List<DayTotals> { new("a", "2026-11-09", 0, 0, 0, 0, 3, 0, 0, 0, 0), new("b", "2026-11-09", 0, 0, 0, 0, 5, 0, 0, 0, 0) };
+        string Text(string? guid) => string.Join(", ", TodayStats.Build(events, days, new HashSet<string>(), keys: false, Now, guid).Take(2).Select(s => $"{s.Value} {s.What}"));
+
+        Assert.Equal("1 levels, 3 quests", Text("a"));
+        Assert.Equal("3 levels, 8 quests", Text(null));
+        Assert.Equal(["a", "b"], TodayStats.Characters(events, days, Now).Order());
+    }
+
+    [Fact]
     public void The_saved_days_are_read()
     {
         var script = new Script();

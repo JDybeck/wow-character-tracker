@@ -8,6 +8,7 @@ local WATCH_EVERY = 20 -- seconds between two WATCHes to one friend while the ma
 local WATCH_LASTS = 30 -- a watch that isn't renewed ends
 local TICK = 5         -- the sender looks at its position this often while anyone watches
 local RESEND = 20      -- a position that didn't move still goes this often
+local MIN_GAP = 5      -- at most one position per friend this often, in combat too
 local RATES = { [5] = true, [60] = true, [300] = true }
 
 -- Sending
@@ -47,18 +48,19 @@ local function readPosition()
   local mapID = C_Map.GetBestMapForUnit("player")
   local pos = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
   if not pos or not pos.x or not pos.y or (pos.x == 0 and pos.y == 0) then return nil end
-  return mapID, pos.x, pos.y
+  return mapID, round(pos.x), round(pos.y)
 end
 
 -- The reading to send: a new one once the rate allows, else the last one; nil without a position.
+-- In a pcall: a client that hides the position in combat must not throw from our timer.
 local function currentReading(now, rate)
-  local mapID, x, y = readPosition()
-  if not mapID then
+  local ok, mapID, x, y = pcall(readPosition)
+  if not ok or not mapID then
     reading = nil
     return nil
   end
   if reading and now - reading.at < rate then return reading end
-  reading = { mapID = mapID, x = round(x), y = round(y), at = now }
+  reading = { mapID = mapID, x = x, y = y, at = now }
   return reading
 end
 
@@ -92,17 +94,19 @@ local function sendTo(account, w, r, rate, now)
     return
   end
   if w.sent == r then return end
+  if w.sentAt and now - w.sentAt < MIN_GAP then return end
   if w.sent and not moved(r, w.sent) and now - w.sentAt < RESEND then return end
   if ns.comms.send(account, "POS", string.format("%d,%.3f,%.3f,%d,%d", r.mapID, r.x, r.y, rate, now - r.at)) then
     w.sent, w.sentAt, w.hadPosition, w.cleared = r, now, true, false
   end
 end
 
--- Each watcher gets what they may. True while anyone still watches. Nothing is queued while Comms
--- holds everything back (combat, a boss fight): it would go out late with the wrong age.
+-- Each watcher gets what they may. True while anyone still watches. Positions go in combat too;
+-- nothing is queued while Comms holds them back (a boss fight, the chat lockdown): it would go out
+-- late with the wrong age.
 function ns.friendMapTick()
   local now, rate = time(), ns.shareSettings().mapRate
-  local paused = ns.comms.canSend and not ns.comms.canSend()
+  local paused = ns.comms.canSend and not ns.comms.canSend("POS")
   local r, looked, any = nil, false, false
   for account, w in pairs(watchers) do
     if now > w.untilAt then
@@ -160,8 +164,9 @@ ns.onFriendKind("POS", function(f, contact, body)
   pinsChanged()
 end)
 
--- Faded after the first, gone after the second (seconds), by the sender's rate.
-local function limits(rate) return math.max(30, 2 * rate), math.max(120, 4 * rate) end
+-- Seconds until a pin fades to "last seen", by the sender's rate. It stays until the friend goes
+-- offline, switches character, says it's gone (empty POS) or a watch gap drops it.
+local function fadeAfter(rate) return math.max(30, 2 * rate) end
 
 -- How a friend's realm differs from ours, for the tooltip; nil when it's the same. On Forever the
 -- number is a layer, so the same realm type means another layer of it.
@@ -189,16 +194,15 @@ function ns.friendPins()
   end
   local myRealm = ns.plainRealm(GetRealmName and GetRealmName())
   for account, p in pairs(positions) do
-    local fade, gone = limits(p.rate)
     local age = math.max(0, now - p.readAt)
     local f = rows[account]
-    if not stillShown(f, p) or age > gone then
+    if not stillShown(f, p) then
       positions[account] = nil
     elseif not group[p.guid] then
       local note = realmNote(ns.plainRealm(f.realm), myRealm)
       out[#out + 1] = { tag = f.tag, label = f.label, character = f.character, classFile = f.classFile, level = f.level,
         realm = f.realm, otherRealm = note ~= nil, realmNote = note,
-        mapID = p.mapID, x = p.x, y = p.y, age = age, faded = age > fade }
+        mapID = p.mapID, x = p.x, y = p.y, age = age, faded = age > fadeAfter(p.rate) }
     end
   end
   table.sort(out, function(x, y) return x.label < y.label end)
@@ -206,11 +210,11 @@ function ns.friendPins()
 end
 
 -- WATCH to every contact online here we keep things from, at most every WATCH_EVERY seconds each
--- (a second less, so the renewal timer never just misses it). Not while Comms holds everything back,
--- and not to someone in your group (the game shows them already).
+-- (a second less, so the renewal timer never just misses it), in combat too. Not while Comms holds
+-- them back, and not to someone in your group (the game shows them already).
 -- A new watch after a gap drops what we kept from before: the friend sends it again if they still may.
 local function sendWatches()
-  if not ns.shareSettings().enabled or (ns.comms.canSend and not ns.comms.canSend()) then return end
+  if not ns.shareSettings().enabled or (ns.comms.canSend and not ns.comms.canSend("WATCH")) then return end
   local now, dropped, group = time(), false, ns.groupGuids()
   for _, f in ipairs(online()) do
     local c, last = f.contact, watchSentAt[f.account]

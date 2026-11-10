@@ -170,15 +170,15 @@ public class FriendMapLuaTests
     }
 
     [Fact]
-    public void A_pin_fades_and_then_goes_by_the_senders_rate()
+    public void A_pin_fades_to_last_seen_and_stays()
     {
         var (a, b) = Pair();
         b.Call("setMapOpen", true);
         Pass(a, b, 3);
         b.Run(31); // nothing more arrives
         Assert.True(Pin(b)!.Get("faded").Boolean);
-        b.Run(90);
-        Assert.Null(Pin(b));
+        b.Run(600);
+        Assert.True(Pin(b)!.Get("faded").Boolean);
     }
 
     [Fact]
@@ -276,27 +276,40 @@ public class FriendMapLuaTests
         Assert.Null(Pin(b));
     }
 
-    // Comms holds everything in combat: nothing piles up meanwhile, and the next position is fresh.
+    // Both fighting for a minute, moving all the time: the pin keeps up, at most every 5 s, and
+    // nothing piles up.
     [Fact]
-    public void Nothing_piles_up_in_combat()
+    public void Positions_go_in_combat_at_most_every_5_seconds()
     {
         var (a, b) = Pair();
         b.Call("setMapOpen", true);
         Pass(a, b, 3);
         a.Lua("inCombat = true");
         b.Lua("inCombat = true");
+        var sent = new List<string>();
         for (var i = 0; i < 60; i++)
         {
             a.Lua("myX = myX + 0.005");
-            Pass(a, b, 1);
+            sent.AddRange(Pass(a, b, 1));
         }
+        Assert.InRange(sent.Count, 10, 12);
         Assert.Equal(0, a.Lua("return ns.comms.pending()").Number);
         Assert.Equal(0, b.Lua("return ns.comms.pending()").Number);
-        a.Lua("inCombat = false");
-        b.Lua("inCombat = false");
-        var after = Pass(a, b, 25);
-        Assert.NotEmpty(after);
-        Assert.EndsWith(",5,0", after[^1], StringComparison.Ordinal); // read just now, not a minute ago
+        Assert.False(Pin(b)!.Get("faded").Boolean);
+        Assert.InRange(Pin(b)!.Get("x").Number, 0.7, 0.76);
+    }
+
+    // The chat lockdown still holds positions: the pin turns into last seen instead of going away.
+    [Fact]
+    public void A_lockdown_leaves_the_pin_as_last_seen()
+    {
+        var (a, b) = Pair();
+        b.Call("setMapOpen", true);
+        Pass(a, b, 3);
+        a.Lua("lockdown = true");
+        Assert.Empty(Pass(a, b, 180));
+        Assert.True(Pin(b)!.Get("faded").Boolean);
+        Assert.Equal(0, a.Lua("return ns.comms.pending()").Number);
     }
 
     // The game writes our realm with spaces, Battle.net theirs without. On Forever the number before
