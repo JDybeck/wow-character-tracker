@@ -245,11 +245,12 @@ function ns.applyGameSettings()
   end
 end
 
+-- fn gets how long the frame before it took, in seconds.
 local nextFrame = CreateFrame("Frame")
 local function onNextFrame(fn)
-  nextFrame:SetScript("OnUpdate", function(self)
+  nextFrame:SetScript("OnUpdate", function(self, elapsed)
     self:SetScript("OnUpdate", nil)
-    fn()
+    fn(elapsed)
   end)
 end
 
@@ -289,11 +290,13 @@ local function showChat()
   hiddenChat = nil
 end
 
--- The last few shots and how they went (kind, ok, in combat, retried), for /wct debug.
+-- The last few shots and how they went (kind, ok, in combat, retried, and how long the frame with
+-- the screenshot took: that's the hitch a player feels), for /wct debug.
 local function logShot(item, ok)
   WoWCharacterTrackerDB.shotLog = ns.appendCapped(WoWCharacterTrackerDB.shotLog or {},
-    string.format("%s %s %s%s%s", date("%H:%M:%S"), item.bits and "grid" or (item.kind or "event"),
-      ok and "ok" or "FAILED", item.inCombat and " in combat" or "", item.retried and " (retry)" or ""), 20)
+    string.format("%s %s %s%s%s%s", date("%H:%M:%S"), item.bits and "grid" or (item.kind or "event"),
+      ok and "ok" or "FAILED", item.inCombat and " in combat" or "", item.retried and " (retry)" or "",
+      item.frameMs and string.format(" frame %dms", item.frameMs) or ""), 20)
 end
 
 -- ok = false when the game said the screenshot failed or never answered. An event's own picture
@@ -312,7 +315,7 @@ function ns.shotDone(ok)
     showChat()
   end
   if item then
-    logShot(item, ok ~= false)
+    if item.taken and not item.frameMs then item.logWhenTimed = ok ~= false else logShot(item, ok ~= false) end
     if ok == false and not item.bits and not item.retried then
       item.retried, item.afterCombat, item.delay = true, true, 0.3
       table.insert(shotQueue, 1, item)
@@ -333,6 +336,11 @@ end
 local function takeShot(item)
   item.taken = true
   Screenshot()
+  -- The game captures at the end of this frame, so the next frame's start says how long it held.
+  onNextFrame(function(elapsed)
+    item.frameMs = math.floor((elapsed or 0) * 1000 + 0.5)
+    if item.logWhenTimed ~= nil then logShot(item, item.logWhenTimed) end -- the game answered first
+  end)
 end
 
 -- In combat only normal screenshots are taken (the moment itself); data grids wait until combat
