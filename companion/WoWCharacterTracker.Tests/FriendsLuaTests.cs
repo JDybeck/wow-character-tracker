@@ -1392,12 +1392,12 @@ public class FriendsLuaTests
     }
 
     [Fact]
-    public void A_friend_who_doesnt_answer_in_10_seconds_has_no_addon()
+    public void A_friend_who_doesnt_answer_in_4_seconds_has_no_addon()
     {
         var a = new Client(A, AFriends, ADb("nil"));
         CountChanges(a);
         a.Call("findOnlineFriends");
-        a.Run(9);
+        a.Run(3);
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
         a.Run(2);
         Assert.False(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);

@@ -330,7 +330,7 @@ end
 -- Who has the addon ---------------------------------------------------------------------------
 -- PING asks a friend's addon to say PONG, invisibly. Each game account is pinged once a session.
 local FIND_EVERY = 60 -- seconds between two PONGs to one account
-local PING_WAIT = 10  -- seconds without an answer before it's "no addon"
+local PING_WAIT = 4   -- seconds without an answer, once the PING went, before it's "no addon"
 
 local pinged = {}       -- [account] = true: PING went out
 local silent = {}       -- [account] = true: no answer to it in PING_WAIT

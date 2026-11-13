@@ -1225,7 +1225,7 @@ local function buildFriends(p)
     friendsSaid = ""
     drawFriends()
   end, "primary")
-  local hint = ui.text(p, "GameFontDisableSmall", "Click a friend for their characters and nickname. Drag a friend to put them where you want them, the app shows the same order. Find online friends checks who has the addon, it sends them nothing they can see.")
+  local hint = ui.text(p, "GameFontDisableSmall", "Your friends here: click one for their characters and nickname, drag one to put them where you want them (the app shows the same order). Find online friends lists everyone else online, by whether they have the addon; checking sends them nothing they can see.")
   hint:SetWidth(width - 170)
   local status = ui.text(p, "GameFontHighlightSmall")
   status:SetWidth(ui.WRAP)
@@ -1554,6 +1554,78 @@ local function buildFriends(p)
     hideFrom(friendCards, #list + 1)
   end
 
+  -- Online friends who aren't your friends here yet, found with Find online friends: in their own
+  -- lists under the grid, by whether they have the addon. A row: the character, who, their state
+  -- and buttons (friendState: Ask and Share, Invite).
+  local FOUND = 30
+  local FOUND_GROUPS = {
+    { key = true, title = "Have the addon" },
+    { key = nil, title = "Still checking" },
+    { key = false, title = "No addon" },
+  }
+  local foundRows, foundTitles = {}, {}
+  for i, group in ipairs(FOUND_GROUPS) do foundTitles[i] = ui.heading(p, group.title) end
+
+  local function newFoundRow()
+    local r = CreateFrame("Frame", nil, p)
+    r:SetHeight(FOUND)
+    ui.box(r, C.card, C.border)
+    r.stripe = r:CreateTexture(nil, "ARTWORK")
+    r.stripe:SetSize(3, FOUND - 12)
+    r.stripe:SetPoint("LEFT", r, "LEFT", 7, 0)
+    r.nameText = ui.text(r, "GameFontHighlight")
+    r.nameText:SetPoint("LEFT", r, "LEFT", 16, 0)
+    r.nameText:SetWidth(170)
+    r.nameText:SetWordWrap(false)
+    r.infoText = ui.text(r, "GameFontDisableSmall")
+    r.infoText:SetPoint("LEFT", r, "LEFT", 192, 0)
+    r.infoText:SetWordWrap(false)
+    r.b1, r.b2 = cardButton(r, 70), cardButton(r, 64)
+    return r
+  end
+
+  -- Returns the y under the lists.
+  local function drawFound(y, found)
+    local n = 0
+    for g, group in ipairs(FOUND_GROUPS) do
+      local members = {}
+      for _, person in ipairs(found) do
+        if person.hasAddon == group.key then members[#members + 1] = person end
+      end
+      foundTitles[g]:SetText(string.format("%s (%d)", group.title, #members))
+      foundTitles[g]:SetShown(#members > 0)
+      if #members > 0 then
+        place(foundTitles[g], p, 16, y + 6)
+        y = y + 28
+      end
+      for _, person in ipairs(members) do
+        n = n + 1
+        local r = pooled(foundRows, n, newFoundRow)
+        local f = person.online
+        r:SetWidth(width)
+        r.infoText:SetWidth(width - 192 - 160)
+        r.nameText:SetText(f.character or "?")
+        classColor(r.nameText, f.classFile)
+        r.stripe:SetColorTexture(classRgb(f.classFile))
+        local state, _, first, second = friendState(person)
+        local bits = { who(person.label, person.tag) }
+        if f.level then bits[#bits + 1] = "Level " .. f.level end
+        if f.zone and f.zone ~= "" then bits[#bits + 1] = f.zone end
+        if not first then bits[#bits + 1] = state end -- Blocked, Checking...
+        r.infoText:SetText(table.concat(bits, "  ·  "))
+        for _, pair in ipairs({ { r.b1, first }, { r.b2, second } }) do
+          local b, what = pair[1], pair[2]
+          if what then setButton(b, what[1], what[2] and act(what[2], person.tag), what[3]) else b:Hide() end
+        end
+        alignButtons(r, { r.b1, r.b2 })
+        place(r, p, 16, y)
+        y = y + FOUND + 4
+      end
+    end
+    hideFrom(foundRows, n + 1)
+    return y
+  end
+
   -- What's under the grid from y: the hidden link and What you share. Also tidies what this draw didn't use.
   local function drawBelow(y)
     hideFrom(charCards, st.cards + 1)
@@ -1594,7 +1666,18 @@ local function buildFriends(p)
   drawNow = function()
     measure()
     section:SetWidth(width)
-    local list = friendRows(rowsOf(ns.onlineFriends), rowsOf(ns.sharedWithYou))
+    -- The grid: your friends here (contacts, whoever shares with you). Everyone else online goes in
+    -- the found lists, and while any of them is still being checked the button says so.
+    local list, found, checking = {}, {}, 0
+    for _, person in ipairs(friendRows(rowsOf(ns.onlineFriends), rowsOf(ns.sharedWithYou))) do
+      if person.contact or person.sharesWithYou then
+        list[#list + 1] = person
+      else
+        found[#found + 1] = person
+        if person.hasAddon == nil then checking = checking + 1 end
+      end
+    end
+    find:SetText(checking > 0 and string.format("Checking... (%d left)", checking) or "Find online friends")
     if revealKey then
       for _, person in ipairs(list) do
         for _, c in ipairs(person.chars) do
@@ -1621,7 +1704,7 @@ local function buildFriends(p)
       section:Hide()
     end
     drawCards(list, order)
-    drawBelow(gridTop + math.ceil(#list / columns) * (GRID_CARD + GRID_GAP) + sectionHeight)
+    drawBelow(drawFound(gridTop + math.ceil(#list / columns) * (GRID_CARD + GRID_GAP) + sectionHeight, found))
   end
   ui.onRefresh(p, drawFriends)
 end

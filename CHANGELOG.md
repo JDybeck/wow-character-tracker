@@ -23,6 +23,7 @@ Update the addon with the app (it does this by itself) and /reload in game. Your
 - A friend's request after **Not now** shows again 10 minutes later instead of never this session, and their **Never** stops you asking for a day, not for good.
 - Live map positions update every 2 seconds instead of every 5, and never wait behind characters being sent.
 - The character you're on goes to friends every 5 minutes when it changed, not every 10.
+- **Find online friends** is quicker (a friend without the addon is known after about 4 seconds, not 10), says how many it's still checking, and lists who it found under your friends: have the addon, still checking, no addon.
 
 ## v0.39.8
 
