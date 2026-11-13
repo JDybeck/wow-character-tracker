@@ -2,6 +2,23 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.39.9
+
+Update the addon with the app (it does this by itself) and /reload in game. Your friends need the new addon too for most of this.
+
+### New
+
+- **Asking a friend sends yours along.** **Ask** on the Friends tab opens a box where you pick what you share with them and what you ask them for (the same to start with, a swap). Their request box says you share yours, and **Allow** keeps your characters right away. A chat line tells you when theirs arrive.
+- **The Friends tab, one card per friend.** Online friends first, each with the character they're on, offline friends with the one they played last and when. Click a friend for their characters, a character for its details. Friends who already share with you get **Ask for more**.
+- **More on the map tooltip**: a friend's spec, item level, how far into the level they are and professions, and on Forever which layer they're on when it isn't yours.
+
+### Fixes and tweaks
+
+- Friends' data stays fresh. After you switched character or relogged within two minutes, a friend's addon didn't answer your hello, so nothing reached them for the rest of the session. Alts you played while a friend was offline now catch up the next time you're both on, not only when they ask.
+- A friend's request after **Not now** shows again 10 minutes later instead of never this session, and their **Never** stops you asking for a day, not for good.
+- Live map positions update every 2 seconds instead of every 5, and never wait behind characters being sent.
+- The character you're on goes to friends every 5 minutes when it changed, not every 10.
+
 ## v0.39.8
 
 Update the addon with the app (it does this by itself) and /reload in game.
