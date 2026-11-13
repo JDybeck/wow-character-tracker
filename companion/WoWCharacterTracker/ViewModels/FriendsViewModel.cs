@@ -89,8 +89,7 @@ sealed class FriendsViewModel : Observable
         }
         Contacts.Fill(allRows, r => r.FriendTag, NameOf);
         Characters.Clear();
-        foreach (var r in allRows.Where(r => Contacts.Matches(r.FriendTag) && (ShowHidden || !config.HiddenFriendCharacters.Contains(r.Guid)))
-                     .OrderBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase))
+        foreach (var r in Ordered(allRows.Where(r => Contacts.Matches(r.FriendTag) && (ShowHidden || !config.HiddenFriendCharacters.Contains(r.Guid)))))
         {
             Characters.Add(r);
             _ = r.LoadPictureAsync(flavor);
@@ -101,6 +100,13 @@ sealed class FriendsViewModel : Observable
         Raise(nameof(HasHidden));
         Raise(nameof(HiddenText));
     }
+
+    // Grouped by friend on the page (FriendsPage groups by FriendName): friends by name, each friend's
+    // characters the one played last first, so the one they're on leads.
+    internal static IEnumerable<CharacterRow> Ordered(IEnumerable<CharacterRow> rows) =>
+        rows.OrderBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenByDescending(r => r.LastSeen)
+            .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase);
 
     void SetHidden(object? p, bool hidden)
     {

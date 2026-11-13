@@ -123,7 +123,22 @@ public class TodayStatsTests
 
         Assert.Equal("1 levels, 3 quests", Text("a"));
         Assert.Equal("3 levels, 8 quests", Text(null));
-        Assert.Equal(["a", "b"], TodayStats.Characters(events, days, Now).Order());
+    }
+
+    // Each character that did something today, with only what it did; logging in alone (the day
+    // counters start with the same item level and gold) doesn't count.
+    [Fact]
+    public void Each_character_lists_only_what_it_did_today()
+    {
+        var events = new List<Entry> { new() { Id = "1", Guid = "druid", Kind = "level", At = At(10) } };
+        var days = new List<DayTotals>
+        {
+            new("druid", "2026-11-09", 40, 40, 100, 100, 4, 12, 0, 0, 0),
+            new("alt", "2026-11-09", 30, 30, 5000, 5000, 0, 0, 0, 0, 0), // logged in, nothing else
+        };
+        var done = TodayStats.ByCharacter(events, days, new HashSet<string>(), keys: false, Now);
+        Assert.Equal(["druid"], done.Keys);
+        Assert.Equal("1 levels, 4 quests, 12 herbs", string.Join(", ", done["druid"].Select(s => $"{s.Value} {s.What}")));
     }
 
     [Fact]

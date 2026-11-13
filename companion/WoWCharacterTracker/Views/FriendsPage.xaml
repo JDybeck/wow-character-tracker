@@ -107,7 +107,25 @@
         <ListBox x:Name="CharacterList" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
                  Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}" Padding="0,6"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True"
-                 VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel">
+                 VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True" VirtualizingPanel.ScrollUnit="Pixel">
+          <!-- A header per friend (FriendsPage groups by FriendName): their name and when their newest
+               character was seen (the rows come newest first). -->
+          <ListBox.GroupStyle>
+            <GroupStyle>
+              <GroupStyle.HeaderTemplate>
+                <DataTemplate DataType="{x:Type CollectionViewGroup}">
+                  <Border Margin="23,12,23,4" Padding="0,0,0,6" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+                    <TextBlock FontSize="13">
+                      <Run Text="{Binding Name, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                      <Run Text="   "/>
+                      <Run Text="last seen" Foreground="{StaticResource Dim}"/>
+                      <Run Text="{Binding Items[0].LastSeenText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
+                    </TextBlock>
+                  </Border>
+                </DataTemplate>
+              </GroupStyle.HeaderTemplate>
+            </GroupStyle>
+          </ListBox.GroupStyle>
           <ListBox.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:CharacterRow}">
               <StackPanel>

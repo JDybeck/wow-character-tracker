@@ -66,6 +66,19 @@ public class FriendsViewModelTests
         Assert.Equal("Z", f.Vm.Characters.First().FriendName);
     }
 
+    // The page groups by friend: friends by name (their nickname when set), each one's characters
+    // the one seen last first.
+    [Fact]
+    public void Characters_come_by_friend_the_newest_first()
+    {
+        var f = new Fixture();
+        Assert.Equal(["Kalle", "Zeb", "Zebalt"], f.Vm.Characters.Select(c => c.Name));
+        f.Config.FriendNicknames["Zeb#2222"] = "Aaron";
+        f.Vm.Show(f.Data);
+        Assert.Equal(["Zeb", "Zebalt", "Kalle"], f.Vm.Characters.Select(c => c.Name));
+        Assert.Equal(["Aaron", "Aaron", "Kalle#3333"], f.Vm.Characters.Select(c => c.FriendName));
+    }
+
     [Fact]
     public void Hidden_friend_characters_fold_away()
     {
