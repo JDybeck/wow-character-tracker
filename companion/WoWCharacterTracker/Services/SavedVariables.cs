@@ -157,6 +157,7 @@ static class SavedVariables
                 XpMax = (long)N(t, "xpMax"),
                 MaxLevel = (int)N(t, "maxLevel"),
                 LevelTime = (long)N(t, "levelTime"),
+                Recipes = S(t, "recipes"),
             });
         }
 

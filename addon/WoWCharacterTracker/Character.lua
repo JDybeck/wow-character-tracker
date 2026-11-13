@@ -459,6 +459,7 @@ function ns.characterInfo(forEvent)
     zone = safe(getZone),
     zoneType = safe(getZoneType),
     professions = safe(ns.professionText),
+    recipes = not forEvent and safe(ns.ownRecipeText) or nil, -- saved file and friends only (Recipes.lua)
     talents = talents,
     talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)
     talentExport = not forEvent and safe(getTalentExport) or nil, -- saved file and check-in only
@@ -500,7 +501,7 @@ end
 -- Values that come back empty keep what was saved before instead of wiping it.
 -- (Ratings read as none until the game has answered RequestRatedInfo, so they keep the last known
 -- values too. Money has its own rule below.)
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "zone", "played", "crests", "mplusScore", "pvpRatings" }
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "recipes", "zone", "played", "crests", "mplusScore", "pvpRatings" }
 
 -- atLogout: true from the logout (a ticker passes itself, so only true counts), where 0 money isn't real.
 function ns.saveSnapshot(atLogout)

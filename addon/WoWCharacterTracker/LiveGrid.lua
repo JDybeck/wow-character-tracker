@@ -16,7 +16,7 @@ local SHORT = {
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
 -- code also rides along with the check-in after login, so the Wowhead link shows right away.)
-local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true }
+local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true, recipes = true }
 
 -- Left out: talentExport except on the check-in, and maxLevel unless it's true (a level-up that
 -- reached max); elsewhere it holds the level cap (characterInfo), which the app must not read as that.

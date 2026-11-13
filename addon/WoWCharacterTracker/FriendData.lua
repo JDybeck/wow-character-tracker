@@ -27,6 +27,8 @@ local FIELDS = {
   enchants = { kind = "string", max = 2048, category = "gear", lines = true },
   zone = { kind = "string", max = 64, category = "location" },
   professions = { kind = "string", max = 256, category = "professions" },
+  -- Known recipes: "Profession~id,id" lines (Recipes.lua), cut at whole ids (encodeRecipes).
+  recipes = { kind = "string", max = 3000, category = "professions", lines = true },
   money = { kind = "number", category = "gold" },
   highlights = { kind = "string", max = 1024, category = "highlights", lines = true },
   -- Leveling: level times as "level~seconds~at" lines, played, time on this level, the XP bar.
@@ -37,7 +39,8 @@ local FIELDS = {
   xpMax = { kind = "number", category = "leveling" },
   maxLevel = { kind = "number", category = "leveling" },
 }
-local MAX_TEXT = 8192
+local MAX_TEXT = 12288
+local OLD_MAX_TEXT = 8192
 -- Sent, but left out of the change key like `at`: they tick along while nothing else changes.
 local VOLATILE = { at = true, played = true, levelTime = true, xp = true }
 local MAX_LEVELS = 80
@@ -146,6 +149,73 @@ local function encodeLevels(levels)
   return #lines > 0 and table.concat(lines, "\n") or nil
 end
 
+-- Recipes (Recipes.lua) are "Profession~Category=id,id/Category=id" lines. Parsed here, without game
+-- calls, so friends' recipes and the tests read them the same way.
+
+-- A category name without the text's separators.
+function ns.cleanRecipeCategory(name)
+  return type(name) == "string" and (name:gsub("[=/~,\n|]", "")) or ""
+end
+
+-- "Camping=2660/Reagents=3115,3116" as { { name = "Camping", ids = { 2660 } }, ... }; ids without a
+-- category ("2329,2330") get the name "".
+function ns.recipeGroups(text)
+  local groups = {}
+  for part in string.gmatch(text or "", "[^/]+") do
+    local name, ids = part:match("^([^=]*)=(.*)$")
+    if not name then name, ids = "", part end
+    local list = {}
+    for id in string.gmatch(ids, "%d+") do list[#list + 1] = tonumber(id) end
+    if #list > 0 then groups[#groups + 1] = { name = name, ids = list } end
+  end
+  return groups
+end
+
+-- The recipe lines that fit in FIELDS.recipes.max, in their order: whole ids only, and nothing after
+-- the first one that doesn't fit. Nil without any.
+local function encodeRecipes(text)
+  if type(text) ~= "string" then return nil end
+  local lines, size, max, full = {}, 0, FIELDS.recipes.max, false
+  for line in string.gmatch(text, "[^\n]+") do
+    local profession, rest = line:match("^([^~]+)~(.+)$")
+    if full then break end
+    if profession then
+      local parts, used = {}, #profession + 2 -- the ~ and the line break
+      for _, g in ipairs(ns.recipeGroups(rest)) do
+        local head = ns.cleanRecipeCategory(g.name) .. "="
+        local ids, cost = {}, #head + 1 -- the /
+        for _, id in ipairs(g.ids) do
+          local s = tostring(id)
+          if size + used + cost + #s + 1 > max then full = true break end
+          ids[#ids + 1] = s
+          cost = cost + #s + 1
+        end
+        if #ids > 0 then
+          parts[#parts + 1] = head .. table.concat(ids, ",")
+          used = used + cost
+        end
+        if full then break end
+      end
+      if #parts > 0 then
+        lines[#lines + 1] = profession .. "~" .. table.concat(parts, "/")
+        size = size + used
+      end
+    end
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
+-- A friend character's recipes: { { profession, groups = { { name, ids } } } }; bad lines skipped.
+function ns.friendRecipes(c)
+  local out = {}
+  for line in string.gmatch(c and c.recipes or "", "[^\n]+") do
+    local profession, rest = line:match("^([^~]+)~(.+)$")
+    local groups = profession and ns.recipeGroups(rest) or {}
+    if #groups > 0 then out[#out + 1] = { profession = profession, groups = groups } end
+  end
+  return out
+end
+
 -- A friend character's level times, oldest first: { level, seconds, at }; bad lines are skipped.
 function ns.friendLevels(c)
   local out = {}
@@ -181,6 +251,24 @@ function ns.friendHighlights(c)
   return out
 end
 
+-- The allowed values as sorted "key=value" parts (the same character is the same text), the
+-- volatile ones and `at` last. Returns the text and the change key (the text without those).
+local function joinFields(values, allowed)
+  local parts, volatile = {}, {}
+  for key, field in pairs(FIELDS) do
+    local v = values[key]
+    if key ~= "at" and type(v) == field.kind and (not field.category or allowed[field.category]) then
+      local part = key .. "=" .. escape(tostring(v))
+      if VOLATILE[key] then volatile[#volatile + 1] = part else parts[#parts + 1] = part end
+    end
+  end
+  table.sort(parts)
+  table.sort(volatile)
+  local key = table.concat(parts, ";")
+  volatile[#volatile + 1] = "at=" .. tostring(values.at or 0)
+  return key .. ";" .. table.concat(volatile, ";"), key
+end
+
 -- The text for one of your characters, and the same without the volatile fields (`at` changes with
 -- every snapshot, so change detection compares that one). allowed: the categories the friend may
 -- see; events: the character's highlights (ns.isFriendHighlight), or nil; levels: its level times.
@@ -191,19 +279,14 @@ function ns.encodeFriendChar(guid, char, items, allowed, events, levels)
   values.gear, values.enchants = items and items.gear, items and items.enchants
   values.highlights = allowed.highlights and encodeHighlights(events, allowed) or nil
   values.levels = allowed.leveling and encodeLevels(levels) or nil
-  local parts, volatile = {}, {}
-  for key, field in pairs(FIELDS) do
-    local v = values[key]
-    if key ~= "at" and type(v) == field.kind and (not field.category or allowed[field.category]) then
-      local part = key .. "=" .. escape(tostring(v))
-      if VOLATILE[key] then volatile[#volatile + 1] = part else parts[#parts + 1] = part end
-    end
+  values.recipes = encodeRecipes(char.recipes)
+  local text, key = joinFields(values, allowed)
+  -- Addons before recipes take at most OLD_MAX_TEXT and drop the whole character above it.
+  if #text > OLD_MAX_TEXT and values.recipes then
+    values.recipes = nil
+    text, key = joinFields(values, allowed)
   end
-  table.sort(parts) -- the same character is the same text
-  table.sort(volatile)
-  local key = table.concat(parts, ";")
-  volatile[#volatile + 1] = "at=" .. tostring(values.at or 0)
-  return key .. ";" .. table.concat(volatile, ";"), key
+  return text, key
 end
 
 -- A friend character's gear in slot order: { slot, id, enchant, enchantId } (enchant and

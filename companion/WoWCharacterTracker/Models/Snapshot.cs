@@ -1,13 +1,14 @@
 namespace WoWCharacterTracker.Models;
 
 // The latest state of a character, saved by the addon on every /played, /reload and logout.
-// Xp, XpMax, MaxLevel and LevelTime (played on the current level) come from the saved file only.
+// Xp, XpMax, MaxLevel, LevelTime (played on the current level) and Recipes ("Alchemy~2329,2330" lines,
+// ProfessionSkills.Recipes) come from the saved file only.
 record Snapshot(string Guid, string Char, string Realm, int Level, string Class, string ClassFile,
     string Race, string RaceFile, string Sex, string Spec, string Role, double ItemLevel, long Played,
     string Zone, string Professions, string Talents, long LastSeen, bool Hardcore, string Ruleset,
     long Money = 0, string Crests = "", string? Guild = null, string Surname = "", string TalentPicks = "", string TalentExport = "",
     string Stats = "", string TalentCalc = "", string Region = "", long Xp = 0, long XpMax = 0, int MaxLevel = 0,
-    string Keystone = "", string ZoneType = "", int MplusScore = 0, string PvpRatings = "", string Faction = "", long LevelTime = 0)
+    string Keystone = "", string ZoneType = "", int MplusScore = 0, string PvpRatings = "", string Faction = "", long LevelTime = 0, string Recipes = "")
 {
     // The character as an event (or live check-in) describes it. Read with the same keys as events
     // (Entry.From), so a new character field is added there once; what only the saved file has

@@ -52,6 +52,10 @@ sealed class CharacterRow : Observable
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
+    public string Recipes { get; init; } = "";      // "Alchemy~Potions=2330/Elixirs=2329" lines (ProfessionSkills.Recipes)
+    IReadOnlyDictionary<string, IReadOnlyList<RecipeGroup>>? recipeLists;
+    public IReadOnlyList<RecipeGroup> RecipesOf(string profession) =>
+        (recipeLists ??= ProfessionSkills.Recipes(Recipes)).GetValueOrDefault(profession) ?? [];
     // The lists below are made once per row (its data never changes; a sync builds new rows), not on
     // every read: bindings, sorting and the card all read them.
     IReadOnlyList<(string Name, string Value)>? statList;
@@ -143,11 +147,12 @@ sealed class CharacterRow : Observable
     // The tab's shared lookup of everything from the game (FlavorViewModel.Lookup).
     public GameLookup? Lookup { private get; init; }
 
+    // Crests, talents, loot and recipes are things from the game, so they get the same ItemInfo (and
+    // the same tooltip and Wowhead link, Ui/ItemTip) as items in bags.
+    public ItemInfo? Find(string type, int id) => id > 0 ? Lookup?.For(type, id) : null;
+
     async Task LoadIcons(Flavor flavor)
     {
-        // Crests, talents and loot are things from the game, so they get the same ItemInfo (and the
-        // same tooltip and Wowhead link, Ui/ItemTip) as items in bags.
-        ItemInfo? Find(string type, int id) => id > 0 ? Lookup?.For(type, id) : null;
         CrestList = CrestChips(Crests);
         foreach (var chip in CrestList) chip.Info = Find("currency", chip.Tag);
         ProfessionList = ProfessionChips(Professions);
@@ -336,6 +341,7 @@ sealed class CharacterRow : Observable
                 TalentCalc = Newest(guid, c => c.TalentCalc),
                 Region = Newest(guid, c => c.Region),
                 Stats = Newest(guid, c => c.Stats),
+                Recipes = Newest(guid, c => c.Recipes),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", e.Seconds > 0 ? Format.Duration(e.Seconds) : "?", e.Zone, When(e.At)))
