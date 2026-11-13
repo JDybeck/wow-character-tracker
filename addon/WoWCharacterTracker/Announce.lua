@@ -77,19 +77,33 @@ local function chatSender()
   return (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
 end
 
+-- What happened to the last line, for /wct debug: the game refusing a send is otherwise silent.
+local function sendTo(say, msg, channel)
+  local ok, err = pcall(say, msg, channel)
+  ns.lastChatSend = string.format("%s: %s", channel, ok and "sent" or tostring(err))
+end
+
 -- line = { msg, guild = true/nil, party = true/nil }: which chats get it was settled in ns.announce.
 local function send(line)
   local say = chatSender()
-  if type(say) ~= "function" then return end
+  if type(say) ~= "function" then
+    ns.lastChatSend = "no chat function"
+    return
+  end
   local msg = line.msg
-  if line.guild and IsInGuild and IsInGuild() then pcall(say, msg, "GUILD") end
+  if line.guild then
+    if IsInGuild and IsInGuild() then sendTo(say, msg, "GUILD") else ns.lastChatSend = "not in a guild" end
+  end
   if line.party and IsInGroup and IsInGroup() then
     local channel = "PARTY"
     if IsInRaid and IsInRaid() then channel = "RAID"
     elseif LE_PARTY_CATEGORY_HOME and not IsInGroup(LE_PARTY_CATEGORY_HOME) then channel = "INSTANCE_CHAT" end -- only a dungeon finder group
-    pcall(say, msg, channel)
+    sendTo(say, msg, channel)
   end
 end
+
+-- For /wct debug: lines still waiting (combat, chat lockdown or spacing).
+function ns.pendingAnnouncements() return #pending end
 
 -- How long until another line may go: 0 for now.
 local function waitBeforeNext()
