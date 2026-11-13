@@ -80,6 +80,34 @@ public class FriendsViewModelTests
         Assert.Equal([2000, 2000, 1500], f.Vm.Characters.Select(c => c.FriendSynced)); // when each friend was last heard from (seen)
     }
 
+    // The grid of friends follows the dragged order (shared with the addon), the others by name;
+    // dragging moves the card and letting go hands the new order on. A click lists only that friend.
+    [Fact]
+    public void Friend_cards_follow_the_dragged_order_and_pick_a_friend()
+    {
+        var f = new Fixture();
+        Assert.Equal(["Kalle#3333", "Zeb#2222"], f.Vm.Cards.Select(c => c.Tag)); // by name
+        Assert.Equal("Zeb", f.Vm.Cards[1].Current.Name); // the one played last
+        Assert.Equal("2 characters", f.Vm.Cards[1].CountText);
+
+        f.Config.FriendOrder = ["Zeb#2222"];
+        f.Vm.Show(f.Data);
+        Assert.Equal(["Zeb#2222", "Kalle#3333"], f.Vm.Cards.Select(c => c.Tag));
+        Assert.Equal(["Zeb", "Zebalt", "Kalle"], f.Vm.Characters.Select(c => c.Name)); // the list follows it
+
+        IReadOnlyList<string>? kept = null;
+        f.Vm.OrderChanged += o => kept = o;
+        f.Vm.MoveCard(f.Vm.Cards[1], 0);
+        f.Vm.KeepOrder();
+        Assert.Equal(["Kalle#3333", "Zeb#2222"], kept);
+
+        f.Vm.SelectFriendCommand.Execute(f.Vm.Cards.Single(c => c.Tag == "Zeb#2222"));
+        Assert.Equal(["Zeb", "Zebalt"], f.Vm.Characters.Select(c => c.Name));
+        Assert.True(f.Vm.Cards.Single(c => c.Tag == "Zeb#2222").IsSelected);
+        f.Vm.SelectFriendCommand.Execute(f.Vm.Cards.Single(c => c.Tag == "Zeb#2222")); // again: everyone
+        Assert.Equal(3, f.Vm.Characters.Count);
+    }
+
     [Fact]
     public void Hidden_friend_characters_fold_away()
     {

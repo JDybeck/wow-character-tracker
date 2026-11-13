@@ -1,4 +1,4 @@
-﻿using MoonSharp.Interpreter;
+using MoonSharp.Interpreter;
 
 namespace WoWCharacterTracker.Tests;
 
@@ -469,13 +469,38 @@ public class AddonWindowTests
         ns.pendingRequests = function() return requests end
         ns.answerFriendRequest = function(f, choice) call(f.tag .. ' ' .. choice) end
         ns.sharedWithYou = function() return shared end
-        -- A friend's card (it has the +/-) by the character name on it, and a click on it.
+        -- A friend's card in the grid (it has the online dot) by the character name on it, and a click on it.
         function friendCard(name)
           for _, fs in ipairs(strings) do
-            if onScreen(fs) and fs.text == name and fs.owner.fold then return fs.owner end
+            if onScreen(fs) and fs.text == name and fs.owner.dot then return fs.owner end
           end
         end
         function openFriend(name) local card = friendCard(name); card.scripts.OnMouseUp(card) end
+        -- The open friend's section (it has the nickname box), opened for name when it isn't yet.
+        function section()
+          for _, f in ipairs(frames) do
+            if f.nickname and onScreen(f) then return f end
+          end
+        end
+        function showFriend(name)
+          local card = friendCard(name)
+          local s = section()
+          if not (s and s.tag == card.tag) then card.scripts.OnMouseUp(card) end
+          return section()
+        end
+        -- The shown buttons of name's section as "A,B", and a click on one.
+        function friendButtons(name)
+          local s, out = showFriend(name), {}
+          for _, b in ipairs({ s.b1, s.b2 }) do if onScreen(b) then out[#out + 1] = b.text end end
+          return table.concat(out, ',')
+        end
+        function clickFriend(name, label)
+          local s = showFriend(name)
+          for _, b in ipairs({ s.b1, s.b2 }) do
+            if onScreen(b) and b.text == label then return b.scripts.OnClick(b) end
+          end
+          error('no ' .. label .. ' for ' .. name)
+        end
         -- A character row (it has the when text) by its name.
         function charRow(name)
           for _, fs in ipairs(strings) do
@@ -510,6 +535,66 @@ public class AddonWindowTests
         Assert.True(Bool(c, "charRow('Cidrin Frostmane') == nil"));
     }
 
+    // Dragging a friend moves the others aside while you drag; letting go keeps the order (shared
+    // with the app), and the grid shows it from then on.
+    [Fact]
+    public void Dragging_a_friend_sets_the_order()
+    {
+        var c = FriendsTab();
+        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
+        c.Lua("""
+            function order()
+              local out = {}
+              for _, name in ipairs({ 'Annie', 'Bobo', 'Cidro' }) do out[#out + 1] = name .. '@' .. friendCard(name).point[4] end
+              return table.concat(out, ' ')
+            end
+            page = friendCard('Annie').parent
+            page.GetLeft = function() return 0 end
+            page.GetTop = function() return 1000 end
+            cursorX, cursorY = 0, 0
+            function GetCursorPosition() return cursorX, cursorY end
+            """);
+        var before = c.Lua("return order()").String;
+        c.Lua("""
+            local cid = friendCard('Cidro')
+            gridTop = -cid.point[5]
+            cid.scripts.OnDragStart(cid)
+            cursorX, cursorY = 20, 1000 - gridTop - 10 -- over the first slot, top left
+            cid.scripts.OnUpdate(cid)
+            moved = order() -- while dragging: Annie and Bobo moved aside
+            cid.scripts.OnDragStop(cid)
+            cid.scripts.OnMouseUp(cid) -- the click that ends a drag doesn't open the friend
+            """);
+        Assert.NotEqual(before, c.Lua("return moved").String);
+        Assert.True(Bool(c, "friendCard('Cidro').point[4] < friendCard('Annie').point[4]")); // Cidro first now
+        Assert.Equal("Cid#3", c.Lua("return WoWCharacterTrackerDB.friendOrder.tags[1]").String);
+        Assert.True(Bool(c, "section() == nil"));
+        c.Call("friendsChanged");
+        Assert.True(Bool(c, "friendCard('Cidro').point[4] < friendCard('Annie').point[4]")); // kept
+    }
+
+    // The grip resizes the window: the size is kept, and the Friends grid fits more columns.
+    [Fact]
+    public void Resizing_the_window_keeps_the_size_and_widens_the_friends_grid()
+    {
+        var c = FriendsTab();
+        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "friendCard('Danno').point[5] ~= friendCard('Annie').point[5]")); // 3 columns: Danno on row 2
+        c.Lua("""
+            win = named('WoWCharacterTrackerWindow')
+            win.GetWidth = function() return 1240 end
+            win.GetHeight = function() return 800 end
+            for _, f in ipairs(frames) do
+              if f.parent == win and f.kind == 'Button' and f.scripts.OnMouseDown then grip = f end
+            end
+            grip.scripts.OnMouseDown(grip)
+            grip.scripts.OnMouseUp(grip)
+            """);
+        Assert.Equal(1240, Num(c, "WoWCharacterTrackerDB.window.width"));
+        Assert.Equal(800, Num(c, "WoWCharacterTrackerDB.window.height"));
+        Assert.True(Bool(c, "friendCard('Danno').point[5] == friendCard('Annie').point[5]")); // 5 columns: all on row 1
+    }
+
     // A friend who's offline shows the character seen last; online friends come first.
     [Fact]
     public void An_offline_friend_shows_the_character_seen_last()
@@ -523,7 +608,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
         Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  Cid#3  ·  last seen 2h ago') ~= nil"));
         Assert.True(Bool(c, "shownText('Level 12  ·  Bobby (Bob#2)  ·  online') ~= nil"));
-        Assert.True(Bool(c, "friendCard('Bobo').point[5] > friendCard('Cidrin Frostmane').point[5]")); // online above (y goes down)
+        Assert.True(Bool(c, "friendCard('Bobo').point[4] < friendCard('Cidrin Frostmane').point[4]")); // online first, top left
     }
 
     // A click on a character unfolds its info under the row and its gear beside the window; the
@@ -648,15 +733,15 @@ public class AddonWindowTests
         c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
         Assert.Equal("find", Calls(c));
 
-        Assert.True(Bool(c, "shownText('Checking...') ~= nil"));
-        Assert.Equal("", c.Lua("return rowButtons('Annie')").String);
-        Assert.Equal("Ask,Share", c.Lua("return rowButtons('Bobo')").String);
+        Assert.Equal("", c.Lua("return friendButtons('Annie')").String);
+        Assert.True(Bool(c, "shownText('Checking...') ~= nil")); // the open friend's state
+        Assert.Equal("Ask,Share", c.Lua("return friendButtons('Bobo')").String);
         Assert.True(Bool(c, "shownText('Level 12  ·  Bobby (Bob#2)  ·  online') ~= nil")); // level, then the label (nickname) and BattleTag
-        Assert.Equal("Sharing,Ask for more", c.Lua("return rowButtons('Cidro')").String); // they share with you already
+        Assert.Equal("Sharing,Ask for more", c.Lua("return friendButtons('Cidro')").String); // they share with you already
         Assert.True(Bool(c, "shownText('You share, shares with you') ~= nil"));
-        Assert.Equal("Invite", c.Lua("return rowButtons('Danno')").String);
-        Assert.Equal("Invited", c.Lua("return rowButtons('Evie')").String);
-        Assert.Equal("", c.Lua("return rowButtons('Fayla')").String);
+        Assert.Equal("Invite", c.Lua("return friendButtons('Danno')").String);
+        Assert.Equal("Invited", c.Lua("return friendButtons('Evie')").String);
+        Assert.Equal("", c.Lua("return friendButtons('Fayla')").String);
         Assert.True(Bool(c, "shownText('Blocked') ~= nil"));
 
         // The class color from RAID_CLASS_COLORS, white without one.
@@ -688,16 +773,16 @@ public class AddonWindowTests
         var c = FriendsTab();
         c.Lua(AskStubs.Replace("call(", "table.insert(calls, "));
         c.Lua("online[3].sharesWithYou = false; shared = {}; local b = find('Find online friends'); b.scripts.OnClick(b); calls = {}");
-        Assert.Equal("Sharing,Ask again", c.Lua("return rowButtons('Cidro')").String);
-        c.Lua("clickIn('Bobo', 'Ask')");
+        Assert.Equal("Sharing,Ask again", c.Lua("return friendButtons('Cidro')").String);
+        c.Lua("clickFriend('Bobo', 'Ask')");
         Assert.True(Bool(c, "onScreen(askBox())"));
         c.Lua("pressAsk()");
         Assert.False(Bool(c, "onScreen(askBox())"));
-        c.Lua("clickIn('Bobo', 'Share')");
-        c.Lua("clickIn('Cidro', 'Ask again')");
+        c.Lua("clickFriend('Bobo', 'Share')");
+        c.Lua("clickFriend('Cidro', 'Ask again')");
         c.Lua("pressAsk()");
-        c.Lua("clickIn('Danno', 'Invite')");
-        c.Lua("clickIn('Evie', 'Invited')"); // invited within a day: does nothing
+        c.Lua("clickFriend('Danno', 'Invite')");
+        c.Lua("clickFriend('Evie', 'Invited')"); // invited within a day: does nothing
         Assert.Equal("ask Bob#2;share Bob#2;ask Cid#3;invite Dan#4", Calls(c));
         Assert.True(Bool(c, "shownText('Invited Dan#4.') ~= nil")); // what it said, in the tab
     }
@@ -710,7 +795,7 @@ public class AddonWindowTests
         var c = FriendsTab();
         c.Lua(AskStubs.Replace("call(", "table.insert(calls, "));
         c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
-        c.Lua("clickIn('Bobo', 'Ask')");
+        c.Lua("clickFriend('Bobo', 'Ask')");
         Assert.True(Bool(c, "shownText('Ask Bob#2 to share their characters with you.') ~= nil"));
         Assert.True(Bool(c, "shownText('You share') ~= nil and shownText('You ask for') ~= nil"));
         c.Lua("pressAsk()");
@@ -718,13 +803,13 @@ public class AddonWindowTests
         Assert.Equal("gear,talents,location,professions,highlights,leveling", c.Lua("return askedWith.wants").String);
         Assert.True(Bool(c, "shownText('Asked Bob#2.') ~= nil"));
 
-        c.Lua("clickIn('Bobo', 'Ask')");
+        c.Lua("clickFriend('Bobo', 'Ask')");
         c.Lua("local b = askBox(); b.give.gear = false; b.ask.map = true");
         c.Lua("pressAsk()");
         Assert.Equal("talents,location,professions,highlights,leveling", c.Lua("return askedWith.give").String);
         Assert.EndsWith(",map", c.Lua("return askedWith.wants").String);
 
-        c.Lua("clickIn('Bobo', 'Ask')");
+        c.Lua("clickFriend('Bobo', 'Ask')");
         c.Lua("click('Send them mine too')");
         c.Lua("pressAsk()");
         Assert.Equal("nothing", c.Lua("return askedWith.give").String);
@@ -1009,7 +1094,7 @@ public class AddonWindowTests
         var c = FriendsTab();
         c.Lua(SharingStubs);
         c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
-        c.Lua("clickIn('Cidro', 'Sharing')");
+        c.Lua("clickFriend('Cidro', 'Sharing')");
         Assert.True(Bool(c, "onScreen(sharingPanel())"));
         Assert.True(Bool(c, "shownText('Cid#3') ~= nil"));
         Assert.Equal("Gear: like all friends (on);Talents: like all friends (on);Location: like all friends (on);Professions: like all friends (on);Highlights: like all friends (on);Level times: like all friends (on);Gold: like all friends (off);Map position: like all friends (off);Map for the other faction: like all friends (off)",
@@ -1034,7 +1119,7 @@ public class AddonWindowTests
         Assert.False(Bool(c, "ns.shareSettings().contacts['Cid#3'].receive"));
 
         // The same button again closes it; a character's details take its place.
-        c.Lua("clickIn('Cidro', 'Sharing')");
+        c.Lua("clickFriend('Cidro', 'Sharing')");
         Assert.False(Bool(c, "onScreen(sharingPanel())"));
     }
 
@@ -1044,7 +1129,7 @@ public class AddonWindowTests
     {
         var c = FriendsTab();
         c.Lua(SharingStubs);
-        c.Lua("clickIn('Cidro', 'Sharing')");
+        c.Lua("clickFriend('Cidro', 'Sharing')");
         c.Lua("""
             for _, f in ipairs(frames) do
               if f.parent == sharingPanel() and f.kind == 'EditBox' then box = f end
@@ -1065,7 +1150,7 @@ public class AddonWindowTests
         c.Lua(SharingStubs);
         c.Lua("asked = {}; ns.askFriend = function(tag, wants) asked = { tag = tag, wants = table.concat(wants, ',') }; return 'Asked them.' end");
         c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
-        c.Lua("clickIn('Cidro', 'Sharing')");
+        c.Lua("clickFriend('Cidro', 'Sharing')");
         Assert.True(Bool(c, "shownText('Ask them to share:') ~= nil"));
         c.Lua("""
             function chip(label)
@@ -1165,7 +1250,7 @@ public class AddonWindowTests
         var c = GearTab();
         c.Lua(SharingStubs);
         c.Call("friendsChanged");
-        c.Lua("clickIn('Cidro', 'Sharing')");
+        c.Lua("clickFriend('Cidro', 'Sharing')");
         Assert.True(Bool(c, "onScreen(sharingPanel())"));
         c.Lua("clickChar('Cidra')");
         Assert.True(Bool(c, "onScreen(panel())"));

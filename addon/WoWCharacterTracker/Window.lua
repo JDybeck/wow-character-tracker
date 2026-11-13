@@ -13,6 +13,9 @@ local AREA_HEIGHT = HEIGHT - TITLE_BAR - TAB_BAR - 8 -- below the title and the 
 local PAGE_WIDTH = WIDTH - 50
 
 local window, area, version
+
+-- The width tab pages have now: the window can be made wider than WIDTH (the grip, bottom right).
+local function pageWidth() return ((window and window:GetWidth()) or WIDTH) - 50 end
 local tabs = {}  -- [key] = { button, holder, page }
 local current
 
@@ -1059,8 +1062,8 @@ end
 -- One row per friend: contacts, whoever shares with you, and (after Find online friends) everyone
 -- online here. { tag, label, online (their first game account's row of ns.onlineFriends, or nil),
 -- contact, blocked, hasAddon, invitedAt, sharesWithYou, chars (shared, newest first), current (the
--- one being played, else the one seen last, else nil) }. Online first by label, then by when they
--- were last seen.
+-- one being played, else the one seen last, else nil) }. In the order you dragged them into, the
+-- others after it: online first by label, then by when they were last seen.
 local function friendRows(online, shared)
   local s = ns.shareSettings and ns.shareSettings() or { contacts = {}, blocked = {} }
   local byTag, list = {}, {}
@@ -1093,7 +1096,15 @@ local function friendRows(online, shared)
   for _, p in ipairs(list) do
     if p.online then p.current = onlineChar(p.online, p.chars) else p.current = p.chars[1] end
   end
+  -- The order you dragged them into (ns.friendOrder) first, then the rest as before.
+  local rank = {}
+  for i, tag in ipairs(ns.friendOrder and ns.friendOrder() or {}) do rank[tag] = rank[tag] or i end
   table.sort(list, function(x, y)
+    local rx, ry = rank[x.tag], rank[y.tag]
+    if rx or ry then
+      if rx and ry then return rx < ry end
+      return rx ~= nil
+    end
     if (x.online ~= nil) ~= (y.online ~= nil) then return x.online ~= nil end
     if not x.online and lastSeenAt(x) ~= lastSeenAt(y) then return lastSeenAt(x) > lastSeenAt(y) end
     return (x.label or x.tag):lower() < (y.label or y.tag):lower()
@@ -1195,8 +1206,21 @@ local function setCharRow(row, c)
   row.when:SetText(ago(c.received or c.at))
 end
 
+-- The Friends tab: a grid of friends (as many columns as the window's width fits) in the order you drag them into (shared with
+-- the app through ns.setFriendOrder), each showing the character they play or played last. A click
+-- opens the friend's section under their row: nickname, state and buttons, and their characters.
+local GRID_MIN_CARD, GRID_GAP, GRID_CARD = 210, 8, 64
+local SECTION_TOP = 74 -- the friend section's header, above their characters
+
 local function buildFriends(p)
-  local width = PAGE_WIDTH - 30
+  -- The room the window gives now (it can be resized): the grid's columns and card width follow it.
+  local width, columns, cardWidth
+  local function measure()
+    width = pageWidth() - 30
+    columns = math.max(1, math.floor((width + GRID_GAP) / (GRID_MIN_CARD + GRID_GAP)))
+    cardWidth = math.floor((width - (columns - 1) * GRID_GAP) / columns)
+  end
+  measure()
   local friendsTitle = ui.heading(p, "Friends")
   local find = ui.button(p, "Find online friends", 150, function()
     searched = true
@@ -1204,7 +1228,7 @@ local function buildFriends(p)
     friendsSaid = ""
     drawFriends()
   end, "primary")
-  local hint = ui.text(p, "GameFontDisableSmall", "Online friends first, each with the character they play or played last. Click a friend for their characters, a character for its details. Find online friends checks who has the addon, it sends them nothing they can see.")
+  local hint = ui.text(p, "GameFontDisableSmall", "Click a friend for their characters and nickname. Drag a friend to put them where you want them, the app shows the same order. Find online friends checks who has the addon, it sends them nothing they can see.")
   hint:SetWidth(width - 170)
   local status = ui.text(p, "GameFontHighlightSmall")
   status:SetWidth(ui.WRAP)
@@ -1244,37 +1268,146 @@ local function buildFriends(p)
     return r
   end
 
-  -- A friend: +/- and their character, the state pill, up to two buttons. A click unfolds their
-  -- characters under it (and folds them again).
+  -- Grid placement: the top of the grid and the friend section's height after the open card's row.
+  local gridTop, sectionRow, sectionHeight = 0, nil, 0
+  local function slot(i)
+    local row, col = math.floor((i - 1) / columns), (i - 1) % columns
+    local y = gridTop + row * (GRID_CARD + GRID_GAP)
+    if sectionRow and row > sectionRow then y = y + sectionHeight end
+    return 16 + col * (cardWidth + GRID_GAP), y
+  end
+
+  -- Dragging: the card follows the cursor and the others move aside live; letting go keeps the order.
+  local dragging -- { card, order = { tags } }
+  local cardByTag = {}
+
+  local function placeDragged()
+    for i, tag in ipairs(dragging.order) do
+      local card = cardByTag[tag]
+      if card and card ~= dragging.card then place(card, p, slot(i)) end
+    end
+  end
+
+  -- The slot under the cursor, 1 to n.
+  local function slotUnderCursor(n)
+    local scale = (p.GetEffectiveScale and p:GetEffectiveScale()) or 1
+    local cx, cy = GetCursorPosition()
+    local x = (cx or 0) / scale - (p:GetLeft() or 0) - 16
+    local y = (p:GetTop() or 0) - (cy or 0) / scale - gridTop
+    local col = math.max(0, math.min(columns - 1, math.floor(x / (cardWidth + GRID_GAP))))
+    local row = math.max(0, math.floor(y / (GRID_CARD + GRID_GAP)))
+    return math.max(1, math.min(n, row * columns + col + 1))
+  end
+
+  local function dragUpdate(card)
+    if not dragging then return end
+    local order = dragging.order
+    local to = slotUnderCursor(#order)
+    for i, tag in ipairs(order) do
+      if tag == card.tag and i ~= to then
+        table.remove(order, i)
+        table.insert(order, to, tag)
+        placeDragged()
+        return
+      end
+    end
+  end
+
   local function newFriendCard()
-    local card = newCard(p, width)
-    card.fold = card:CreateTexture(nil, "ARTWORK")
-    card.fold:SetSize(14, 14)
-    card.fold:SetPoint("LEFT", card, "LEFT", 16, 0)
-    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 38, -6)
-    card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 38, -23)
-    card.infoText:SetWidth(width - 220)
+    local card = CreateFrame("Frame", nil, p)
+    card:SetSize(cardWidth, GRID_CARD)
+    card:EnableMouse(true)
+    card:SetMovable(true)
+    card:RegisterForDrag("LeftButton")
+    ui.box(card, C.card, C.border)
+    card.hover = card:CreateTexture(nil, "ARTWORK")
+    ui.fill(card.hover, C.hover)
+    card.hover:SetAllPoints()
+    card.hover:Hide()
+    card.stripe = card:CreateTexture(nil, "ARTWORK")
+    card.stripe:SetSize(3, GRID_CARD - 14)
+    card.stripe:SetPoint("LEFT", card, "LEFT", 7, 0)
+    card.dot = card:CreateTexture(nil, "ARTWORK")
+    card.dot:SetSize(7, 7)
+    card.dot:SetPoint("TOPRIGHT", card, "TOPRIGHT", -9, -10)
+    card.nameText = ui.text(card, "GameFontHighlight")
+    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -8)
+    card.nameText:SetWidth(cardWidth - 40)
+    card.nameText:SetWordWrap(false)
+    card.whoText = ui.text(card, "GameFontNormalSmall")
+    card.whoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -26)
+    card.whoText:SetWidth(cardWidth - 24)
+    card.whoText:SetWordWrap(false)
+    card.infoText = ui.text(card, "GameFontDisableSmall")
+    card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -43)
+    card.infoText:SetWidth(cardWidth - 24)
     card.infoText:SetWordWrap(false)
-    card.pill = CreateFrame("Frame", nil, card)
-    card.pill:SetHeight(16)
-    card.pill:SetPoint("LEFT", card.nameText, "RIGHT", 8, 0)
-    card.stateText = ui.text(card.pill, "GameFontHighlightSmall")
-    card.stateText:SetPoint("CENTER", card.pill, "CENTER", 0, 0)
-    card.b1, card.b2 = cardButton(card, 84), cardButton(card, 84)
+    card:SetScript("OnEnter", showHover)
+    card:SetScript("OnLeave", hideHover)
     card:SetScript("OnMouseUp", function(self)
+      if self.dragged then
+        self.dragged = nil
+        return
+      end
       if not self.tag then return end
       openFriendTag = openFriendTag ~= self.tag and self.tag or nil
+      drawFriends()
+    end)
+    card:SetScript("OnDragStart", function(self)
+      if not self.tag then return end
+      openFriendTag = nil
+      drawFriends()
+      dragging = { card = self, order = ns.copy(self.order or {}) }
+      self.dragged = true
+      self:SetFrameLevel((p:GetFrameLevel() or 1) + 20)
+      self:StartMoving()
+      self:SetScript("OnUpdate", dragUpdate)
+    end)
+    card:SetScript("OnDragStop", function(self)
+      self:StopMovingOrSizing()
+      if self.SetUserPlaced then self:SetUserPlaced(false) end
+      self:SetScript("OnUpdate", nil)
+      self:SetFrameLevel((p:GetFrameLevel() or 1) + 1)
+      if dragging and ns.setFriendOrder then ns.setFriendOrder(dragging.order) end
+      dragging = nil
       drawFriends()
     end)
     return card
   end
 
-  local function newCharCard() return newCharRow(p, width - 12) end
+  -- The open friend's section: who, their state and buttons, the nickname box, then their characters.
+  local section = CreateFrame("Frame", nil, p)
+  section:SetWidth(width)
+  ui.box(section, C.bar, C.accent)
+  section.title = ui.text(section, "GameFontNormal")
+  section.title:SetPoint("TOPLEFT", section, "TOPLEFT", 12, -10)
+  section.pill = CreateFrame("Frame", nil, section)
+  section.pill:SetHeight(16)
+  section.pill:SetPoint("LEFT", section.title, "RIGHT", 8, 0)
+  section.stateText = ui.text(section.pill, "GameFontHighlightSmall")
+  section.stateText:SetPoint("CENTER", section.pill, "CENTER", 0, 0)
+  section.b1, section.b2 = cardButton(section, 90), cardButton(section, 90)
+  section.b1:SetPoint("TOPRIGHT", section, "TOPRIGHT", -106, -8)
+  section.b2:SetPoint("TOPRIGHT", section, "TOPRIGHT", -10, -8)
+  local nickLabel = ui.text(section, "GameFontNormalSmall", "Nickname")
+  nickLabel:SetPoint("TOPLEFT", section, "TOPLEFT", 12, -42)
+  section.nickname = ui.inputBox(section, 220, 32, function(text)
+    if section.tag and ns.setFriendNickname then ns.setFriendNickname(section.tag, text) end
+    drawFriends()
+  end)
+  section.nickname:SetPoint("LEFT", nickLabel, "LEFT", 66, 0)
+  local nickHint = ui.text(section, "GameFontDisableSmall", "Enter saves, here and in the app. Empty clears it.")
+  nickHint:SetPoint("LEFT", section.nickname, "RIGHT", 10, 0)
+
+  local function newCharCard() return newCharRow(p, width - 24) end
   local expansion -- the open row's info (newExpansion), built on the first click
 
   local CHOICES = { { "Allow", "allow", "primary" }, { "Not now", "notnow" }, { "Never", "never" } }
 
   drawFriends = function()
+    if dragging then return end -- the drag places the cards; letting go redraws
+    measure()
+    section:SetWidth(width)
     local list = friendRows(rowsOf(ns.onlineFriends), rowsOf(ns.sharedWithYou))
     if revealKey then
       for _, person in ipairs(list) do
@@ -1291,7 +1424,7 @@ local function buildFriends(p)
     local function unfold(c, friend, y)
       if unfolded or expandedKey ~= charKey(c) then return y end
       unfolded = true
-      expansion = expansion or newExpansion(p, width - 12)
+      expansion = expansion or newExpansion(p, width - 24)
       local h = drawExpansion(expansion, c, friend)
       place(expansion, p, 28, y - 2)
       return y - 2 + h + 8
@@ -1307,6 +1440,7 @@ local function buildFriends(p)
     end
     for i, req in ipairs(requests) do
       local r = pooled(requestRows, i, newRequestRow)
+      r:SetWidth(width)
       r.line:SetText(who(req.label, req.tag) .. " " .. (req.asks or "wants to see your characters"))
       for j, choice in ipairs(CHOICES) do
         if req.more and choice[2] == "never" then
@@ -1327,6 +1461,7 @@ local function buildFriends(p)
 
     place(friendsTitle, p, 16, y)
     place(find, p, 16 + width - 150, y - 4)
+    hint:SetWidth(width - 170)
     y = y + 20
     place(hint, p, 16, y)
     y = y + textHeight(hint, 24) + 6
@@ -1344,58 +1479,98 @@ local function buildFriends(p)
       y = y + 20
     end
 
-    local cards, hiddenCount = 0, 0
+    -- The friend section goes under the open card's row: worked out first, so the rows below move down.
+    local order, openIndex, openPerson = {}, nil, nil
     for i, person in ipairs(list) do
-      local card = pooled(friendCards, i, newFriendCard)
-      local c, label = person.current, who(person.label, person.tag)
-      local isOpen = openFriendTag == person.tag
-      card.tag = person.tag
-      setCard(card, c and fullName(c) or label, c and c.classFile, friendInfo(person))
-      card.fold:SetTexture(isOpen and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
+      order[i] = person.tag
+      if person.tag == openFriendTag then openIndex, openPerson = i, person end
+    end
+    if openFriendTag and not openPerson then openFriendTag = nil end
+    gridTop, sectionRow, sectionHeight = y, nil, 0
+    local rows = math.ceil(#list / columns)
+
+    -- The section's content, placed from sectionY; returns its height.
+    local cards, hiddenCount = 0, 0
+    local function drawSection(sectionY)
+      local person, c = openPerson, openPerson.current
+      local label = who(person.label, person.tag)
+      section.tag = person.tag
+      section.title:SetText(label)
       local state, look, first, second = friendState(person)
-      card.stateText:SetText(state)
-      card.pill:SetWidth((card.stateText:GetStringWidth() or 60) + 14)
-      ui.box(card.pill, C.bar, look == "good" and C.good or (look == "bad" and C.bad or C.border))
-      for _, pair in ipairs({ { card.b1, first }, { card.b2, second } }) do
+      section.stateText:SetText(state)
+      section.pill:SetWidth((section.stateText:GetStringWidth() or 60) + 14)
+      ui.box(section.pill, C.bar, look == "good" and C.good or (look == "bad" and C.bad or C.border))
+      for _, pair in ipairs({ { section.b1, first }, { section.b2, second } }) do
         local b, what = pair[1], pair[2]
         if what then setButton(b, what[1], what[2] and act(what[2], person.tag), what[3]) else b:Hide() end
       end
-      alignButtons(card, { card.b1, card.b2 })
-      card:SetAlpha(person.online and 1 or 0.8)
-      place(card, p, 16, y)
-      y = y + CARD + 4
-
-      if isOpen then
-        -- The one being played first when it isn't shared, then what they share, newest first.
-        local chars = {}
-        if c and c.notShared then chars[1] = c end
-        for _, shared in ipairs(person.chars) do chars[#chars + 1] = shared end
-        if #chars == 0 then
-          place(nothingShared, p, 32, y + 2)
-          y = y + 22
-        end
-        for _, ch in ipairs(chars) do
-          local hidden = isHidden(ch)
-          if hidden then hiddenCount = hiddenCount + 1 end
-          if not hidden or showHidden then
-            cards = cards + 1
-            local row = pooled(charCards, cards, newCharCard)
-            row.char, row.friend = ch, label
-            if charKey(ch) == detailsKey then open, openFriend = ch, label end
-            setCharRow(row, ch)
-            if ch.notShared then row.when:SetText("not shared") end
-            row:SetAlpha(hidden and 0.5 or 1)
-            place(row, p, 28, y)
-            y = y + CARD + 4
-            y = unfold(ch, label, y)
-          end
-        end
-        y = y + 6
+      if not section.nickname:HasFocus() then
+        section.nickname.saved = ns.friendNickname and ns.friendNickname(person.tag) or ""
+        section.nickname:SetText(section.nickname.saved)
       end
-      y = y + 2
+      place(section, p, 16, sectionY)
+      local yy = sectionY + SECTION_TOP
+      -- The one being played first when it isn't shared, then what they share, newest first.
+      local chars = {}
+      if c and c.notShared then chars[1] = c end
+      for _, shared in ipairs(person.chars) do chars[#chars + 1] = shared end
+      if #chars == 0 then
+        place(nothingShared, p, 28, yy)
+        yy = yy + 22
+      end
+      for _, ch in ipairs(chars) do
+        local hidden = isHidden(ch)
+        if hidden then hiddenCount = hiddenCount + 1 end
+        if not hidden or showHidden then
+          cards = cards + 1
+          local row = pooled(charCards, cards, newCharCard)
+          row.char, row.friend = ch, label
+          if charKey(ch) == detailsKey then open, openFriend = ch, label end
+          row:SetWidth(width - 24)
+          setCharRow(row, ch)
+          if ch.notShared then row.when:SetText("not shared") end
+          row:SetAlpha(hidden and 0.5 or 1)
+          row:SetFrameLevel((section:GetFrameLevel() or 1) + 2)
+          place(row, p, 28, yy)
+          yy = yy + CARD + 4
+          yy = unfold(ch, label, yy)
+        end
+      end
+      local h = yy - sectionY + 6
+      section:SetHeight(h)
+      return h
+    end
+
+    if openPerson then
+      sectionRow = math.floor((openIndex - 1) / columns)
+      local sectionY = gridTop + (sectionRow + 1) * (GRID_CARD + GRID_GAP)
+      sectionHeight = drawSection(sectionY) + GRID_GAP
+    else
+      section:Hide()
+    end
+
+    for k in pairs(cardByTag) do cardByTag[k] = nil end
+    for i, person in ipairs(list) do
+      local card = pooled(friendCards, i, newFriendCard)
+      local c, label = person.current, who(person.label, person.tag)
+      card.tag, card.order = person.tag, order
+      card:SetWidth(cardWidth)
+      for _, fs in ipairs({ card.whoText, card.infoText }) do fs:SetWidth(cardWidth - 24) end
+      card.nameText:SetWidth(cardWidth - 40)
+      cardByTag[person.tag] = card
+      card.nameText:SetText(c and fullName(c) or label)
+      classColor(card.nameText, c and c.classFile)
+      card.stripe:SetColorTexture(classRgb(c and c.classFile))
+      card.whoText:SetText(c and label or "")
+      card.infoText:SetText(friendInfo(person))
+      if person.online then card.dot:SetColorTexture(0.3, 0.85, 0.4) else card.dot:SetColorTexture(0.45, 0.45, 0.45) end
+      ui.box(card, C.card, person.tag == openFriendTag and C.accent or C.border)
+      card:SetAlpha(person.online and 1 or 0.8)
+      place(card, p, slot(i))
     end
     hideFrom(friendCards, #list + 1)
     hideFrom(charCards, cards + 1)
+    y = gridTop + rows * (GRID_CARD + GRID_GAP) + sectionHeight
     if not unfolded and expansion then expansion:Hide() end
     if details and details:IsShown() then
       if open then drawDetails(open, openFriend) else details:Hide() end
@@ -1662,7 +1837,7 @@ local function buildTab(tab)
     holder:SetPoint("TOPLEFT", 0, 0)
     holder:SetPoint("BOTTOMRIGHT", -26, 0)
     page = CreateFrame("Frame", nil, holder)
-    page:SetSize(PAGE_WIDTH, tab.height)
+    page:SetSize(pageWidth(), tab.height)
     holder:SetScrollChild(page)
   else
     page = CreateFrame("Frame", nil, area)
@@ -1707,9 +1882,47 @@ local function savePosition(self)
   s.point, s.relative, s.x, s.y = point, relative, x, y
 end
 
+-- Resizing: the grip at the bottom right, from the first size up to MAX_*. Scrolled pages take the
+-- new width (the Friends grid fits more columns), and the size is kept with the position.
+local MAX_WIDTH, MAX_HEIGHT = 1600, 1200
+
+local function fitPages()
+  for _, state in pairs(tabs) do
+    if state.page and state.holder ~= state.page then state.page:SetWidth(pageWidth()) end
+  end
+end
+
+local function resizeGrip()
+  local grip = CreateFrame("Button", nil, window)
+  grip:SetSize(16, 16)
+  grip:SetPoint("BOTTOMRIGHT", -3, 3)
+  grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+  grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+  grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+  grip:SetScript("OnMouseDown", function() window:StartSizing("BOTTOMRIGHT") end)
+  grip:SetScript("OnMouseUp", function()
+    window:StopMovingOrSizing()
+    local s = saved()
+    s.width, s.height = math.floor(window:GetWidth() + 0.5), math.floor(window:GetHeight() + 0.5)
+    fitPages()
+    placePanels()
+    if current and tabs[current] and tabs[current].page then ui.refresh(tabs[current].page) end
+  end)
+  return grip
+end
+
 local function build()
   window = CreateFrame("Frame", NAME, UIParent)
-  window:SetSize(WIDTH, HEIGHT)
+  local size = saved()
+  window:SetSize(math.max(WIDTH, math.min(MAX_WIDTH, tonumber(size.width) or WIDTH)),
+    math.max(HEIGHT, math.min(MAX_HEIGHT, tonumber(size.height) or HEIGHT)))
+  window:SetResizable(true)
+  if window.SetResizeBounds then window:SetResizeBounds(WIDTH, HEIGHT, MAX_WIDTH, MAX_HEIGHT)
+  elseif window.SetMinResize then -- older clients
+    window:SetMinResize(WIDTH, HEIGHT)
+    window:SetMaxResize(MAX_WIDTH, MAX_HEIGHT)
+  end
+  window:SetScript("OnSizeChanged", fitPages)
   window:SetFrameStrata("DIALOG")
   window:SetToplevel(true)
   window:SetClampedToScreen(true)
@@ -1757,6 +1970,7 @@ local function build()
   area = CreateFrame("Frame", nil, window)
   area:SetPoint("TOPLEFT", 8, -(TITLE_BAR + TAB_BAR + 4))
   area:SetPoint("BOTTOMRIGHT", -8, 8)
+  resizeGrip():SetFrameLevel((area:GetFrameLevel() or 1) + 10)
 end
 
 -- Opens the window on a tab (a key of TABS), or the last one open.

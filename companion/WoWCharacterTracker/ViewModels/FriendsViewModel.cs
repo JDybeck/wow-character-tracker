@@ -89,8 +89,9 @@ sealed class FriendsViewModel : Observable
             r.IsHiddenFriend = config.HiddenFriendCharacters.Contains(r.Guid);
         }
         Contacts.Fill(allRows, r => r.FriendTag, NameOf);
+        BuildCards();
         Characters.Clear();
-        foreach (var r in Ordered(allRows.Where(r => Contacts.Matches(r.FriendTag) && (ShowHidden || !config.HiddenFriendCharacters.Contains(r.Guid)))))
+        foreach (var r in Ordered(allRows.Where(r => Contacts.Matches(r.FriendTag) && (ShowHidden || !config.HiddenFriendCharacters.Contains(r.Guid))), RankOf))
         {
             Characters.Add(r);
             _ = r.LoadPictureAsync(flavor);
@@ -102,12 +103,52 @@ sealed class FriendsViewModel : Observable
         Raise(nameof(HiddenText));
     }
 
-    // Grouped by friend on the page (FriendsPage groups by FriendName): friends by name, each friend's
-    // characters the one played last first, so the one they're on leads.
-    internal static IEnumerable<CharacterRow> Ordered(IEnumerable<CharacterRow> rows) =>
-        rows.OrderBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase)
+    // Grouped by friend on the page (FriendsPage groups by FriendName): friends in the dragged order
+    // (rank), the rest by name, each friend's characters the one played last first, so the one
+    // they're on leads.
+    internal static IEnumerable<CharacterRow> Ordered(IEnumerable<CharacterRow> rows, Func<string, int> rank) =>
+        rows.OrderBy(r => rank(r.FriendTag))
+            .ThenBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase)
             .ThenByDescending(r => r.LastSeen)
             .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase);
+
+    // --- the grid of friends over the list ---
+
+    // One card per friend in the order you drag them into (Config.FriendOrder, shared with the addon's
+    // Friends tab), the others after by name. A click shows only that friend, a second click everyone.
+    public ObservableCollection<FriendCard> Cards { get; } = [];
+    public event Action<IReadOnlyList<string>>? OrderChanged;
+
+    int RankOf(string tag) => config.FriendOrder.IndexOf(tag) is var i and >= 0 ? i : int.MaxValue;
+
+    void BuildCards()
+    {
+        Cards.Clear();
+        foreach (var g in allRows.GroupBy(r => r.FriendTag).OrderBy(g => RankOf(g.Key)).ThenBy(g => NameOf(g.Key), StringComparer.CurrentCultureIgnoreCase))
+        {
+            var current = g.MaxBy(r => r.LastSeen)!;
+            Cards.Add(new FriendCard(g.Key, NameOf(g.Key), current, g.Count(), g.Key == Contacts.Key));
+            _ = current.LoadPictureAsync(flavor);
+        }
+    }
+
+    public ICommand SelectFriendCommand => selectFriend ??= new RelayCommand(p =>
+    {
+        if (p is not FriendCard card) return;
+        var key = Contacts.Key == card.Tag ? "" : card.Tag;
+        Contacts.Selected = Contacts.Chips.FirstOrDefault(c => c.Key == key);
+    });
+    ICommand? selectFriend;
+
+    // Dragging (FriendsPage): the card moves live while dragged, letting go keeps the order.
+    public void MoveCard(FriendCard card, int to)
+    {
+        var from = Cards.IndexOf(card);
+        if (from < 0 || to < 0 || to >= Cards.Count || from == to) return;
+        Cards.Move(from, to);
+    }
+
+    public void KeepOrder() => OrderChanged?.Invoke([.. Cards.Select(c => c.Tag)]);
 
     void SetHidden(object? p, bool hidden)
     {
@@ -346,6 +387,14 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
         }
     });
     ICommand? cycle;
+}
+
+// A friend's card in the Friends page's grid: their name, the character they played last, how many
+// they share, when it was seen and when their data last arrived. IsSelected: only theirs are listed.
+sealed record FriendCard(string Tag, string Name, CharacterRow Current, int Count, bool IsSelected)
+{
+    public string CountText => Format.Count(Count, "character");
+    public string SeenText => $"seen {Current.LastSeenText} · {Current.FriendSyncedText}";
 }
 
 // One category chip of a friend: State is "all" (follows what all friends get), "on" or "off".

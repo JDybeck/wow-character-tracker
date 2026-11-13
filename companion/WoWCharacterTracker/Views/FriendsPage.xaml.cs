@@ -30,6 +30,39 @@ public partial class FriendsPage : UserControl
         if (view.GroupDescriptions.Count == 0) view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(CharacterRow.FriendName)));
     }
 
+    // Dragging a friend's card: past a few pixels it starts a drag, the card moves live under the
+    // cursor as it passes others, and letting go keeps the order (shared with the addon).
+    Point dragStart;
+    FriendCard? pressed;
+
+    void Card_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        dragStart = e.GetPosition(this);
+        pressed = (sender as FrameworkElement)?.DataContext as FriendCard;
+    }
+
+    void Card_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (pressed is null || e.LeftButton != System.Windows.Input.MouseButtonState.Pressed || friends is null) return;
+        var moved = e.GetPosition(this) - dragStart;
+        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+        var card = pressed;
+        pressed = null;
+        DragDrop.DoDragDrop((DependencyObject)sender, card, DragDropEffects.Move);
+        friends.KeepOrder(); // dropped anywhere: the order it has now
+    }
+
+    void Card_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = DragDropEffects.Move;
+        e.Handled = true;
+        if (friends is null || e.Data.GetData(typeof(FriendCard)) is not FriendCard dragged) return;
+        if ((sender as FrameworkElement)?.DataContext is FriendCard over && over != dragged)
+            friends.MoveCard(dragged, friends.Cards.IndexOf(over));
+    }
+
+    void Card_Drop(object sender, DragEventArgs e) => e.Handled = true;
+
     // The character opened from Home at the top of the list, once the page is shown and laid out.
     void ScrollToTop(CharacterRow row) => Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
     {

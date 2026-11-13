@@ -85,7 +85,7 @@ static partial class AddonInstaller
     // preset: which Sharing preset the settings match (or "custom"), for the addon window's choice.
     public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null, bool hasWebhook = false,
         IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null, string? preset = null,
-        IReadOnlyDictionary<string, long>? friendNamesAt = null)
+        IReadOnlyDictionary<string, long>? friendNamesAt = null, GameFriendOrder? friendOrder = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -139,6 +139,10 @@ static partial class AddonInstaller
                   + string.Concat((friendNamesAt ?? new Dictionary<string, long>()).OrderBy(n => n.Key, StringComparer.Ordinal)
                       .Select(n => $"[{LuaString(n.Key)}] = {n.Value}, "))
                   + "},\n"
+                  // The Friends tab's order as dragged in the app; a newer one dragged in game wins (Friends.lua).
+                  + (friendOrder is { At: > 0 } order
+                      ? $"  friendOrder = {{ {string.Concat(order.Tags.Select(t => $"{LuaString(t)}, "))}}},\n  friendOrderAt = {order.At},\n"
+                      : "")
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
         if (!File.Exists(file) || File.ReadAllText(file) != lua) Files.WriteAtomic(file, lua);

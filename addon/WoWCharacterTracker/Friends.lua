@@ -65,6 +65,25 @@ function ns.setFriendNickname(tag, name)
   return name
 end
 
+-- The order of the Friends tab (the addon's grid and the app's): BattleTags, first is top left.
+-- Set here by dragging (WoWCharacterTrackerDB.friendOrder = { tags = { ... }, at }) or in the app
+-- (Settings.lua friendOrder with friendOrderAt); the newer one wins. Friends not in it come after.
+function ns.friendOrder()
+  local game = WoWCharacterTrackerDB and WoWCharacterTrackerDB.friendOrder
+  local s = WoWCharacterTrackerSettings
+  local appAt = s and tonumber(s.friendOrderAt) or 0
+  if type(game) == "table" and type(game.tags) == "table" and (tonumber(game.at) or 0) > appAt then return game.tags end
+  return (s and type(s.friendOrder) == "table") and s.friendOrder or {}
+end
+
+function ns.setFriendOrder(tags)
+  local s = WoWCharacterTrackerSettings
+  local appAt = s and tonumber(s.friendOrderAt) or 0
+  local list = {}
+  for i, tag in ipairs(tags) do list[i] = tag end
+  WoWCharacterTrackerDB.friendOrder = { tags = list, at = math.max(time(), appAt + 1) }
+end
+
 -- Sharing settings ----------------------------------------------------------------------------
 -- Changed in game (WoWCharacterTrackerDB.share) or by the app (Settings.lua share): the newest
 -- `at` wins, like notes. Its own time, not the In game settings' one, so an app that doesn't

@@ -51,6 +51,7 @@ sealed class FlavorViewModel : Observable
         Home = new HomeViewModel(flavor, Lookup);
         FollowedItems = new FollowedItemsViewModel(flavor, Lookup, () => Settings, FollowedChanged);
         Friends = new FriendsViewModel(flavor, Lookup, main.Config, () => Settings, AddonSettingsChanged, main.Config.Save);
+        Friends.OrderChanged += main.SetFriendOrder; // dragged: every tab and every game's addon
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
@@ -110,7 +111,8 @@ sealed class FlavorViewModel : Observable
         try
         {
             AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0, main.Config.FriendNicknames, main.Updates.Available,
-                SharingPresets.Detect(Settings, Flavor), main.Config.FriendNicknamesAt);
+                SharingPresets.Detect(Settings, Flavor), main.Config.FriendNicknamesAt,
+                new GameFriendOrder(main.Config.FriendOrder, main.Config.FriendOrderAt));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -824,11 +826,13 @@ sealed class FlavorViewModel : Observable
                 ItemClasses = data.ItemClasses,
                 Notes = data.Notes,
                 Nicknames = data.Nicknames,
+                FriendOrder = data.FriendOrder,
                 Today = data.Today,
             };
         }
         main.TakeGameNotes(data.Notes); // notes edited in game, newer than the app's
         main.TakeGameNicknames(data.Nicknames); // and friends' nicknames
+        main.TakeGameFriendOrder(data.FriendOrder); // and their order on the Friends page
         TakeInGameSettings(data.InGame); // and the same for the In game settings
         if (Settings.TakeShare(data.Share)) // and sharing with friends
         {

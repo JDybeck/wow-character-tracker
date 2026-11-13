@@ -91,8 +91,61 @@
             </StackPanel>
           </Button>
           <StackPanel Margin="0,0,16,0">
-            <views:ChipBar DataContext="{Binding Contacts}"/>
-            <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+            <!-- A card per friend, in the order you drag them into (the addon's Friends tab shows the
+                 same). A click lists only theirs, a second click everyone. Dragging: FriendsPage.xaml.cs. -->
+            <ItemsControl x:Name="FriendGrid" ItemsSource="{Binding Cards}" Focusable="False">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:FriendCard}">
+                  <Button Width="252" Margin="0,0,8,8" Cursor="Hand" AllowDrop="True"
+                          ToolTip="Click to list only their characters, again for everyone. Drag to move them."
+                          Command="{Binding DataContext.SelectFriendCommand, ElementName=FriendGrid}" CommandParameter="{Binding}"
+                          PreviewMouseLeftButtonDown="Card_MouseDown" PreviewMouseMove="Card_MouseMove" DragOver="Card_DragOver" Drop="Card_Drop">
+                    <Button.Template>
+                      <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="10" Padding="10,8" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+                          <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/>
+                          </Trigger>
+                          <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueText}"/>
+                          </DataTrigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </Button.Template>
+                    <DockPanel>
+                      <Grid DockPanel.Dock="Left" Width="38" Height="38" Margin="0,0,10,0" VerticalAlignment="Top">
+                        <Ellipse Fill="{Binding Current.ClassSoftBrush}" Stroke="#1AFFFFFF"/>
+                        <TextBlock Text="{Binding Current.Initial}" Foreground="{Binding Current.ClassBrush}" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Image Source="{Binding Current.PictureUrl, Converter={StaticResource WebImage}}" Stretch="UniformToFill">
+                          <Image.Clip>
+                            <EllipseGeometry Center="19,19" RadiusX="19" RadiusY="19"/>
+                          </Image.Clip>
+                        </Image>
+                        <Ellipse Stroke="{Binding Current.ClassBrush}" StrokeThickness="1.5"/>
+                      </Grid>
+                      <StackPanel>
+                        <DockPanel>
+                          <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}" FontSize="11" Foreground="{StaticResource Dim}" Margin="6,1,0,0"/>
+                          <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                        <TextBlock FontSize="12" TextTrimming="CharacterEllipsis">
+                          <Run Text="{Binding Current.FullName, Mode=OneWay}" Foreground="{Binding Current.ClassBrush, Mode=OneWay}"/>
+                          <Run Text="{Binding Current.Level, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
+                        </TextBlock>
+                        <TextBlock Text="{Binding SeenText}" FontSize="11" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis"/>
+                      </StackPanel>
+                    </DockPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Margin="0,2,0,0" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
                        Text="What friends share reaches the app on your next /reload or logout. To get it fresh, type /wct friends ask &lt;BattleTag&gt; in game."/>
           </StackPanel>
         </DockPanel>

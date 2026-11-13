@@ -265,6 +265,33 @@ public class FriendDataTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
+    // The Friends page's order: dragged in game it's read in order and taken when newer, and the
+    // app's goes to Settings.lua with its time.
+    [Fact]
+    public void The_friend_order_goes_both_ways_and_the_newer_wins()
+    {
+        var read = SavedVariables.ReadFriendOrder(Lua("{ tags = { 'Zeb#2222', 'Kalle#3333', 'Zeb#2222' }, at = 900 }"))!;
+        Assert.Equal(["Zeb#2222", "Kalle#3333"], read.Tags);
+        Assert.Null(SavedVariables.ReadFriendOrder(Lua("{ tags = { 'Zeb#2222' } }"))); // no time
+        var config = new Config { FriendOrder = ["Kalle#3333"], FriendOrderAt = 950 };
+        Assert.False(config.TakeNewerFriendOrder(read));
+        config.FriendOrderAt = 800;
+        Assert.True(config.TakeNewerFriendOrder(read));
+        Assert.Equal(["Zeb#2222", "Kalle#3333"], config.FriendOrder);
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-order-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+            AddonInstaller.WriteSettings(dir, new FlavorSettings(), friendOrder: new GameFriendOrder(config.FriendOrder, config.FriendOrderAt));
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            Assert.Equal("Kalle#3333", script.DoString("return WoWCharacterTrackerSettings.friendOrder[2]").String);
+            Assert.Equal(900, script.DoString("return WoWCharacterTrackerSettings.friendOrderAt").Number);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     [Fact]
     public void Settings_lua_has_no_share_until_the_app_has_one()
     {

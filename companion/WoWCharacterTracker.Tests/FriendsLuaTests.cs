@@ -1033,6 +1033,19 @@ public class FriendsLuaTests
         Assert.Equal("Newcff name", Str(old, "ns.friendNickname('Zeb#2222')"));
     }
 
+    // The Friends tab's order: dragged in game it beats the app's older one, a newer app one wins back.
+    [Fact]
+    public void The_friend_order_from_the_game_or_the_app_the_newer_wins()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ friendOrder = { 'Kalle#3333', 'Zeb#2222' }, friendOrderAt = 500 }");
+        Assert.Equal("Kalle#3333,Zeb#2222", Str(a, "table.concat(ns.friendOrder(), ',')"));
+        a.Lua("clock = 400; ns.setFriendOrder({ 'Zeb#2222', 'Kalle#3333' })");
+        Assert.Equal(501, a.Lua("return WoWCharacterTrackerDB.friendOrder.at").Number);
+        Assert.Equal("Zeb#2222,Kalle#3333", Str(a, "table.concat(ns.friendOrder(), ',')"));
+        a.Lua("WoWCharacterTrackerSettings.friendOrderAt = 600");
+        Assert.Equal("Kalle#3333,Zeb#2222", Str(a, "table.concat(ns.friendOrder(), ',')"));
+    }
+
     // After their Never you can't ask for a day; they may have unblocked you since.
     [Fact]
     public void A_no_stops_asking_for_a_day()

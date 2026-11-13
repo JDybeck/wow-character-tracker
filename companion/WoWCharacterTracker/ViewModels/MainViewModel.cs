@@ -427,13 +427,33 @@ sealed class MainViewModel : Observable
     {
         var taken = names.Where(Config.TakeNewerNickname).ToList();
         if (taken.Count == 0) return;
+        FriendsShownChanged();
+        foreach (var n in taken) Log.Info($"Took the nickname for {n.Tag} from the game.");
+    }
+
+    // The Friends page's order dragged in game, newer than the app's: every tab shows it.
+    public void TakeGameFriendOrder(GameFriendOrder? order)
+    {
+        if (Config.TakeNewerFriendOrder(order)) FriendsShownChanged();
+    }
+
+    // Dragged on the Friends page: saved, and every game's addon shows the same order.
+    public void SetFriendOrder(IEnumerable<string> tags)
+    {
+        Config.FriendOrder = [.. tags];
+        Config.FriendOrderAt = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Config.FriendOrderAt + 1);
+        FriendsShownChanged();
+    }
+
+    // Friends' names or order changed: saved, every tab's Friends page redrawn, every game's Settings.lua written.
+    void FriendsShownChanged()
+    {
         Config.Save();
         foreach (var tab in FlavorTabs)
         {
             tab.Friends.NamesChanged();
             tab.WriteAddonSettings();
         }
-        foreach (var n in taken) Log.Info($"Took the nickname for {n.Tag} from the game.");
     }
 
     // Saved a moment after the last keystroke, not on every one.

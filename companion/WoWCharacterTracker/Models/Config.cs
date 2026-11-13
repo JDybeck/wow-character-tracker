@@ -97,6 +97,19 @@ class Config
         FriendNicknamesAt[tag] = at;
     }
 
+    // The Friends page's order (BattleTags, first is top left; the addon's Friends tab shows the same,
+    // Settings.lua friendOrder with friendOrderAt), and when it was last set.
+    public List<string> FriendOrder { get; set; } = [];
+    public long FriendOrderAt { get; set; }
+
+    public bool TakeNewerFriendOrder(GameFriendOrder? order)
+    {
+        if (order is null || order.At <= FriendOrderAt) return false;
+        FriendOrder = [.. order.Tags];
+        FriendOrderAt = order.At;
+        return true;
+    }
+
     // A nickname from the game counts only when it was set after the app's.
     public bool TakeNewerNickname(GameNickname n)
     {
