@@ -663,10 +663,10 @@ sealed class FlavorViewModel : Observable
     }
 
     // Installs the addon when the user clicks Install in the setup checks (force), since that adds
-    // something to their game folder. An installed addon that's older than the one in this app is
-    // updated right away, so the addon is never behind what the app expects (the addon has its own
-    // version, raised only when it changes, so an app update alone doesn't touch it). Also keeps the
-    // interface number in step with game patches, so the game doesn't call it out of date.
+    // something to their game folder. An installed addon that's older than the one in this app, or the
+    // same version with other files (an app update that changed the addon without raising its version),
+    // is replaced right away, so the game always runs this app's addon. Also keeps the interface number
+    // in step with game patches, so the game doesn't call it out of date.
     void SetUpAddon(bool force)
     {
         if (flavorDir is null) return;
@@ -676,7 +676,9 @@ sealed class FlavorViewModel : Observable
 
         try
         {
-            switch (force ? -1 : AddonInstaller.Compare(installed, bundled))
+            var compare = force ? -1 : AddonInstaller.Compare(installed, bundled);
+            var refresh = compare == 0 && !AddonInstaller.MatchesBundled(flavorDir);
+            switch (refresh ? -1 : compare)
             {
                 case null: // not installed: waits for the user's click
                     AddonStep.Set(ok: false, "Not installed in this game folder yet", action: "Install");
@@ -693,9 +695,10 @@ sealed class FlavorViewModel : Observable
                     AddonStep.Set(ok: true, $"v{bundled} installed. Type /wct test in game to check instant posting");
                     break;
 
-                default: // older, or the user clicked
+                default: // older, the same version with other files, or the user clicked
                     AddonInstaller.Install(flavorDir, interfaceVersion);
-                    Log.Success($"[{Name}] " + (installed is null ? $"Installed the addon (v{bundled})." : $"Updated the addon to v{bundled}."));
+                    Log.Success($"[{Name}] " + (installed is null ? $"Installed the addon (v{bundled})."
+                        : refresh ? $"Refreshed the addon (v{bundled}) with this app's copy." : $"Updated the addon to v{bundled}."));
                     if (Wow.IsRunning(flavorDir))
                         Log.Warn(installed is null
                             ? $"[{Name}] The game is running: exit it fully and start it again so it finds the new addon."

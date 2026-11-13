@@ -70,6 +70,35 @@ static partial class AddonInstaller
                 File.Delete(old);
     }
 
+    // Whether the installed addon is exactly this app's: every bundled file there with the same content
+    // (the .toc's interface number and Settings.lua, which the app writes itself, aside). An app update
+    // can change the addon without raising its version, so the version alone can't tell.
+    public static bool MatchesBundled(string flavorDir)
+    {
+        var target = TargetDir(flavorDir);
+        var asm = Assembly.GetExecutingAssembly();
+        foreach (var fileName in asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix)).Select(n => n[Prefix.Length..]))
+        {
+            if (fileName.Equals("Settings.lua", StringComparison.OrdinalIgnoreCase)) continue;
+            var path = Path.Combine(target, fileName);
+            if (!File.Exists(path)) return false;
+            if (!IsText(fileName))
+            {
+                if (!File.ReadAllBytes(path).AsSpan().SequenceEqual(ReadBundledBytes(fileName))) return false;
+                continue;
+            }
+            var bundled = ReadBundled(fileName);
+            var installed = File.ReadAllText(path);
+            if (fileName.EndsWith(".toc"))
+            {
+                bundled = InterfaceLine().Replace(bundled, "", 1);
+                installed = InterfaceLine().Replace(installed, "", 1);
+            }
+            if (installed != bundled) return false;
+        }
+        return true;
+    }
+
     // Takes the addon out of the game's AddOns folder (the data it saved stays, in WTF). For a game
     // the user turned off; the Uninstall page removes it the same way.
     public static void Remove(string flavorDir)
