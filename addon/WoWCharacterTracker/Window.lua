@@ -16,6 +16,7 @@ local window, area, version
 
 -- The width tab pages have now: the window can be made wider than WIDTH (the grip, bottom right).
 local function pageWidth() return ((window and window:GetWidth()) or WIDTH) - 50 end
+ns.pageWidth = pageWidth -- Home.lua's
 local tabs = {}  -- [key] = { button, holder, page }
 local current
 
@@ -1112,8 +1113,8 @@ local function friendRows(online, shared)
   return list
 end
 
--- "Level 54 Arms Warrior · Felwood · Zebbe (Zeb#2222) · online, updated 2m ago" under a friend's
--- character (updated: when what they share of it last arrived), "... · last seen 2h ago" offline.
+-- "Level 54 Arms Warrior · Felwood · online, updated 2m ago" under a friend's character (updated:
+-- when what they share of it last arrived), "... · last seen 2h ago" offline. Who it is sits above.
 local function friendInfo(p)
   local parts, c = {}, p.current
   if c then
@@ -1121,7 +1122,6 @@ local function friendInfo(p)
     if line ~= "" then parts[#parts + 1] = line end
     if c.zone and c.zone ~= "" then parts[#parts + 1] = c.zone end
   end
-  if c then parts[#parts + 1] = who(p.label, p.tag) end
   if p.online then
     parts[#parts + 1] = (c and c.received) and ("online, updated " .. ago(c.received)) or "online"
   elseif lastSeenAt(p) > 0 then
@@ -1330,14 +1330,15 @@ local function buildFriends(p)
     card.dot = card:CreateTexture(nil, "ARTWORK")
     card.dot:SetSize(7, 7)
     card.dot:SetPoint("TOPRIGHT", card, "TOPRIGHT", -9, -10)
-    card.nameText = ui.text(card, "GameFontHighlight")
-    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -8)
-    card.nameText:SetWidth(cardWidth - 40)
-    card.nameText:SetWordWrap(false)
+    -- Who first (nickname and BattleTag, beside the online dot), then the character they play.
     card.whoText = ui.text(card, "GameFontNormalSmall")
-    card.whoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -26)
-    card.whoText:SetWidth(cardWidth - 24)
+    card.whoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -9)
+    card.whoText:SetWidth(cardWidth - 40)
     card.whoText:SetWordWrap(false)
+    card.nameText = ui.text(card, "GameFontHighlight")
+    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -24)
+    card.nameText:SetWidth(cardWidth - 24)
+    card.nameText:SetWordWrap(false)
     card.infoText = ui.text(card, "GameFontDisableSmall")
     card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -43)
     card.infoText:SetWidth(cardWidth - 24)
@@ -1536,13 +1537,13 @@ local function buildFriends(p)
       local c, label = person.current, who(person.label, person.tag)
       card.tag, card.order = person.tag, order
       card:SetWidth(cardWidth)
-      for _, fs in ipairs({ card.whoText, card.infoText }) do fs:SetWidth(cardWidth - 24) end
-      card.nameText:SetWidth(cardWidth - 40)
+      for _, fs in ipairs({ card.nameText, card.infoText }) do fs:SetWidth(cardWidth - 24) end
+      card.whoText:SetWidth(cardWidth - 40)
       cardByTag[person.tag] = card
-      card.nameText:SetText(c and fullName(c) or label)
+      card.whoText:SetText(label)
+      card.nameText:SetText(c and fullName(c) or "")
       classColor(card.nameText, c and c.classFile)
       card.stripe:SetColorTexture(classRgb(c and c.classFile))
-      card.whoText:SetText(c and label or "")
       card.infoText:SetText(friendInfo(person))
       if person.online then card.dot:SetColorTexture(0.3, 0.85, 0.4) else card.dot:SetColorTexture(0.45, 0.45, 0.45) end
       ui.box(card, C.card, person.tag == openFriendTag and C.accent or C.border)
@@ -1626,7 +1627,7 @@ local function ownChars()
 end
 
 local function buildCharacters(p)
-  local width = PAGE_WIDTH - 30
+  local width = pageWidth() - 30
   local title = ui.heading(p, "Your characters")
   local hint = ui.hint(p, "The characters you've played on this WoW account, newest first. Click one for its details, gear and level times. The app shows all your accounts.", title)
   hint:SetWidth(width)
@@ -1635,6 +1636,8 @@ local function buildCharacters(p)
   local expansion -- the open row's info, built on the first click
   local function draw()
     local list = ownChars()
+    width = pageWidth() - 30 -- the window can be resized: the rows follow its width
+    hint:SetWidth(width)
     local y = 56
     none:SetShown(#list == 0)
     if #list == 0 then place(none, p, 16, y) end
@@ -1646,6 +1649,7 @@ local function buildCharacters(p)
       if not hidden or showHidden then
         shownCount = shownCount + 1
         local row = pooled(rows, shownCount, function() return newCharRow(p, width) end)
+        row:SetWidth(width)
         row.char, row.friend = c, nil
         if charKey(c) == detailsKey then open = c end
         setCharRow(row, c)

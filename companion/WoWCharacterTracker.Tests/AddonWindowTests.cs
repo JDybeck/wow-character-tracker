@@ -404,30 +404,53 @@ public class AddonWindowTests
         Assert.Equal("", unwrapped);
     }
 
+    // The window open on Home, with the player stubbed.
+    static FriendsLuaTests.Client Home(string settings)
+    {
+        var home = Load(settings: settings);
+        home.Lua("""
+            function UnitName() return 'Zeb' end
+            function UnitLevel() return 45 end
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitRace() return 'Night Elf' end
+            function UnitXP() return 1000 end
+            function UnitXPMax() return 4000 end
+            function GetMaxPlayerLevel() return 60 end
+            function date() return { year = 2026, month = 11, day = 9 } end
+            ns.playedNow = function() return 100000 end
+            ns.levelTimeNow = function() return 1200 end
+            """);
+        home.Script.Call(home.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", home.Ns);
+        home.Call("openWindow", "home");
+        return home;
+    }
+
+    // Resized wider, Home's card and the moments under it take the room (the split keeps its share).
+    [Fact]
+    public void Home_follows_the_windows_width()
+    {
+        var c = Home("{ post = {} }");
+        c.Lua("""
+            function cardOf() return shownText('PLAYING NOW').owner end
+            win = named('WoWCharacterTrackerWindow')
+            """);
+        c.Lua("""
+            win.GetWidth = function() return 1100 end
+            win.GetHeight = function() return 700 end
+            for _, f in ipairs(frames) do
+              if f.parent == win and f.kind == 'Button' and f.scripts.OnMouseDown then grip = f end
+            end
+            grip.scripts.OnMouseUp(grip)
+            """);
+        Assert.Equal(1020, Num(c, "cardOf().width")); // 1100 less the window's edges and the scroll bar
+        Assert.Equal(1020, Num(c, "find('Friends tab').point[4]")); // at the right edge of the wider page
+    }
+
     // Without the app, Home says what it adds and where to get it, until Got it; with it, nothing.
     [Fact]
     public void Home_points_to_the_app_when_there_is_none()
     {
         const string hint = "Discord posts, screenshots and the stream overlay need the free Character Tracker app on your PC. Get it here (click the link, then Ctrl+C):";
-        static FriendsLuaTests.Client Home(string settings)
-        {
-            var home = Load(settings: settings);
-            home.Lua("""
-                function UnitName() return 'Zeb' end
-                function UnitLevel() return 45 end
-                function UnitClass() return 'Warrior', 'WARRIOR' end
-                function UnitRace() return 'Night Elf' end
-                function UnitXP() return 1000 end
-                function UnitXPMax() return 4000 end
-                function GetMaxPlayerLevel() return 60 end
-                function date() return { year = 2026, month = 11, day = 9 } end
-                ns.playedNow = function() return 100000 end
-                ns.levelTimeNow = function() return 1200 end
-                """);
-            home.Script.Call(home.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", home.Ns);
-            home.Call("openWindow", "home");
-            return home;
-        }
         var c = Home("{}");
         Assert.True(Bool(c, $"shownText('{hint}') ~= nil"));
         Assert.True(Bool(c, "(function() for _, f in ipairs(frames) do if f.kind == 'EditBox' and f.text == ns.APP_URL and onScreen(f) then return true end end end)()"));
@@ -618,8 +641,8 @@ public class AddonWindowTests
             local b = find('Find online friends'); b.scripts.OnClick(b)
             """);
         Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
-        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  Cid#3  ·  last seen 2h ago') ~= nil"));
-        Assert.True(Bool(c, "shownText('Level 12  ·  Bobby (Bob#2)  ·  online') ~= nil"));
+        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  last seen 2h ago') ~= nil"));
+        Assert.True(Bool(c, "shownText('Level 12  ·  online') ~= nil"));
         Assert.True(Bool(c, "friendCard('Bobo').point[4] < friendCard('Cidrin Frostmane').point[4]")); // online first, top left
     }
 
@@ -748,7 +771,7 @@ public class AddonWindowTests
         Assert.Equal("", c.Lua("return friendButtons('Annie')").String);
         Assert.True(Bool(c, "shownText('Checking...') ~= nil")); // the open friend's state
         Assert.Equal("Ask,Share", c.Lua("return friendButtons('Bobo')").String);
-        Assert.True(Bool(c, "shownText('Level 12  ·  Bobby (Bob#2)  ·  online') ~= nil")); // level, then the label (nickname) and BattleTag
+        Assert.True(Bool(c, "shownText('Level 12  ·  online') ~= nil")); // level, then the label (nickname) and BattleTag
         Assert.Equal("Sharing,Ask for more", c.Lua("return friendButtons('Cidro')").String); // they share with you already
         Assert.True(Bool(c, "shownText('You share, shares with you') ~= nil"));
         Assert.Equal("Invite", c.Lua("return friendButtons('Danno')").String);
@@ -1035,7 +1058,7 @@ public class AddonWindowTests
             local b = find('Find online friends'); b.scripts.OnClick(b)
             """);
         Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil")); // the shared one, by its name
-        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  Cid#3  ·  online, updated 2h ago') ~= nil")); // when it last arrived
+        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  online, updated 2h ago') ~= nil")); // when it last arrived
         Assert.True(Bool(c, "charRow('Cidro') == nil")); // shared, so no Battle.net row
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "title() == 'Cidrin Frostmane'"));

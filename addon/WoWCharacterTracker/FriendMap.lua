@@ -170,20 +170,25 @@ end)
 -- offline, switches character, says it's gone (empty POS) or a watch gap drops it.
 local function fadeAfter(rate) return math.max(30, 2 * rate) end
 
--- How a friend's realm differs from ours, for the tooltip; nil when it's the same. On Forever the
--- number is a layer, so the same realm type means another layer of it ("On layer 6, you're on 5").
+-- The tooltip's realm line and whether the friend is somewhere you can't meet them (their ring goes
+-- grey). On Forever the number is a layer, compared by type and number, not by the whole name
+-- (Battle.net's and the game's can differ in case): "Same layer as you (Layer 6)", "On layer 6,
+-- you're on 5", or another realm. Elsewhere only another realm gets a line.
 local function realmNote(theirs, mine)
-  if not theirs or not mine or theirs == mine then return nil end
+  if not theirs or not mine then return nil, false end
+  local same = theirs:upper() == mine:upper()
   if not ns.IS_RETAIL then
     local their, theirLayer = ns.realmType(theirs)
     local our, ourLayer = ns.realmType(mine)
     if their and their == our then
-      if theirLayer and ourLayer then return string.format("On layer %d, you're on %d", theirLayer, ourLayer) end
-      return "On another layer"
+      if theirLayer and theirLayer == ourLayer then return string.format("Same layer as you (Layer %d)", theirLayer), false end
+      if theirLayer and ourLayer then return string.format("On layer %d, you're on %d", theirLayer, ourLayer), true end
+      return "On another layer", true
     end
-    if their then return "On another realm: " .. their end
+    if their and not same then return "On another realm: " .. their, true end
   end
-  return "On another realm: " .. theirs
+  if same then return nil, false end
+  return "On another realm: " .. theirs, true
 end
 
 -- What they share with us about the character on the pin, or nil.
@@ -211,9 +216,9 @@ function ns.friendPins()
     if not stillShown(f, p) then
       positions[account] = nil
     elseif not group[p.guid] then
-      local note = realmNote(ns.plainRealm(f.realm), myRealm)
+      local note, elsewhere = realmNote(ns.plainRealm(f.realm), myRealm)
       out[#out + 1] = { tag = f.tag, label = f.label, character = f.character, classFile = f.classFile, level = f.level,
-        realm = f.realm, otherRealm = note ~= nil, realmNote = note, shared = sharedChar(f.tag, p.guid),
+        realm = f.realm, otherRealm = elsewhere, realmNote = note, shared = sharedChar(f.tag, p.guid),
         mapID = p.mapID, x = p.x, y = p.y, age = age, faded = age > fadeAfter(p.rate) }
     end
   end

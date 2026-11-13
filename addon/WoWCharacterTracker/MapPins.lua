@@ -81,7 +81,10 @@ function ns.pinLines(f, zone)
   end
   if #facts > 0 then add(table.concat(facts, "  ·  "), 0.9, 0.9, 0.9) end
   if c.professions and c.professions ~= "" then add(c.professions, 0.9, 0.9, 0.9) end
-  if f.realmNote then add(f.realmNote, 1, 0.6, 0.2) end
+  -- Orange where you can't meet them, green on your own layer.
+  if f.realmNote then
+    if f.otherRealm then add(f.realmNote, 1, 0.6, 0.2) else add(f.realmNote, 0.45, 0.85, 0.5) end
+  end
   local ago = ns.ago(time() - (f.age or 0))
   add(f.faded and ("Last seen " .. ago) or ago, 0.6, 0.6, 0.6)
   return lines

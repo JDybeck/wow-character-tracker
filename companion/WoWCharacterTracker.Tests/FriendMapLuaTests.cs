@@ -315,7 +315,8 @@ public class FriendMapLuaTests
     // The game writes our realm with spaces, Battle.net theirs without. On Forever the number before
     // the ruleset is a layer ("CAMWOW EU5 Realm 6 PvP"), so the same ruleset means another layer.
     [Theory]
-    [InlineData(false, "CAMWOW EU5 Realm 6 PvP", "CAMWOWEU5Realm6PvP", false, null)]
+    [InlineData(false, "CAMWOW EU5 Realm 6 PvP", "CAMWOWEU5Realm6PvP", false, "Same layer as you (Layer 6)")]
+    [InlineData(false, "CAMWOW EU5 Realm 6 PvP", "CamWowEu5Realm6PVP", false, "Same layer as you (Layer 6)")] // Battle.net's case differs
     [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm6PvP", true, "On layer 6, you're on 5")]
     [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm2Normal", true, "On another realm: Normal")]
     [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm1RPPvP", true, "On another realm: RP-PvP")]

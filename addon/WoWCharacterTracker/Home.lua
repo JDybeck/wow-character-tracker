@@ -85,16 +85,21 @@ end
 
 local function hideTip() if GameTooltip then GameTooltip:Hide() end end
 
--- Where the two moment columns meet, dragged by the player and kept with the window's choices.
-local SPLIT_MIN, SPLIT_MAX = 180, WIDTH - 180
-local function split()
-  local s = tonumber((db().window or {}).homeSplit) or WIDTH / 2
-  return math.max(SPLIT_MIN, math.min(SPLIT_MAX, s))
+-- The content width the window gives now (Window.lua; it can be resized wider than WIDTH).
+local function contentWidth() return ns.pageWidth and math.max(WIDTH, ns.pageWidth() - 30) or WIDTH end
+
+-- Where the two moment columns meet, dragged by the player and kept with the window's choices as a
+-- share of the width, so it scales with the window (homeSplit: pixels of the old fixed width).
+local SPLIT_MIN = 180
+local function split(width)
+  local w = db().window or {}
+  local share = tonumber(w.homeSplitShare) or (tonumber(w.homeSplit) and w.homeSplit / WIDTH) or 0.5
+  return math.max(SPLIT_MIN, math.min(width - SPLIT_MIN, math.floor(share * width)))
 end
-local function setSplit(x)
+local function setSplit(x, width)
   local d = db()
   d.window = d.window or {}
-  d.window.homeSplit = math.floor(math.max(SPLIT_MIN, math.min(SPLIT_MAX, x)))
+  d.window.homeSplitShare = math.max(SPLIT_MIN, math.min(width - SPLIT_MIN, x)) / width
 end
 
 -- The whole line on hover, for a moment cut short by its column.
@@ -190,6 +195,7 @@ local function buildAppHint(p)
     "Discord posts, screenshots and the stream overlay need the free Character Tracker app on your PC. Get it here (click the link, then Ctrl+C):")
   text:SetPoint("TOPLEFT", hint, "TOPLEFT", 12, -8)
   text:SetWidth(WIDTH - 24)
+  hint.text = text
   local link = ui.copyBox(hint, ns.APP_URL, 380)
   link:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 0, -5)
   local gotIt = ui.button(hint, "Got it", 80, function()
@@ -290,7 +296,7 @@ function ns.buildHomeTab(p)
   -- Today: the four that matter most (Today.lua ns.todayStats), the rest folded behind "+N more".
   local todayLabel = ui.text(card, "GameFontDisableSmall", "TODAY")
   local today, todayStats = {}, {}
-  local todayWidth = math.floor(INNER / ns.TODAY_SHOWN)
+  local todayWidth = math.floor(INNER / ns.TODAY_SHOWN) -- fit() changes it with the window's width
   for i = 1, TODAY_MAX do today[i] = ui.text(card, "GameFontHighlight") end
   local todayToggle = ui.button(card, "", 90, function()
     setTodayOpen(not todayOpen())
@@ -331,10 +337,11 @@ function ns.buildHomeTab(p)
       sizeMomentRow(row, w)
     end
   end
+  local width = WIDTH -- what the page is laid out for now (fit)
   local function placeMoments()
-    local s = split()
+    local s = split(width)
     placeColumn(mine, 0, s - 8)
-    placeColumn(theirs, s + 8, WIDTH - s - 8)
+    placeColumn(theirs, s + 8, width - s - 8)
     divider:ClearAllPoints()
     divider:SetPoint("TOPLEFT", moments, "TOPLEFT", s - 5, 0)
     divider:SetPoint("BOTTOMLEFT", moments, "BOTTOMLEFT", s - 5, 0)
@@ -353,7 +360,7 @@ function ns.buildHomeTab(p)
     self.dragging = true
     self:SetScript("OnUpdate", function()
       local x = GetCursorPosition() / (moments:GetEffectiveScale() or 1)
-      setSplit(x - (moments:GetLeft() or 0))
+      setSplit(x - (moments:GetLeft() or 0), width)
       placeMoments()
     end)
   end)
@@ -387,6 +394,37 @@ function ns.buildHomeTab(p)
   end
   local BELOW_CARD = 18 + 26 + FEED_SIZE * 20 + 16 + 26 + FRIENDS_SHOWN * 20 + 20 -- the moments and friends under the card
 
+  -- Everything sized for the window's width, again when it changed (the window can be resized).
+  local function fit()
+    local w = contentWidth()
+    if w == width then return end
+    width = w
+    local inner = w - 28
+    hint:SetWidth(w)
+    hint.text:SetWidth(w - 24)
+    card:SetWidth(w)
+    for _, fs in ipairs({ pace, estimate, factLines[1], factLines[2] }) do fs:SetWidth(inner) end
+    local tileWidth = math.floor((inner - 3 * 8) / 4)
+    for i, tile in ipairs(tiles) do
+      tile:SetWidth(tileWidth)
+      at(tile, card, 128, (i - 1) * (tileWidth + 8))
+    end
+    for _, row in ipairs(history) do
+      row:SetWidth(inner)
+      row.zone:SetWidth(inner - 170 - 80)
+    end
+    todayWidth = math.floor(inner / ns.TODAY_SHOWN)
+    moments:SetWidth(w)
+    placeMoments()
+    openFriends:ClearAllPoints()
+    openFriends:SetPoint("BOTTOMRIGHT", friendsTitle, "BOTTOMLEFT", w, -4)
+    noFriends:SetWidth(w)
+    for _, row in ipairs(friendRows) do
+      row:SetWidth(w)
+      row.what:SetWidth(w - 196 - 70)
+    end
+  end
+
   -- What only changes with new events is worked out again only then (the redraw runs every few
   -- seconds, and the list holds thousands): level times, today's counts and the feed.
   local seenList, seenCount, seenGuid
@@ -394,6 +432,7 @@ function ns.buildHomeTab(p)
 
   -- Places what's shown in the card from the top down, and sizes the card and the page.
   layout = function()
+    fit()
     placeCard()
     local y = TILES_END + 12
     local hasEstimate = (estimate:GetText() or "") ~= ""
