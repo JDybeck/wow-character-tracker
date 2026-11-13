@@ -69,6 +69,7 @@ sealed class FriendsViewModel : Observable
             {
                 row.IsFriend = true;
                 row.FriendTag = contact.Tag;
+                row.FriendSynced = contact.Seen;
                 rows.Add(row);
             }
         allRows = rows;
@@ -88,9 +89,9 @@ sealed class FriendsViewModel : Observable
             r.IsHiddenFriend = config.HiddenFriendCharacters.Contains(r.Guid);
         }
         Contacts.Fill(allRows, r => r.FriendTag, NameOf);
+        BuildCards();
         Characters.Clear();
-        foreach (var r in allRows.Where(r => Contacts.Matches(r.FriendTag) && (ShowHidden || !config.HiddenFriendCharacters.Contains(r.Guid)))
-                     .OrderBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase))
+        foreach (var r in Ordered(allRows.Where(r => Contacts.Matches(r.FriendTag) && (ShowHidden || !config.HiddenFriendCharacters.Contains(r.Guid))), RankOf))
         {
             Characters.Add(r);
             _ = r.LoadPictureAsync(flavor);
@@ -100,6 +101,64 @@ sealed class FriendsViewModel : Observable
         Raise(nameof(HiddenCount));
         Raise(nameof(HasHidden));
         Raise(nameof(HiddenText));
+    }
+
+    // Grouped by friend on the page (FriendsPage groups by FriendTag): friends in the dragged order
+    // (rank), the rest by name, each friend's characters the one played last first, so the one
+    // they're on leads.
+    internal static IEnumerable<CharacterRow> Ordered(IEnumerable<CharacterRow> rows, Func<string, int> rank) =>
+        rows.OrderBy(r => rank(r.FriendTag))
+            .ThenBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(r => r.FriendTag, StringComparer.Ordinal) // two friends with one nickname stay apart
+            .ThenByDescending(r => r.LastSeen)
+            .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase);
+
+    // --- the grid of friends over the list ---
+
+    // One card per friend in the order you drag them into (Config.FriendOrder, shared with the addon's
+    // Friends tab), the others after by name. A click shows only that friend, a second click everyone.
+    public ObservableCollection<FriendCard> Cards { get; } = [];
+    public event Action<IReadOnlyList<string>>? OrderChanged;
+
+    int RankOf(string tag) => config.FriendOrder.IndexOf(tag) is var i and >= 0 ? i : int.MaxValue;
+
+    void BuildCards()
+    {
+        Cards.Clear();
+        foreach (var g in allRows.GroupBy(r => r.FriendTag).OrderBy(g => RankOf(g.Key)).ThenBy(g => NameOf(g.Key), StringComparer.CurrentCultureIgnoreCase))
+        {
+            var current = g.MaxBy(r => r.LastSeen)!;
+            Cards.Add(new FriendCard(g.Key, NameOf(g.Key), current, g.Count(), g.Key == Contacts.Key));
+            _ = current.LoadPictureAsync(flavor);
+        }
+    }
+
+    public ICommand SelectFriendCommand => selectFriend ??= new RelayCommand(p =>
+    {
+        if (p is not FriendCard card) return;
+        var key = Contacts.Key == card.Tag ? "" : card.Tag;
+        Contacts.Selected = Contacts.Chips.FirstOrDefault(c => c.Key == key);
+    });
+    ICommand? selectFriend;
+
+    // Dragging (FriendsPage): the dragged friend's card moves live onto the one it's over, by
+    // BattleTag (a sync can rebuild the cards mid-drag). Letting go keeps the order when it changed;
+    // a cancelled drag puts the cards back.
+    public IReadOnlyList<string> CardOrder => [.. Cards.Select(c => c.Tag)];
+
+    public void MoveCard(string tag, string overTag)
+    {
+        var from = Cards.ToList().FindIndex(c => c.Tag == tag);
+        var to = Cards.ToList().FindIndex(c => c.Tag == overTag);
+        if (from < 0 || to < 0 || from == to) return;
+        Cards.Move(from, to);
+    }
+
+    public void EndDrag(IReadOnlyList<string> before, bool dropped)
+    {
+        var now = CardOrder;
+        if (!dropped) BuildCards();
+        else if (!now.SequenceEqual(before)) OrderChanged?.Invoke(now);
     }
 
     void SetHidden(object? p, bool hidden)
@@ -242,10 +301,17 @@ sealed class FriendsViewModel : Observable
     internal string NicknameOf(string tag) => config.FriendNicknames.GetValueOrDefault(tag, "");
     internal void SetNickname(string tag, string name)
     {
-        name = name.Trim();
-        if (name.Length == 0) config.FriendNicknames.Remove(tag); else config.FriendNicknames[tag] = name;
+        // A second newer than the last one, so it wins over the game's even within the same second.
+        config.SetNickname(tag, name, Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), config.FriendNicknamesAt.GetValueOrDefault(tag) + 1));
         changed(); // saves, and the addon shows the same name
         ShowRows();
+    }
+
+    // Nicknames taken from the game: the rows, chips and the sharing settings' name boxes show them.
+    public void NamesChanged()
+    {
+        ShowRows();
+        foreach (var row in ContactRows) row.Refresh(data.Friends.FirstOrDefault(f => f.Tag == row.Tag));
     }
 
     // Your own characters on this tab, each shared or kept from friends.
@@ -332,6 +398,14 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
         }
     });
     ICommand? cycle;
+}
+
+// A friend's card in the Friends page's grid: their name, the character they played last, how many
+// they share, when it was seen and when their data last arrived. IsSelected: only theirs are listed.
+sealed record FriendCard(string Tag, string Name, CharacterRow Current, int Count, bool IsSelected)
+{
+    public string CountText => Format.Count(Count, "character");
+    public string SeenText => $"seen {Current.LastSeenText} · {Current.FriendSyncedText}";
 }
 
 // One category chip of a friend: State is "all" (follows what all friends get), "on" or "off".

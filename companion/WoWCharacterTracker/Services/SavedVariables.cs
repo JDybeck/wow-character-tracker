@@ -26,6 +26,8 @@ static class SavedVariables
             XpTable = ReadXpTable(db.Table.Get("xpTable")),
             ItemClasses = ReadItemClasses(db.Table.Get("itemClasses")),
             Notes = ReadNotes(db.Table.Get("notes")),
+            Nicknames = ReadNicknames(db.Table.Get("friendNames")),
+            FriendOrder = ReadFriendOrder(db.Table.Get("friendOrder")),
             InGame = ReadInGame(db.Table.Get("gameSettings")),
             Friends = FriendData.ReadFriends(db.Table.Get("friends")),
             Share = FriendData.ReadShare(db.Table.Get("share")),
@@ -84,6 +86,27 @@ static class SavedVariables
             if (p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
                 notes.Add(new GameNote(p.Key.String, S(p.Value.Table, "text").Replace("||", "|"), (long)N(p.Value.Table, "at")));
         return notes;
+    }
+
+    // friendNames[battleTag] = { name, at }: friends' nicknames set in game ("" = cleared).
+    internal static List<GameNickname> ReadNicknames(DynValue table)
+    {
+        if (table.Type != DataType.Table) return [];
+        return [.. table.Table.Pairs
+            .Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Table && N(p.Value.Table, "at") > 0)
+            .Select(p => new GameNickname(p.Key.String, S(p.Value.Table, "name").Replace("||", "|"), (long)N(p.Value.Table, "at")))];
+    }
+
+    // friendOrder = { tags = { battleTag, ... }, at }: the Friends tab's order, dragged in game.
+    internal static GameFriendOrder? ReadFriendOrder(DynValue value)
+    {
+        if (value.Type != DataType.Table) return null;
+        var at = (long)N(value.Table, "at");
+        var tags = value.Table.Get("tags");
+        if (at <= 0 || tags.Type != DataType.Table) return null;
+        var list = tags.Table;
+        return new GameFriendOrder([.. Enumerable.Range(1, list.Length).Select(i => list.Get(i))
+            .Where(v => v.Type == DataType.String).Select(v => v.String).Distinct()], at);
     }
 
     // itemClasses[itemId] = the item's class (consumable, weapon, armor, trade goods...).

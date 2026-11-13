@@ -109,6 +109,30 @@ public class MapPinsLuaTests
         Assert.True(script.DoString("return ns.pinIcon('WARRIOR')").IsNil());
     }
 
+    // Hovering a pin: the character with what they share of it, the zone, the layer, the age.
+    [Fact]
+    public void A_pins_tooltip_tells_about_the_character_and_its_layer()
+    {
+        var script = Load();
+        script.DoString("""
+            function time() return 1000 end
+            ns.fullName = function(c) return c.surname and (c.char .. ' ' .. c.surname) or c.char end
+            ns.ago = function(at) return (1000 - at) .. 's ago' end
+            RAID_CLASS_COLORS = { WARRIOR = { r = 0.78, g = 0.61, b = 0.43 } }
+            function lines(f)
+              local out = {}
+              for _, l in ipairs(ns.pinLines(f, 'Felwood')) do out[#out + 1] = l[1] end
+              return table.concat(out, '|')
+            end
+            shared = { char = 'Zeb', surname = 'Drygbeck', class = 'Warrior', spec = 'Arms', level = 54, ilvl = 50.9,
+              xp = 4500, xpMax = 10000, maxLevel = 60, professions = 'Blacksmithing 162, Mining 145' }
+            """);
+        Assert.Equal("Zeb Drygbeck, level 54 Arms Warrior|Felwood|Item level 50  ·  45% into level 54|Blacksmithing 162, Mining 145|On layer 6, you're on 5|3s ago",
+            script.DoString("return lines({ character = 'Zeb', classFile = 'WARRIOR', level = 54, shared = shared, realmNote = \"On layer 6, you're on 5\", age = 3 })").String);
+        Assert.Equal("Zeb, level 12|Felwood|Last seen 40s ago", // nothing shared, no class name known
+            script.DoString("return lines({ character = 'Zeb', level = 12, age = 40, faded = true })").String);
+    }
+
     [Fact]
     public void Nothing_happens_without_a_world_map()
     {

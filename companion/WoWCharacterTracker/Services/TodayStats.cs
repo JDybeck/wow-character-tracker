@@ -2,9 +2,10 @@ using System.Globalization;
 
 namespace WoWCharacterTracker.Services;
 
-// Home's TODAY rows, one character's or every character of the game (guid null), most important
+// Home's TODAY numbers, one character's or every character of the game (guid null), most important
 // first: the addon's ns.todayStats (Today.lua) with the same order, plus what the app posted. Only
-// stats above 0, padded to Shown with the main ones at 0; the rest folds behind "more".
+// stats above 0, padded to Shown with the main ones at 0 (pad false: no padding); the rest folds
+// behind "more".
 static class TodayStats
 {
     public const int Shown = 4;
@@ -18,7 +19,7 @@ static class TodayStats
     };
 
     public static List<TodayCount> Build(IEnumerable<Entry> events, IEnumerable<DayTotals> days, IReadOnlySet<string> sent, bool keys, DateTime now,
-        string? guid = null)
+        string? guid = null, bool pad = true)
     {
         var v = Order.ToDictionary(k => k, _ => 0.0);
 
@@ -44,13 +45,23 @@ static class TodayStats
         if (v["gold"] < 100) v["gold"] = 0; // less than a silver isn't worth a spot
 
         var shown = Order.Where(k => v[k] > 0).ToList();
-        shown.AddRange(Main.Where(k => v[k] == 0).Take(Math.Max(0, Shown - shown.Count)));
+        if (pad) shown.AddRange(Main.Where(k => v[k] == 0).Take(Math.Max(0, Shown - shown.Count)));
         return [.. shown.Select(k => new TodayCount(Value(k, v[k]), k == "bosses" && keys ? "keys" : Names[k]))];
     }
 
-    // The characters played today: a moment since midnight or the addon's day counters.
-    public static HashSet<string> Characters(IEnumerable<Entry> events, IEnumerable<DayTotals> days, DateTime now) =>
-        [.. EventsOf(events, now).Select(e => e.Guid).Concat(DaysOf(days, now).Select(d => d.Guid)).Where(g => g.Length > 0)];
+    // The characters that did something today (a moment, a quest, gold, gathering...), each with
+    // what, unpadded. Only logging in doesn't count: that alone starts the addon's day counters.
+    public static Dictionary<string, List<TodayCount>> ByCharacter(IEnumerable<Entry> events, IEnumerable<DayTotals> days, IReadOnlySet<string> sent,
+        bool keys, DateTime now)
+    {
+        var list = events as IReadOnlyCollection<Entry> ?? [.. events];
+        var dayList = days as IReadOnlyCollection<DayTotals> ?? [.. days];
+        var guids = EventsOf(list, now).Select(e => e.Guid).Concat(DaysOf(dayList, now).Select(d => d.Guid)).Where(g => g.Length > 0).Distinct();
+        return guids
+            .Select(g => (g, counts: Build(list, dayList, sent, keys, now, g, pad: false)))
+            .Where(x => x.counts.Count > 0)
+            .ToDictionary(x => x.g, x => x.counts);
+    }
 
     static IEnumerable<Entry> EventsOf(IEnumerable<Entry> events, DateTime now)
     {

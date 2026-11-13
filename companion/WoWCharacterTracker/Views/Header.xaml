@@ -69,7 +69,11 @@
         <DockPanel Margin="0,2,0,0" HorizontalAlignment="Left">
           <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,6,0"/>
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-            <TextBlock Text="{Binding Updates.VersionText}" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            <!-- The version and whether it's the newest; a click checks now. -->
+            <Button Style="{StaticResource GhostButton}" Padding="4,1" Margin="6,0,0,0" VerticalAlignment="Center" Cursor="Hand"
+                    Command="{Binding Updates.CheckUpdatesCommand}" ToolTip="{Binding Updates.VersionTip}">
+              <TextBlock Text="{Binding Updates.VersionLine}" FontSize="12" Foreground="{StaticResource Faint}"/>
+            </Button>
             <!-- A new version: a filled button that can't be missed, one click installs it. -->
             <Button Style="{StaticResource IndigoButton}" Padding="10,3" Margin="8,0,0,0" FontSize="12" Command="{Binding Updates.InstallUpdateCommand}"
                     ToolTip="Download and install the new version now. The app restarts by itself in a few seconds; your settings stay."

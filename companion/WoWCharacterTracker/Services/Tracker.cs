@@ -387,6 +387,8 @@ sealed class Tracker : IDisposable
         var xpTable = new Dictionary<int, long>();
         var itemClasses = new Dictionary<int, int>();
         var notes = new Dictionary<string, GameNote>();
+        var nicknames = new Dictionary<string, GameNickname>();
+        GameFriendOrder? friendOrder = null;
         InGameSettings? inGame = null;
         var friends = new List<List<FriendContact>>();
         ShareSettings? share = null;
@@ -409,6 +411,9 @@ sealed class Tracker : IDisposable
                 foreach (var (id, c) in d.ItemClasses) itemClasses[id] = c;
                 foreach (var n in d.Notes)
                     if (!notes.TryGetValue(n.Guid, out var had) || n.At > had.At) notes[n.Guid] = n;
+                foreach (var n in d.Nicknames)
+                    if (!nicknames.TryGetValue(n.Tag, out var had) || n.At > had.At) nicknames[n.Tag] = n;
+                if (d.FriendOrder is { } o && o.At > (friendOrder?.At ?? 0)) friendOrder = o;
                 if (d.InGame is { } g && g.At > (inGame?.At ?? 0)) inGame = g;
                 friends.Add(d.Friends);
                 if (d.Share is { } sh && sh.At > (share?.At ?? 0)) share = sh;
@@ -424,7 +429,7 @@ sealed class Tracker : IDisposable
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(Snapshot.Of));
-        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values], InGame = inGame,
+        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values], Nicknames = [.. nicknames.Values], FriendOrder = friendOrder, InGame = inGame,
             Friends = FriendData.Merge(friends), Share = share, Incognito = incognito, Today = today },
             stamp.ToString());
     }

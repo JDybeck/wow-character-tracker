@@ -84,7 +84,8 @@ static partial class AddonInstaller
     // appUpdate: a newer app version, which the addon mentions in chat on the next login.
     // preset: which Sharing preset the settings match (or "custom"), for the addon window's choice.
     public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null, bool hasWebhook = false,
-        IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null, string? preset = null)
+        IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null, string? preset = null,
+        IReadOnlyDictionary<string, long>? friendNamesAt = null, GameFriendOrder? friendOrder = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -133,6 +134,15 @@ static partial class AddonInstaller
                   + string.Concat((friendNames ?? new Dictionary<string, string>()).Where(n => n.Value.Length > 0).OrderBy(n => n.Key, StringComparer.Ordinal)
                       .Select(n => $"[{LuaString(n.Key)}] = {LuaString(n.Value)}, "))
                   + "},\n"
+                  // When each was set (or cleared) in the app: a newer one set in game wins (Friends.lua label).
+                  + "  friendNameAt = { "
+                  + string.Concat((friendNamesAt ?? new Dictionary<string, long>()).OrderBy(n => n.Key, StringComparer.Ordinal)
+                      .Select(n => $"[{LuaString(n.Key)}] = {n.Value}, "))
+                  + "},\n"
+                  // The Friends tab's order as dragged in the app; a newer one dragged in game wins (Friends.lua).
+                  + (friendOrder is { At: > 0 } order
+                      ? $"  friendOrder = {{ {string.Concat(order.Tags.Select(t => $"{LuaString(t)}, "))}}},\n  friendOrderAt = {order.At},\n"
+                      : "")
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
         if (!File.Exists(file) || File.ReadAllText(file) != lua) Files.WriteAtomic(file, lua);

@@ -97,9 +97,51 @@ end
 -- The chat line about a newer app version (Settings.lua appUpdate, written by the app when it
 -- finds one), or nil when there's none. Said once per login, never on /reload.
 function ns.appUpdateLine()
-  local v = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.appUpdate
-  if type(v) ~= "string" or not v:match("^%d+%.%d+%.%d+$") then return nil end
+  local v = ns.appUpdateVersion and ns.appUpdateVersion()
+  if not v then return nil end
   return "Version " .. v .. " of the app is out. Open the Character Tracker app and click Update (it updates the addon too)."
+end
+
+-- This addon's version ("0.39.16", from the .toc), "" when the client can't say.
+function ns.addonVersion()
+  local metadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+  return metadata and tostring(metadata(ADDON, "Version") or "") or ""
+end
+
+-- a newer than b, both "x.y.z" (0.39.10 is newer than 0.39.9); false for anything else.
+function ns.isNewerVersion(a, b)
+  local a1, a2, a3 = tostring(a or ""):match("^(%d+)%.(%d+)%.(%d+)$")
+  local b1, b2, b3 = tostring(b or ""):match("^(%d+)%.(%d+)%.(%d+)$")
+  if not (a1 and b1) then return false end
+  for _, pair in ipairs({ { a1, b1 }, { a2, b2 }, { a3, b3 } }) do
+    local x, y = tonumber(pair[1]), tonumber(pair[2])
+    if x ~= y then return x > y end
+  end
+  return false
+end
+
+-- Newer addons seen this session: friends' addons say their version in every hello and answer
+-- (Friends.lua), so a newer one there means an update is out, also without the app. The first one
+-- gets a chat line, and the window's version shows it (ns.versionChanged).
+local newestAddon
+function ns.noteAddonVersion(v)
+  if type(v) ~= "string" or #v > 16 or not ns.isNewerVersion(v, ns.addonVersion()) then return end
+  if newestAddon and not ns.isNewerVersion(v, newestAddon) then return end
+  local first = newestAddon == nil
+  newestAddon = v
+  if first then
+    ns.say(string.format("A friend has a newer WoW Character Tracker addon (%s, you have %s). %s", v, ns.addonVersion(),
+      ns.hasApp() and "Update the Character Tracker app, it brings the new addon." or ("Get it where you got this one, or from " .. ns.APP_URL .. ".")))
+  end
+  if ns.versionChanged then ns.versionChanged() end
+end
+
+function ns.newerAddonSeen() return newestAddon end
+
+-- The newer app version the app found (Settings.lua appUpdate), or nil.
+function ns.appUpdateVersion()
+  local v = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.appUpdate
+  return (type(v) == "string" and v:match("^%d+%.%d+%.%d+$")) and v or nil
 end
 
 -- From PLAYER_ENTERING_WORLD: only a real login (isInitialLogin), not a /reload or a loading screen.
@@ -136,6 +178,21 @@ function ns.editSettings(edit)
   changed.at = math.max(time(), fromApp + 1)
   WoWCharacterTrackerDB.gameSettings = changed
 end
+
+-- s cut to at most n letters, never inside one: WoW's strings are UTF-8 bytes, so å or ö is two
+-- of them, and :sub would split it (the game shows garbage, the app reads broken text).
+function ns.cutLetters(s, n)
+  local out, count = {}, 0
+  for letter in s:gmatch("[^\128-\191][\128-\191]*") do
+    count = count + 1
+    if count > n then break end
+    out[count] = letter
+  end
+  return table.concat(out)
+end
+
+-- Where the app (and everything about it) is, for the addon on its own.
+ns.APP_URL = "https://github.com/JDybeck/wow-character-tracker"
 
 -- Is the app there? It writes `post` into Settings.lua; the addon on its own (from an addon site)
 -- has only the bundled defaults, and nobody to send live events to.

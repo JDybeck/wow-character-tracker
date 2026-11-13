@@ -15,12 +15,6 @@ sealed class TodaySection(string title) : Observable
     public bool HasMore => all.Count > TodayStats.Shown;
     public string ToggleText => open ? "Less" : $"+{all.Count - TodayStats.Shown} more";
 
-    string note = "";
-    public string Note { get => note; set => Set(ref note, value); }
-
-    bool visible = true;
-    public bool Visible { get => visible; set => Set(ref visible, value); }
-
     public ICommand ToggleCommand => new RelayCommand(_ =>
     {
         open = !open;

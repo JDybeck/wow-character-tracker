@@ -7,8 +7,9 @@
 local ADDON, ns = ...
 
 local GROUP_EVERY = 120  -- seconds between sends to a contact in your group
-local ONLINE_EVERY = 600 -- to one online elsewhere
+local ONLINE_EVERY = 300 -- to one online elsewhere
 local HEARTBEAT = 1800   -- sent even when nothing changed
+local HELLO_GAP = 10     -- a hello is answered at most this often per game account
 local MAX_CHARS = 50     -- characters kept per contact
 local TICK = 30
 
@@ -28,10 +29,79 @@ local helloSent = {} -- [account] = true: HI went out
 local heard = {}     -- [account] = true: they sent something, so they have the addon
 local lastSent = {}  -- [account] = { at, key }: the character being played, last sent
 local saidNo = {}    -- [tag] = true: NO went out
+local asked = {}     -- [tag] = when we last asked them
+local told = {}      -- [tag] = the ask we already said "shared with you" for
 
 -- Tells the window's Friends tab to redraw (Window.lua sets ns.friendsChanged).
 local function changed()
   if ns.friendsChanged then ns.friendsChanged() end
+end
+
+-- Nicknames -----------------------------------------------------------------------------------
+-- Set in the app (Settings.lua friendNames, with friendNameAt) or here (WoWCharacterTrackerDB
+-- .friendNames[tag] = { name, at }, which the app reads back); the newer one wins, like notes. "" = none.
+local MAX_NICKNAME = 32
+
+local function appNameAt(tag)
+  local s = WoWCharacterTrackerSettings
+  return s and s.friendNameAt and tonumber(s.friendNameAt[tag]) or 0
+end
+
+function ns.friendNickname(tag)
+  local game = WoWCharacterTrackerDB and WoWCharacterTrackerDB.friendNames and WoWCharacterTrackerDB.friendNames[tag]
+  if type(game) == "table" and (tonumber(game.at) or 0) > appNameAt(tag) then return tostring(game.name or "") end
+  local names = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.friendNames
+  local name = names and names[tag]
+  return type(name) == "string" and name or ""
+end
+
+-- Sets (or with "" clears) tag's nickname, newer than the app's.
+function ns.setFriendNickname(tag, name)
+  name = ns.cutLetters(strtrim((tostring(name or ""):gsub("|", ""))), MAX_NICKNAME)
+  local db = WoWCharacterTrackerDB
+  db.friendNames = db.friendNames or {}
+  db.friendNames[tag] = { name = name, at = math.max(time(), appNameAt(tag) + 1) }
+  changed()
+  return name
+end
+
+-- The order of the Friends tab (the addon's grid and the app's): BattleTags, first is top left.
+-- Set here by dragging (WoWCharacterTrackerDB.friendOrder = { tags = { ... }, at }) or in the app
+-- (Settings.lua friendOrder with friendOrderAt); the newer one wins. Friends not in it come after.
+function ns.friendOrder()
+  local game = WoWCharacterTrackerDB and WoWCharacterTrackerDB.friendOrder
+  local s = WoWCharacterTrackerSettings
+  local appAt = s and tonumber(s.friendOrderAt) or 0
+  if type(game) == "table" and type(game.tags) == "table" and (tonumber(game.at) or 0) > appAt then return game.tags end
+  return (s and type(s.friendOrder) == "table") and s.friendOrder or {}
+end
+
+-- The saved order with the shown friends (visible, in their new order) put in the places the shown
+-- ones had: friends not shown here (only in the app, or another game's) keep theirs. New ones
+-- take places at the end. The app's FriendOrder.Merge does the same.
+function ns.mergeFriendOrder(saved, visible)
+  local shown, known = {}, {}
+  for _, tag in ipairs(visible) do shown[tag] = true end
+  for _, tag in ipairs(saved) do known[tag] = true end
+  local out, slots = {}, {}
+  for _, tag in ipairs(saved) do
+    out[#out + 1] = tag
+    if shown[tag] then slots[#slots + 1] = #out end
+  end
+  for _, tag in ipairs(visible) do
+    if not known[tag] then
+      out[#out + 1] = tag
+      slots[#slots + 1] = #out
+    end
+  end
+  for i, slot in ipairs(slots) do out[slot] = visible[i] end
+  return out
+end
+
+function ns.setFriendOrder(visible)
+  local s = WoWCharacterTrackerSettings
+  local appAt = s and tonumber(s.friendOrderAt) or 0
+  WoWCharacterTrackerDB.friendOrder = { tags = ns.mergeFriendOrder(ns.friendOrder(), visible), at = math.max(time(), appAt + 1) }
 end
 
 -- Sharing settings ----------------------------------------------------------------------------
@@ -144,10 +214,7 @@ local function tagOf(account)
   return nil
 end
 
-local function version()
-  local metadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-  return metadata and tostring(metadata(ADDON, "Version") or "") or ""
-end
+local function version() return ns.addonVersion() end
 
 -- Sending -------------------------------------------------------------------------------------
 -- The newest highlights per character (ns.FRIEND_HIGHLIGHTS of them), kept up to date like
@@ -260,7 +327,7 @@ end
 -- Who has the addon ---------------------------------------------------------------------------
 -- PING asks a friend's addon to say PONG, invisibly. Each game account is pinged once a session.
 local FIND_EVERY = 60 -- seconds between two PONGs to one account
-local PING_WAIT = 10  -- seconds without an answer before it's "no addon"
+local PING_WAIT = 4   -- seconds without an answer, once the PING went, before it's "no addon"
 
 local pinged = {}       -- [account] = true: PING went out
 local silent = {}       -- [account] = true: no answer to it in PING_WAIT
@@ -342,21 +409,23 @@ local answeredHi = {}
 -- body), only for contacts, only with sharing on.
 function ns.onFriendKind(kind, handler) on[kind] = handler end -- [account] = when we last answered their hello
 
--- A contact came online (or reloaded): answer, and send them the character being played. At most
--- once per GROUP_EVERY, so a contact saying hello over and over can't flood us (or Battle.net).
+-- A contact came online, reloaded or switched character: always answered (within HELLO_GAP), since
+-- their addon sends us nothing until it hears from us. The character being played goes along at
+-- most once per GROUP_EVERY, so a contact saying hello over and over can't flood us (or Battle.net).
 local sendCharList -- below, with the requests
+local holdGift     -- below: data from someone whose request waits for an answer
 
 function on.HI(f, contact, body)
   noteVersion(f, contact, body)
   local now = time()
-  if answeredHi[f.account] and now - answeredHi[f.account] < GROUP_EVERY then return end
+  if answeredHi[f.account] and now - answeredHi[f.account] < HELLO_GAP then return end
   answeredHi[f.account] = now
   ns.comms.send(f.account, "HEY", version())
+  if not contact.share then return end
   local last = lastSent[f.account]
-  if contact.share and not (last and now - last.at < GROUP_EVERY) then
-    sendCurrent(f, contact, false, true)
-    sendCharList(f)
-  end
+  if not (last and now - last.at < GROUP_EVERY) then sendCurrent(f, contact, false, true) end
+  -- The list always (small): their HAVE check catches up alts they didn't get, also right after an ask.
+  sendCharList(f)
 end
 
 -- The answer to our hello (never answered back, so no ping-pong).
@@ -380,11 +449,22 @@ function on.CHARS(f, contact, body)
   changed()
 end
 
+-- "<label> shared <names> with you." once per ask, for the first characters that come after it.
+local function noteArrival(tag, char)
+  local at = asked[tag]
+  if not at or told[tag] == at or time() - at > 300 then return end
+  told[tag] = at
+  local name = ns.friendNickname(tag)
+  ns.say(string.format("%s shared %s with you. More of their characters follow if they share them.",
+    name ~= "" and name or tag, ns.fullName(char)))
+end
+
 function on.DATA(f, contact, body)
   if not contact.receive then return end
   local char = ns.decodeFriendChar(body)
   if not char then return end
   keep(f.tag, char)
+  noteArrival(f.tag, char)
   changed()
 end
 
@@ -401,7 +481,7 @@ end
 -- Everything from Comms.lua, from friends online here. Any message says they have the addon, and a
 -- PING gets a PONG (only that) even with sharing off. Otherwise off means off. A blocked friend is
 -- told no once a session when they ask; everything else needs them to be a contact, except a
--- request (on.REQ, below).
+-- request (on.REQ, below) and the characters someone sends along with theirs (holdGift).
 ns.comms.onReceive = function(account, kind, body)
   local tag = tagOf(account)
   if not tag then return end
@@ -410,6 +490,8 @@ ns.comms.onReceive = function(account, kind, body)
     changed()
   end
   if kind == "PING" then return answerPing(account) end
+  -- Every hello and answer carries their addon's version: a newer one means an update is out.
+  if kind == "HI" or kind == "HEY" or kind == "PONG" then ns.noteAddonVersion(body) end
   local s = ns.shareSettings()
   if not s.enabled or kind == "PONG" then return end
   local f = { tag = tag, account = account }
@@ -423,6 +505,8 @@ ns.comms.onReceive = function(account, kind, body)
   local contact = s.contacts[tag]
   if kind == "REQ" then
     if on.REQ then on.REQ(f, contact, body) end
+  elseif kind == "DATA" and not (contact and contact.receive) then
+    holdGift(tag, body)
   elseif contact and on[kind] then
     on[kind](f, contact, body)
   end
@@ -430,17 +514,20 @@ end
 
 -- Requests ------------------------------------------------------------------------------------
 local REQUEST_COOLDOWN = 30 -- between two requests to, or from, the same contact
+local NOT_NOW_FOR = 600     -- after Not now, their next request shows again once this is over
+local REFUSED_FOR = 86400   -- after their Never, asking again waits this long (they may unblock you)
+local SHARES = "+shares"    -- in a request's body: the asker sends their characters along
 
-local asked = {}     -- [tag] = when we last asked them
 local requested = {} -- [tag] = when they last asked us
-local notNow = {}    -- [tag] = true: "Not now" this session
+local notNow = {}    -- [tag] = when we said Not now
 local altsSent = {}  -- [tag] = true: the alts went out this session
+local wantAnswered = {} -- [account] = when we last answered their WANT
+local haveAnswered = {} -- [account] = when we last answered their HAVE
 
--- "Zebbe (Zeb#2222)" with a nickname from the app (Settings.lua friendNames), else the BattleTag.
+-- "Zebbe (Zeb#2222)" with a nickname, else the BattleTag.
 local function label(tag)
-  local names = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.friendNames
-  local name = names and names[tag]
-  if name and name ~= "" then return string.format("%s (%s)", name, tag) end
+  local name = ns.friendNickname(tag)
+  if name ~= "" then return string.format("%s (%s)", name, tag) end
   return tag
 end
 
@@ -462,24 +549,72 @@ local function sharedAlts()
   return out
 end
 
--- The GUIDs of every character we share, so the friend drops the ones we don't anymore.
+-- The GUIDs of every character we share (CHARS), so the friend drops the ones we don't anymore,
+-- then each alt's snapshot time (HAVE "guid~at,..."): the friend asks (WANT) for the ones it has
+-- an older copy of, so alts played while they were offline catch up. Older addons ignore HAVE.
 sendCharList = function(f)
-  local list, me = sharedAlts(), UnitGUID("player")
+  local alts, me = sharedAlts(), UnitGUID("player")
+  local list, stamps = {}, {}
+  for i, guid in ipairs(alts) do
+    list[i] = guid
+    stamps[i] = guid .. "~" .. math.floor(WoWCharacterTrackerDB.chars[guid].lastSeen or 0)
+  end
   if me and ns.isCharShared(ns.shareSettings(), me) then list[#list + 1] = me end
   ns.comms.send(f.account, "CHARS", table.concat(list, ","))
+  if #stamps > 0 then ns.comms.send(f.account, "HAVE", table.concat(stamps, ",")) end
 end
 
--- Everything a contact may see, for one who asked: the character being played, the list of what we
--- share, and the alts once a session.
-local function answer(f, contact)
-  sendCurrent(f, contact, false, true)
-  sendCharList(f)
-  if altsSent[f.tag] then return end
-  altsSent[f.tag] = true
-  for _, guid in ipairs(sharedAlts()) do
-    local text = charText(guid, contact)
-    if text then ns.comms.send(f.account, "DATA", text) end
+-- Their alts we have no copy of, or another one than they have now. At most once per HELLO_GAP per
+-- account: each answer is a WANT of up to MAX_CHARS guids, so a flood of HAVEs mustn't fill our queue.
+function on.HAVE(f, contact, body)
+  if not contact.receive then return end
+  local now = time()
+  if haveAnswered[f.account] and now - haveAnswered[f.account] < HELLO_GAP then return end
+  haveAnswered[f.account] = now
+  local got = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[f.tag]
+  local chars, wants = got and got.chars or {}, {}
+  for guid, at in string.gmatch(body or "", "([^,~]+)~(%d+)") do
+    local have = chars[guid]
+    if #wants < MAX_CHARS and guid:match("^Player%-%d+%-%x+$") and not (have and have.at == tonumber(at)) then
+      wants[#wants + 1] = guid
+    end
   end
+  if #wants > 0 then ns.comms.send(f.account, "WANT", table.concat(wants, ",")) end
+end
+
+-- The alts a contact asked for, if we share them, at most once per REQUEST_COOLDOWN.
+function on.WANT(f, contact, body)
+  if not contact.share then return end
+  local now = time()
+  if wantAnswered[f.account] and now - wantAnswered[f.account] < REQUEST_COOLDOWN then return end
+  wantAnswered[f.account] = now
+  local s, me, n = ns.shareSettings(), UnitGUID("player"), 0
+  for guid in string.gmatch(body or "", "[^,]+") do
+    if n >= MAX_CHARS then break end
+    if guid ~= me and ns.isCharShared(s, guid) then
+      local text = charText(guid, contact)
+      if text then
+        n = n + 1
+        ns.comms.send(f.account, "DATA", text)
+      end
+    end
+  end
+end
+
+-- Everything a contact may see, for one who asked: the character being played, the alts once a
+-- session, then the list of what we share (after the alts, so HAVE doesn't ask for them again).
+-- unsure: they may drop the alts (ours sent along with an ask, before they answered), so they
+-- aren't counted as sent and go again next time.
+local function answer(f, contact, unsure)
+  sendCurrent(f, contact, false, true)
+  if not altsSent[f.tag] then
+    if not unsure then altsSent[f.tag] = true end
+    for _, guid in ipairs(sharedAlts()) do
+      local text = charText(guid, contact)
+      if text then ns.comms.send(f.account, "DATA", text) end
+    end
+  end
+  sendCharList(f)
 end
 
 -- Makes tag a contact whose characters we keep, and shares ours with them too when share is true
@@ -520,6 +655,7 @@ function on.REQ(f, contact, body)
   if requested[f.tag] and now - requested[f.tag] < REQUEST_COOLDOWN then return end
   requested[f.tag] = now
   local wants = wantsOf(body)
+  f.shares = tostring(body or ""):find(SHARES, 1, true) ~= nil
   if contact and contact.share then
     answer(f, contact)
     local allowed, missing = ns.allowedFor(ns.shareSettings(), contact), {}
@@ -531,15 +667,17 @@ function on.REQ(f, contact, body)
   else
     f.wants = wants
   end
-  if not notNow[f.tag] then ns.offerFriendRequest(f) end
+  if not (notNow[f.tag] and now - notNow[f.tag] < NOT_NOW_FOR) then ns.offerFriendRequest(f) end
 end
 
--- "wants to see your characters", "... with your map position" or "asks to also see your gold".
+-- "wants to see your characters", "... with your map position" or "asks to also see your gold",
+-- and "and shares theirs with you" when they send theirs along.
 local function asks(f)
   local what = #(f.wants or {}) > 0 and ns.shareSummary(asSet(f.wants)) or nil
   if f.more then return "asks to also see your " .. (what or "characters") end
-  if what then return "wants to see your characters, with your " .. what end
-  return "wants to see your characters"
+  local line = what and ("wants to see your characters, with your " .. what) or "wants to see your characters"
+  if f.shares then line = line .. ", and shares theirs with you" end
+  return line
 end
 
 -- The popup: one at a time, never in combat (PLAYER_REGEN_ENABLED shows the next one). The Friends
@@ -558,15 +696,45 @@ function ns.offerFriendRequest(f)
   changed()
 end
 
--- Requests waiting for an answer, oldest first: { tag, account, label, at, wants, more, asks }.
+-- Requests waiting for an answer, oldest first: { tag, account, label, at, wants, more, shares, asks }.
 function ns.pendingRequests()
   local out = {}
   local function add(f)
-    out[#out + 1] = { tag = f.tag, account = f.account, label = label(f.tag), at = f.at, wants = f.wants, more = f.more, asks = asks(f) }
+    out[#out + 1] = { tag = f.tag, account = f.account, label = label(f.tag), at = f.at, wants = f.wants, more = f.more,
+      shares = f.shares, asks = asks(f) }
   end
   if showing then add(showing) end
   for _, w in ipairs(waitingRequests) do add(w) end
   return out
+end
+
+-- The request from tag that waits for an answer (showing or queued), or nil.
+local function requestFrom(tag)
+  if showing and showing.tag == tag then return showing end
+  for _, w in ipairs(waitingRequests) do
+    if w.tag == tag then return w end
+  end
+  return nil
+end
+
+local function giftCount(f)
+  local n = 0
+  for _ in pairs(f and f.gifts or {}) do n = n + 1 end
+  return n
+end
+
+-- A character someone sent with their request, before we keep anything from them: held with the
+-- request (memory only) and kept if we allow it. Without a waiting request it's dropped.
+holdGift = function(tag, body)
+  local f = requestFrom(tag)
+  if not f then return end
+  local char = ns.decodeFriendChar(body)
+  if not char then return end
+  f.gifts = f.gifts or {}
+  if not f.gifts[char.guid] and giftCount(f) >= MAX_CHARS then return end
+  f.gifts[char.guid] = char
+  if ns.refreshRequestBox then ns.refreshRequestBox(f) end
+  changed()
 end
 
 -- Your characters friends would get: the shared ones, the one being played included.
@@ -578,13 +746,13 @@ end
 
 -- What the request box shows for f: { label, line, more, chars (how many of yours they'd get),
 -- choices (the categories Allow gives them: your general choice, or what you set for them before,
--- plus what they asked for), general }.
+-- plus what they asked for), general, gifts (how many of theirs came along) }.
 function ns.requestInfo(f)
   local s = ns.shareSettings()
   local choices = ns.allowedFor(s, s.contacts[f.tag])
   for _, k in ipairs(f.wants or {}) do choices[k] = true end
   return { label = label(f.tag), line = label(f.tag) .. " " .. asks(f) .. ".", more = f.more == true, chars = sharedCount(),
-    choices = choices, general = ns.allowedFor(s, nil) }
+    choices = choices, general = ns.allowedFor(s, nil), gifts = giftCount(requestFrom(f.tag) or f) }
 end
 
 -- Shows a request: the window's own box (Window.lua, with the choices), else a Blizzard popup.
@@ -642,6 +810,8 @@ end
 -- addon to stop asking. From the request box (f is the one showing) or the Friends tab's list (a
 -- copy), which closes the box when it's theirs. choices: see keepChoices.
 function ns.answerFriendRequest(f, choice, choices)
+  local waiting = f and (requestFrom(f.tag) or f)
+  local gifts, theyShare = waiting and waiting.gifts, waiting and waiting.shares
   if not f or (showing and showing.tag == f.tag) then
     local fromList = f and showing ~= f
     showing = nil
@@ -658,7 +828,10 @@ function ns.answerFriendRequest(f, choice, choices)
       keepChoices(f.tag, choices)
       local s = ns.shareSettings()
       local contact = s.contacts[f.tag]
+      for _, char in pairs(gifts or {}) do keep(f.tag, char) end
       answer(f, contact)
+      -- They share theirs: a hello gets their list, so what didn't come along (or was dropped) follows.
+      if theyShare then ns.comms.send(f.account, "HI", version()) end
       ns.say(string.format("%s can now see your shared characters (%s). Change it on the Friends tab (/wct).",
         label(f.tag), ns.shareSummary(ns.allowedFor(s, contact))))
     elseif choice == "never" then
@@ -666,7 +839,7 @@ function ns.answerFriendRequest(f, choice, choices)
       saidNo[f.tag] = true
       ns.comms.send(f.account, "NO", "")
     else
-      notNow[f.tag] = true
+      notNow[f.tag] = time()
     end
   end
   ns.showNextFriendRequest()
@@ -697,6 +870,7 @@ local HELP = {
   "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",
   "/wct friends hide or unhide keeps this character from friends, or shares it again.",
   "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",
+  "/wct friends name <BattleTag> <nickname> gives a friend a nickname (here and in the app), without one clears it.",
 }
 
 -- What set takes: a category or a rule, its key exact (IS_CHOICE) or typed in any case (CHOICE_BY_WORD).
@@ -742,20 +916,44 @@ local function tell(message)
   return message
 end
 
--- Asks tag for their characters, and for the categories in wants (a list, optional).
-local function ask(tag, wants)
+-- Asks tag for their characters, and for the categories in wants (a list, optional). give: what you
+-- share with them (category -> on, like the request box's choices), sent right along so their box
+-- says so and Allow keeps yours; nil shares nothing (or what you already share with them).
+local function ask(tag, wants, give)
   local now = time()
   if asked[tag] and now - asked[tag] < REQUEST_COOLDOWN then return tell("Asked " .. label(tag) .. " a moment ago.") end
   local got = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[tag]
-  if got and got.refused then return tell(label(tag) .. " said no to sharing.") end
-  addContact(tag, false)
+  if got and got.refused and now - got.refused < REFUSED_FOR then return tell(label(tag) .. " said no to sharing.") end
   local accounts = accountsOf(tag)
-  if #accounts == 0 then return tell(label(tag) .. " isn't online in this game right now.") end
+  if #accounts == 0 then
+    addContact(tag, false)
+    return tell(label(tag) .. " isn't online in this game right now.")
+  end
+  local contact = addContact(tag, give ~= nil)
+  if give then
+    keepChoices(tag, give)
+    contact = ns.shareSettings().contacts[tag]
+  end
   asked[tag] = now
   local list = wantsOf(table.concat(wants or {}, ","))
-  for _, account in ipairs(accounts) do ns.comms.send(account, "REQ", table.concat(list, ",")) end
+  local body = ns.copy(list)
+  if contact.share then body[#body + 1] = SHARES end
+  for _, account in ipairs(accounts) do
+    ns.comms.send(account, "REQ", table.concat(body, ","))
+    if contact.share then answer({ tag = tag, account = account }, contact, true) end
+  end
   local what = #list > 0 and (" for " .. picked(asSet(list))) or ""
-  return tell("Asked " .. label(tag) .. what .. ". What they share reaches the app on your next /reload or logout.")
+  local yours = contact.share and (", and sent them yours (" .. picked(ns.allowedFor(ns.shareSettings(), contact)) .. ")") or ""
+  return tell("Asked " .. label(tag) .. what .. yours .. ". You'll see here when theirs arrive.")
+end
+
+-- What the ask box starts with for tag: { label, give (what they'd get from you: what you set for
+-- them, else your general choice) }.
+function ns.askInfo(tag)
+  local s = ns.shareSettings()
+  local allowed, give = ns.allowedFor(s, s.contacts[tag]), {}
+  for _, k in ipairs(CATEGORIES) do give[k] = allowed[k] end
+  return { label = label(tag), give = give }
 end
 
 local function share(tag)
@@ -811,7 +1009,7 @@ function ns.contactSharing(tag)
   for _, k in ipairs(RULES) do
     categories[#categories + 1] = { key = k, own = c[k], general = s.defaults[k] == true, on = allowed[k], rule = true }
   end
-  return { tag = tag, label = label(tag), share = c.share == true, receive = c.receive == true,
+  return { tag = tag, label = label(tag), nickname = ns.friendNickname(tag), share = c.share == true, receive = c.receive == true,
     categories = categories, summary = picked(allowed) }
 end
 
@@ -842,7 +1040,7 @@ end
 local RATE_WORDS = { live = 5, ["1m"] = 60, ["5m"] = 300 }
 local RATE_NAMES = { [5] = "live", [60] = "once a minute", [300] = "every 5 minutes" }
 
-local TAG_COMMANDS = { ask = true, share = true, stop = true, remove = true, unblock = true }
+local TAG_COMMANDS = { ask = true, share = true, stop = true, remove = true, unblock = true, name = true }
 
 function ns.friendsCommand(args)
   local cmd, rest = strtrim(args or ""):match("^(%S*)%s*(.-)$")
@@ -885,6 +1083,11 @@ function ns.friendsCommand(args)
     return ask(tag, wants)
   end
   if cmd == "share" then return share(tag) end
+  if cmd == "name" then
+    local name = ns.setFriendNickname(tag, rest:match("^%S+%s*(.-)$") or "")
+    return ns.say(name ~= "" and string.format("%s is now called %s here and in the app.", tag, name)
+      or (tag .. " has no nickname now."))
+  end
   if cmd == "unblock" then
     ns.editShare(function(s) s.blocked[tag] = nil end)
     return ns.say(label(tag) .. " can ask again.")
@@ -897,7 +1100,7 @@ function ns.friendsCommand(args)
 end
 
 -- The Friends tab (Window.lua) ------------------------------------------------------------------
-local INVITE = "I use WoW Character Tracker to share characters with friends: https://github.com/JDybeck/wow-character-tracker"
+local INVITE = "I use WoW Character Tracker to share characters with friends: " .. ns.APP_URL
 local INVITE_EVERY = 86400 -- one invite a day per friend
 
 local function byLabel(x, y)
@@ -930,6 +1133,7 @@ end
 
 ns.askFriend = ask
 ns.shareWithFriend = share
+ns.friendLabel = label
 
 -- The only real chat message the addon sends: one Battle.net whisper with a link, on the player's
 -- click, at most once a day per friend and never to one who has the addon. Returns ok, message.

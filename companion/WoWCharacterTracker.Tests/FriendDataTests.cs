@@ -233,6 +233,78 @@ public class FriendDataTests
         return Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua");
     }
 
+    // Nicknames go both ways, like notes: the game's newer one is taken, an older one isn't, and
+    // Settings.lua carries when each was set in the app (a cleared one too).
+    [Fact]
+    public void Nicknames_set_in_game_are_taken_when_newer_and_written_back_with_their_time()
+    {
+        var read = SavedVariables.ReadNicknames(Lua("{ ['Zeb#2222'] = { name = 'Big||Zeb', at = 900 }, ['Kalle#3333'] = { name = '', at = 300 }, ['Bad#1'] = { name = 'x' } }"));
+        Assert.Equal(["Kalle#3333", "Zeb#2222"], read.Select(n => n.Tag).Order()); // no time: skipped
+        Assert.Equal("Big|Zeb", read.Single(n => n.Tag == "Zeb#2222").Name);
+
+        var config = new Config();
+        config.SetNickname("Zeb#2222", "Zebbe", 800);
+        config.SetNickname("Kalle#3333", "Kalle", 400);
+        Assert.Equal([true, false], read.OrderByDescending(n => n.Tag).Select(config.TakeNewerNickname));
+        Assert.Equal("Big|Zeb", config.FriendNicknames["Zeb#2222"]);
+        Assert.Equal("Kalle", config.FriendNicknames["Kalle#3333"]); // the app's is newer
+        config.SetNickname("Kalle#3333", " ", 950); // cleared in the app
+        Assert.False(config.FriendNicknames.ContainsKey("Kalle#3333"));
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-names-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+            AddonInstaller.WriteSettings(dir, new FlavorSettings(), friendNames: config.FriendNicknames, friendNamesAt: config.FriendNicknamesAt);
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            Assert.Equal(900, script.DoString("return WoWCharacterTrackerSettings.friendNameAt['Zeb#2222']").Number);
+            Assert.Equal(950, script.DoString("return WoWCharacterTrackerSettings.friendNameAt['Kalle#3333']").Number);
+            Assert.True(script.DoString("return WoWCharacterTrackerSettings.friendNames['Kalle#3333']").IsNil());
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // The Friends page's order: dragged in game it's read in order and taken when newer, and the
+    // app's goes to Settings.lua with its time.
+    [Fact]
+    public void The_friend_order_goes_both_ways_and_the_newer_wins()
+    {
+        var read = SavedVariables.ReadFriendOrder(Lua("{ tags = { 'Zeb#2222', 'Kalle#3333', 'Zeb#2222' }, at = 900 }"))!;
+        Assert.Equal(["Zeb#2222", "Kalle#3333"], read.Tags);
+        Assert.Null(SavedVariables.ReadFriendOrder(Lua("{ tags = { 'Zeb#2222' } }"))); // no time
+        var config = new Config { FriendOrder = ["Kalle#3333"], FriendOrderAt = 950 };
+        Assert.False(config.TakeNewerFriendOrder(read));
+        config.FriendOrderAt = 800;
+        Assert.True(config.TakeNewerFriendOrder(read));
+        Assert.Equal(["Zeb#2222", "Kalle#3333"], config.FriendOrder);
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-order-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+            AddonInstaller.WriteSettings(dir, new FlavorSettings(), friendOrder: new GameFriendOrder(config.FriendOrder, config.FriendOrderAt));
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            Assert.Equal("Kalle#3333", script.DoString("return WoWCharacterTrackerSettings.friendOrder[2]").String);
+            Assert.Equal(900, script.DoString("return WoWCharacterTrackerSettings.friendOrderAt").Number);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // A drag only knows the friends that page shows: they swap among their own places, everyone
+    // else keeps theirs, and new ones go at the end (Friends.lua's mergeFriendOrder is the same).
+    [Theory]
+    [InlineData("A,B,C,D,E", "E,D", "A,B,C,E,D")]   // Retail's two, Forever's three kept
+    [InlineData("A,B,C,D", "C,A", "C,B,A,D")]       // shown ones swap places, B and D stay
+    [InlineData("A,B", "X,B,A", "X,B,A")]           // a new one dragged first takes the first shown place
+    [InlineData("", "B,A", "B,A")]
+    public void A_drag_merges_into_the_whole_friend_order(string saved, string shown, string merged)
+    {
+        static List<string> L(string s) => [.. s.Split(',', StringSplitOptions.RemoveEmptyEntries)];
+        Assert.Equal(L(merged), FriendOrder.Merge(L(saved), L(shown)));
+    }
+
     [Fact]
     public void Settings_lua_has_no_share_until_the_app_has_one()
     {

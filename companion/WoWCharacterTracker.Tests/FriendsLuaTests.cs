@@ -638,7 +638,8 @@ public class FriendsLuaTests
         Assert.Equal("Stranglethorn Vale", Str(b, GotDeadbeck + ".zone")); // location: Zeb's own setting
         Assert.Equal("1~19019,16~12345", Str(b, GotDeadbeck + ".gear"));   // gear: the general one
         Assert.True(b.Lua($"return {GotDeadbeck}.money").IsNil());          // gold: off by default
-        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C']").IsNil()); // alts only when asked
+        Assert.Equal("Drygbeck", Str(b, "WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].char")); // the alt B had no copy of (HAVE, WANT)
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000D']").IsNil()); // never a hidden one
         Assert.Equal("0.33.0", Str(b, "WoWCharacterTrackerDB.friends['JDybeck#1111'].version"));
         Assert.True(a.Lua("local f = WoWCharacterTrackerDB.friends; return not (f and f['Zeb#2222'] and next(f['Zeb#2222'].chars) ~= nil)").Boolean); // B shares nothing
     }
@@ -700,10 +701,12 @@ public class FriendsLuaTests
     public void The_character_being_played_goes_when_due_and_changed_or_as_a_heartbeat()
     {
         var a = HelloDone();
-        a.Run(300);
+        a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000A'].zone = 'Ratchet'");
+        a.Run(200);
         a.Call("friendsTick");
         a.Run(1);
-        Assert.Equal(0, Count(a, "DATA")); // 10 minutes not up
+        Assert.Equal(0, Count(a, "DATA")); // changed, but 5 minutes not up
+        a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000A'].zone = 'Stranglethorn Vale'");
         a.Run(300);
         a.Call("friendsTick");
         a.Run(1);
@@ -913,7 +916,7 @@ public class FriendsLuaTests
     }
 
     [Fact]
-    public void Not_now_sends_nothing_and_doesnt_ask_again_this_session()
+    public void Not_now_sends_nothing_and_waits_10_minutes_before_asking_again()
     {
         var a = Asked();
         Answer(a, "notnow");
@@ -922,6 +925,215 @@ public class FriendsLuaTests
         a.Run(1);
         Assert.Equal(1, a.Lua("return #shown").Number);
         Assert.Empty(a.Sent());
+        a.Run(600);
+        a.Receive("1:REQ:3:1:1:", BAccount);
+        Assert.Equal(2, a.Lua("return #shown").Number); // asked again later: shown again
+    }
+
+    // B relogs (or switches character) right after saying hello: A answers again, so B's addon
+    // knows A has it and sends A the new character.
+    [Fact]
+    public void A_hello_right_after_a_relog_is_answered_and_the_new_character_goes()
+    {
+        const string BShares = "{ enabled = true, contacts = { ['JDybeck#1111'] = { share = true, receive = true } }, at = 100 }";
+        var a = new Client(A, AFriends, ADb(AShares));
+        var b = new Client(B, BFriends, BDb(BShares).Replace("chars = {}", "chars = { ['Player-1-0000000B'] = { char = 'Zeb', lastSeen = 1 } }"));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        a.Run(20);
+        b.Run(20);
+
+        // B relogs onto another character: a fresh addon session on the same game account.
+        var b2 = new Client("Player-1-0000000E", BFriends, BDb(BShares).Replace("chars = {}", "chars = { ['Player-1-0000000E'] = { char = 'Zebalt', lastSeen = 2 } }"));
+        b2.Lua("clock = " + b.Lua("return clock").Number);
+        b2.Call("friendsTick");
+        Talk(a, b2);
+        Assert.Equal("Zebalt", Str(a, "WoWCharacterTrackerDB.friends['Zeb#2222'].chars['Player-1-0000000E'].char"));
+    }
+
+    // An alt played while the friend was offline: its newer snapshot reaches them on the next hello,
+    // one they already have the same copy of doesn't go again.
+    [Fact]
+    public void An_alt_played_while_a_friend_was_away_catches_up_on_the_next_hello()
+    {
+        var (_, b) = Friends();
+        Assert.Equal(500, b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].at").Number);
+        b.Run(20);
+        // A logs in again later, having played the alt in between; B never left.
+        var a2 = new Client(A, AFriends, ADb(AShares));
+        a2.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000C'].level = 13; WoWCharacterTrackerDB.chars['Player-1-0000000C'].lastSeen = 1500");
+        a2.Lua("clock = " + b.Lua("return clock").Number);
+        a2.Call("friendsTick");
+        Talk(a2, b);
+        Assert.Equal(13, b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].level").Number);
+        Assert.Equal(1500, b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].at").Number);
+
+        a2.Lua("sent = {}");
+        b.Lua("sent = {}");
+        b.Receive("1:HAVE:60:1:1:Player-1-0000000C~1500", AAccount);
+        Assert.Equal(0, Count(b, "WANT")); // the same copy: nothing asked
+    }
+
+    // Asking with Send them mine too: the request says so, the asker's characters wait with it, and
+    // Allow keeps them; Not now drops them.
+    [Fact]
+    public void Asking_with_yours_sends_them_along_and_allow_keeps_them()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }").Replace("chars = {}", "chars = { ['Player-1-0000000B'] = { char = 'Zeb', level = 30, lastSeen = 1 } }"));
+        b.Call("askFriend", "JDybeck#1111", b.Lua("return { 'map' }"), b.Lua("""
+            return { gear = true, talents = true, location = false, professions = false, highlights = false, leveling = false, gold = false, map = true }
+            """));
+        Assert.Contains(b.Said(), s => s.StartsWith("Asked JDybeck#1111 for map position, and sent them yours (gear, talents, map position)", StringComparison.Ordinal));
+        Assert.True(b.Lua("return ns.shareSettings().contacts['JDybeck#1111'].share").Boolean);
+        Talk(a, b);
+        Assert.Equal("Zeb#2222 wants to see your characters, with your map position, and shares theirs with you.", Str(a, "shown[1].arg"));
+        Assert.Equal(1, a.Lua("return ns.requestInfo(shown[1].data).gifts").Number);
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil()); // nothing kept before an answer
+        Answer(a, "allow");
+        Assert.Equal("Zeb", Str(a, "WoWCharacterTrackerDB.friends['Zeb#2222'].chars['Player-1-0000000B'].char"));
+        Talk(a, b);
+        Assert.Equal("Deadbeck", Str(b, GotDeadbeck + ".char"));
+        Assert.Contains(b.Said(), s => s.StartsWith("JDybeck#1111 shared Deadbeck with you.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Characters_sent_with_a_request_go_when_it_isnt_allowed()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        a.Receive("1:REQ:1:1:1:+shares", BAccount);
+        a.Receive("1:DATA:2:1:1:guid=Player-1-0000000B;char=Zeb", BAccount);
+        Assert.Equal(1, a.Lua("return ns.requestInfo(shown[1].data).gifts").Number);
+        Answer(a, "notnow");
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil());
+        a.Receive("1:DATA:3:1:1:guid=Player-1-0000000B;char=Zeb", BAccount); // no request waits: dropped
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil());
+    }
+
+    // A nickname set in game wins over the app's when newer, and the app's newer one wins back.
+    [Fact]
+    public void A_nickname_set_in_game_or_in_the_app_the_newer_wins()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ friendNames = { ['Zeb#2222'] = 'Zebbe' }, friendNameAt = { ['Zeb#2222'] = 500 } }");
+        Assert.Equal("Zebbe", Str(a, "ns.friendNickname('Zeb#2222')"));
+        a.Lua("clock = 400");
+        a.Call("friendsCommand", "name zeb#2222 Big Zeb");
+        Assert.Equal(501, a.Lua("return WoWCharacterTrackerDB.friendNames['Zeb#2222'].at").Number); // newer than the app's
+        Assert.Equal("Big Zeb (Zeb#2222)", Str(a, "ns.friendLabel('Zeb#2222')"));
+        Assert.Contains("Zeb#2222 is now called Big Zeb here and in the app.", a.Said());
+        a.Lua("WoWCharacterTrackerSettings.friendNames['Zeb#2222'] = 'Z'; WoWCharacterTrackerSettings.friendNameAt['Zeb#2222'] = 600");
+        Assert.Equal("Z", Str(a, "ns.friendNickname('Zeb#2222')")); // set in the app later
+        a.Call("friendsCommand", "name Zeb#2222");
+        Assert.Equal("", Str(a, "ns.friendNickname('Zeb#2222')")); // cleared in game
+        Assert.Equal("Zeb#2222", Str(a, "ns.friendLabel('Zeb#2222')"));
+
+        var old = new Client(A, AFriends, ADb(AShares), settings: "{ friendNames = { ['Zeb#2222'] = 'Zebbe' } }"); // an app without times
+        old.Lua("ns.setFriendNickname('Zeb#2222', 'New|cff name')");
+        Assert.Equal("Newcff name", Str(old, "ns.friendNickname('Zeb#2222')"));
+    }
+
+    // The Friends tab's order: dragged in game it beats the app's older one, a newer app one wins back.
+    [Fact]
+    public void The_friend_order_from_the_game_or_the_app_the_newer_wins()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ friendOrder = { 'Kalle#3333', 'Zeb#2222' }, friendOrderAt = 500 }");
+        Assert.Equal("Kalle#3333,Zeb#2222", Str(a, "table.concat(ns.friendOrder(), ',')"));
+        a.Lua("clock = 400; ns.setFriendOrder({ 'Zeb#2222', 'Kalle#3333' })");
+        Assert.Equal(501, a.Lua("return WoWCharacterTrackerDB.friendOrder.at").Number);
+        Assert.Equal("Zeb#2222,Kalle#3333", Str(a, "table.concat(ns.friendOrder(), ',')"));
+        a.Lua("WoWCharacterTrackerSettings.friendOrderAt = 600");
+        Assert.Equal("Kalle#3333,Zeb#2222", Str(a, "table.concat(ns.friendOrder(), ',')"));
+    }
+
+    // In game a drag only knows this game's friends: it merges into the whole order like the app.
+    [Fact]
+    public void A_drag_in_game_keeps_the_places_of_friends_it_doesnt_show()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ friendOrder = { 'A', 'B', 'C', 'D', 'E' }, friendOrderAt = 500 }");
+        a.Lua("clock = 600; ns.setFriendOrder({ 'E', 'D' })");
+        Assert.Equal("A,B,C,E,D", Str(a, "table.concat(ns.friendOrder(), ',')"));
+        Assert.Equal("X,B,A", Str(a, "table.concat(ns.mergeFriendOrder({ 'A', 'B' }, { 'X', 'B', 'A' }), ',')"));
+    }
+
+    // A flood of HAVEs gets one WANT per 10 seconds, so it can't fill the send queue.
+    [Fact]
+    public void Have_is_answered_at_most_every_10_seconds()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives));
+        for (var i = 0; i < 20; i++) b.Receive($"1:HAVE:{i + 1}:1:1:Player-1-000000{i:X2}~5", AAccount);
+        b.Run(1);
+        Assert.Equal(1, Count(b, "WANT"));
+        b.Run(10);
+        b.Receive("1:HAVE:99:1:1:Player-1-000000FF~5", AAccount);
+        b.Run(1);
+        Assert.Equal(2, Count(b, "WANT"));
+    }
+
+    // Asked with mine, they said Not now, and asked again later: my alts still reach them once they
+    // allow (the ones sent along weren't counted as sent, and their hello gets my list).
+    [Fact]
+    public void Alts_dropped_with_a_not_now_still_arrive_after_a_later_allow()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        const string give = "{ gear = true, talents = true, location = true, professions = true, highlights = true, leveling = true, gold = false, map = false }";
+        a.Call("askFriend", "Zeb#2222", a.Lua("return {}"), a.Lua("return " + give));
+        Talk(a, b);
+        Answer(b, "notnow");
+        a.Run(700);
+        b.Run(700);
+        a.Call("askFriend", "Zeb#2222", a.Lua("return {}"), a.Lua("return " + give));
+        Talk(a, b);
+        Answer(b, "allow");
+        Talk(a, b, rounds: 6);
+        Assert.Equal("Drygbeck", Str(b, GotDeadbeck.Replace("0000000A", "0000000C") + ".char"));
+    }
+
+    // Nicknames are cut by letters, never inside one (å is two bytes in the game).
+    [Fact]
+    public void Nicknames_are_cut_by_letters()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        Assert.Equal("Åsa Ö", Str(a, "ns.cutLetters('Åsa Örn', 5)"));
+        Assert.Equal("abc", Str(a, "ns.cutLetters('abc', 32)"));
+        a.Lua("ns.setFriendNickname('Zeb#2222', string.rep('å', 40))");
+        Assert.Equal(32, a.Lua("local n = 0; for _ in ns.friendNickname('Zeb#2222'):gmatch('[^\\128-\\191][\\128-\\191]*') do n = n + 1 end; return n").Number);
+    }
+
+    // A friend's addon says its version in every hello: a newer one than ours is noted once, with a
+    // chat line, and anything that isn't a version (or isn't newer) is ignored.
+    [Fact]
+    public void A_newer_addon_seen_from_a_friend_is_noted_once()
+    {
+        var a = new Client(A, AFriends, ADb(AShares)); // GetAddOnMetadata says 0.33.0
+        Assert.True(a.Lua("return ns.isNewerVersion('0.39.10', '0.39.9')").Boolean);
+        Assert.False(a.Lua("return ns.isNewerVersion('0.39.9', '0.39.10')").Boolean);
+        Assert.False(a.Lua("return ns.isNewerVersion('1.0', '0.39.9')").Boolean);
+        a.Receive("1:HI:1:1:1:0.32.0", BAccount);
+        a.Receive("1:PONG:2:1:1:not a version", BAccount);
+        Assert.True(a.Lua("return ns.newerAddonSeen()").IsNil());
+        a.Receive("1:HEY:3:1:1:0.40.1", BAccount);
+        a.Receive("1:HI:4:1:1:0.40.0", BAccount); // older than the one seen
+        Assert.Equal("0.40.1", Str(a, "ns.newerAddonSeen()"));
+        Assert.Single(a.Said(), s => s.StartsWith("A friend has a newer WoW Character Tracker addon (0.40.1, you have 0.33.0).", StringComparison.Ordinal));
+    }
+
+    // After their Never you can't ask for a day; they may have unblocked you since.
+    [Fact]
+    public void A_no_stops_asking_for_a_day()
+    {
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        b.Call("friendsCommand", "ask JDybeck#1111");
+        b.Receive("1:NO:1:1:1:", AAccount);
+        b.Run(31);
+        b.Call("friendsCommand", "ask JDybeck#1111");
+        Assert.Contains(b.Said(), s => s.Contains("said no"));
+        b.Lua("sent = {}");
+        b.Run(86401);
+        b.Call("friendsCommand", "ask JDybeck#1111");
+        b.Run(1);
+        Assert.Equal(1, Count(b, "REQ"));
     }
 
     [Fact]
@@ -1058,12 +1270,23 @@ public class FriendsLuaTests
         Assert.Equal(0, Count(a, "DATA")); // sent a moment ago
     }
 
+    // A map position doesn't wait behind a backlog of characters going out.
+    [Fact]
+    public void Map_messages_go_before_a_backlog()
+    {
+        var c = CommsClient();
+        c.Lua("ns.comms.send(2, 'DATA', string.rep('x', 2400)); ns.comms.send(2, 'POS', '1,0.5,0.5,5,0')");
+        c.Run(1);
+        var first = c.Sent().Take(2).Select(m => m.Get("text").String).ToList();
+        Assert.Contains(":POS:", first[1]); // the first DATA part went at once, the position right after it
+    }
+
     [Fact]
     public void The_send_queue_has_a_cap()
     {
         var c = CommsClient();
-        c.Lua("inCombat = true; for i = 1, 300 do ns.comms.send(2, 'HI', 'x') end");
-        Assert.True(c.Lua("return ns.comms.pending()").Number <= 200);
+        c.Lua("inCombat = true; for i = 1, 500 do ns.comms.send(2, 'HI', 'x') end");
+        Assert.True(c.Lua("return ns.comms.pending()").Number <= 400);
     }
 
     [Fact]
@@ -1187,12 +1410,12 @@ public class FriendsLuaTests
     }
 
     [Fact]
-    public void A_friend_who_doesnt_answer_in_10_seconds_has_no_addon()
+    public void A_friend_who_doesnt_answer_in_4_seconds_has_no_addon()
     {
         var a = new Client(A, AFriends, ADb("nil"));
         CountChanges(a);
         a.Call("findOnlineFriends");
-        a.Run(9);
+        a.Run(3);
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
         a.Run(2);
         Assert.False(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);

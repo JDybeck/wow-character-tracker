@@ -37,6 +37,8 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
     public Dictionary<int, long> XpTable { get; init; } = [];
     public Dictionary<int, int> ItemClasses { get; init; } = []; // itemId -> the game's item class (Inventory.lua)
     public List<GameNote> Notes { get; init; } = []; // notes edited in game (NoteBox.lua)
+    public List<GameNickname> Nicknames { get; init; } = []; // friends' nicknames set in game (Friends.lua)
+    public GameFriendOrder? FriendOrder { get; init; } // the Friends tab's order, dragged in game
     public InGameSettings? InGame { get; init; } // In game page settings changed in game (Shared.lua)
     public List<FriendContact> Friends { get; init; } = []; // what Battle.net friends shared (Friends.lua), never your own characters
     public ShareSettings? Share { get; init; } // sharing settings as changed in game

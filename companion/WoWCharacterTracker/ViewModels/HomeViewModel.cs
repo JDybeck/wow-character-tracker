@@ -27,9 +27,10 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     string paceText = "";
     public string PaceText { get => paceText; private set => Set(ref paceText, value); }
 
-    // Today for the hero, and every character of the game below it once more than one was played.
+    // Today for the hero, and under it each other character that did something today, with what.
     public TodaySection Today { get; } = new("TODAY");
-    public TodaySection AccountToday { get; } = new("ACCOUNT TODAY");
+    public ObservableCollection<OtherToday> OtherToday { get; } = [];
+    public bool HasOtherToday => OtherToday.Count > 0;
 
     public ObservableCollection<MomentRow> Feed { get; } = [];
     public bool HasFeed => Feed.Count > 0;
@@ -61,7 +62,7 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         Card = Hero is { } h ? StreamSnapshot.Build(StreamViewModel.Character(h, flavor), events, DateTimeOffset.Now) : StreamSnapshot.Empty;
         PaceText = Hero is { } p ? Pace(p) : "";
 
-        ShowToday(events, days, sent, DateTime.Now);
+        ShowToday(rows, events, days, sent, DateTime.Now);
 
         Fill(Feed, rows.ToDictionary(r => r.Guid), events, sent);
         Raise(nameof(HasFeed));
@@ -72,17 +73,21 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         Raise(nameof(HasFriendFeed));
     }
 
-    void ShowToday(IReadOnlyList<Entry> events, IReadOnlyList<DayTotals> days, IReadOnlySet<string> sent, DateTime now)
+    void ShowToday(IReadOnlyList<CharacterRow> rows, IReadOnlyList<Entry> events, IReadOnlyList<DayTotals> days, IReadOnlySet<string> sent, DateTime now)
     {
         var keys = flavor.HasRatings;
         var hero = Hero?.Guid;
-        var played = TodayStats.Characters(events, days, now);
         Today.Show(TodayStats.Build(events, days, sent, keys, now, hero));
-        // Only worth a row when someone else was played too.
-        AccountToday.Visible = hero is not null && played.Any(g => g != hero);
-        AccountToday.Note = played.Count == 1 ? "· 1 character" : $"· {played.Count} characters";
-        if (AccountToday.Visible) AccountToday.Show(TodayStats.Build(events, days, sent, keys, now));
+        OtherToday.Clear();
+        foreach (var other in Others(rows, TodayStats.ByCharacter(events, days, sent, keys, now), hero)) OtherToday.Add(other);
+        Raise(nameof(HasOtherToday));
     }
+
+    // The characters other than the hero that did something today, the one played last first.
+    internal static IEnumerable<OtherToday> Others(IEnumerable<CharacterRow> rows, IReadOnlyDictionary<string, List<TodayCount>> done, string? hero) =>
+        rows.Where(r => r.Guid != hero && done.ContainsKey(r.Guid))
+            .OrderByDescending(r => r.LastSeen)
+            .Select(r => new OtherToday(r, done[r.Guid]));
 
     // The newest level-ups and highlights of these characters, newest first.
     void Fill(ObservableCollection<MomentRow> feed, Dictionary<string, CharacterRow> byGuid, IEnumerable<Entry> events, IReadOnlySet<string> sent)
@@ -126,6 +131,12 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         if (c.Leveling.AverageText.Length > 0) parts.Add($"average {c.Leveling.AverageText}");
         return string.Join(" · ", parts);
     }
+}
+
+// Another character's day on Home: its name and what it did ("2 levels · 14 quests · +3 item level").
+sealed record OtherToday(CharacterRow Character, IReadOnlyList<TodayCount> Counts)
+{
+    public string Line => string.Join("  ·  ", Counts.Select(c => $"{c.Value} {c.What}"));
 }
 
 // A moment in Home's feed: the highlight line, whose it is and whether it went to Discord.
