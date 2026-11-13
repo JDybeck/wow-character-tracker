@@ -2,7 +2,8 @@
 -- bosses, Mythic+ runs, epic and rare loot (as an item link), new mounts, PvP wins, profession and rating milestones, hardcore deaths.
 -- What and where come from Settings.lua `announce` (the app's In game page): `kinds` for guild chat,
 -- `partyKinds` for group chat. Messages wait until
--- you're out of combat, and boss kills don't list the group (they're right there).
+-- you're out of combat, and boss kills don't list the group (they're right there). On Forever the
+-- game blocks guild chat sent from a timer, so guild lines go to the ask box and send on a click.
 local ADDON, ns = ...
 
 -- The item as a clickable link when the game has it, else its name in brackets.
@@ -80,7 +81,7 @@ end
 -- What happened to the last line, for /wct debug: the game refusing a send is otherwise silent.
 local function sendTo(say, msg, channel)
   local ok, err = pcall(say, msg, channel)
-  ns.lastChatSend = string.format("%s: %s", channel, ok and "sent" or tostring(err))
+  return string.format("%s: %s", channel, ok and "sent" or tostring(err))
 end
 
 -- line = { msg, guild = true/nil, party = true/nil }: which chats get it was settled in ns.announce.
@@ -91,15 +92,22 @@ local function send(line)
     return
   end
   local msg = line.msg
+  local results = {} -- every chat's outcome, so the party line doesn't hide the guild one
   if line.guild then
-    if IsInGuild and IsInGuild() then sendTo(say, msg, "GUILD") else ns.lastChatSend = "not in a guild" end
+    results[#results + 1] = (IsInGuild and IsInGuild()) and sendTo(say, msg, "GUILD") or "not in a guild"
   end
   if line.party and IsInGroup and IsInGroup() then
     local channel = "PARTY"
     if IsInRaid and IsInRaid() then channel = "RAID"
     elseif LE_PARTY_CATEGORY_HOME and not IsInGroup(LE_PARTY_CATEGORY_HOME) then channel = "INSTANCE_CHAT" end -- only a dungeon finder group
-    sendTo(say, msg, channel)
+    results[#results + 1] = sendTo(say, msg, channel)
   end
+  if #results > 0 then ns.lastChatSend = table.concat(results, ", ") end
+end
+
+-- A guild line sent right now, from the player's click in the ask box (Ask.lua).
+function ns.sayInGuild(msg)
+  send({ msg = msg, guild = true })
 end
 
 -- For /wct debug: lines still waiting (combat, chat lockdown or spacing).
@@ -155,6 +163,11 @@ function ns.announce(e)
   if not a then return end
   local guild = a.guild and lineFor(e, a.kinds)
   local party = a.party and lineFor(e, a.partyKinds or a.kinds)
+  -- Where guild chat only goes out on a click, the ask box offers it instead of the queue.
+  if guild and ns.GUILD_CHAT_NEEDS_CLICK then
+    if IsInGuild and IsInGuild() then ns.offerGuildLine(e, guild) end
+    guild = nil
+  end
   if guild and guild == party then return queue({ msg = guild, guild = true, party = true }) end
   if guild then queue({ msg = guild, guild = true }) end
   if party then queue({ msg = party, party = true }) end
