@@ -48,6 +48,7 @@ jobs:
           name: addon-zip
           path: .release/*.zip
           if-no-files-found: error
+          include-hidden-files: true # .release starts with a dot, which the upload skips otherwise
 
   release:
     if: startsWith(github.ref_name, 'v')
