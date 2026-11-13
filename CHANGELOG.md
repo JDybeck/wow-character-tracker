@@ -2,6 +2,15 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.40.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Recipes in game.** Unfold a character in the addon window (yours on Characters, a friend's on Friends) and a button per profession opens its recipes in a window like the profession window: the game's headers with a search, and the picked recipe with its reagents and the item it makes. Hover them for the game's own tooltips.
+- **Who can make it, in game.** **Who knows it?** in the recipe window, or `/wct recipes <name>`, finds a recipe among your characters and what friends share. A click on someone opens their recipes on it.
+
 ## v0.39.10
 
 Update the addon with the app (it does this by itself) and /reload in game. Friends need the new addon too to share recipes.

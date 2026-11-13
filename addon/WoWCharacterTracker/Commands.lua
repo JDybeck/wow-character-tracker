@@ -125,6 +125,8 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     showHistory()
   elseif msg == "friends" or msg:match("^friends%s") then
     ns.friendsCommand(typed:sub(8)) -- BattleTags keep their case
+  elseif msg == "recipes" or msg:match("^recipes%s") then
+    ns.openRecipeSearch(strtrim(typed:sub(8))) -- who knows a recipe, among your characters and friends
   elseif msg == "incognito" or msg:match("^incognito%s") then
     incognitoCommand(strtrim(msg:sub(10)))
   elseif msg == "popup" then
@@ -153,6 +155,7 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     ns.say("/wct opens the addon's window on Home: the character you play, its level times and your friends. The minimap button opens it too.")
     ns.say("/wct note shows or hides this character's note.")
     ns.say("/wct friends shares your characters with Battle.net friends who have the addon. /wct friends help for more.")
+    ns.say("/wct recipes <name> finds who knows a recipe, among your characters and what friends share.")
     ns.say("/wct test checks that instant posting reaches the companion app.")
     ns.say("/wct incognito 1h stops posting and chat lines for an hour (30m, 2h, 4h; off ends it). Nothing from it is posted later.")
   else
