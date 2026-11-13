@@ -1530,7 +1530,7 @@ end
 
 local function appSummary()
   if not ns.hasApp() then
-    return "No app found. Discord posts, screenshots, the stream overlay and characters from other WoW accounts need the free Character Tracker app. Guild and group lines, this window, friends and notes work without it."
+    return "No app found. Discord posts, screenshots, the stream overlay and characters from other WoW accounts need the free Character Tracker app, from the link below (click it, then Ctrl+C). Guild and group lines, this window, friends and notes work without it."
   end
   local post = ns.setting("post") or {}
   local postKinds = {}
@@ -1618,7 +1618,13 @@ local function buildSettings(p)
   appText:SetPoint("TOPLEFT", appTitle, "BOTTOMLEFT", 0, -6)
   appText:SetWidth(PAGE_WIDTH - 40)
   appText:SetJustifyV("TOP")
-  ui.onRefresh(p, function() appText:SetText(appSummary()) end)
+  -- Without the app, where to get it.
+  local appLink = ui.copyBox(p, ns.APP_URL, 380)
+  appLink:SetPoint("TOPLEFT", appText, "BOTTOMLEFT", 0, -8)
+  ui.onRefresh(p, function()
+    appText:SetText(appSummary())
+    appLink:SetShown(not ns.hasApp())
+  end)
 end
 
 -- The window ------------------------------------------------------------------------------------

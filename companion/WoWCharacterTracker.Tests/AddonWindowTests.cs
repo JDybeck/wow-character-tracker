@@ -404,6 +404,41 @@ public class AddonWindowTests
         Assert.Equal("", unwrapped);
     }
 
+    // Without the app, Home says what it adds and where to get it, until Got it; with it, nothing.
+    [Fact]
+    public void Home_points_to_the_app_when_there_is_none()
+    {
+        const string hint = "Discord posts, screenshots and the stream overlay need the free Character Tracker app on your PC. Get it here (click the link, then Ctrl+C):";
+        static FriendsLuaTests.Client Home(string settings)
+        {
+            var home = Load(settings: settings);
+            home.Lua("""
+                function UnitName() return 'Zeb' end
+                function UnitLevel() return 45 end
+                function UnitClass() return 'Warrior', 'WARRIOR' end
+                function UnitRace() return 'Night Elf' end
+                function UnitXP() return 1000 end
+                function UnitXPMax() return 4000 end
+                function GetMaxPlayerLevel() return 60 end
+                function date() return { year = 2026, month = 11, day = 9 } end
+                ns.playedNow = function() return 100000 end
+                ns.levelTimeNow = function() return 1200 end
+                """);
+            home.Script.Call(home.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", home.Ns);
+            home.Call("openWindow", "home");
+            return home;
+        }
+        var c = Home("{}");
+        Assert.True(Bool(c, $"shownText('{hint}') ~= nil"));
+        Assert.True(Bool(c, "(function() for _, f in ipairs(frames) do if f.kind == 'EditBox' and f.text == ns.APP_URL and onScreen(f) then return true end end end)()"));
+        c.Lua("local b = find('Got it'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, $"shownText('{hint}') == nil"));
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.window.appHintHidden == true"));
+
+        var withApp = Home("{ post = {} }");
+        Assert.True(Bool(withApp, $"shownText('{hint}') == nil"));
+    }
+
     // Friends.lua's side of the Friends tab, stubbed: fixed rows, and every call recorded in `calls`.
     const string FriendStubs = """
         clock = 100000

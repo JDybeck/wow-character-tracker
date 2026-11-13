@@ -177,10 +177,45 @@ local function at(w, card, y, x)
   w:SetPoint("TOPLEFT", card, "TOPLEFT", 14 + (x or 0), -y)
 end
 
+-- Without the app (ns.hasApp): what it adds and where to get it, over the card, until Got it.
+local APP_HINT = 62
+local function appHintShown() return not ns.hasApp() and (db().window or {}).appHintHidden ~= true end
+
+local function buildAppHint(p)
+  local hint = CreateFrame("Frame", nil, p)
+  hint:SetSize(WIDTH, APP_HINT - 10)
+  hint:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -12)
+  ui.box(hint, C.request, C.requestBorder)
+  local text = ui.text(hint, "GameFontHighlightSmall",
+    "Discord posts, screenshots and the stream overlay need the free Character Tracker app on your PC. Get it here (click the link, then Ctrl+C):")
+  text:SetPoint("TOPLEFT", hint, "TOPLEFT", 12, -8)
+  text:SetWidth(WIDTH - 24)
+  local link = ui.copyBox(hint, ns.APP_URL, 380)
+  link:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 0, -5)
+  local gotIt = ui.button(hint, "Got it", 80, function()
+    local d = db()
+    d.window = d.window or {}
+    d.window.appHintHidden = true
+    hint:Hide()
+    if hint.onHide then hint.onHide() end
+  end)
+  gotIt:SetPoint("BOTTOMRIGHT", hint, "BOTTOMRIGHT", -10, 8)
+  return hint
+end
+
 function ns.buildHomeTab(p)
+  local hint = buildAppHint(p)
+  local hintHeight = 0
   -- Playing now ---------------------------------------------------------------------------------
   local card = CreateFrame("Frame", nil, p)
-  card:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -12)
+  local function placeCard()
+    local shown = appHintShown()
+    hint:SetShown(shown)
+    hintHeight = shown and APP_HINT or 0
+    card:ClearAllPoints()
+    card:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -12 - hintHeight)
+  end
+  placeCard()
   card:SetSize(WIDTH, 300)
   ui.box(card, C.card, C.border)
 
@@ -359,6 +394,7 @@ function ns.buildHomeTab(p)
 
   -- Places what's shown in the card from the top down, and sizes the card and the page.
   layout = function()
+    placeCard()
     local y = TILES_END + 12
     local hasEstimate = (estimate:GetText() or "") ~= ""
     estimate:SetShown(hasEstimate)
@@ -427,8 +463,9 @@ function ns.buildHomeTab(p)
     end
     local bottom = y + 56 + (math.ceil(math.max(shown, 1) / ns.TODAY_SHOWN) - 1) * 22
     card:SetHeight(bottom)
-    p:SetHeight(12 + bottom + BELOW_CARD)
+    p:SetHeight(12 + hintHeight + bottom + BELOW_CARD)
   end
+  hint.onHide = layout
 
   -- The parts that change while you play: name, tiles and the estimate.
   local function drawLive(me)

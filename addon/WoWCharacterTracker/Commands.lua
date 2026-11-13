@@ -18,7 +18,7 @@ end
 
 local function sendTest()
   if not ns.hasApp() then
-    ns.say("The app isn't set up for this game. Discord posts need the free Character Tracker app. /wct has what works without it.")
+    ns.say("The app isn't set up for this game. Discord posts need the free Character Tracker app: " .. ns.APP_URL .. " /wct has what works without it.")
     return
   end
   if WoWCharacterTrackerDB.live == false then

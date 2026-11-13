@@ -1020,7 +1020,7 @@ function ns.friendsCommand(args)
 end
 
 -- The Friends tab (Window.lua) ------------------------------------------------------------------
-local INVITE = "I use WoW Character Tracker to share characters with friends: https://github.com/JDybeck/wow-character-tracker"
+local INVITE = "I use WoW Character Tracker to share characters with friends: " .. ns.APP_URL
 local INVITE_EVERY = 86400 -- one invite a day per friend
 
 local function byLabel(x, y)

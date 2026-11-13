@@ -163,6 +163,30 @@ function ui.checkbox(parent, label, tip, get, set)
   return cb
 end
 
+-- A one-line box holding text to copy (a link: WoW can't open one). A click selects it all for
+-- Ctrl+C; typing can't change it; Esc or Enter lets go.
+function ui.copyBox(parent, text, width)
+  local box = CreateFrame("EditBox", nil, parent)
+  box:SetSize(width, 22)
+  box:SetAutoFocus(false)
+  box:SetFontObject("GameFontHighlightSmall")
+  box:SetTextInsets(6, 6, 0, 0)
+  ui.box(box, COLOR.bar, COLOR.border)
+  box:SetText(text)
+  box:SetCursorPosition(0)
+  box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+  box:SetScript("OnMouseUp", function(self) self:HighlightText() end)
+  box:SetScript("OnTextChanged", function(self, user)
+    if user then
+      self:SetText(text)
+      self:HighlightText()
+    end
+  end)
+  box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  return box
+end
+
 -- "primary": filled amber, for the one thing to do; "selected": a picked tab; else quiet and outlined.
 function ui.styleButton(b, style)
   if style == "primary" then ui.box(b, COLOR.primary, COLOR.accent)

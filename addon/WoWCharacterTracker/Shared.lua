@@ -137,6 +137,9 @@ function ns.editSettings(edit)
   WoWCharacterTrackerDB.gameSettings = changed
 end
 
+-- Where the app (and everything about it) is, for the addon on its own.
+ns.APP_URL = "https://github.com/JDybeck/wow-character-tracker"
+
 -- Is the app there? It writes `post` into Settings.lua; the addon on its own (from an addon site)
 -- has only the bundled defaults, and nobody to send live events to.
 function ns.hasApp()
