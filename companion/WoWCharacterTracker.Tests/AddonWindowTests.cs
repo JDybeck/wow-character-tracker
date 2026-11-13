@@ -439,6 +439,18 @@ public class AddonWindowTests
         Assert.True(Bool(withApp, $"shownText('{hint}') == nil"));
     }
 
+    // The Settings tab links to the app's page with the app and without it.
+    [Fact]
+    public void The_settings_tab_links_to_the_apps_page()
+    {
+        foreach (var settings in new[] { "{}", "{ post = {} }" })
+        {
+            var c = Load(settings: settings);
+            c.Call("openWindow", "settings");
+            Assert.True(Bool(c, "(function() for _, f in ipairs(frames) do if f.kind == 'EditBox' and f.text == ns.APP_URL and onScreen(f) then return true end end end)()"));
+        }
+    }
+
     // Friends.lua's side of the Friends tab, stubbed: fixed rows, and every call recorded in `calls`.
     const string FriendStubs = """
         clock = 100000

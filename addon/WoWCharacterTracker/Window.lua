@@ -1729,6 +1729,8 @@ local function appSummary()
     " ",
     "Change these on the app's Sharing page. They reach the game on your next /reload.",
     "What you change in this window reaches the app on your next /reload or logout. The newest change wins.",
+    " ",
+    "The app's page, with the guide and updates (click the link, then Ctrl+C):",
   }, "\n")
 end
 
@@ -1806,13 +1808,10 @@ local function buildSettings(p)
   appText:SetPoint("TOPLEFT", appTitle, "BOTTOMLEFT", 0, -6)
   appText:SetWidth(PAGE_WIDTH - 40)
   appText:SetJustifyV("TOP")
-  -- Without the app, where to get it.
+  -- The app's page: where to get it, or its guide and updates.
   local appLink = ui.copyBox(p, ns.APP_URL, 380)
   appLink:SetPoint("TOPLEFT", appText, "BOTTOMLEFT", 0, -8)
-  ui.onRefresh(p, function()
-    appText:SetText(appSummary())
-    appLink:SetShown(not ns.hasApp())
-  end)
+  ui.onRefresh(p, function() appText:SetText(appSummary()) end)
 end
 
 -- The window ------------------------------------------------------------------------------------
