@@ -2032,6 +2032,56 @@ local function resizeGrip()
   return grip
 end
 
+-- The version beside the title: ours, and what's newer when something is (the app's update from
+-- Settings.lua, a newer addon a friend's addon has). A click asks online friends' addons for theirs
+-- (invisible, Friends.lua's PING), its tooltip says what's known.
+local function versionLine()
+  local text = ui.version()
+  local app, addon = ns.appUpdateVersion and ns.appUpdateVersion(), ns.newerAddonSeen and ns.newerAddonSeen()
+  if app then text = text .. "  ·  |cffffd100app v" .. app .. " is out|r" end
+  if addon then text = text .. "  ·  |cffffd100addon v" .. addon .. " seen|r" end
+  return text
+end
+
+local function versionTip(self)
+  if not GameTooltip then return end
+  GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+  GameTooltip:SetText("Check for new version", 1, 1, 1)
+  GameTooltip:AddLine("Asks your friends online whose addon is newer (they see nothing).", 0.8, 0.8, 0.8, true)
+  local app, addon = ns.appUpdateVersion and ns.appUpdateVersion(), ns.newerAddonSeen and ns.newerAddonSeen()
+  if app then GameTooltip:AddLine("App " .. app .. " is out: open the app and click Update, it brings the addon too.", 1, 0.82, 0, true) end
+  if addon then GameTooltip:AddLine("A friend has addon " .. addon .. ".", 1, 0.82, 0, true) end
+  if not (app or addon) then
+    GameTooltip:AddLine(ns.hasApp() and "The app checks for updates itself and tells the addon." or "Without the app, newer versions are seen through your friends' addons.", 0.6, 0.6, 0.6, true)
+  end
+  GameTooltip:Show()
+end
+
+local function buildVersion()
+  local b = CreateFrame("Button", nil, window)
+  b:SetHeight(18)
+  local fs = ui.text(b, "GameFontDisableSmall")
+  fs:SetPoint("LEFT", b, "LEFT", 2, 0)
+  b.line = fs
+  b:SetScript("OnEnter", versionTip)
+  b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  b:SetScript("OnClick", function(self)
+    if ns.findOnlineFriends then ns.findOnlineFriends() end
+    self.line:SetText(versionLine() .. "  ·  checking...")
+    C_Timer.After(6, function() if ns.versionChanged then ns.versionChanged() end end)
+  end)
+  function b:Refresh()
+    fs:SetText(versionLine())
+    self:SetWidth((fs:GetStringWidth() or 60) + 6)
+  end
+  return b
+end
+
+-- Friends.lua or Shared.lua found something newer: the version line says so.
+function ns.versionChanged()
+  if version and version.Refresh then version:Refresh() end
+end
+
 local function build()
   window = CreateFrame("Frame", NAME, UIParent)
   local size = saved()
@@ -2072,8 +2122,8 @@ local function build()
   logo:SetTexture(ns.ICON) -- Minimap.lua's
   local title = ui.text(window, "GameFontHighlightLarge", "WoW Character Tracker")
   title:SetPoint("LEFT", logo, "RIGHT", 8, 0)
-  version = ui.text(window, "GameFontDisableSmall")
-  version:SetPoint("LEFT", title, "RIGHT", 8, -1)
+  version = buildVersion()
+  version:SetPoint("LEFT", title, "RIGHT", 6, -1)
 
   closeButton(window, function() window:Hide() end)
 
@@ -2097,7 +2147,7 @@ end
 -- Opens the window on a tab (a key of TABS), or the last one open.
 function ns.openWindow(tab)
   if not window then build() end
-  version:SetText(ui.version())
+  version:Refresh()
   selectTab(tab or current or saved().tab)
   window:Show()
 end

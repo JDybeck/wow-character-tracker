@@ -462,6 +462,20 @@ public class AddonWindowTests
         Assert.True(Bool(withApp, $"shownText('{hint}') == nil"));
     }
 
+    // The window's version says what's newer, and a click asks friends' addons for theirs.
+    [Fact]
+    public void The_version_says_whats_newer_and_a_click_checks()
+    {
+        var c = Load(settings: "{ post = {}, appUpdate = '0.40.0' }");
+        c.Lua("pinged = 0; ns.findOnlineFriends = function() pinged = pinged + 1 end");
+        c.Call("openWindow", "settings");
+        Assert.True(Bool(c, "shownText('v0.33.0  ·  |cffffd100app v0.40.0 is out|r') ~= nil"));
+        c.Lua("ns.noteAddonVersion('0.41.2')");
+        Assert.True(Bool(c, "shownText('v0.33.0  ·  |cffffd100app v0.40.0 is out|r  ·  |cffffd100addon v0.41.2 seen|r') ~= nil"));
+        c.Lua("local b = shownText('v0.33.0  ·  |cffffd100app v0.40.0 is out|r  ·  |cffffd100addon v0.41.2 seen|r').owner; b.scripts.OnClick(b)");
+        Assert.Equal(1, Num(c, "pinged"));
+    }
+
     // The Settings tab links to the app's page with the app and without it.
     [Fact]
     public void The_settings_tab_links_to_the_apps_page()

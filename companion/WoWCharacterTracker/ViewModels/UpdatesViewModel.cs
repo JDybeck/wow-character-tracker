@@ -37,6 +37,21 @@ sealed class UpdatesViewModel : Observable
 
     public string VersionText => $"v{Updater.Current}";
 
+    // Beside the version in the header: whether it's the newest ("up to date"), "checking...",
+    // "couldn't check", or empty before the first check and while an update waits (its own button
+    // shows then). Clicking the version checks now; its tooltip says when it last did.
+    string versionStatus = "";
+    public string VersionStatus
+    {
+        get => versionStatus;
+        private set { if (Set(ref versionStatus, value)) Raise(nameof(VersionLine)); }
+    }
+    public string VersionLine => VersionStatus.Length > 0 ? $"{VersionText} · {VersionStatus}" : VersionText;
+    DateTimeOffset? lastChecked;
+    public string VersionTip => lastChecked is { } at
+        ? $"Check for new version (checked {Format.Ago(at.ToUnixTimeSeconds())})"
+        : "Check for new version";
+
     string bannerTitle = "";
     public string BannerTitle { get => bannerTitle; set => Set(ref bannerTitle, value); }
     string bannerNotes = "";
@@ -78,20 +93,29 @@ sealed class UpdatesViewModel : Observable
     // Quietly on start and every few hours after; the button shows the answer too.
     async Task CheckAsync(bool manual)
     {
-        if (manual) UpdateButtonText = "Checking...";
+        if (manual)
+        {
+            UpdateButtonText = "Checking...";
+            VersionStatus = "checking...";
+        }
         var latest = await Updater.LatestAsync();
         if (latest is null)
         {
             if (manual) Log.Warn("Couldn't reach GitHub to check for updates.");
             UpdateButtonText = manual ? "Couldn't check" : "Check for updates";
+            VersionStatus = manual || lastChecked is null ? "couldn't check" : VersionStatus;
             return;
         }
+        lastChecked = DateTimeOffset.Now;
+        Raise(nameof(VersionTip));
         if (latest.Version <= Updater.Current)
         {
             if (manual) Log.Info($"You have the latest version ({VersionText}).");
             UpdateButtonText = "Up to date";
+            VersionStatus = "up to date";
             return;
         }
+        VersionStatus = ""; // the Update button beside it says it
         Offer(latest);
     }
 

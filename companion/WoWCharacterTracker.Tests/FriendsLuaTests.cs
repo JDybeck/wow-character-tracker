@@ -1101,6 +1101,24 @@ public class FriendsLuaTests
         Assert.Equal(32, a.Lua("local n = 0; for _ in ns.friendNickname('Zeb#2222'):gmatch('[^\\128-\\191][\\128-\\191]*') do n = n + 1 end; return n").Number);
     }
 
+    // A friend's addon says its version in every hello: a newer one than ours is noted once, with a
+    // chat line, and anything that isn't a version (or isn't newer) is ignored.
+    [Fact]
+    public void A_newer_addon_seen_from_a_friend_is_noted_once()
+    {
+        var a = new Client(A, AFriends, ADb(AShares)); // GetAddOnMetadata says 0.33.0
+        Assert.True(a.Lua("return ns.isNewerVersion('0.39.10', '0.39.9')").Boolean);
+        Assert.False(a.Lua("return ns.isNewerVersion('0.39.9', '0.39.10')").Boolean);
+        Assert.False(a.Lua("return ns.isNewerVersion('1.0', '0.39.9')").Boolean);
+        a.Receive("1:HI:1:1:1:0.32.0", BAccount);
+        a.Receive("1:PONG:2:1:1:not a version", BAccount);
+        Assert.True(a.Lua("return ns.newerAddonSeen()").IsNil());
+        a.Receive("1:HEY:3:1:1:0.40.1", BAccount);
+        a.Receive("1:HI:4:1:1:0.40.0", BAccount); // older than the one seen
+        Assert.Equal("0.40.1", Str(a, "ns.newerAddonSeen()"));
+        Assert.Single(a.Said(), s => s.StartsWith("A friend has a newer WoW Character Tracker addon (0.40.1, you have 0.33.0).", StringComparison.Ordinal));
+    }
+
     // After their Never you can't ask for a day; they may have unblocked you since.
     [Fact]
     public void A_no_stops_asking_for_a_day()

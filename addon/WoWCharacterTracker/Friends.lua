@@ -214,10 +214,7 @@ local function tagOf(account)
   return nil
 end
 
-local function version()
-  local metadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-  return metadata and tostring(metadata(ADDON, "Version") or "") or ""
-end
+local function version() return ns.addonVersion() end
 
 -- Sending -------------------------------------------------------------------------------------
 -- The newest highlights per character (ns.FRIEND_HIGHLIGHTS of them), kept up to date like
@@ -493,6 +490,8 @@ ns.comms.onReceive = function(account, kind, body)
     changed()
   end
   if kind == "PING" then return answerPing(account) end
+  -- Every hello and answer carries their addon's version: a newer one means an update is out.
+  if kind == "HI" or kind == "HEY" or kind == "PONG" then ns.noteAddonVersion(body) end
   local s = ns.shareSettings()
   if not s.enabled or kind == "PONG" then return end
   local f = { tag = tag, account = account }
