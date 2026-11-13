@@ -21,3 +21,4 @@ ignore:
   - build.cmd
   - release.cmd
   - release.ps1
+  - tools
