@@ -9,6 +9,8 @@ on:
     tags:
       - "v*"
       - "addon-v*"
+  # By hand (Actions, Release, Run workflow): only builds the addon zip, uploads nothing.
+  workflow_dispatch:
 
 # Read by default, only the job that creates the release gets write.
 # Third-party actions are pinned to a commit because a tag can be moved; Dependabot bumps them.
@@ -17,25 +19,35 @@ permissions:
 
 jobs:
   # The addon alone, for the addon sites, through the BigWigs packager (.pkgmeta says what goes in).
-  # Only runs once the repo variable and secret for a site exist, so until then nothing is uploaded:
+  # Every addon-v tag builds the zip and keeps it on the run (artifact "addon-zip"), for sites
+  # uploaded to by hand (Wago Addons, on its own site). A site gets it automatically once its
+  # repo variable and secret exist:
   # CurseForge: variable CURSEFORGE_PROJECT_ID, secret CF_API_KEY.
   # Wago Addons: variable WAGO_PROJECT_ID, secret WAGO_API_TOKEN.
   addon-sites:
-    if: startsWith(github.ref_name, 'addon-v') && (vars.CURSEFORGE_PROJECT_ID != '' || vars.WAGO_PROJECT_ID != '')
+    if: startsWith(github.ref_name, 'addon-v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the packager writes its changelog from the history
 
+      # -d: by hand, build only.
       - uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
         with:
           args: >-
+            ${{ github.event_name == 'workflow_dispatch' && '-d' || '' }}
             ${{ vars.CURSEFORGE_PROJECT_ID != '' && format('-p {0}', vars.CURSEFORGE_PROJECT_ID) || '' }}
             ${{ vars.WAGO_PROJECT_ID != '' && format('-a {0}', vars.WAGO_PROJECT_ID) || '' }}
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: addon-zip
+          path: .release/*.zip
+          if-no-files-found: error
 
   release:
     if: startsWith(github.ref_name, 'v')
