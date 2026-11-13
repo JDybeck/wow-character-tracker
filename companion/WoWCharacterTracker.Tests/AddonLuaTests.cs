@@ -183,6 +183,27 @@ public class AddonLuaTests
             [.. Announce(GuildOnly, "{ kind = 'loot', item = \"Sul'thraze the Lasher\", itemId = 17069, quality = 4 }"),
              .. Announce(GuildOnly, "{ kind = 'loot', item = 'Blue thing', itemId = 1, quality = 3 }")]);
 
+    // The game refusing a line is caught, and kept for /wct debug instead of vanishing.
+    [Fact]
+    public void A_refused_chat_line_is_kept_for_debug()
+    {
+        var script = new Script();
+        script.DoString(FakeTimers);
+        script.DoString("""
+            C_ChatInfo = { SendChatMessage = function() error('blocked') end }
+            WoWCharacterTrackerSettings = { announce = { guild = true, kinds = { level = true } } }
+            """);
+        script.Globals["IsInGuild"] = (Func<bool>)(() => true);
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Announce.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        script.Call(ns.Get("announce"), script.DoString("return { kind = 'level', level = 5 }"));
+        script.DoString("runTimers(1100)");
+        Assert.StartsWith("GUILD: ", ns.Get("lastChatSend").String);
+        Assert.Contains("blocked", ns.Get("lastChatSend").String);
+        Assert.Equal(0, script.Call(ns.Get("pendingAnnouncements")).Number);
+    }
+
     // Newer clients only have C_Item.GetItemInfo: the line still carries the link.
     [Fact]
     public void Loot_links_come_from_c_item_when_the_global_is_gone()
@@ -443,17 +464,30 @@ public class AddonLuaTests
         Assert.Equal("Mining 150/225, Herbalism 75", script.Call(ns.Get("professionText")).String);
     }
 
-    // Retail: GetProfessionInfo's 4th value is the max.
+    // Retail and Forever (not IS_RETAIL): GetProfessions wins over the skill list, which Forever
+    // returns without the professions. GetProfessionInfo's 4th value is the max.
     [Fact]
-    public void Retail_professions_come_with_their_max_skill()
+    public void Professions_come_from_GetProfessions_where_it_exists()
     {
         var (script, ns, _) = ProfessionScript();
-        ns["IS_RETAIL"] = true;
         script.DoString("""
+            skills = {}
             function GetProfessions() return 3, 7 end
             function GetProfessionInfo(i) if i == 3 then return 'Mining', 1, 85, 100 end return 'Skinning', 2, 12, 0 end
             """);
         Assert.Equal("Mining 85/100, Skinning 12", script.Call(ns.Get("professionText")).String);
+    }
+
+    // A client with GetProfessions that gives nothing still reads the skill list.
+    [Fact]
+    public void Professions_fall_back_to_the_skill_list_when_GetProfessions_gives_none()
+    {
+        var (script, ns, _) = ProfessionScript();
+        script.DoString("""
+            function GetProfessions() return nil, nil end
+            function GetProfessionInfo() return nil end
+            """);
+        Assert.Equal("Mining 140/150, Herbalism 70/75", script.Call(ns.Get("professionText")).String);
     }
 
     // Shared.lua's stepPassed (profession and rating milestones): a step counts when the value goes

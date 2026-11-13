@@ -66,6 +66,8 @@ local function saveDebug()
   add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
   add("hardcore: " .. dump(ns.isHardcore()))
   add("comms error: " .. tostring(ns.lastCommsError)) -- the last friend message our code couldn't handle
+  add(string.format("guild/group chat: last %s, waiting %d, locked %s", tostring(ns.lastChatSend),
+    ns.pendingAnnouncements and ns.pendingAnnouncements() or 0, tostring(ns.chatLocked())))
   if UpdateAddOnMemoryUsage and GetAddOnMemoryUsage then
     UpdateAddOnMemoryUsage()
     add(string.format("memory: %d KB, %d events", GetAddOnMemoryUsage(ADDON) or 0, #(WoWCharacterTrackerDB.events or {})))

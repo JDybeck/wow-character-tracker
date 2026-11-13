@@ -26,8 +26,9 @@ function ns.professionRanks()
     end
   end
 
-  if ns.IS_RETAIL and type(GetProfessions) == "function" then
-    -- Retail: the two main professions are the first two return values.
+  -- Retail and Forever: the two main professions are the first two return values. Forever's skill
+  -- list comes back without them, so this goes first wherever it exists.
+  if type(GetProfessions) == "function" and type(GetProfessionInfo) == "function" then
     local p1, p2 = GetProfessions()
     for _, idx in ipairs({ p1 or 0, p2 or 0 }) do
       if idx > 0 then
@@ -35,8 +36,9 @@ function ns.professionRanks()
         add(name, rank, max)
       end
     end
-  elseif type(GetNumSkillLines) == "function" then
-    -- Classic-style clients: scan the skill list for primary professions.
+  end
+  if #found == 0 and type(GetNumSkillLines) == "function" then
+    -- Older Classic-style clients: scan the skill list for primary professions.
     for i = 1, GetNumSkillLines() do
       local name, isHeader, _, rank, _, _, max = GetSkillLineInfo(i)
       if name and not isHeader and CLASSIC_PROFESSIONS[name] then add(name, rank, max) end
