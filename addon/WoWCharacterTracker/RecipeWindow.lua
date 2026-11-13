@@ -53,6 +53,19 @@ local function schematic(recipeId)
   return reagents, (type(made) == "number" and made > 0) and made or nil
 end
 
+-- A recipe's icon like the game's profession window: the item it makes, else its spell's (enchants).
+-- Forever's smelting spells only have a placeholder icon. Made items are kept per recipe id.
+local madeItems = {}
+local function recipeIcon(id)
+  local made = madeItems[id]
+  if made == nil then
+    local _, m = schematic(id)
+    made = m or false
+    madeItems[id] = made
+  end
+  return (made and itemIcon(made)) or spellIcon(id)
+end
+
 -- A character's skill in a profession from its professions text ("Mining 150/225, ..."): "150/225" or "150".
 function ns.professionSkill(professions, name)
   for part in string.gmatch(professions or "", "[^,]+") do
@@ -245,8 +258,7 @@ local function drawList()
       r.sign:SetText(line.folded and "+" or "-")
     else
       local id = line.id
-      local icon = spellIcon(id)
-      setRow(r, false, line.name, function() pick(id) end, state.picked == id, icon)
+      setRow(r, false, line.name, function() pick(id) end, state.picked == id, recipeIcon(id))
     end
     r:ClearAllPoints()
     r:SetPoint("TOPLEFT", win.listChild, "TOPLEFT", 0, -y)
@@ -292,7 +304,7 @@ local function drawPicked()
   d:SetShown(id ~= nil)
   if not id then return end
   d.recipe.spellId = id
-  d.icon:SetTexture(spellIcon(id))
+  d.icon:SetTexture(recipeIcon(id))
   d.name:SetText(nameOf(id) or ("Recipe " .. id))
   local reagents, made = schematic(id)
   local y = 64
@@ -399,6 +411,7 @@ local function build()
   win:SetSize(WIDTH, HEIGHT)
   win:SetPoint("CENTER")
   win:SetFrameStrata("DIALOG")
+  win:SetToplevel(true) -- in front of the main window, which is toplevel too, until that's clicked
   win:SetClampedToScreen(true)
   win:EnableMouse(true)
   win:SetMovable(true)
@@ -506,6 +519,7 @@ local function show(book, text, picked)
   state.folded = {}
   win.search:SetText(book and "" or (text or ""))
   win:Show()
+  win:Raise()
   draw()
 end
 

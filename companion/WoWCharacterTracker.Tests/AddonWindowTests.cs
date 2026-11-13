@@ -32,6 +32,7 @@ public class AddonWindowTests
             if k == "SetWidth" then return function(s, w) s.width = w end end
             if k == "SetPoint" then return function(s, ...) s.point = { ... } end end
             if k == "SetTextColor" then return function(s, r, g, b) s.color = { r, g, b } end end
+            if k == "SetTexture" then return function(s, t) s.texture = t end end
             if k == "SetChecked" then return function(s, v) s.checked = v end end
             if k == "GetChecked" then return function(s) return s.checked end end
             if k == "Show" then return function(s) s.shown = true end end
@@ -696,7 +697,8 @@ public class AddonWindowTests
           [2963] = 'Bolt of Linen Cloth' }
         items = { [2589] = { 'Linen Cloth', 1, 1, 5 }, [2996] = { 'Bolt of Linen Cloth', 1, 1, 5 }, [2568] = { 'Brown Linen Vest', 1, 1, 10, 5 } }
         C_Spell = { GetSpellName = function(id) return spells[id] end, GetSpellTexture = function() return 1 end }
-        C_Item = { GetItemInfo = function(id) local i = items[id]; if i then return i[1], nil, i[2], i[4], i[5] end end }
+        C_Item = { GetItemInfo = function(id) local i = items[id]; if i then return i[1], nil, i[2], i[4], i[5] end end,
+          GetItemIconByID = function(id) return 'item-' .. id end }
         C_TradeSkillUI = { GetRecipeSchematic = function(id)
           if id == 3915 then return { outputItemID = 2996, reagentSlotSchematics = { { reagentType = 1, quantityRequired = 2, reagents = { { itemID = 2589 } } } } } end
           if id == 2385 then return { outputItemID = 2568, reagentSlotSchematics = { { reagentType = 1, quantityRequired = 3, reagents = { { itemID = 2996 } } } } } end
@@ -721,6 +723,12 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Cloth') ~= nil and shownText('Bags') ~= nil and shownText('Green Woolen Bag') ~= nil"));
         Assert.True(Bool(c, "shownText('Linen Cloth') ~= nil and shownText('2') ~= nil")); // Bolt of Linen Cloth's reagent
         Assert.True(Bool(c, "shownText('Item level 5') ~= nil"));
+        // Rows show the made item's icon like the game's window, the spell's when it makes nothing.
+        Assert.Equal("item-2996", c.Lua("""
+            for _, fs in ipairs(strings) do
+              if onScreen(fs) and fs.text == 'Bolt of Linen Cloth' and fs.owner.sign then return fs.owner.icon.texture end
+            end
+            """).String);
 
         c.Lua("local r = shownText('Brown Linen Vest').owner; r.scripts.OnClick(r)");
         Assert.True(Bool(c, "shownText('Item level 10, Requires level 5') ~= nil"));
