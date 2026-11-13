@@ -194,20 +194,28 @@ sealed class FriendsViewModel : Observable
     }
 
     // The shown friends' professions (the same view as the Professions page), by friend first.
-    public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions from friends yet. Friends who share professions show up here." };
+    public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions from friends yet. Friends who share professions show up here, with their recipes." };
 
     // What the page shows: the characters, their professions or the sharing settings.
     bool showProfessions;
     public bool ShowProfessions { get => showProfessions; set { if (Set(ref showProfessions, value)) ViewChanged(value ? "professions" : null); } }
-    public ICommand ToggleProfessionsCommand => toggleProfessions ??= new RelayCommand(_ => ShowProfessions = !ShowProfessions);
-    ICommand? toggleProfessions;
     public bool ShowCharacters => !ShowSettings && !ShowProfessions;
+
+    // The page's sub-tabs (MainWindow's switch beside the page tabs): "list" or "professions".
+    public string View => ShowProfessions ? "professions" : "list";
+    public ICommand ShowViewCommand => showView ??= new RelayCommand(p =>
+    {
+        ShowSettings = false;
+        ShowProfessions = p as string == "professions";
+    });
+    ICommand? showView;
 
     void ViewChanged(string? opened)
     {
         if (opened == "professions") ShowSettings = false;
         if (opened == "settings") ShowProfessions = false;
         Raise(nameof(ShowCharacters));
+        Raise(nameof(View));
     }
 
     // --- sharing settings ---

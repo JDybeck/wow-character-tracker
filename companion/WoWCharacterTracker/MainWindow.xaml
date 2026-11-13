@@ -70,6 +70,17 @@
                     Command="{Binding ShowPageCommand}" CommandParameter="followed" ToolTip="Your wish list: items to watch for"/>
           </StackPanel>
         </Border>
+        <!-- The Friends tab's views: their characters, or their professions and recipes. -->
+        <Border x:Name="FriendViews" Style="{StaticResource SegmentBox}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                DataContext="{Binding SelectedFlavor.Friends}"
+                Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=friends}">
+          <StackPanel Orientation="Horizontal">
+            <Button Style="{StaticResource SegmentButton}" Content="Friends" Tag="{Binding View, Converter={StaticResource ActiveIf}, ConverterParameter=list}"
+                    Command="{Binding ShowViewCommand}" CommandParameter="list" ToolTip="Your friends and their characters"/>
+            <Button Style="{StaticResource SegmentButton}" Content="Professions" Tag="{Binding View, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
+                    Command="{Binding ShowViewCommand}" CommandParameter="professions" ToolTip="Friends' professions and recipes, and who can craft what"/>
+          </StackPanel>
+        </Border>
       </DockPanel>
 
       <!-- No game folder or no addon: the app can't track anything yet, so that check sits big over the
