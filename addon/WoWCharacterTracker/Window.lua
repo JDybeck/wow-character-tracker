@@ -688,6 +688,21 @@ local function drawExpansion(ex, c, friend)
   end)
   local h = math.max(left, right) + 10
   place(ex.hide, ex, ex.width - 122, h)
+  -- A button per profession with known recipes: opens them in the recipe window (RecipeWindow.lua).
+  ex.recipes = ex.recipes or {}
+  local profs = ns.recipeProfessions and ns.recipeProfessions(c) or {}
+  local x = 12
+  for i, prof in ipairs(profs) do
+    if x + 150 > ex.width - 130 then -- the next line, clear of Hide
+      x = 12
+      h = h + 28
+    end
+    local b = pooled(ex.recipes, i, function() return cardButton(ex, 150) end)
+    setButton(b, string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end)
+    place(b, ex, x, h)
+    x = x + 156
+  end
+  hideFrom(ex.recipes, #profs + 1)
   h = h + 30
   ex:SetHeight(h)
   ex:Show()

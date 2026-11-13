@@ -103,7 +103,7 @@ public class AddonWindowTests
     {
         var c = new FriendsLuaTests.Client(Me, "{}", db, settings);
         c.Lua(Widgets);
-        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
+        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "RecipeWindow.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
             c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file)), codeFriendlyName: file), "WoWCharacterTracker", c.Ns);
         return c;
     }
@@ -688,6 +688,75 @@ public class AddonWindowTests
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') == nil"));
         Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+    }
+
+    // The game's side of recipes: names, the schematic (reagents and the made item) and item info.
+    const string RecipeStubs = """
+        spells = { [3915] = 'Bolt of Linen Cloth', [2385] = 'Brown Linen Vest', [3758] = 'Green Woolen Bag', [7863] = 'Enchant Boots - Minor Stamina',
+          [2963] = 'Bolt of Linen Cloth' }
+        items = { [2589] = { 'Linen Cloth', 1, 1, 5 }, [2996] = { 'Bolt of Linen Cloth', 1, 1, 5 }, [2568] = { 'Brown Linen Vest', 1, 1, 10, 5 } }
+        C_Spell = { GetSpellName = function(id) return spells[id] end, GetSpellTexture = function() return 1 end }
+        C_Item = { GetItemInfo = function(id) local i = items[id]; if i then return i[1], nil, i[2], i[4], i[5] end end }
+        C_TradeSkillUI = { GetRecipeSchematic = function(id)
+          if id == 3915 then return { outputItemID = 2996, reagentSlotSchematics = { { reagentType = 1, quantityRequired = 2, reagents = { { itemID = 2589 } } } } } end
+          if id == 2385 then return { outputItemID = 2568, reagentSlotSchematics = { { reagentType = 1, quantityRequired = 3, reagents = { { itemID = 2996 } } } } } end
+          return { reagentSlotSchematics = {} }
+        end }
+        shared[1].chars[1].recipes = 'Tailoring~Cloth=3915,2385/Bags=3758\nEnchanting~Boots=7863'
+        """;
+
+    // A character's unfolded info has a button per profession with recipes; it opens the recipe window
+    // with the game's headers, the first recipe picked with its reagents and what it makes. A header folds.
+    [Fact]
+    public void A_characters_recipes_open_like_the_profession_window()
+    {
+        var c = FriendsTab();
+        c.Lua(RecipeStubs);
+        c.Lua("openFriend('Cidro')");
+        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        Assert.True(Bool(c, "find('Enchanting recipes (1)') ~= nil"));
+        c.Lua("local b = find('Tailoring recipes (3)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes'))"));
+        Assert.True(Bool(c, "shownText('Tailoring') ~= nil and shownText('300/300') ~= nil"));
+        Assert.True(Bool(c, "shownText('Cloth') ~= nil and shownText('Bags') ~= nil and shownText('Green Woolen Bag') ~= nil"));
+        Assert.True(Bool(c, "shownText('Linen Cloth') ~= nil and shownText('2') ~= nil")); // Bolt of Linen Cloth's reagent
+        Assert.True(Bool(c, "shownText('Item level 5') ~= nil"));
+
+        c.Lua("local r = shownText('Brown Linen Vest').owner; r.scripts.OnClick(r)");
+        Assert.True(Bool(c, "shownText('Item level 10, Requires level 5') ~= nil"));
+        c.Lua("local r = shownText('Cloth').owner; r.scripts.OnClick(r)"); // folds Cloth
+        // The list's rows (they have a sign for headers): Cloth's recipes are gone, Bags' stay.
+        c.Lua("""
+            function listed(s)
+              for _, fs in ipairs(strings) do
+                if onScreen(fs) and fs.text == s and fs.owner.sign then return true end
+              end
+              return false
+            end
+            """);
+        Assert.False(Bool(c, "listed('Brown Linen Vest')"));
+        Assert.True(Bool(c, "listed('Green Woolen Bag')"));
+    }
+
+    // /wct recipes finds who knows a recipe among your characters and what friends share; a click on
+    // someone opens their recipes on it.
+    [Fact]
+    public void Recipe_search_finds_who_knows_it()
+    {
+        var c = FriendsTab();
+        c.Lua(RecipeStubs);
+        c.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000A'] = { char = 'Zeb', classFile = 'WARRIOR', professions = 'Tailoring 75/150', recipes = 'Tailoring~Cloth=2963' }");
+        c.Lua("SlashCmdList.CHARACTERTRACKER('recipes linen')");
+        Assert.True(Bool(c, "shownText('Find a recipe') ~= nil"));
+        Assert.True(Bool(c, "shownText('Brown Linen Vest') ~= nil and shownText('Bolt of Linen Cloth') ~= nil"));
+        Assert.True(Bool(c, "shownText('Known by:') ~= nil"));
+        Assert.Equal(1, Num(c, "#ns.findRecipes({ { c = WoWCharacterTrackerDB.chars['Player-1-0000000A'] } }, 'BOLT', function(id) return spells[id] end)"));
+
+        c.Lua("local r = shownText('Brown Linen Vest').owner; r.scripts.OnClick(r)");
+        c.Lua("local b = find('Cidrin Frostmane (Cid#3)  300/300'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Tailoring') ~= nil and shownText('Cidrin Frostmane  (Cid#3)') ~= nil"));
+        Assert.Equal("75/150", c.Lua("return ns.professionSkill('Tailoring 75/150, First Aid 100', 'Tailoring')").String);
+        Assert.Equal("100", c.Lua("return ns.professionSkill('Tailoring 75/150, First Aid 100', 'First Aid')").String);
     }
 
     // Hide in a character's info takes it out of the list, "show them" brings it back dimmed, and
