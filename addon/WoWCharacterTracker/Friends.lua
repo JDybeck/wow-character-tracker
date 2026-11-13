@@ -57,7 +57,7 @@ end
 
 -- Sets (or with "" clears) tag's nickname, newer than the app's.
 function ns.setFriendNickname(tag, name)
-  name = strtrim(tostring(name or "")):gsub("|", ""):sub(1, MAX_NICKNAME)
+  name = ns.cutLetters(strtrim((tostring(name or ""):gsub("|", ""))), MAX_NICKNAME)
   local db = WoWCharacterTrackerDB
   db.friendNames = db.friendNames or {}
   db.friendNames[tag] = { name = name, at = math.max(time(), appNameAt(tag) + 1) }
@@ -76,12 +76,32 @@ function ns.friendOrder()
   return (s and type(s.friendOrder) == "table") and s.friendOrder or {}
 end
 
-function ns.setFriendOrder(tags)
+-- The saved order with the shown friends (visible, in their new order) put in the places the shown
+-- ones had: friends not shown here (only in the app, or another game's) keep theirs. New ones
+-- take places at the end. The app's FriendOrder.Merge does the same.
+function ns.mergeFriendOrder(saved, visible)
+  local shown, known = {}, {}
+  for _, tag in ipairs(visible) do shown[tag] = true end
+  for _, tag in ipairs(saved) do known[tag] = true end
+  local out, slots = {}, {}
+  for _, tag in ipairs(saved) do
+    out[#out + 1] = tag
+    if shown[tag] then slots[#slots + 1] = #out end
+  end
+  for _, tag in ipairs(visible) do
+    if not known[tag] then
+      out[#out + 1] = tag
+      slots[#slots + 1] = #out
+    end
+  end
+  for i, slot in ipairs(slots) do out[slot] = visible[i] end
+  return out
+end
+
+function ns.setFriendOrder(visible)
   local s = WoWCharacterTrackerSettings
   local appAt = s and tonumber(s.friendOrderAt) or 0
-  local list = {}
-  for i, tag in ipairs(tags) do list[i] = tag end
-  WoWCharacterTrackerDB.friendOrder = { tags = list, at = math.max(time(), appAt + 1) }
+  WoWCharacterTrackerDB.friendOrder = { tags = ns.mergeFriendOrder(ns.friendOrder(), visible), at = math.max(time(), appAt + 1) }
 end
 
 -- Sharing settings ----------------------------------------------------------------------------
@@ -404,11 +424,11 @@ function on.HI(f, contact, body)
   if answeredHi[f.account] and now - answeredHi[f.account] < HELLO_GAP then return end
   answeredHi[f.account] = now
   ns.comms.send(f.account, "HEY", version())
+  if not contact.share then return end
   local last = lastSent[f.account]
-  if contact.share and not (last and now - last.at < GROUP_EVERY) then
-    sendCurrent(f, contact, false, true)
-    sendCharList(f)
-  end
+  if not (last and now - last.at < GROUP_EVERY) then sendCurrent(f, contact, false, true) end
+  -- The list always (small): their HAVE check catches up alts they didn't get, also right after an ask.
+  sendCharList(f)
 end
 
 -- The answer to our hello (never answered back, so no ping-pong).
@@ -503,6 +523,7 @@ local requested = {} -- [tag] = when they last asked us
 local notNow = {}    -- [tag] = when we said Not now
 local altsSent = {}  -- [tag] = true: the alts went out this session
 local wantAnswered = {} -- [account] = when we last answered their WANT
+local haveAnswered = {} -- [account] = when we last answered their HAVE
 
 -- "Zebbe (Zeb#2222)" with a nickname, else the BattleTag.
 local function label(tag)
@@ -544,9 +565,13 @@ sendCharList = function(f)
   if #stamps > 0 then ns.comms.send(f.account, "HAVE", table.concat(stamps, ",")) end
 end
 
--- Their alts we have no copy of, or another one than they have now.
+-- Their alts we have no copy of, or another one than they have now. At most once per HELLO_GAP per
+-- account: each answer is a WANT of up to MAX_CHARS guids, so a flood of HAVEs mustn't fill our queue.
 function on.HAVE(f, contact, body)
   if not contact.receive then return end
+  local now = time()
+  if haveAnswered[f.account] and now - haveAnswered[f.account] < HELLO_GAP then return end
+  haveAnswered[f.account] = now
   local got = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[f.tag]
   local chars, wants = got and got.chars or {}, {}
   for guid, at in string.gmatch(body or "", "([^,~]+)~(%d+)") do
@@ -579,10 +604,12 @@ end
 
 -- Everything a contact may see, for one who asked: the character being played, the alts once a
 -- session, then the list of what we share (after the alts, so HAVE doesn't ask for them again).
-local function answer(f, contact)
+-- unsure: they may drop the alts (ours sent along with an ask, before they answered), so they
+-- aren't counted as sent and go again next time.
+local function answer(f, contact, unsure)
   sendCurrent(f, contact, false, true)
   if not altsSent[f.tag] then
-    altsSent[f.tag] = true
+    if not unsure then altsSent[f.tag] = true end
     for _, guid in ipairs(sharedAlts()) do
       local text = charText(guid, contact)
       if text then ns.comms.send(f.account, "DATA", text) end
@@ -784,7 +811,8 @@ end
 -- addon to stop asking. From the request box (f is the one showing) or the Friends tab's list (a
 -- copy), which closes the box when it's theirs. choices: see keepChoices.
 function ns.answerFriendRequest(f, choice, choices)
-  local gifts = f and (requestFrom(f.tag) or f).gifts
+  local waiting = f and (requestFrom(f.tag) or f)
+  local gifts, theyShare = waiting and waiting.gifts, waiting and waiting.shares
   if not f or (showing and showing.tag == f.tag) then
     local fromList = f and showing ~= f
     showing = nil
@@ -803,6 +831,8 @@ function ns.answerFriendRequest(f, choice, choices)
       local contact = s.contacts[f.tag]
       for _, char in pairs(gifts or {}) do keep(f.tag, char) end
       answer(f, contact)
+      -- They share theirs: a hello gets their list, so what didn't come along (or was dropped) follows.
+      if theyShare then ns.comms.send(f.account, "HI", version()) end
       ns.say(string.format("%s can now see your shared characters (%s). Change it on the Friends tab (/wct).",
         label(f.tag), ns.shareSummary(ns.allowedFor(s, contact))))
     elseif choice == "never" then
@@ -911,7 +941,7 @@ local function ask(tag, wants, give)
   if contact.share then body[#body + 1] = SHARES end
   for _, account in ipairs(accounts) do
     ns.comms.send(account, "REQ", table.concat(body, ","))
-    if contact.share then answer({ tag = tag, account = account }, contact) end
+    if contact.share then answer({ tag = tag, account = account }, contact, true) end
   end
   local what = #list > 0 and (" for " .. picked(asSet(list))) or ""
   local yours = contact.share and (", and sent them yours (" .. picked(ns.allowedFor(ns.shareSettings(), contact)) .. ")") or ""

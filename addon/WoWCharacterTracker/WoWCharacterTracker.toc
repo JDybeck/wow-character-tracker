@@ -5,7 +5,7 @@
 ## IconTexture: Interface\AddOns\WoWCharacterTracker\Icon
 ## X-License: GPL-3.0
 ## X-Website: https://github.com/JDybeck/wow-character-tracker
-## Version: 0.39.14
+## Version: 0.39.15
 ## SavedVariables: WoWCharacterTrackerDB
 
 Settings.lua

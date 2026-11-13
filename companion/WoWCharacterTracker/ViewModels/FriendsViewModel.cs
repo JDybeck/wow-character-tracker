@@ -103,12 +103,13 @@ sealed class FriendsViewModel : Observable
         Raise(nameof(HiddenText));
     }
 
-    // Grouped by friend on the page (FriendsPage groups by FriendName): friends in the dragged order
+    // Grouped by friend on the page (FriendsPage groups by FriendTag): friends in the dragged order
     // (rank), the rest by name, each friend's characters the one played last first, so the one
     // they're on leads.
     internal static IEnumerable<CharacterRow> Ordered(IEnumerable<CharacterRow> rows, Func<string, int> rank) =>
         rows.OrderBy(r => rank(r.FriendTag))
             .ThenBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(r => r.FriendTag, StringComparer.Ordinal) // two friends with one nickname stay apart
             .ThenByDescending(r => r.LastSeen)
             .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase);
 
@@ -140,15 +141,25 @@ sealed class FriendsViewModel : Observable
     });
     ICommand? selectFriend;
 
-    // Dragging (FriendsPage): the card moves live while dragged, letting go keeps the order.
-    public void MoveCard(FriendCard card, int to)
+    // Dragging (FriendsPage): the dragged friend's card moves live onto the one it's over, by
+    // BattleTag (a sync can rebuild the cards mid-drag). Letting go keeps the order when it changed;
+    // a cancelled drag puts the cards back.
+    public IReadOnlyList<string> CardOrder => [.. Cards.Select(c => c.Tag)];
+
+    public void MoveCard(string tag, string overTag)
     {
-        var from = Cards.IndexOf(card);
-        if (from < 0 || to < 0 || to >= Cards.Count || from == to) return;
+        var from = Cards.ToList().FindIndex(c => c.Tag == tag);
+        var to = Cards.ToList().FindIndex(c => c.Tag == overTag);
+        if (from < 0 || to < 0 || from == to) return;
         Cards.Move(from, to);
     }
 
-    public void KeepOrder() => OrderChanged?.Invoke([.. Cards.Select(c => c.Tag)]);
+    public void EndDrag(IReadOnlyList<string> before, bool dropped)
+    {
+        var now = CardOrder;
+        if (!dropped) BuildCards();
+        else if (!now.SequenceEqual(before)) OrderChanged?.Invoke(now);
+    }
 
     void SetHidden(object? p, bool hidden)
     {

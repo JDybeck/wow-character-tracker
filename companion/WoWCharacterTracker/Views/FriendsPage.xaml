@@ -93,7 +93,8 @@
           <StackPanel Margin="0,0,16,0">
             <!-- A card per friend, in the order you drag them into (the addon's Friends tab shows the
                  same). A click lists only theirs, a second click everyone. Dragging: FriendsPage.xaml.cs. -->
-            <ItemsControl x:Name="FriendGrid" ItemsSource="{Binding Cards}" Focusable="False">
+            <ItemsControl x:Name="FriendGrid" ItemsSource="{Binding Cards}" Focusable="False" AllowDrop="True" Background="Transparent"
+                          DragOver="Grid_DragOver" Drop="Card_Drop">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
@@ -102,7 +103,7 @@
                   <Button Width="252" Margin="0,0,8,8" Cursor="Hand" AllowDrop="True"
                           ToolTip="Click to list only their characters, again for everyone. Drag to move them."
                           Command="{Binding DataContext.SelectFriendCommand, ElementName=FriendGrid}" CommandParameter="{Binding}"
-                          PreviewMouseLeftButtonDown="Card_MouseDown" PreviewMouseMove="Card_MouseMove" DragOver="Card_DragOver" Drop="Card_Drop">
+                          PreviewMouseLeftButtonDown="Card_MouseDown" PreviewMouseLeftButtonUp="Card_MouseUp" PreviewMouseMove="Card_MouseMove" DragOver="Card_DragOver" Drop="Card_Drop">
                     <Button.Template>
                       <ControlTemplate TargetType="Button">
                         <Border x:Name="Bd" CornerRadius="10" Padding="10,8" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
@@ -161,7 +162,7 @@
                  Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}" Padding="0,6"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True"
                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True" VirtualizingPanel.ScrollUnit="Pixel">
-          <!-- A header per friend (FriendsPage groups by FriendName): their name, when their newest
+          <!-- A header per friend (FriendsPage groups by FriendTag): their name, when their newest
                character was seen (the rows come newest first) and when your addon last heard from them. -->
           <ListBox.GroupStyle>
             <GroupStyle>
@@ -169,7 +170,7 @@
                 <DataTemplate DataType="{x:Type CollectionViewGroup}">
                   <Border Margin="23,12,23,4" Padding="0,0,0,6" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
                     <TextBlock FontSize="13">
-                      <Run Text="{Binding Name, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                      <Run Text="{Binding Items[0].FriendName, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
                       <Run Text="   "/>
                       <Run Text="last seen" Foreground="{StaticResource Dim}"/>
                       <Run Text="{Binding Items[0].LastSeenText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>

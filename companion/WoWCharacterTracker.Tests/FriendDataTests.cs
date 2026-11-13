@@ -292,6 +292,19 @@ public class FriendDataTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
+    // A drag only knows the friends that page shows: they swap among their own places, everyone
+    // else keeps theirs, and new ones go at the end (Friends.lua's mergeFriendOrder is the same).
+    [Theory]
+    [InlineData("A,B,C,D,E", "E,D", "A,B,C,E,D")]   // Retail's two, Forever's three kept
+    [InlineData("A,B,C,D", "C,A", "C,B,A,D")]       // shown ones swap places, B and D stay
+    [InlineData("A,B", "X,B,A", "X,B,A")]           // a new one dragged first takes the first shown place
+    [InlineData("", "B,A", "B,A")]
+    public void A_drag_merges_into_the_whole_friend_order(string saved, string shown, string merged)
+    {
+        static List<string> L(string s) => [.. s.Split(',', StringSplitOptions.RemoveEmptyEntries)];
+        Assert.Equal(L(merged), FriendOrder.Merge(L(saved), L(shown)));
+    }
+
     [Fact]
     public void Settings_lua_has_no_share_until_the_app_has_one()
     {

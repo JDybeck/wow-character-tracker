@@ -437,10 +437,11 @@ sealed class MainViewModel : Observable
         if (Config.TakeNewerFriendOrder(order)) FriendsShownChanged();
     }
 
-    // Dragged on the Friends page: saved, and every game's addon shows the same order.
-    public void SetFriendOrder(IEnumerable<string> tags)
+    // Dragged on the Friends page (the friends that page shows, in their new order): merged into the
+    // whole order, saved, and every game's addon shows it.
+    public void SetFriendOrder(IReadOnlyList<string> shown)
     {
-        Config.FriendOrder = [.. tags];
+        Config.FriendOrder = FriendOrder.Merge(Config.FriendOrder, shown);
         Config.FriendOrderAt = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Config.FriendOrderAt + 1);
         FriendsShownChanged();
     }

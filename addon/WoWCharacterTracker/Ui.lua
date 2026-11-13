@@ -187,8 +187,9 @@ function ui.copyBox(parent, text, width)
   return box
 end
 
--- A one-line box to type in. Enter or leaving it saves: save(text) gets what was typed; Esc puts
--- back what it had. box:SetText sets it from outside (box.saved is the last saved text).
+-- A one-line box to type in. Enter or leaving it saves: save(text, key) gets what was typed and the
+-- box.key it had when typing started (what it's for, so a box reused for another friend saves to the
+-- one it was typed for); Esc puts back what it had. ui.showInput sets what it shows from outside.
 function ui.inputBox(parent, width, maxLetters, save)
   local box = CreateFrame("EditBox", nil, parent)
   box:SetSize(width, 22)
@@ -202,16 +203,28 @@ function ui.inputBox(parent, width, maxLetters, save)
     local text = self:GetText() or ""
     if text ~= self.saved then
       self.saved = text
-      save(text)
+      save(text, self.editing)
     end
   end
   box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  box:SetScript("OnEditFocusGained", function(self) self.editing = self.key end)
   box:SetScript("OnEditFocusLost", commit)
   box:SetScript("OnEscapePressed", function(self)
     self:SetText(self.saved)
     self:ClearFocus()
   end)
   return box
+end
+
+-- Shows text in an inputBox for key. Typing in it for another key is saved to that one first
+-- (leaving it saves); typing for this key is left alone.
+function ui.showInput(box, key, text)
+  if box:HasFocus() then
+    if box.editing == key then return end
+    box:ClearFocus()
+  end
+  box.key, box.saved = key, text or ""
+  box:SetText(box.saved)
 end
 
 -- "primary": filled amber, for the one thing to do; "selected": a picked tab; else quiet and outlined.

@@ -720,10 +720,7 @@ local function drawSharing()
     return
   end
   sharingTitle:SetText(o.label)
-  if not nickname:HasFocus() then
-    nickname.saved = o.nickname or ""
-    nickname:SetText(nickname.saved)
-  end
+  ui.showInput(nickname, sharingTag, o.nickname)
   for i, cat in ipairs(o.categories) do
     local b = categoryButtons[i]
     if b then
@@ -749,9 +746,9 @@ local function buildSharing()
   -- Their nickname, here and in the app (Enter saves, empty clears).
   local nickLabel = ui.text(sharing, "GameFontNormalSmall", "Nickname")
   nickLabel:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -12)
-  nickname = ui.inputBox(sharing, DETAILS_WIDTH - 28 - 70, 32, function(text)
-    if sharingTag and ns.setFriendNickname then ns.setFriendNickname(sharingTag, text) end
-    drawSharing()
+  nickname = ui.inputBox(sharing, DETAILS_WIDTH - 28 - 70, 32, function(text, tag)
+    if tag and ns.setFriendNickname then ns.setFriendNickname(tag, text) end
+    if sharing:IsShown() then drawSharing() end
   end)
   nickname:SetPoint("LEFT", nickLabel, "LEFT", 66, 0)
   local shareBox = ui.checkbox(sharing, "Share your characters", nil,
@@ -1313,6 +1310,18 @@ local function buildFriends(p)
     end
   end
 
+  -- Ends a drag: the card back in the grid, and the order it got kept when keep is true.
+  local function endDrag(card, keep)
+    card:StopMovingOrSizing()
+    if card.SetUserPlaced then card:SetUserPlaced(false) end
+    card:SetScript("OnUpdate", nil)
+    card:SetFrameLevel((p:GetFrameLevel() or 1) + 1)
+    if keep and dragging and ns.setFriendOrder then ns.setFriendOrder(dragging.order) end
+    card.dragged = keep or nil -- a drag cut short isn't followed by the click that ends one
+    dragging = nil
+    drawFriends()
+  end
+
   local function newFriendCard()
     local card = CreateFrame("Frame", nil, p)
     card:SetSize(cardWidth, GRID_CARD)
@@ -1364,14 +1373,10 @@ local function buildFriends(p)
       self:StartMoving()
       self:SetScript("OnUpdate", dragUpdate)
     end)
-    card:SetScript("OnDragStop", function(self)
-      self:StopMovingOrSizing()
-      if self.SetUserPlaced then self:SetUserPlaced(false) end
-      self:SetScript("OnUpdate", nil)
-      self:SetFrameLevel((p:GetFrameLevel() or 1) + 1)
-      if dragging and ns.setFriendOrder then ns.setFriendOrder(dragging.order) end
-      dragging = nil
-      drawFriends()
+    card:SetScript("OnDragStop", function(self) endDrag(self, true) end)
+    -- Hidden mid-drag (Esc, another tab): no OnDragStop comes, so the drag ends here, unsaved.
+    card:SetScript("OnHide", function(self)
+      if dragging and dragging.card == self then endDrag(self, false) end
     end)
     return card
   end
@@ -1392,9 +1397,8 @@ local function buildFriends(p)
   section.b2:SetPoint("TOPRIGHT", section, "TOPRIGHT", -10, -8)
   local nickLabel = ui.text(section, "GameFontNormalSmall", "Nickname")
   nickLabel:SetPoint("TOPLEFT", section, "TOPLEFT", 12, -42)
-  section.nickname = ui.inputBox(section, 220, 32, function(text)
-    if section.tag and ns.setFriendNickname then ns.setFriendNickname(section.tag, text) end
-    drawFriends()
+  section.nickname = ui.inputBox(section, 220, 32, function(text, tag)
+    if tag and ns.setFriendNickname then ns.setFriendNickname(tag, text) end -- redraws the tab
   end)
   section.nickname:SetPoint("LEFT", nickLabel, "LEFT", 66, 0)
   local nickHint = ui.text(section, "GameFontDisableSmall", "Enter saves, here and in the app. Empty clears it.")
@@ -1519,10 +1523,7 @@ local function buildFriends(p)
       local b, what = pair[1], pair[2]
       if what then setButton(b, what[1], what[2] and act(what[2], person.tag), what[3]) else b:Hide() end
     end
-    if not section.nickname:HasFocus() then
-      section.nickname.saved = ns.friendNickname and ns.friendNickname(person.tag) or ""
-      section.nickname:SetText(section.nickname.saved)
-    end
+    ui.showInput(section.nickname, person.tag, ns.friendNickname and ns.friendNickname(person.tag) or "")
     place(section, p, 16, y)
     local h = drawCharRows(person, label, y + SECTION_TOP) - y + 6
     section:SetHeight(h)
@@ -1570,8 +1571,27 @@ local function buildFriends(p)
     p:SetHeight(y + 8 + SHARE_DEFAULTS_HEIGHT + 10)
   end
 
+  -- A draw can set off another (a nickname box saving as it moves to another friend): that one runs
+  -- after this one, not inside it.
+  local drawing, again = false, false
+  local drawNow
   drawFriends = function()
     if dragging then return end -- the drag places the cards; letting go redraws
+    if drawing then
+      again = true
+      return
+    end
+    drawing = true
+    local ok, err
+    repeat
+      again = false
+      ok, err = pcall(drawNow)
+    until not (ok and again)
+    drawing = false -- also after an error, or the tab would never draw again
+    if not ok then error(err, 0) end
+  end
+
+  drawNow = function()
     measure()
     section:SetWidth(width)
     local list = friendRows(rowsOf(ns.onlineFriends), rowsOf(ns.sharedWithYou))

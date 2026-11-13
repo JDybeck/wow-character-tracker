@@ -1170,12 +1170,54 @@ public class AddonWindowTests
               if f.parent == sharingPanel() and f.kind == 'EditBox' then box = f end
             end
             box.GetText = function(self) return self.text end
+            box.scripts.OnEditFocusGained(box)
             box:SetText('Cidde')
             box.scripts.OnEditFocusLost(box)
             """);
         Assert.Equal("Cidde", c.Lua("return ns.friendNickname('Cid#3')").String);
         Assert.True(Bool(c, "WoWCharacterTrackerDB.friendNames['Cid#3'].at > 0"));
         Assert.True(Bool(c, "shownText('Cidde (Cid#3)') ~= nil")); // the panel's title
+    }
+
+    // Typing a nickname for one friend and then opening another saves it to the first, not the second.
+    [Fact]
+    public void A_nickname_typed_for_one_friend_isnt_saved_to_the_next()
+    {
+        var c = FriendsTab();
+        c.Lua(SharingStubs);
+        c.Lua("local b = find('Find online friends'); b.scripts.OnClick(b)");
+        c.Lua("""
+            local box = showFriend('Cidro').nickname
+            focused = false
+            box.HasFocus = function() return focused end
+            box.ClearFocus = function(self) focused = false; self.scripts.OnEditFocusLost(self) end
+            box.GetText = function(self) return self.text end
+            focused = true
+            box.scripts.OnEditFocusGained(box)
+            box:SetText('Cidde')
+            showFriend('Bobo') -- still typing, another friend opens
+            """);
+        Assert.Equal("Cidde", c.Lua("return ns.friendNickname('Cid#3')").String);
+        Assert.Equal("", c.Lua("return ns.friendNickname('Bob#2')").String);
+        Assert.True(Bool(c, "section().nickname.text == ''")); // Bobo's (none) shows now
+    }
+
+    // A drag cut short by the window closing ends without saving, and the tab draws again.
+    [Fact]
+    public void A_drag_cut_short_by_closing_ends_and_the_tab_draws_again()
+    {
+        var c = FriendsTab();
+        c.Lua("""
+            local b = find('Find online friends'); b.scripts.OnClick(b)
+            function GetCursorPosition() return 0, 0 end
+            local cid = friendCard('Cidro')
+            cid.scripts.OnDragStart(cid)
+            cid.scripts.OnHide(cid) -- Esc closed the window
+            online[2].character = 'Bobber'
+            ns.friendsChanged()
+            """);
+        Assert.True(Bool(c, "friendCard('Bobber') ~= nil"));
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.friendOrder == nil"));
     }
 
     [Fact]

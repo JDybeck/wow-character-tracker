@@ -137,6 +137,18 @@ function ns.editSettings(edit)
   WoWCharacterTrackerDB.gameSettings = changed
 end
 
+-- s cut to at most n letters, never inside one: WoW's strings are UTF-8 bytes, so å or ö is two
+-- of them, and :sub would split it (the game shows garbage, the app reads broken text).
+function ns.cutLetters(s, n)
+  local out, count = {}, 0
+  for letter in s:gmatch("[^\128-\191][\128-\191]*") do
+    count = count + 1
+    if count > n then break end
+    out[count] = letter
+  end
+  return table.concat(out)
+end
+
 -- Where the app (and everything about it) is, for the addon on its own.
 ns.APP_URL = "https://github.com/JDybeck/wow-character-tracker"
 

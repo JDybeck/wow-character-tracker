@@ -97,8 +97,16 @@ public class FriendsViewModelTests
 
         IReadOnlyList<string>? kept = null;
         f.Vm.OrderChanged += o => kept = o;
-        f.Vm.MoveCard(f.Vm.Cards[1], 0);
-        f.Vm.KeepOrder();
+        var before = f.Vm.CardOrder;
+        f.Vm.MoveCard("Kalle#3333", "Zeb#2222");
+        Assert.Equal(["Kalle#3333", "Zeb#2222"], f.Vm.CardOrder); // moved live
+        f.Vm.EndDrag(before, dropped: false); // Esc: back as it was, nothing kept
+        Assert.Equal(["Zeb#2222", "Kalle#3333"], f.Vm.CardOrder);
+        Assert.Null(kept);
+        f.Vm.EndDrag(f.Vm.CardOrder, dropped: true); // dropped where it was: nothing to keep
+        Assert.Null(kept);
+        f.Vm.MoveCard("Kalle#3333", "Zeb#2222");
+        f.Vm.EndDrag(before, dropped: true);
         Assert.Equal(["Kalle#3333", "Zeb#2222"], kept);
 
         f.Vm.SelectFriendCommand.Execute(f.Vm.Cards.Single(c => c.Tag == "Zeb#2222"));

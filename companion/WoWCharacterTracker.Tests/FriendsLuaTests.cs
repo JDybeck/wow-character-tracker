@@ -1046,6 +1046,61 @@ public class FriendsLuaTests
         Assert.Equal("Kalle#3333,Zeb#2222", Str(a, "table.concat(ns.friendOrder(), ',')"));
     }
 
+    // In game a drag only knows this game's friends: it merges into the whole order like the app.
+    [Fact]
+    public void A_drag_in_game_keeps_the_places_of_friends_it_doesnt_show()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ friendOrder = { 'A', 'B', 'C', 'D', 'E' }, friendOrderAt = 500 }");
+        a.Lua("clock = 600; ns.setFriendOrder({ 'E', 'D' })");
+        Assert.Equal("A,B,C,E,D", Str(a, "table.concat(ns.friendOrder(), ',')"));
+        Assert.Equal("X,B,A", Str(a, "table.concat(ns.mergeFriendOrder({ 'A', 'B' }, { 'X', 'B', 'A' }), ',')"));
+    }
+
+    // A flood of HAVEs gets one WANT per 10 seconds, so it can't fill the send queue.
+    [Fact]
+    public void Have_is_answered_at_most_every_10_seconds()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives));
+        for (var i = 0; i < 20; i++) b.Receive($"1:HAVE:{i + 1}:1:1:Player-1-000000{i:X2}~5", AAccount);
+        b.Run(1);
+        Assert.Equal(1, Count(b, "WANT"));
+        b.Run(10);
+        b.Receive("1:HAVE:99:1:1:Player-1-000000FF~5", AAccount);
+        b.Run(1);
+        Assert.Equal(2, Count(b, "WANT"));
+    }
+
+    // Asked with mine, they said Not now, and asked again later: my alts still reach them once they
+    // allow (the ones sent along weren't counted as sent, and their hello gets my list).
+    [Fact]
+    public void Alts_dropped_with_a_not_now_still_arrive_after_a_later_allow()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        const string give = "{ gear = true, talents = true, location = true, professions = true, highlights = true, leveling = true, gold = false, map = false }";
+        a.Call("askFriend", "Zeb#2222", a.Lua("return {}"), a.Lua("return " + give));
+        Talk(a, b);
+        Answer(b, "notnow");
+        a.Run(700);
+        b.Run(700);
+        a.Call("askFriend", "Zeb#2222", a.Lua("return {}"), a.Lua("return " + give));
+        Talk(a, b);
+        Answer(b, "allow");
+        Talk(a, b, rounds: 6);
+        Assert.Equal("Drygbeck", Str(b, GotDeadbeck.Replace("0000000A", "0000000C") + ".char"));
+    }
+
+    // Nicknames are cut by letters, never inside one (å is two bytes in the game).
+    [Fact]
+    public void Nicknames_are_cut_by_letters()
+    {
+        var a = new Client(A, AFriends, ADb(AShares));
+        Assert.Equal("Åsa Ö", Str(a, "ns.cutLetters('Åsa Örn', 5)"));
+        Assert.Equal("abc", Str(a, "ns.cutLetters('abc', 32)"));
+        a.Lua("ns.setFriendNickname('Zeb#2222', string.rep('å', 40))");
+        Assert.Equal(32, a.Lua("local n = 0; for _ in ns.friendNickname('Zeb#2222'):gmatch('[^\\128-\\191][\\128-\\191]*') do n = n + 1 end; return n").Number);
+    }
+
     // After their Never you can't ask for a day; they may have unblocked you since.
     [Fact]
     public void A_no_stops_asking_for_a_day()
