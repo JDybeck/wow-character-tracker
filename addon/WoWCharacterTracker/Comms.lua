@@ -13,7 +13,7 @@ comms.CHUNK = 240       -- body bytes per message: raise once the real limit is 
 local MAX_PARTS = 40    -- 40 x 240 is more than FriendData's 8 KB
 local MAX_PARTIAL = 8   -- half messages waiting at once
 local MAX_PER_SENDER = 2 -- of those, from one sender
-local MAX_QUEUE = 200   -- messages waiting to go out
+local MAX_QUEUE = 400   -- messages waiting to go out (alts catching up can be a few hundred parts)
 local PART_TIMEOUT = 30 -- seconds half a message waits for the rest
 local SPACING = 0.25    -- seconds between two sends
 local RETRY = 5         -- while sending isn't allowed
@@ -43,8 +43,12 @@ end
 
 local queue = {} -- { to, kind, text, tries }
 
--- The first message that may go right now: in combat a map message passes what waits for it to end.
+-- The first message that may go right now. Map messages go first: they're tiny and only worth
+-- something fresh, so they pass a backlog of characters, and in combat what waits for it to end.
 local function nextSendable()
+  for i, item in ipairs(queue) do
+    if IN_COMBAT[item.kind] and comms.canSend(item.kind) then return i, item end
+  end
   for i, item in ipairs(queue) do
     if comms.canSend(item.kind) then return i, item end
   end
@@ -96,7 +100,7 @@ local function split(body)
   return parts
 end
 
--- Queues kind (HI, HEY, REQ, DATA, NO, PING, PONG, WATCH, POS) with body for one game account. False when
+-- Queues kind (HI, HEY, REQ, DATA, CHARS, HAVE, WANT, NO, PING, PONG, WATCH, POS) with body for one game account. False when
 -- it's too long or too much is already waiting.
 function comms.send(account, kind, body)
   body = (body or ""):gsub("|", "")

@@ -222,6 +222,9 @@ local openSharing -- opens what you share with one contact beside the window (se
 local buildShareDefaults -- what all friends get, under the Friends tab's lists (set further down)
 local SHARE_DEFAULTS_HEIGHT = 400
 local searched = false -- Find online friends was clicked this session
+local friendsSaid = "" -- what the last button said, shown under the hint
+local openFriendTag    -- the friend whose characters are unfolded (one at a time, this session)
+local revealKey        -- a character Home asked to show: its friend unfolds on the next draw
 
 local function rowsOf(fn) return fn and fn() or {} end
 
@@ -276,21 +279,31 @@ local function alignButtons(card, buttons)
   end
 end
 
--- The state text, its look (good, bad or nil) and up to two buttons ({ label, fn(tag), style }, fn
--- nil: shown disabled).
-local function friendState(f)
-  if f.blocked then return "Blocked", "bad" end
-  if f.contact then
-    local bits = {}
-    if f.contact.share then bits[#bits + 1] = "You share" end
-    if f.sharesWithYou then bits[#bits + 1] = #bits > 0 and "shares with you" or "Shares with you" end
-    -- Asking again only makes sense while they don't share with you.
-    return #bits > 0 and table.concat(bits, ", ") or "Contact", #bits > 0 and "good" or nil,
-      { "Sharing", openSharing }, not f.sharesWithYou and { "Ask again", ns.askFriend } or nil
+-- Ask opens the ask box; what asking said shows on the Friends tab.
+local function askAction(tag)
+  if ns.openAskBox then
+    ns.openAskBox(tag, function(s)
+      friendsSaid = s or ""
+      if drawFriends then drawFriends() end
+    end)
   end
-  if f.hasAddon == nil then return "Checking..." end
-  if f.hasAddon then return "Has the addon", nil, { "Ask", ns.askFriend, "primary" }, { "Share", ns.shareWithFriend } end
-  if f.invitedAt and time() - f.invitedAt < DAY then return "No addon", nil, { "Invited" } end
+  return nil
+end
+
+-- A friend's state text, its look (good, bad or nil) and up to two buttons ({ label, fn(tag),
+-- style }, fn nil: shown disabled). p: a row of the Friends list (friendRows), online or not.
+local function friendState(p)
+  if p.blocked then return "Blocked", "bad" end
+  if p.contact then
+    local bits = {}
+    if p.contact.share then bits[#bits + 1] = "You share" end
+    if p.sharesWithYou then bits[#bits + 1] = #bits > 0 and "shares with you" or "Shares with you" end
+    local again = p.online and { p.sharesWithYou and "Ask for more" or "Ask again", askAction } or nil
+    return #bits > 0 and table.concat(bits, ", ") or "Contact", #bits > 0 and "good" or nil, { "Sharing", openSharing }, again
+  end
+  if p.hasAddon == nil then return "Checking..." end
+  if p.hasAddon then return "Has the addon", nil, { "Ask", askAction, "primary" }, { "Share", ns.shareWithFriend } end
+  if p.invitedAt and time() - p.invitedAt < DAY then return "No addon", nil, { "Invited" } end
   return "No addon", nil, { "Invite", ns.inviteFriend, "primary" }
 end
 
@@ -583,6 +596,7 @@ local selectTab -- the window's, further down
 function ns.toggleFriendDetails(c, friend)
   if not details then buildDetails() end
   expandedKey = charKey(c)
+  revealKey = expandedKey
   selectTab("friends")
   drawDetails(c, friend)
 end
@@ -826,12 +840,15 @@ local PRESETS = {
 local requestBox
 
 -- "Allow gives them 3 of your characters: name, level, class and item level, plus gear and talents."
+-- and, when they sent theirs along, "They sent 2 of theirs, kept when you allow."
 local function requestText(box)
-  if box.chars == 0 then return "You don't share any characters right now, so Allow gives them nothing until you do (Friends tab, What you share)." end
+  local gifts = (box.gifts or 0) > 0
+    and string.format(" They sent %d of theirs, kept when you allow.", box.gifts) or ""
+  if box.chars == 0 then return "You don't share any characters right now, so Allow gives them nothing until you do (Friends tab, What you share)." .. gifts end
   local what = ns.shareSummary and ns.shareSummary(box.choices) or ""
   return string.format("Allow gives them %s: name, level, class and item level%s.",
     box.chars == 1 and "1 of your characters" or (box.chars .. " of your characters"),
-    what == "only the basics" and "" or (", plus " .. what))
+    what == "only the basics" and "" or (", plus " .. what)) .. gifts
 end
 
 local function drawRequest(box)
@@ -922,7 +939,7 @@ function ns.showRequestBox(f)
   local info = ns.requestInfo(f)
   local box = requestBox
   box.request, box.answered, box.open = f, false, false
-  box.chars, box.general, box.choices = info.chars, info.general, ns.copy(info.choices)
+  box.chars, box.general, box.choices, box.gifts = info.chars, info.general, ns.copy(info.choices), info.gifts
   box.line:SetText(info.line or (info.label .. " wants to see your characters."))
   box.never:SetShown(not info.more) -- asking for more of what you share doesn't need a block
   drawRequest(box)
@@ -937,6 +954,75 @@ function ns.hideRequestBox()
   requestBox:Hide()
 end
 
+-- More of the asker's characters came along while their request shows.
+function ns.refreshRequestBox(f)
+  local box = requestBox
+  if not (box and box:IsShown() and box.request and box.request.tag == f.tag and ns.requestInfo) then return end
+  box.gifts = ns.requestInfo(box.request).gifts
+  drawRequest(box)
+end
+
+-- The ask box: asking a friend to share, with what you send them right along (You share) and what
+-- you ask them for (You ask for). Their request box says you share and ticks what you asked for.
+local ASK_BOX = "WoWCharacterTrackerAskBox"
+local ASK_WIDTH = 420
+local askBox
+
+local function buildAskBox()
+  local box = CreateFrame("Frame", ASK_BOX, UIParent)
+  box:SetFrameStrata("DIALOG")
+  box:SetClampedToScreen(true)
+  box:EnableMouse(true)
+  box:SetWidth(ASK_WIDTH)
+  box:SetPoint("TOP", UIParent, "TOP", 0, -135)
+  if UISpecialFrames then table.insert(UISpecialFrames, ASK_BOX) end
+  ui.box(box, C.window, C.accent)
+  local title = ui.heading(box, "Ask to share")
+  box.line = ui.text(box, "GameFontHighlight")
+  box.line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+  box.line:SetWidth(ASK_WIDTH - 32)
+  local send = ui.checkbox(box, "Send them mine too", nil,
+    function() return box.sendMine == true end,
+    function(on) box.sendMine = on end)
+  send:SetPoint("TOPLEFT", box.line, "BOTTOMLEFT", -4, -8)
+  local items = {}
+  for _, key in ipairs(ns.SHARE_CATEGORIES or {}) do items[#items + 1] = { key, CATEGORY_NAMES[key] or key } end
+  local last = ui.checkTable(box, items, { { "give", "You share" }, { "ask", "You ask for" } }, send,
+    function(column, key) return box[column] and box[column][key] == true end,
+    function(column, key, on) box[column][key] = on end)
+  local note = ui.text(box, "GameFontDisableSmall",
+    "Name, level, class and item level always go. You share only goes while Send them mine too is on.")
+  note:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -16)
+  note:SetWidth(ASK_WIDTH - 32)
+  local cancel = ui.button(box, "Cancel", 90, function() box:Hide() end)
+  cancel:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -14, 14)
+  local go = ui.button(box, "Ask", 90, function()
+    local wants = {}
+    for _, key in ipairs(ns.SHARE_CATEGORIES or {}) do
+      if box.ask[key] then wants[#wants + 1] = key end
+    end
+    local said = ns.askFriend(box.tag, wants, box.sendMine and box.give or nil)
+    box:Hide()
+    if box.onSaid then box.onSaid(said) end
+  end, "primary")
+  go:SetPoint("RIGHT", cancel, "LEFT", -6, 0)
+  box:SetHeight(440)
+  askBox = box
+end
+
+-- Opens the ask box for tag. onSaid(message) gets what asking said.
+function ns.openAskBox(tag, onSaid)
+  if not (ns.askInfo and ns.askFriend) then return nil end
+  if not askBox then buildAskBox() end
+  local info = ns.askInfo(tag)
+  askBox.tag, askBox.onSaid, askBox.sendMine = tag, onSaid, true
+  askBox.give, askBox.ask = ns.copy(info.give), ns.copy(info.give) -- a swap of the same things to start with
+  askBox.line:SetText("Ask " .. info.label .. " to share their characters with you.")
+  ui.refresh(askBox)
+  askBox:Show()
+  return nil
+end
+
 -- "Night Elf · Darkshore" under a shared character's name.
 local function charInfo(c)
   local parts = {}
@@ -945,29 +1031,81 @@ local function charInfo(c)
   return table.concat(parts, "  ·  ")
 end
 
--- Folded friends in Shared with you, kept with the window's other choices.
-local function isCollapsed(tag) return (saved().collapsedFriends or {})[tag] == true end
-local function toggleCollapsed(tag)
-  local s = saved()
-  s.collapsedFriends = s.collapsedFriends or {}
-  s.collapsedFriends[tag] = not s.collapsedFriends[tag] or nil
-end
-
--- "60, Orgrimmar, Bobby (Bob#2)" under an online friend's name.
-local function onlineInfo(f)
-  local parts = {}
-  if f.level then parts[#parts + 1] = tostring(f.level) end
-  if f.zone and f.zone ~= "" then parts[#parts + 1] = f.zone end
-  parts[#parts + 1] = who(f.label, f.tag)
-  return table.concat(parts, ", ")
-end
-
--- What the card of an online friend opens: their shared character when they share this one,
--- else what Battle.net tells.
-local function onlineChar(f, sharedByGuid)
-  local c = f.guid and sharedByGuid[f.tag .. "~" .. f.guid]
-  if c then return c end
+-- The character an online friend plays: what they share of it, else what Battle.net tells.
+local function onlineChar(f, chars)
+  for _, c in ipairs(chars) do
+    if f.guid and c.guid == f.guid then return c end
+  end
   return { guid = f.guid, char = f.character, classFile = f.classFile, level = f.level, zone = f.zone, notShared = true }
+end
+
+local function lastSeenAt(p)
+  local c = p.chars[1]
+  return c and (c.received or c.at) or 0
+end
+
+-- One row per friend: contacts, whoever shares with you, and (after Find online friends) everyone
+-- online here. { tag, label, online (their first game account's row of ns.onlineFriends, or nil),
+-- contact, blocked, hasAddon, invitedAt, sharesWithYou, chars (shared, newest first), current (the
+-- one being played, else the one seen last, else nil) }. Online first by label, then by when they
+-- were last seen.
+local function friendRows(online, shared)
+  local s = ns.shareSettings and ns.shareSettings() or { contacts = {}, blocked = {} }
+  local byTag, list = {}, {}
+  local function row(tag, label)
+    local p = byTag[tag]
+    if not p then
+      p = { tag = tag, label = label, chars = {}, contact = s.contacts[tag], blocked = s.blocked[tag] == true }
+      byTag[tag], list[#list + 1] = p, p
+    end
+    return p
+  end
+  for _, f in ipairs(online) do
+    if searched or f.contact or s.contacts[f.tag] or f.sharesWithYou then
+      local p = row(f.tag, f.label)
+      if not p.online then
+        p.online, p.hasAddon, p.invitedAt = f, f.hasAddon, f.invitedAt
+        p.contact, p.blocked = f.contact or p.contact, f.blocked or p.blocked
+        p.sharesWithYou = f.sharesWithYou
+      end
+    end
+  end
+  for _, friend in ipairs(shared) do
+    local p = row(friend.tag, friend.label)
+    p.chars = friend.chars or {}
+    p.sharesWithYou = p.sharesWithYou or #p.chars > 0
+  end
+  for tag in pairs(s.contacts) do
+    if not s.blocked[tag] then row(tag, ns.friendLabel and ns.friendLabel(tag) or tag) end
+  end
+  for _, p in ipairs(list) do
+    if p.online then p.current = onlineChar(p.online, p.chars) else p.current = p.chars[1] end
+  end
+  table.sort(list, function(x, y)
+    if (x.online ~= nil) ~= (y.online ~= nil) then return x.online ~= nil end
+    if not x.online and lastSeenAt(x) ~= lastSeenAt(y) then return lastSeenAt(x) > lastSeenAt(y) end
+    return (x.label or x.tag):lower() < (y.label or y.tag):lower()
+  end)
+  return list
+end
+
+-- "Level 54 Arms Warrior · Felwood · Zebbe (Zeb#2222) · online" under a friend's character.
+local function friendInfo(p)
+  local parts, c = {}, p.current
+  if c then
+    local line = headline(c)
+    if line ~= "" then parts[#parts + 1] = line end
+    if c.zone and c.zone ~= "" then parts[#parts + 1] = c.zone end
+  end
+  if c then parts[#parts + 1] = who(p.label, p.tag) end
+  if p.online then
+    parts[#parts + 1] = "online"
+  elseif lastSeenAt(p) > 0 then
+    parts[#parts + 1] = "seen " .. ago(lastSeenAt(p))
+  else
+    parts[#parts + 1] = "offline"
+  end
+  return table.concat(parts, "  ·  ")
 end
 
 local function showHover(self) self.hover:Show() end
@@ -1046,55 +1184,38 @@ end
 
 local function buildFriends(p)
   local width = PAGE_WIDTH - 30
-  local status, said = nil, "" -- said: what the last button said, shown under the hint
-  local onlineTitle = ui.heading(p, "Online friends")
+  local friendsTitle = ui.heading(p, "Friends")
   local find = ui.button(p, "Find online friends", 150, function()
     searched = true
     if ns.findOnlineFriends then ns.findOnlineFriends() end
-    said = ""
+    friendsSaid = ""
     drawFriends()
   end, "primary")
-  local hint = ui.text(p, "GameFontDisableSmall", "Battle.net friends online in this game. Checking who has the addon sends them nothing they can see. Click a friend for details.")
+  local hint = ui.text(p, "GameFontDisableSmall", "Online friends first, each with the character they play or played last. Click a friend for their characters, a character for its details. Find online friends checks who has the addon, it sends them nothing they can see.")
   hint:SetWidth(width - 170)
-  status = ui.text(p, "GameFontHighlightSmall")
+  local status = ui.text(p, "GameFontHighlightSmall")
   status:SetWidth(ui.WRAP)
 
-  local function title(s) return ui.heading(p, s) end
   local function note(s)
     local fs = ui.text(p, "GameFontDisableSmall", s)
     fs:SetWidth(ui.WRAP)
     return fs
   end
-  local requestsTitle, sharedTitle = title("Requests"), title("Shared with you")
-  -- What all friends get, after the lists (it moves down as they grow).
+  local requestsTitle = ui.heading(p, "Requests")
+  -- What all friends get, after the list (it moves down as it grows).
   local yours = CreateFrame("Frame", nil, p)
   yours:SetSize(width + 16, SHARE_DEFAULTS_HEIGHT)
   buildShareDefaults(yours)
   ui.onRefresh(p, function() ui.refresh(yours) end)
-  local prompt = note("Click Find online friends to see who's on.")
-  local noneOnline = note("None of your Battle.net friends are online in this game.")
-  local noneShared = note("Nothing shared with you yet. Ask a friend above.")
-  local requestRows, friendCards, sharedHeads, charCards = {}, {}, {}, {}
-
-  -- Under a friend's name in Shared with you: what they share with you, and whether (and what) you
-  -- share back, in green, or in grey when you don't.
-  local GREEN, GREY = "|cff6fd67f", "|cff9a9a9a"
-  local function shareStatus(friend)
-    local n = #(friend.chars or {})
-    local they = string.format("%sShares %d character%s with you|r", GREEN, n, n == 1 and "" or "s")
-    local o = ns.contactSharing and ns.contactSharing(friend.tag)
-    local you = GREY .. "You don't share yours|r"
-    if o and o.share then
-      you = GREEN .. "You share yours" .. ((o.summary or "") ~= "" and (": " .. o.summary) or "") .. "|r"
-    end
-    return they .. "    " .. you
-  end
+  local none = note("No friends here yet. Battle.net friends online in this game show up here, and so does everyone you share with.")
+  local nothingShared = note("Nothing shared with you yet.")
+  local requestRows, friendCards, charCards = {}, {}, {}
 
   -- Runs fn(tag) and shows what it said (ask/share return a line, invite ok and a line).
   local function act(fn, tag)
     return function()
       local a, b = fn(tag)
-      said = type(a) == "string" and a or (type(b) == "string" and b or "")
+      friendsSaid = type(a) == "string" and a or (type(b) == "string" and b or friendsSaid)
       drawFriends()
     end
   end
@@ -1110,67 +1231,49 @@ local function buildFriends(p)
     return r
   end
 
+  -- A friend: +/- and their character, the state pill, up to two buttons. A click unfolds their
+  -- characters under it (and folds them again).
   local function newFriendCard()
     local card = newCard(p, width)
+    card.fold = card:CreateTexture(nil, "ARTWORK")
+    card.fold:SetSize(14, 14)
+    card.fold:SetPoint("LEFT", card, "LEFT", 16, 0)
+    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 38, -6)
+    card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 38, -23)
+    card.infoText:SetWidth(width - 220)
+    card.infoText:SetWordWrap(false)
     card.pill = CreateFrame("Frame", nil, card)
     card.pill:SetHeight(16)
     card.pill:SetPoint("LEFT", card.nameText, "RIGHT", 8, 0)
     card.stateText = ui.text(card.pill, "GameFontHighlightSmall")
     card.stateText:SetPoint("CENTER", card.pill, "CENTER", 0, 0)
-    card.b1, card.b2 = cardButton(card, 76), cardButton(card, 64)
+    card.b1, card.b2 = cardButton(card, 84), cardButton(card, 84)
+    card:SetScript("OnMouseUp", function(self)
+      if not self.tag then return end
+      openFriendTag = openFriendTag ~= self.tag and self.tag or nil
+      drawFriends()
+    end)
     return card
   end
 
   local function newCharCard() return newCharRow(p, width - 12) end
   local expansion -- the open row's info (newExpansion), built on the first click
 
-  -- A friend's header in Shared with you: +/- folds their characters (a click anywhere on it does),
-  -- their name and character count, what you share both ways, and Options.
-  local function newFriendHead()
-    local h = CreateFrame("Frame", nil, p)
-    h:SetSize(width, 44)
-    h:EnableMouse(true)
-    ui.box(h, C.bar, C.border)
-    h.hover = h:CreateTexture(nil, "ARTWORK")
-    ui.fill(h.hover, C.hover)
-    h.hover:SetAllPoints()
-    h.hover:Hide()
-    h.fold = h:CreateTexture(nil, "ARTWORK")
-    h.fold:SetSize(14, 14)
-    h.fold:SetPoint("LEFT", h, "LEFT", 10, 0)
-    h.name = ui.text(h, "GameFontNormal")
-    h.name:SetPoint("TOPLEFT", h, "TOPLEFT", 32, -7)
-    h.count = ui.text(h, "GameFontDisableSmall")
-    h.count:SetPoint("LEFT", h.name, "RIGHT", 8, 0)
-    h.status = ui.text(h, "GameFontHighlightSmall")
-    h.status:SetPoint("TOPLEFT", h, "TOPLEFT", 32, -25)
-    h.status:SetWidth(width - 140)
-    h.status:SetWordWrap(false)
-    h.options = cardButton(h, 90)
-    h.options:SetPoint("RIGHT", h, "RIGHT", -10, 0)
-    h:SetScript("OnEnter", showHover)
-    h:SetScript("OnLeave", hideHover)
-    h:SetScript("OnMouseUp", function(self)
-      if not self.tag then return end
-      toggleCollapsed(self.tag)
-      drawFriends()
-    end)
-    return h
-  end
-
   local CHOICES = { { "Allow", "allow", "primary" }, { "Not now", "notnow" }, { "Never", "never" } }
 
   drawFriends = function()
-    local shared = rowsOf(ns.sharedWithYou)
-    local sharedByGuid = {}
-    for _, friend in ipairs(shared) do
-      for _, c in ipairs(friend.chars or {}) do
-        if c.guid then sharedByGuid[friend.tag .. "~" .. c.guid] = c end
+    local list = friendRows(rowsOf(ns.onlineFriends), rowsOf(ns.sharedWithYou))
+    if revealKey then
+      for _, person in ipairs(list) do
+        for _, c in ipairs(person.chars) do
+          if charKey(c) == revealKey then openFriendTag = person.tag end
+        end
       end
+      revealKey = nil
     end
     local open -- the open panel's character in the new data, and its friend
     local openFriend
-    -- The open row's info goes under it, once (an online friend's and the same shared character match).
+    -- The open row's info goes under it, once.
     local unfolded = false
     local function unfold(c, friend, y)
       if unfolded or expandedKey ~= charKey(c) then return y end
@@ -1209,92 +1312,76 @@ local function buildFriends(p)
     hideFrom(requestRows, #requests + 1)
     if #requests > 0 then y = y + 10 end
 
-    place(onlineTitle, p, 16, y)
+    place(friendsTitle, p, 16, y)
     place(find, p, 16 + width - 150, y - 4)
     y = y + 20
     place(hint, p, 16, y)
     y = y + textHeight(hint, 24) + 6
-    if said ~= "" then
-      status:SetText(said)
+    if friendsSaid ~= "" then
+      status:SetText(friendsSaid)
       place(status, p, 16, y)
-      y = y + 18
+      y = y + textHeight(status, 14) + 4
     else
       status:Hide()
     end
-    local online = searched and rowsOf(ns.onlineFriends) or {}
-    prompt:Hide()
-    noneOnline:Hide()
-    if not searched then
-      place(prompt, p, 16, y)
-      y = y + 20
-    elseif #online == 0 then
-      place(noneOnline, p, 16, y)
+    none:Hide()
+    nothingShared:Hide()
+    if #list == 0 then
+      place(none, p, 16, y)
       y = y + 20
     end
-    for i, f in ipairs(online) do
+
+    local cards, hiddenCount = 0, 0
+    for i, person in ipairs(list) do
       local card = pooled(friendCards, i, newFriendCard)
-      card.char, card.friend = onlineChar(f, sharedByGuid), who(f.label, f.tag)
-      if charKey(card.char) == detailsKey then open, openFriend = card.char, card.friend end
-      setCard(card, f.character or "?", f.classFile, onlineInfo(f))
-      local state, look, first, second = friendState(f)
+      local c, label = person.current, who(person.label, person.tag)
+      local isOpen = openFriendTag == person.tag
+      card.tag = person.tag
+      setCard(card, c and fullName(c) or label, c and c.classFile, friendInfo(person))
+      card.fold:SetTexture(isOpen and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
+      local state, look, first, second = friendState(person)
       card.stateText:SetText(state)
       card.pill:SetWidth((card.stateText:GetStringWidth() or 60) + 14)
       ui.box(card.pill, C.bar, look == "good" and C.good or (look == "bad" and C.bad or C.border))
       for _, pair in ipairs({ { card.b1, first }, { card.b2, second } }) do
         local b, what = pair[1], pair[2]
-        if what then setButton(b, what[1], what[2] and act(what[2], f.tag), what[3]) else b:Hide() end
+        if what then setButton(b, what[1], what[2] and act(what[2], person.tag), what[3]) else b:Hide() end
       end
       alignButtons(card, { card.b1, card.b2 })
+      card:SetAlpha(person.online and 1 or 0.8)
       place(card, p, 16, y)
-      y = y + CARD + 6
-      y = unfold(card.char, card.friend, y)
-    end
-    hideFrom(friendCards, #online + 1)
-    y = y + 12
+      y = y + CARD + 4
 
-    place(sharedTitle, p, 16, y)
-    y = y + 22
-    noneShared:Hide()
-    if #shared == 0 then
-      place(noneShared, p, 16, y)
-      y = y + 20
-    end
-    local heads, cards, hiddenCount = 0, 0, 0
-    for _, friend in ipairs(shared) do
-      heads = heads + 1
-      local h = pooled(sharedHeads, heads, newFriendHead)
-      local label = who(friend.label, friend.tag) or "?"
-      local folded = isCollapsed(friend.tag)
-      local n = #(friend.chars or {})
-      h.tag = friend.tag
-      h.fold:SetTexture(folded and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
-      h.name:SetText(label)
-      h.count:SetText(string.format("%d character%s", n, n == 1 and "" or "s"))
-      h.status:SetText(shareStatus(friend))
-      -- What you share with them and what you keep of theirs, also when they're offline.
-      setButton(h.options, "Options", function() openSharing(friend.tag) end)
-      place(h, p, 16, y)
-      y = y + 44 + 4
-      if not folded then
-        for _, c in ipairs(friend.chars or {}) do
-          local hidden = isHidden(c)
+      if isOpen then
+        -- The one being played first when it isn't shared, then what they share, newest first.
+        local chars = {}
+        if c and c.notShared then chars[1] = c end
+        for _, shared in ipairs(person.chars) do chars[#chars + 1] = shared end
+        if #chars == 0 then
+          place(nothingShared, p, 32, y + 2)
+          y = y + 22
+        end
+        for _, ch in ipairs(chars) do
+          local hidden = isHidden(ch)
           if hidden then hiddenCount = hiddenCount + 1 end
           if not hidden or showHidden then
             cards = cards + 1
-            local card = pooled(charCards, cards, newCharCard)
-            card.char, card.friend = c, label
-            if charKey(c) == detailsKey then open, openFriend = c, label end
-            setCharRow(card, c)
-            card:SetAlpha(hidden and 0.5 or 1)
-            place(card, p, 28, y)
+            local row = pooled(charCards, cards, newCharCard)
+            row.char, row.friend = ch, label
+            if charKey(ch) == detailsKey then open, openFriend = ch, label end
+            setCharRow(row, ch)
+            if ch.notShared then row.when:SetText("not shared") end
+            row:SetAlpha(hidden and 0.5 or 1)
+            place(row, p, 28, y)
             y = y + CARD + 4
-            y = unfold(c, label, y)
+            y = unfold(ch, label, y)
           end
         end
+        y = y + 6
       end
-      y = y + 8
+      y = y + 2
     end
-    hideFrom(sharedHeads, heads + 1)
+    hideFrom(friendCards, #list + 1)
     hideFrom(charCards, cards + 1)
     if not unfolded and expansion then expansion:Hide() end
     if details and details:IsShown() then

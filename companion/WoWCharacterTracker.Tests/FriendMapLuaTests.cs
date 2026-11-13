@@ -276,10 +276,10 @@ public class FriendMapLuaTests
         Assert.Null(Pin(b));
     }
 
-    // Both fighting for a minute, moving all the time: the pin keeps up, at most every 5 s, and
+    // Both fighting for a minute, moving all the time: the pin keeps up, at most every 2 s, and
     // nothing piles up.
     [Fact]
-    public void Positions_go_in_combat_at_most_every_5_seconds()
+    public void Positions_go_in_combat_at_most_every_2_seconds()
     {
         var (a, b) = Pair();
         b.Call("setMapOpen", true);
@@ -292,7 +292,7 @@ public class FriendMapLuaTests
             a.Lua("myX = myX + 0.005");
             sent.AddRange(Pass(a, b, 1));
         }
-        Assert.InRange(sent.Count, 10, 12);
+        Assert.InRange(sent.Count, 28, 31);
         Assert.Equal(0, a.Lua("return ns.comms.pending()").Number);
         Assert.Equal(0, b.Lua("return ns.comms.pending()").Number);
         Assert.False(Pin(b)!.Get("faded").Boolean);
@@ -316,7 +316,7 @@ public class FriendMapLuaTests
     // the ruleset is a layer ("CAMWOW EU5 Realm 6 PvP"), so the same ruleset means another layer.
     [Theory]
     [InlineData(false, "CAMWOW EU5 Realm 6 PvP", "CAMWOWEU5Realm6PvP", false, null)]
-    [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm6PvP", true, "On another layer")]
+    [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm6PvP", true, "On layer 6, you're on 5")]
     [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm2Normal", true, "On another realm: Normal")]
     [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm1RPPvP", true, "On another realm: RP-PvP")]
     [InlineData(false, "Firemaw", "Gehennas", true, "On another realm: Gehennas")]

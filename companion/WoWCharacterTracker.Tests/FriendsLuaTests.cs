@@ -638,7 +638,8 @@ public class FriendsLuaTests
         Assert.Equal("Stranglethorn Vale", Str(b, GotDeadbeck + ".zone")); // location: Zeb's own setting
         Assert.Equal("1~19019,16~12345", Str(b, GotDeadbeck + ".gear"));   // gear: the general one
         Assert.True(b.Lua($"return {GotDeadbeck}.money").IsNil());          // gold: off by default
-        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C']").IsNil()); // alts only when asked
+        Assert.Equal("Drygbeck", Str(b, "WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].char")); // the alt B had no copy of (HAVE, WANT)
+        Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000D']").IsNil()); // never a hidden one
         Assert.Equal("0.33.0", Str(b, "WoWCharacterTrackerDB.friends['JDybeck#1111'].version"));
         Assert.True(a.Lua("local f = WoWCharacterTrackerDB.friends; return not (f and f['Zeb#2222'] and next(f['Zeb#2222'].chars) ~= nil)").Boolean); // B shares nothing
     }
@@ -700,10 +701,12 @@ public class FriendsLuaTests
     public void The_character_being_played_goes_when_due_and_changed_or_as_a_heartbeat()
     {
         var a = HelloDone();
-        a.Run(300);
+        a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000A'].zone = 'Ratchet'");
+        a.Run(200);
         a.Call("friendsTick");
         a.Run(1);
-        Assert.Equal(0, Count(a, "DATA")); // 10 minutes not up
+        Assert.Equal(0, Count(a, "DATA")); // changed, but 5 minutes not up
+        a.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000A'].zone = 'Stranglethorn Vale'");
         a.Run(300);
         a.Call("friendsTick");
         a.Run(1);
@@ -913,7 +916,7 @@ public class FriendsLuaTests
     }
 
     [Fact]
-    public void Not_now_sends_nothing_and_doesnt_ask_again_this_session()
+    public void Not_now_sends_nothing_and_waits_10_minutes_before_asking_again()
     {
         var a = Asked();
         Answer(a, "notnow");
@@ -922,6 +925,107 @@ public class FriendsLuaTests
         a.Run(1);
         Assert.Equal(1, a.Lua("return #shown").Number);
         Assert.Empty(a.Sent());
+        a.Run(600);
+        a.Receive("1:REQ:3:1:1:", BAccount);
+        Assert.Equal(2, a.Lua("return #shown").Number); // asked again later: shown again
+    }
+
+    // B relogs (or switches character) right after saying hello: A answers again, so B's addon
+    // knows A has it and sends A the new character.
+    [Fact]
+    public void A_hello_right_after_a_relog_is_answered_and_the_new_character_goes()
+    {
+        const string BShares = "{ enabled = true, contacts = { ['JDybeck#1111'] = { share = true, receive = true } }, at = 100 }";
+        var a = new Client(A, AFriends, ADb(AShares));
+        var b = new Client(B, BFriends, BDb(BShares).Replace("chars = {}", "chars = { ['Player-1-0000000B'] = { char = 'Zeb', lastSeen = 1 } }"));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        a.Run(20);
+        b.Run(20);
+
+        // B relogs onto another character: a fresh addon session on the same game account.
+        var b2 = new Client("Player-1-0000000E", BFriends, BDb(BShares).Replace("chars = {}", "chars = { ['Player-1-0000000E'] = { char = 'Zebalt', lastSeen = 2 } }"));
+        b2.Lua("clock = " + b.Lua("return clock").Number);
+        b2.Call("friendsTick");
+        Talk(a, b2);
+        Assert.Equal("Zebalt", Str(a, "WoWCharacterTrackerDB.friends['Zeb#2222'].chars['Player-1-0000000E'].char"));
+    }
+
+    // An alt played while the friend was offline: its newer snapshot reaches them on the next hello,
+    // one they already have the same copy of doesn't go again.
+    [Fact]
+    public void An_alt_played_while_a_friend_was_away_catches_up_on_the_next_hello()
+    {
+        var (_, b) = Friends();
+        Assert.Equal(500, b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].at").Number);
+        b.Run(20);
+        // A logs in again later, having played the alt in between; B never left.
+        var a2 = new Client(A, AFriends, ADb(AShares));
+        a2.Lua("WoWCharacterTrackerDB.chars['Player-1-0000000C'].level = 13; WoWCharacterTrackerDB.chars['Player-1-0000000C'].lastSeen = 1500");
+        a2.Lua("clock = " + b.Lua("return clock").Number);
+        a2.Call("friendsTick");
+        Talk(a2, b);
+        Assert.Equal(13, b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].level").Number);
+        Assert.Equal(1500, b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].at").Number);
+
+        a2.Lua("sent = {}");
+        b.Lua("sent = {}");
+        b.Receive("1:HAVE:60:1:1:Player-1-0000000C~1500", AAccount);
+        Assert.Equal(0, Count(b, "WANT")); // the same copy: nothing asked
+    }
+
+    // Asking with Send them mine too: the request says so, the asker's characters wait with it, and
+    // Allow keeps them; Not now drops them.
+    [Fact]
+    public void Asking_with_yours_sends_them_along_and_allow_keeps_them()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }").Replace("chars = {}", "chars = { ['Player-1-0000000B'] = { char = 'Zeb', level = 30, lastSeen = 1 } }"));
+        b.Call("askFriend", "JDybeck#1111", b.Lua("return { 'map' }"), b.Lua("""
+            return { gear = true, talents = true, location = false, professions = false, highlights = false, leveling = false, gold = false, map = true }
+            """));
+        Assert.Contains(b.Said(), s => s.StartsWith("Asked JDybeck#1111 for map position, and sent them yours (gear, talents, map position)", StringComparison.Ordinal));
+        Assert.True(b.Lua("return ns.shareSettings().contacts['JDybeck#1111'].share").Boolean);
+        Talk(a, b);
+        Assert.Equal("Zeb#2222 wants to see your characters, with your map position, and shares theirs with you.", Str(a, "shown[1].arg"));
+        Assert.Equal(1, a.Lua("return ns.requestInfo(shown[1].data).gifts").Number);
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil()); // nothing kept before an answer
+        Answer(a, "allow");
+        Assert.Equal("Zeb", Str(a, "WoWCharacterTrackerDB.friends['Zeb#2222'].chars['Player-1-0000000B'].char"));
+        Talk(a, b);
+        Assert.Equal("Deadbeck", Str(b, GotDeadbeck + ".char"));
+        Assert.Contains(b.Said(), s => s.StartsWith("JDybeck#1111 shared Deadbeck with you.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Characters_sent_with_a_request_go_when_it_isnt_allowed()
+    {
+        var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
+        a.Receive("1:REQ:1:1:1:+shares", BAccount);
+        a.Receive("1:DATA:2:1:1:guid=Player-1-0000000B;char=Zeb", BAccount);
+        Assert.Equal(1, a.Lua("return ns.requestInfo(shown[1].data).gifts").Number);
+        Answer(a, "notnow");
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil());
+        a.Receive("1:DATA:3:1:1:guid=Player-1-0000000B;char=Zeb", BAccount); // no request waits: dropped
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil());
+    }
+
+    // After their Never you can't ask for a day; they may have unblocked you since.
+    [Fact]
+    public void A_no_stops_asking_for_a_day()
+    {
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        b.Call("friendsCommand", "ask JDybeck#1111");
+        b.Receive("1:NO:1:1:1:", AAccount);
+        b.Run(31);
+        b.Call("friendsCommand", "ask JDybeck#1111");
+        Assert.Contains(b.Said(), s => s.Contains("said no"));
+        b.Lua("sent = {}");
+        b.Run(86401);
+        b.Call("friendsCommand", "ask JDybeck#1111");
+        b.Run(1);
+        Assert.Equal(1, Count(b, "REQ"));
     }
 
     [Fact]
@@ -1058,12 +1162,23 @@ public class FriendsLuaTests
         Assert.Equal(0, Count(a, "DATA")); // sent a moment ago
     }
 
+    // A map position doesn't wait behind a backlog of characters going out.
+    [Fact]
+    public void Map_messages_go_before_a_backlog()
+    {
+        var c = CommsClient();
+        c.Lua("ns.comms.send(2, 'DATA', string.rep('x', 2400)); ns.comms.send(2, 'POS', '1,0.5,0.5,5,0')");
+        c.Run(1);
+        var first = c.Sent().Take(2).Select(m => m.Get("text").String).ToList();
+        Assert.Contains(":POS:", first[1]); // the first DATA part went at once, the position right after it
+    }
+
     [Fact]
     public void The_send_queue_has_a_cap()
     {
         var c = CommsClient();
-        c.Lua("inCombat = true; for i = 1, 300 do ns.comms.send(2, 'HI', 'x') end");
-        Assert.True(c.Lua("return ns.comms.pending()").Number <= 200);
+        c.Lua("inCombat = true; for i = 1, 500 do ns.comms.send(2, 'HI', 'x') end");
+        Assert.True(c.Lua("return ns.comms.pending()").Number <= 400);
     }
 
     [Fact]

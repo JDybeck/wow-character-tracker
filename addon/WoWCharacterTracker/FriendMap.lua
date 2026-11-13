@@ -6,9 +6,10 @@ local ADDON, ns = ...
 
 local WATCH_EVERY = 20 -- seconds between two WATCHes to one friend while the map is open
 local WATCH_LASTS = 30 -- a watch that isn't renewed ends
-local TICK = 5         -- the sender looks at its position this often while anyone watches
+local TICK = 2         -- the sender looks at its position this often while anyone watches
 local RESEND = 20      -- a position that didn't move still goes this often
-local MIN_GAP = 5      -- at most one position per friend this often, in combat too
+local MIN_GAP = 2      -- at most one position per friend this often, in combat too
+local LIVE = 5         -- the "live" rate: read every TICK, not every 5 seconds
 local RATES = { [5] = true, [60] = true, [300] = true }
 
 -- Sending
@@ -59,7 +60,8 @@ local function currentReading(now, rate)
     reading = nil
     return nil
   end
-  if reading and now - reading.at < rate then return reading end
+  local every = rate <= LIVE and TICK or rate
+  if reading and now - reading.at < every then return reading end
   reading = { mapID = mapID, x = x, y = y, at = now }
   return reading
 end
@@ -169,15 +171,25 @@ end)
 local function fadeAfter(rate) return math.max(30, 2 * rate) end
 
 -- How a friend's realm differs from ours, for the tooltip; nil when it's the same. On Forever the
--- number is a layer, so the same realm type means another layer of it.
+-- number is a layer, so the same realm type means another layer of it ("On layer 6, you're on 5").
 local function realmNote(theirs, mine)
   if not theirs or not mine or theirs == mine then return nil end
   if not ns.IS_RETAIL then
-    local their, our = ns.realmType(theirs), ns.realmType(mine)
-    if their and their == our then return "On another layer" end
+    local their, theirLayer = ns.realmType(theirs)
+    local our, ourLayer = ns.realmType(mine)
+    if their and their == our then
+      if theirLayer and ourLayer then return string.format("On layer %d, you're on %d", theirLayer, ourLayer) end
+      return "On another layer"
+    end
     if their then return "On another realm: " .. their end
   end
   return "On another realm: " .. theirs
+end
+
+-- What they share with us about the character on the pin, or nil.
+local function sharedChar(tag, guid)
+  local got = guid and WoWCharacterTrackerDB and WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[tag]
+  return got and got.chars and got.chars[guid] or nil
 end
 
 -- Still ours to show: sharing on, a contact we keep things from, not blocked, the same character.
@@ -201,7 +213,7 @@ function ns.friendPins()
     elseif not group[p.guid] then
       local note = realmNote(ns.plainRealm(f.realm), myRealm)
       out[#out + 1] = { tag = f.tag, label = f.label, character = f.character, classFile = f.classFile, level = f.level,
-        realm = f.realm, otherRealm = note ~= nil, realmNote = note,
+        realm = f.realm, otherRealm = note ~= nil, realmNote = note, shared = sharedChar(f.tag, p.guid),
         mapID = p.mapID, x = p.x, y = p.y, age = age, faded = age > fadeAfter(p.rate) }
     end
   end

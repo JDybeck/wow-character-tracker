@@ -57,6 +57,36 @@ local function circle(pin, layer, inset, r, g, b)
   return t
 end
 
+-- The tooltip of a pin (a row of ns.friendPins), as { text, r, g, b } lines after the label: the
+-- character (with what they share: spec, item level, XP, professions), the zone, another layer or
+-- realm, and how old the position is.
+function ns.pinLines(f, zone)
+  local c = f.shared or {}
+  local lines = {}
+  local function add(text, r, g, b) lines[#lines + 1] = { text, r, g, b } end
+  local className = c.class or (LOCALIZED_CLASS_NAMES_MALE and f.classFile and LOCALIZED_CLASS_NAMES_MALE[f.classFile])
+  local level = f.level or c.level
+  local r, g, b = classColor(f.classFile)
+  local name = c.char and ns.fullName(c) or f.character or "?"
+  local what = ""
+  for _, part in ipairs({ c.spec, className }) do
+    if part and part ~= "" then what = what .. " " .. part end
+  end
+  add(string.format("%s, level %s%s", name, tostring(level or "?"), what), r, g, b)
+  if zone then add(zone, 0.8, 0.8, 0.8) end
+  local facts = {}
+  if c.ilvl then facts[#facts + 1] = "Item level " .. math.floor(c.ilvl) end
+  if c.xp and (c.xpMax or 0) > 0 and level and not (c.maxLevel and level >= c.maxLevel) then
+    facts[#facts + 1] = string.format("%d%% into level %d", math.floor(100 * c.xp / c.xpMax), level)
+  end
+  if #facts > 0 then add(table.concat(facts, "  ·  "), 0.9, 0.9, 0.9) end
+  if c.professions and c.professions ~= "" then add(c.professions, 0.9, 0.9, 0.9) end
+  if f.realmNote then add(f.realmNote, 1, 0.6, 0.2) end
+  local ago = ns.ago(time() - (f.age or 0))
+  add(f.faded and ("Last seen " .. ago) or ago, 0.6, 0.6, 0.6)
+  return lines
+end
+
 -- Filled in once the map's own mixins exist (attach); the XML template names it.
 WoWCharacterTrackerFriendPinMixin = {}
 local Pin = WoWCharacterTrackerFriendPinMixin
@@ -98,14 +128,10 @@ local function buildPin()
     if not (f and GameTooltip) then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(f.label, 1, 1, 1)
-    local className = LOCALIZED_CLASS_NAMES_MALE and f.classFile and LOCALIZED_CLASS_NAMES_MALE[f.classFile]
-    local r, g, b = classColor(f.classFile)
-    GameTooltip:AddLine(string.format("%s, level %s%s", f.character or "?", tostring(f.level or "?"), className and (" " .. className) or ""), r, g, b)
     local info = C_Map.GetMapInfo and C_Map.GetMapInfo(f.mapID)
-    if info and info.name then GameTooltip:AddLine(info.name, 0.8, 0.8, 0.8) end
-    if f.realmNote then GameTooltip:AddLine(f.realmNote, 1, 0.6, 0.2) end
-    local ago = ns.ago(time() - (f.age or 0))
-    GameTooltip:AddLine(f.faded and ("Last seen " .. ago) or ago, 0.6, 0.6, 0.6)
+    for _, line in ipairs(ns.pinLines(f, info and info.name)) do
+      GameTooltip:AddLine(line[1], line[2], line[3], line[4])
+    end
     GameTooltip:Show()
   end
 
