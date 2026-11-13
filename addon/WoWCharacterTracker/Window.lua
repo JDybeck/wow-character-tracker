@@ -1404,33 +1404,12 @@ local function buildFriends(p)
 
   local CHOICES = { { "Allow", "allow", "primary" }, { "Not now", "notnow" }, { "Never", "never" } }
 
-  drawFriends = function()
-    if dragging then return end -- the drag places the cards; letting go redraws
-    measure()
-    section:SetWidth(width)
-    local list = friendRows(rowsOf(ns.onlineFriends), rowsOf(ns.sharedWithYou))
-    if revealKey then
-      for _, person in ipairs(list) do
-        for _, c in ipairs(person.chars) do
-          if charKey(c) == revealKey then openFriendTag = person.tag end
-        end
-      end
-      revealKey = nil
-    end
-    local open -- the open panel's character in the new data, and its friend
-    local openFriend
-    -- The open row's info goes under it, once.
-    local unfolded = false
-    local function unfold(c, friend, y)
-      if unfolded or expandedKey ~= charKey(c) then return y end
-      unfolded = true
-      expansion = expansion or newExpansion(p, width - 24)
-      local h = drawExpansion(expansion, c, friend)
-      place(expansion, p, 28, y - 2)
-      return y - 2 + h + 8
-    end
+  -- The draw is split in parts that each use few outside locals: WoW's Lua allows a function at
+  -- most 60 (upvalues), and drawFriends in one piece needed more. One draw's state goes in `st`.
+  local st = {} -- open, openFriend (the details panel's character and friend), unfolded, cards, hiddenCount
 
-    local y = 14
+  -- Requests at the top; returns the y under them.
+  local function drawRequests(y)
     local requests = rowsOf(ns.pendingRequests)
     if #requests > 0 then
       place(requestsTitle, p, 16, y)
@@ -1458,7 +1437,11 @@ local function buildFriends(p)
     end
     hideFrom(requestRows, #requests + 1)
     if #requests > 0 then y = y + 10 end
+    return y
+  end
 
+  -- The title, Find online friends, the hint and what the last button said; returns the y under them.
+  local function drawHeader(y, empty)
     place(friendsTitle, p, 16, y)
     place(find, p, 16 + width - 150, y - 4)
     hint:SetWidth(width - 170)
@@ -1474,81 +1457,79 @@ local function buildFriends(p)
     end
     none:Hide()
     nothingShared:Hide()
-    if #list == 0 then
+    if empty then
       place(none, p, 16, y)
       y = y + 20
     end
+    return y
+  end
 
-    -- The friend section goes under the open card's row: worked out first, so the rows below move down.
-    local order, openIndex, openPerson = {}, nil, nil
-    for i, person in ipairs(list) do
-      order[i] = person.tag
-      if person.tag == openFriendTag then openIndex, openPerson = i, person end
+  -- The open character's info goes under its row, once.
+  local function unfold(c, friend, y)
+    if st.unfolded or expandedKey ~= charKey(c) then return y end
+    st.unfolded = true
+    expansion = expansion or newExpansion(p, width - 24)
+    local h = drawExpansion(expansion, c, friend)
+    place(expansion, p, 28, y - 2)
+    return y - 2 + h + 8
+  end
+
+  -- A friend's characters from y: the one being played first when it isn't shared, then what
+  -- they share, newest first. Returns the y under them.
+  local function drawCharRows(person, label, y)
+    local c, chars = person.current, {}
+    if c and c.notShared then chars[1] = c end
+    for _, shared in ipairs(person.chars) do chars[#chars + 1] = shared end
+    if #chars == 0 then
+      place(nothingShared, p, 28, y)
+      y = y + 22
     end
-    if openFriendTag and not openPerson then openFriendTag = nil end
-    gridTop, sectionRow, sectionHeight = y, nil, 0
-    local rows = math.ceil(#list / columns)
-
-    -- The section's content, placed from sectionY; returns its height.
-    local cards, hiddenCount = 0, 0
-    local function drawSection(sectionY)
-      local person, c = openPerson, openPerson.current
-      local label = who(person.label, person.tag)
-      section.tag = person.tag
-      section.title:SetText(label)
-      local state, look, first, second = friendState(person)
-      section.stateText:SetText(state)
-      section.pill:SetWidth((section.stateText:GetStringWidth() or 60) + 14)
-      ui.box(section.pill, C.bar, look == "good" and C.good or (look == "bad" and C.bad or C.border))
-      for _, pair in ipairs({ { section.b1, first }, { section.b2, second } }) do
-        local b, what = pair[1], pair[2]
-        if what then setButton(b, what[1], what[2] and act(what[2], person.tag), what[3]) else b:Hide() end
+    for _, ch in ipairs(chars) do
+      local hidden = isHidden(ch)
+      if hidden then st.hiddenCount = st.hiddenCount + 1 end
+      if not hidden or showHidden then
+        st.cards = st.cards + 1
+        local row = pooled(charCards, st.cards, newCharCard)
+        row.char, row.friend = ch, label
+        if charKey(ch) == detailsKey then st.open, st.openFriend = ch, label end
+        row:SetWidth(width - 24)
+        setCharRow(row, ch)
+        if ch.notShared then row.when:SetText("not shared") end
+        row:SetAlpha(hidden and 0.5 or 1)
+        row:SetFrameLevel((section:GetFrameLevel() or 1) + 2)
+        place(row, p, 28, y)
+        y = y + CARD + 4
+        y = unfold(ch, label, y)
       end
-      if not section.nickname:HasFocus() then
-        section.nickname.saved = ns.friendNickname and ns.friendNickname(person.tag) or ""
-        section.nickname:SetText(section.nickname.saved)
-      end
-      place(section, p, 16, sectionY)
-      local yy = sectionY + SECTION_TOP
-      -- The one being played first when it isn't shared, then what they share, newest first.
-      local chars = {}
-      if c and c.notShared then chars[1] = c end
-      for _, shared in ipairs(person.chars) do chars[#chars + 1] = shared end
-      if #chars == 0 then
-        place(nothingShared, p, 28, yy)
-        yy = yy + 22
-      end
-      for _, ch in ipairs(chars) do
-        local hidden = isHidden(ch)
-        if hidden then hiddenCount = hiddenCount + 1 end
-        if not hidden or showHidden then
-          cards = cards + 1
-          local row = pooled(charCards, cards, newCharCard)
-          row.char, row.friend = ch, label
-          if charKey(ch) == detailsKey then open, openFriend = ch, label end
-          row:SetWidth(width - 24)
-          setCharRow(row, ch)
-          if ch.notShared then row.when:SetText("not shared") end
-          row:SetAlpha(hidden and 0.5 or 1)
-          row:SetFrameLevel((section:GetFrameLevel() or 1) + 2)
-          place(row, p, 28, yy)
-          yy = yy + CARD + 4
-          yy = unfold(ch, label, yy)
-        end
-      end
-      local h = yy - sectionY + 6
-      section:SetHeight(h)
-      return h
     end
+    return y
+  end
 
-    if openPerson then
-      sectionRow = math.floor((openIndex - 1) / columns)
-      local sectionY = gridTop + (sectionRow + 1) * (GRID_CARD + GRID_GAP)
-      sectionHeight = drawSection(sectionY) + GRID_GAP
-    else
-      section:Hide()
+  -- The open friend's section at y: who, state and buttons, nickname, characters. Returns its height.
+  local function drawSection(person, y)
+    local label = who(person.label, person.tag)
+    section.tag = person.tag
+    section.title:SetText(label)
+    local state, look, first, second = friendState(person)
+    section.stateText:SetText(state)
+    section.pill:SetWidth((section.stateText:GetStringWidth() or 60) + 14)
+    ui.box(section.pill, C.bar, look == "good" and C.good or (look == "bad" and C.bad or C.border))
+    for _, pair in ipairs({ { section.b1, first }, { section.b2, second } }) do
+      local b, what = pair[1], pair[2]
+      if what then setButton(b, what[1], what[2] and act(what[2], person.tag), what[3]) else b:Hide() end
     end
+    if not section.nickname:HasFocus() then
+      section.nickname.saved = ns.friendNickname and ns.friendNickname(person.tag) or ""
+      section.nickname:SetText(section.nickname.saved)
+    end
+    place(section, p, 16, y)
+    local h = drawCharRows(person, label, y + SECTION_TOP) - y + 6
+    section:SetHeight(h)
+    return h
+  end
 
+  -- The grid's cards, in list order (order: their tags, for dragging).
+  local function drawCards(list, order)
     for k in pairs(cardByTag) do cardByTag[k] = nil end
     for i, person in ipairs(list) do
       local card = pooled(friendCards, i, newFriendCard)
@@ -1569,23 +1550,57 @@ local function buildFriends(p)
       place(card, p, slot(i))
     end
     hideFrom(friendCards, #list + 1)
-    hideFrom(charCards, cards + 1)
-    y = gridTop + rows * (GRID_CARD + GRID_GAP) + sectionHeight
-    if not unfolded and expansion then expansion:Hide() end
+  end
+
+  -- What's under the grid from y: the hidden link and What you share. Also tidies what this draw didn't use.
+  local function drawBelow(y)
+    hideFrom(charCards, st.cards + 1)
+    if not st.unfolded and expansion then expansion:Hide() end
     if details and details:IsShown() then
-      if open then drawDetails(open, openFriend) else details:Hide() end
+      if st.open then drawDetails(st.open, st.openFriend) else details:Hide() end
     end
     if sharing and sharing:IsShown() then drawSharing() end
-
-    local link = hiddenLink(p, hiddenCount)
+    local link = hiddenLink(p, st.hiddenCount)
     if link then
       place(link, p, 16, y)
       y = y + 30
     end
-
     place(yours, p, 0, y + 8)
-    y = y + 8 + SHARE_DEFAULTS_HEIGHT
-    p:SetHeight(y + 10)
+    p:SetHeight(y + 8 + SHARE_DEFAULTS_HEIGHT + 10)
+  end
+
+  drawFriends = function()
+    if dragging then return end -- the drag places the cards; letting go redraws
+    measure()
+    section:SetWidth(width)
+    local list = friendRows(rowsOf(ns.onlineFriends), rowsOf(ns.sharedWithYou))
+    if revealKey then
+      for _, person in ipairs(list) do
+        for _, c in ipairs(person.chars) do
+          if charKey(c) == revealKey then openFriendTag = person.tag end
+        end
+      end
+      revealKey = nil
+    end
+    st.open, st.openFriend, st.unfolded, st.cards, st.hiddenCount = nil, nil, false, 0, 0
+    local y = drawHeader(drawRequests(14), #list == 0)
+
+    -- The friend section goes under the open card's row: drawn first, so the rows below move down.
+    local order, openIndex, openPerson = {}, nil, nil
+    for i, person in ipairs(list) do
+      order[i] = person.tag
+      if person.tag == openFriendTag then openIndex, openPerson = i, person end
+    end
+    if openFriendTag and not openPerson then openFriendTag = nil end
+    gridTop, sectionRow, sectionHeight = y, nil, 0
+    if openPerson then
+      sectionRow = math.floor((openIndex - 1) / columns)
+      sectionHeight = drawSection(openPerson, gridTop + (sectionRow + 1) * (GRID_CARD + GRID_GAP)) + GRID_GAP
+    else
+      section:Hide()
+    end
+    drawCards(list, order)
+    drawBelow(gridTop + math.ceil(#list / columns) * (GRID_CARD + GRID_GAP) + sectionHeight)
   end
   ui.onRefresh(p, drawFriends)
 end
