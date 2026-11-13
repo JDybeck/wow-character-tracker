@@ -228,6 +228,8 @@ ns.HAS_SURNAMES = C_PlayerInfo and C_PlayerInfo.ShouldDisplaySurname ~= nil
 -- far below (Forever 16001, Era 11500s). Not by API: Forever runs on the modern engine and has
 -- C_MythicPlus too.
 ns.IS_RETAIL = ((GetBuildInfo and select(4, GetBuildInfo())) or 0) >= 100000
+-- Forever blocks GUILD chat that isn't sent from a click or key press (addon.md). Retail not checked.
+ns.GUILD_CHAT_NEEDS_CLICK = not ns.IS_RETAIL
 
 local function getSurname()
   if not ns.HAS_SURNAMES then return nil end

@@ -2,8 +2,9 @@
 -- level-up, a mount, a win, a milestone... Which ones comes from the `ask` setting (the Sharing
 -- table's Ask first column, or the addon window). Post sends
 -- the app a separate "ask" event carrying the moment, so the moment itself isn't counted twice in the
--- app's history. The box is our own frame and takes no action Blizzard protects, so no taint. It
--- never pops up in combat, and goes away by itself.
+-- app's history. Where guild chat needs a click (ns.GUILD_CHAT_NEEDS_CLICK), the box also offers the
+-- guild line, in the same box when a moment has both. The box is our own frame and takes no action
+-- Blizzard protects, so no taint. It never pops up in combat, and goes away by itself.
 local ADDON, ns = ...
 
 -- How long the box stays, counted down on the Skip button: the In game setting askSeconds, 10 by default.
@@ -14,6 +15,7 @@ local function showSeconds()
 end
 local MAX_WAITING = 5
 
+-- Entries: { e = the moment, discord = true when offered for Discord, guild = the guild chat line }.
 local waiting = {}
 local current
 local shownAt = 0 -- which showing a timer belongs to
@@ -76,36 +78,57 @@ local function buildBox()
   local bg = box:CreateTexture(nil, "BACKGROUND")
   bg:SetColorTexture(0.05, 0.05, 0.08, 0.92)
   bg:SetAllPoints()
-  local title = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  title:SetPoint("TOPLEFT", 10, -8)
-  title:SetText("Post to Discord?")
+  box.title = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  box.title:SetPoint("TOPLEFT", 10, -8)
   box.line = box:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  box.line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -5)
+  box.line:SetPoint("TOPLEFT", box.title, "BOTTOMLEFT", 0, -5)
   box.line:SetPoint("RIGHT", box, "RIGHT", -10, 0)
   box.line:SetJustifyH("LEFT")
   box.line:SetWordWrap(false)
 
-  local function button(label, post)
+  local function button(width, discord, guild)
     local b = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
-    b:SetSize(80, 22) -- room for "Skip (10)"
-    b:SetText(label)
-    b:SetScript("OnClick", function() ns.answerAsk(post) end)
+    b:SetSize(width, 22)
+    b:SetScript("OnClick", function() ns.answerAsk(discord, guild) end)
     return b
   end
-  local skip = button("Skip", false)
-  skip:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -8, 7)
-  box.skip = skip
-  button("Post", true):SetPoint("RIGHT", skip, "LEFT", -6, 0)
+  box.skip = button(80, false, false) -- room for "Skip (10)"
+  box.skip:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -8, 7)
+  box.both = button(64, true, true)
+  box.both:SetText("Both")
+  box.guild = button(64, false, true)
+  box.discord = button(64, true, false)
   box:Hide()
   return box
+end
+
+-- Title, line and buttons for what this moment is offered for: Discord, guild chat or both.
+local function fill(entry)
+  local f = buildBox()
+  local both = entry.discord and entry.guild
+  f.title:SetText(both and "Share this?" or entry.guild and "Tell your guild?" or "Post to Discord?")
+  f.line:SetText(entry.guild or describe(entry.e))
+  f.discord:SetText(both and "Discord" or "Post")
+  f.guild:SetText(both and "Guild" or "Send")
+  local shown = both and { f.both, f.guild, f.discord } or { entry.guild and f.guild or f.discord }
+  f.both:Hide()
+  f.guild:Hide()
+  f.discord:Hide()
+  local anchor = f.skip
+  for _, b in ipairs(shown) do
+    b:ClearAllPoints()
+    b:SetPoint("RIGHT", anchor, "LEFT", -6, 0)
+    b:Show()
+    anchor = b
+  end
+  return f
 end
 
 function ns.showNextAsk()
   if current or #waiting == 0 then return end
   if InCombatLockdown and InCombatLockdown() then return end -- PLAYER_REGEN_ENABLED comes back here
   current = table.remove(waiting, 1)
-  local f = buildBox()
-  f.line:SetText(describe(current))
+  local f = fill(current)
   f:Show()
   shownAt = shownAt + 1
   local showing = shownAt
@@ -119,12 +142,14 @@ function ns.showNextAsk()
   countdown(showSeconds())
 end
 
--- The player's answer to the moment in the box (or running out of time: false).
-function ns.answerAsk(post)
-  local e = current
+-- The player's answer to the moment in the box (or running out of time: neither).
+function ns.answerAsk(discord, guild)
+  local entry = current
   current = nil
   if box then box:Hide() end
-  if e and post then
+  if entry and guild and entry.guild then ns.sayInGuild(entry.guild) end -- in the click, or the game blocks it
+  if entry and discord and entry.discord then
+    local e = entry.e
     local fields = {}
     for k, v in pairs(e) do fields[k] = v end
     fields.id, fields.kind, fields.shot = nil, nil, nil
@@ -135,10 +160,31 @@ function ns.answerAsk(post)
   ns.showNextAsk()
 end
 
+-- One box per moment: what it's offered for is added to its entry, shown or waiting.
+local function offer(e, field, value)
+  if current and current.e == e then
+    current[field] = value
+    fill(current)
+    return
+  end
+  for _, entry in ipairs(waiting) do
+    if entry.e == e then
+      entry[field] = value
+      return
+    end
+  end
+  if #waiting >= MAX_WAITING then table.remove(waiting, 1) end
+  table.insert(waiting, { e = e, [field] = value })
+  ns.showNextAsk()
+end
+
 -- A moment that won't be posted by itself: offer it, when that's switched on.
 function ns.offerAsk(e)
   if ns.isIgnored(e.guid) or ns.incognitoActive() or not offered(e) then return end
-  if #waiting >= MAX_WAITING then table.remove(waiting, 1) end
-  table.insert(waiting, e)
-  ns.showNextAsk()
+  offer(e, "discord", true)
+end
+
+-- A guild chat line (Announce.lua) where the game only sends it on a click.
+function ns.offerGuildLine(e, msg)
+  offer(e, "guild", msg)
 end

@@ -2,6 +2,22 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.39.10
+
+Update the addon with the app (it does this by itself) and /reload in game. Friends need the new addon too to share recipes.
+
+### New
+
+- **Recipes.** Open a profession once in game and the app knows its recipes. On the Professions page a character's line says how many it knows, and a click opens a window like the game's profession window: the recipes under the game's headers with a search, and the picked one with its tools, reagents and the item it makes (item level, stats, required level).
+- **Find who can craft it.** The search above the professions finds a recipe and lists everyone who knows it, with their skill. Friends who share professions share their recipes too, so on the Friends page it shows which friend can make what you're looking for.
+- **Professions sub-tab on Friends**: a Friends / Professions switch beside the page tabs, like the one on Characters.
+
+### Fixes and tweaks
+
+- Guild chat lines work on WoW Forever. The game only lets addons write in guild chat from a click, so a guild line now comes up in the ask box with **Send** and **Skip** (or **Both**, **Guild** and **Discord** when the moment is offered for Discord too).
+- Professions update again on Forever. Skill levels had frozen, so profession milestones and friends' copies stopped too.
+- The app keeps the game's addon the same as its own, also when an update changed the addon without a new version number.
+
 ## v0.39.9
 
 Update the addon with the app (it does this by itself) and /reload in game. Your friends need the new addon too for most of this.

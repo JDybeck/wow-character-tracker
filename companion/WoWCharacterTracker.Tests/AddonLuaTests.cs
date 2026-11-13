@@ -697,6 +697,90 @@ public class AddonLuaTests
     [Fact]
     public void The_box_waits_for_combat_to_end() => Assert.Empty(Ask(AskAll, ABoss, post: true, inCombat: true));
 
+    // Forever blocks guild chat sent from a timer: with GUILD_CHAT_NEEDS_CLICK the guild line waits in
+    // the ask box and goes out on Send, while the group line still goes out by itself.
+    [Fact]
+    public void Guild_lines_wait_for_a_click_where_the_game_needs_one()
+    {
+        var (script, ns, sent, _) = GuildBox(AskAll, "{ kind = 'level', level = 23, at = 6000 }");
+        script.DoString("runTimers(clock + 3)");
+        Assert.Equal(["PARTY: Ding! Level 23."], sent);
+        Assert.True(script.DoString("return box.shown").Boolean);
+        Assert.Equal("Tell your guild?", script.DoString("return box.title.text").String);
+
+        script.Call(ns.Get("answerAsk"), false, true);
+        Assert.Equal(["PARTY: Ding! Level 23.", "GUILD: Ding! Level 23."], sent);
+    }
+
+    // A moment offered for Discord and guild chat gets one box; Both does both.
+    [Fact]
+    public void A_moment_for_discord_and_guild_gets_one_box()
+    {
+        var (script, ns, sent, recorded) = GuildBox(AskAll, ABoss);
+        Assert.Equal("Share this?", script.DoString("return box.title.text").String);
+
+        script.Call(ns.Get("answerAsk"), true, true);
+        Assert.Equal(["GUILD: Killed Rethilgore in Shadowfang Keep!"], sent);
+        Assert.Equal("boss", Assert.Single(recorded).Get("askedKind").String);
+        Assert.False(script.DoString("return box.shown").Boolean); // nothing else waiting
+    }
+
+    // Left alone, the guild box counts down like the Discord one and goes away without sending.
+    [Fact]
+    public void The_guild_box_times_out_without_sending()
+    {
+        var (script, _, sent, _) = GuildBox("{ askSeconds = 5 }", "{ kind = 'level', level = 23, at = 6000 }");
+        script.DoString("runTimers(clock + 6)");
+        Assert.False(script.DoString("return box.shown").Boolean);
+        Assert.Equal(["PARTY: Ding! Level 23."], sent);
+    }
+
+    // A moment recorded as the game does it (LiveGrid.lua: announce, then offerAsk) with guild and
+    // group chat on, in a guild and a group, where guild chat needs a click.
+    static (Script Script, Table Ns, List<string> Sent, List<Table> Recorded) GuildBox(string settings, string eventLua)
+    {
+        var sent = new List<string>();
+        var script = new Script();
+        script.DoString(FakeTimers);
+        StubChat(script, (msg, channel) => sent.Add($"{channel}: {msg}"));
+        script.DoString("""
+            function time() return 7000 end
+            local function frame()
+              local f = { shown = true }
+              return setmetatable(f, { __index = function(_, k)
+                if k == 'CreateFontString' or k == 'CreateTexture' then return function() return frame() end end
+                if k == 'SetText' then return function(s, t) s.text = t end end
+                if k == 'Show' then return function(s) s.shown = true end end
+                if k == 'Hide' then return function(s) s.shown = false end end
+                return function() end
+              end })
+            end
+            CreateFrame = function() local f = frame(); box = box or f; return f end -- the first frame is the box
+            UIParent = {}
+            WoWCharacterTrackerDB = {}
+            function InCombatLockdown() return false end
+            function IsInGuild() return true end
+            function IsInGroup() return true end
+            """);
+        script.DoString("WoWCharacterTrackerSettings = " + settings);
+        script.DoString("""
+            local s = WoWCharacterTrackerSettings
+            s.announce = { guild = true, party = true, kinds = { level = true, boss = true } }
+            """);
+        var ns = new Table(script);
+        var recorded = new List<Table>();
+        ns["say"] = (Action<string>)(_ => { });
+        foreach (var file in new[] { "Shared.lua", "Announce.lua", "Ask.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_NEEDS_CLICK"] = true;
+        ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
+        ns["addEvent"] = (Action<Table>)recorded.Add;
+        var e = script.DoString("return " + eventLua);
+        script.Call(ns.Get("announce"), e);
+        script.Call(ns.Get("offerAsk"), e);
+        return (script, ns, sent, recorded);
+    }
+
     // Events.lua: the flight box shows once per flight and closes on landing; "Not for 30 min" (its
     // third button) keeps it away on later flights until the 30 minutes are up, and is kept in the saved file.
     [Fact]
