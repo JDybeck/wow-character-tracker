@@ -17,6 +17,17 @@ public class ProfessionSkillsTests
     }
 
     [Fact]
+    public void Recipes_are_read_per_profession_and_bad_parts_skipped()
+    {
+        var recipes = ProfessionSkills.Recipes("Alchemy~Potions=2330,2329,x,-5,0/Elixirs=2329,3170/Empty=\nbroken line\nCooking~\nTailoring~3915");
+        Assert.Equal(["Alchemy", "Tailoring"], recipes.Keys.Order());
+        Assert.Equal([("Potions", new[] { 2330, 2329 }), ("Elixirs", [3170])], recipes["Alchemy"].Select(g => (g.Category, g.Ids.ToArray())));
+        var plain = Assert.Single(recipes["Tailoring"]); // the first format, without categories
+        Assert.Equal(("", 3915), (plain.Category, plain.Ids.Single()));
+        Assert.Empty(ProfessionSkills.Recipes(""));
+    }
+
+    [Fact]
     public void Text_for_other_people_keeps_the_old_wording()
     {
         var mining = new ProfessionSkill("Mining", 150, 225);

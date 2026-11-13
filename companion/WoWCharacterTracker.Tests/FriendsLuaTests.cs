@@ -292,10 +292,10 @@ public class FriendsLuaTests
     }
 
     [Fact]
-    public void Text_over_8_kb_is_dropped()
+    public void Text_over_12_kb_is_dropped()
     {
         var c = new Client("Player-1-0000000A", "{}", files: DataFiles);
-        Assert.True(c.Lua("return ns.decodeFriendChar('guid=Player-1-0000000B;char=Zeb;talents=' .. string.rep('x', 8200))").IsNil());
+        Assert.True(c.Lua("return ns.decodeFriendChar('guid=Player-1-0000000B;char=Zeb;talents=' .. string.rep('x', 12300))").IsNil());
     }
 
     [Fact]
@@ -433,10 +433,10 @@ public class FriendsLuaTests
     }
 
     [Fact]
-    public void A_text_over_40_parts_is_refused()
+    public void A_text_over_52_parts_is_refused()
     {
         var c = CommsClient();
-        Assert.False(c.Lua("return ns.comms.send(2, 'DATA', string.rep('x', 240 * 40 + 1))").Boolean);
+        Assert.False(c.Lua("return ns.comms.send(2, 'DATA', string.rep('x', 240 * 52 + 1))").Boolean);
         Assert.Empty(c.Sent());
     }
 

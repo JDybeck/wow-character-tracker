@@ -59,6 +59,35 @@ public class ProfessionsViewModelTests
         Assert.Equal("Annie: Firemaw, Horde: Tailoring Ann 10/75 | Zebbe: Firemaw, Horde: Mining Zeb 150/225", Describe(vm));
     }
 
+    // Recipes show as a count on the character's line; only a line with recipes opens its window,
+    // which lists them under their categories in the game's order and picks the first.
+    [Fact]
+    public void A_line_with_recipes_opens_them_by_category()
+    {
+        var vm = new ProfessionsViewModel();
+        vm.Show(Rows(Char("Zeb", "Firemaw", "Orc", "WARRIOR", "Alchemy 80/150, Herbalism 75")
+            with { Recipes = "Alchemy~Potions=2330,2330/Elixirs=2329,3170\nCooking~Meat=2538" }));
+        var lines = vm.Owners.Single().Realms.Single().Professions.SelectMany(p => p.Characters).ToList();
+        var alchemy = lines.Single(l => l.Profession == "Alchemy");
+        Assert.Equal((3, "3 recipes"), (alchemy.RecipeCount, alchemy.RecipeCountText));
+        Assert.True(vm.HasRecipes);
+
+        vm.Open(lines.Single(l => l.Profession == "Herbalism"));
+        Assert.False(vm.IsBookOpen);
+        vm.Open(alchemy, 3170);
+        var book = Assert.IsType<RecipeBook>(vm.Book);
+        Assert.Equal(["Potions", "Elixirs"], book.Categories.Select(c => c.Name));
+        Assert.Equal([2330], book.Categories[0].Recipes.Select(r => r.Info.ItemId));
+        Assert.Equal(3170, book.Selected?.Info.ItemId);
+        Assert.True(book.Selected!.IsSelected);
+        book.SelectCommand.Execute(book.Categories[0].Recipes[0]);
+        Assert.False(book.Categories[1].Recipes[1].IsSelected);
+
+        vm.Query = "potion"; // a search closes the window
+        Assert.False(vm.IsBookOpen);
+        Assert.True(vm.ShowsHits);
+    }
+
     [Fact]
     public void Same_named_servers_in_other_regions_stay_apart_and_nothing_is_empty()
     {

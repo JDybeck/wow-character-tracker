@@ -16,7 +16,7 @@ static partial class FriendData
     {
         ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["ruleset"] = 24, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16, ["sex"] = 6,
         ["faction"] = 10, ["spec"] = 32, ["talents"] = 1024, ["talentCalc"] = 256, ["gear"] = 512, ["enchants"] = 2048, ["zone"] = 64, ["professions"] = 256,
-        ["highlights"] = 1024, ["levels"] = 1600,
+        ["highlights"] = 1024, ["levels"] = 1600, ["recipes"] = 3000,
     };
     const int MaxLevels = 80;
 
@@ -66,7 +66,7 @@ static partial class FriendData
         {
             if (p.Value.Type != DataType.Table) continue;
             var t = p.Value.Table;
-            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights" or "levels");
+            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights" or "levels" or "recipes");
             double N(string key) => Number(t.Get(key));
             var guid = t.Get("guid").Type == DataType.String ? t.Get("guid").String : "";
             var name = S("char");
@@ -74,7 +74,7 @@ static partial class FriendData
             var snapshot = new Snapshot(guid, name, S("realm"), (int)N("level"), S("class"), S("classFile"), S("race"), S("raceFile"),
                 Sex: S("sex") == "female" ? "female" : "male", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: Whole(N("played")), Zone: S("zone"), Professions: S("professions"), Talents: S("talents"),
                 LastSeen: (long)N("at"), Hardcore: false, Ruleset: S("ruleset"), Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction"),
-                Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200), LevelTime: Whole(N("levelTime"))) { Surname = S("surname") };
+                Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200), LevelTime: Whole(N("levelTime")), Recipes: S("recipes")) { Surname = S("surname") };
             // No gear shared: no inventory, so the gear tab says it isn't shared.
             var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;
             list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights")), .. ReadLevels(snapshot, S("levels"))]));

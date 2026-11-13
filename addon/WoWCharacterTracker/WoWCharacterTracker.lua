@@ -130,6 +130,11 @@ local professionsSoon = ns.debounce(2, function()
 end)
 on.SKILL_LINES_CHANGED = professionsSoon
 on.CHAT_MSG_SKILL = professionsSoon
+-- Recipes: read while a profession window is open (the list updates in bursts while it loads).
+local recipesSoon = ns.debounce(1, ns.scanRecipes)
+on.TRADE_SKILL_SHOW = recipesSoon
+on.TRADE_SKILL_LIST_UPDATE = recipesSoon
+function on.NEW_RECIPE_LEARNED(recipeID) ns.addLearnedRecipe(recipeID) end
 
 -- Mounts: bought while a vendor is open, or learned
 function on.MERCHANT_SHOW() ns.merchantOpen = true end

@@ -14,7 +14,7 @@ namespace WoWCharacterTracker.Ui;
 //           | intro (the first-run tour; extra2 = which step, 1 = the welcome)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
 //   extra2 (friends page): gear or leveling (a friend's tab) | sharing (the sharing settings) | professions (friends' professions)
-//   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | followedsearch (Followed items page, a search done) | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now) | end (with stream: scrolled to the panel's bottom)
+//   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | followedsearch (Followed items page, a search done) | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | recipes (Professions page: the first recipes open) | recipesearch (Professions page: a recipe search) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now) | end (with stream: scrolled to the panel's bottom)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
@@ -59,6 +59,18 @@ static class ScreenshotMode
                 if (Part(3) is "gear" or "leveling" && fr.SelectedCharacter is { } frc) frc.DetailTab = Part(3);
             }
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
+            // The Professions page with the first recipes open, or a recipe search (CHARACTERTRACKER_SCREENSHOT_SEARCH, default "copper").
+            if (Part(3) == "recipes" && vm.SelectedFlavor?.Professions is { } pv && pv.Owners.SelectMany(o => o.Realms).SelectMany(r => r.Professions)
+                    .SelectMany(p => p.Characters).FirstOrDefault(c => c.HasRecipes) is { } recipes)
+            {
+                pv.Open(recipes);
+                await Task.Delay(4000); // recipe names and the picked one's reagents
+            }
+            if (Part(3) == "recipesearch" && vm.SelectedFlavor?.Professions is { } ps)
+            {
+                ps.Query = Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_SEARCH") ?? "copper";
+                await Task.Delay(4000);
+            }
             if (Part(3) == "closed" && vm.SelectedFlavor is { } cf) cf.SelectedCharacter = null; // every row closed
             if (Part(3) is "gear" or "leveling" or "notes" && vm.SelectedFlavor?.SelectedCharacter is { } dc) dc.DetailTab = Part(3);
             if (Part(3) == "gearset" && vm.SelectedFlavor?.SelectedCharacter is { } gc) // the gear tab showing the last Equipment Manager set

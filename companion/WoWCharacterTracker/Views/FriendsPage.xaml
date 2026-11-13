@@ -74,22 +74,6 @@
               </TextBlock>
             </StackPanel>
           </Button>
-          <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Padding="12,6" Margin="0,0,8,0" VerticalAlignment="Top" Command="{Binding ToggleProfessionsCommand}"
-                  ToolTip="Friends' professions by friend, server and faction">
-            <StackPanel Orientation="Horizontal">
-              <TextBlock Style="{StaticResource Icon}" Text="&#xE90F;" FontSize="12" Foreground="{StaticResource TextSoft}" Margin="0,0,7,0"/>
-              <TextBlock FontSize="12" Foreground="{StaticResource TextSoft}">
-                <TextBlock.Style>
-                  <Style TargetType="TextBlock">
-                    <Setter Property="Text" Value="Professions"/>
-                    <Style.Triggers>
-                      <DataTrigger Binding="{Binding ShowProfessions}" Value="True"><Setter Property="Text" Value="Back to friends"/></DataTrigger>
-                    </Style.Triggers>
-                  </Style>
-                </TextBlock.Style>
-              </TextBlock>
-            </StackPanel>
-          </Button>
           <StackPanel Margin="0,0,16,0">
             <!-- A card per friend, in the order you drag them into (the addon's Friends tab shows the
                  same). A click lists only theirs, a second click everyone. Dragging: FriendsPage.xaml.cs. -->

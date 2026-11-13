@@ -15,6 +15,7 @@ FriendData.lua
 Cleanup.lua
 Core.lua
 Character.lua
+Recipes.lua
 Inventory.lua
 LiveGrid.lua
 Events.lua
