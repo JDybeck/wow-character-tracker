@@ -233,6 +233,38 @@ public class FriendDataTests
         return Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua");
     }
 
+    // Nicknames go both ways, like notes: the game's newer one is taken, an older one isn't, and
+    // Settings.lua carries when each was set in the app (a cleared one too).
+    [Fact]
+    public void Nicknames_set_in_game_are_taken_when_newer_and_written_back_with_their_time()
+    {
+        var read = SavedVariables.ReadNicknames(Lua("{ ['Zeb#2222'] = { name = 'Big||Zeb', at = 900 }, ['Kalle#3333'] = { name = '', at = 300 }, ['Bad#1'] = { name = 'x' } }"));
+        Assert.Equal(["Kalle#3333", "Zeb#2222"], read.Select(n => n.Tag).Order()); // no time: skipped
+        Assert.Equal("Big|Zeb", read.Single(n => n.Tag == "Zeb#2222").Name);
+
+        var config = new Config();
+        config.SetNickname("Zeb#2222", "Zebbe", 800);
+        config.SetNickname("Kalle#3333", "Kalle", 400);
+        Assert.Equal([true, false], read.OrderByDescending(n => n.Tag).Select(config.TakeNewerNickname));
+        Assert.Equal("Big|Zeb", config.FriendNicknames["Zeb#2222"]);
+        Assert.Equal("Kalle", config.FriendNicknames["Kalle#3333"]); // the app's is newer
+        config.SetNickname("Kalle#3333", " ", 950); // cleared in the app
+        Assert.False(config.FriendNicknames.ContainsKey("Kalle#3333"));
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-names-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+            AddonInstaller.WriteSettings(dir, new FlavorSettings(), friendNames: config.FriendNicknames, friendNamesAt: config.FriendNicknamesAt);
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            Assert.Equal(900, script.DoString("return WoWCharacterTrackerSettings.friendNameAt['Zeb#2222']").Number);
+            Assert.Equal(950, script.DoString("return WoWCharacterTrackerSettings.friendNameAt['Kalle#3333']").Number);
+            Assert.True(script.DoString("return WoWCharacterTrackerSettings.friendNames['Kalle#3333']").IsNil());
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     [Fact]
     public void Settings_lua_has_no_share_until_the_app_has_one()
     {

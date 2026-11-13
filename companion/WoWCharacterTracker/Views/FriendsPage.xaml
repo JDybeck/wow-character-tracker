@@ -108,8 +108,8 @@
                  Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}" Padding="0,6"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True"
                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True" VirtualizingPanel.ScrollUnit="Pixel">
-          <!-- A header per friend (FriendsPage groups by FriendName): their name and when their newest
-               character was seen (the rows come newest first). -->
+          <!-- A header per friend (FriendsPage groups by FriendName): their name, when their newest
+               character was seen (the rows come newest first) and when your addon last heard from them. -->
           <ListBox.GroupStyle>
             <GroupStyle>
               <GroupStyle.HeaderTemplate>
@@ -120,6 +120,8 @@
                       <Run Text="   "/>
                       <Run Text="last seen" Foreground="{StaticResource Dim}"/>
                       <Run Text="{Binding Items[0].LastSeenText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
+                      <Run Text="  ·  " Foreground="{StaticResource Dim}"/>
+                      <Run Text="{Binding Items[0].FriendSyncedText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
                     </TextBlock>
                   </Border>
                 </DataTemplate>

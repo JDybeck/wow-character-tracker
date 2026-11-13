@@ -421,6 +421,21 @@ sealed class MainViewModel : Observable
         foreach (var n in taken) Log.Info($"Took the note for {FlavorTabs.Select(t => t.RowFor(n.Guid)?.Name).FirstOrDefault(s => s is not null) ?? "a character"} from the game.");
     }
 
+    // Friends' nicknames set in game, newer than the app's: every tab shows them, and every game's
+    // Settings.lua gets them (the other game's addon shows the same names).
+    public void TakeGameNicknames(IEnumerable<GameNickname> names)
+    {
+        var taken = names.Where(Config.TakeNewerNickname).ToList();
+        if (taken.Count == 0) return;
+        Config.Save();
+        foreach (var tab in FlavorTabs)
+        {
+            tab.Friends.NamesChanged();
+            tab.WriteAddonSettings();
+        }
+        foreach (var n in taken) Log.Info($"Took the nickname for {n.Tag} from the game.");
+    }
+
     // Saved a moment after the last keystroke, not on every one.
     public void SaveNote(string guid, string text)
     {

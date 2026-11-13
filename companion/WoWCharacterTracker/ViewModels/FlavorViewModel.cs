@@ -110,7 +110,7 @@ sealed class FlavorViewModel : Observable
         try
         {
             AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0, main.Config.FriendNicknames, main.Updates.Available,
-                SharingPresets.Detect(Settings, Flavor));
+                SharingPresets.Detect(Settings, Flavor), main.Config.FriendNicknamesAt);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -823,10 +823,12 @@ sealed class FlavorViewModel : Observable
                 XpTable = data.XpTable.Count > 0 ? data.XpTable : test.XpTable,
                 ItemClasses = data.ItemClasses,
                 Notes = data.Notes,
+                Nicknames = data.Nicknames,
                 Today = data.Today,
             };
         }
         main.TakeGameNotes(data.Notes); // notes edited in game, newer than the app's
+        main.TakeGameNicknames(data.Nicknames); // and friends' nicknames
         TakeInGameSettings(data.InGame); // and the same for the In game settings
         if (Settings.TakeShare(data.Share)) // and sharing with friends
         {

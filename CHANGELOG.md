@@ -12,7 +12,8 @@ Update the addon with the app (it does this by itself) and /reload in game. Your
 - **The Friends tab, one card per friend.** Online friends first, each with the character they're on, offline friends with the one they played last and when. Click a friend for their characters, a character for its details. Friends who already share with you get **Ask for more**.
 - **More on the map tooltip**: a friend's spec, item level, how far into the level they are and professions, and on Forever which layer they're on when it isn't yours.
 - **Other characters today** on Home: under the character's own Today, each of your other characters that did something today, with what it did. It replaces the Account today row, and a character you only logged in on no longer counts.
-- **The app's Friends page by friend**: a header per friend with when they were last seen, their characters under it, the one they played last first.
+- **The app's Friends page by friend**: a header per friend with when they were last seen and when their data last arrived, their characters under it, the one they played last first. In game, an online friend's card says when what they share was last updated.
+- **Nicknames in game too**: give a friend a nickname in their sharing panel in game (or `/wct friends name <BattleTag> <nickname>`), and the app takes it on the next sync. The newer name wins on both sides, like notes.
 - **The addon on its own** (from an addon site) says on its Home tab what the app adds, Discord posts, screenshots and the stream overlay, with the link to get it.
 
 ### Fixes and tweaks

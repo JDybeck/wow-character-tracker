@@ -693,10 +693,10 @@ end
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
 local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
-local SHARING_HEIGHT = 596
+local SHARING_HEIGHT = 630
 local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", highlights = "Highlights", leveling = "Level times",
   gold = "Gold", map = "Map position", otherFaction = "Map for the other faction" }
-local sharingTag, sharingTitle, sharingSummary, askSaid
+local sharingTag, sharingTitle, sharingSummary, askSaid, nickname
 local categoryButtons, askButtons = {}, {}
 local askWants = {} -- [category] = true: picked to ask them for
 
@@ -716,6 +716,10 @@ local function drawSharing()
     return
   end
   sharingTitle:SetText(o.label)
+  if not nickname:HasFocus() then
+    nickname.saved = o.nickname or ""
+    nickname:SetText(nickname.saved)
+  end
   for i, cat in ipairs(o.categories) do
     local b = categoryButtons[i]
     if b then
@@ -738,13 +742,21 @@ local function buildSharing()
   local sub = ui.text(sharing, "GameFontDisableSmall", "What they get from you. Changes apply right away.")
   sub:SetPoint("TOPLEFT", sharingTitle, "BOTTOMLEFT", 0, -6)
   sub:SetWidth(DETAILS_WIDTH - 28)
+  -- Their nickname, here and in the app (Enter saves, empty clears).
+  local nickLabel = ui.text(sharing, "GameFontNormalSmall", "Nickname")
+  nickLabel:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -12)
+  nickname = ui.inputBox(sharing, DETAILS_WIDTH - 28 - 70, 32, function(text)
+    if sharingTag and ns.setFriendNickname then ns.setFriendNickname(sharingTag, text) end
+    drawSharing()
+  end)
+  nickname:SetPoint("LEFT", nickLabel, "LEFT", 66, 0)
   local shareBox = ui.checkbox(sharing, "Share your characters", nil,
     function() local o = sharingNow(); return o ~= nil and o.share end,
     function(on)
       if sharingTag then ns.setContactShare(sharingTag, on) end
       drawSharing()
     end)
-  shareBox:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", -4, -10)
+  shareBox:SetPoint("TOPLEFT", nickLabel, "BOTTOMLEFT", -4, -14)
   local receiveBox = ui.checkbox(sharing, "Keep what they share with you", nil,
     function() local o = sharingNow(); return o ~= nil and o.receive end,
     function(on)
@@ -1089,7 +1101,8 @@ local function friendRows(online, shared)
   return list
 end
 
--- "Level 54 Arms Warrior · Felwood · Zebbe (Zeb#2222) · online" under a friend's character.
+-- "Level 54 Arms Warrior · Felwood · Zebbe (Zeb#2222) · online, updated 2m ago" under a friend's
+-- character (updated: when what they share of it last arrived), "... · last seen 2h ago" offline.
 local function friendInfo(p)
   local parts, c = {}, p.current
   if c then
@@ -1099,9 +1112,9 @@ local function friendInfo(p)
   end
   if c then parts[#parts + 1] = who(p.label, p.tag) end
   if p.online then
-    parts[#parts + 1] = "online"
+    parts[#parts + 1] = (c and c.received) and ("online, updated " .. ago(c.received)) or "online"
   elseif lastSeenAt(p) > 0 then
-    parts[#parts + 1] = "seen " .. ago(lastSeenAt(p))
+    parts[#parts + 1] = "last seen " .. ago(lastSeenAt(p))
   else
     parts[#parts + 1] = "offline"
   end

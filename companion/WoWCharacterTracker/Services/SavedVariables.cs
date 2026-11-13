@@ -26,6 +26,7 @@ static class SavedVariables
             XpTable = ReadXpTable(db.Table.Get("xpTable")),
             ItemClasses = ReadItemClasses(db.Table.Get("itemClasses")),
             Notes = ReadNotes(db.Table.Get("notes")),
+            Nicknames = ReadNicknames(db.Table.Get("friendNames")),
             InGame = ReadInGame(db.Table.Get("gameSettings")),
             Friends = FriendData.ReadFriends(db.Table.Get("friends")),
             Share = FriendData.ReadShare(db.Table.Get("share")),
@@ -84,6 +85,15 @@ static class SavedVariables
             if (p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
                 notes.Add(new GameNote(p.Key.String, S(p.Value.Table, "text").Replace("||", "|"), (long)N(p.Value.Table, "at")));
         return notes;
+    }
+
+    // friendNames[battleTag] = { name, at }: friends' nicknames set in game ("" = cleared).
+    internal static List<GameNickname> ReadNicknames(DynValue table)
+    {
+        if (table.Type != DataType.Table) return [];
+        return [.. table.Table.Pairs
+            .Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Table && N(p.Value.Table, "at") > 0)
+            .Select(p => new GameNickname(p.Key.String, S(p.Value.Table, "name").Replace("||", "|"), (long)N(p.Value.Table, "at")))];
     }
 
     // itemClasses[itemId] = the item's class (consumable, weapon, armor, trade goods...).

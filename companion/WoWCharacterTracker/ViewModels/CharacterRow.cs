@@ -33,6 +33,9 @@ sealed class CharacterRow : Observable
     public string FriendTag { get; set; } = "";
     string friendName = "";
     public string FriendName { get => friendName; set => Set(ref friendName, value); } // nickname, else the BattleTag
+    // When your addon last heard from that friend (their contact's `seen`), shown as "updated 5m ago".
+    public long FriendSynced { get; set; }
+    public string FriendSyncedText => FriendSynced > 0 ? $"updated {Format.Ago(FriendSynced)}" : "not updated yet";
     bool isHiddenFriend;
     public bool IsHiddenFriend { get => isHiddenFriend; set => Set(ref isHiddenFriend, value); } // hidden on the Friends page, shown anyway
     public bool ShowsGold => IsOwn || HasMoney; // a friend who doesn't share gold has none to show

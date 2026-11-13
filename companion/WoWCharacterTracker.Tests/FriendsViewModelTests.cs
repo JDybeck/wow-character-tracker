@@ -77,6 +77,7 @@ public class FriendsViewModelTests
         f.Vm.Show(f.Data);
         Assert.Equal(["Zeb", "Zebalt", "Kalle"], f.Vm.Characters.Select(c => c.Name));
         Assert.Equal(["Aaron", "Aaron", "Kalle#3333"], f.Vm.Characters.Select(c => c.FriendName));
+        Assert.Equal([2000, 2000, 1500], f.Vm.Characters.Select(c => c.FriendSynced)); // when each friend was last heard from (seen)
     }
 
     [Fact]

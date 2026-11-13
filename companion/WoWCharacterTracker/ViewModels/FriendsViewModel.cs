@@ -69,6 +69,7 @@ sealed class FriendsViewModel : Observable
             {
                 row.IsFriend = true;
                 row.FriendTag = contact.Tag;
+                row.FriendSynced = contact.Seen;
                 rows.Add(row);
             }
         allRows = rows;
@@ -248,10 +249,17 @@ sealed class FriendsViewModel : Observable
     internal string NicknameOf(string tag) => config.FriendNicknames.GetValueOrDefault(tag, "");
     internal void SetNickname(string tag, string name)
     {
-        name = name.Trim();
-        if (name.Length == 0) config.FriendNicknames.Remove(tag); else config.FriendNicknames[tag] = name;
+        // A second newer than the last one, so it wins over the game's even within the same second.
+        config.SetNickname(tag, name, Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), config.FriendNicknamesAt.GetValueOrDefault(tag) + 1));
         changed(); // saves, and the addon shows the same name
         ShowRows();
+    }
+
+    // Nicknames taken from the game: the rows, chips and the sharing settings' name boxes show them.
+    public void NamesChanged()
+    {
+        ShowRows();
+        foreach (var row in ContactRows) row.Refresh(data.Friends.FirstOrDefault(f => f.Tag == row.Tag));
     }
 
     // Your own characters on this tab, each shared or kept from friends.

@@ -521,7 +521,7 @@ public class AddonWindowTests
             local b = find('Find online friends'); b.scripts.OnClick(b)
             """);
         Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
-        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  Cid#3  ·  seen 2h ago') ~= nil"));
+        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  Cid#3  ·  last seen 2h ago') ~= nil"));
         Assert.True(Bool(c, "shownText('Level 12  ·  Bobby (Bob#2)  ·  online') ~= nil"));
         Assert.True(Bool(c, "friendCard('Bobo').point[5] > friendCard('Cidrin Frostmane').point[5]")); // online above (y goes down)
     }
@@ -938,6 +938,7 @@ public class AddonWindowTests
             local b = find('Find online friends'); b.scripts.OnClick(b)
             """);
         Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil")); // the shared one, by its name
+        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  Cid#3  ·  online, updated 2h ago') ~= nil")); // when it last arrived
         Assert.True(Bool(c, "charRow('Cidro') == nil")); // shared, so no Battle.net row
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "title() == 'Cidrin Frostmane'"));
@@ -1035,6 +1036,26 @@ public class AddonWindowTests
         // The same button again closes it; a character's details take its place.
         c.Lua("clickIn('Cidro', 'Sharing')");
         Assert.False(Bool(c, "onScreen(sharingPanel())"));
+    }
+
+    // The sharing panel's Nickname box sets the friend's nickname when you leave it (the app reads it).
+    [Fact]
+    public void The_sharing_panel_sets_a_nickname()
+    {
+        var c = FriendsTab();
+        c.Lua(SharingStubs);
+        c.Lua("clickIn('Cidro', 'Sharing')");
+        c.Lua("""
+            for _, f in ipairs(frames) do
+              if f.parent == sharingPanel() and f.kind == 'EditBox' then box = f end
+            end
+            box.GetText = function(self) return self.text end
+            box:SetText('Cidde')
+            box.scripts.OnEditFocusLost(box)
+            """);
+        Assert.Equal("Cidde", c.Lua("return ns.friendNickname('Cid#3')").String);
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.friendNames['Cid#3'].at > 0"));
+        Assert.True(Bool(c, "shownText('Cidde (Cid#3)') ~= nil")); // the panel's title
     }
 
     [Fact]

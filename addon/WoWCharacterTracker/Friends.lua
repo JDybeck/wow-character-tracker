@@ -37,6 +37,34 @@ local function changed()
   if ns.friendsChanged then ns.friendsChanged() end
 end
 
+-- Nicknames -----------------------------------------------------------------------------------
+-- Set in the app (Settings.lua friendNames, with friendNameAt) or here (WoWCharacterTrackerDB
+-- .friendNames[tag] = { name, at }, which the app reads back); the newer one wins, like notes. "" = none.
+local MAX_NICKNAME = 32
+
+local function appNameAt(tag)
+  local s = WoWCharacterTrackerSettings
+  return s and s.friendNameAt and tonumber(s.friendNameAt[tag]) or 0
+end
+
+function ns.friendNickname(tag)
+  local game = WoWCharacterTrackerDB and WoWCharacterTrackerDB.friendNames and WoWCharacterTrackerDB.friendNames[tag]
+  if type(game) == "table" and (tonumber(game.at) or 0) > appNameAt(tag) then return tostring(game.name or "") end
+  local names = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.friendNames
+  local name = names and names[tag]
+  return type(name) == "string" and name or ""
+end
+
+-- Sets (or with "" clears) tag's nickname, newer than the app's.
+function ns.setFriendNickname(tag, name)
+  name = strtrim(tostring(name or "")):gsub("|", ""):sub(1, MAX_NICKNAME)
+  local db = WoWCharacterTrackerDB
+  db.friendNames = db.friendNames or {}
+  db.friendNames[tag] = { name = name, at = math.max(time(), appNameAt(tag) + 1) }
+  changed()
+  return name
+end
+
 -- Sharing settings ----------------------------------------------------------------------------
 -- Changed in game (WoWCharacterTrackerDB.share) or by the app (Settings.lua share): the newest
 -- `at` wins, like notes. Its own time, not the In game settings' one, so an app that doesn't
@@ -390,10 +418,9 @@ local function noteArrival(tag, char)
   local at = asked[tag]
   if not at or told[tag] == at or time() - at > 300 then return end
   told[tag] = at
-  local names = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.friendNames
-  local name = names and names[tag]
+  local name = ns.friendNickname(tag)
   ns.say(string.format("%s shared %s with you. More of their characters follow if they share them.",
-    (name and name ~= "") and name or tag, ns.fullName(char)))
+    name ~= "" and name or tag, ns.fullName(char)))
 end
 
 function on.DATA(f, contact, body)
@@ -458,11 +485,10 @@ local notNow = {}    -- [tag] = when we said Not now
 local altsSent = {}  -- [tag] = true: the alts went out this session
 local wantAnswered = {} -- [account] = when we last answered their WANT
 
--- "Zebbe (Zeb#2222)" with a nickname from the app (Settings.lua friendNames), else the BattleTag.
+-- "Zebbe (Zeb#2222)" with a nickname, else the BattleTag.
 local function label(tag)
-  local names = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.friendNames
-  local name = names and names[tag]
-  if name and name ~= "" then return string.format("%s (%s)", name, tag) end
+  local name = ns.friendNickname(tag)
+  if name ~= "" then return string.format("%s (%s)", name, tag) end
   return tag
 end
 
@@ -796,6 +822,7 @@ local HELP = {
   "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",
   "/wct friends hide or unhide keeps this character from friends, or shares it again.",
   "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",
+  "/wct friends name <BattleTag> <nickname> gives a friend a nickname (here and in the app), without one clears it.",
 }
 
 -- What set takes: a category or a rule, its key exact (IS_CHOICE) or typed in any case (CHOICE_BY_WORD).
@@ -934,7 +961,7 @@ function ns.contactSharing(tag)
   for _, k in ipairs(RULES) do
     categories[#categories + 1] = { key = k, own = c[k], general = s.defaults[k] == true, on = allowed[k], rule = true }
   end
-  return { tag = tag, label = label(tag), share = c.share == true, receive = c.receive == true,
+  return { tag = tag, label = label(tag), nickname = ns.friendNickname(tag), share = c.share == true, receive = c.receive == true,
     categories = categories, summary = picked(allowed) }
 end
 
@@ -965,7 +992,7 @@ end
 local RATE_WORDS = { live = 5, ["1m"] = 60, ["5m"] = 300 }
 local RATE_NAMES = { [5] = "live", [60] = "once a minute", [300] = "every 5 minutes" }
 
-local TAG_COMMANDS = { ask = true, share = true, stop = true, remove = true, unblock = true }
+local TAG_COMMANDS = { ask = true, share = true, stop = true, remove = true, unblock = true, name = true }
 
 function ns.friendsCommand(args)
   local cmd, rest = strtrim(args or ""):match("^(%S*)%s*(.-)$")
@@ -1008,6 +1035,11 @@ function ns.friendsCommand(args)
     return ask(tag, wants)
   end
   if cmd == "share" then return share(tag) end
+  if cmd == "name" then
+    local name = ns.setFriendNickname(tag, rest:match("^%S+%s*(.-)$") or "")
+    return ns.say(name ~= "" and string.format("%s is now called %s here and in the app.", tag, name)
+      or (tag .. " has no nickname now."))
+  end
   if cmd == "unblock" then
     ns.editShare(function(s) s.blocked[tag] = nil end)
     return ns.say(label(tag) .. " can ask again.")

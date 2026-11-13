@@ -187,6 +187,33 @@ function ui.copyBox(parent, text, width)
   return box
 end
 
+-- A one-line box to type in. Enter or leaving it saves: save(text) gets what was typed; Esc puts
+-- back what it had. box:SetText sets it from outside (box.saved is the last saved text).
+function ui.inputBox(parent, width, maxLetters, save)
+  local box = CreateFrame("EditBox", nil, parent)
+  box:SetSize(width, 22)
+  box:SetAutoFocus(false)
+  box:SetMaxLetters(maxLetters)
+  box:SetFontObject("GameFontHighlightSmall")
+  box:SetTextInsets(6, 6, 0, 0)
+  ui.box(box, COLOR.bar, COLOR.border)
+  box.saved = ""
+  local function commit(self)
+    local text = self:GetText() or ""
+    if text ~= self.saved then
+      self.saved = text
+      save(text)
+    end
+  end
+  box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  box:SetScript("OnEditFocusLost", commit)
+  box:SetScript("OnEscapePressed", function(self)
+    self:SetText(self.saved)
+    self:ClearFocus()
+  end)
+  return box
+end
+
 -- "primary": filled amber, for the one thing to do; "selected": a picked tab; else quiet and outlined.
 function ui.styleButton(b, style)
   if style == "primary" then ui.box(b, COLOR.primary, COLOR.accent)

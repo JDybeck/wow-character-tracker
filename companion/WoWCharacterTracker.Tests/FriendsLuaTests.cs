@@ -1011,6 +1011,28 @@ public class FriendsLuaTests
         Assert.True(a.Lua("return WoWCharacterTrackerDB.friends").IsNil());
     }
 
+    // A nickname set in game wins over the app's when newer, and the app's newer one wins back.
+    [Fact]
+    public void A_nickname_set_in_game_or_in_the_app_the_newer_wins()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ friendNames = { ['Zeb#2222'] = 'Zebbe' }, friendNameAt = { ['Zeb#2222'] = 500 } }");
+        Assert.Equal("Zebbe", Str(a, "ns.friendNickname('Zeb#2222')"));
+        a.Lua("clock = 400");
+        a.Call("friendsCommand", "name zeb#2222 Big Zeb");
+        Assert.Equal(501, a.Lua("return WoWCharacterTrackerDB.friendNames['Zeb#2222'].at").Number); // newer than the app's
+        Assert.Equal("Big Zeb (Zeb#2222)", Str(a, "ns.friendLabel('Zeb#2222')"));
+        Assert.Contains("Zeb#2222 is now called Big Zeb here and in the app.", a.Said());
+        a.Lua("WoWCharacterTrackerSettings.friendNames['Zeb#2222'] = 'Z'; WoWCharacterTrackerSettings.friendNameAt['Zeb#2222'] = 600");
+        Assert.Equal("Z", Str(a, "ns.friendNickname('Zeb#2222')")); // set in the app later
+        a.Call("friendsCommand", "name Zeb#2222");
+        Assert.Equal("", Str(a, "ns.friendNickname('Zeb#2222')")); // cleared in game
+        Assert.Equal("Zeb#2222", Str(a, "ns.friendLabel('Zeb#2222')"));
+
+        var old = new Client(A, AFriends, ADb(AShares), settings: "{ friendNames = { ['Zeb#2222'] = 'Zebbe' } }"); // an app without times
+        old.Lua("ns.setFriendNickname('Zeb#2222', 'New|cff name')");
+        Assert.Equal("Newcff name", Str(old, "ns.friendNickname('Zeb#2222')"));
+    }
+
     // After their Never you can't ask for a day; they may have unblocked you since.
     [Fact]
     public void A_no_stops_asking_for_a_day()
