@@ -308,6 +308,7 @@ public class FollowedItemsTests
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(SharedRulesTests.AddonFile(file)), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
         script.Call(ns.Get("announce"), script.DoString($"return {{ kind = 'loot', item = 'Linen Cloth', itemId = {itemId}, quality = {quality} }}"));
         var sent = script.Globals.Get("sent").Table.Values.Select(v => v.String).ToList();
         Assert.Equal(said is null ? [] : [said], sent);

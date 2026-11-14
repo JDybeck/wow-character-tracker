@@ -40,7 +40,8 @@ public class MapPinsLuaTests
         script.DoString(Map);
         var ns = new Table(script);
         script.Globals["ns"] = ns;
-        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "MapPins.lua")), codeFriendlyName: "MapPins.lua"), "WoWCharacterTracker", ns);
+        foreach (var file in new[] { "Leveling.lua", "MapPins.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file)), codeFriendlyName: file), "WoWCharacterTracker", ns);
         script.DoString("""
             opened = nil
             ns.setMapOpen = function(open) opened = open end
@@ -127,8 +128,8 @@ public class MapPinsLuaTests
             shared = { char = 'Zeb', surname = 'Drygbeck', class = 'Warrior', spec = 'Arms', level = 54, ilvl = 50.9,
               xp = 4500, xpMax = 10000, maxLevel = 60, professions = 'Blacksmithing 162, Mining 145' }
             """);
-        Assert.Equal("Zeb Drygbeck, level 54 Arms Warrior|Felwood|Item level 50  ·  45% into level 54|Blacksmithing 162, Mining 145|On layer 6, you're on 5|3s ago",
-            script.DoString("return lines({ character = 'Zeb', classFile = 'WARRIOR', level = 54, shared = shared, realmNote = \"On layer 6, you're on 5\", age = 3 })").String);
+        Assert.Equal("Zeb Drygbeck, level 54 Arms Warrior|Felwood|Item level 50  ·  45% into level 54|Blacksmithing 162, Mining 145|On another layer|3s ago",
+            script.DoString("return lines({ character = 'Zeb', classFile = 'WARRIOR', level = 54, shared = shared, realmNote = \"On another layer\", age = 3 })").String);
         Assert.Equal("Zeb, level 12|Felwood|Last seen 40s ago", // nothing shared, no class name known
             script.DoString("return lines({ character = 'Zeb', level = 12, age = 40, faded = true })").String);
     }

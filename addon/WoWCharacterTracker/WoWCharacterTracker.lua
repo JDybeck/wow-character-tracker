@@ -61,6 +61,7 @@ function on.PLAYER_ENTERING_WORLD(isInitialLogin)
   C_Timer.After(2, ns.applyGameSettings)
   ns.sayAppUpdate(isInitialLogin)
   ns.remindSharing(isInitialLogin)
+  ns.forgetLayer()
   -- Once per login or /reload, not on every loading screen (bags, gear and professions don't change
   -- by zoning; their own events keep them current). Gear and spec info can take a few seconds.
   if not enteredWorld then
@@ -203,6 +204,11 @@ on.CURRENCY_DISPLAY_UPDATE = moneyChanged
 function on.QUEST_TURNED_IN() ns.todayCount("quests") end
 function on.UNIT_SPELLCAST_SUCCEEDED(unit, castGUID, spellID) ns.onSpellcast(unit, castGUID, spellID) end
 function on.LOOT_OPENED() ns.onLootOpened() end
+
+-- Which layer we're on, from the creatures around us (Layer.lua).
+function on.NAME_PLATE_UNIT_ADDED(unit) ns.observeLayer(unit) end
+function on.PLAYER_TARGET_CHANGED() ns.observeLayer("target") end
+function on.UPDATE_MOUSEOVER_UNIT() ns.observeLayer("mouseover") end
 
 -- Sharing with Battle.net friends (Comms.lua, Friends.lua). The friends list changes in bursts
 -- at login, so one look a few seconds after.

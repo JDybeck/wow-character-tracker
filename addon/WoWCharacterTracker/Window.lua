@@ -83,7 +83,7 @@ local INCOGNITO_CHOICES = { { "30m", "30 minutes" }, { "1h", "1 hour" }, { "2h",
 
 local function buildIncognito(p)
   local title = ui.heading(p, "Incognito")
-  local hint = ui.hint(p, "For a while nothing is posted to Discord or said in guild or group chat, and none of it is posted later. Your own history keeps it.", title)
+  local hint = ui.hint(p, "For a while nothing is posted to Discord or said in chat, and none of it is posted later. Your own history keeps it.", title)
   local friendsToo = false
   local last
   for i, choice in ipairs(INCOGNITO_CHOICES) do
@@ -138,7 +138,12 @@ local function buildSharingTab(p)
 
   local chatTitle = ui.heading(p, "Tell in chat", top, top and -24 or nil)
   local chatHint = ui.hint(p, "One line in chat as you when something happens. Lines wait until you're out of combat.", chatTitle)
-  local whereLast = ui.checkGrid(p, { { "guild", "Guild chat" }, { "party", "Party / raid chat" } }, chatHint,
+  local places, columns = { { "party", "Party / raid chat" } }, { { "party", "Group chat" } }
+  if ns.GUILD_CHAT_ON then
+    table.insert(places, 1, { "guild", "Guild chat" })
+    table.insert(columns, 1, { "guild", "Guild chat" })
+  end
+  local whereLast = ui.checkGrid(p, places, chatHint,
     function(key)
       local a = ns.setting("announce") or {}
       return a[key] == true
@@ -146,7 +151,7 @@ local function buildSharingTab(p)
     function(key, on) ns.editSettings(function(s) s.announce[key] = on end) end)
   local last = whereLast
   if not withApp then
-    last = ui.checkTable(p, ANNOUNCE_KINDS, { { "guild", "Guild chat" }, { "party", "Group chat" } }, whereLast,
+    last = ui.checkTable(p, ANNOUNCE_KINDS, columns, whereLast,
       function(column, key)
         local kinds = announceKinds(ns.setting("announce") or {}, column)
         return kinds ~= nil and kinds[key] == true
@@ -472,12 +477,11 @@ local function facts(c, friend)
   local out = {}
   local function add(label, value) if value and value ~= "" then out[#out + 1] = { label, value } end end
   add("Friend", friend)
-  -- Forever's realm names are a type and a layer ("CAMWOW EU5 Realm 6 PvP" -> PvP, layer 6). The
-  -- ruleset (Hardcore, Self-found) only when it isn't the usual one.
-  local realmType, layer
-  if not ns.IS_RETAIL then realmType, layer = ns.realmType(c.realm) end
-  add("Realm", realmType or c.realm)
-  add("Layer", layer and tostring(layer))
+  -- Forever's realm names are a type and a home realm ("CAMWOW EU5 Realm 6 PvP" -> "PvP, realm 6"),
+  -- not a layer. The ruleset (Hardcore, Self-found) only when it isn't the usual one.
+  local realmType, number
+  if not ns.IS_RETAIL then realmType, number = ns.realmType(c.realm) end
+  add("Realm", realmType and string.format("%s, realm %d", realmType, number) or c.realm)
   if c.ruleset ~= "Normal" then add("Ruleset", c.ruleset) end
   local race = c.race and (c.sex == "female" and "Female " or (c.sex == "male" and "Male " or "")) .. c.race
   add("Race", race and (c.faction and string.format("%s, %s", race, c.faction) or race))

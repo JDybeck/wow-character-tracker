@@ -146,7 +146,8 @@
                 <TextBlock FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}" VerticalAlignment="Center" Text="Replace your custom choices?"/>
               </DockPanel>
             </Border>
-            <CheckBox IsChecked="{Binding AnnounceGuild}" Margin="0,16,0,0" ToolTip="A line in guild chat as you, out of combat">
+            <CheckBox IsChecked="{Binding AnnounceGuild}" Margin="0,16,0,0" ToolTip="A line in guild chat as you, out of combat"
+                      Visibility="{Binding ShowGuildChat, Converter={StaticResource Visible}}">
               <StackPanel>
                 <TextBlock Text="Tell my guild too" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
                 <TextBlock Style="{StaticResource Hint}" Text="A short line in guild chat when something happens. Reaches the game on your next /reload."/>
@@ -162,7 +163,7 @@
             </DockPanel>
             <DockPanel Margin="0,0,0,10">
               <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE8BD;" FontSize="16" Foreground="{DynamicResource BlueText}" Width="28"/>
-              <TextBlock Style="{StaticResource Hint}" FontSize="13" TextWrapping="Wrap" Text="The right edge: quick switches for Discord, guild chat, group chat and the stream, and the console."/>
+              <TextBlock Style="{StaticResource Hint}" FontSize="13" TextWrapping="Wrap" Text="The right edge: quick switches for Discord, group chat and the stream, and the console."/>
             </DockPanel>
             <DockPanel>
               <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE9CE;" FontSize="16" Foreground="{DynamicResource BlueText}" Width="28"/>

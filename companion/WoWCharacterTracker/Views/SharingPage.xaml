@@ -64,10 +64,10 @@
           <Run Text="{Binding Name, Mode=OneWay}"/>
         </TextBlock>
         <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,16"
-                   Text="Who hears about your moments: Discord, your guild or group, and your stream."/>
+                   Text="Who hears about your moments: Discord, your group, and your stream."/>
 
         <!-- Where: one switch per place. -->
-        <UniformGrid Columns="4" Margin="-5,0,-5,0">
+        <UniformGrid Columns="{Binding PlaceColumns}" Margin="-5,0,-5,0">
           <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
             <DockPanel>
               <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding DiscordOn}"
@@ -81,7 +81,7 @@
               </StackPanel>
             </DockPanel>
           </Border>
-          <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
+          <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12" Visibility="{Binding ShowGuildChat, Converter={StaticResource Visible}}">
             <DockPanel>
               <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding AnnounceGuild}"
                         ToolTip="Write in guild chat (when you're in a guild)" AutomationProperties.Name="Guild chat"/>
@@ -184,7 +184,8 @@
               <TextBlock Style="{StaticResource FactLabel}" Text="MOMENT"/>
               <TextBlock Grid.Column="1" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="DISCORD" ToolTip="Post it to your webhooks"/>
               <TextBlock Grid.Column="2" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="SCREENSHOT" ToolTip="Take a screenshot in game and attach it to the post"/>
-              <TextBlock Grid.Column="3" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="GUILD" ToolTip="A line in guild chat"/>
+              <TextBlock Grid.Column="3" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="GUILD" ToolTip="A line in guild chat"
+                         Visibility="{Binding ShowGuildChat, Converter={StaticResource Visible}}"/>
               <TextBlock Grid.Column="4" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="GROUP" ToolTip="A line in party or raid chat"/>
               <TextBlock Grid.Column="5" Width="84" TextAlignment="Center" Style="{StaticResource FactLabel}" Text="ASK FIRST"
                          ToolTip="When Discord doesn't post it, a small box in game offers Post or Skip. Needs a webhook."/>
@@ -223,7 +224,8 @@
                                   AutomationProperties.Name="{Binding Name, StringFormat={}{0} screenshot}"/>
                         <TextBlock Style="{StaticResource Dash}" Visibility="{Binding HasShot, Converter={StaticResource Hidden}}"/>
                       </Grid>
-                      <Grid Grid.Column="3" Style="{StaticResource TableCell}">
+                      <Grid Grid.Column="3" Style="{StaticResource TableCell}"
+                            Visibility="{Binding DataContext.ShowGuildChat, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource Visible}}">
                         <CheckBox x:Name="GuildBox" Style="{StaticResource Cell}" IsChecked="{Binding Guild}" ToolTip="{Binding AnnounceSample}" Visibility="{Binding HasAnnounce, Converter={StaticResource Visible}}"
                                   AutomationProperties.Name="{Binding Name, StringFormat={}{0} in guild chat}"/>
                         <TextBlock Style="{StaticResource Dash}" Visibility="{Binding HasAnnounce, Converter={StaticResource Hidden}}"/>

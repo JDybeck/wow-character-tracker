@@ -286,6 +286,9 @@ function ns.encodeFriendChar(guid, char, items, allowed, events, levels)
     values.recipes = nil
     text, key = joinFields(values, allowed)
   end
+  -- XP ticks with every kill, so it's volatile, but a whole percent more on the bar is a change.
+  local percent = allowed.leveling and ns.levelPercent(values)
+  if percent then key = key .. ";xpPercent=" .. percent end
   return text, key
 end
 

@@ -20,6 +20,15 @@ static class LevelStats
             timed.MinBy(l => l.Seconds)!, timed.MaxBy(l => l.Seconds)!);
     }
 
+    // How far into `level` the XP bar is, in whole percent (the addon's ns.levelPercent), or null: no
+    // XP known, a snapshot from another level, or max level.
+    public static int? Percent(Snapshot? xp, int level)
+    {
+        if (xp is null || xp.XpMax <= 0 || xp.Level != level) return null;
+        if (xp.MaxLevel > 0 && level >= xp.MaxLevel) return null;
+        return (int)Math.Floor(100.0 * xp.Xp / xp.XpMax);
+    }
+
     // Played seconds left to max level at the recent pace, or null when there's too little to go on
     // (fewer than two timed levels, or levels past Classic's table with nothing known about them).
     public static long? TimeToMax(IReadOnlyList<Level> timed, IReadOnlyDictionary<int, long> xpTable,

@@ -193,6 +193,11 @@ sealed class CharacterRow : Observable
 
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
+    // The XP bar in whole percent (under the level), from the newest snapshot that has it, and when that was.
+    public int? LevelPercent { get; init; }
+    public long LevelPercentAt { get; init; }
+    public string LevelPercentText => LevelPercent is { } p ? $"{p}%" : "";
+    public string? LevelPercentTip => LevelPercent is { } p ? $"{p}% into level {Level}, updated {Format.Ago(LevelPercentAt)}" : null;
     public string PlayedText => Played > 0 ? Format.Played(Played) : "-";
     public string PlayedLine => Played > 0 ? $"{Format.Played(Played)} played" : "";
     public string LastSeenText => Format.Ago(LastSeen) is { Length: > 0 } s ? s : "-";
@@ -356,6 +361,8 @@ sealed class CharacterRow : Observable
                 Inventory = inventories.GetValueOrDefault(guid),
                 MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile), Pick(s?.Spec, last?.Spec)),
                 Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor.EstimatesXp, thisLevel),
+                LevelPercent = LevelStats.Percent(xpSnaps.GetValueOrDefault(guid), level),
+                LevelPercentAt = xpSnaps.GetValueOrDefault(guid)?.LastSeen ?? 0,
             });
         }
 

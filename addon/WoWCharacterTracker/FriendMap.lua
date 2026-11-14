@@ -1,6 +1,8 @@
 -- Friends on the world map, the logic (MapPins.lua draws). While your world map is open, contacts
 -- you keep things from get WATCH every WATCH_EVERY seconds. A contact who allows you Map position
--- answers with POS while that watch lasts: their position, their rate and how old the reading is.
+-- answers with POS while that watch lasts: their position, their rate and how old the reading is,
+-- and LAYER when the layer they're on (Layer.lua) changes. A kind of its own, since older addons
+-- drop a POS with more fields but ignore kinds they don't know.
 -- Positions live in memory only, never in the saved file, so the app never sees them.
 local ADDON, ns = ...
 
@@ -13,7 +15,7 @@ local LIVE = 5         -- the "live" rate: read every TICK, not every 5 seconds
 local RATES = { [5] = true, [60] = true, [300] = true }
 
 -- Sending
-local watchers = {} -- [account] = { untilAt, sent (the reading they got last), sentAt, hadPosition, cleared }
+local watchers = {} -- [account] = { untilAt, sent (the reading they got last), sentAt, hadPosition, cleared, layer (the last LAYER body) }
 local reading       -- { mapID, x, y, at }: our last position reading
 local ticking = false
 
@@ -21,6 +23,7 @@ local ticking = false
 local mapOpen = false
 local watchSentAt = {} -- [account] = when WATCH last went to them
 local positions = {}   -- [account] = { mapID, x, y, rate, readAt }
+local layers = {}      -- [account] = { server, map, guid }
 local watchLoop = false
 
 local function round(v) return math.floor(v * 1000 + 0.5) / 1000 end
@@ -88,13 +91,27 @@ local function moved(r, last)
   return r.mapID ~= last.mapID or r.x ~= last.x or r.y ~= last.y
 end
 
+-- Our layer as LAYER's body: "server,map", "" while not known.
+local function layerBody()
+  local server, map = ns.currentLayer()
+  return server and string.format("%d,%d", server, map) or ""
+end
+
+-- The layer goes whenever it differs from what they got last (nothing while it was never known).
+local function sendLayer(account, w)
+  local body = layerBody()
+  if body == (w.layer or "") then return end
+  if ns.comms.send(account, "LAYER", body) then w.layer = body end
+end
+
 -- r nil: one empty POS, only if they had a position from us. Else the reading, when it's new to
 -- them and moved, or RESEND after the last one they got.
 local function sendTo(account, w, r, rate, now)
   if not r then
-    if w.hadPosition and not w.cleared and ns.comms.send(account, "POS", "") then w.cleared, w.sent = true, nil end
+    if w.hadPosition and not w.cleared and ns.comms.send(account, "POS", "") then w.cleared, w.sent, w.layer = true, nil, nil end
     return
   end
+  sendLayer(account, w)
   if w.sent == r then return end
   if w.sentAt and now - w.sentAt < MIN_GAP then return end
   if w.sent and not moved(r, w.sent) and now - w.sentAt < RESEND then return end
@@ -150,6 +167,7 @@ ns.onFriendKind("POS", function(f, contact, body)
   local asked = watchSentAt[f.account]
   if not asked or time() - asked > WATCH_LASTS then return end
   if body == nil or body == "" then
+    layers[f.account] = nil
     if positions[f.account] then
       positions[f.account] = nil
       pinsChanged()
@@ -166,29 +184,41 @@ ns.onFriendKind("POS", function(f, contact, body)
   pinsChanged()
 end)
 
+-- Their layer, kept like a position: "" = not known any more.
+ns.onFriendKind("LAYER", function(f, contact, body)
+  if not contact.receive then return end
+  local asked = watchSentAt[f.account]
+  if not asked or time() - asked > WATCH_LASTS then return end
+  local server, map = string.match(body or "", "^(%d%d?%d?%d?%d?%d?),(%d%d?%d?%d?%d?)$")
+  local row = friendByAccount(f.account)
+  layers[f.account] = server and { server = tonumber(server), map = tonumber(map), guid = row and row.guid } or nil
+  pinsChanged()
+end)
+
 -- Seconds until a pin fades to "last seen", by the sender's rate. It stays until the friend goes
 -- offline, switches character, says it's gone (empty POS) or a watch gap drops it.
 local function fadeAfter(rate) return math.max(30, 2 * rate) end
 
+-- Both layers known and on the same map (continent): same or another. Else nothing to say.
+local function layerNote(theirs, mine)
+  if not (theirs and mine and mine.server) or theirs.map ~= mine.map then return nil, false end
+  if theirs.server == mine.server then return "Same layer as you", false end
+  return "On another layer", true
+end
+
 -- The tooltip's realm line and whether the friend is somewhere you can't meet them (their ring goes
--- grey). On Forever the number is a layer, compared by type and number, not by the whole name
--- (Battle.net's and the game's can differ in case): "Same layer as you (Layer 6)", "On layer 6,
--- you're on 5", or another realm. Elsewhere only another realm gets a line.
-local function realmNote(theirs, mine)
+-- grey). Battle.net's and the game's names can differ in case. On Forever only the realm's type
+-- (PvP, Normal...) tells worlds apart: "CAMWOW EU5 Realm 6 PvP" and "CAMWOW EU4 Realm 4 PvP" play
+-- together on one layer (seen in game). The layers (Layer.lua) decide the rest. Retail has no layers.
+local function realmNote(theirs, mine, theirLayer, myLayer)
   if not theirs or not mine then return nil, false end
   local same = theirs:upper() == mine:upper()
-  if not ns.IS_RETAIL then
-    local their, theirLayer = ns.realmType(theirs)
-    local our, ourLayer = ns.realmType(mine)
-    if their and their == our then
-      if theirLayer and theirLayer == ourLayer then return string.format("Same layer as you (Layer %d)", theirLayer), false end
-      if theirLayer and ourLayer then return string.format("On layer %d, you're on %d", theirLayer, ourLayer), true end
-      return "On another layer", true
-    end
-    if their and not same then return "On another realm: " .. their, true end
-  end
-  if same then return nil, false end
-  return "On another realm: " .. theirs, true
+  local their, our
+  if not ns.IS_RETAIL then their, our = ns.realmType(theirs), ns.realmType(mine) end
+  if their and our then same = their == our end
+  if not same then return "On another realm: " .. (their or theirs), true end
+  if ns.IS_RETAIL then return nil, false end
+  return layerNote(theirLayer, myLayer)
 end
 
 -- What they share with us about the character on the pin, or nil.
@@ -210,13 +240,17 @@ function ns.friendPins()
     for _, f in ipairs(online()) do rows[f.account] = f end
   end
   local myRealm = ns.plainRealm(GetRealmName and GetRealmName())
+  local server, map = ns.currentLayer()
+  local myLayer = { server = server, map = map }
   for account, p in pairs(positions) do
     local age = math.max(0, now - p.readAt)
     local f = rows[account]
+    local layer = layers[account]
+    if layer and layer.guid ~= p.guid then layer = nil end
     if not stillShown(f, p) then
-      positions[account] = nil
+      positions[account], layers[account] = nil, nil
     elseif not group[p.guid] then
-      local note, elsewhere = realmNote(ns.plainRealm(f.realm), myRealm)
+      local note, elsewhere = realmNote(ns.plainRealm(f.realm), myRealm, layer, myLayer)
       out[#out + 1] = { tag = f.tag, label = f.label, character = f.character, classFile = f.classFile, level = f.level,
         realm = f.realm, otherRealm = elsewhere, realmNote = note, shared = sharedChar(f.tag, p.guid),
         mapID = p.mapID, x = p.x, y = p.y, age = age, faded = age > fadeAfter(p.rate) }
@@ -239,8 +273,9 @@ local function sendWatches()
       and (not last or now - last >= WATCH_EVERY - 1) then
       if ns.comms.send(f.account, "WATCH", "") then
         watchSentAt[f.account] = now
-        if last and now - last > WATCH_LASTS and positions[f.account] then
-          positions[f.account], dropped = nil, true
+        if last and now - last > WATCH_LASTS then
+          layers[f.account] = nil
+          if positions[f.account] then positions[f.account], dropped = nil, true end
         end
       end
     end

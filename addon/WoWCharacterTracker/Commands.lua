@@ -29,6 +29,20 @@ local function sendTest()
   ns.say("Sent a test event. The companion app should show it within a few seconds.")
 end
 
+-- A guild line to see what the game lets through: from the ask box's button (like a real moment), or
+-- "now" straight from this slash command. A refused send prints a Blocked line naming "chat GUILD".
+local GUILD_TEST_LINE = "Character Tracker guild chat test, please ignore."
+local function guildTest(now)
+  if not (IsInGuild and IsInGuild()) then return ns.say("You're not in a guild.") end
+  if now then
+    ns.sayInGuild(GUILD_TEST_LINE)
+    ns.say("Sent from the slash command: " .. tostring(ns.lastChatSend))
+    return
+  end
+  ns.offerGuildLine({ kind = "test", at = time() }, GUILD_TEST_LINE)
+  ns.say("Click Send in the box. No Blocked line after it and the line in guild chat means clicks work.")
+end
+
 -- What this client's functions return, for tracking down problems on new clients. Saved as
 -- WoWCharacterTrackerDB.debug (the SavedVariables file is written on /reload or logout).
 local function saveDebug()
@@ -65,6 +79,7 @@ local function saveDebug()
   add("UnitName: " .. dump(UnitName("player")) .. ", surnames: " .. tostring(ns.HAS_SURNAMES))
   add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
   add("hardcore: " .. dump(ns.isHardcore()))
+  add("layer: " .. ns.layerStatus())
   add("comms error: " .. tostring(ns.lastCommsError)) -- the last friend message our code couldn't handle
   add(string.format("guild/group chat: last %s, waiting %d, locked %s", tostring(ns.lastChatSend),
     ns.pendingAnnouncements and ns.pendingAnnouncements() or 0, tostring(ns.chatLocked())))
@@ -137,8 +152,12 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     ns.say("Instant posting is now " .. (WoWCharacterTrackerDB.live and "on." or "off. Posts arrive on /reload or logout."))
   elseif msg == "test" then
     sendTest()
+  elseif msg == "guildtest" or msg == "guildtest now" then
+    guildTest(msg == "guildtest now")
   elseif msg == "debug" then
     saveDebug()
+  elseif msg == "layer" then
+    ns.say(ns.layerStatus())
   elseif msg == "options" or msg == "config" then
     ns.openWindow() -- every option is in the window, which also opens in combat
   elseif msg == "note" then

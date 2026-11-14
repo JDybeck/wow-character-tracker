@@ -109,7 +109,7 @@ public class FriendsLuaTests
         Assert.True(c.Lua("return ns.isCharShared(ns.shareSettings(), 'Player-1-0000000A')").Boolean);
     }
 
-    static readonly string[] DataFiles = ["Shared.lua", "FriendData.lua"];
+    static readonly string[] DataFiles = ["Shared.lua", "Leveling.lua", "FriendData.lua"];
 
     const string Deadbeck = "{ char = 'Deadbeck', realm = 'Firemaw', level = 42, class = 'Warrior', classFile = 'WARRIOR', race = 'Orc', raceFile = 'Orc', faction = 'Horde', ilvl = 38, spec = 'Arms', zone = 'Stranglethorn Vale', money = 123456, talents = 'a;b\\\\c', guild = 'Secret', lastSeen = 900 }";
 
@@ -697,6 +697,40 @@ public class FriendsLuaTests
         return a;
     }
 
+    // The snapshot is only saved every few minutes and the friend saw 44% while the bar said 47%: the
+    // character being played goes with the XP bar as it is now, and a whole percent more sends it again.
+    [Fact]
+    public void The_character_being_played_goes_with_its_xp_bar_as_it_is_now()
+    {
+        var a = HelloDone();
+        a.Lua("""
+            local c = WoWCharacterTrackerDB.chars['Player-1-0000000A']
+            c.level, c.xp, c.xpMax, c.maxLevel = 59, 94113, 209800, 60
+            liveXp = 94113
+            function UnitXP() return liveXp end
+            function UnitXPMax() return 209800 end
+            function UnitLevel() return 59 end
+            """);
+        a.Run(300);
+        a.Call("friendsTick");
+        a.Run(1);
+        a.Lua("sent = {}");
+        a.Lua("liveXp = 94200"); // still 44%
+        a.Run(300);
+        a.Call("friendsTick");
+        a.Run(1);
+        Assert.Equal(0, Count(a, "DATA"));
+        a.Lua("liveXp = 98700"); // 47%, the snapshot still says 44%
+        a.Run(300);
+        a.Call("friendsTick");
+        a.Run(1);
+        var chunks = a.Sent().Select(m => m.Get("text").String.Split(':', 6)).Where(p => p[1] == "DATA").ToList();
+        Assert.Single(chunks.Select(p => p[2]).Distinct()); // one message, in chunks
+        var data = string.Concat(chunks.Select(p => p[5]));
+        Assert.Contains("xp=98700", data);
+        Assert.Equal(94113, a.Lua("return WoWCharacterTrackerDB.chars['Player-1-0000000A'].xp").Number); // the saved snapshot is left alone
+    }
+
     [Fact]
     public void The_character_being_played_goes_when_due_and_changed_or_as_a_heartbeat()
     {
@@ -1216,6 +1250,7 @@ public class FriendsLuaTests
         var lines = File.ReadAllLines(Path.Combine(AddonLuaTests.AddonDir, "WoWCharacterTracker.toc")).Where(l => l.EndsWith(".lua")).ToList();
         Assert.Equal(Directory.GetFiles(AddonLuaTests.AddonDir, "*.lua").Select(f => Path.GetFileName(f)).Order(), lines.Order());
         Assert.True(lines.IndexOf("Shared.lua") < lines.IndexOf("FriendData.lua"));
+        Assert.True(lines.IndexOf("Leveling.lua") < lines.IndexOf("FriendData.lua")); // ns.levelPercent
         Assert.True(lines.IndexOf("FriendData.lua") < lines.IndexOf("Comms.lua"));
         Assert.True(lines.IndexOf("Comms.lua") < lines.IndexOf("Friends.lua"));
         Assert.True(lines.IndexOf("Friends.lua") < lines.IndexOf("Options.lua"));
@@ -1253,6 +1288,7 @@ public class FriendsLuaTests
             ns.getTalents = function() return '' end
             ns.activeTraitTree = function() error('none') end
             ns.isHardcore = function() return false end
+            ns.layerStatus = function() return 'Layer not known yet.' end
             ns.lastCommsError = 'boom'
             """);
         c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Commands.lua"))), "WoWCharacterTracker", c.Ns);

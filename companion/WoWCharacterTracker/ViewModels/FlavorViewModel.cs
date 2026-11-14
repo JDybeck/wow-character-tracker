@@ -368,7 +368,9 @@ sealed class FlavorViewModel : Observable
     // Telling the guild and/or group in game chat (In game page; the addon's Announce.lua).
     public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; InGameChanged(); Raise(nameof(Announces)); } }
     public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; InGameChanged(); Raise(nameof(Announces)); } }
-    public bool Announces => AnnounceGuild || AnnounceParty;
+    public bool Announces => (ShowGuildChat && AnnounceGuild) || AnnounceParty;
+    public bool ShowGuildChat => FlavorSettings.GuildChatOn;
+    public int PlaceColumns => ShowGuildChat ? 4 : 3; // the Sharing page's place cards
     // The data grid's corner (four radio buttons) and its label (In game page).
     public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; InGameChanged(); } }
     public bool GridTopLeft { get => Corner == "TOPLEFT"; set { if (value) SetCorner("TOPLEFT"); } }

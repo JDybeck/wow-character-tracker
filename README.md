@@ -23,7 +23,7 @@ Nothing leaves your PC unless you set it up. See [Privacy](#privacy).
 
 **The addon on its own**, nothing else to install:
 
-- **Guild and group lines**: one line in guild or party / raid chat for dings, end boss kills, epic loot, new mounts, wins, profession milestones and hardcore deaths. You pick which.
+- **Group lines**: one line in party / raid chat for dings, end boss kills, epic loot, new mounts, wins, profession milestones and hardcore deaths. You pick which.
 - **A window in game** (`/wct`): the character you're on with its level times and today's numbers, your characters on this account with gear and talents, and your notes.
 - **Sharing with Battle.net friends**: their characters in your window, yours in theirs, and their spot on your map if they allow it.
 
@@ -60,7 +60,7 @@ From then on the app waits in the tray and opens when you start WoW.
 
 **Friends**: Battle.net friends with the addon can share their characters with you, gear and talents included, and you pick what they get of yours (gold and location only if you allow it). Nothing is shared until you say so.
 
-**Sharing**: who hears about your moments. Pick Quiet, Normal or Everything, or choose per moment where it goes: Discord, a screenshot, guild chat, group chat or the stream overlay. Posts come with the item's tooltip as a picture, or your in-game screenshot. Quick switches for each sit on the right edge of the window.
+**Sharing**: who hears about your moments. Pick Quiet, Normal or Everything, or choose per moment where it goes: Discord, a screenshot, group chat or the stream overlay. Posts come with the item's tooltip as a picture, or your in-game screenshot. Quick switches for each sit on the right edge of the window.
 
 In Discord: a level-up with the screenshot the addon took in game, and a character card posted from the app.
 

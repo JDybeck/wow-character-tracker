@@ -76,9 +76,9 @@ function ns.pinLines(f, zone)
   if zone then add(zone, 0.8, 0.8, 0.8) end
   local facts = {}
   if c.ilvl then facts[#facts + 1] = "Item level " .. math.floor(c.ilvl) end
-  if c.xp and (c.xpMax or 0) > 0 and level and not (c.maxLevel and level >= c.maxLevel) then
-    facts[#facts + 1] = string.format("%d%% into level %d", math.floor(100 * c.xp / c.xpMax), level)
-  end
+  local percent = ns.levelPercent(c, level) -- nil when what they shared is from another level
+  if percent then facts[#facts + 1] = string.format("%d%% into level %d", percent, level) end
+  if #facts > 0 and c.at then facts[#facts + 1] = "updated " .. ns.ago(c.at) end
   if #facts > 0 then add(table.concat(facts, "  ·  "), 0.9, 0.9, 0.9) end
   if c.professions and c.professions ~= "" then add(c.professions, 0.9, 0.9, 0.9) end
   -- Orange where you can't meet them, green on your own layer.
