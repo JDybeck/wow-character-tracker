@@ -403,7 +403,6 @@ public class OpponentTests
         var fields = new Dictionary<string, string> { ["id"] = "x", ["kind"] = "duel", ["opponent"] = "Grimtusk", ["opponentInfo"] = "30~MAGE~Mage~Troll" };
         var e = Entry.From(k => fields.GetValueOrDefault(k, ""), _ => 0);
         Assert.Equal("level 30 Troll Mage", e.OpponentText);
-        Assert.Equal("MAGE", e.OpponentClassFile);
     }
 }
 

@@ -49,7 +49,7 @@
                         <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
                         <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding RealmText}" Foreground="{StaticResource Dim}" FontSize="12"/>
                       </DockPanel>
-                      <Border x:Name="TagBox" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
+                      <Border Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
                       </Border>

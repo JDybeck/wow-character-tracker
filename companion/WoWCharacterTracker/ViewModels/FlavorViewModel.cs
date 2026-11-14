@@ -131,7 +131,6 @@ sealed class FlavorViewModel : Observable
     async Task LoadLogoAsync() => Logo = Flavor.LogoUrl.Length > 0 ? await ImageCache.LoadAsync(Flavor.LogoUrl) : null;
     FlavorSettings Settings => main.Config.For(Flavor);
     public Tracker? Tracker => tracker;
-    public string? FolderPath => flavorDir; // the game folder in use
     // The folder in use, or for a game that's turned off the one it had (the Uninstall page lists what's in it).
     public string? KnownFolder => flavorDir ?? (Wow.IsFlavorDir(Settings.Path) ? Settings.Path : null);
 

@@ -201,7 +201,6 @@ sealed class CharacterRow : Observable
     public string PlayedText => Played > 0 ? Format.Played(Played) : "-";
     public string PlayedLine => Played > 0 ? $"{Format.Played(Played)} played" : "";
     public string LastSeenText => Format.Ago(LastSeen) is { Length: > 0 } s ? s : "-";
-    public string ProfessionsText => Professions is { Length: > 0 } and not "None" ? Professions : "None yet";
     public string TalentsText => Talents.Length > 0 ? Talents : "-";
     public string ZoneText => Zone.Length > 0 ? Zone : "-";
     public string ZoneType { get; init; } = "";       // dungeon, raid, pvp, rest, zone (Places)

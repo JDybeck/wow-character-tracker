@@ -23,8 +23,4 @@ static class CharacterPicture
     // The in-game portrait file when that's the one to show, else null.
     public static string? GamePortrait(Flavor flavor, string guid, bool standardChosen) =>
         flavor.HasInGamePortraits && !standardChosen ? CharacterArt.LocalPortrait(guid) : null;
-
-    // What the app shows: the in-game portrait file or the standard picture's address.
-    public static async Task<string?> ShownAsync(Flavor flavor, PictureSubject who, bool standardChosen) =>
-        GamePortrait(flavor, who.Guid, standardChosen) ?? await StandardAsync(flavor, who);
 }
