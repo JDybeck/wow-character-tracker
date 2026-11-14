@@ -8,8 +8,11 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 ### Fixes and tweaks
 
+- Guild chat lines are switched off for now. The game keeps blocking them, even when you click Send, so the guild switches are gone from the app and the addon window until we find a way that works. Your choice is kept for when it's back. Party and raid chat work as before.
 - **/wct guildtest** puts a test line in the ask box and sends it to guild chat when you click Send (**/wct guildtest now** sends it right away), to check what the game lets through.
 - When the game blocks a guild or group chat line, the addon's warning now says so, instead of naming whatever it did just before.
+- Friends on the map now show the right layer. It used to take the number from the realm name, but "Realm 6" is your home realm, not your layer, so friends on the same layer could show as layer 4 and 6. The addon now reads the layer from the NPCs around you, and the tooltip says "Same layer as you" or "On another layer" once both of you have seen a couple of NPCs. `/wct layer` shows what it has read.
+- The addon window's character info shows the realm as "PvP, realm 6" instead of a wrong layer line.
 
 ## v0.40.1
 

@@ -6,6 +6,11 @@
 -- game blocks guild chat sent from a timer, so guild lines go to the ask box and send on a click.
 local ADDON, ns = ...
 
+-- Guild lines are off, and the window hides them, until we know why the game still blocks them
+-- (0.40.2: even from a click). The app has the same switch (FlavorSettings.GuildChatOn).
+-- /wct guildtest still sends one, to look into it.
+ns.GUILD_CHAT_ON = false
+
 -- The item as a clickable link when the game has it, else its name in brackets.
 local function itemLink(id, name)
   local link = id and select(2, ns.itemInfo(id))
@@ -162,7 +167,7 @@ end
 function ns.announce(e)
   local a = ns.setting("announce")
   if not a then return end
-  local guild = a.guild and lineFor(e, a.kinds)
+  local guild = ns.GUILD_CHAT_ON and a.guild and lineFor(e, a.kinds)
   local party = a.party and lineFor(e, a.partyKinds or a.kinds)
   -- Where guild chat only goes out on a click, the ask box offers it instead of the queue.
   if guild and ns.GUILD_CHAT_NEEDS_CLICK then

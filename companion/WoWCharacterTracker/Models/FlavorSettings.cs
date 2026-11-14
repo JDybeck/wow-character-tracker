@@ -140,6 +140,9 @@ class FlavorSettings
     // one list), and Config.Load copies the guild's.
     public bool AnnounceGuild { get; set; }
     public bool AnnounceParty { get; set; }
+    // Guild chat is hidden in the app and off in the addon (Announce.lua GUILD_CHAT_ON) until we know
+    // why the game blocks it. AnnounceGuild is kept, so a player's choice is back when it returns.
+    public static bool GuildChatOn => false;
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
     public List<string>? AnnouncePartyKinds { get; set; }
     public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "mplus", "pvp"];

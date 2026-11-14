@@ -1253,6 +1253,7 @@ public class FriendsLuaTests
             ns.getTalents = function() return '' end
             ns.activeTraitTree = function() error('none') end
             ns.isHardcore = function() return false end
+            ns.layerStatus = function() return 'Layer not known yet.' end
             ns.lastCommsError = 'boom'
             """);
         c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Commands.lua"))), "WoWCharacterTracker", c.Ns);

@@ -29,7 +29,7 @@ local function sendGameData()
 end
 
 -- Map kinds are tiny and FriendMap.lua paces them, so they go in combat too.
-local IN_COMBAT = { WATCH = true, POS = true }
+local IN_COMBAT = { WATCH = true, POS = true, LAYER = true }
 
 -- Not in a boss fight or the game's chat lockdown (Midnight-era clients), and out of combat
 -- unless kind is one of IN_COMBAT.
@@ -100,7 +100,7 @@ local function split(body)
   return parts
 end
 
--- Queues kind (HI, HEY, REQ, DATA, CHARS, HAVE, WANT, NO, PING, PONG, WATCH, POS) with body for one game account. False when
+-- Queues kind (HI, HEY, REQ, DATA, CHARS, HAVE, WANT, NO, PING, PONG, WATCH, POS, LAYER) with body for one game account. False when
 -- it's too long or too much is already waiting.
 function comms.send(account, kind, body)
   body = (body or ""):gsub("|", "")

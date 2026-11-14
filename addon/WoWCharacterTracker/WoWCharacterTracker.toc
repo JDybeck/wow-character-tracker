@@ -1,6 +1,6 @@
 ## Interface: 120105, 16001
 ## Title: WoW Character Tracker
-## Notes: Tells your guild or group about your big moments, and with the free app posts them to Discord and tracks all your characters.
+## Notes: Tells your group about your big moments, and with the free app posts them to Discord and tracks all your characters.
 ## Author: JDybeck
 ## IconTexture: Interface\AddOns\WoWCharacterTracker\Icon
 ## X-License: GPL-3.0
@@ -26,6 +26,7 @@ Announce.lua
 Ask.lua
 Comms.lua
 Friends.lua
+Layer.lua
 FriendMap.lua
 MapPins.lua
 MapPins.xml

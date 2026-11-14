@@ -79,6 +79,7 @@ local function saveDebug()
   add("UnitName: " .. dump(UnitName("player")) .. ", surnames: " .. tostring(ns.HAS_SURNAMES))
   add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
   add("hardcore: " .. dump(ns.isHardcore()))
+  add("layer: " .. ns.layerStatus())
   add("comms error: " .. tostring(ns.lastCommsError)) -- the last friend message our code couldn't handle
   add(string.format("guild/group chat: last %s, waiting %d, locked %s", tostring(ns.lastChatSend),
     ns.pendingAnnouncements and ns.pendingAnnouncements() or 0, tostring(ns.chatLocked())))
@@ -155,6 +156,8 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     guildTest(msg == "guildtest now")
   elseif msg == "debug" then
     saveDebug()
+  elseif msg == "layer" then
+    ns.say(ns.layerStatus())
   elseif msg == "options" or msg == "config" then
     ns.openWindow() -- every option is in the window, which also opens in combat
   elseif msg == "note" then

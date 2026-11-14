@@ -182,11 +182,12 @@ public class AddonWindowTests
         foreach (var tab in new[] { "Sharing", "Friends", "Note", "Settings" })
             Assert.True(Bool(c, $"find('{tab}') ~= nil"), tab);
         Assert.True(Bool(c, "ns.windowShown()"));
-        Assert.True(Bool(c, "find('Guild chat') == nil")); // not built until opened
+        Assert.True(Bool(c, "find('Party / raid chat') == nil")); // not built until opened
 
         c.Call("openWindow", "chat");
         var built = Num(c, "#frames");
-        Assert.True(Bool(c, "find('Guild chat') ~= nil"));
+        Assert.True(Bool(c, "find('Party / raid chat') ~= nil"));
+        Assert.True(Bool(c, "find('Guild chat') == nil")); // guild lines are off for now (Announce.lua GUILD_CHAT_ON)
         c.Call("openWindow", "chat");
         Assert.Equal(built, Num(c, "#frames"));
 
@@ -200,8 +201,8 @@ public class AddonWindowTests
     {
         var c = Load();
         c.Call("openWindow", "chat");
-        c.Lua("click('Guild chat')");
-        Assert.True(Bool(c, "ns.setting('announce').guild"));
+        c.Lua("click('Party / raid chat')");
+        Assert.True(Bool(c, "ns.setting('announce').party"));
 
         c.Call("openWindow", "general");
         c.Lua("click('Keep all history')");
@@ -785,8 +786,8 @@ public class AddonWindowTests
         Assert.True(Bool(c, "next(WoWCharacterTrackerDB.window.hiddenChars) == nil"));
     }
 
-    // On Forever the realm's name is a type and a layer ("Realm 6 PvP"). The ruleset is the game's
-    // rules (Hardcore, Self-found), shown only when it isn't Normal.
+    // On Forever the realm's name is a type and a home realm ("Realm 6 PvP"), not a layer: no Layer
+    // line. The ruleset is the game's rules (Hardcore, Self-found), shown only when it isn't Normal.
     [Theory]
     [InlineData("Normal", null)]
     [InlineData("Hardcore", "Hardcore")]
@@ -796,8 +797,8 @@ public class AddonWindowTests
         c.Lua($"shared[1].chars[1].realm = 'CAMWOW EU5 Realm 6 PvP'; shared[1].chars[1].ruleset = '{ruleset}'; ns.friendsChanged()");
         c.Lua("openFriend('Cidro')");
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "shownText('Realm') ~= nil and shownText('PvP') ~= nil"));
-        Assert.True(Bool(c, "shownText('Layer') ~= nil and shownText('6') ~= nil"));
+        Assert.True(Bool(c, "shownText('Realm') ~= nil and shownText('PvP, realm 6') ~= nil"));
+        Assert.True(Bool(c, "shownText('Layer') == nil"));
         Assert.True(Bool(c, "shownText('Normal') == nil"));
         Assert.Equal(shown != null, Bool(c, "shownText('Ruleset') ~= nil"));
         if (shown != null) Assert.True(Bool(c, $"shownText('{shown}') ~= nil"));

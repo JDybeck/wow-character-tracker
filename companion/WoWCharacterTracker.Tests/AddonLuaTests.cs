@@ -55,6 +55,7 @@ public class AddonLuaTests
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
 
         for (var i = 1; i <= 10; i++) script.Call(ns.Get("announce"), script.DoString($"return {{ kind = 'level', level = {i} }}"));
         script.DoString("runTimers(1200)");
@@ -85,6 +86,7 @@ public class AddonLuaTests
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
         script.Call(ns.Get("announce"), script.DoString("return { kind = 'level', level = 5 }"));
         script.DoString("runTimers(1100)");
         Assert.Equal(["GUILD: Ding! Level 5."], sent);
@@ -104,6 +106,7 @@ public class AddonLuaTests
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
         script.Call(ns.Get("announce"), script.DoString("return { kind = 'level', level = 5 }"));
         script.DoString("runTimers(1100)");
         Assert.Empty(sent);
@@ -141,6 +144,7 @@ public class AddonLuaTests
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
         script.Call(ns.Get("announce"), script.DoString("return " + eventLua));
         script.DoString("runTimers(1100)");
         return sent;
@@ -197,6 +201,7 @@ public class AddonLuaTests
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
         script.Call(ns.Get("announce"), script.DoString("return { kind = 'level', level = 5 }"));
         script.DoString("runTimers(1100)");
         Assert.StartsWith("GUILD: ", ns.Get("lastChatSend").String);
@@ -220,6 +225,7 @@ public class AddonLuaTests
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
         script.Call(ns.Get("announce"), script.DoString("return { kind = 'loot', item = 'X', itemId = 5, quality = 4 }"));
         script.DoString("runTimers(1100)");
         Assert.Equal(["Looted |cnIQ4:|Hitem:5|h[X]|h|r!"], sent);
@@ -582,6 +588,7 @@ public class AddonLuaTests
         ns["say"] = (Action<string>)(_ => { });
         foreach (var file in new[] { "Shared.lua", "Announce.lua", "Ask.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
         ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
         ns["addEvent"] = (Action<Table>)recorded.Add;
         script.Call(ns.Get("offerAsk"), script.DoString("return " + eventLua));
@@ -673,6 +680,7 @@ public class AddonLuaTests
         ns["say"] = (Action<string>)(_ => { });
         foreach (var file in new[] { "Shared.lua", "Announce.lua", "Ask.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = true; // guild lines are off in the addon, their code is still tested
         ns["addEvent"] = (Action<Table>)recorded.Add;
         script.Call(ns.Get("offerAsk"), script.DoString("return " + ABoss));
         return (script, recorded);
@@ -696,6 +704,18 @@ public class AddonLuaTests
     // In combat the box waits, so there's nothing to answer yet.
     [Fact]
     public void The_box_waits_for_combat_to_end() => Assert.Empty(Ask(AskAll, ABoss, post: true, inCombat: true));
+
+    // Guild lines are switched off (Announce.lua GUILD_CHAT_ON) while we find out why the game blocks
+    // them: a guild line on in the settings sends nothing and offers no box, the group line still goes.
+    [Fact]
+    public void Guild_lines_are_off_for_now()
+    {
+        var (script, _, sent, _) = GuildBox(AskAll, "{ kind = 'level', level = 23, at = 6000 }", guildOn: false);
+        script.DoString("runTimers(clock + 3)");
+        Assert.Equal(["PARTY: Ding! Level 23."], sent);
+        Assert.False(script.DoString("return box ~= nil and box.shown == true").Boolean);
+        Assert.Contains("ns.GUILD_CHAT_ON = false", File.ReadAllText(Path.Combine(AddonDir, "Announce.lua")), StringComparison.Ordinal);
+    }
 
     // Forever blocks guild chat sent from a timer: with GUILD_CHAT_NEEDS_CLICK the guild line waits in
     // the ask box and goes out on Send, while the group line still goes out by itself.
@@ -755,7 +775,7 @@ public class AddonLuaTests
 
     // A moment recorded as the game does it (LiveGrid.lua: announce, then offerAsk) with guild and
     // group chat on, in a guild and a group, where guild chat needs a click.
-    static (Script Script, Table Ns, List<string> Sent, List<Table> Recorded) GuildBox(string settings, string eventLua)
+    static (Script Script, Table Ns, List<string> Sent, List<Table> Recorded) GuildBox(string settings, string eventLua, bool guildOn = true)
     {
         var sent = new List<string>();
         var script = new Script();
@@ -790,6 +810,7 @@ public class AddonLuaTests
         ns["say"] = (Action<string>)(_ => { });
         foreach (var file in new[] { "Shared.lua", "Announce.lua", "Ask.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        ns["GUILD_CHAT_ON"] = guildOn;
         ns["GUILD_CHAT_NEEDS_CLICK"] = true;
         ns["characterInfo"] = (Func<Table>)(() => script.DoString("return { guid = 'Player-1', level = 50 }").Table);
         ns["addEvent"] = (Action<Table>)recorded.Add;
@@ -1374,7 +1395,7 @@ public class AddonLuaTests
         Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
         try
         {
-            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings { AnnounceGuild = true, PostBosses = true });
+            WoWCharacterTracker.Services.AddonInstaller.WriteSettings(dir, new FlavorSettings { AnnounceParty = true, PostBosses = true });
             var script = new Script();
             script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
             script.DoString("""
@@ -1414,7 +1435,7 @@ public class AddonLuaTests
             Assert.Contains("boss kills", script.DoString("return texts[#texts]").String);
             var before = (int)script.DoString("return #frames").Number;
             script.Call(ns.Get("openWindow"), "chat"); // now the Sharing tab
-            // Guild chat is on in Settings.lua, and it's the only box on the tab that is.
+            // Group chat is on in Settings.lua, and it's the only box on the tab that is.
             Assert.Equal(1, script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
         }
         finally { Directory.Delete(dir, recursive: true); }

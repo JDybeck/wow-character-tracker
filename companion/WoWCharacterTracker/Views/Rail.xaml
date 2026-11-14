@@ -117,7 +117,7 @@
           </ToggleButton.Style>
           <StackPanel><TextBlock Style="{StaticResource Glyph}" Text="&#xE8BD;"/><TextBlock Style="{StaticResource Name}" Text="Discord"/></StackPanel>
         </ToggleButton>
-        <ToggleButton IsChecked="{Binding AnnounceGuild}" AutomationProperties.Name="Guild chat"
+        <ToggleButton IsChecked="{Binding AnnounceGuild}" AutomationProperties.Name="Guild chat" Visibility="{Binding ShowGuildChat, Converter={StaticResource Visible}}"
                       ToolTip="Guild chat: a line as you when something happens. Reaches the game on /reload.">
           <ToggleButton.Style>
             <Style TargetType="ToggleButton" BasedOn="{StaticResource RailButton}">
