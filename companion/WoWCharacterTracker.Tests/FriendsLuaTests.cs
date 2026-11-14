@@ -1675,7 +1675,7 @@ public class FriendsLuaTests
         a.Run(86400);
         Assert.True(a.Lua("return (ns.inviteFriend('Zeb#2222'))").Boolean);
         Assert.Equal(2, Whispers(a));
-        Assert.Empty(a.Sent().Where(m => !m.Get("text").String.Contains(":PING:"))); // nothing else went out
+        Assert.DoesNotContain(a.Sent(), m => !m.Get("text").String.Contains(":PING:")); // nothing else went out
     }
 
     [Fact]
