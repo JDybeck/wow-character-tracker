@@ -735,6 +735,24 @@ public class AddonLuaTests
         Assert.Equal(["PARTY: Ding! Level 23."], sent);
     }
 
+    // /wct guildtest offers a test line in the ask box and sends it on Send; "now" sends it straight away.
+    [Fact]
+    public void The_guild_test_goes_through_the_box_or_straight_out()
+    {
+        var (script, ns, sent, _) = GuildBox("{}", "{ kind = 'mount', mount = 'X', at = 6000 }"); // no line of its own
+        script.DoString("SlashCmdList = {}; function strtrim(s) return (s:gsub('^%s+', ''):gsub('%s+$', '')) end");
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Commands.lua"))), "WoWCharacterTracker", ns);
+
+        script.DoString("SlashCmdList.CHARACTERTRACKER('guildtest')");
+        Assert.Empty(sent);
+        Assert.Equal("Tell your guild?", script.DoString("return box.title.text").String);
+        script.Call(ns.Get("answerAsk"), false, true);
+        Assert.Equal(["GUILD: Character Tracker guild chat test, please ignore."], sent);
+
+        script.DoString("SlashCmdList.CHARACTERTRACKER('guildtest now')");
+        Assert.Equal(2, sent.Count);
+    }
+
     // A moment recorded as the game does it (LiveGrid.lua: announce, then offerAsk) with guild and
     // group chat on, in a guild and a group, where guild chat needs a click.
     static (Script Script, Table Ns, List<string> Sent, List<Table> Recorded) GuildBox(string settings, string eventLua)

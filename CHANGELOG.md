@@ -2,6 +2,15 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.40.2
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- **/wct guildtest** puts a test line in the ask box and sends it to guild chat when you click Send (**/wct guildtest now** sends it right away), to check what the game lets through.
+- When the game blocks a guild or group chat line, the addon's warning now says so, instead of naming whatever it did just before.
+
 ## v0.40.1
 
 Update the addon with the app (it does this by itself) and /reload in game.

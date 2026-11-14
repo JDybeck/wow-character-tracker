@@ -80,6 +80,7 @@ end
 
 -- What happened to the last line, for /wct debug: the game refusing a send is otherwise silent.
 local function sendTo(say, msg, channel)
+  if ns.doing then ns.doing("chat " .. channel) end -- so a blocked report names the send
   local ok, err = pcall(say, msg, channel)
   return string.format("%s: %s", channel, ok and "sent" or tostring(err))
 end
