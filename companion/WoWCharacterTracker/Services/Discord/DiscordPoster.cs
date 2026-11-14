@@ -21,10 +21,12 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         var picture = await CharacterPicture.StandardAsync(flavor, SubjectOf(e));
         // A made-up test character says so in the name and under the post, so nobody takes it for real.
         var testChar = TestCharacters.IsTest(e.Guid);
+        // "EU · PvP" instead of Forever's "CAMWOW EU4 Realm 4 PvP".
+        var realm = e.Realm.Length > 0 ? Format.Realm(e.Region, e.Realm) : "";
         e = e with
         {
             Char = Marked(Format.Name(e.Char, e.Surname, nameStyle), testChar),
-            Realm = testChar ? $"Test character, not a real one ({e.Realm})" : e.Realm,
+            Realm = testChar ? $"Test character, not a real one ({realm})" : realm,
         };
         var item = EventEmbeds.WowheadThing(e) is { } thing ? await ItemTooltipImage.RenderAsync(thing.Id, flavor, thing.Type) : null;
         var embed = embeds.Build(e, isTest, itemPicture: item is not null);

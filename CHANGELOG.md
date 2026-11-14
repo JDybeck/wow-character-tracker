@@ -2,6 +2,12 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.41.1
+
+### Fixes and tweaks
+
+- Discord posts now say the region and realm type under the post, like "EU · PvP", instead of Forever's full realm name ("CAMWOW EU4 Realm 4 PvP").
+
 ## v0.41.0
 
 Update the addon with the app (it does this by itself) and /reload in game.
