@@ -1,0 +1,20 @@
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{xml,xaml,csproj,props,json,yml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Only rules the code already follows everywhere, as build errors (EnforceCodeStyleInBuild in
+# companion/Directory.Build.props). Add a rule here once the code is clean for it.
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+dotnet_diagnostic.IDE0161.severity = warning

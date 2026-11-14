@@ -81,7 +81,7 @@ public class FilesAndProcessesTests
 
     // Data that isn't a whole picture (an error page, a cut-off download) gives no picture, never an error.
     [Fact]
-    public void ImageCache_gives_null_for_broken_pictures()
+    public async Task ImageCache_gives_null_for_broken_pictures()
     {
         var dir = Directory.CreateTempSubdirectory("wct-images-");
         try
@@ -98,9 +98,9 @@ public class FilesAndProcessesTests
             File.WriteAllBytes(cut, ms.ToArray()[..(int)(ms.Length / 2)]);
             File.WriteAllText(html, "<html>Just a moment...</html>");
 
-            Assert.NotNull(WoWCharacterTracker.Ui.ImageCache.LoadAsync(whole).GetAwaiter().GetResult());
-            Assert.Null(WoWCharacterTracker.Ui.ImageCache.LoadAsync(cut).GetAwaiter().GetResult());
-            Assert.Null(WoWCharacterTracker.Ui.ImageCache.LoadAsync(html).GetAwaiter().GetResult());
+            Assert.NotNull(await WoWCharacterTracker.Ui.ImageCache.LoadAsync(whole));
+            Assert.Null(await WoWCharacterTracker.Ui.ImageCache.LoadAsync(cut));
+            Assert.Null(await WoWCharacterTracker.Ui.ImageCache.LoadAsync(html));
         }
         finally { dir.Delete(recursive: true); }
     }

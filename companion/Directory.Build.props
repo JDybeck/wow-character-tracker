@@ -1,0 +1,10 @@
+<Project>
+
+  <!-- Applies to the app and the tests. Warnings fail the build, and the .editorconfig style rules
+       (repo root) are checked at build time, so verify.cmd catches them instead of a reviewer. -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+</Project>

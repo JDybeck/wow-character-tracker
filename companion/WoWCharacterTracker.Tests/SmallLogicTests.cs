@@ -285,6 +285,7 @@ public class RatingTests
         Assert.Equal(1234, read.At);
         Assert.True(read.AnnounceGuild);
         Assert.False(read.AnnounceParty);
+        Assert.NotNull(read.AnnounceKinds);
         Assert.Equal(["boss", "level"], read.AnnounceKinds.Order());
         Assert.Equal(["death"], read.AnnouncePartyKinds);
         Assert.Equal(["rare"], read.AskKinds);
