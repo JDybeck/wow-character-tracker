@@ -11,7 +11,7 @@ sealed class CharacterLeveling
     public bool HasStats { get; init; }
     public string EstimateText { get; init; } = "";
     public bool HasEstimate => EstimateText.Length > 0;
-    public IReadOnlyList<LevelBar> Bars { get; init; } = [];
+    public IReadOnlyList<LevelBar> Bars { get; private set; } = [];
     public IReadOnlyList<string> Progress { get; init; } = [];
     public bool HasProgress => Progress.Count > 0;
     public string DuelText { get; init; } = "";
@@ -22,9 +22,7 @@ sealed class CharacterLeveling
     public static CharacterLeveling From(IReadOnlyList<Entry> all, int level, Snapshot? xp, IReadOnlyDictionary<int, long> xpTable, bool estimate,
         long thisLevel = 0)
     {
-        var timed = all.Where(e => e.Kind == "level" && e.Seconds > 0)
-            .GroupBy(e => e.Level).Select(g => new LevelStats.Level(g.Key, g.Last().Seconds))
-            .OrderBy(l => l.Number).ToList();
+        var timed = LevelStats.Timed(all);
         var summary = LevelStats.Summarize(timed);
 
         var shown = timed.TakeLast(thisLevel > 0 ? 39 : 40).ToList();
@@ -51,6 +49,23 @@ sealed class CharacterLeveling
             Progress = ProgressLines(all),
             DuelText = Duels(all),
         };
+    }
+
+    const int MaxOthers = 8;
+
+    // Each finished level's tooltip also lists the other characters' times on it (yours and friends'),
+    // fastest first. Before the rows are shown: the bars aren't watched for changes.
+    public void AddOthers(string guid, IReadOnlyDictionary<int, List<LevelRace.Time>> board)
+    {
+        Bars = [.. Bars.Select(bar =>
+        {
+            if (bar.Current || !board.TryGetValue(bar.Level, out var times)) return bar;
+            var others = times.Where(t => t.Guid != guid).ToList();
+            if (others.Count == 0) return bar;
+            var lines = others.Take(MaxOthers).Select(t => $"{t.Name}: {Format.Duration(t.Seconds)}");
+            if (others.Count > MaxOthers) lines = lines.Append($"and {others.Count - MaxOthers} more");
+            return bar with { Tooltip = bar.Tooltip + "\n" + string.Join("\n", lines) };
+        })];
     }
 
     // "Item level 24 to 38 (levels 30 to 40)" and "Mining 75 to 210", from what each event recorded.

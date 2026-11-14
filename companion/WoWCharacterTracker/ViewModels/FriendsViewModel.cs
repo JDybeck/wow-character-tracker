@@ -72,6 +72,7 @@ sealed class FriendsViewModel : Observable
                 row.FriendSynced = contact.Seen;
                 rows.Add(row);
             }
+        AddRaces(rows, data);
         allRows = rows;
         ShowRows();
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
@@ -79,6 +80,27 @@ sealed class FriendsViewModel : Observable
         BuildContactRows();
         BuildOwnCharacters();
         RaiseSharing();
+    }
+
+    // Each friend's character against the one of yours it shares the most levels with.
+    static void AddRaces(List<CharacterRow> rows, TrackerData data)
+    {
+        var mine = data.Events.Where(e => e.Kind == "level").GroupBy(e => e.Guid)
+            .Select(g => (Guid: g.Key, Timed: (IReadOnlyList<LevelStats.Level>)LevelStats.Timed(g), Last: g.MaxBy(e => e.At)!))
+            .Where(c => c.Timed.Count > 0)
+            .ToDictionary(c => c.Guid);
+        if (mine.Count == 0) return;
+        var candidates = mine.Values.Select(c => (c.Guid, c.Timed, LastSeen: c.Last.At)).ToList();
+        foreach (var row in rows)
+        {
+            var theirs = LevelStats.Timed(row.Events);
+            if (theirs.Count == 0 || LevelRace.PickRival(theirs, candidates) is not { } guid) continue;
+            var rival = mine[guid];
+            var snapshot = data.Characters.Where(c => c.Guid == guid).MaxBy(c => c.LastSeen);
+            var name = snapshot?.Char is { Length: > 0 } n ? n : rival.Last.Char;
+            var level = Math.Max(snapshot?.Level ?? 0, rival.Last.Level);
+            row.Rival = LevelRaceRow.From(LevelRace.Compare(rival.Timed, theirs), row.Name, name, level);
+        }
     }
 
     void ShowRows()

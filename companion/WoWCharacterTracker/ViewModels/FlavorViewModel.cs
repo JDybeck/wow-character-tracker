@@ -803,6 +803,14 @@ sealed class FlavorViewModel : Observable
     ICommand? sortCommand;
 
     // Home: rebuilt with the character list, and when the game starts or stops (playing now or not).
+    // Every level time of your characters and the shown friends', so each chart bar can list the others.
+    static void AddLevelBoard(IReadOnlyList<CharacterRow> rows)
+    {
+        var board = LevelRace.Board(rows.Select(r => (r.Guid, r.IsFriend ? $"{r.Name} ({r.FriendName})" : r.Name,
+            (IReadOnlyList<LevelStats.Level>)LevelStats.Timed(r.Events))));
+        foreach (var r in rows) r.Leveling.AddOthers(r.Guid, board);
+    }
+
     public HomeViewModel Home { get; }
     IReadOnlyList<Entry> homeEvents = [];
     IReadOnlyList<DayTotals> homeDays = [];
@@ -879,6 +887,7 @@ sealed class FlavorViewModel : Observable
         Items.Show(rows);
         Professions.Show(rows);
         Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
+        AddLevelBoard([.. rows, .. Friends.Shown]);
         homeEvents = data.Events;
         homeDays = data.Today;
         RefreshHome(); // after Friends: Home lists the friends seen lately
