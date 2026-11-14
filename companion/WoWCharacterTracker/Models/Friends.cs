@@ -4,7 +4,10 @@ namespace WoWCharacterTracker.Models;
 // characters as snapshots, gear and highlights (events), so the app shows them with the same rows as
 // yours. Protocol is set when their addon speaks another one (one of you needs to update).
 record FriendContact(string Tag, long Seen, string Version, int Protocol, bool Refused, List<Snapshot> Characters, List<Inventory> Inventories,
-    List<Entry> Events);
+    List<Entry> Events)
+{
+    public List<DayTotals> Days { get; init; } = []; // their characters' last days (quests, gathering, item level), for the Stats page
+}
 
 // What all friends get, unless set for one of them. Gold and map position stay off until turned on.
 // OtherFaction isn't data: on lets a friend playing the other faction see your map position.

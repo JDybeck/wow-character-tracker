@@ -10,6 +10,7 @@ public class FriendsLuaTests
 {
     internal const string Stubs = """
         function time() return math.floor(clock) end
+        date = os.date
         function strtrim(s) return (s:gsub('^%s+', ''):gsub('%s+$', '')) end
         inCombat, lockdown, groupGuids, sendResult = false, false, {}, 0
         function InCombatLockdown() return inCombat end
@@ -510,6 +511,26 @@ public class FriendsLuaTests
 
         b.Call("friendsCommand", "chat off");
         Assert.False(b.Lua("return ns.friendChatOn()").Boolean);
+    }
+
+    // Three boss kills under twelve newer epics: the highlights only hold the epics, the day counts all of it.
+    [Fact]
+    public void Day_counts_reach_a_friend_past_the_newest_highlights()
+    {
+        var events = string.Join(",\n", Enumerable.Range(1, 3).Select(i => $"{{ kind = 'boss', guid = 'Player-1-0000000A', at = {100 + i}, level = 42, boss = 'Onyxia' }}")
+            .Concat(Enumerable.Range(1, 12).Select(i => $"{{ kind = 'loot', guid = 'Player-1-0000000A', at = {200 + i}, level = 42, item = 'Epic', itemId = 1, quality = 4 }}")));
+        var a = new Client(A, AFriends, ADb(AShares).Replace("items = {", $$"""
+            events = { {{events}} },
+            items = {
+            """));
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+
+        Assert.DoesNotContain("boss~", Str(b, GotDeadbeck + ".highlights")); // pushed out by the epics
+        var day = Assert.Single(Assert.Single(WoWCharacterTracker.Services.FriendData.ReadFriends(b.Lua("return WoWCharacterTrackerDB.friends"))).Days);
+        Assert.Equal((3, 12), (day.Bosses, day.Epics));
     }
 
     [Fact]

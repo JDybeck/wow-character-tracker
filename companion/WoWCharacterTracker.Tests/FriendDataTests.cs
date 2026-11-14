@@ -97,6 +97,48 @@ public class FriendDataTests
         Assert.Equal((9000L, 300L, 7600L, 60), (s.Played, s.Xp, s.XpMax, s.MaxLevel));
     }
 
+    // The Stats page's days (quests, gathering, item level, gold) go out with Level times on, gold only
+    // with gold, the newest 7, and don't count as a change on their own.
+    [Fact]
+    public void Days_from_the_addon_reach_the_app_and_gold_only_with_gold()
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua", "FriendData.lua"]);
+        c.Lua("""
+            char = { char = 'Zeb', lastSeen = 20, level = 12 }
+            days = {}
+            for d = 1, 9 do days[#days + 1] = { day = string.format('2026-11-%02d', d), quests = d, herbs = 2, ilvlStart = 30, ilvl = 31.37, moneyStart = 100, money = 900 } end
+            days[#days + 1] = { day = 'yesterday', quests = 50 }
+            counts = { ['2026-11-09'] = { bosses = 12, epics = 3 }, ['2026-11-10'] = { bosses = 1 } } -- the 10th: counts only
+            withGold, key = ns.encodeFriendChar('Player-1-0000000B', char, nil, { leveling = true, gold = true, highlights = true }, nil, nil, days, counts)
+            days[9].quests = 99
+            _, laterKey = ns.encodeFriendChar('Player-1-0000000B', char, nil, { leveling = true, gold = true, highlights = true }, nil, nil, days, counts)
+            noGold = ns.encodeFriendChar('Player-1-0000000B', char, nil, { leveling = true }, nil, nil, days, counts)
+            off = ns.encodeFriendChar('Player-1-0000000B', char, nil, {}, nil, nil, days)
+            friends = { ['Zeb#2222'] = { chars = { ['Player-1-0000000B'] = ns.decodeFriendChar(withGold) } } }
+            back = ns.friendDays(friends['Zeb#2222'].chars['Player-1-0000000B'])
+            """);
+        Assert.DoesNotContain("days=", c.Lua("return off").String);
+        Assert.Equal(c.Lua("return key").String, c.Lua("return laterKey").String); // more quests alone don't resend
+        Assert.Equal(7, c.Lua("return #back").Number);
+        Assert.Equal("2026-11-10", c.Lua("return back[1].day").String); // a day with only counts gets a line
+        Assert.True(c.Lua("return ns.friendDays(ns.decodeFriendChar(noGold))[2].money").IsNil());
+        Assert.True(c.Lua("return ns.friendDays(ns.decodeFriendChar(noGold))[2].bosses").IsNil()); // no highlights, no counts
+
+        var days = Assert.Single(FriendData.ReadFriends(c.Lua("return friends"))).Days;
+        Assert.Equal(7, days.Count);
+        Assert.Equal(("2026-11-10", 1, 0), (days[0].Day, days[0].Bosses, days[0].Quests));
+        var ninth = days[1];
+        Assert.Equal(("Player-1-0000000B", "2026-11-09", 9, 2), (ninth.Guid, ninth.Day, ninth.Quests, ninth.Herbs));
+        Assert.Equal((30.0, 31.4, 100L, 900L), (ninth.IlvlStart, ninth.Ilvl, ninth.MoneyStart, ninth.Money)); // item level to one decimal
+        Assert.Equal((true, 12, 3, 0), (ninth.HasMoments, ninth.Bosses, ninth.Epics, ninth.Mounts));
+        Assert.Equal((true, 0), (days[2].HasMoments, days[2].Bosses)); // a day without moments: 0, still sent
+
+        // The moment kinds are the ones the Stats page counts.
+        Assert.Equal("bosses", c.Lua("return ns.dayCountKey({ kind = 'keyrun' })").String);
+        Assert.True(c.Lua("return ns.dayCountKey({ kind = 'loot', quality = 3 })").IsNil());
+        Assert.True(c.Lua("return ns.dayCountKey({ kind = 'duel', lost = true })").IsNil());
+    }
+
     [Fact]
     public void Bad_level_lines_are_dropped()
     {

@@ -51,6 +51,10 @@
                   Command="{Binding ShowPageCommand}" CommandParameter="friends">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE716;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Friends"/></StackPanel>
           </Button>
+          <Button x:Name="StatsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=stats}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="stats">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE9D2;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Stats"/></StackPanel>
+          </Button>
           <Button x:Name="SharingTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=sharing}"
                   Command="{Binding ShowPageCommand}" CommandParameter="sharing">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Sharing"/></StackPanel>
@@ -110,6 +114,7 @@
               <views:ProfessionsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}"/>
               <views:FollowedItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="5" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=followed}"/>
               <views:FriendsPage/>
+              <views:StatsPage/>
             </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

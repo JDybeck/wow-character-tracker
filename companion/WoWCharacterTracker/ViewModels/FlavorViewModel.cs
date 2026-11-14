@@ -769,6 +769,8 @@ sealed class FlavorViewModel : Observable
     public FollowedItemsViewModel FollowedItems { get; }
     // The Friends page: what Battle.net friends shared, apart from your own characters.
     public FriendsViewModel Friends { get; }
+    // The Stats page: this week's leaderboards, you against your friends.
+    public StatsViewModel Stats { get; } = new();
     // The Professions page: your characters' professions by server and faction.
     public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions yet. They show up once a character with one has been played with the addon." };
     public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
@@ -841,6 +843,7 @@ sealed class FlavorViewModel : Observable
                 Nicknames = data.Nicknames,
                 FriendOrder = data.FriendOrder,
                 Today = data.Today,
+                Days = data.Days,
             };
         }
         main.TakeGameNotes(data.Notes); // notes edited in game, newer than the app's
@@ -888,6 +891,7 @@ sealed class FlavorViewModel : Observable
         Professions.Show(rows);
         Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
         AddLevelBoard([.. rows, .. Friends.Shown]);
+        Stats.Show(rows, data.Events, [.. data.Today, .. data.Days], Friends.Shown, lastData.Friends);
         homeEvents = data.Events;
         homeDays = data.Today;
         RefreshHome(); // after Friends: Home lists the friends seen lately

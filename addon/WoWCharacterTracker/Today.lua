@@ -7,6 +7,21 @@ local ADDON, ns = ...
 
 local function dayKey() return date("%Y-%m-%d") end
 
+-- Finished days stay in WoWCharacterTrackerDB.days[guid][day] (the newest KEEP_DAYS), for the app's
+-- Stats page and friends (ns.recentDays).
+local KEEP_DAYS = 8
+local function archive(db, guid, t)
+  if type(t) ~= "table" or type(t.day) ~= "string" then return end
+  db.days = db.days or {}
+  local list = db.days[guid] or {}
+  list[t.day] = t
+  local keys = {}
+  for day in pairs(list) do keys[#keys + 1] = day end
+  table.sort(keys)
+  for i = 1, #keys - KEEP_DAYS do list[keys[i]] = nil end
+  db.days[guid] = list
+end
+
 -- This character's day, a fresh one after midnight (nil before the saved data has loaded).
 local function todayFor(guid)
   local db = WoWCharacterTrackerDB
@@ -15,15 +30,45 @@ local function todayFor(guid)
   local t = db.today[guid]
   local day = dayKey()
   if not t or t.day ~= day then
+    archive(db, guid, t)
     t = { day = day }
     db.today[guid] = t
   end
   return t
 end
 
+-- A character's days, today's and the finished ones, any order.
+function ns.recentDays(guid)
+  local db = WoWCharacterTrackerDB or {}
+  local out = {}
+  for day, t in pairs(db.days and db.days[guid] or {}) do
+    if type(t) == "table" then out[#out + 1] = setmetatable({ day = day }, { __index = t }) end
+  end
+  local t = db.today and db.today[guid]
+  if type(t) == "table" and t.day then out[#out + 1] = t end
+  return out
+end
+
 function ns.todayCount(key)
   local t = todayFor(UnitGUID("player"))
   if t then t[key] = (t[key] or 0) + 1 end
+end
+
+-- A quest turned in, unless the game calls it repeatable, daily or weekly (those would only count
+-- the same quest again). Which quests were done isn't kept.
+local function repeatable(questID)
+  local function says(fn, ...)
+    if type(fn) ~= "function" then return false end
+    local ok, yes = pcall(fn, ...)
+    return ok and ns.plain(yes) == true
+  end
+  return says(C_QuestLog and C_QuestLog.IsRepeatableQuest, questID) or says(QuestIsDaily) or says(QuestIsWeekly)
+end
+
+function ns.onQuestTurnedIn(questID)
+  questID = ns.plain(questID)
+  if type(questID) == "number" and repeatable(questID) then return end
+  ns.todayCount("quests")
 end
 
 -- Item level and gold now (from the saved snapshot, so values the game can't give right now are

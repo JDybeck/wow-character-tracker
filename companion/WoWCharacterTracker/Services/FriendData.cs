@@ -16,8 +16,9 @@ static partial class FriendData
     {
         ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["ruleset"] = 24, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16, ["sex"] = 6,
         ["faction"] = 10, ["spec"] = 32, ["talents"] = 1024, ["talentCalc"] = 256, ["gear"] = 512, ["enchants"] = 2048, ["zone"] = 64, ["professions"] = 256,
-        ["highlights"] = 1024, ["levels"] = 1600, ["recipes"] = 3000,
+        ["highlights"] = 1024, ["levels"] = 1600, ["recipes"] = 3000, ["days"] = 900,
     };
+    const int MaxDays = 7; // the addon's ns.SHARED_DAYS
     const int MaxLevels = 80;
 
     // A highlight line is "kind~at~level" and then these, in the addon's order (FriendData.lua HIGHLIGHT_FIELDS).
@@ -49,7 +50,7 @@ static partial class FriendData
             var chars = ReadCharacters(t.Get("chars"));
             list.Add(new FriendContact(p.Key.String, (long)Number(t.Get("seen")), version, (int)Number(t.Get("protocol")),
                 Number(t.Get("refused")) > 0, [.. chars.Select(c => c.Snapshot)], [.. chars.Select(c => c.Inventory).OfType<Inventory>()],
-                [.. chars.SelectMany(c => c.Highlights)]));
+                [.. chars.SelectMany(c => c.Highlights)]) { Days = [.. chars.SelectMany(c => c.Days)] });
         }
         return list;
     }
@@ -58,15 +59,15 @@ static partial class FriendData
     public static List<FriendContact> Merge(IEnumerable<List<FriendContact>> perAccount) =>
         [.. perAccount.SelectMany(f => f).GroupBy(f => f.Tag).Select(g => g.MaxBy(f => f.Seen)!)];
 
-    static List<(Snapshot Snapshot, Inventory? Inventory, List<Entry> Highlights)> ReadCharacters(DynValue chars)
+    static List<(Snapshot Snapshot, Inventory? Inventory, List<Entry> Highlights, List<DayTotals> Days)> ReadCharacters(DynValue chars)
     {
-        var list = new List<(Snapshot, Inventory?, List<Entry>)>();
+        var list = new List<(Snapshot, Inventory?, List<Entry>, List<DayTotals>)>();
         if (chars.Type != DataType.Table) return list;
         foreach (var p in chars.Table.Pairs)
         {
             if (p.Value.Type != DataType.Table) continue;
             var t = p.Value.Table;
-            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights" or "levels" or "recipes");
+            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights" or "levels" or "recipes" or "days");
             double N(string key) => Number(t.Get(key));
             var guid = t.Get("guid").Type == DataType.String ? t.Get("guid").String : "";
             var name = S("char");
@@ -77,7 +78,7 @@ static partial class FriendData
                 Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200), LevelTime: Whole(N("levelTime")), Recipes: S("recipes")) { Surname = S("surname") };
             // No gear shared: no inventory, so the gear tab says it isn't shared.
             var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;
-            list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights")), .. ReadLevels(snapshot, S("levels"))]));
+            list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights")), .. ReadLevels(snapshot, S("levels"))], [.. ReadDays(guid, S("days"))]));
         }
         // At most MaxCharacters: the ones seen longest ago go.
         return [.. list.OrderByDescending(c => c.Item1.LastSeen).Take(MaxCharacters)];
@@ -121,6 +122,30 @@ static partial class FriendData
             yield return Entry.From(k => values.GetValueOrDefault(k, ""), k => numbers.GetValueOrDefault(k));
         }
     }
+
+    // The character's last days, "day~quests~herbs~ore~skins~fish~ilvlStart~ilvl~moneyStart~money~bosses~epics~mounts~duels~bgs~deaths"
+    // per line (FriendData.lua encodeDays). Bad lines and days twice are dropped; empty parts read as 0,
+    // empty moment counts (highlights not shared) as not sent.
+    static IEnumerable<DayTotals> ReadDays(string guid, string text)
+    {
+        var seen = new HashSet<string>();
+        foreach (var line in text.Split('\n').Take(MaxDays))
+        {
+            var p = line.Split('~');
+            if (p.Length != 16 || !DayText().IsMatch(p[0]) || !seen.Add(p[0])) continue;
+            long W(int i) => long.TryParse(p[i], NumberStyles.None, CultureInfo.InvariantCulture, out var n) && n < 1_000_000_000_000 ? n : 0;
+            double L(int i) => double.TryParse(p[i], NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var n) && n is >= 0 and < 2000 ? n : 0;
+            int C(int i) => (int)Math.Min(W(i), 100_000);
+            yield return new DayTotals(guid, p[0], L(6), L(7), W(8), W(9), C(1), C(2), C(3), C(4), C(5))
+            {
+                HasMoments = p[10].Length > 0,
+                Bosses = C(10), Epics = C(11), Mounts = C(12), Duels = C(13), Battlegrounds = C(14), Deaths = C(15),
+            };
+        }
+    }
+
+    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}$")]
+    private static partial Regex DayText();
 
     // A count from a friend: whole, not negative, and not absurdly large.
     static long Whole(double n) => n is >= 0 and < 1_000_000_000_000 ? (long)n : 0;

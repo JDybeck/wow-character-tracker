@@ -10,6 +10,8 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 - **Race your friends.** A friend's Leveling tab shows how their character's level times stack up against yours: who got to the same level in less played time, and who was faster on more levels. It picks the character of yours that has the most levels in common with theirs.
 - Hover a bar in any Leveling chart to see everyone else's time on that level too, fastest first: your other characters and your friends'.
+- **Stats page.** This week's leaderboards, you against every friend who shares with you: most level-ups, time spent leveling, fastest level, quests, item level gained, boss kills, epics, mounts, herbs, veins, skins, fish, gold earned, duels and battlegrounds won, and deaths. Each board shows the top three and your own place, **Show all** lists everyone. On top, the **MVP of the week** podium: a board won is 3 points, second 2, third 1.
+- Quests now only count when they're new: repeatable, daily and weekly quests are left out. The addon also keeps each character's last days of quests, gathering, item level and gold, so the boards cover the whole week. Friends need this version for their quests, gathering, item level and gold to show up, and for their full week of boss kills, epics, mounts and other moments (older addons only share the newest 10 moments per character).
 - **Friends' moments in chat.** When a friend's level-up, boss kill, epic loot, new mount or other moment reaches you, the addon says it in your chat, like "Kitty Pryde (Rasmus): Ding! Level 40. 39 to 40 took 3h 2m." Only what's new and from the last hour, at most three lines at a time. `/wct friends chat off` turns it off.
 
 ## v0.40.2

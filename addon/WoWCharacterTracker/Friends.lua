@@ -220,16 +220,25 @@ local function version() return ns.addonVersion() end
 -- The newest highlights per character (ns.FRIEND_HIGHLIGHTS of them), kept up to date like
 -- ns.hasEvent's ids: events are appended, so only new ones are read; another or shorter list
 -- (trimmed, cleaned up) is read again.
--- Level times per character come along the same way ([guid][level] = { level, seconds, at }).
-local recentHighlights, recentLevels, highlightsList, highlightsCounted = {}, {}, nil, 0
+-- Level times per character come along the same way ([guid][level] = { level, seconds, at }), and
+-- the moments counted per day for the Stats page ([guid][day][key] = n, ns.dayCountKey).
+local recentHighlights, recentLevels, dayCounts, highlightsList, highlightsCounted = {}, {}, {}, nil, 0
 local function readEvents()
   local events = WoWCharacterTrackerDB.events or {}
   if events ~= highlightsList or #events < highlightsCounted then
-    recentHighlights, recentLevels, highlightsList, highlightsCounted = {}, {}, events, 0
+    recentHighlights, recentLevels, dayCounts, highlightsList, highlightsCounted = {}, {}, {}, events, 0
   end
   for i = highlightsCounted + 1, #events do
     local e = events[i]
     if ns.isFriendHighlight(e) and e.guid and not ns.inIncognito(e.at, true) then -- incognito with friends paused: never shared
+      local key = ns.dayCountKey(e)
+      if key then
+        local days = dayCounts[e.guid] or {}
+        local day = date("%Y-%m-%d", e.at)
+        days[day] = days[day] or {}
+        days[day][key] = (days[day][key] or 0) + 1
+        dayCounts[e.guid] = days
+      end
       local list = recentHighlights[e.guid] or {}
       list[#list + 1] = e
       table.sort(list, function(x, y) return x.at > y.at end)
@@ -267,7 +276,7 @@ local function charText(guid, contact)
   char = withLiveXp(guid, char)
   readEvents()
   return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact),
-    recentHighlights[guid], levelsOf(guid))
+    recentHighlights[guid], levelsOf(guid), ns.recentDays and ns.recentDays(guid), dayCounts[guid])
 end
 
 -- The character being played, to one contact: when due (GROUP_EVERY or ONLINE_EVERY since the
