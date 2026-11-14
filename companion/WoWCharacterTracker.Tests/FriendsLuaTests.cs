@@ -10,6 +10,7 @@ public class FriendsLuaTests
 {
     internal const string Stubs = """
         function time() return math.floor(clock) end
+        date = os.date
         function strtrim(s) return (s:gsub('^%s+', ''):gsub('%s+$', '')) end
         inCombat, lockdown, groupGuids, sendResult = false, false, {}, 0
         function InCombatLockdown() return inCombat end
@@ -486,6 +487,73 @@ public class FriendsLuaTests
             Deliver(a, b, AAccount);
             Deliver(b, a, BAccount);
         }
+    }
+
+    // Friends' moments in chat (/wct friends chat): what's new since the copy you had, never a first copy's history.
+    [Fact]
+    public void A_friends_new_moment_is_said_in_chat_but_not_their_history()
+    {
+        var a = new Client(A, AFriends, ADb(AShares).Replace("items = {", """
+            events = { { kind = 'loot', guid = 'Player-1-0000000A', at = 800, level = 42, item = 'Thunderfury', itemId = 19019, quality = 5 } },
+            items = {
+            """));
+        var b = new Client(B, BFriends, BDb(BReceives), files: [.. AllFiles, "Announce.lua"]);
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        Assert.DoesNotContain(b.Said(), s => s.Contains("Thunderfury", StringComparison.Ordinal)); // the first copy: history
+
+        a.Lua("table.insert(WoWCharacterTrackerDB.events, { kind = 'boss', guid = 'Player-1-0000000A', at = 950, level = 42, boss = 'Onyxia', instance = \"Onyxia's Lair\", groupSize = 40 })");
+        a.Run(700); // past ONLINE_EVERY
+        a.Call("friendsTick");
+        Talk(a, b);
+        Assert.Single(b.Said(), "Deadbeck (JDybeck): Killed Onyxia in Onyxia's Lair!");
+
+        b.Call("friendsCommand", "chat off");
+        Assert.False(b.Lua("return ns.friendChatOn()").Boolean);
+    }
+
+    // Three boss kills under twelve newer epics: the highlights only hold the epics, the day counts all of it.
+    [Fact]
+    public void Day_counts_reach_a_friend_past_the_newest_highlights()
+    {
+        var events = string.Join(",\n", Enumerable.Range(1, 3).Select(i => $"{{ kind = 'boss', guid = 'Player-1-0000000A', at = {100 + i}, level = 42, boss = 'Onyxia' }}")
+            .Concat(Enumerable.Range(1, 12).Select(i => $"{{ kind = 'loot', guid = 'Player-1-0000000A', at = {200 + i}, level = 42, item = 'Epic', itemId = 1, quality = 4 }}")));
+        var a = new Client(A, AFriends, ADb(AShares).Replace("items = {", $$"""
+            events = { {{events}} },
+            items = {
+            """));
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+
+        Assert.DoesNotContain("boss~", Str(b, GotDeadbeck + ".highlights")); // pushed out by the epics
+        var day = Assert.Single(Assert.Single(WoWCharacterTracker.Services.FriendData.ReadFriends(b.Lua("return WoWCharacterTrackerDB.friends"))).Days);
+        Assert.Equal((3, 12), (day.Bosses, day.Epics));
+    }
+
+    [Fact]
+    public void Friends_moments_in_chat_are_recent_only_oldest_first_and_at_most_three()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives), files: [.. AllFiles, "Announce.lua"]);
+        b.Lua("""
+            clock = 100000
+            old = { char = 'Deadbeck', levels = '10~600~95000' }
+            new = { char = 'Deadbeck', maxLevel = 60, levels = '10~600~95000\n11~700~95500\n12~800~97000\n13~900~98000\n14~950~99000\n60~5000~99500',
+              highlights = 'mount~99200~14~Horse~~' }
+            ns.sayFriendMoments('Zeb#2222', old, new)
+            """);
+        // 95500 is over an hour old; of the five newer ones, the newest three, oldest first.
+        Assert.Equal([
+            "Deadbeck (Zeb): Ding! Level 14. 13 to 14 took 15m 50s.",
+            "Deadbeck (Zeb): Got a new mount: Horse!",
+            "Deadbeck (Zeb): Reached max level 60!",
+            "Deadbeck (Zeb): and 2 more.",
+        ], b.Said());
+
+        b.Lua("said = {}; ns.sayFriendMoments('Zeb#2222', nil, new)"); // never had them: nothing
+        Assert.Empty(b.Said());
     }
 
     static int Count(Client c, string kind) => c.Sent().Count(m => m.Get("text").String.Contains($":{kind}:"));

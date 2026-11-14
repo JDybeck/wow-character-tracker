@@ -13,6 +13,11 @@ static class LevelStats
     public sealed record Level(int Number, long Seconds);
     public sealed record Summary(int Count, long Average, Level Fastest, Level Slowest);
 
+    // The timed level-ups in a character's events, one per level (the last one wins), lowest first.
+    public static List<Level> Timed(IEnumerable<Entry> events) => events.Where(e => e.Kind == "level" && e.Seconds > 0)
+        .GroupBy(e => e.Level).Select(g => new Level(g.Key, g.Last().Seconds))
+        .OrderBy(l => l.Number).ToList();
+
     public static Summary? Summarize(IReadOnlyList<Level> timed)
     {
         if (timed.Count == 0) return null;

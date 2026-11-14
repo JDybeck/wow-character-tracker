@@ -20,6 +20,18 @@
         <TextBlock Style="{StaticResource FactLabel}" Text="SLOWEST"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.SlowestText}"/>
       </StackPanel>
+      <!-- A friend's character only: raced against one of yours. -->
+      <StackPanel Visibility="{Binding HasRival, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="RACE"/>
+        <TextBlock Text="{Binding Rival.Against}" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,0,2"/>
+        <ItemsControl ItemsSource="{Binding Rival.Lines}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding}" Style="{StaticResource FactValue}" TextWrapping="Wrap" Margin="0,0,0,2"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
       <StackPanel Visibility="{Binding Leveling.HasEstimate, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="TO MAX LEVEL"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.EstimateText}" TextWrapping="Wrap"

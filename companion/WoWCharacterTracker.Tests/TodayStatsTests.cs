@@ -64,6 +64,48 @@ public class TodayStatsTests
         Assert.Equal((30.0, 32.5, 5000.0, 25000.0), (t.Get("ilvlStart").Number, t.Get("ilvl").Number, t.Get("moneyStart").Number, t.Get("money").Number));
     }
 
+    // The finished day is kept for the Stats page (the newest 8 per character), and the app reads it.
+    [Fact]
+    public void A_finished_day_is_kept_and_read_by_the_app()
+    {
+        var (script, _) = Load();
+        script.DoString("""
+            WoWCharacterTrackerDB.days = { ['Player-1-0000000A'] = {} }
+            for d = 1, 8 do WoWCharacterTrackerDB.days['Player-1-0000000A'][string.format('2026-10-%02d', d)] = { day = string.format('2026-10-%02d', d), quests = 1 } end
+            WoWCharacterTrackerDB.today = { ['Player-1-0000000A'] = { day = '2026-11-08', quests = 9, herbs = 3 } }
+            ns.todayCount('quests')
+            recent = ns.recentDays('Player-1-0000000A')
+            """);
+        Assert.True(script.DoString("return WoWCharacterTrackerDB.days['Player-1-0000000A']['2026-10-01']").IsNil()); // the oldest of 9 goes
+        Assert.Equal(9, script.DoString("return WoWCharacterTrackerDB.days['Player-1-0000000A']['2026-11-08'].quests").Number);
+        Assert.Equal(1, script.DoString("return WoWCharacterTrackerDB.today['Player-1-0000000A'].quests").Number);
+        Assert.Equal(9, script.DoString("return #recent").Number); // 8 kept and today
+
+        var days = WoWCharacterTracker.Services.SavedVariables.ReadDays(script.DoString("return WoWCharacterTrackerDB.days"));
+        Assert.Equal(8, days.Count);
+        Assert.Contains(days, d => d is { Day: "2026-11-08", Quests: 9, Herbs: 3, Guid: "Player-1-0000000A" });
+    }
+
+    // Repeatable, daily and weekly quests would count the same quest again, so they don't count.
+    [Fact]
+    public void Repeatable_quests_dont_count()
+    {
+        var (script, _) = Load();
+        script.DoString("""
+            repeatable = { [200] = true }
+            C_QuestLog = { IsRepeatableQuest = function(id) return repeatable[id] == true end }
+            ns.onQuestTurnedIn(100)
+            ns.onQuestTurnedIn(200)
+            daily = true
+            function QuestIsDaily() return daily end
+            ns.onQuestTurnedIn(300)
+            daily = false
+            C_QuestLog.IsRepeatableQuest = function() error('not now') end -- a failing check still counts it
+            ns.onQuestTurnedIn(400)
+            """);
+        Assert.Equal(2, script.DoString("return WoWCharacterTrackerDB.today['Player-1-0000000A'].quests").Number);
+    }
+
     // Main stats at 0 only fill up to four; above 0 goes first, in the same order and wording both sides.
     [Fact]
     public void The_addon_and_the_app_rank_today_the_same()

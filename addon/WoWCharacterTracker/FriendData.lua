@@ -38,11 +38,14 @@ local FIELDS = {
   xp = { kind = "number", category = "leveling" },
   xpMax = { kind = "number", category = "leveling" },
   maxLevel = { kind = "number", category = "leveling" },
+  -- The last days' counts for the app's Stats page: "day~quests~herbs~ore~skins~fish~ilvlStart~ilvl~moneyStart~money~bosses~epics~mounts~duels~bgs~deaths"
+  -- lines, newest first; the money parts stay empty without gold, the moment counts without highlights.
+  days = { kind = "string", max = 900, category = "leveling", lines = true },
 }
 local MAX_TEXT = 12288
 local OLD_MAX_TEXT = 8192
 -- Sent, but left out of the change key like `at`: they tick along while nothing else changes.
-local VOLATILE = { at = true, played = true, levelTime = true, xp = true }
+local VOLATILE = { at = true, played = true, levelTime = true, xp = true, days = true }
 local MAX_LEVELS = 80
 
 -- Highlights go as one line each, newest first: "kind~at~level" and then the kind's own fields in
@@ -147,6 +150,76 @@ local function encodeLevels(levels)
     lines[#lines + 1] = string.format("%d~%d~%d", l.level, math.floor(l.seconds), math.floor(finite(l.at) and l.at or 0))
   end
   return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
+-- Days ({ day, quests, herbs, ... }, any order) as lines, the newest ns.SHARED_DAYS, nil without any.
+-- counts: [day] = { bosses, epics, ... } from all the character's events (ns.dayCountKey), so a busy
+-- week isn't cut off at the newest highlights; a day with only counts gets a line too.
+ns.SHARED_DAYS = 7
+local DAY_FIELDS = { "quests", "herbs", "ore", "skins", "fish", "ilvlStart", "ilvl", "moneyStart", "money",
+  "bosses", "epics", "mounts", "duels", "bgs", "deaths" }
+local DAY_GOLD = { moneyStart = true, money = true }
+local DAY_MOMENTS = { bosses = true, epics = true, mounts = true, duels = true, bgs = true, deaths = true }
+
+-- Which day count an event adds to, or nil: the app's Stats page counts the same (Leaderboards.cs).
+function ns.dayCountKey(e)
+  if type(e) ~= "table" then return nil end
+  local k = e.kind
+  if k == "boss" or k == "keyrun" then return "bosses" end
+  if k == "loot" and (e.quality or 0) >= 4 and not e.mat then return "epics" end
+  if k == "mount" then return "mounts" end
+  if (k == "duel" or k == "makgora") and not e.lost then return "duels" end
+  if k == "bg" and not e.lost then return "bgs" end
+  if k == "death" then return "deaths" end
+  return nil
+end
+
+local function isDay(s) return type(s) == "string" and s:match("^%d%d%d%d%-%d%d%-%d%d$") ~= nil end
+
+local function encodeDays(days, counts, allowed)
+  local byDay = {}
+  for _, d in ipairs(days or {}) do
+    if type(d) == "table" and isDay(d.day) then byDay[d.day] = d end
+  end
+  for day in pairs(allowed.highlights and counts or {}) do
+    if isDay(day) and not byDay[day] then byDay[day] = { day = day } end
+  end
+  local list = {}
+  for _, d in pairs(byDay) do list[#list + 1] = d end
+  table.sort(list, function(x, y) return x.day > y.day end)
+  local lines = {}
+  for i = 1, math.min(#list, ns.SHARED_DAYS) do
+    local d = list[i]
+    local moments = allowed.highlights and counts and counts[d.day]
+    local parts = { d.day }
+    for _, key in ipairs(DAY_FIELDS) do
+      local v, text = d[key], ""
+      if DAY_MOMENTS[key] then
+        v = allowed.highlights and ((moments and moments[key]) or 0) or nil
+      end
+      if type(v) == "number" and finite(v) and (not DAY_GOLD[key] or allowed.gold) then
+        text = key:match("^ilvl") and string.format("%.1f", v) or tostring(math.floor(v))
+      end
+      parts[#parts + 1] = text
+    end
+    lines[#lines + 1] = table.concat(parts, "~")
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
+-- A friend character's days: { day, quests, herbs, ore, skins, fish, ilvlStart, ilvl, moneyStart, money }, bad lines skipped.
+function ns.friendDays(c)
+  local out = {}
+  for line in string.gmatch(c and c.days or "", "[^\n]+") do
+    local p = {}
+    for v in string.gmatch(line .. "~", "([^~]*)~") do p[#p + 1] = v end
+    if isDay(p[1]) then
+      local d = { day = p[1] }
+      for i, key in ipairs(DAY_FIELDS) do d[key] = tonumber(p[i + 1] or "") end
+      out[#out + 1] = d
+    end
+  end
+  return out
 end
 
 -- Recipes (Recipes.lua) are "Profession~Category=id,id/Category=id" lines. Parsed here, without game
@@ -272,13 +345,14 @@ end
 -- The text for one of your characters, and the same without the volatile fields (`at` changes with
 -- every snapshot, so change detection compares that one). allowed: the categories the friend may
 -- see; events: the character's highlights (ns.isFriendHighlight), or nil; levels: its level times.
-function ns.encodeFriendChar(guid, char, items, allowed, events, levels)
+function ns.encodeFriendChar(guid, char, items, allowed, events, levels, days, counts)
   local values = {}
   for key in pairs(FIELDS) do values[key] = char[key] end
   values.guid, values.at = guid, char.lastSeen
   values.gear, values.enchants = items and items.gear, items and items.enchants
   values.highlights = allowed.highlights and encodeHighlights(events, allowed) or nil
   values.levels = allowed.leveling and encodeLevels(levels) or nil
+  values.days = allowed.leveling and encodeDays(days, counts, allowed) or nil
   values.recipes = encodeRecipes(char.recipes)
   local text, key = joinFields(values, allowed)
   -- Addons before recipes take at most OLD_MAX_TEXT and drop the whole character above it.

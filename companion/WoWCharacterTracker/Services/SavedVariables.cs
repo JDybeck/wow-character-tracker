@@ -33,6 +33,7 @@ static class SavedVariables
             Share = FriendData.ReadShare(db.Table.Get("share")),
             Incognito = IncognitoWindow.Read(db.Table.Get("incognito")),
             Today = ReadToday(db.Table.Get("today")),
+            Days = ReadDays(db.Table.Get("days")),
         };
     }
 
@@ -42,13 +43,23 @@ static class SavedVariables
         if (table.Type != DataType.Table) return [];
         return [.. table.Table.Pairs
             .Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
-            .Select(p =>
-            {
-                var t = p.Value.Table;
-                return new DayTotals(p.Key.String, S(t, "day"), N(t, "ilvlStart"), N(t, "ilvl"), (long)N(t, "moneyStart"), (long)N(t, "money"),
-                    (int)N(t, "quests"), (int)N(t, "herbs"), (int)N(t, "ore"), (int)N(t, "skins"), (int)N(t, "fish"));
-            })];
+            .Select(p => Day(p.Key.String, p.Value.Table))];
     }
+
+    // days[guid][day] = a finished day, the same fields as today's (Today.lua archive).
+    internal static List<DayTotals> ReadDays(DynValue table)
+    {
+        if (table.Type != DataType.Table) return [];
+        return [.. table.Table.Pairs
+            .Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
+            .SelectMany(p => p.Value.Table.Pairs
+                .Where(d => d.Key.Type == DataType.String && d.Value.Type == DataType.Table)
+                .Select(d => Day(p.Key.String, d.Value.Table) with { Day = d.Key.String }))];
+    }
+
+    static DayTotals Day(string guid, Table t) =>
+        new(guid, S(t, "day"), N(t, "ilvlStart"), N(t, "ilvl"), (long)N(t, "moneyStart"), (long)N(t, "money"),
+            (int)N(t, "quests"), (int)N(t, "herbs"), (int)N(t, "ore"), (int)N(t, "skins"), (int)N(t, "fish"));
 
     // gameSettings: the In game settings as changed in the addon's options page (Shared.lua editSettings).
     internal static InGameSettings? ReadInGame(DynValue value)

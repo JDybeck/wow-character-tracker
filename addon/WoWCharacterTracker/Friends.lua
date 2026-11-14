@@ -220,16 +220,25 @@ local function version() return ns.addonVersion() end
 -- The newest highlights per character (ns.FRIEND_HIGHLIGHTS of them), kept up to date like
 -- ns.hasEvent's ids: events are appended, so only new ones are read; another or shorter list
 -- (trimmed, cleaned up) is read again.
--- Level times per character come along the same way ([guid][level] = { level, seconds, at }).
-local recentHighlights, recentLevels, highlightsList, highlightsCounted = {}, {}, nil, 0
+-- Level times per character come along the same way ([guid][level] = { level, seconds, at }), and
+-- the moments counted per day for the Stats page ([guid][day][key] = n, ns.dayCountKey).
+local recentHighlights, recentLevels, dayCounts, highlightsList, highlightsCounted = {}, {}, {}, nil, 0
 local function readEvents()
   local events = WoWCharacterTrackerDB.events or {}
   if events ~= highlightsList or #events < highlightsCounted then
-    recentHighlights, recentLevels, highlightsList, highlightsCounted = {}, {}, events, 0
+    recentHighlights, recentLevels, dayCounts, highlightsList, highlightsCounted = {}, {}, {}, events, 0
   end
   for i = highlightsCounted + 1, #events do
     local e = events[i]
     if ns.isFriendHighlight(e) and e.guid and not ns.inIncognito(e.at, true) then -- incognito with friends paused: never shared
+      local key = ns.dayCountKey(e)
+      if key then
+        local days = dayCounts[e.guid] or {}
+        local day = date("%Y-%m-%d", e.at)
+        days[day] = days[day] or {}
+        days[day][key] = (days[day][key] or 0) + 1
+        dayCounts[e.guid] = days
+      end
       local list = recentHighlights[e.guid] or {}
       list[#list + 1] = e
       table.sort(list, function(x, y) return x.at > y.at end)
@@ -267,7 +276,7 @@ local function charText(guid, contact)
   char = withLiveXp(guid, char)
   readEvents()
   return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact),
-    recentHighlights[guid], levelsOf(guid))
+    recentHighlights[guid], levelsOf(guid), ns.recentDays and ns.recentDays(guid), dayCounts[guid])
 end
 
 -- The character being played, to one contact: when due (GROUP_EVERY or ONLINE_EVERY since the
@@ -470,10 +479,51 @@ local function noteArrival(tag, char)
     name ~= "" and name or tag, ns.fullName(char)))
 end
 
+-- Friends' moments in your chat --------------------------------------------------------------
+local MOMENT_RECENT = 3600 -- older ones happened while you weren't around: not news
+local MOMENT_LINES = 3     -- per character per update, the rest as "and N more"
+
+-- /wct friends chat on/off; on unless turned off.
+function ns.friendChatOn() return WoWCharacterTrackerDB.friendChat ~= false end
+
+-- A friend's character's highlights and level-ups as events, newest first.
+local function momentsOf(char)
+  local out = ns.friendHighlights(char)
+  for _, l in ipairs(ns.friendLevels(char)) do
+    if l.at then
+      out[#out + 1] = { kind = "level", level = l.level, seconds = l.seconds, at = l.at,
+        maxLevel = type(char.maxLevel) == "number" and l.level >= char.maxLevel or nil }
+    end
+  end
+  table.sort(out, function(x, y) return x.at > y.at end)
+  return out
+end
+
+-- What a friend's character did since the copy we kept, as "Name (friend): line" in chat, oldest
+-- first. Nothing for a character we had no copy of: its whole history isn't news.
+function ns.sayFriendMoments(tag, old, char)
+  if not old or not ns.friendChatOn() then return end
+  local seen = momentsOf(old)[1]
+  local since = math.max(seen and seen.at or 0, time() - MOMENT_RECENT)
+  local lines = {}
+  for _, e in ipairs(momentsOf(char)) do
+    if e.at <= since then break end
+    local line = ns.momentLine and ns.momentLine(e)
+    if line then lines[#lines + 1] = line end
+  end
+  if #lines == 0 then return end
+  local name = ns.friendNickname(tag)
+  local who = string.format("%s (%s)", ns.fullName(char), name ~= "" and name or tag:match("^[^#]+"))
+  for i = math.min(#lines, MOMENT_LINES), 1, -1 do ns.say(who .. ": " .. lines[i]) end
+  if #lines > MOMENT_LINES then ns.say(string.format("%s: and %d more.", who, #lines - MOMENT_LINES)) end
+end
+
 function on.DATA(f, contact, body)
   if not contact.receive then return end
   local char = ns.decodeFriendChar(body)
   if not char then return end
+  local had = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[f.tag]
+  ns.sayFriendMoments(f.tag, had and had.chars and had.chars[char.guid], char)
   keep(f.tag, char)
   noteArrival(f.tag, char)
   changed()
@@ -882,6 +932,7 @@ local HELP = {
   "/wct friends hide or unhide keeps this character from friends, or shares it again.",
   "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",
   "/wct friends name <BattleTag> <nickname> gives a friend a nickname (here and in the app), without one clears it.",
+  "/wct friends chat on or off: friends' level-ups, boss kills, loot and other moments in your chat as they come in.",
 }
 
 -- What set takes: a category or a rule, its key exact (IS_CHOICE) or typed in any case (CHOICE_BY_WORD).
@@ -1065,6 +1116,10 @@ function ns.friendsCommand(args)
     local me = UnitGUID("player")
     if me then ns.editShare(function(s) s.chars[me] = cmd == "unhide" end) end
     return ns.say(cmd == "hide" and "Friends won't get this character anymore." or "Friends get this character again.")
+  end
+  if cmd == "chat" and (rest:lower() == "on" or rest:lower() == "off") then
+    WoWCharacterTrackerDB.friendChat = rest:lower() == "on"
+    return ns.say("Friends' moments in chat are now " .. rest:lower() .. ".")
   end
   if cmd == "maprate" then
     local rate = RATE_WORDS[rest:lower()]

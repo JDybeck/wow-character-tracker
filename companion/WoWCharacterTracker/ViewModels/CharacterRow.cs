@@ -38,6 +38,9 @@ sealed class CharacterRow : Observable
     public string FriendSyncedText => FriendSynced > 0 ? $"updated {Format.Ago(FriendSynced)}" : "not updated yet";
     bool isHiddenFriend;
     public bool IsHiddenFriend { get => isHiddenFriend; set => Set(ref isHiddenFriend, value); } // hidden on the Friends page, shown anyway
+    // A friend's character raced against one of yours (FriendsViewModel), null when none share a level.
+    public LevelRaceRow? Rival { get; set; }
+    public bool HasRival => Rival is not null;
     public bool ShowsGold => IsOwn || HasMoney; // a friend who doesn't share gold has none to show
     public string Guild { get; init; } = "";
     public bool HasGuild => Guild.Length > 0;

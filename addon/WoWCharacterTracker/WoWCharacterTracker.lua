@@ -201,7 +201,7 @@ on.PLAYER_MONEY = moneyChanged
 on.CURRENCY_DISPLAY_UPDATE = moneyChanged
 
 -- Today's quests and gathering (Today.lua).
-function on.QUEST_TURNED_IN() ns.todayCount("quests") end
+function on.QUEST_TURNED_IN(questID) ns.onQuestTurnedIn(questID) end
 function on.UNIT_SPELLCAST_SUCCEEDED(unit, castGUID, spellID) ns.onSpellcast(unit, castGUID, spellID) end
 function on.LOOT_OPENED() ns.onLootOpened() end
 

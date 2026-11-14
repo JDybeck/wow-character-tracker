@@ -28,7 +28,18 @@ record InGameSettings(long At, bool? AnnounceGuild, bool? AnnounceParty, List<st
 // One character's day (the addon's today[guid]), Day as "2026-11-09": item level and copper at the
 // day's start and now, and what was turned in and gathered.
 record DayTotals(string Guid, string Day, double IlvlStart, double Ilvl, long MoneyStart, long Money,
-    int Quests, int Herbs, int Ore, int Skins, int Fish);
+    int Quests, int Herbs, int Ore, int Skins, int Fish)
+{
+    // A friend's day also counts their moments (FriendData.lua encodeDays), from all their events.
+    // HasMoments: it did (a friend sharing highlights, on 0.41.0 or newer); then these beat their highlights.
+    public bool HasMoments { get; init; }
+    public int Bosses { get; init; }
+    public int Epics { get; init; }
+    public int Mounts { get; init; }
+    public int Duels { get; init; }
+    public int Battlegrounds { get; init; }
+    public int Deaths { get; init; }
+}
 
 // Everything read for one game tab: events, character snapshots, what each character carries, and
 // the XP each level needs on that client ([level] = XP).
@@ -45,6 +56,7 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
     public ShareSettings? Share { get; init; } // sharing settings as changed in game
     public List<IncognitoWindow> Incognito { get; init; } = []; // stretches of incognito: nothing from them is posted (Shared.lua)
     public List<DayTotals> Today { get; init; } = []; // each character's day so far (Today.lua)
+    public List<DayTotals> Days { get; init; } = [];  // finished days, the last 8 per character (Today.lua days), for the Stats page
 
     public static TrackerData Empty { get; } = new([], []);
 }
