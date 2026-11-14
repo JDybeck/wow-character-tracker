@@ -26,9 +26,6 @@ static class Wow
         && (File.Exists(Path.Combine(dir, ".flavor.info")) || Directory.Exists(Path.Combine(dir, "WTF"))
             || Directory.Exists(Path.Combine(dir, "Interface")));
 
-    // Turns whatever the user picked into this game's flavor folder (see Resolve), or null.
-    public static string? Normalize(string input, Flavor flavor) => Resolve(input, flavor).Path;
-
     // Whatever the user picked, as this game's flavor folder: the World of Warcraft folder, the flavor
     // folder itself, anything inside them (Interface\AddOns, WTF...), an exe, or even the other
     // game's folder next to it. Problem says in plain words why it isn't one, and what to pick.

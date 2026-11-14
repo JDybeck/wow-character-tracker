@@ -68,7 +68,6 @@ record Entry
             return p[0].Length > 0 ? $"level {p[0]} {who}".TrimEnd() : who;
         }
     }
-    public string OpponentClassFile => OpponentInfo.Split('~') is { Length: >= 2 } p ? p[1] : "";
     public int Rating { get; init; }             // mplus / pvp: the rating now; profession: the skill now
     public int Step { get; init; }               // mplus / pvp / profession: the milestone passed
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
