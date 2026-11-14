@@ -26,9 +26,6 @@ static class Wow
         && (File.Exists(Path.Combine(dir, ".flavor.info")) || Directory.Exists(Path.Combine(dir, "WTF"))
             || Directory.Exists(Path.Combine(dir, "Interface")));
 
-    // Turns whatever the user picked into this game's flavor folder (see Resolve), or null.
-    public static string? Normalize(string input, Flavor flavor) => Resolve(input, flavor).Path;
-
     // Whatever the user picked, as this game's flavor folder: the World of Warcraft folder, the flavor
     // folder itself, anything inside them (Interface\AddOns, WTF...), an exe, or even the other
     // game's folder next to it. Problem says in plain words why it isn't one, and what to pick.
@@ -69,11 +66,17 @@ static class Wow
     public static string NewestFolder(string flavorDir, Flavor flavor)
     {
         var dir = flavorDir.TrimEnd('\\', '/');
-        var index = Array.FindIndex(flavor.Folders, f => f.Equals(Path.GetFileName(dir), StringComparison.OrdinalIgnoreCase));
+        var index = FolderIndex(dir, flavor);
         if (index <= 0) return flavorDir;
         var parent = Path.GetDirectoryName(dir)!;
         return flavor.Folders[..index].Select(f => Path.Combine(parent, f)).FirstOrDefault(IsFlavorDir) ?? flavorDir;
     }
+
+    // One of the game's older folder names (Forever's beta folders), not the live one.
+    public static bool IsOlderFolder(string flavorDir, Flavor flavor) => FolderIndex(flavorDir.TrimEnd('\\', '/'), flavor) > 0;
+
+    static int FolderIndex(string dir, Flavor flavor) =>
+        Array.FindIndex(flavor.Folders, f => f.Equals(Path.GetFileName(dir), StringComparison.OrdinalIgnoreCase));
 
     public const string DefaultRoot = @"C:\Program Files (x86)\World of Warcraft";
 

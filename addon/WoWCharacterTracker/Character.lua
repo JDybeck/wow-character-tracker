@@ -15,48 +15,63 @@ local CLASSIC_PROFESSIONS = {
   Alchemy = true, Blacksmithing = true, Enchanting = true, Engineering = true,
   Herbalism = true, Leatherworking = true, Mining = true, Skinning = true, Tailoring = true,
 }
--- The primary professions as { name = "Mining", rank = 150 } (rank 0 when the game hides it).
+-- The primary professions as { name = "Mining", rank = 150, max = 225 } (rank 0 when the game hides
+-- it, max nil when it gives none).
 function ns.professionRanks()
   local found = {}
-  local function add(name, rank)
-    if name then found[#found + 1] = { name = name, rank = num(rank) or 0 } end
+  local function add(name, rank, max)
+    if name then
+      max = num(max)
+      found[#found + 1] = { name = name, rank = num(rank) or 0, max = max and max > 0 and max or nil }
+    end
   end
 
-  if type(GetProfessions) == "function" then
-    -- Retail: the two main professions are the first two return values.
+  -- Retail and Forever: the two main professions are the first two return values. Forever's skill
+  -- list comes back without them, so this goes first wherever it exists.
+  if type(GetProfessions) == "function" and type(GetProfessionInfo) == "function" then
     local p1, p2 = GetProfessions()
     for _, idx in ipairs({ p1 or 0, p2 or 0 }) do
       if idx > 0 then
-        local name, _, rank = GetProfessionInfo(idx)
-        add(name, rank)
+        local name, _, rank, max = GetProfessionInfo(idx)
+        add(name, rank, max)
       end
     end
-  elseif type(GetNumSkillLines) == "function" then
-    -- Classic: scan the skill list for primary professions.
+  end
+  if #found == 0 and type(GetNumSkillLines) == "function" then
+    -- Older Classic-style clients: scan the skill list for primary professions.
     for i = 1, GetNumSkillLines() do
-      local name, isHeader, _, rank = GetSkillLineInfo(i)
-      if name and not isHeader and CLASSIC_PROFESSIONS[name] then add(name, rank) end
+      local name, isHeader, _, rank, _, _, max = GetSkillLineInfo(i)
+      if name and not isHeader and CLASSIC_PROFESSIONS[name] then add(name, rank, max) end
     end
   end
   return found
 end
 
--- Returns e.g. "Mining 150, Herbalism 75", or "" when there are none (the post then skips the line).
-local function getProfessions()
+-- Returns e.g. "Mining 150/225, Herbalism 75", or "" when there are none (the post then skips the line).
+function ns.professionText()
   local parts = {}
-  for _, p in ipairs(ns.professionRanks()) do parts[#parts + 1] = string.format("%s %d", p.name, p.rank) end
+  for _, p in ipairs(ns.professionRanks()) do
+    parts[#parts + 1] = p.max and string.format("%s %d/%d", p.name, p.rank, p.max) or string.format("%s %d", p.name, p.rank)
+  end
   return table.concat(parts, ", ")
 end
+
+-- The active talent loadout's config id, its trait tree and the config itself, on clients with
+-- modern talents (Retail, Forever). Nil without one; the tree can be nil when the config has none.
+local function activeTraitTree()
+  if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetConfigInfo) then return nil end
+  local configID = C_ClassTalents.GetActiveConfigID()
+  if not configID then return nil end
+  local config = C_Traits.GetConfigInfo(configID)
+  return configID, config and config.treeIDs and config.treeIDs[1], config
+end
+ns.activeTraitTree = activeTraitTree -- /wct debug
 
 -- Retail point split, e.g. "Class 15 / Fury 12 / Slayer 3".
 -- The class and spec trees share one trait tree with one currency each (class first),
 -- and the hero tree has its own currency. Returns nil if anything is missing.
 local function getRetailTalentSplit(specName)
-  if not (C_ClassTalents and C_Traits) then return nil end
-  local configID = C_ClassTalents.GetActiveConfigID()
-  if not configID then return nil end
-  local config = C_Traits.GetConfigInfo(configID)
-  local treeID = config and config.treeIDs and config.treeIDs[1]
+  local configID, treeID = activeTraitTree()
   if not treeID then return nil end
 
   local currencies = C_Traits.GetTreeCurrencyInfo(configID, treeID, false) or {}
@@ -99,13 +114,11 @@ local CLASSIC_TREES = {
 -- Forever (Classic+) keeps the classic three talent trees, but as one modern trait tree with the
 -- three side by side. Nodes are grouped into trees by their X position (a wide gap between
 -- columns starts the next tree). Returns "Holy 0 / Protection 0 / Retribution 16", the tree with
--- the most points (shown as the spec), and the picked talents as "spellID~rank~maxRank~tree,...".
-local function getTraitTalents()
-  if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetTreeNodes) then return nil end
-  local configID = C_ClassTalents.GetActiveConfigID()
-  if not configID then return nil end
-  local config = C_Traits.GetConfigInfo(configID)
-  local treeID = config and config.treeIDs and config.treeIDs[1]
+-- the most points (shown as the spec), and the picked talents as "spellID~rank~maxRank~tree,..."
+-- (skipped with skipPicks: events don't keep them, and each pick costs two more lookups).
+local function getTraitTalents(skipPicks)
+  if not (C_Traits and C_Traits.GetTreeNodes) then return nil end
+  local configID, treeID = activeTraitTree()
   if not treeID then return nil end
 
   local nodes, xs, seen = {}, {}, {}
@@ -133,7 +146,7 @@ local function getTraitTalents()
       local t = treeOfX[node.posX]
       points[t] = points[t] + ranks
       total = total + ranks
-      local entryID = (node.activeEntry and node.activeEntry.entryID) or (node.entryIDs and node.entryIDs[1])
+      local entryID = not skipPicks and ((node.activeEntry and node.activeEntry.entryID) or (node.entryIDs and node.entryIDs[1]))
       local entry = entryID and C_Traits.GetEntryInfo and C_Traits.GetEntryInfo(configID, entryID)
       local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo and C_Traits.GetDefinitionInfo(entry.definitionID)
       local spellID = def and (def.spellID or def.overriddenSpellID)
@@ -167,16 +180,16 @@ local function getTraitTalents()
   return table.concat(parts, " / "), best, table.concat(picks, ","), calc
 end
 
--- The Retail spec's name ("Blood"), nil on clients without specs (Forever) or before one is picked.
+-- The Retail spec's name ("Blood"), nil on Forever (no specs) or before one is picked.
 function ns.specName()
-  if type(GetSpecialization) ~= "function" or type(GetSpecializationInfo) ~= "function" then return nil end
+  if not ns.IS_RETAIL or type(GetSpecialization) ~= "function" or type(GetSpecializationInfo) ~= "function" then return nil end
   local spec = GetSpecialization()
   return spec and select(2, GetSpecializationInfo(spec)) or nil
 end
 
 -- Returns e.g. "Arms 31 / Fury 20 / Protection 0", or nil when there is nothing to show yet.
--- Also returns the spec name on retail (nil on Classic).
-function ns.getTalents()
+-- Also returns the spec name on retail (nil on Classic). skipPicks: see getTraitTalents.
+function ns.getTalents(skipPicks)
   if type(GetNumTalentTabs) == "function" and GetNumTalentTabs() > 0 then
     -- Classic: one entry per talent tree with points spent.
     local parts, total = {}, 0
@@ -194,7 +207,7 @@ function ns.getTalents()
     end
     if total == 0 then return nil end -- under level 10: nothing to show, so nothing is stored
     return table.concat(parts, " / ")
-  elseif type(GetSpecialization) == "function" then
+  elseif ns.IS_RETAIL then
     -- Retail: class, spec and hero trees.
     local specName = ns.specName()
     if not specName then return nil end
@@ -202,7 +215,7 @@ function ns.getTalents()
     if ok and split then return split, specName end
     return nil, specName
   end
-  local ok, traits, specName, picks, calc = pcall(getTraitTalents)
+  local ok, traits, specName, picks, calc = pcall(getTraitTalents, skipPicks)
   if ok then return traits, specName, picks, calc end
   return nil
 end
@@ -215,6 +228,8 @@ ns.HAS_SURNAMES = C_PlayerInfo and C_PlayerInfo.ShouldDisplaySurname ~= nil
 -- far below (Forever 16001, Era 11500s). Not by API: Forever runs on the modern engine and has
 -- C_MythicPlus too.
 ns.IS_RETAIL = ((GetBuildInfo and select(4, GetBuildInfo())) or 0) >= 100000
+-- Forever blocks GUILD chat that isn't sent from a click or key press (addon.md). Retail not checked.
+ns.GUILD_CHAT_NEEDS_CLICK = not ns.IS_RETAIL
 
 local function getSurname()
   if not ns.HAS_SURNAMES then return nil end
@@ -253,7 +268,7 @@ end
 -- "TANK", "HEALER" or "DAMAGER" on retail, nil where there are no specs.
 local function getRole()
   -- Retail only: Forever's single class "spec" always says DAMAGER.
-  if type(GetSpecializationRole) ~= "function" or type(GetSpecialization) ~= "function" then return nil end
+  if not ns.IS_RETAIL or type(GetSpecializationRole) ~= "function" or type(GetSpecialization) ~= "function" then return nil end
   local spec = GetSpecialization()
   if spec then
     local ok, role = pcall(GetSpecializationRole, spec)
@@ -302,8 +317,8 @@ end
 -- The game's talent loadout string (what "Export" in the talent window gives), for Wowhead's
 -- talent calculator. Retail has it; nil where the client doesn't.
 local function getTalentExport()
-  if not (C_Traits and C_Traits.GenerateImportString and C_ClassTalents and C_ClassTalents.GetActiveConfigID) then return nil end
-  local configID = C_ClassTalents.GetActiveConfigID()
+  if not (C_Traits and C_Traits.GenerateImportString) then return nil end
+  local configID = activeTraitTree()
   if not configID then return nil end
   local ok, s = pcall(C_Traits.GenerateImportString, configID)
   if ok and type(s) == "string" and s ~= "" then return s end
@@ -375,11 +390,12 @@ local function getMplusScore()
 end
 
 -- Retail: rated PvP as "bracket~rating,..." (brackets as GetPersonalRatedInfo numbers them,
--- the same as PVP_BRACKETS in PvP.lua), only brackets with a rating, nil when there are none.
+-- ns.PVP_BRACKETS), only brackets with a rating, nil when there are none.
 local function getPvpRatings()
   if not (ns.IS_RETAIL and type(GetPersonalRatedInfo) == "function") then return nil end
   local parts = {}
-  for _, index in ipairs({ 1, 2, 4, 7, 9 }) do
+  for _, bracket in ipairs(ns.PVP_BRACKETS) do
+    local index = bracket[1]
     local ok, rating = pcall(GetPersonalRatedInfo, index)
     if ok and type(rating) == "number" and rating > 0 then
       table.insert(parts, string.format("%d~%d", index, rating))
@@ -393,6 +409,15 @@ end
 function ns.playedNow()
   if not ns.lastPlayed then return nil end
   return ns.lastPlayed + (time() - ns.lastPlayedAt)
+end
+
+-- Played time on the current level so far, nil when its start isn't known (Events.lua keeps it).
+function ns.levelTimeNow()
+  local guid, played = UnitGUID("player"), ns.playedNow()
+  local db = WoWCharacterTrackerDB
+  local start = db and db.start and db.start[guid]
+  if not (played and start and db.startLevel and db.startLevel[guid] == UnitLevel("player")) then return nil end
+  return math.max(0, played - start)
 end
 
 -- Guild name, "" when not in one, nil when the game doesn't know yet (right after login).
@@ -419,12 +444,13 @@ local function safe(fn, ...)
   return nil
 end
 
--- Everything we show about the character, both in posts and in the companion app.
-function ns.characterInfo()
+-- Everything we show about the character, both in posts and in the companion app. forEvent: for
+-- ns.record, which leaves out the saved snapshot's extras (stats, talent picks and export).
+function ns.characterInfo(forEvent)
   local className, classFile = safe(UnitClass, "player")
   local raceName, raceFile = safe(UnitRace, "player")
   local sex = safe(UnitSex, "player") -- 2 = male, 3 = female
-  local talents, spec, picks, calc = safe(ns.getTalents)
+  local talents, spec, picks, calc = safe(ns.getTalents, forEvent)
   local info = {
     guid = UnitGUID("player"),
     char = safe(UnitName, "player"),
@@ -434,12 +460,13 @@ function ns.characterInfo()
     level = safe(UnitLevel, "player"),
     zone = safe(getZone),
     zoneType = safe(getZoneType),
-    professions = safe(getProfessions),
+    professions = safe(ns.professionText),
+    recipes = not forEvent and safe(ns.ownRecipeText) or nil, -- saved file and friends only (Recipes.lua)
     talents = talents,
     talentPicks = picks, -- Forever: "spellID~rank~maxRank~tree,..." (saved file only, too long for the grid)
-    talentExport = safe(getTalentExport), -- saved file only
+    talentExport = not forEvent and safe(getTalentExport) or nil, -- saved file and check-in only
     talentCalc = calc, -- Forever: Wowhead talent calculator code (short, goes live too)
-    stats = safe(getStats), -- saved file only
+    stats = not forEvent and safe(getStats) or nil, -- saved file only
     spec = spec,
     role = safe(getRole),
     ilvl = safe(getItemLevel),
@@ -474,37 +501,57 @@ end
 -- Keeps one up-to-date entry per character in WoWCharacterTrackerDB.chars.
 -- Right after login and during logout the game can report no gear, spec or professions yet.
 -- Values that come back empty keep what was saved before instead of wiping it.
--- (Money too: during logout GetMoney() comes back as 0. Ratings read as none until the game has
--- answered RequestRatedInfo, so they keep the last known values too.)
-local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "zone", "played", "crests", "money", "mplusScore", "pvpRatings" }
+-- (Ratings read as none until the game has answered RequestRatedInfo, so they keep the last known
+-- values too. Money has its own rule below.)
+local KEEP_IF_EMPTY = { "ilvl", "spec", "role", "talents", "talentPicks", "talentExport", "talentCalc", "stats", "professions", "recipes", "zone", "played", "crests", "mplusScore", "pvpRatings" }
 
-function ns.saveSnapshot()
+-- atLogout: true from the logout (a ticker passes itself, so only true counts), where 0 money isn't real.
+function ns.saveSnapshot(atLogout)
   ns.doing("snapshot")
   local guid = UnitGUID("player")
   if not guid then return end
   local info = ns.characterInfo()
   info.played = ns.playedNow()
+  info.levelTime = ns.levelTimeNow()
   info.lastSeen = time()
   local old = WoWCharacterTrackerDB.chars[guid]
   if old then
-    -- Talents that can't be read right now (game not ready, logout) keep the old text through
-    -- KEEP_IF_EMPTY below. (This used to follow the spec, but Forever has no specs at all.)
+    -- Talents that can't be read right now (game not ready, logout) keep the old text.
     for _, k in ipairs(KEEP_IF_EMPTY) do
       local v = info[k]
       if v == nil or v == "" or v == 0 or v == "an unknown place" or v == "Unknown" then info[k] = old[k] end
     end
+    -- Money: 0 is real (all spent) except at logout, where the game reports 0 for everyone.
+    if info.money == nil or (info.money == 0 and atLogout == true) then info.money = old.money end
     -- Guild: "" means no guild (keep that), nil means not known yet.
     if info.guild == nil then info.guild = old.guild end
     -- XP: during logout the game reports 0 of 0, so keep the last known bar, but only one from this
     -- level (0 XP with a real bar is a fresh level and stays).
     if (info.xpMax or 0) == 0 and old.level == info.level then info.xp, info.xpMax = old.xp, old.xpMax end
   end
-  -- Older versions stored the class as Forever's "spec" and a role that means nothing there.
+  -- A saved "spec" that is the class, or a role, means nothing on Forever (it has no specs).
   if info.spec == info.class then info.spec = nil end
-  if type(GetSpecialization) ~= "function" then info.role = nil end
+  if not ns.IS_RETAIL then info.role = nil end
   WoWCharacterTrackerDB.chars[guid] = info
+  if atLogout ~= true then ns.todaySnapshot(info) end -- (at logout the money can read 0)
   -- The XP each level needs on this client, so the app can estimate time to max level.
   if info.level and info.xpMax and info.xpMax > 0 and WoWCharacterTrackerDB.xpTable then
     WoWCharacterTrackerDB.xpTable[info.level] = info.xpMax
   end
+end
+
+-- Gold and currency change all the time (every loot, vendor and repair), so they update only those
+-- fields of the saved character instead of rebuilding it. Before the first full snapshot, that's it.
+function ns.saveMoney()
+  local guid = UnitGUID("player")
+  local saved = guid and WoWCharacterTrackerDB.chars[guid]
+  if not saved then return ns.saveSnapshot() end
+  local money = num(safe(GetMoney))
+  if money then
+    saved.money = money
+    ns.todaySnapshot({ guid = guid, money = money })
+  end
+  local crests = safe(getCrests)
+  if crests then saved.crests = crests end
+  saved.lastSeen = time()
 end

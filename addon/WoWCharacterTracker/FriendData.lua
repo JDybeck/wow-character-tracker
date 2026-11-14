@@ -1,0 +1,407 @@
+-- One character as a friend sees it (Friends.lua): built from the saved snapshot, sent as one line
+-- of text, and checked field by field when it arrives, since it comes from someone else's PC.
+-- No game calls, so the app's tests load it.
+local ADDON, ns = ...
+
+-- Every field a friend may get: its type, longest length, and the category that allows it (none:
+-- always sent). Only enchants keeps line breaks (one enchant per line).
+local FIELDS = {
+  guid = { kind = "string", max = 40 },
+  char = { kind = "string", max = 24 },
+  surname = { kind = "string", max = 24 }, -- Forever
+  realm = { kind = "string", max = 40 },
+  ruleset = { kind = "string", max = 24 }, -- Forever: "PvP", "Hardcore"...
+  level = { kind = "number" },
+  class = { kind = "string", max = 24 },
+  classFile = { kind = "string", max = 16 },
+  race = { kind = "string", max = 24 },
+  raceFile = { kind = "string", max = 16 },
+  sex = { kind = "string", max = 6, only = { male = true, female = true } },
+  faction = { kind = "string", max = 10 },
+  spec = { kind = "string", max = 32 },
+  ilvl = { kind = "number" },
+  at = { kind = "number" },
+  talents = { kind = "string", max = 1024, category = "talents" },
+  talentCalc = { kind = "string", max = 256, category = "talents" },
+  gear = { kind = "string", max = 512, category = "gear" },
+  enchants = { kind = "string", max = 2048, category = "gear", lines = true },
+  zone = { kind = "string", max = 64, category = "location" },
+  professions = { kind = "string", max = 256, category = "professions" },
+  -- Known recipes: "Profession~id,id" lines (Recipes.lua), cut at whole ids (encodeRecipes).
+  recipes = { kind = "string", max = 3000, category = "professions", lines = true },
+  money = { kind = "number", category = "gold" },
+  highlights = { kind = "string", max = 1024, category = "highlights", lines = true },
+  -- Leveling: level times as "level~seconds~at" lines, played, time on this level, the XP bar.
+  levels = { kind = "string", max = 1600, category = "leveling", lines = true },
+  played = { kind = "number", category = "leveling" },
+  levelTime = { kind = "number", category = "leveling" },
+  xp = { kind = "number", category = "leveling" },
+  xpMax = { kind = "number", category = "leveling" },
+  maxLevel = { kind = "number", category = "leveling" },
+  -- The last days' counts for the app's Stats page: "day~quests~herbs~ore~skins~fish~ilvlStart~ilvl~moneyStart~money~bosses~epics~mounts~duels~bgs~deaths"
+  -- lines, newest first; the money parts stay empty without gold, the moment counts without highlights.
+  days = { kind = "string", max = 900, category = "leveling", lines = true },
+}
+local MAX_TEXT = 12288
+local OLD_MAX_TEXT = 8192
+-- Sent, but left out of the change key like `at`: they tick along while nothing else changes.
+local VOLATILE = { at = true, played = true, levelTime = true, xp = true, days = true }
+local MAX_LEVELS = 80
+
+-- Highlights go as one line each, newest first: "kind~at~level" and then the kind's own fields in
+-- this order. A field with a category (FIELD_CATEGORY) stays empty unless that one is allowed too.
+-- Who was in the group stays home, only its size goes. The app reads the same order (FriendData.cs).
+local MAX_HIGHLIGHTS = 10
+local HIGHLIGHT_FIELDS = {
+  boss = { "boss", "instance", "groupSize" },
+  keyrun = { "instance", "keyLevel", "upgrades" },
+  loot = { "item", "itemId", "quality" },
+  mount = { "mount", "itemId", "bought" },
+  duel = { "opponent", "lost", "fled" },
+  makgora = { "opponent", "lost" },
+  bg = { "instance", "lost" },
+  profession = { "profession", "step" },
+  mplus = { "step", "rating" },
+  pvp = { "step", "bracket", "rating" },
+  death = { "killer", "played", "gold", "zone" },
+}
+local FIELD_CATEGORY = { gold = "gold", zone = "location" }
+ns.FRIEND_HIGHLIGHTS = MAX_HIGHLIGHTS
+
+-- Rare crafting materials recorded before they stopped being moments (Shared.lua ns.isRareReagent)
+-- are skipped both ways: not shared, and not shown when an older addon sends them.
+local function isReagentLoot(e)
+  return e.kind == "loot" and type(e.itemId) == "number" and ns.isRareReagent(e.itemId, e.quality)
+end
+
+function ns.isFriendHighlight(e)
+  return type(e) == "table" and HIGHLIGHT_FIELDS[e.kind] ~= nil and type(e.at) == "number" and not isReagentLoot(e)
+end
+
+-- `\`, `;` (between fields) and line breaks are escaped, so the text is one line.
+local function escape(s)
+  s = s:gsub("\\", "\\\\")
+  s = s:gsub("\n", "\\n")
+  s = s:gsub(";", "\\s")
+  return s
+end
+
+local function unescape(s)
+  return (s:gsub("\\(.)", function(c)
+    if c == "n" then return "\n" end
+    if c == "s" then return ";" end
+    return c
+  end))
+end
+
+-- No | (WoW's escape character for links and textures) and no control characters.
+local function clean(s, field)
+  s = s:gsub("|", "")
+  s = s:gsub("%c", function(c) return (field.lines and c == "\n") and c or "" end)
+  return s:sub(1, field.max)
+end
+
+-- Not NaN or infinite (both make n - n NaN).
+local function finite(n)
+  return n ~= nil and n - n == 0
+end
+
+-- One value in a highlight line: no ~ (between fields), | or line breaks; true is 1.
+local function highlightValue(v)
+  if type(v) == "boolean" then return v and "1" or "" end
+  if type(v) == "number" then return finite(v) and tostring(math.floor(v)) or "" end
+  if type(v) == "string" then return (v:gsub("[~|%c]", "")) end
+  return ""
+end
+
+-- The newest highlights among events (any order, other kinds skipped) as lines, nil without any.
+local function encodeHighlights(events, allowed)
+  local list = {}
+  for _, e in ipairs(events or {}) do
+    if ns.isFriendHighlight(e) then list[#list + 1] = e end
+  end
+  table.sort(list, function(x, y) return x.at > y.at end)
+  local lines, size = {}, 0
+  for i = 1, math.min(#list, MAX_HIGHLIGHTS) do
+    local e = list[i]
+    local parts = { e.kind, highlightValue(e.at), highlightValue(e.level) }
+    for _, key in ipairs(HIGHLIGHT_FIELDS[e.kind]) do
+      local category = FIELD_CATEGORY[key]
+      parts[#parts + 1] = (not category or allowed[category]) and highlightValue(e[key]) or ""
+    end
+    local line = table.concat(parts, "~")
+    if size + #line + 1 > FIELDS.highlights.max then break end
+    lines[#lines + 1] = line
+    size = size + #line + 1
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
+-- Level times ({ level, seconds, at }, any order) as lines, the newest MAX_LEVELS levels, nil without any.
+local function encodeLevels(levels)
+  local list = {}
+  for _, l in ipairs(levels or {}) do
+    if type(l.level) == "number" and type(l.seconds) == "number" and finite(l.seconds) and l.seconds > 0 then list[#list + 1] = l end
+  end
+  table.sort(list, function(x, y) return x.level > y.level end)
+  local lines = {}
+  for i = math.min(#list, MAX_LEVELS), 1, -1 do -- oldest of the kept first
+    local l = list[i]
+    lines[#lines + 1] = string.format("%d~%d~%d", l.level, math.floor(l.seconds), math.floor(finite(l.at) and l.at or 0))
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
+-- Days ({ day, quests, herbs, ... }, any order) as lines, the newest ns.SHARED_DAYS, nil without any.
+-- counts: [day] = { bosses, epics, ... } from all the character's events (ns.dayCountKey), so a busy
+-- week isn't cut off at the newest highlights; a day with only counts gets a line too.
+ns.SHARED_DAYS = 7
+local DAY_FIELDS = { "quests", "herbs", "ore", "skins", "fish", "ilvlStart", "ilvl", "moneyStart", "money",
+  "bosses", "epics", "mounts", "duels", "bgs", "deaths" }
+local DAY_GOLD = { moneyStart = true, money = true }
+local DAY_MOMENTS = { bosses = true, epics = true, mounts = true, duels = true, bgs = true, deaths = true }
+
+-- Which day count an event adds to, or nil: the app's Stats page counts the same (Leaderboards.cs).
+function ns.dayCountKey(e)
+  if type(e) ~= "table" then return nil end
+  local k = e.kind
+  if k == "boss" or k == "keyrun" then return "bosses" end
+  if k == "loot" and (e.quality or 0) >= 4 and not e.mat then return "epics" end
+  if k == "mount" then return "mounts" end
+  if (k == "duel" or k == "makgora") and not e.lost then return "duels" end
+  if k == "bg" and not e.lost then return "bgs" end
+  if k == "death" then return "deaths" end
+  return nil
+end
+
+local function isDay(s) return type(s) == "string" and s:match("^%d%d%d%d%-%d%d%-%d%d$") ~= nil end
+
+local function encodeDays(days, counts, allowed)
+  local byDay = {}
+  for _, d in ipairs(days or {}) do
+    if type(d) == "table" and isDay(d.day) then byDay[d.day] = d end
+  end
+  for day in pairs(allowed.highlights and counts or {}) do
+    if isDay(day) and not byDay[day] then byDay[day] = { day = day } end
+  end
+  local list = {}
+  for _, d in pairs(byDay) do list[#list + 1] = d end
+  table.sort(list, function(x, y) return x.day > y.day end)
+  local lines = {}
+  for i = 1, math.min(#list, ns.SHARED_DAYS) do
+    local d = list[i]
+    local moments = allowed.highlights and counts and counts[d.day]
+    local parts = { d.day }
+    for _, key in ipairs(DAY_FIELDS) do
+      local v, text = d[key], ""
+      if DAY_MOMENTS[key] then
+        v = allowed.highlights and ((moments and moments[key]) or 0) or nil
+      end
+      if type(v) == "number" and finite(v) and (not DAY_GOLD[key] or allowed.gold) then
+        text = key:match("^ilvl") and string.format("%.1f", v) or tostring(math.floor(v))
+      end
+      parts[#parts + 1] = text
+    end
+    lines[#lines + 1] = table.concat(parts, "~")
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
+-- A friend character's days: { day, quests, herbs, ore, skins, fish, ilvlStart, ilvl, moneyStart, money }, bad lines skipped.
+function ns.friendDays(c)
+  local out = {}
+  for line in string.gmatch(c and c.days or "", "[^\n]+") do
+    local p = {}
+    for v in string.gmatch(line .. "~", "([^~]*)~") do p[#p + 1] = v end
+    if isDay(p[1]) then
+      local d = { day = p[1] }
+      for i, key in ipairs(DAY_FIELDS) do d[key] = tonumber(p[i + 1] or "") end
+      out[#out + 1] = d
+    end
+  end
+  return out
+end
+
+-- Recipes (Recipes.lua) are "Profession~Category=id,id/Category=id" lines. Parsed here, without game
+-- calls, so friends' recipes and the tests read them the same way.
+
+-- A category name without the text's separators.
+function ns.cleanRecipeCategory(name)
+  return type(name) == "string" and (name:gsub("[=/~,\n|]", "")) or ""
+end
+
+-- "Camping=2660/Reagents=3115,3116" as { { name = "Camping", ids = { 2660 } }, ... }; ids without a
+-- category ("2329,2330") get the name "".
+function ns.recipeGroups(text)
+  local groups = {}
+  for part in string.gmatch(text or "", "[^/]+") do
+    local name, ids = part:match("^([^=]*)=(.*)$")
+    if not name then name, ids = "", part end
+    local list = {}
+    for id in string.gmatch(ids, "%d+") do list[#list + 1] = tonumber(id) end
+    if #list > 0 then groups[#groups + 1] = { name = name, ids = list } end
+  end
+  return groups
+end
+
+-- The recipe lines that fit in FIELDS.recipes.max, in their order: whole ids only, and nothing after
+-- the first one that doesn't fit. Nil without any.
+local function encodeRecipes(text)
+  if type(text) ~= "string" then return nil end
+  local lines, size, max, full = {}, 0, FIELDS.recipes.max, false
+  for line in string.gmatch(text, "[^\n]+") do
+    local profession, rest = line:match("^([^~]+)~(.+)$")
+    if full then break end
+    if profession then
+      local parts, used = {}, #profession + 2 -- the ~ and the line break
+      for _, g in ipairs(ns.recipeGroups(rest)) do
+        local head = ns.cleanRecipeCategory(g.name) .. "="
+        local ids, cost = {}, #head + 1 -- the /
+        for _, id in ipairs(g.ids) do
+          local s = tostring(id)
+          if size + used + cost + #s + 1 > max then full = true break end
+          ids[#ids + 1] = s
+          cost = cost + #s + 1
+        end
+        if #ids > 0 then
+          parts[#parts + 1] = head .. table.concat(ids, ",")
+          used = used + cost
+        end
+        if full then break end
+      end
+      if #parts > 0 then
+        lines[#lines + 1] = profession .. "~" .. table.concat(parts, "/")
+        size = size + used
+      end
+    end
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
+-- A friend character's recipes: { { profession, groups = { { name, ids } } } }; bad lines skipped.
+function ns.friendRecipes(c)
+  local out = {}
+  for line in string.gmatch(c and c.recipes or "", "[^\n]+") do
+    local profession, rest = line:match("^([^~]+)~(.+)$")
+    local groups = profession and ns.recipeGroups(rest) or {}
+    if #groups > 0 then out[#out + 1] = { profession = profession, groups = groups } end
+  end
+  return out
+end
+
+-- A friend character's level times, oldest first: { level, seconds, at }; bad lines are skipped.
+function ns.friendLevels(c)
+  local out = {}
+  for level, seconds, at in string.gmatch(c and c.levels or "", "(%d+)~(%d+)~(%d+)") do
+    level, seconds = tonumber(level), tonumber(seconds)
+    if level >= 2 and level <= 200 and seconds > 0 then out[#out + 1] = { level = level, seconds = seconds, at = tonumber(at) } end
+  end
+  table.sort(out, function(a, b) return a.level < b.level end)
+  return out
+end
+
+-- A friend character's highlights as events ({ kind, at, level, the kind's fields }), newest first;
+-- unknown kinds and lines without a time are skipped. Numbers come back as numbers, "1" flags as true.
+local FLAGS = { bought = true, lost = true, fled = true }
+function ns.friendHighlights(c)
+  local out = {}
+  for line in string.gmatch(c and c.highlights or "", "[^\n]+") do
+    local p = {}
+    for v in string.gmatch(line .. "~", "([^~]*)~") do p[#p + 1] = v end
+    local keys, at = HIGHLIGHT_FIELDS[p[1]], tonumber(p[2])
+    if keys and at and at > 0 then
+      local e = { kind = p[1], at = at, level = tonumber(p[3]) }
+      for i, key in ipairs(keys) do
+        local v = p[i + 3]
+        if v and v ~= "" then
+          if FLAGS[key] then e[key] = v == "1" else e[key] = tonumber(v) or v end
+        end
+      end
+      if not isReagentLoot(e) then out[#out + 1] = e end
+    end
+  end
+  table.sort(out, function(x, y) return x.at > y.at end)
+  return out
+end
+
+-- The allowed values as sorted "key=value" parts (the same character is the same text), the
+-- volatile ones and `at` last. Returns the text and the change key (the text without those).
+local function joinFields(values, allowed)
+  local parts, volatile = {}, {}
+  for key, field in pairs(FIELDS) do
+    local v = values[key]
+    if key ~= "at" and type(v) == field.kind and (not field.category or allowed[field.category]) then
+      local part = key .. "=" .. escape(tostring(v))
+      if VOLATILE[key] then volatile[#volatile + 1] = part else parts[#parts + 1] = part end
+    end
+  end
+  table.sort(parts)
+  table.sort(volatile)
+  local key = table.concat(parts, ";")
+  volatile[#volatile + 1] = "at=" .. tostring(values.at or 0)
+  return key .. ";" .. table.concat(volatile, ";"), key
+end
+
+-- The text for one of your characters, and the same without the volatile fields (`at` changes with
+-- every snapshot, so change detection compares that one). allowed: the categories the friend may
+-- see; events: the character's highlights (ns.isFriendHighlight), or nil; levels: its level times.
+function ns.encodeFriendChar(guid, char, items, allowed, events, levels, days, counts)
+  local values = {}
+  for key in pairs(FIELDS) do values[key] = char[key] end
+  values.guid, values.at = guid, char.lastSeen
+  values.gear, values.enchants = items and items.gear, items and items.enchants
+  values.highlights = allowed.highlights and encodeHighlights(events, allowed) or nil
+  values.levels = allowed.leveling and encodeLevels(levels) or nil
+  values.days = allowed.leveling and encodeDays(days, counts, allowed) or nil
+  values.recipes = encodeRecipes(char.recipes)
+  local text, key = joinFields(values, allowed)
+  -- Addons before recipes take at most OLD_MAX_TEXT and drop the whole character above it.
+  if #text > OLD_MAX_TEXT and values.recipes then
+    values.recipes = nil
+    text, key = joinFields(values, allowed)
+  end
+  -- XP ticks with every kill, so it's volatile, but a whole percent more on the bar is a change.
+  local percent = allowed.leveling and ns.levelPercent(values)
+  if percent then key = key .. ";xpPercent=" .. percent end
+  return text, key
+end
+
+-- A friend character's gear in slot order: { slot, id, enchant, enchantId } (enchant and
+-- enchantId nil when not known; enchant lines only count for the same item in the same slot).
+function ns.friendGear(c)
+  local enchants = {}
+  for line in string.gmatch(c.enchants or "", "[^\n]+") do
+    local slot, id, text, enchantId = line:match("^(%d+)~(%d+)~(.-)~(%d+)$")
+    if slot then enchants[slot .. "~" .. id] = { text = text ~= "" and text or nil, id = tonumber(enchantId) } end
+  end
+  local out = {}
+  for slot, id in string.gmatch(c.gear or "", "(%d+)~(%d+)") do
+    local e = enchants[slot .. "~" .. id] or {}
+    out[#out + 1] = { slot = tonumber(slot), id = tonumber(id), enchant = e.text, enchantId = (e.id or 0) > 0 and e.id or nil }
+  end
+  table.sort(out, function(a, b) return a.slot < b.slot end)
+  return out
+end
+
+-- The character in a friend's text, or nil when it isn't one. Only known fields are kept.
+function ns.decodeFriendChar(text)
+  if type(text) ~= "string" or #text > MAX_TEXT then return nil end
+  local out = {}
+  for part in text:gmatch("[^;]+") do
+    local key, raw = part:match("^(%a+)=(.*)$")
+    local field = key and FIELDS[key]
+    if field then
+      local v = unescape(raw)
+      if field.kind == "number" then
+        v = tonumber(v)
+        if not finite(v) then v = nil end
+      else
+        v = clean(v, field)
+        if v == "" or (field.only and not field.only[v]) then v = nil end
+      end
+      out[key] = v
+    end
+  end
+  if not (out.guid and out.guid:match("^Player%-%d+%-%x+$") and out.char) then return nil end
+  return out
+end

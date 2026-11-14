@@ -26,7 +26,66 @@ static class SavedVariables
             XpTable = ReadXpTable(db.Table.Get("xpTable")),
             ItemClasses = ReadItemClasses(db.Table.Get("itemClasses")),
             Notes = ReadNotes(db.Table.Get("notes")),
+            Nicknames = ReadNicknames(db.Table.Get("friendNames")),
+            FriendOrder = ReadFriendOrder(db.Table.Get("friendOrder")),
+            InGame = ReadInGame(db.Table.Get("gameSettings")),
+            Friends = FriendData.ReadFriends(db.Table.Get("friends")),
+            Share = FriendData.ReadShare(db.Table.Get("share")),
+            Incognito = IncognitoWindow.Read(db.Table.Get("incognito")),
+            Today = ReadToday(db.Table.Get("today")),
+            Days = ReadDays(db.Table.Get("days")),
         };
+    }
+
+    // today[guid] = { day, ilvlStart, ilvl, moneyStart, money, quests, herbs, ore, skins, fish } (Today.lua).
+    internal static List<DayTotals> ReadToday(DynValue table)
+    {
+        if (table.Type != DataType.Table) return [];
+        return [.. table.Table.Pairs
+            .Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
+            .Select(p => Day(p.Key.String, p.Value.Table))];
+    }
+
+    // days[guid][day] = a finished day, the same fields as today's (Today.lua archive).
+    internal static List<DayTotals> ReadDays(DynValue table)
+    {
+        if (table.Type != DataType.Table) return [];
+        return [.. table.Table.Pairs
+            .Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
+            .SelectMany(p => p.Value.Table.Pairs
+                .Where(d => d.Key.Type == DataType.String && d.Value.Type == DataType.Table)
+                .Select(d => Day(p.Key.String, d.Value.Table) with { Day = d.Key.String }))];
+    }
+
+    static DayTotals Day(string guid, Table t) =>
+        new(guid, S(t, "day"), N(t, "ilvlStart"), N(t, "ilvl"), (long)N(t, "moneyStart"), (long)N(t, "money"),
+            (int)N(t, "quests"), (int)N(t, "herbs"), (int)N(t, "ore"), (int)N(t, "skins"), (int)N(t, "fish"));
+
+    // gameSettings: the In game settings as changed in the addon's options page (Shared.lua editSettings).
+    internal static InGameSettings? ReadInGame(DynValue value)
+    {
+        if (value.Type != DataType.Table) return null;
+        var t = value.Table;
+        var at = (long)N(t, "at");
+        if (at <= 0) return null;
+        static List<string> On(DynValue kinds) => kinds.Type != DataType.Table ? [] :
+            [.. kinds.Table.Pairs.Where(p => p.Key.Type == DataType.String && p.Value.CastToBool()).Select(p => p.Key.String)];
+        // A setting the change doesn't have is null: the addon then reads the app's value (Shared.lua ns.setting).
+        bool? Flag(string key) => t.Get(key).Type == DataType.Boolean ? t.Get(key).Boolean : null;
+        var announce = t.Get("announce");
+        var a = announce.Type == DataType.Table ? announce.Table : null; // the addon takes this table whole
+        var ask = t.Get("ask");
+        return new InGameSettings(at,
+            a?.Get("guild").CastToBool(), a?.Get("party").CastToBool(),
+            a is null ? null : On(a.Get("kinds")),
+            a?.Get("partyKinds").Type == DataType.Table ? On(a.Get("partyKinds")) : null, // an older addon had one list for both
+            ask.Type == DataType.Table ? On(ask) : null,
+            Flag("flightReload"), Flag("chatReminder"),
+            t.Get("gridCorner").Type == DataType.String ? t.Get("gridCorner").String : null,
+            Flag("gridLabel"), Flag("keepAllHistory"),
+            t.Get("askSeconds").CastToNumber() is double seconds ? (int)seconds : null,
+            t.Get("ignored").Type == DataType.Table ? On(t.Get("ignored")) : null,
+            t.Get("preset").Type == DataType.String ? t.Get("preset").String : null);
     }
 
     // notes[guid] = { text, at }: notes edited in game. The game keeps "|" as "||".
@@ -38,6 +97,27 @@ static class SavedVariables
             if (p.Key.Type == DataType.String && p.Value.Type == DataType.Table)
                 notes.Add(new GameNote(p.Key.String, S(p.Value.Table, "text").Replace("||", "|"), (long)N(p.Value.Table, "at")));
         return notes;
+    }
+
+    // friendNames[battleTag] = { name, at }: friends' nicknames set in game ("" = cleared).
+    internal static List<GameNickname> ReadNicknames(DynValue table)
+    {
+        if (table.Type != DataType.Table) return [];
+        return [.. table.Table.Pairs
+            .Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Table && N(p.Value.Table, "at") > 0)
+            .Select(p => new GameNickname(p.Key.String, S(p.Value.Table, "name").Replace("||", "|"), (long)N(p.Value.Table, "at")))];
+    }
+
+    // friendOrder = { tags = { battleTag, ... }, at }: the Friends tab's order, dragged in game.
+    internal static GameFriendOrder? ReadFriendOrder(DynValue value)
+    {
+        if (value.Type != DataType.Table) return null;
+        var at = (long)N(value.Table, "at");
+        var tags = value.Table.Get("tags");
+        if (at <= 0 || tags.Type != DataType.Table) return null;
+        var list = tags.Table;
+        return new GameFriendOrder([.. Enumerable.Range(1, list.Length).Select(i => list.Get(i))
+            .Where(v => v.Type == DataType.String).Select(v => v.String).Distinct()], at);
     }
 
     // itemClasses[itemId] = the item's class (consumable, weapon, armor, trade goods...).
@@ -87,6 +167,8 @@ static class SavedVariables
                 Xp = (long)N(t, "xp"),
                 XpMax = (long)N(t, "xpMax"),
                 MaxLevel = (int)N(t, "maxLevel"),
+                LevelTime = (long)N(t, "levelTime"),
+                Recipes = S(t, "recipes"),
             });
         }
 

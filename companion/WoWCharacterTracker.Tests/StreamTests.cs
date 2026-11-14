@@ -1,3 +1,4 @@
+using WoWCharacterTracker.Services.LiveChannel;
 using WoWCharacterTracker.Services.Streaming;
 
 namespace WoWCharacterTracker.Tests;
@@ -63,6 +64,60 @@ public class StreamTests
         Assert.Null(StreamSnapshot.AlertFor(new Entry { Kind = "duel", Opponent = "Grimtusk", Lost = true }));
     }
 
+    [Fact]
+    public void A_dungeons_end_boss_completes_the_dungeon()
+    {
+        var kill = new Entry { Id = "b", Guid = "P-1", Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", ZoneType = "dungeon", At = Ago(TimeSpan.FromSeconds(5)) };
+        Assert.Equal(("dungeon", "DUNGEON COMPLETE!", "The Deadmines", "Edwin VanCleef defeated", "victory"), Parts(StreamSnapshot.AlertFor(kill)!));
+        // A raid's end boss, or a kill from before the zone type was recorded, stays a boss kill.
+        Assert.Equal("boss", StreamSnapshot.AlertFor(kill with { ZoneType = "raid", Boss = "Ragnaros" })!.Kind);
+        Assert.Equal("boss", StreamSnapshot.AlertFor(kill with { ZoneType = "" })!.Kind);
+    }
+
+    [Theory]
+    [InlineData("dungeon,boss", "dungeon")]
+    [InlineData("dungeon", "dungeon")]
+    [InlineData("boss", "boss")] // dungeon alert off: still a boss kill
+    [InlineData("level", null)]
+    public void The_dungeon_alert_has_its_own_option(string picked, string? expected)
+    {
+        var kill = new Entry { Id = "b", Guid = "P-1", Kind = "boss", Boss = "Edwin VanCleef", Instance = "The Deadmines", ZoneType = "dungeon", At = Ago(TimeSpan.FromSeconds(5)) };
+        var options = new StreamOptions { AlertKinds = [.. picked.Split(',')] };
+        Assert.Equal(expected, StreamSnapshot.Build(Ronnie, [kill], Now, options).Alert?.Kind);
+    }
+
+    [Fact]
+    public void The_dungeon_alert_needs_only_what_the_live_channel_already_sends()
+    {
+        var e = Payload.Parse("i=:boss:1;g=P-1;k=boss;n=Zeb;b=Bazil Thredd;I=The Stockade;f=dungeon")!;
+        Assert.Equal("dungeon", StreamSnapshot.AlertFor(e)!.Kind);
+    }
+
+    [Fact]
+    public void Every_option_sits_in_one_part_and_game_parts_match_the_capabilities()
+    {
+        (string Kind, string Name, string Tip)[][] alerts = [StreamViewModel.AlertNames, StreamViewModel.ForeverAlertNames, StreamViewModel.RetailAlertNames];
+        (string Kind, string Name, string Tip)[][] highlights = [StreamViewModel.KindNames, StreamViewModel.ForeverKindNames, StreamViewModel.RetailKindNames];
+        (string Kind, string Name, string Tip)[][] fields = [StreamViewModel.FieldNames, StreamViewModel.RetailFieldNames];
+
+        Assert.Equal(StreamOptions.AllAlertKinds.Order(), alerts.SelectMany(p => p).Select(k => k.Kind).Order());
+        Assert.Equal(StreamOptions.AllKinds.Order(), highlights.SelectMany(p => p).Select(k => k.Kind).Order());
+        Assert.Equal(StreamOptions.AllCardFields.Order(), fields.SelectMany(p => p).Select(k => k.Kind).Order());
+
+        // Nothing marked as needing ratings sits outside Retail's part, or needing none outside Forever's.
+        Assert.All(StreamViewModel.RetailAlertNames.Concat(StreamViewModel.RetailKindNames), k => Assert.True(EventKinds.OfferedIn(k.Kind, Flavors.Retail.HasRatings)));
+        Assert.All(StreamViewModel.ForeverAlertNames.Concat(StreamViewModel.ForeverKindNames), k => Assert.True(EventKinds.OfferedIn(k.Kind, Flavors.Forever.HasRatings)));
+        Assert.All(StreamViewModel.AlertNames.Concat(StreamViewModel.KindNames), k =>
+            Assert.True(EventKinds.OfferedIn(k.Kind, hasRatings: true) && EventKinds.OfferedIn(k.Kind, hasRatings: false)));
+    }
+
+    [Fact]
+    public void New_configs_have_the_dungeon_alert_on()
+    {
+        Assert.Contains("dungeon", new StreamOptions().AlertKinds);
+        Assert.Contains("dungeon", StreamOptions.AllAlertKinds);
+    }
+
     static (string, string, string, string, string) Parts(StreamAlert a) => (a.Kind, a.Title, a.Line, a.Sub, a.Tone);
 
     [Fact]
@@ -71,7 +126,7 @@ public class StreamTests
         Entry[] events = [Level(22, 1400, TimeSpan.FromMinutes(5)), Loot("Coarse Stone", TimeSpan.FromMinutes(1)) with { Quality = 3 }];
         // Rare loot is off by default, so the level-up is still the alert.
         Assert.Equal("level", StreamSnapshot.Build(Ronnie, events, Now).Alert!.Kind);
-        Assert.Equal("rare", StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { AlertKinds = ["level", "rare"] }).Alert!.Kind);
+        Assert.Equal("rare", StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { AlertKinds = ["level", "rare"], RareAlertBoeOnly = false }).Alert!.Kind);
         Assert.Null(StreamSnapshot.Build(Ronnie, events, Now, new StreamOptions { AlertKinds = ["boss"] }).Alert);
     }
 
@@ -204,6 +259,27 @@ public class StreamTests
     [InlineData("", "")]
     [InlineData("0~503~Ara-Kara", "")]
     public void Keystone_text(string saved, string shown) => Assert.Equal(shown, Format.Keystone(saved));
+
+    [Fact]
+    public void The_highlights_have_their_own_background()
+    {
+        var look = StreamLook.From(new StreamOptions { CardOpacity = 40, HighlightsOpacity = 140 });
+        Assert.Equal(40, look.CardOpacity);
+        Assert.Equal(100, look.HighlightsOpacity); // clamped
+    }
+
+    // Configs from before the split keep what they see: the highlights start at the card's value, once.
+    [Fact]
+    public void An_old_config_keeps_its_highlights_background()
+    {
+        var old = System.Text.Json.JsonSerializer.Deserialize<StreamOptions>("""{ "CardOpacity": 35 }""")!;
+        Assert.True(old.SplitHighlightsOpacity());
+        Assert.Equal(35, old.HighlightsOpacity);
+
+        old.HighlightsOpacity = 90;
+        Assert.False(old.SplitHighlightsOpacity());
+        Assert.Equal(90, old.HighlightsOpacity);
+    }
 
     [Fact]
     public void The_look_comes_from_the_options()

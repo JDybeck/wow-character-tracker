@@ -27,6 +27,21 @@ sealed class CharacterRow : Observable
     public required bool Dead { get; init; }
     public required long Money { get; init; }   // copper
     public required string Crests { get; init; }
+    // A Battle.net friend's character (the Friends page): shown, never yours to post, tag or remove.
+    public bool IsFriend { get; set; }
+    public bool IsOwn => !IsFriend;
+    public string FriendTag { get; set; } = "";
+    string friendName = "";
+    public string FriendName { get => friendName; set => Set(ref friendName, value); } // nickname, else the BattleTag
+    // When your addon last heard from that friend (their contact's `seen`), shown as "updated 5m ago".
+    public long FriendSynced { get; set; }
+    public string FriendSyncedText => FriendSynced > 0 ? $"updated {Format.Ago(FriendSynced)}" : "not updated yet";
+    bool isHiddenFriend;
+    public bool IsHiddenFriend { get => isHiddenFriend; set => Set(ref isHiddenFriend, value); } // hidden on the Friends page, shown anyway
+    // A friend's character raced against one of yours (FriendsViewModel), null when none share a level.
+    public LevelRaceRow? Rival { get; set; }
+    public bool HasRival => Rival is not null;
+    public bool ShowsGold => IsOwn || HasMoney; // a friend who doesn't share gold has none to show
     public string Guild { get; init; } = "";
     public bool HasGuild => Guild.Length > 0;
     public string Surname { get; init; } = "";
@@ -36,11 +51,14 @@ sealed class CharacterRow : Observable
     public string TalentExport { get; init; } = ""; // the game's loadout string (retail)
     public bool HasTalentExport => TalentExport.Length > 0;
     public string Region { get; init; } = ""; // "eu", "us"... for the Retail character render
-    // "EU · Tarren Mill" when the region is known, so same-named realms in other regions stand apart.
-    public string RealmText => Region.Length > 0 ? $"{Region.ToUpperInvariant()} · {Realm}" : Realm;
+    public string RealmText => Format.Realm(Region, Realm);
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
+    public string Recipes { get; init; } = "";      // "Alchemy~Potions=2330/Elixirs=2329" lines (ProfessionSkills.Recipes)
+    IReadOnlyDictionary<string, IReadOnlyList<RecipeGroup>>? recipeLists;
+    public IReadOnlyList<RecipeGroup> RecipesOf(string profession) =>
+        (recipeLists ??= ProfessionSkills.Recipes(Recipes)).GetValueOrDefault(profession) ?? [];
     // The lists below are made once per row (its data never changes; a sync builds new rows), not on
     // every read: bindings, sorting and the card all read them.
     IReadOnlyList<(string Name, string Value)>? statList;
@@ -75,8 +93,11 @@ sealed class CharacterRow : Observable
     public IReadOnlyList<IconChip> CrestList { get; private set; } = [];
     public IReadOnlyList<IconChip> ProfessionList { get; private set; } = [];
     public bool HasProfessions => ProfessionList.Count > 0;
+    // Yours always ("None yet" without any); a friend's only when they share them.
+    public bool ShowsProfessions => IsOwn || HasProfessions;
     public required IReadOnlyList<LevelRow> Levels { get; init; }
     public required IReadOnlyList<HighlightRow> Highlights { get; init; }
+    public IReadOnlyList<Entry> Events { get; init; } = []; // oldest first (ArmoryExport)
     public Inventory? Inventory { get; init; } // what the character carries, as saved (the Items page)
     // The Gear and bags tab, built the first time it's shown: it makes an item (and a Wowhead
     // lookup) per slot, which for dozens of characters at startup froze the window.
@@ -129,11 +150,12 @@ sealed class CharacterRow : Observable
     // The tab's shared lookup of everything from the game (FlavorViewModel.Lookup).
     public GameLookup? Lookup { private get; init; }
 
+    // Crests, talents, loot and recipes are things from the game, so they get the same ItemInfo (and
+    // the same tooltip and Wowhead link, Ui/ItemTip) as items in bags.
+    public ItemInfo? Find(string type, int id) => id > 0 ? Lookup?.For(type, id) : null;
+
     async Task LoadIcons(Flavor flavor)
     {
-        // Crests, talents and loot are things from the game, so they get the same ItemInfo (and the
-        // same tooltip and Wowhead link, Ui/ItemTip) as items in bags.
-        ItemInfo? Find(string type, int id) => id > 0 ? Lookup?.For(type, id) : null;
         CrestList = CrestChips(Crests);
         foreach (var chip in CrestList) chip.Info = Find("currency", chip.Tag);
         ProfessionList = ProfessionChips(Professions);
@@ -145,6 +167,7 @@ sealed class CharacterRow : Observable
         Raise(nameof(CrestList));
         Raise(nameof(ProfessionList));
         Raise(nameof(HasProfessions));
+        Raise(nameof(ShowsProfessions));
 
         foreach (var chip in CrestList.Where(c => c.Info is not null))
         {
@@ -158,12 +181,7 @@ sealed class CharacterRow : Observable
             chip.IconUrl = chip.Info.IconUrl;
             if (chip.Info.Name.Length > 0) chip.Text = $"{chip.Info.Name} {chip.Text}";
         }
-        foreach (var h in Highlights.Where(h => h.Info is not null))
-        {
-            await h.Info!.LoadAsync(flavor);
-            h.IconUrl = h.Info.IconUrl;
-            if (h.Info.Quality >= 0) h.Brush = h.Info.Brush;
-        }
+        foreach (var h in Highlights) await h.LoadIconAsync(flavor);
     }
 
     // The user's tags as on/off chips for this character, and the box for making a new one.
@@ -178,10 +196,14 @@ sealed class CharacterRow : Observable
 
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
+    // The XP bar in whole percent (under the level), from the newest snapshot that has it, and when that was.
+    public int? LevelPercent { get; init; }
+    public long LevelPercentAt { get; init; }
+    public string LevelPercentText => LevelPercent is { } p ? $"{p}%" : "";
+    public string? LevelPercentTip => LevelPercent is { } p ? $"{p}% into level {Level}, updated {Format.Ago(LevelPercentAt)}" : null;
     public string PlayedText => Played > 0 ? Format.Played(Played) : "-";
     public string PlayedLine => Played > 0 ? $"{Format.Played(Played)} played" : "";
     public string LastSeenText => Format.Ago(LastSeen) is { Length: > 0 } s ? s : "-";
-    public string ProfessionsText => Professions is { Length: > 0 } and not "None" ? Professions : "None yet";
     public string TalentsText => Talents.Length > 0 ? Talents : "-";
     public string ZoneText => Zone.Length > 0 ? Zone : "-";
     public string ZoneType { get; init; } = "";       // dungeon, raid, pvp, rest, zone (Places)
@@ -281,6 +303,13 @@ sealed class CharacterRow : Observable
             var level = Math.Max(s?.Level ?? 0, all.Count > 0 ? all.Max(e => e.Level) : 0);
             // The newest of the snapshot and the last event says what the character has now.
             var newer = last is not null && last.At > (s?.LastSeen ?? 0) ? last : null;
+            // Played on the level being played: since the ding (played then), else what the addon saved
+            // (a friend's shared levelTime). Nothing at max level.
+            var played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0);
+            var ding = levels.Where(e => e.Level == level && e.Played > 0).MaxBy(e => e.At);
+            var thisLevel = ding is not null && played > ding.Played ? played - ding.Played : s is { LevelTime: > 0 } && s.Level == level ? s.LevelTime : 0;
+            var cap = Math.Max(xpSnaps.GetValueOrDefault(guid)?.MaxLevel ?? 0, s?.MaxLevel ?? 0);
+            if (cap > 0 && level >= cap || all.Any(e => e.MaxLevel)) thisLevel = 0;
 
             rows.Add(new CharacterRow
             {
@@ -298,7 +327,7 @@ sealed class CharacterRow : Observable
                 Role = s?.Role ?? "",
                 IsRetail = flavor.HasSpecs,
                 ItemLevel = s?.ItemLevel is > 0 ? s.ItemLevel : last?.ItemLevel ?? 0,
-                Played = Math.Max(s?.Played ?? 0, all.Count > 0 ? all.Max(e => e.Played) : 0),
+                Played = played,
                 Zone = Pick(s?.Zone, last?.Zone),
                 ZoneType = s?.Zone is { Length: > 0 } ? s.ZoneType : last?.ZoneType ?? "", // from where the zone came from
                 Professions = Pick(s?.Professions, last?.Professions),
@@ -319,6 +348,7 @@ sealed class CharacterRow : Observable
                 TalentCalc = Newest(guid, c => c.TalentCalc),
                 Region = Newest(guid, c => c.Region),
                 Stats = Newest(guid, c => c.Stats),
+                Recipes = Newest(guid, c => c.Recipes),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", e.Seconds > 0 ? Format.Duration(e.Seconds) : "?", e.Zone, When(e.At)))
@@ -326,56 +356,19 @@ sealed class CharacterRow : Observable
                 Highlights = all
                     .Where(e => EventKinds.Highlights.Contains(e.Kind))
                     .OrderByDescending(e => e.At)
-                    .Select(Highlight)
+                    .Select(HighlightRow.From)
                     .ToList(),
+                Events = all,
                 Lookup = lookup,
                 Inventory = inventories.GetValueOrDefault(guid),
                 MakeGear = MakeGear(inventories.GetValueOrDefault(guid), Pick(s?.ClassFile, last?.ClassFile), Pick(s?.Spec, last?.Spec)),
-                Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor.EstimatesXp),
+                Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor.EstimatesXp, thisLevel),
+                LevelPercent = LevelStats.Percent(xpSnaps.GetValueOrDefault(guid), level),
+                LevelPercentAt = xpSnaps.GetValueOrDefault(guid)?.LastSeen ?? 0,
             });
         }
 
         return rows.OrderByDescending(r => r.LastSeen).ToList();
-    }
-
-    // A highlight row, keeping its event so it can be posted from the details. Boss kills and Mythic+
-    // runs say who was there, deaths what was lost.
-    static HighlightRow Highlight(Entry e)
-    {
-        var row = Row(e);
-        row.Source = e;
-        if (e.Kind is "boss" or "keyrun") row.Group = GroupPart.Of(e.Members);
-        row.Detail = e.Kind switch
-        {
-            "boss" when e.GroupSize > 5 => $"With a raid of {e.GroupSize}",
-            "duel" or "makgora" when e.OpponentText.Length > 0 => char.ToUpperInvariant(e.OpponentText[0]) + e.OpponentText[1..],
-            "death" => string.Join(", ", new[] { e.Played > 0 ? $"{Format.Played(e.Played)} played" : "", $"lost {Format.Money(e.Gold)}", e.Zone }.Where(p => p.Length > 0)),
-            _ => "",
-        };
-        return row;
-    }
-
-    // The text is HighlightText's (shared with the stream overlay); the glyph and color are the app's.
-    static HighlightRow Row(Entry e)
-    {
-        var (verb, subject) = HighlightText.Of(e);
-        var (glyph, color) = e.Kind switch
-        {
-            "boss" => ("", 0xFBBF24),
-            "loot" => ("", 0),
-            "duel" when e.Lost => ("", 0x94A3B8),
-            "duel" => ("", 0x93C5FD),
-            "bg" when e.Lost => ("", 0x94A3B8),
-            "bg" => ("", 0x93C5FD),
-            "makgora" when e.Lost => ("", 0x94A3B8),
-            "mplus" or "keyrun" => ("", 0xC084FC),
-            "pvp" => ("", 0xF87171),
-            "mount" => ("", 0x4ADE80),
-            "profession" => ("", 0xFCD34D), // a wrench
-            _ => ("", 0xF87171), // Mak'gora wins, deaths
-        };
-        var brush = e.Kind == "loot" ? HighlightRow.QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD) : ClassColors.Hex(color);
-        return new(glyph, brush, verb, subject, When(e.At), e.Kind is "loot" or "mount" ? e.ItemId : 0);
     }
 
     // Forever talent picks, "spellID~rank~maxRank~tree,...": a chip per talent ("5/5" until
@@ -398,18 +391,9 @@ sealed class CharacterRow : Observable
             .ToList();
     }
 
-    // "Mining 104, Blacksmithing 96" with each profession's icon.
-    static IReadOnlyList<IconChip> ProfessionChips(string professions)
-    {
-        if (professions is "" or "None") return [];
-        return professions.Split(", ").Select(p =>
-        {
-            var space = p.LastIndexOf(' ');
-            var name = space > 0 ? p[..space] : p;
-            var icon = Wowhead.ProfessionIcons.TryGetValue(name, out var i) ? Wowhead.IconUrl(i, "small") : null;
-            return new IconChip(p, icon, name);
-        }).ToList();
-    }
+    // "Mining 104" with the profession's icon (the card shows these too), the max on hover.
+    static IReadOnlyList<IconChip> ProfessionChips(string professions) => [.. ProfessionSkills.Parse(professions)
+        .Select(p => new IconChip(p.Text, ProfessionSkills.IconUrl(p.Name), p.FullText))];
 
     static string When(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");
     static string Pick(string? a, string? b) => a is { Length: > 0 } ? a : b ?? "";

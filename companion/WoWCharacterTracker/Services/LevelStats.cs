@@ -13,11 +13,25 @@ static class LevelStats
     public sealed record Level(int Number, long Seconds);
     public sealed record Summary(int Count, long Average, Level Fastest, Level Slowest);
 
+    // The timed level-ups in a character's events, one per level (the last one wins), lowest first.
+    public static List<Level> Timed(IEnumerable<Entry> events) => events.Where(e => e.Kind == "level" && e.Seconds > 0)
+        .GroupBy(e => e.Level).Select(g => new Level(g.Key, g.Last().Seconds))
+        .OrderBy(l => l.Number).ToList();
+
     public static Summary? Summarize(IReadOnlyList<Level> timed)
     {
         if (timed.Count == 0) return null;
         return new Summary(timed.Count, (long)timed.Average(l => l.Seconds),
             timed.MinBy(l => l.Seconds)!, timed.MaxBy(l => l.Seconds)!);
+    }
+
+    // How far into `level` the XP bar is, in whole percent (the addon's ns.levelPercent), or null: no
+    // XP known, a snapshot from another level, or max level.
+    public static int? Percent(Snapshot? xp, int level)
+    {
+        if (xp is null || xp.XpMax <= 0 || xp.Level != level) return null;
+        if (xp.MaxLevel > 0 && level >= xp.MaxLevel) return null;
+        return (int)Math.Floor(100.0 * xp.Xp / xp.XpMax);
     }
 
     // Played seconds left to max level at the recent pace, or null when there's too little to go on

@@ -78,4 +78,14 @@ public sealed class WowFolderTests : IDisposable
         Assert.Equal(Path.Combine(root, "_forever_"), Wow.NewestFolder(Path.Combine(root, "_forever_"), Flavors.Forever));
         Assert.Equal(Path.Combine(root, "_retail_"), Wow.NewestFolder(Path.Combine(root, "_retail_"), Flavors.Retail));
     }
+
+    [Theory]
+    [InlineData("_classic_beta_", true)]
+    [InlineData("_forever_beta_\\", true)]
+    [InlineData("_forever_", false)]
+    public void Beta_folders_count_as_older_for_the_reminder(string folder, bool older)
+    {
+        Assert.Equal(older, Wow.IsOlderFolder(Path.Combine(root, folder), Flavors.Forever));
+        Assert.False(Wow.IsOlderFolder(Path.Combine(root, "_retail_"), Flavors.Retail));
+    }
 }

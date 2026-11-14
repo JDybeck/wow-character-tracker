@@ -33,21 +33,28 @@ local EVENTS = {
   "PLAYER_LEVEL_UP", "TIME_PLAYED_MSG",                                  -- level times
   "ENCOUNTER_END", "CHAT_MSG_LOOT", "PLAYER_DEAD",                       -- bosses, loot, deaths
   "MERCHANT_SHOW", "MERCHANT_CLOSED", "NEW_MOUNT_ADDED",                 -- mounts (bought or learned)
+  "LEARNED_SPELL_IN_TAB", "LEARNED_SPELL_IN_SKILL_LINE",                -- class mounts (each client has one of these)
   "CHAT_MSG_SYSTEM", "DUEL_REQUESTED", "CHALLENGE_MODE_COMPLETED", "PVP_RATED_STATS_UPDATE", -- duels, Mak'gora, ratings
   "UPDATE_BATTLEFIELD_STATUS", "PVP_MATCH_COMPLETE",                     -- battleground results
   "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL",                               -- profession milestones
+  "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "NEW_RECIPE_LEARNED",   -- known recipes (Recipes.lua)
   "CHALLENGE_MODE_START", "INSPECT_READY",                               -- party specs for Mythic+ runs
   "SCREENSHOT_SUCCEEDED", "SCREENSHOT_FAILED",                           -- the shot queue
   "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", -- gear, bags and bank
   "EQUIPMENT_SETS_CHANGED",                                             -- Equipment Manager sets saved or deleted
   "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED", "TAXIMAP_CLOSED",                 -- flight paths (the reload box)
   "MAIL_CLOSED", "AUCTION_HOUSE_CLOSED",                                          -- moments for the reload reminder
+  "BN_CHAT_MSG_ADDON", "BN_FRIEND_INFO_CHANGED",                                  -- sharing with Battle.net friends
+  "QUEST_TURNED_IN", "LOOT_OPENED",                                               -- today's numbers (Today.lua)
+  "NAME_PLATE_UNIT_ADDED", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT",      -- which layer we're on (Layer.lua)
   -- Refresh the character snapshot when these change, while the game has the data.
   "PLAYER_EQUIPMENT_CHANGED", "PLAYER_MONEY", "CURRENCY_DISPLAY_UPDATE", "PLAYER_SPECIALIZATION_CHANGED",
   "TRAIT_CONFIG_UPDATED", "CHARACTER_POINTS_CHANGED", "PLAYER_GUILD_UPDATE",
 }
 ns.frame = CreateFrame("Frame")
 for _, event in ipairs(EVENTS) do pcall(ns.frame.RegisterEvent, ns.frame, event) end
+-- Gathering casts (Today.lua): only our own, not every unit's.
+if ns.frame.RegisterUnitEvent then pcall(ns.frame.RegisterUnitEvent, ns.frame, "UNIT_SPELLCAST_SUCCEEDED", "player") end
 
 -- What the addon did last, saved with any "blocked from an action" report.
 local lastDoing = "nothing yet"
@@ -60,9 +67,8 @@ local blockedPending = {}
 function ns.flushBlocked()
   if not WoWCharacterTrackerDB or #blockedPending == 0 then return end
   local list = WoWCharacterTrackerDB.blocked or {}
-  for _, l in ipairs(blockedPending) do table.insert(list, l) end
+  for _, l in ipairs(blockedPending) do ns.appendCapped(list, l, 10) end
   blockedPending = {}
-  while #list > 10 do table.remove(list, 1) end
   WoWCharacterTrackerDB.blocked = list
 end
 

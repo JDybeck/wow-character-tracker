@@ -1,0 +1,288 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tracker UX POC</title>
+<style>
+:root{--bg:#080604;--card:#120E08;--head:#19130B;--line:#2B2216;--acc:#B45309;--acch:#D97706;--acct:#FCD34D;--accb:#FEF3C7;
+--text:#E7DCC8;--dim:#9C8F7A;--faint:#6B604F;--green:#4ADE80;--amber:#FBBF24;--epic:#A335EE;--rare:#0070DD;--legend:#FF8000}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#1b1712;font-family:"Segoe UI Variable Text","Segoe UI",sans-serif;color:var(--text);padding:40px;width:1700px}
+h1.sec{font-size:22px;color:#fff;margin:0 0 6px}
+p.note{color:#bdb3a2;font-size:14px;margin:0 0 16px;max-width:1500px}
+.frame{background:var(--bg);border:1px solid #3a2f20;border-radius:10px;overflow:hidden;position:relative;margin-bottom:56px}
+.app{width:1320px;height:860px;padding:22px 28px;position:relative}
+.hdr{display:flex;align-items:center;gap:16px;margin-bottom:18px;margin-right:50px}
+.logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#6b4a1c,#2a1d0c);display:grid;place-items:center;font-weight:800;color:var(--acct);font-size:18px}
+.title b{font-size:24px;color:#fff;display:block}.title span{font-size:12px;color:var(--dim)}
+.sw{display:flex;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px;margin-left:30px}
+.sw div{padding:8px 22px;border-radius:7px;font-size:14px;color:var(--dim)}.sw .on{background:var(--acc);color:#fff}
+.hr{margin-left:auto;display:flex;gap:10px;align-items:center}
+.ib{width:36px;height:36px;border-radius:9px;border:1px solid var(--line);display:grid;place-items:center;color:var(--dim);font-size:15px}
+.synced{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:6px;margin-right:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{padding:8px 16px;border-radius:9px;border:1px solid var(--line);font-size:13px;color:var(--dim)}
+.tab.on{border-color:var(--acc);color:var(--accb);background:#1c140a}
+.main{position:absolute;left:28px;right:72px;top:150px;bottom:22px;display:grid;grid-template-columns:1.25fr 1fr;gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.lbl{font-size:11px;letter-spacing:.08em;color:var(--faint);text-transform:uppercase;margin-bottom:10px}
+.live{display:flex;gap:16px;align-items:center}
+.port{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c79a5a,#5a3a18);border:2px solid var(--acch);flex:none}
+.live h2{font-size:24px;color:var(--acct)}.live .sub{color:var(--dim);font-size:13px}
+.pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:#14361f;color:var(--green);margin-left:8px;vertical-align:middle}
+.xp{margin-top:18px}.xpbar{height:12px;border-radius:99px;background:#20180e;overflow:hidden;border:1px solid var(--line)}
+.xpbar i{display:block;height:100%;width:64%;background:linear-gradient(90deg,#7c3aed,#a78bfa)}
+.xpt{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+.stat{background:var(--head);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat b{display:block;font-size:20px;color:#fff}.stat span{font-size:11px;color:var(--dim)}
+.session{margin-top:16px}
+.feed .m{display:flex;gap:12px;align-items:center;padding:11px 10px;border-radius:10px;border:1px solid transparent}
+.feed .m.big{background:linear-gradient(90deg,#2a1640,#120E08);border-color:#4c2a75}
+.ico{width:38px;height:38px;border-radius:8px;flex:none;display:grid;place-items:center;font-size:18px}
+.m .t{flex:1}.m .t b{font-size:14px;font-weight:600}.m .t div{font-size:12px;color:var(--dim)}
+.posted{font-size:11px;color:var(--green)}
+.share{font-size:12px;padding:6px 12px;border-radius:8px;background:var(--acc);color:#fff}
+.share.ghost{background:transparent;border:1px solid var(--line);color:var(--dim)}
+.rail{position:absolute;right:0;top:0;bottom:0;width:52px;background:#0d0a06;border-left:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding-top:150px;gap:14px}
+.ri{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:var(--dim);font-size:16px;position:relative;border:1px solid transparent}
+.ri.on{background:#1c140a;border-color:var(--acc);color:var(--acct)}
+.ri .sd{position:absolute;right:4px;top:4px;width:8px;height:8px;border-radius:50%;border:2px solid #0d0a06}
+.pin{margin-top:auto;margin-bottom:16px}
+.flyout{position:absolute;right:52px;top:140px;width:360px;bottom:22px;background:#15100a;border:1px solid var(--acc);border-right:none;border-radius:12px 0 0 12px;padding:18px;box-shadow:-20px 0 40px rgba(0,0,0,.6)}
+.flyout h3{font-size:17px;color:#fff;display:flex;align-items:center;gap:8px}.flyout h3 small{margin-left:auto;font-size:12px;color:var(--dim);font-weight:400}
+.hook{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px;display:flex;align-items:center;gap:10px}
+.hook.on{border-color:var(--acc);background:#1c140a}
+.hook b{font-size:14px}.hook div div{font-size:12px;color:var(--dim)}
+.tog{margin-left:auto;width:36px;height:20px;border-radius:99px;background:#2b2216;position:relative}
+.tog::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;background:#7a6d58;top:3px;left:3px}
+.tog.on{background:var(--acc)}.tog.on::after{left:19px;background:#fff}
+.addrow{margin-top:12px;font-size:13px;color:var(--acct)}
+.callout{position:absolute;background:#FEF3C7;color:#3b2a06;font-size:12.5px;line-height:1.35;padding:8px 11px;border-radius:8px;width:230px;box-shadow:0 6px 16px rgba(0,0,0,.5);font-weight:500;z-index:5}
+.callout b{display:block;font-size:11px;letter-spacing:.06em;color:#92400e;margin-bottom:2px}
+/* sharing */
+.share-page{position:absolute;left:28px;right:72px;top:150px;bottom:22px;overflow:hidden}
+.seg{display:flex;gap:10px;margin:14px 0 18px}
+.preset{flex:1;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card)}
+.preset.on{border-color:var(--acch);background:#1f160a;box-shadow:inset 0 0 0 1px var(--acc)}
+.preset b{font-size:16px;color:#fff;display:flex;align-items:center;gap:8px}.preset p{font-size:12.5px;color:var(--dim);margin-top:6px;line-height:1.4}
+.radio{width:16px;height:16px;border-radius:50%;border:2px solid var(--faint)}.preset.on .radio{border-color:var(--acct);background:radial-gradient(var(--acct) 40%,transparent 45%)}
+.dest{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.d{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;background:var(--card)}
+.d b{font-size:14px}.d div div{font-size:12px;color:var(--dim)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:500;text-align:center;padding:8px}
+th:first-child,td:first-child{text-align:left}
+td{padding:9px 8px;border-top:1px solid var(--line);text-align:center}
+td small{display:block;color:var(--faint);font-size:11.5px}
+.ck{display:inline-block;width:16px;height:16px;border-radius:4px;border:1.5px solid var(--faint);vertical-align:middle}
+.ck.on{background:var(--acc);border-color:var(--acc);position:relative}
+.ck.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.rowtest{font-size:11px;color:var(--faint);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+tr.hov td{background:#1a130a}tr.hov .rowtest{color:var(--acct);border-color:var(--acc)}
+.cust{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--accb);margin:4px 0 8px}
+.adv{margin-top:12px;font-size:13px;color:var(--dim)}
+/* wizard */
+.wiz{width:640px;background:#15100a;border:1px solid var(--acc);border-radius:14px;padding:26px 28px;position:absolute;left:340px;top:110px;box-shadow:0 30px 80px rgba(0,0,0,.8)}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.steps{display:flex;gap:6px;margin-bottom:18px}.steps i{flex:1;height:4px;border-radius:9px;background:var(--line)}.steps i.done{background:var(--acc)}.steps i.cur{background:var(--acct)}
+.wiz h2{font-size:22px;color:#fff}.wiz p{color:var(--dim);font-size:14px;margin:8px 0 18px;line-height:1.45}
+.input{border:1px solid var(--line);background:#0d0a06;border-radius:9px;padding:12px;font-size:13px;color:var(--faint);margin-bottom:10px}
+.wf{display:flex;justify-content:space-between;align-items:center;margin-top:20px}
+.btn{padding:10px 18px;border-radius:9px;font-size:14px;background:var(--acc);color:#fff}.btn.g{background:none;color:var(--dim);border:1px solid var(--line)}
+.checks{display:flex;gap:8px;margin-bottom:16px}.chk{font-size:12px;padding:5px 10px;border-radius:99px;background:#14361f;color:var(--green)}.chk.cur{background:#3a2a08;color:var(--amber)}
+/* addon */
+.wow{background:#3b4045;padding:40px;display:flex;gap:40px;align-items:flex-start;background-image:radial-gradient(circle at 30% 20%,#5a6a4e,#2a3226 60%,#1a1f18)}
+.aw{width:520px;background:rgba(18,14,8,.97);border:1px solid #6b5326;border-radius:6px;font-family:"Segoe UI",sans-serif}
+.awh{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);gap:10px}
+.awh b{color:var(--acct);font-size:15px}.awh .x{margin-left:auto;color:var(--dim)}
+.awt{display:flex;gap:4px;padding:10px 12px 0}
+.awt div{padding:6px 12px;font-size:12.5px;border:1px solid var(--line);border-bottom:none;border-radius:5px 5px 0 0;color:var(--dim)}
+.awt .on{background:#1f160a;color:var(--accb);border-color:var(--acc)}
+.awb{padding:16px;border-top:1px solid var(--acc);font-size:13px}
+.awb h4{font-size:13px;color:var(--acct);margin:14px 0 8px}.awb h4:first-child{margin-top:0}
+.cb{display:flex;gap:9px;align-items:flex-start;margin:7px 0}.cb div{line-height:1.3}.cb small{display:block;color:var(--faint);font-size:11.5px}
+.syncnote{font-size:12px;color:var(--dim);background:#1a130a;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:12px}
+.mini{display:flex;gap:6px}.mini span{font-size:12px;padding:5px 11px;border:1px solid var(--line);border-radius:5px;color:var(--dim)}.mini .on{border-color:var(--acch);color:var(--accb);background:#1f160a}
+.toast{width:330px;background:rgba(18,14,8,.95);border:1px solid #6b5326;border-radius:6px;padding:12px 14px;font-size:13px}
+.toast b{color:var(--acct)}.toast .r{display:flex;gap:6px;margin-top:10px}.toast .r span{font-size:12px;padding:5px 12px;border-radius:5px;border:1px solid var(--line);color:var(--dim)}.toast .r .p{background:var(--acc);color:#fff;border-color:var(--acc)}
+.cmp{font-size:13px;color:#ddd;line-height:1.6;width:520px}
+.cmp td,.cmp th{border-top:1px solid rgba(255,255,255,.15);text-align:left;padding:6px 8px;color:#e6e6e6;font-size:13px}.cmp th{color:#fff;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600}
+</style></head><body>
+
+<h1 class="sec">1. Home while you play: live character + moments, Discord flyout open</h1>
+<p class="note">4 tabs instead of 7: What gets posted + In game = Sharing; Items, Professions and Followed items become views inside Characters (section 1b), and the search box finds items from any page. Right column becomes the rail: hover or click an icon, its panel slides out over the page, leave and it hides. Header loses What's new / Feedback / ? / i (they live in the ? menu) and Sync now becomes a quiet "synced" line.</p>
+<div class="frame app">
+  <div class="hdr">
+    <div class="logo">WCT</div>
+    <div class="title"><b>Character Tracker</b><span>Forever · 3 characters</span></div>
+    <div class="sw"><div>Retail</div><div class="on">Forever</div></div>
+    <div class="hr"><span class="synced"><span class="dot"></span> Synced 1 min ago ↻</span><div class="ib">?</div><div class="ib">⚙</div></div>
+  </div>
+  <div class="tabs"><div class="tab on">✦ Home</div><div class="tab">Characters</div><div class="tab">Friends</div><div class="tab">Sharing</div><div style="margin-left:auto;margin-right:50px;width:300px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px;color:var(--faint)">⌕ Search characters and items</div></div>
+  <div class="main">
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="card">
+        <div class="lbl">Playing now</div>
+        <div class="live"><div class="port"></div>
+          <div><h2>Zeb Testchar <span class="pill">● In game</span></h2><div class="sub">Level 40 Arms Warrior · Night Elf · Scarlet Monastery</div></div></div>
+        <div class="xp"><div class="xpbar"><i></i></div><div class="xpt"><span>64% to 41</span><span>This level: 1h 12m · usual pace 1h 40m</span></div></div>
+        <div class="stats">
+          <div class="stat"><b>38</b><span>Item level</span></div><div class="stat"><b>87g</b><span>Gold</span></div>
+          <div class="stat"><b>3d 5h</b><span>Played</span></div><div class="stat"><b>4–1</b><span>Duels today</span></div></div>
+      </div>
+      <div class="card session">
+        <div class="lbl">This session</div>
+        <div style="display:flex;gap:26px;font-size:14px"><span><b style="color:#fff">+2</b> <span style="color:var(--dim)">levels</span></span><span><b style="color:#fff">1</b> <span style="color:var(--dim)">boss</span></span><span><b style="color:#fff">2</b> <span style="color:var(--dim)">epics</span></span><span><b style="color:#fff">3</b> <span style="color:var(--dim)">posted to Discord</span></span></div>
+      </div>
+    </div>
+    <div class="card feed">
+      <div class="lbl">Recent moments · all characters</div>
+      <div class="m big"><div class="ico" style="background:#3b1d5c;color:#d8b4fe">⚔</div><div class="t"><b style="color:#c084fc">Looted Herod's Shoulder</b><div>Zeb · 2 min ago · Scarlet Monastery</div></div><span class="share">Share</span></div>
+      <div class="m"><div class="ico" style="background:#3a2a08;color:var(--acct)">★</div><div class="t"><b>Killed Herod</b><div>Zeb + 4 · 3 min ago</div></div><span class="posted">✓ Posted</span></div>
+      <div class="m"><div class="ico" style="background:#1d2b4a;color:#93c5fd">⬆</div><div class="t"><b>Ding! Level 40</b><div>Zeb · 1h ago · took 1h 38m</div></div><span class="posted">✓ Posted</span></div>
+      <div class="m"><div class="ico" style="background:#12331f;color:var(--green)">⚑</div><div class="t"><b>Won a duel against Brandur</b><div>Zeb · 2h ago</div></div><span class="share ghost">Share</span></div>
+      <div class="m"><div class="ico" style="background:#3b1d5c;color:#d8b4fe">⚔</div><div class="t"><b style="color:#c084fc">Looted Ravager</b><div>Goggo · yesterday</div></div><span class="posted">✓ Posted</span></div>
+      <div class="m"><div class="ico" style="background:#3a2a08;color:var(--acct)">🐎</div><div class="t"><b>New mount: Swift Palomino</b><div>Lumi · yesterday · bought</div></div><span class="share ghost">Share</span></div>
+    </div>
+  </div>
+  <div class="flyout">
+    <h3>Discord <small>for Forever</small></h3>
+    <div class="hook on"><div><b>#leveling</b><div>Posts for Retail, Forever</div></div><span class="tog on"></span></div>
+    <div class="hook"><div><b>My Guild</b><div>Not posting anywhere</div></div><span class="tog"></span></div>
+    <div class="addrow">+ Add webhook &nbsp;·&nbsp; Send test</div>
+    <div class="lbl" style="margin-top:22px">Last posts</div>
+    <div style="font-size:12.5px;color:var(--dim);line-height:1.8">✓ Killed Herod → #leveling<br>✓ Ding 40 → #leveling<br>✓ Looted Ravager → #leveling</div>
+  </div>
+  <div class="rail">
+    <div class="ri on" title="Discord">💬<span class="sd" style="background:var(--green)"></span></div>
+    <div class="ri" title="Stream">🎥<span class="sd" style="background:#555"></span></div>
+    <div class="ri" title="Console">▤<span class="sd" style="background:var(--amber)"></span></div>
+    <div class="ri pin" title="Pin">📌</div>
+  </div>
+  <div class="callout" style="right:70px;top:560px"><b>RAIL</b>Status dots replace the setup chips. Amber on Console = something to read. Hover 300 ms or click opens, pin keeps it.</div>
+  <div class="callout" style="left:60px;top:640px;width:300px"><b>WHEN WOW IS CLOSED</b>"Playing now" turns into "Last played", the feed stays. Characters tab is unchanged, just full width.</div>
+</div>
+
+<h1 class="sec">1b. Characters: one tab, four views</h1>
+<p class="note">A segmented switch (not a second row of tabs) picks the view, so it doesn't look like the character card's own tabs (Overview, Gear and bags...) underneath. Filters stay the same chips across views. Followed items is a view here, the wish list next to what you already have.</p>
+<div class="frame app" style="height:470px">
+  <div class="hdr">
+    <div class="logo">WCT</div>
+    <div class="title"><b>Character Tracker</b><span>Forever · 3 characters</span></div>
+    <div class="sw"><div>Retail</div><div class="on">Forever</div></div>
+    <div class="hr"><span class="synced"><span class="dot"></span> Synced 1 min ago ↻</span><div class="ib">?</div><div class="ib">⚙</div></div>
+  </div>
+  <div class="tabs"><div class="tab">✦ Home</div><div class="tab on">Characters</div><div class="tab">Friends</div><div class="tab">Sharing</div><div style="margin-left:auto;margin-right:50px;width:300px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px;color:var(--faint)">⌕ Search characters and items</div></div>
+  <div class="share-page">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+      <div class="sw" style="margin-left:0"><div class="on">List</div><div>Items</div><div>Professions</div><div>Followed</div></div>
+      <div class="mini" style="margin-left:12px"><span class="on">All (3)</span><span>Hardcore (1)</span><span>Normal (2)</span></div>
+      <span style="margin-left:auto;font-size:12px;color:var(--dim)">Total gold 603g · played 13d 14h</span>
+    </div>
+    <div class="card" style="padding:12px 16px">
+      <div style="display:grid;grid-template-columns:2fr 1.2fr .6fr .6fr .8fr 1fr;font-size:11px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase;padding:0 0 8px"><span>Character</span><span>Class</span><span>Level</span><span>iLvl</span><span>Gold</span><span>Last seen</span></div>
+      <div style="display:grid;grid-template-columns:2fr 1.2fr .6fr .6fr .8fr 1fr;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:14px"><span style="display:flex;gap:10px;align-items:center"><span class="port" style="width:34px;height:34px;border-width:1px"></span><b style="color:var(--acct)">Zeb Testchar</b><span class="pill">● In game</span></span><span>Arms Warrior</span><span>40</span><span>38</span><span>87g</span><span style="color:var(--dim)">now</span></div>
+      <div style="display:grid;grid-template-columns:2fr 1.2fr .6fr .6fr .8fr 1fr;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:14px"><span style="display:flex;gap:10px;align-items:center"><span class="port" style="width:34px;height:34px;border-width:1px;background:radial-gradient(circle at 35% 30%,#8fb3d9,#2a3f5a)"></span><b>Goggo Testchar</b></span><span>Fire Mage</span><span>60</span><span>61</span><span>412g</span><span style="color:var(--dim)">1d ago</span></div>
+      <div style="display:grid;grid-template-columns:2fr 1.2fr .6fr .6fr .8fr 1fr;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:14px"><span style="display:flex;gap:10px;align-items:center"><span class="port" style="width:34px;height:34px;border-width:1px;background:radial-gradient(circle at 35% 30%,#e7e2d4,#6b6457)"></span><b>Lumi Testchar</b><span style="font-size:10px;color:#f87171;border:1px solid #7f1d1d;border-radius:4px;padding:0 5px">HC</span></span><span>Holy Priest</span><span>39</span><span>35</span><span>104g</span><span style="color:var(--dim)">2d ago</span></div>
+    </div>
+  </div>
+  <div class="rail" style="padding-top:150px"><div class="ri">💬<span class="sd" style="background:var(--green)"></span></div><div class="ri">🎥<span class="sd" style="background:#555"></span></div><div class="ri">▤</div><div class="ri pin">📌</div></div>
+</div>
+
+<h1 class="sec">2. Sharing tab: one place for Discord, guild/group chat and the ask box</h1>
+<p class="note">A preset is the whole decision for most people. Customize opens one table: a row per moment, a column per place. That table replaces the What gets posted grid, the In game chat grid and the Ask box list, and Test/Screenshot buttons show on row hover only (one row, not 20 buttons). Level steps, regex, profession steps, name style move under Advanced.</p>
+<div class="frame app">
+  <div class="hdr">
+    <div class="logo">WCT</div>
+    <div class="title"><b>Character Tracker</b><span>Forever · 3 characters</span></div>
+    <div class="sw"><div>Retail</div><div class="on">Forever</div></div>
+    <div class="hr"><span class="synced"><span class="dot"></span> Synced 1 min ago ↻</span><div class="ib">?</div><div class="ib">⚙</div></div>
+  </div>
+  <div class="tabs"><div class="tab">✦ Home</div><div class="tab">Characters</div><div class="tab">Friends</div><div class="tab on">Sharing</div><div style="margin-left:auto;margin-right:50px;width:300px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px;color:var(--faint)">⌕ Search characters and items</div></div>
+  <div class="share-page">
+    <div class="dest">
+      <div class="d"><span style="font-size:20px">💬</span><div><b>Discord</b><div>#leveling · on</div></div><span class="tog on"></span></div>
+      <div class="d"><span style="font-size:20px">🛡</span><div><b>Guild chat</b><div>A line as you, out of combat</div></div><span class="tog on"></span></div>
+      <div class="d"><span style="font-size:20px">👥</span><div><b>Party / raid chat</b><div>Off</div></div><span class="tog"></span></div>
+    </div>
+    <div class="lbl">How much gets shared</div>
+    <div class="seg">
+      <div class="preset"><b><span class="radio"></span>Quiet</b><p>Every 5th level, max level, epic and legendary loot.</p></div>
+      <div class="preset on"><b><span class="radio"></span>Normal</b><p>Quiet plus end bosses, mounts, Mak'gora and hardcore deaths. Asks before skipping a boss.</p></div>
+      <div class="preset"><b><span class="radio"></span>Everything</b><p>Every moment, every level, with screenshots.</p></div>
+    </div>
+    <div class="cust">▾ Customize <span style="color:var(--faint);font-size:12px">(changing anything turns the preset into "Custom")</span></div>
+    <div class="card" style="padding:6px 14px">
+      <table>
+        <tr><th>Moment</th><th>Discord</th><th>📷</th><th>Guild</th><th>Group</th><th>Ask first</th><th></th></tr>
+        <tr><td>Level-ups<small>every 5 to 30, then every level</small></td><td><span class="ck on"></span></td><td><span class="ck on"></span></td><td><span class="ck on"></span></td><td><span class="ck"></span></td><td>–</td><td></td></tr>
+        <tr class="hov"><td>End boss kills<small>last boss of a dungeon or raid</small></td><td><span class="ck on"></span></td><td><span class="ck on"></span></td><td><span class="ck on"></span></td><td><span class="ck"></span></td><td><span class="ck on"></span></td><td><span class="rowtest">Test</span></td></tr>
+        <tr><td>Epic loot</td><td><span class="ck on"></span></td><td><span class="ck"></span></td><td><span class="ck on"></span></td><td><span class="ck"></span></td><td><span class="ck on"></span></td><td></td></tr>
+        <tr><td>Rare loot<small>Bind on Equip only</small></td><td><span class="ck"></span></td><td><span class="ck"></span></td><td><span class="ck"></span></td><td><span class="ck"></span></td><td><span class="ck on"></span></td><td></td></tr>
+        <tr><td>New mounts</td><td><span class="ck on"></span></td><td><span class="ck on"></span></td><td><span class="ck on"></span></td><td><span class="ck"></span></td><td>–</td><td></td></tr>
+        <tr><td>Mak'gora won</td><td><span class="ck on"></span></td><td><span class="ck on"></span></td><td><span class="ck"></span></td><td><span class="ck"></span></td><td>–</td><td></td></tr>
+        <tr><td>Hardcore deaths</td><td><span class="ck on"></span></td><td><span class="ck on"></span></td><td><span class="ck"></span></td><td><span class="ck"></span></td><td>–</td><td></td></tr>
+      </table>
+      <div class="adv" style="padding:6px 0 10px">▸ Advanced: level steps, profession steps, group filter, name in posts, screenshot options, copy/paste settings</div>
+    </div>
+  </div>
+  <div class="rail">
+    <div class="ri">💬<span class="sd" style="background:var(--green)"></span></div>
+    <div class="ri">🎥<span class="sd" style="background:#555"></span></div>
+    <div class="ri">▤</div><div class="ri pin">📌</div>
+  </div>
+  <div class="callout" style="right:90px;top:520px"><b>ROW HOVER</b>Test (and later Screenshot preview) only on the row you point at.</div>
+</div>
+
+<h1 class="sec">3. "Help me set it up": does the setup, step by step (replaces the 10-stop tour)</h1>
+<p class="note">4 steps: Game folders → Addon → Discord (or skip) → How chatty (the presets). Every step has Skip. Start it again from the ? menu. The install banner, setup chips and console warnings all point here instead of saying the same thing four times.</p>
+<div class="frame app" style="height:620px">
+  <div class="hdr" style="opacity:.35">
+    <div class="logo">WCT</div><div class="title"><b>Character Tracker</b><span>Forever</span></div>
+    <div class="sw"><div>Retail</div><div class="on">Forever</div></div>
+  </div>
+  <div class="dim"></div>
+  <div class="wiz">
+    <div class="steps"><i class="done"></i><i class="done"></i><i class="cur"></i><i></i></div>
+    <div class="checks"><span class="chk">✓ Found Forever and Retail</span><span class="chk">✓ Addon installed</span><span class="chk cur">Discord</span></div>
+    <h2>Where should your moments go?</h2>
+    <p>Paste a Discord webhook (Channel settings → Integrations → Webhooks → Copy URL). We'll send one test post so you can see it.</p>
+    <div class="input">https://discord.com/api/webhooks/…</div>
+    <div class="input">Name it, e.g. #leveling (optional)</div>
+    <div class="wf"><span class="btn g">← Back</span><span style="display:flex;gap:10px"><span class="btn g">Skip, no Discord</span><span class="btn">Send test and continue</span></span></div>
+  </div>
+</div>
+
+<h1 class="sec">4. Addon /wct window: 7 tabs → 4, three reload nags → one choice</h1>
+<p class="note">Sharing mirrors the app's preset (same keys through Settings.lua, so the app's In game page goes away instead of being copied). Friends + Sharing tabs merge. General + App become Settings. The ask box stays, it's the one popup that's about the fun part.</p>
+<div class="frame wow">
+  <div class="aw">
+    <div class="awh"><b>Character Tracker</b><span style="color:var(--faint);font-size:12px">Zeb · Forever</span><span class="x">✕</span></div>
+    <div class="awt"><div class="on">Sharing</div><div>Friends</div><div>Note</div><div>Settings</div></div>
+    <div class="awb">
+      <h4>How much gets shared</h4>
+      <div class="mini"><span>Quiet</span><span class="on">Normal</span><span>Everything</span><span>Custom</span></div>
+      <h4>Tell in chat</h4>
+      <div class="cb"><span class="ck on"></span><div>Guild chat<small>A line as you when something happens, out of combat</small></div></div>
+      <div class="cb"><span class="ck"></span><div>Party / raid chat</div></div>
+      <h4>Ask before skipping</h4>
+      <div class="cb"><span class="ck on"></span><div>Boss kills and gear Discord doesn't post by itself<small>A small Post / Skip box, 10 s</small></div></div>
+      <h4>Keeping the app up to date</h4>
+      <div class="mini"><span>Off</span><span class="on">Gentle</span><span>Every chance</span></div>
+      <div style="font-size:11.5px;color:var(--faint);margin-top:6px">Gentle: a chat line when bags or gear changed. Every chance: also the ding popup and the flight path box.</div>
+      <div class="syncnote">Per-moment details live in the app's Sharing tab. Changes here reach the app on /reload.</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:24px">
+    <div class="toast"><b>Looted Herod's Shoulder</b> <span style="color:var(--dim)">isn't posted by your settings.</span><div class="r"><span class="p">Post to Discord</span><span>Skip · 8</span></div></div>
+    <table class="cmp">
+      <tr><th>Now</th><th>Proposed</th></tr>
+      <tr><td>General, Chat, Highlights, Note, Friends, Sharing, App</td><td>Sharing, Friends, Note, Settings</td></tr>
+      <tr><td>Ding popup + flight box + 30 min chat reminder (3 checkboxes)</td><td>One choice: Off / Gentle / Every chance</td></tr>
+      <tr><td>11×2 chat grid in game, same grid in the app</td><td>Preset + 2 chat toggles in game, full table only in the app</td></tr>
+      <tr><td>App In game page + addon window + Options page edit the same keys</td><td>Addon window and app Sharing tab only, Options page links to /wct</td></tr>
+      <tr><td>9 slash commands</td><td>/wct, /wct note, /wct friends, /wct test (rest still work, not advertised)</td></tr>
+      <tr><td>Corner, grid label, keep all history, minimap on General</td><td>Under Settings, Advanced</td></tr>
+    </table>
+  </div>
+</div>
+</body></html>

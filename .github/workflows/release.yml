@@ -1,23 +1,66 @@
 # Push a tag like v0.8.0 and this builds WoWCharacterTracker.exe and attaches it to a GitHub Release.
 # The release notes come from that version's section in CHANGELOG.md; the app shows them when it
-# finds an update.
+# finds an update. A tag like addon-v0.32.0 (release.ps1 adds it when the addon changed) sends the
+# addon to the addon sites instead.
 name: Release
 
 on:
   push:
     tags:
       - "v*"
+      - "addon-v*"
+  # By hand (Actions, Release, Run workflow): only builds the addon zip, uploads nothing.
+  workflow_dispatch:
 
+# Read by default, only the job that creates the release gets write.
+# Third-party actions are pinned to a commit because a tag can be moved; Dependabot bumps them.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
-    runs-on: windows-latest
+  # The addon alone, for the addon sites, through the BigWigs packager (.pkgmeta says what goes in).
+  # Every addon-v tag builds the zip and keeps it on the run (artifact "addon-zip"), for sites
+  # uploaded to by hand (Wago Addons, on its own site). A site gets it automatically once its
+  # repo variable and secret exist:
+  # CurseForge: variable CURSEFORGE_PROJECT_ID, secret CF_API_KEY.
+  # Wago Addons: variable WAGO_PROJECT_ID, secret WAGO_API_TOKEN.
+  addon-sites:
+    if: startsWith(github.ref_name, 'addon-v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the packager writes its changelog from the history
 
-      - uses: actions/setup-dotnet@v4
+      # -d: by hand, build only.
+      - uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
+        with:
+          args: >-
+            ${{ github.event_name == 'workflow_dispatch' && '-d' || '' }}
+            ${{ vars.CURSEFORGE_PROJECT_ID != '' && format('-p {0}', vars.CURSEFORGE_PROJECT_ID) || '' }}
+            ${{ vars.WAGO_PROJECT_ID != '' && format('-a {0}', vars.WAGO_PROJECT_ID) || '' }}
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: addon-zip
+          path: .release/*.zip
+          if-no-files-found: error
+          include-hidden-files: true # .release starts with a dot, which the upload skips otherwise
+
+  release:
+    if: startsWith(github.ref_name, 'v')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
@@ -25,7 +68,7 @@ jobs:
       - name: Build WoWCharacterTracker.exe
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
+          $version = $env:TAG.TrimStart("v")
           dotnet publish companion/WoWCharacterTracker -c Release -o dist -nologo -p:Version=$version
 
       # Code signing through SignPath (free for open source, certificate by the SignPath Foundation).
@@ -34,14 +77,14 @@ jobs:
       - name: Upload the unsigned exe for signing
         id: unsigned
         if: vars.SIGNPATH_ORGANIZATION_ID != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unsigned
           path: dist/WoWCharacterTracker.exe
 
       - name: Sign with SignPath
         if: vars.SIGNPATH_ORGANIZATION_ID != ''
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
@@ -60,7 +103,7 @@ jobs:
       - name: Release notes from CHANGELOG.md
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = $env:TAG
           $lines = Get-Content CHANGELOG.md
           $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^##\s+$([regex]::Escape($tag))\b" })
           if ($start -lt 0) { "See the commits for what changed." | Set-Content notes.md; exit 0 }
@@ -72,4 +115,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" dist/WoWCharacterTracker.exe --title "${{ github.ref_name }}" --notes-file notes.md
+        run: gh release create $env:TAG dist/WoWCharacterTracker.exe --title $env:TAG --notes-file notes.md

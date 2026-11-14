@@ -49,6 +49,9 @@ class Config
     // With Open with World of Warcraft on: hide the window again when the game closes.
     public bool HideWhenGameCloses { get; set; } = true;
 
+    // Install a found update by itself (when no game runs). Off until the user turns it on.
+    public bool AutoUpdate { get; set; }
+
     // Parts of the character card (Post to Discord) the user turned off. Guild is off unless picked.
     public List<string> CardHidden { get; set; } = ["guild"];
 
@@ -60,11 +63,8 @@ class Config
     // Slides, fades and the tab orb (Ui/Motion). Off: everything switches instantly.
     public bool Animations { get; set; } = true;
 
-    // Where the setup checks and the update banner sit (Settings menu): "right" (above the Discord
-    // panel, the default), "top" (over the pages) or "bottom" (under them). Anything else reads as right.
-    public string SetupPlacement { get; set; } = "right";
-    public static readonly string[] SetupPlaces = ["right", "top", "bottom"];
-    public string SetupPlace => SetupPlaces.Contains(SetupPlacement) ? SetupPlacement : "right";
+    // The console stays open next to the rail instead of sliding out on hover.
+    public bool ConsolePinned { get; set; }
 
     // The first-run tour (ViewModels/IntroViewModel) was finished or closed with "Don't show again".
     public bool IntroDone { get; set; }
@@ -83,6 +83,40 @@ class Config
 
     // How the character list is sorted, per game tab (flavor key -> "key:asc"/"key:desc", ViewModels/CharacterSort).
     public Dictionary<string, string> CharacterSort { get; set; } = [];
+    // Battle.net friends: nicknames by BattleTag (all games; the addon gets them as Settings.lua
+    // friendNames with friendNameAt), and friends' characters hidden on the Friends page (by GUID, only here).
+    // Like notes, a nickname set in game wins when it's newer (FriendNicknamesAt, also kept for a cleared one).
+    public Dictionary<string, string> FriendNicknames { get; set; } = [];
+    public Dictionary<string, long> FriendNicknamesAt { get; set; } = [];
+    public HashSet<string> HiddenFriendCharacters { get; set; } = [];
+
+    public void SetNickname(string tag, string name, long at)
+    {
+        name = name.Trim();
+        if (name.Length == 0) FriendNicknames.Remove(tag); else FriendNicknames[tag] = name;
+        FriendNicknamesAt[tag] = at;
+    }
+
+    // The Friends page's order (BattleTags, first is top left; the addon's Friends tab shows the same,
+    // Settings.lua friendOrder with friendOrderAt), and when it was last set.
+    public List<string> FriendOrder { get; set; } = [];
+    public long FriendOrderAt { get; set; }
+
+    public bool TakeNewerFriendOrder(GameFriendOrder? order)
+    {
+        if (order is null || order.At <= FriendOrderAt) return false;
+        FriendOrder = [.. order.Tags];
+        FriendOrderAt = order.At;
+        return true;
+    }
+
+    // A nickname from the game counts only when it was set after the app's.
+    public bool TakeNewerNickname(GameNickname n)
+    {
+        if (n.At <= FriendNicknamesAt.GetValueOrDefault(n.Tag)) return false;
+        SetNickname(n.Tag, n.Name, n.At);
+        return true;
+    }
 
     // Forever characters (GUIDs) shown with their standard race portrait instead of the in-game one.
     public List<string> StandardPortraits { get; set; } = [];
@@ -208,6 +242,18 @@ class Config
                 s.ProfessionSteps = flavor.Defaults().ProfessionSteps;
                 changed = true;
             }
+            // Asking in game came in 0.31.0, and is on by default only where moments are rare enough.
+            if (s.AskKinds is null && WoWCharacterTracker.Models.Flavors.All.FirstOrDefault(f => f.Key == key) is { } askFlavor)
+            {
+                s.AskKinds = askFlavor.Defaults().AskKinds;
+                changed = true;
+            }
+            // Guild and group chat got their own kinds in 0.32.0: the group starts with what both had.
+            if (s.AnnouncePartyKinds is null)
+            {
+                s.AnnouncePartyKinds = [.. s.AnnounceKinds];
+                changed = true;
+            }
         }
 
         var stream = config.StreamOptions;
@@ -232,6 +278,20 @@ class Config
             stream.HasProfessions = true;
             changed = true;
         }
+        if (!stream.HasDungeonAlerts)
+        {
+            if (!stream.AlertKinds.Contains("dungeon")) stream.AlertKinds.Add("dungeon");
+            stream.HasDungeonAlerts = true;
+            changed = true;
+        }
+        if (!stream.HasFollowed)
+        {
+            if (!stream.AlertKinds.Contains("followed")) stream.AlertKinds.Add("followed");
+            stream.HasFollowed = true;
+            changed = true;
+        }
+
+        if (stream.SplitHighlightsOpacity()) changed = true;
 
         if (changed) config.Save();
         return config;

@@ -12,32 +12,24 @@
         xmlns:views="clr-namespace:WoWCharacterTracker.Views">
 
   <Grid>
-  <Grid x:Name="Page" Margin="28,22">
+  <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="*"/>
+    <ColumnDefinition Width="Auto"/>
+  </Grid.ColumnDefinitions>
+  <Grid x:Name="Page" Margin="28,22,24,22">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
-      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
     <views:Header x:Name="HeaderView"/>
-    <!-- The setup checks sit where Settings says (Config.SetupPlacement): here, under the window
-         (last row) or in the right column above Discord (the default). -->
-    <Border Grid.Row="1" Visibility="{Binding SetupTop, Converter={StaticResource Visible}}">
-      <views:SetupBar x:Name="SetupAtTop" Wide="True" Margin="0,0,0,14" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
-    </Border>
-    <Border Grid.Row="3" Visibility="{Binding SetupBottom, Converter={StaticResource Visible}}">
-      <views:SetupBar x:Name="SetupAtBottom" Wide="True" Margin="0,14,0,0" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
-    </Border>
+    <!-- Notices across the top: an update, a /reload reminder, the old beta folder and setup that needs
+         doing. Nothing shows when all is fine. -->
+    <views:SetupBar x:Name="SetupStrip" Grid.Row="1" Wide="True" Margin="0,0,0,14" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
 
-    <!-- Main area: the page tabs on top (left), then the page and the right column side by side,
-         so their top edges line up. -->
+    <!-- Main area: the page tabs on top, then the page, full width. -->
     <Grid Grid.Row="2">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="2.2*"/>
-        <ColumnDefinition Width="20"/>
-        <ColumnDefinition Width="*" MinWidth="300"/>
-      </Grid.ColumnDefinitions>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/>
@@ -47,23 +39,52 @@
       <DockPanel Margin="2,0,0,10">
         <!-- The pages, as boxed tabs: icon and name, the open one filled. -->
         <StackPanel x:Name="PageTabs" Orientation="Horizontal">
-          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters}"
+          <Button x:Name="HomeTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=home}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="home">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE80F;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Home"/></StackPanel>
+          </Button>
+          <Button x:Name="CharacterTabs" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters|items|professions|followed}"
                   Command="{Binding ShowPageCommand}" CommandParameter="characters">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Characters"/></StackPanel>
           </Button>
-          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items}"
-                  Command="{Binding ShowPageCommand}" CommandParameter="items">
-            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7B8;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Items"/></StackPanel>
+          <Button x:Name="FriendsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=friends}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="friends">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE716;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Friends"/></StackPanel>
           </Button>
-          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=posting}"
-                  Command="{Binding ShowPageCommand}" CommandParameter="posting">
-            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="What gets posted"/></StackPanel>
+          <Button x:Name="StatsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=stats}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="stats">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE9D2;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Stats"/></StackPanel>
           </Button>
-          <Button Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=ingame}"
-                  Command="{Binding ShowPageCommand}" CommandParameter="ingame">
-            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7FC;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="In game"/></StackPanel>
+          <Button x:Name="SharingTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=sharing}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="sharing">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Sharing"/></StackPanel>
           </Button>
         </StackPanel>
+        <!-- The Characters tab's views: the list, everything they carry, who crafts what, the wish list. -->
+        <Border x:Name="CharacterViews" Style="{StaticResource SegmentBox}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=characters|items|professions|followed}">
+          <StackPanel Orientation="Horizontal">
+            <Button Style="{StaticResource SegmentButton}" Content="List" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters}"
+                    Command="{Binding ShowPageCommand}" CommandParameter="characters" ToolTip="Your characters, click one for its details"/>
+            <Button Style="{StaticResource SegmentButton}" Content="Items" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items}"
+                    Command="{Binding ShowPageCommand}" CommandParameter="items" ToolTip="Everything your characters carry, wear and keep in the bank"/>
+            <Button Style="{StaticResource SegmentButton}" Content="Professions" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
+                    Command="{Binding ShowPageCommand}" CommandParameter="professions" ToolTip="Who can craft what"/>
+            <Button x:Name="FollowedTab" Style="{StaticResource SegmentButton}" Content="Followed" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=followed}"
+                    Command="{Binding ShowPageCommand}" CommandParameter="followed" ToolTip="Your wish list: items to watch for"/>
+          </StackPanel>
+        </Border>
+        <!-- The Friends tab's views: their characters, or their professions and recipes. -->
+        <Border x:Name="FriendViews" Style="{StaticResource SegmentBox}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                DataContext="{Binding SelectedFlavor.Friends}"
+                Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=friends}">
+          <StackPanel Orientation="Horizontal">
+            <Button Style="{StaticResource SegmentButton}" Content="Friends" Tag="{Binding View, Converter={StaticResource ActiveIf}, ConverterParameter=list}"
+                    Command="{Binding ShowViewCommand}" CommandParameter="list" ToolTip="Your friends and their characters"/>
+            <Button Style="{StaticResource SegmentButton}" Content="Professions" Tag="{Binding View, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
+                    Command="{Binding ShowViewCommand}" CommandParameter="professions" ToolTip="Friends' professions and recipes, and who can craft what"/>
+          </StackPanel>
+        </Border>
       </DockPanel>
 
       <!-- No game folder or no addon: the app can't track anything yet, so that check sits big over the
@@ -87,70 +108,32 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
             <Grid>
+              <views:HomePage/>
               <views:CharactersPage/>
               <views:ItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="1" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
+              <views:ProfessionsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}"/>
+              <views:FollowedItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="5" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=followed}"/>
+              <views:FriendsPage/>
+              <views:StatsPage/>
             </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <views:PostingPage Grid.Row="2"/>
-      <views:InGamePage Grid.Row="2"/>
+      <views:SharingPage x:Name="SharingView" Grid.Row="2"/>
+      <views:SettingsPage Grid.Row="2"/>
       <views:UninstallPage Grid.Row="2"/>
       <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
       <views:GameOffPage Grid.Row="0" Grid.RowSpan="3"/>
-
-      <Grid Grid.Row="1" Grid.RowSpan="2" Grid.Column="2">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="*"/>
-          <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <!-- The right column scrolls as one (the scrollbar only shows when it doesn't all fit). The console
-             fills what's left and keeps a readable height when there isn't room (MainWindow.FitRightColumn). -->
-        <ScrollViewer x:Name="RightScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      Margin="0,0,-14,0" Padding="0,0,14,0" Focusable="False">
-        <StackPanel x:Name="RightColumn">
-          <Border x:Name="SetupRightView" Visibility="{Binding SetupRight, Converter={StaticResource Visible}}">
-            <views:SetupBar x:Name="SetupAtRight" Margin="0,0,0,16" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>
-          </Border>
-          <views:DiscordPanel x:Name="DiscordView" DataContext="{Binding Discord}"/>
-          <views:StreamPanel x:Name="StreamView" Margin="0,16,0,0" DataContext="{Binding Stream}"/>
-          <views:ConsolePanel x:Name="ConsoleView" Margin="0,16,0,0"/>
-        </StackPanel>
-        </ScrollViewer>
-        <!-- The maker and a tip link, quietly in the corner, always in view (outside the scrolling). -->
-        <StackPanel x:Name="CreditRow" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,2,0">
-          <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
-            <Button.Template>
-              <ControlTemplate TargetType="Button">
-                <TextBlock x:Name="Credit" Text="made by ZebDryg @ twitch" FontSize="10" Foreground="{StaticResource Faint}" Opacity="0.6"/>
-                <ControlTemplate.Triggers>
-                  <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Credit" Property="Opacity" Value="1"/>
-                    <Setter TargetName="Credit" Property="Foreground" Value="#9146FF"/>
-                  </Trigger>
-                </ControlTemplate.Triggers>
-              </ControlTemplate>
-            </Button.Template>
-          </Button>
-          <TextBlock Text="·" FontSize="10" Foreground="{StaticResource Faint}" Opacity="0.6" Margin="6,0"/>
-          <Button Cursor="Hand" ToolTip="Like the app? Tips are welcome (streamlabs.com/zebdryg/tip)" Command="{Binding OpenUrlCommand}" CommandParameter="https://streamlabs.com/zebdryg/tip">
-            <Button.Template>
-              <ControlTemplate TargetType="Button">
-                <TextBlock x:Name="Tip" Text="tip ♥" FontSize="10" Foreground="{StaticResource Faint}" Opacity="0.6"/>
-                <ControlTemplate.Triggers>
-                  <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Tip" Property="Opacity" Value="1"/>
-                    <Setter TargetName="Tip" Property="Foreground" Value="#F87171"/>
-                  </Trigger>
-                </ControlTemplate.Triggers>
-              </ControlTemplate>
-            </Button.Template>
-          </Button>
-        </StackPanel>
-      </Grid>
     </Grid>
   </Grid>
+
+  <!-- The console slides out from the rail over the page (MainWindow: hover, click or pinned). -->
+  <Border x:Name="ConsoleFlyout" Width="460" HorizontalAlignment="Right" Margin="0,112,0,22" Padding="0,0,10,0"
+          Visibility="{Binding ConsoleOpen, Converter={StaticResource Visible}}">
+    <views:ConsolePanel x:Name="ConsoleView"/>
+  </Border>
+  <views:Rail x:Name="RailView" Grid.Column="1"/>
   <!-- The first-run tour, over everything (MainWindow.TourTarget says where each step points). -->
-  <views:IntroTour x:Name="Tour" DataContext="{Binding Intro}"/>
+  <views:SetupHelper Grid.ColumnSpan="2" DataContext="{Binding Intro}"/>
   </Grid>
 </Window>

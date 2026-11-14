@@ -68,23 +68,48 @@ record Entry
             return p[0].Length > 0 ? $"level {p[0]} {who}".TrimEnd() : who;
         }
     }
-    public string OpponentClassFile => OpponentInfo.Split('~') is { Length: >= 2 } p ? p[1] : "";
     public int Rating { get; init; }             // mplus / pvp: the rating now; profession: the skill now
     public int Step { get; init; }               // mplus / pvp / profession: the milestone passed
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
     public string Profession { get; init; } = ""; // profession: "Mining" (from 0.29.0)
     public bool Boe { get; init; }               // loot: binds when equipped (from 0.29.0; older loot reads as not)
+    public bool Mat { get; init; }               // loot: can't be worn, so legendary doesn't mean always posted (from 0.30.0; older loot reads as gear)
+    // On the tab's followed list. Not from the addon: the app marks it from the list as it is now
+    // (FlavorSettings.Followed), so an item followed after the last /reload counts too.
+    public bool Followed { get; init; }
+    // The "Bind on Equip only" rule for rares, the one copy Discord posts and the overlay both use.
+    public bool PassesRareRule(bool boeOnly) => Quality != 3 || Boe || !boeOnly;
+    // kind "ask": the player clicked Post on a moment no setting posts (the addon's Ask.lua). It carries
+    // the moment, as AskedKind, and is its own event so the moment isn't counted twice in the history.
+    public string AskedKind { get; init; } = "";
+    public bool IsAsk => Kind == "ask";
+    public Entry Moment => IsAsk ? this with { Kind = AskedKind } : this;
+    public bool MidBoss { get; init; }           // boss, on request only: not the instance's last boss
     public int KeyLevel { get; init; }           // keyrun: the keystone's level (the dungeon is Instance, the run's time Seconds)
     public int Upgrades { get; init; }           // keyrun: 1-3 when timed, 0 over time
     public bool Timed => Upgrades > 0;
+    // Dungeon runs (kind "run", Runs.lua): the bosses killed, the party's loot, whether the end boss
+    // died; the dungeon is Instance, the time in Seconds. Run: the run a boss kill or loot belongs to.
+    public long Run { get; init; }
+    public string Bosses { get; init; } = "";    // "Name^Name"
+    public string Drops { get; init; } = "";     // "who~itemId~quality~name^...", who "" = this character
+    public bool Cleared { get; init; }
+    public IReadOnlyList<string> BossList => Bosses.Length == 0 ? [] : Bosses.Split('^');
+    public IReadOnlyList<RunDrop> DropList => Drops.Length == 0 ? [] : [.. Drops.Split('^')
+        .Select(d => d.Split('~'))
+        .Where(p => p.Length >= 4 && int.TryParse(p[1], out _))
+        .Select(p => new RunDrop(p[0], int.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture),
+            int.TryParse(p[2], out var q) ? q : 0, p[3]))];
     public string TalentExport { get; init; } = ""; // check-ins: the talent loadout code
     public string TalentCalc { get; init; } = "";   // check-ins (Forever): Wowhead talent calculator code
 
-    // "Name~level~CLASSFILE~Class~Race~Realm~Spec,..." as the addon writes it (Spec from 0.28.0, Retail, when known).
+    // "Name~level~CLASSFILE~Class~Race~Realm~Spec~Role,..." as the addon writes it (Spec from 0.28.0,
+    // Retail, when known; Role when the group set one).
     public IReadOnlyList<GroupMember> Members => Group.Length == 0 ? [] : Group.Split(',')
         .Select(m => m.Split('~'))
         .Where(p => p.Length >= 5)
-        .Select(p => new GroupMember(p[0], int.TryParse(p[1], out var l) ? l : 0, p[2], p[3], p[4], p.Length > 5 ? p[5] : "", p.Length > 6 ? p[6] : ""))
+        .Select(p => new GroupMember(p[0], int.TryParse(p[1], out var l) ? l : 0, p[2], p[3], p[4], p.Length > 5 ? p[5] : "",
+            p.Length > 6 ? p[6] : "", p.Length > 7 ? p[7] : ""))
         .ToList();
 
     // Builds an entry from the addon's key/value data, wherever it came from.
@@ -149,10 +174,17 @@ record Entry
             Bracket = s("bracket"),
             Profession = s("profession"),
             Boe = s("boe") is "true" or "1",
+            Mat = s("mat") is "true" or "1",
+            AskedKind = s("askedKind"),
+            MidBoss = s("midBoss") is "true" or "1",
             KeyLevel = (int)n("keyLevel"),
             Upgrades = (int)n("upgrades"),
             TalentExport = s("talentExport"),
             TalentCalc = s("talentCalc"),
+            Run = (long)n("run"),
+            Bosses = s("bosses"),
+            Drops = s("drops"),
+            Cleared = s("cleared") is "true" or "1",
         };
     }
 
@@ -160,7 +192,11 @@ record Entry
     static string GuidFromId(string id) => id.IndexOf(':') is var i and > 0 ? id[..i] : id;
 }
 
-record GroupMember(string Name, int Level, string ClassFile, string Class, string Race, string Realm, string Spec = "")
+// An item someone in a dungeon run got. Who is "" for the run's own character.
+record RunDrop(string Who, int ItemId, int Quality, string Name);
+
+// Role: "TANK", "HEALER", "DAMAGER" when the group set one, else "".
+record GroupMember(string Name, int Level, string ClassFile, string Class, string Race, string Realm, string Spec = "", string Role = "")
 {
     public string FullName => Realm.Length > 0 ? $"{Name}-{Realm}" : Name;
 

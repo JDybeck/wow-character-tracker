@@ -39,6 +39,14 @@ sealed class Tracker : IDisposable
     int liveVersion;
     // What the last sync showed (saved files and live version); the same again means nothing to show.
     string? shownStamp;
+    volatile bool disposed;
+
+    // Events that went to at least one webhook (Home marks them Posted). A new set after each sync, so
+    // the UI thread reads it without the gate.
+    volatile IReadOnlySet<string> sentIds = new HashSet<string>();
+    public IReadOnlySet<string> SentIds => sentIds;
+    internal static HashSet<string> SentIdsOf(IEnumerable<string> posted) =>
+        [.. posted.Where(k => k.Contains('@')).Select(k => k[..k.IndexOf('@')])];
 
     // Raised on a background thread after every read.
     public event Action<TrackerData>? DataChanged;
@@ -97,7 +105,8 @@ sealed class Tracker : IDisposable
             wasRunning = running;
         }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
 
-        _ = SyncAsync().ContinueWith(_ => shots.Start()); // live events only after old ones are handled
+        // Live events only after old ones are handled (and not when the tab was turned off meanwhile).
+        _ = SyncAsync().ContinueWith(_ => { if (!disposed) shots.Start(); });
     }
 
     void OnLiveEntry(Entry e, DateTime shotAt, byte[]? portrait)
@@ -149,6 +158,7 @@ sealed class Tracker : IDisposable
         var sent = 0;
         try
         {
+            if (disposed) return; // a sync scheduled just before the tab was turned off
             posted ??= ReadPosted();
 
             // Nothing new since the last sync: the app already shows it, only posts that failed are tried again.
@@ -157,7 +167,7 @@ sealed class Tracker : IDisposable
             {
                 shownStamp = stamp;
                 NoteSaves(data);
-                DataChanged?.Invoke(data);
+                DataChanged?.Invoke(data with { Events = [.. data.Events.Where(e => !e.IsAsk)] }); // a request to post, not a moment of its own
             }
             var handled = posted.Count;
 
@@ -178,11 +188,20 @@ sealed class Tracker : IDisposable
             }
             else if (pending.Count > 0)
             {
+                // Incognito in game: what happened then is never posted, also not later.
+                var hidden = pending.Where(e => IncognitoWindow.Any(data.Incognito, e.At)).ToList();
+                foreach (var e in hidden) posted!.Add(e.Id);
+                if (hidden.Count > 0)
+                {
+                    Log.Info($"{Tag}Not posting {Format.Count(hidden.Count, "moment")} from while you were incognito.");
+                    pending = [.. pending.Except(hidden)];
+                }
                 sent = await PostPendingAsync(pending, data.Events, settings());
             }
 
             if (posted.Count != handled || firstRun && !File.Exists(statePath)) // only ever grows
                 Files.WriteAtomic(statePath, JsonSerializer.Serialize(posted));
+            if (posted.Count != handled || sentIds.Count == 0) sentIds = SentIdsOf(posted);
             if (report)
             {
                 var chars = data.Characters.Select(c => c.Guid).Concat(data.Events.Select(e => e.Guid)).Distinct().Count();
@@ -245,7 +264,8 @@ sealed class Tracker : IDisposable
             posted!.Add(e.Id);
             // Only posted highlights keep their screenshot. (The addon normally doesn't take one for
             // these, unless the settings changed since the game last loaded them.)
-            if (e.Shot && ScreenshotFileFor(e, within: 20) is { } unwantedShot) Files.TryDelete(unwantedShot);
+            if (e.Shot && !NearWantedShot(e, history, s) && ScreenshotFileFor(e, within: 20) is { } unwantedShot)
+                Files.TryDelete(unwantedShot);
         }
 
         var toPost = pending.Where(e => s.Wants(e, history)).ToList();
@@ -264,6 +284,7 @@ sealed class Tracker : IDisposable
         var sent = 0;
         foreach (var e in toPost)
         {
+            if (disposed) break; // the tab was turned off mid-batch: the rest waits for it to come back
             var forThis = webhooksFor(e);
             var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
             // The game only reads its screenshot settings on /reload or login, so a box ticked
@@ -275,20 +296,26 @@ sealed class Tracker : IDisposable
             {
                 var key = $"{e.Id}@{w.Id}";
                 if (posted!.Contains(key)) continue;
-                if (await posterFor(w).PostAsync(e, screenshot: shot))
+                if (await posterFor(w).PostAsync(s.PostsAsFollowed(e) ? e with { Followed = true } : e.Moment, screenshot: shot))
                 {
                     posted.Add(key);
                     sent++;
-                    Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e)}.{Timing(e)}");
+                    Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e.Moment)}.{Timing(e)}");
                 }
                 else allSent = false;
             }
             if (!allSent) break; // keep order, retry the rest on the next sync
             posted!.Add(e.Id);
-            Posted?.Invoke(e);
+            Posted?.Invoke(e.Moment);
         }
         return sent;
     }
+
+    // A wanted event with a screenshot close to this one (in this batch or posted before): the
+    // picture in this one's window may be that event's, so it isn't deleted. Covers the 90 s a
+    // posted event's own picture can come late (ScreenshotFileFor).
+    static bool NearWantedShot(Entry e, List<Entry> history, FlavorSettings s) =>
+        history.Any(w => w.Id != e.Id && w.Shot && Math.Abs(w.At - e.At) <= 92 && s.Wants(w, history));
 
     // The addon takes the screenshot a second or two after the event. The game names it by time,
     // so the newest picture written just after the event is the one. For a live event the file may
@@ -360,6 +387,14 @@ sealed class Tracker : IDisposable
         var xpTable = new Dictionary<int, long>();
         var itemClasses = new Dictionary<int, int>();
         var notes = new Dictionary<string, GameNote>();
+        var nicknames = new Dictionary<string, GameNickname>();
+        GameFriendOrder? friendOrder = null;
+        InGameSettings? inGame = null;
+        var friends = new List<List<FriendContact>>();
+        ShareSettings? share = null;
+        var incognito = new List<IncognitoWindow>();
+        var today = new List<DayTotals>();
+        var days = new List<DayTotals>();
         var stamp = new System.Text.StringBuilder().Append(Volatile.Read(ref liveVersion));
         foreach (var account in Wow.Accounts(flavorDir))
         {
@@ -377,6 +412,15 @@ sealed class Tracker : IDisposable
                 foreach (var (id, c) in d.ItemClasses) itemClasses[id] = c;
                 foreach (var n in d.Notes)
                     if (!notes.TryGetValue(n.Guid, out var had) || n.At > had.At) notes[n.Guid] = n;
+                foreach (var n in d.Nicknames)
+                    if (!nicknames.TryGetValue(n.Tag, out var had) || n.At > had.At) nicknames[n.Tag] = n;
+                if (d.FriendOrder is { } o && o.At > (friendOrder?.At ?? 0)) friendOrder = o;
+                if (d.InGame is { } g && g.At > (inGame?.At ?? 0)) inGame = g;
+                friends.Add(d.Friends);
+                if (d.Share is { } sh && sh.At > (share?.At ?? 0)) share = sh;
+                incognito.AddRange(d.Incognito);
+                today.AddRange(d.Today);
+                days.AddRange(d.Days);
             }
             catch (Exception ex)
             {
@@ -387,7 +431,8 @@ sealed class Tracker : IDisposable
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(Snapshot.Of));
-        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values] },
+        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values], Nicknames = [.. nicknames.Values], FriendOrder = friendOrder, InGame = inGame,
+            Friends = FriendData.Merge(friends), Share = share, Incognito = incognito, Today = today, Days = days },
             stamp.ToString());
     }
 
@@ -403,6 +448,8 @@ sealed class Tracker : IDisposable
 
     public void Dispose()
     {
+        disposed = true;
+        debounce?.Cancel();
         watcher?.Dispose();
         safetyNet?.Dispose();
         shots.Dispose();

@@ -11,7 +11,8 @@ sealed class MainViewModel : Observable
     public MainViewModel(bool backfill, bool justUpdated)
     {
         Backfill = backfill;
-        Updates = new UpdatesViewModel(justUpdated);
+        Updates = new UpdatesViewModel(justUpdated, () => Config.AutoUpdate);
+        Updates.Found += () => { foreach (var tab in FlavorTabs) tab.WriteAddonSettings(); };
         Discord = new DiscordViewModel(this);
         Uninstall = new UninstallViewModel(this);
         Appearance = new AppearanceViewModel(this);
@@ -21,6 +22,7 @@ sealed class MainViewModel : Observable
         {
             Logs.Insert(0, line);
             while (Logs.Count > 300) Logs.RemoveAt(Logs.Count - 1);
+            if (line.Level is LogLevel.Warn or LogLevel.Error && !ConsoleOpen) ConsoleAlert = true;
         });
 
         SyncCommand = new RelayCommand(SyncNowAsync, _ => SelectedFlavor?.Tracker is not null);
@@ -36,21 +38,47 @@ sealed class MainViewModel : Observable
             SelectedFlavor?.ResetPage(target);
             PageReset?.Invoke();
         });
+        OpenFriendCommand = new RelayCommand(p =>
+        {
+            if (p is not CharacterRow row || SelectedFlavor is not { } tab) return;
+            Page = "friends";
+            tab.Friends.Open(row);
+        });
+        OpenCharacterCommand = new RelayCommand(p =>
+        {
+            if (p is not CharacterRow row || SelectedFlavor is not { } tab) return;
+            Page = "characters";
+            tab.OpenCharacter(row);
+        });
         ResetPostingCommand = new RelayCommand(_ => SelectedFlavor?.ResetPosting());
         CopyPostingCommand = new RelayCommand(_ =>
         {
             if (SelectedFlavor is not { } tab) return;
-            Clipboard.SetText(tab.PostingCodeText);
-            Log.Success($"[{tab.Name}] Posting settings copied. Share the code; others click Paste settings to use it.");
+            if (ClipboardText.TrySet(tab.PostingCodeText))
+                Log.Success($"[{tab.Name}] Posting settings copied. Share the code; others click Paste settings to use it.");
+            else
+                Log.Warn("The clipboard was busy, so nothing was copied. Try again.");
         });
-        PastePostingCommand = new RelayCommand(_ => SelectedFlavor?.ApplyPostingCode(Clipboard.ContainsText() ? Clipboard.GetText() : ""));
+        PastePostingCommand = new RelayCommand(_ =>
+        {
+            if (ClipboardText.TryGet() is { } text) SelectedFlavor?.ApplyPostingCode(text);
+            else Log.Warn("The clipboard was busy, so nothing was pasted. Try again.");
+        });
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
+        IgnoreCharacterCommand = new RelayCommand(p => { if (p is CharacterRow c) SelectedFlavor?.SetIgnored(c, true); });
         AskRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = true);
         CancelRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = false);
         PostCharacterCommand = new RelayCommand(p => PostCharacterAsync((CharacterRow)p!));
-        PostHighlightCommand = new RelayCommand(p => PostHighlightAsync((HighlightRow)p!));
+        // From a character's details (that character) or Home's feed (the moment says whose it is).
+        PostHighlightCommand = new RelayCommand(p => _ = p switch
+        {
+            MomentRow m => PostHighlightAsync(m.Row, m.Character),
+            HighlightRow h => PostHighlightAsync(h, SelectedFlavor?.SelectedCharacter),
+            _ => Task.CompletedTask,
+        });
         OpenTalentsCommand = new RelayCommand(p => OpenTalents(p as CharacterRow));
         PostTalentsCommand = new RelayCommand(p => { if (p is CharacterRow c) _ = PostTalentsAsync(c); });
+        ExportCharacterCommand = new RelayCommand(p => { if (p is CharacterRow c) ExportCharacter(c); });
         ToggleCardOptionsCommand = new RelayCommand(_ => ShowCardOptions = !ShowCardOptions);
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
         DeleteTagCommand = new RelayCommand(p => DeleteTag((string)p!));
@@ -58,7 +86,6 @@ sealed class MainViewModel : Observable
         OpenUrlCommand = new RelayCommand(p => Browser.Open(p as string));
         ShowUninstallCommand = new RelayCommand(_ =>
         {
-            ShowSettings = false;
             Uninstall.Refresh();
             Page = "uninstall";
         });
@@ -80,28 +107,39 @@ sealed class MainViewModel : Observable
         set { Config.Animations = Motion.Enabled = value; Config.Save(); Raise(nameof(Animations)); }
     }
 
-    // Settings, Setup checks: right column (above Discord), top or bottom of the window.
-    public string SetupPlacement
+    // The console slides out from the rail (hover or click) and hides again, unless it's pinned.
+    // ConsoleAlert: a warning or error came in since it was last open (the rail's dot).
+    bool consoleOpen;
+    public bool ConsoleOpen
     {
-        get => Config.SetupPlace;
+        get => consoleOpen || Config.ConsolePinned;
         set
         {
-            Config.SetupPlacement = value;
-            Config.Save();
-            RaiseSetupPlacement();
+            if (!Set(ref consoleOpen, value)) return;
+            if (ConsoleOpen) ConsoleAlert = false;
         }
     }
-    void RaiseSetupPlacement()
+    public bool ConsolePinned
     {
-        foreach (var name in new[] { nameof(SetupPlacement), nameof(SetupRight), nameof(SetupTop), nameof(SetupBottom) }) Raise(name);
+        get => Config.ConsolePinned;
+        set
+        {
+            Config.ConsolePinned = value;
+            Config.Save();
+            Raise(nameof(ConsolePinned));
+            Raise(nameof(ConsoleOpen));
+            if (value) ConsoleAlert = false;
+        }
     }
-    public bool SetupRight => SetupPlacement == "right";
-    public bool SetupTop => SetupPlacement == "top";
-    public bool SetupBottom => SetupPlacement == "bottom";
-    public ICommand PlaceSetupCommand => new RelayCommand(p => SetupPlacement = (string)p!);
+    bool consoleAlert;
+    public bool ConsoleAlert { get => consoleAlert; set => Set(ref consoleAlert, value); }
+    public ICommand ToggleConsoleCommand => new RelayCommand(_ => ConsoleOpen = !consoleOpen);
 
     public ObservableCollection<LogLine> Logs { get; } = [];
     public ObservableCollection<FlavorViewModel> FlavorTabs { get; } = [];
+
+    // A game still on an older folder (Forever's beta): its warning shows on every tab, not just its own.
+    public FlavorViewModel? OldFolderTab => FlavorTabs.FirstOrDefault(t => t.OldFolderNote is not null);
 
     FlavorViewModel? selectedFlavor;
     public FlavorViewModel? SelectedFlavor
@@ -121,8 +159,8 @@ sealed class MainViewModel : Observable
         }
     }
 
-    // "characters" or "posting".
-    string page = "characters";
+    // "characters", "sharing" and so on.
+    string page = "home";
     public string Page { get => page; set { if (Set(ref page, value)) ShowItemsWhereOpen(); } }
 
     // Only the open tab's Items page builds its list (ItemsViewModel.IsShown).
@@ -134,16 +172,20 @@ sealed class MainViewModel : Observable
     public ICommand SyncCommand { get; }
     public ICommand ShowPageCommand { get; }
     public event Action? PageReset;
+    public ICommand OpenFriendCommand { get; }
+    public ICommand OpenCharacterCommand { get; }
     public ICommand ResetPostingCommand { get; }
     public ICommand CopyPostingCommand { get; }
     public ICommand PastePostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
+    public ICommand IgnoreCharacterCommand { get; }
     public ICommand AskRemoveCommand { get; }
     public ICommand CancelRemoveCommand { get; }
     public ICommand PostCharacterCommand { get; }
     public ICommand PostHighlightCommand { get; }
     public ICommand OpenTalentsCommand { get; }
     public ICommand PostTalentsCommand { get; }
+    public ICommand ExportCharacterCommand { get; }
     public ICommand ToggleCardOptionsCommand { get; }
     public ICommand AddTagCommand { get; }
     public ICommand DeleteTagCommand { get; }
@@ -155,7 +197,8 @@ sealed class MainViewModel : Observable
     {
         Config = Config.Load();
         Motion.Enabled = Config.Animations;
-        RaiseSetupPlacement();
+        Raise(nameof(ConsolePinned));
+        Raise(nameof(ConsoleOpen));
         Log.Info("Character Tracker started.");
         Discord.ShowAddWebhook = Config.Webhooks.Count == 0;
 
@@ -169,7 +212,12 @@ sealed class MainViewModel : Observable
         Autostart.Apply(Config.OpenWithWow.Value);
         Raise(nameof(OpenWithWow));
 
-        foreach (var f in Flavors.All) FlavorTabs.Add(new FlavorViewModel(this, f));
+        foreach (var f in Flavors.All)
+        {
+            var tab = new FlavorViewModel(this, f);
+            tab.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(FlavorViewModel.OldFolderNote)) Raise(nameof(OldFolderTab)); };
+            FlavorTabs.Add(tab);
+        }
         // Opens on the last tab, unless that game is turned off and another one isn't.
         var last = FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Config.SelectedFlavor) ?? FlavorTabs[0];
         SelectedFlavor = last.IsOn ? last : FlavorTabs.FirstOrDefault(t => t.IsOn) ?? last;
@@ -177,13 +225,13 @@ sealed class MainViewModel : Observable
         Stream.Apply();
         // A new install gets the tour (screenshot runs only when they ask for it). Checked before the
         // tabs start, since finding the game saves its folder.
-        if (Config.WantsIntro && ScreenshotMode.Target is null) Intro.Open();
+        if (Config.WantsIntro && ScreenshotMode.Target is null) Intro.OpenAt(IntroViewModel.Steps[0].Key);
         foreach (var tab in FlavorTabs) tab.Start();
         _ = Task.Run(ExtractedFiles.CleanUp); // what older versions unpacked into %TEMP%
         try { Directory.Delete(Path.Combine(Config.Dir, "logos"), recursive: true); } // before 0.27.2; ImageCache keeps them now
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         if (Config.Webhooks.Count == 0)
-            Log.Warn("No Discord webhook yet. Add one in the Discord panel so posts can go out.");
+            Log.Warn("No Discord webhook yet. Add one on Sharing so posts can go out.");
         await Task.WhenAll(FlavorTabs.Where(t => t.IsOn).Select(t => t.CheckDiscordAsync()));
 
         // Test runs stay off the network for this, unless they fake an old version to test it.
@@ -205,10 +253,12 @@ sealed class MainViewModel : Observable
         if (d.CheckAccess()) a(); else d.BeginInvoke(a);
     }
 
-    // --- app settings (the gear in the header) ---
+    // The ? menu in the header (the tour, what's new, commands, feedback, updates).
+    bool showHelp;
+    public bool ShowHelp { get => showHelp; set => Set(ref showHelp, value); }
+    public ICommand OpenChangelogCommand => new RelayCommand(_ => { ShowHelp = false; Updates.ShowChangelog = true; });
 
-    bool showSettings;
-    public bool ShowSettings { get => showSettings; set => Set(ref showSettings, value); }
+    // --- app settings (the Settings page, the gear in the header) ---
 
     // A tray icon starts at login, the window opens when WoW starts and goes back to the tray when
     // WoW closes. Off means a normal app you open and close yourself.
@@ -235,6 +285,22 @@ sealed class MainViewModel : Observable
             Config.HideWhenGameCloses = value;
             Config.Save();
             Raise(nameof(HideWhenGameCloses));
+        }
+    }
+
+    // Off until turned on: a found update installs by itself, once no game is running.
+    public bool AutoUpdate
+    {
+        get => Config.AutoUpdate;
+        set
+        {
+            Config.AutoUpdate = value;
+            Config.Save();
+            Raise(nameof(AutoUpdate));
+            Log.Info(value
+                ? "Updates now install by themselves when no game is running."
+                : "Updates no longer install by themselves. The header offers them.");
+            if (value) Updates.TryAutoInstall();
         }
     }
 
@@ -319,6 +385,28 @@ sealed class MainViewModel : Observable
                 Log.Success($"[{tab.Name}] Posted {c.Name}'s talents to \"{w.Name}\".");
     }
 
+    // Saves the character as a JSON file for the armory proof of concept (ArmoryExport), where the user picks.
+    void ExportCharacter(CharacterRow c)
+    {
+        if (SelectedFlavor is not { } tab) return;
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = ArmoryExport.FileName(c),
+            DefaultExt = ".json",
+            Filter = "JSON file (*.json)|*.json",
+        };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            Files.WriteAtomic(dialog.FileName, ArmoryExport.ToJson(ArmoryExport.From(c, tab.Flavor, Updater.Current, DateTimeOffset.Now)));
+            Log.Success($"[{tab.Name}] Exported {c.Name} to {dialog.FileName}.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"[{tab.Name}] Couldn't save {c.Name}'s export: {ex.Message}");
+        }
+    }
+
     // --- notes ---
 
     public string NoteFor(string guid) => Config.NoteOf(guid);
@@ -333,22 +421,58 @@ sealed class MainViewModel : Observable
         foreach (var n in taken) Log.Info($"Took the note for {FlavorTabs.Select(t => t.RowFor(n.Guid)?.Name).FirstOrDefault(s => s is not null) ?? "a character"} from the game.");
     }
 
+    // Friends' nicknames set in game, newer than the app's: every tab shows them, and every game's
+    // Settings.lua gets them (the other game's addon shows the same names).
+    public void TakeGameNicknames(IEnumerable<GameNickname> names)
+    {
+        var taken = names.Where(Config.TakeNewerNickname).ToList();
+        if (taken.Count == 0) return;
+        FriendsShownChanged();
+        foreach (var n in taken) Log.Info($"Took the nickname for {n.Tag} from the game.");
+    }
+
+    // The Friends page's order dragged in game, newer than the app's: every tab shows it.
+    public void TakeGameFriendOrder(GameFriendOrder? order)
+    {
+        if (Config.TakeNewerFriendOrder(order)) FriendsShownChanged();
+    }
+
+    // Dragged on the Friends page (the friends that page shows, in their new order): merged into the
+    // whole order, saved, and every game's addon shows it.
+    public void SetFriendOrder(IReadOnlyList<string> shown)
+    {
+        Config.FriendOrder = FriendOrder.Merge(Config.FriendOrder, shown);
+        Config.FriendOrderAt = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Config.FriendOrderAt + 1);
+        FriendsShownChanged();
+    }
+
+    // Friends' names or order changed: saved, every tab's Friends page redrawn, every game's Settings.lua written.
+    void FriendsShownChanged()
+    {
+        Config.Save();
+        foreach (var tab in FlavorTabs)
+        {
+            tab.Friends.NamesChanged();
+            tab.WriteAddonSettings();
+        }
+    }
+
     // Saved a moment after the last keystroke, not on every one.
     public void SaveNote(string guid, string text)
     {
         Config.SetNote(guid, text, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-        SaveSoon(notes: true);
+        SaveSoon(addonSettings: true); // /wct note reads it from Settings.lua
     }
 
     // Settings that change many times a second (sliders, typing) are saved a moment after the last
-    // change instead of on every one. notes: the game's Settings.lua gets the notes then too (/wct note
-    // reads them from there). Shutdown saves what's still waiting.
+    // change instead of on every one. addonSettings: the game's Settings.lua is written then too (notes,
+    // typed posting settings). Shutdown saves what's still waiting.
     System.Windows.Threading.DispatcherTimer? saveTimer;
-    bool notesWaiting;
+    bool addonSettingsWaiting;
 
-    public void SaveSoon(bool notes = false)
+    public void SaveSoon(bool addonSettings = false)
     {
-        notesWaiting |= notes;
+        addonSettingsWaiting |= addonSettings;
         if (saveTimer is null)
         {
             saveTimer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -363,9 +487,9 @@ sealed class MainViewModel : Observable
         if (saveTimer is not { IsEnabled: true }) return;
         saveTimer.Stop();
         Config.Save();
-        if (!notesWaiting) return;
-        notesWaiting = false;
-        foreach (var tab in FlavorTabs) tab.NotesChanged();
+        if (!addonSettingsWaiting) return;
+        addonSettingsWaiting = false;
+        foreach (var tab in FlavorTabs) tab.NotesChanged(); // writes Settings.lua (and hints a /reload)
     }
 
     // --- tags ---
@@ -424,7 +548,7 @@ sealed class MainViewModel : Observable
     {
         var hooks = Config.WebhooksFor(tab.Flavor, c.Guid, c.Ruleset, c.Hardcore);
         if (hooks.Count == 0)
-            Log.Warn($"[{tab.Name}] No webhook to post {c.Name} to. Turn one on in the Discord panel" +
+            Log.Warn($"[{tab.Name}] No webhook to post {c.Name} to. Turn one on under Sharing" +
                      (tab.Flavor.HasRulesets ? $" (and check it takes {c.Ruleset} characters)." : "."));
         return hooks;
     }
@@ -444,12 +568,21 @@ sealed class MainViewModel : Observable
 
     // Posts one highlight (a loot, boss kill, mount...) from the character details, to the same
     // webhooks a character card would go to.
-    async Task PostHighlightAsync(HighlightRow h)
+    async Task PostHighlightAsync(HighlightRow h, CharacterRow? c)
     {
-        if (SelectedFlavor is not { } tab || h.Source is not { } e || tab.SelectedCharacter is not { } c) return;
-        foreach (var w in WebhooksFor(tab, c))
+        if (SelectedFlavor is not { } tab || h.Source is not { } e || c is null) return;
+        foreach (var w in WebhooksFor(tab, c)) // says so when there's none
             if (await PosterFor(tab, w).PostAsync(e))
+            {
                 Log.Success($"[{tab.Name}] Posted {h.Text.Trim()} to \"{w.Name}\".");
+                tab.Home.MarkPosted(e.Id);
+            }
+    }
+
+    // A game started or closed: Home says Playing now or Last played.
+    public void GameStartedOrStopped()
+    {
+        foreach (var tab in FlavorTabs) tab.RefreshHome();
     }
 
     // The Test buttons on the "What gets posted" page: a sample of that kind of post.
@@ -459,7 +592,7 @@ sealed class MainViewModel : Observable
         var hooks = Config.ActiveWebhooks(tab.Flavor);
         if (hooks.Count == 0)
         {
-            Log.Warn($"[{tab.Name}] Turn on a webhook in the Discord panel first.");
+            Log.Warn($"[{tab.Name}] Turn on a webhook on Sharing first.");
             return;
         }
         var sample = tab.SampleEntry(kind);

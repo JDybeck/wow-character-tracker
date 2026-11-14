@@ -11,6 +11,8 @@ sealed record Flavor(string Key, string Name, string[] Folders, string WowheadPa
     // Characters have a ruleset (hardcore, self-found...): the list is grouped by it instead of by
     // realm, webhooks can be limited to some, cards show it, and the test characters live here.
     public bool HasRulesets { get; init; }
+    // Characters last seen before this (unix time) are from a pre-launch stress test and get cleaned once (StressTestCleanup). 0 = none.
+    public long StressTestBefore { get; init; }
     public string GroupLabel => HasRulesets ? "Ruleset" : "Realm";
 
     // UnitName gives a surname (Ronnie Raket), so posts can use the first, last or full name.
@@ -35,8 +37,14 @@ sealed record Flavor(string Key, string Name, string[] Folders, string WowheadPa
     // The XP table has gaps, so time to max is estimated from Classic's table (CharacterLeveling).
     public bool EstimatesXp { get; init; }
 
+    // The ready-made lists of items it offers to follow.
+    public IReadOnlyList<ReadyMadeList> ReadyMadeLists { get; init; } = [];
+
     // The level cap, for the max level sample post.
     public int MaxLevel { get; init; }
+
+    // Its enchant id -> enchanting spell map (Assets, made by tools/enchant-spells.ps1).
+    public string EnchantSpells { get; init; } = "enchant-spells.json";
 }
 
 static class Flavors
@@ -47,6 +55,7 @@ static class Flavors
         LevelSplit = 80, LevelEveryBefore = 10, LevelEveryAfter = 1,
         PostRare = false, PostEpic = false, PostMounts = true, PostBosses = false, PostDeaths = false,
         ProfessionSteps = [.. FlavorSettings.RetailProfessionSteps], // each expansion's skill line tops out at 100
+        AskKinds = [], // blues and bosses come by the dozen here
     })
     {
         LogoUrl = "https://warcraft.wiki.gg/images/thumb/Midnight_2024_logo.png/250px-Midnight_2024_logo.png",
@@ -60,13 +69,16 @@ static class Flavors
         LevelSplit = 30, LevelEveryBefore = 5, LevelEveryAfter = 1,
         PostRare = true, PostEpic = true, PostMounts = true, PostBosses = true, PostDeaths = true,
         ProfessionSteps = [.. FlavorSettings.ClassicProfessionSteps],
+        AskKinds = [.. FlavorSettings.AllAskKinds],
         Screenshot = new() { ["level"] = true, ["mount"] = true, ["boss"] = true, ["death"] = true },
         PostScreenshot = new() { ["level"] = true, ["mount"] = true, ["boss"] = true, ["death"] = true },
     })
     {
         LogoUrl = "https://warcraft.wiki.gg/images/thumb/WoW_Forever_Logo.png/250px-WoW_Forever_Logo.png",
         HasRulesets = true, HasSurnames = true, HasInGamePortraits = true, HasClassicTalents = true,
-        HasRangedSlot = true, EstimatesXp = true, MaxLevel = 60,
+        StressTestBefore = 1793746800, // 2026-11-04 00:00 Swedish time: earlier characters are from the stress test
+        HasRangedSlot = true, EstimatesXp = true, ReadyMadeLists = ReadyMadeList.All, MaxLevel = 60,
+        EnchantSpells = "enchant-spells-forever.json", // Forever renumbered some of Classic's enchants
     };
 
     public static readonly IReadOnlyList<Flavor> All = [Retail, Forever];

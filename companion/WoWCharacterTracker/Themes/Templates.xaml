@@ -135,6 +135,23 @@
   </DataTemplate>
 
   <!-- Tabs inside the character details: Overview, Gear and bags, Leveling. -->
+  <!-- One bar of a level times chart (the Leveling tab, Home's card): the slowest highlighted. -->
+  <DataTemplate x:Key="LevelBarTemplate" DataType="{x:Type vm:LevelBar}">
+    <Border x:Name="Bar" Width="9" Height="{Binding Height}" Margin="0,0,3,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0"
+            Background="{DynamicResource IndigoMid}" Opacity="0.55" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="50"/>
+    <DataTemplate.Triggers>
+      <DataTrigger Binding="{Binding Highlight}" Value="True">
+        <Setter TargetName="Bar" Property="Background" Value="{DynamicResource Indigo}"/>
+        <Setter TargetName="Bar" Property="Opacity" Value="1"/>
+      </DataTrigger>
+      <!-- The level being played: the accent, paler, as it isn't done yet. -->
+      <DataTrigger Binding="{Binding Current}" Value="True">
+        <Setter TargetName="Bar" Property="Background" Value="{DynamicResource Indigo}"/>
+        <Setter TargetName="Bar" Property="Opacity" Value="0.35"/>
+      </DataTrigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+
   <Style x:Key="DetailTab" TargetType="RadioButton">
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Foreground" Value="{StaticResource Muted}"/>
@@ -327,6 +344,61 @@
               <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
               <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLine}"/>
               <Setter Property="Foreground" Value="White"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A segment of a small switch (the Characters tab's views): flat, the open one (Tag "active") filled.
+       Sits in a SegmentBox. Looks unlike PageTab and DetailTab on purpose. -->
+  <Style x:Key="SegmentBox" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Card}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="3"/>
+  </Style>
+  <Style x:Key="SegmentButton" TargetType="Button">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="12,5">
+            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="12.5"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            </Trigger>
+            <Trigger Property="Tag" Value="active">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+              <Setter Property="Foreground" Value="White"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A preset (Sharing, the setup helper): a card that lights up when picked. -->
+  <Style x:Key="PresetCard" TargetType="RadioButton">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Box" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="16,14">
+            <ContentPresenter/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueHover}"/>
+              <Setter TargetName="Box" Property="Background" Value="{DynamicResource BlueSoft}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

@@ -17,10 +17,20 @@
       <StackPanel Visibility="{Binding Leveling.HasStats, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="AVERAGE LEVEL"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.AverageText}"/>
-        <TextBlock Style="{StaticResource FactLabel}" Text="FASTEST"/>
-        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.FastestText}"/>
         <TextBlock Style="{StaticResource FactLabel}" Text="SLOWEST"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.SlowestText}"/>
+      </StackPanel>
+      <!-- A friend's character only: raced against one of yours. -->
+      <StackPanel Visibility="{Binding HasRival, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="RACE"/>
+        <TextBlock Text="{Binding Rival.Against}" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,0,2"/>
+        <ItemsControl ItemsSource="{Binding Rival.Lines}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding}" Style="{StaticResource FactValue}" TextWrapping="Wrap" Margin="0,0,0,2"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
       </StackPanel>
       <StackPanel Visibility="{Binding Leveling.HasEstimate, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="TO MAX LEVEL"/>
@@ -44,27 +54,15 @@
     </StackPanel>
 
     <StackPanel Grid.Column="2">
-      <!-- One bar per level (the last 40), fastest and slowest highlighted. -->
+      <!-- One bar per level (the last 40), the slowest highlighted, then the level being played. -->
       <StackPanel Visibility="{Binding Leveling.HasStats, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="LEVEL TIMES"/>
-        <ItemsControl ItemsSource="{Binding Leveling.Bars}" Height="74" Margin="0,4,0,0">
+        <ItemsControl ItemsSource="{Binding Leveling.Bars}" Height="74" Margin="0,4,0,0" ItemTemplate="{StaticResource LevelBarTemplate}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="{x:Type vm:LevelBar}">
-              <Border x:Name="Bar" Width="9" Height="{Binding Height}" Margin="0,0,3,0" VerticalAlignment="Bottom" CornerRadius="2,2,0,0"
-                      Background="{DynamicResource IndigoMid}" Opacity="0.55" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="50"/>
-              <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding Highlight}" Value="True">
-                  <Setter TargetName="Bar" Property="Background" Value="{DynamicResource Indigo}"/>
-                  <Setter TargetName="Bar" Property="Opacity" Value="1"/>
-                </DataTrigger>
-              </DataTemplate.Triggers>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
         </ItemsControl>
       </StackPanel>
 

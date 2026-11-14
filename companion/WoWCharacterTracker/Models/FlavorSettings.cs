@@ -15,6 +15,10 @@ class FlavorSettings
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ActiveWebhookId { get; set; }
 
+    // The Discord switch: nothing for this game posts while paused, and what happens meanwhile isn't
+    // posted later. Webhooks stay as they are.
+    public bool DiscordPaused { get; set; }
+
     // Level-ups: up to LevelSplit, post every LevelEveryBefore levels; after that every LevelEveryAfter.
     public bool PostLevels { get; set; } = true;
     public int LevelSplit { get; set; } = 30;
@@ -26,10 +30,27 @@ class FlavorSettings
     // On for configs from before 0.29.0 too, so posted rares get quieter for everyone.
     public bool RareBoeOnly { get; set; } = true;
     public bool PostEpic { get; set; }   // epic and legendary
+    // The Followed items tab: this game's list (ids differ per game) and whether getting one posts.
+    // The list is replaced, never changed in place, since the tracker's thread reads it.
+    public bool PostFollowed { get; set; } = true;
+    public List<FollowedItem> FollowedItems { get; set; } = [];
+    // The keys of the ready-made lists switched on (only those the game offers: Flavor.ReadyMadeLists).
+    public List<string> ReadyMadeLists { get; set; } = [];
+    IEnumerable<ReadyMadeList> ListsOn => ReadyMadeList.All.Where(l => ReadyMadeLists.Contains(l.Key));
+    // The user's own items, then the ready-made ones not among them, each item once.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<FollowedItem> AllFollowed => ReadyMadeLists.Count == 0
+        ? FollowedItems
+        : [.. FollowedItems.Concat(ListsOn.SelectMany(l => l.Items)).DistinctBy(i => i.Id)];
+    // The list that follows an item the user didn't add themselves, for its mark on the page.
+    public ReadyMadeList? ListWith(int id) => FollowedItems.Any(i => i.Id == id) ? null : ListsOn.FirstOrDefault(l => l.Contains(id));
     public bool PostMounts { get; set; } = true;
     public bool PostBosses { get; set; }
     public bool PostDeaths { get; set; }
     public bool FirstBossKillOnly { get; set; } = true; // each character's first kill of each end boss, not the farming after
+    // Dungeon runs (Runs.lua, not on Retail): one post per 5-player dungeon run with its bosses, the
+    // group and who got what, in place of the run's loot posts (legendaries and the end boss still post on their own).
+    public bool PostRuns { get; set; }
 
     // Finished Mythic+ runs (Retail, in place of end boss kills): from this key level up, and
     // optionally only the ones in time.
@@ -81,6 +102,10 @@ class FlavorSettings
         catch (System.Text.RegularExpressions.RegexMatchTimeoutException) { return null; }
     }
 
+    // Empty, or a pattern that works (the settings page says when it doesn't).
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SkipRegexValid => string.IsNullOrWhiteSpace(SkipBossGroupRegex) || SkipRegex() is not null;
+
     // Built once per pattern (every sync asks for each waiting boss kill, several times), null when the
     // pattern isn't valid (the settings page says so). Not saved: fields stay out of the config file.
     // One object, so the tracker's thread never sees a new pattern with the old Regex.
@@ -109,12 +134,23 @@ class FlavorSettings
     // character (Shared.lua trimEvents); on keeps everything.
     public bool KeepAllHistory { get; set; }
 
-    // The addon tells the guild and/or the group in game chat (Announce.lua), for these kinds:
-    // level, maxlevel, boss, keyrun, loot (epic and better, as a link), mount, duel, makgora, bg, profession, mplus, pvp, death.
+    // The addon tells the guild and/or the group in game chat (Announce.lua), each its own kinds:
+    // level, maxlevel, boss, keyrun, loot (epic and better, as a link), followed, mount, duel, makgora, bg, profession, mplus, pvp, death.
+    // AnnounceKinds is guild chat's. The group's is null in configs from before 0.32.0 (both shared
+    // one list), and Config.Load copies the guild's.
     public bool AnnounceGuild { get; set; }
     public bool AnnounceParty { get; set; }
+    // Guild chat is hidden in the app and off in the addon (Announce.lua GUILD_CHAT_ON) until we know
+    // why the game blocks it. AnnounceGuild is kept, so a player's choice is back when it returns.
+    public static bool GuildChatOn => false;
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
+    public List<string>? AnnouncePartyKinds { get; set; }
     public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "mplus", "pvp"];
+
+    // Highlights no setting posts that the addon offers to post (Ask.lua): boss, rare, epic. Null until
+    // chosen; Config.Load fills it from the game's defaults.
+    public List<string>? AskKinds { get; set; }
+    public static readonly string[] AllAskKinds = ["boss", "rare", "epic"];
 
     // Where the addon draws its data grid for the instant posts (TOPLEFT, TOPRIGHT, BOTTOMLEFT,
     // BOTTOMRIGHT) and whether the small label shows next to it. The app reads every corner either way.
@@ -123,8 +159,61 @@ class FlavorSettings
     public static readonly string[] Corners = ["TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"];
     public static string CornerOrDefault(string? corner) => Corners.Contains(corner) ? corner! : "TOPLEFT";
     public bool? AdvancedCombatLog { get; set; } // the game's Advanced Combat Logging; null = leave the player's setting alone
+
+    // When the In game settings last changed in the app, or came from the game. They can be changed in
+    // both, and the newest change wins (like notes). Goes to the addon as Settings.lua inGameAt.
+    public long InGameAt { get; set; }
+
+    // How long the in-game box offering to post a highlight stays, in seconds (Ask.lua, an In game setting).
+    public int AskSeconds { get; set; } = 10;
+    public static readonly int[] AskSecondsChoices = [5, 10, 15, 30, 60];
+    public static int AskSecondsOrDefault(int seconds) => seconds is >= 3 and <= 120 ? seconds : 10;
+
+    // Settings changed in game count only when that was after the app's last change.
+    public bool TakeInGame(InGameSettings? game)
+    {
+        if (game is null || game.At <= InGameAt) return false;
+        InGameAt = game.At;
+        // What the change doesn't have (an older addon) stays as the app has it.
+        (AnnounceGuild, AnnounceParty) = (game.AnnounceGuild ?? AnnounceGuild, game.AnnounceParty ?? AnnounceParty);
+        (AnnounceKinds, AnnouncePartyKinds) = (game.AnnounceKinds ?? AnnounceKinds, game.AnnouncePartyKinds ?? AnnouncePartyKinds);
+        AskKinds = game.AskKinds ?? AskKinds;
+        (FlightReloadPrompt, ChatReloadReminder) = (game.FlightReload ?? FlightReloadPrompt, game.ChatReminder ?? ChatReloadReminder);
+        KeepAllHistory = game.KeepAllHistory ?? KeepAllHistory;
+        AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
+        (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
+        Ignored = game.Ignored is { } ignored ? [.. ignored] : Ignored;
+        return true;
+    }
+
+    // Characters not tracked (Ignore tracking): never posted or listed with the others, and in game
+    // nothing is recorded, announced or shared for them. An In game setting, so the addon's toggle and
+    // the app's agree. Replaced, never changed in place: the tracker's thread reads it.
+    public HashSet<string> Ignored { get; set; } = [];
+    // Sharing with Battle.net friends (Friends.lua `share`): null until changed in the app or taken
+    // from the game, and only then written to Settings.lua, so the app never resets the game's.
+    public ShareSettings? Share { get; set; }
+
+    // The game's sharing settings, when they're newer than the app's.
+    public bool TakeShare(ShareSettings? game)
+    {
+        if (game is null || game.At <= (Share?.At ?? 0)) return false;
+        Share = game;
+        return true;
+    }
+
+    // Changes the sharing settings in the app, with a time newer than the last change.
+    public void EditShare(Func<ShareSettings, ShareSettings> edit)
+    {
+        var old = Share ?? ShareSettings.Empty;
+        Share = edit(old) with { At = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), old.At + 1) };
+    }
+
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
+
+    // The stress test's characters were cleaned out (StressTestCleanup), once.
+    public bool StressTestCleaned { get; set; }
 
     // What gets posted (the level rule, each kind, rating steps, screenshots) taken over from other
     // settings: Reset to defaults and pasted settings codes. Folder, webhooks and names stay.
@@ -132,7 +221,8 @@ class FlavorSettings
     {
         (PostLevels, LevelSplit, LevelEveryBefore, LevelEveryAfter) = (d.PostLevels, d.LevelSplit, d.LevelEveryBefore, d.LevelEveryAfter);
         (PostRare, RareBoeOnly, PostEpic, PostMounts, PostBosses, PostDeaths) = (d.PostRare, d.RareBoeOnly, d.PostEpic, d.PostMounts, d.PostBosses, d.PostDeaths);
-        FirstBossKillOnly = d.FirstBossKillOnly;
+        PostFollowed = d.PostFollowed; // the list itself is the user's own, not a posting setting
+        (FirstBossKillOnly, PostRuns) = (d.FirstBossKillOnly, d.PostRuns);
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
         (PostProfessions, ProfessionSteps) = (d.PostProfessions, [.. d.ProfessionSteps]);
@@ -151,20 +241,43 @@ class FlavorSettings
         return level % every == 0;
     }
 
-    // Whether this tab posts the event. Legendary loot is always posted, with extra flair.
+    // Whether this tab posts the event. Legendary gear is always posted, with extra flair; legendary
+    // materials (Elementium Bar) aren't, unless followed.
     // Wants, plus what needs the character's history: a boss this character killed before isn't posted
     // again when only first kills are. history: every event known for the tab.
-    public bool Wants(Entry e, IEnumerable<Entry> history) => Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
+    public bool Wants(Entry e, IEnumerable<Entry> history) =>
+        !DiscordPaused && !Ignored.Contains(e.Guid) && Wants(e) && !(e.Kind == "boss" && IsRepeatKill(e, history));
 
     public bool IsRepeatKill(Entry e, IEnumerable<Entry> history) =>
         FirstBossKillOnly && history.Any(o => o.Kind == "boss" && o.Guid == e.Guid && o.Boss == e.Boss && o.At < e.At);
 
-    public bool Wants(Entry e) => e.Kind switch
+    // An item on this game's followed list: loot, or a mount that came as an item.
+    public bool Follows(Entry e) => e.Kind is "loot" or "mount" && e.ItemId > 0
+        && (FollowedItems.Any(i => i.Id == e.ItemId) || ListsOn.Any(l => l.Contains(e.ItemId)));
+
+    // This event posted as a followed item, whatever the other loot rules say. It stays one event, so
+    // one post, when another rule wants it too.
+    public bool PostsAsFollowed(Entry e) => PostFollowed && Follows(e);
+
+    // The events with the followed ones marked, for the overlay.
+    public IReadOnlyList<Entry> MarkFollowed(IReadOnlyList<Entry> events) =>
+        AllFollowed.Count == 0 ? events : [.. events.Select(e => Follows(e) ? e with { Followed = true } : e)];
+
+    // A dungeon run's loot, which goes into the run's one post instead. The end boss still posts on
+    // its own (with its screenshot): the run is saved minutes later, often on a loading screen.
+    public bool HeldForRun(Entry e) => PostRuns && e.Run > 0 && e.Kind == "loot";
+
+    public bool Wants(Entry e) => PostsAsFollowed(e) || e.Kind switch
     {
+        "ask" => true, // the player clicked Post in game
+
         "level" => (e.MaxLevel && PostMaxLevel) || LevelWanted(e.Level),
-        "loot" => e.Quality >= 5 || (e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && (e.Boe || !RareBoeOnly)),
+        "loot" when e.Quality >= 5 => !e.Mat,
+        _ when HeldForRun(e) => false,
+        "loot" => e.Quality == 4 ? PostEpic : e.Quality == 3 && PostRare && e.PassesRareRule(RareBoeOnly),
         "mount" => PostMounts,
         "boss" => PostBosses && SkipBossBecause(e) is null,
+        "run" => PostRuns && (e.Cleared || e.Drops.Length > 0) && SkipBossBecause(e) is null,
         "keyrun" => PostKeyRuns && e.KeyLevel >= KeyRunMinLevel && (e.Timed || !KeyRunTimedOnly),
         "death" => PostDeaths,
         "duel" => PostDuels && !e.Lost, // only wins are posted

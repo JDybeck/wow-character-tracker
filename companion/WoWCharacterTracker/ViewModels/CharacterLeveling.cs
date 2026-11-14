@@ -1,35 +1,36 @@
 namespace WoWCharacterTracker.ViewModels;
 
-// The Leveling tab of the character details: average, fastest and slowest level, a chart of level
+// The Leveling tab of the character details: average and slowest level (the fastest is nearly always 1 to 2), a chart of level
 // times, the time-to-max estimate (Forever), how gear and professions grew, and the duel record.
 sealed class CharacterLeveling
 {
     const double ChartHeight = 70;
 
     public string AverageText { get; init; } = "";
-    public string FastestText { get; init; } = "";
     public string SlowestText { get; init; } = "";
     public bool HasStats { get; init; }
     public string EstimateText { get; init; } = "";
     public bool HasEstimate => EstimateText.Length > 0;
-    public IReadOnlyList<LevelBar> Bars { get; init; } = [];
+    public IReadOnlyList<LevelBar> Bars { get; private set; } = [];
     public IReadOnlyList<string> Progress { get; init; } = [];
     public bool HasProgress => Progress.Count > 0;
     public string DuelText { get; init; } = "";
     public bool HasDuels => DuelText.Length > 0;
 
     // all: the character's events, oldest first. xp: the newest snapshot that has XP (saved file).
-    public static CharacterLeveling From(IReadOnlyList<Entry> all, int level, Snapshot? xp, IReadOnlyDictionary<int, long> xpTable, bool estimate)
+    // thisLevel: played seconds on the level being played so far (0: unknown, or max level), a paler last bar.
+    public static CharacterLeveling From(IReadOnlyList<Entry> all, int level, Snapshot? xp, IReadOnlyDictionary<int, long> xpTable, bool estimate,
+        long thisLevel = 0)
     {
-        var timed = all.Where(e => e.Kind == "level" && e.Seconds > 0)
-            .GroupBy(e => e.Level).Select(g => new LevelStats.Level(g.Key, g.Last().Seconds))
-            .OrderBy(l => l.Number).ToList();
+        var timed = LevelStats.Timed(all);
         var summary = LevelStats.Summarize(timed);
 
-        var shown = timed.TakeLast(40).ToList();
-        var slowest = shown.Count > 0 ? shown.Max(l => l.Seconds) : 1;
+        var shown = timed.TakeLast(thisLevel > 0 ? 39 : 40).ToList();
+        var slowest = Math.Max(shown.Count > 0 ? shown.Max(l => l.Seconds) : 1, thisLevel);
         var bars = shown.Select(l => new LevelBar(l.Number, Math.Max(3, ChartHeight * l.Seconds / slowest),
-            $"{l.Number - 1} to {l.Number}: {Format.Duration(l.Seconds)}", l == summary?.Fastest || l == summary?.Slowest)).ToList();
+            $"{l.Number - 1} to {l.Number}: {Format.Duration(l.Seconds)}", l == summary?.Slowest)).ToList();
+        if (thisLevel > 0 && shown.Count > 0)
+            bars.Add(new LevelBar(level + 1, Math.Max(3, ChartHeight * thisLevel / slowest), $"{level} to {level + 1} so far: {Format.Duration(thisLevel)}", false, Current: true));
 
         // A bar saved at an earlier level (dinged since, the saved file not written yet) says nothing
         // about this one, so then the whole level counts.
@@ -42,13 +43,29 @@ sealed class CharacterLeveling
         {
             HasStats = summary is not null,
             AverageText = summary is null ? "" : Format.Duration(summary.Average),
-            FastestText = summary is null ? "" : $"{Format.Duration(summary.Fastest.Seconds)} ({summary.Fastest.Number - 1} to {summary.Fastest.Number})",
             SlowestText = summary is null ? "" : $"{Format.Duration(summary.Slowest.Seconds)} ({summary.Slowest.Number - 1} to {summary.Slowest.Number})",
             EstimateText = toMax is long left ? $"About {Format.Played(left)} played to level {(xp!.MaxLevel > 0 ? xp.MaxLevel : 60)}, at your recent pace" : "",
             Bars = bars,
             Progress = ProgressLines(all),
             DuelText = Duels(all),
         };
+    }
+
+    const int MaxOthers = 8;
+
+    // Each finished level's tooltip also lists the other characters' times on it (yours and friends'),
+    // fastest first. Before the rows are shown: the bars aren't watched for changes.
+    public void AddOthers(string guid, IReadOnlyDictionary<int, List<LevelRace.Time>> board)
+    {
+        Bars = [.. Bars.Select(bar =>
+        {
+            if (bar.Current || !board.TryGetValue(bar.Level, out var times)) return bar;
+            var others = times.Where(t => t.Guid != guid).ToList();
+            if (others.Count == 0) return bar;
+            var lines = others.Take(MaxOthers).Select(t => $"{t.Name}: {Format.Duration(t.Seconds)}");
+            if (others.Count > MaxOthers) lines = lines.Append($"and {others.Count - MaxOthers} more");
+            return bar with { Tooltip = bar.Tooltip + "\n" + string.Join("\n", lines) };
+        })];
     }
 
     // "Item level 24 to 38 (levels 30 to 40)" and "Mining 75 to 210", from what each event recorded.
@@ -61,13 +78,9 @@ sealed class CharacterLeveling
 
         var skills = new Dictionary<string, (int First, int Last)>();
         foreach (var e in all)
-            foreach (var p in e.Professions.Split(", ", StringSplitOptions.RemoveEmptyEntries))
-            {
-                var space = p.LastIndexOf(' ');
-                if (space <= 0 || !int.TryParse(p[(space + 1)..], out var skill)) continue;
-                var name = p[..space];
-                skills[name] = skills.TryGetValue(name, out var s) ? (s.First, skill) : (skill, skill);
-            }
+            foreach (var p in ProfessionSkills.Parse(e.Professions))
+                if (p.Skill is { } skill)
+                    skills[p.Name] = skills.TryGetValue(p.Name, out var s) ? (s.First, skill) : (skill, skill);
         lines.AddRange(skills.Where(s => s.Value.Last > s.Value.First).Select(s => $"{s.Key} {s.Value.First} to {s.Value.Last}"));
         return lines;
     }

@@ -11,24 +11,33 @@ local SHORT = {
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
   maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V", keystone = "W", zoneType = "f",
-  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", -- single letters are used up, so new keys get two
+  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", mat = "mt", askedKind = "ak", midBoss = "mb", run = "rn", bosses = "bs", drops = "dr", cleared = "cl", -- single letters are used up, so new keys get two
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
 -- code also rides along with the check-in after login, so the Wowhead link shows right away.)
-local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true, maxLevel = true }
+local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true, recipes = true }
+
+-- Left out: talentExport except on the check-in, and maxLevel unless it's true (a level-up that
+-- reached max); elsewhere it holds the level cap (characterInfo), which the app must not read as that.
+local function leftOut(k, v, kind)
+  if k == "talentExport" then return kind ~= "snapshot" end
+  if k == "maxLevel" then return v ~= true end
+  return SAVED_ONLY[k]
+end
 
 -- "k=value;k=value": short keys, empty values left out, true as 1, and the id without the
--- character's GUID in front (it's in g already). Characters that would break it are %XX.
+-- character's GUID in front (it's in g already). Characters that would break it are %XX, line
+-- breaks too (they separate the events of one grid).
 local function encode(t)
   local parts = {}
   for k, v in pairs(t) do
-    if type(v) ~= "table" and v ~= "" and v ~= false and (not SAVED_ONLY[k] or (k == "talentExport" and t.kind == "snapshot")) then
+    if type(v) ~= "table" and v ~= "" and v ~= false and not leftOut(k, v, t.kind) then
       if v == true then v = 1 end
       if k == "id" and t.guid and type(v) == "string" and v:sub(1, #t.guid) == t.guid then v = v:sub(#t.guid + 1) end
       if k == "sex" then v = (v == "female") and "f" or "m" end
       if k == "guid" and type(v) == "string" then v = v:gsub("^Player%-", "") end -- the app puts it back
-      local s = tostring(v):gsub("[%%;=#|]", function(c) return string.format("%%%02X", c:byte()) end)
+      local s = tostring(v):gsub("[%%;=#|\n]", function(c) return string.format("%%%02X", c:byte()) end)
       table.insert(parts, (SHORT[k] or k) .. "=" .. s)
     end
   end
@@ -38,29 +47,26 @@ end
 
 -- The grid: 160 cells across, 2 pixels each, black or white, saved as a high-quality JPEG (fast for the game to write; tested to read back cleanly). Row 0
 -- and column 0 alternate white/black so the app can measure the cell size in the picture; the
--- other cells hold the bits (black = 1): a magic byte (0xC8: this layout and short keys), the
--- payload length (2 bytes), the payload, and a 2-byte checksum. (0xC7 was the older 128 x 5 px
--- layout with long keys; the app still reads it.)
+-- other cells hold the bits (black = 1): a magic byte (0xC9: this layout, short keys, one event
+-- per line), the payload length (2 bytes), the payload, and a 2-byte checksum. (0xC8 was one event
+-- per grid, 0xC7 the older 128 x 5 px layout with long keys; the app still reads both.)
 local GRID_COLS = 160
 local CELL = 2
-local MAGIC = 0xC8
+local MAGIC = 0xC9
 
+-- The grid's bytes as one string; drawGrid reads the bits straight from it (a table of 0/1 per bit
+-- was eight numbers per byte, for every event).
 local function toBits(data)
-  local bytes = { MAGIC, math.floor(#data / 256), #data % 256 }
   local sum = 0
-  for i = 1, #data do
-    local b = data:byte(i)
-    table.insert(bytes, b)
-    sum = (sum + b) % 65536
-  end
-  table.insert(bytes, math.floor(sum / 256))
-  table.insert(bytes, sum % 256)
+  for i = 1, #data do sum = (sum + data:byte(i)) % 65536 end
+  return string.char(MAGIC, math.floor(#data / 256), #data % 256) .. data .. string.char(math.floor(sum / 256), sum % 256)
+end
 
-  local bits = {}
-  for _, b in ipairs(bytes) do
-    for i = 7, 0, -1 do bits[#bits + 1] = math.floor(b / 2 ^ i) % 2 end
-  end
-  return bits
+-- Bit n (1-based, most significant first) of the bytes, 0 past the end.
+local function bitAt(bytes, n)
+  local b = bytes:byte(math.floor((n - 1) / 8) + 1)
+  if not b then return 0 end
+  return math.floor(b / 2 ^ (7 - (n - 1) % 8)) % 2
 end
 
 -- Which screen corner the grid sits in (Settings.lua gridCorner): row 0 and column 0 (the clock) are always
@@ -73,9 +79,9 @@ local function corner()
 end
 
 local grid, gridWhite, gridPortrait, gridLabel
--- Where the portrait goes, in screen pixels from the top-left corner (the app knows the same spot):
--- right of the grid's 160 columns and the 230 px label.
-local PORTRAIT_X, PORTRAIT_SIZE = 160 * 2 + 4 + 230 + 4, 64 -- kept where it was (the label used to be 230 px)
+-- Where the portrait goes, in screen pixels from the grid's corner, right of its 160 columns with
+-- room for the label. The app cuts it out at this same spot (GridDecoder.CropPortrait), so it stays put.
+local PORTRAIT_X, PORTRAIT_SIZE = 160 * 2 + 4 + 230 + 4, 64
 local gridTextures = {}
 
 -- A frame without a parent stays visible when the UI is hidden (Alt+Z). Its scale is set so one
@@ -137,7 +143,7 @@ local function drawGrid(bits)
   local f = gridFrame()
   f:SetScale(pixelScale())
   local dataCols = GRID_COLS - 1
-  local rows = math.ceil(#bits / dataCols) + 1
+  local rows = math.ceil(#bits * 8 / dataCols) + 1
   local where = corner()
   local right, bottom = where:find("RIGHT") ~= nil, where:find("BOTTOM") ~= nil
   f:ClearAllPoints()
@@ -174,7 +180,7 @@ local function drawGrid(bits)
   local function cell(r, c)
     if r == 0 then return c % 2 end      -- clock row: white, black, white...
     if c == 0 then return r % 2 end      -- clock column
-    return bits[(r - 1) * dataCols + c] or 0
+    return bitAt(bits, (r - 1) * dataCols + c)
   end
 
   for r = 0, rows - 1 do
@@ -192,8 +198,8 @@ local function drawGrid(bits)
   for i = used + 1, #gridTextures do gridTextures[i]:Hide() end
 end
 
--- Screenshots are taken one at a time from a queue: a data grid for every event, and a normal
--- screenshot after it when the app asked for one.
+-- Screenshots are taken one at a time from a queue: a data grid for a batch of events (see
+-- sendLive), and a normal screenshot for an event when the app asked for one.
 local shotQueue = {}
 local shotBusy = false
 local shotItem
@@ -211,7 +217,8 @@ local setCVar = (C_CVar and C_CVar.SetCVar) or SetCVar
 -- JPEG 81, ~0.7 MB), and the black and white 2 px cells read back cleanly far below that (tested
 -- down to JPEG 20). TGA can't be read by the app. The player's own settings come back right after.
 local function useGridShotSettings()
-  savedCVars = { format = getCVar("screenshotFormat"), quality = getCVar("screenshotQuality") }
+  -- Still set from a grid shot that ended in combat: what's saved is the player's own.
+  savedCVars = savedCVars or { format = getCVar("screenshotFormat"), quality = getCVar("screenshotQuality") }
   pcall(setCVar, "screenshotFormat", "jpeg")
   pcall(setCVar, "screenshotQuality", "3")
   if ActionStatus and ActionStatus.UnregisterEvent then ActionStatus:UnregisterEvent("SCREENSHOT_SUCCEEDED") end
@@ -238,11 +245,12 @@ function ns.applyGameSettings()
   end
 end
 
+-- fn gets how long the frame before it took, in seconds.
 local nextFrame = CreateFrame("Frame")
 local function onNextFrame(fn)
-  nextFrame:SetScript("OnUpdate", function(self)
+  nextFrame:SetScript("OnUpdate", function(self, elapsed)
     self:SetScript("OnUpdate", nil)
-    fn()
+    fn(elapsed)
   end)
 end
 
@@ -282,13 +290,13 @@ local function showChat()
   hiddenChat = nil
 end
 
--- The last few shots and how they went (kind, ok, in combat, retried), for /wct debug.
+-- The last few shots and how they went (kind, ok, in combat, retried, and how long the frame with
+-- the screenshot took: that's the hitch a player feels), for /wct debug.
 local function logShot(item, ok)
-  local log = WoWCharacterTrackerDB.shotLog or {}
-  WoWCharacterTrackerDB.shotLog = log
-  table.insert(log, string.format("%s %s %s%s%s", date("%H:%M:%S"), item.bits and "grid" or (item.kind or "event"),
-    ok and "ok" or "FAILED", item.inCombat and " in combat" or "", item.retried and " (retry)" or ""))
-  while #log > 20 do table.remove(log, 1) end
+  WoWCharacterTrackerDB.shotLog = ns.appendCapped(WoWCharacterTrackerDB.shotLog or {},
+    string.format("%s %s %s%s%s%s", date("%H:%M:%S"), item.bits and "grid" or (item.kind or "event"),
+      ok and "ok" or "FAILED", item.inCombat and " in combat" or "", item.retried and " (retry)" or "",
+      item.frameMs and string.format(" frame %dms", item.frameMs) or ""), 20)
 end
 
 -- ok = false when the game said the screenshot failed or never answered. An event's own picture
@@ -300,12 +308,14 @@ function ns.shotDone(ok)
   local item = shotItem
   if item and item.bits then
     if grid then grid:Hide() end
-    restoreShotSettings()
+    -- A fight can start between the shot and the game's answer: no CVar changes in combat, so
+    -- the player's settings come back once it's over (processShots on PLAYER_REGEN_ENABLED).
+    if not InCombatLockdown() then restoreShotSettings() end
   else
     showChat()
   end
   if item then
-    logShot(item, ok ~= false)
+    if item.taken and not item.frameMs then item.logWhenTimed = ok ~= false else logShot(item, ok ~= false) end
     if ok == false and not item.bits and not item.retried then
       item.retried, item.afterCombat, item.delay = true, true, 0.3
       table.insert(shotQueue, 1, item)
@@ -314,6 +324,23 @@ function ns.shotDone(ok)
   shotItem = nil
   shotBusy = false
   C_Timer.After(0.1, ns.processShots)
+end
+
+-- The game's answer to a screenshot. One that arrives before the current shot was even taken
+-- belongs to an earlier shot that already timed out, so it doesn't end this one.
+function ns.onScreenshotEvent(ok)
+  if shotItem and not shotItem.taken then return end
+  ns.shotDone(ok)
+end
+
+local function takeShot(item)
+  item.taken = true
+  Screenshot()
+  -- The game captures at the end of this frame, so the next frame's start says how long it held.
+  onNextFrame(function(elapsed)
+    item.frameMs = math.floor((elapsed or 0) * 1000 + 0.5)
+    if item.logWhenTimed ~= nil then logShot(item, item.logWhenTimed) end -- the game answered first
+  end)
 end
 
 -- In combat only normal screenshots are taken (the moment itself); data grids wait until combat
@@ -327,7 +354,9 @@ local function nextShot()
 end
 
 ns.processShots = function()
-  if shotBusy or #shotQueue == 0 then return end
+  if shotBusy then return end
+  if savedCVars and not InCombatLockdown() then restoreShotSettings() end -- left from a grid shot that ended in combat
+  if #shotQueue == 0 then return end
   if time() <= lastShotSecond then
     C_Timer.After(0.25, ns.processShots)
     return
@@ -346,20 +375,70 @@ ns.processShots = function()
     showPortrait(item.portrait)
     useGridShotSettings()
     grid:Show()
-    onNextFrame(function() Screenshot() end) -- let the grid be drawn once first
+    onNextFrame(function() takeShot(item) end) -- let the grid be drawn once first
   else
     C_Timer.After(item.delay or 0.5, function()
       ns.doing("event screenshot")
       hideChat()
-      onNextFrame(function() Screenshot() end)
+      onNextFrame(function() takeShot(item) end)
     end)
   end
 end
 
-function ns.sendLive(e)
-  if WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
-  table.insert(shotQueue, { bits = toBits(encode(e)), portrait = e.kind == "snapshot" })
+-- At logout or /reload the next frame never comes, so a grid shot would never finish: none start
+-- from now on (what's recorded still goes into the saved file), and the screenshot settings a grid
+-- shot changed go back to the player's own.
+function ns.stopShots()
+  ns.loggingOut = true
+  if savedCVars and not InCombatLockdown() then restoreShotSettings() end
+end
+
+-- Live events wait a moment and go out together. Every grid is a screenshot, which holds the game
+-- for a moment (about a quarter second at 1440p), and moments come in bursts: a boss and its
+-- screenshot, two blues off it. So one grid, an event per line, BATCH_QUIET seconds after the
+-- latest event and at most BATCH_MAX after the first. A batch that would outgrow the grid
+-- (BATCH_BYTES, the app reads 400 px of rows) goes as it is and the event starts the next one.
+-- An event's own screenshot is still taken right away; the app finds it by its time.
+local BATCH_QUIET, BATCH_MAX, BATCH_BYTES = 3, 10, 3800
+local batch, batchBytes, batchStarted, batchPortrait = {}, 0, 0, false
+local batchDue, batchTimer = false, 0
+
+local function queueBatch()
+  if #batch == 0 then return end
+  table.insert(shotQueue, { bits = toBits(table.concat(batch, "\n")), portrait = batchPortrait })
+  batch, batchBytes, batchPortrait, batchDue = {}, 0, false, false
   ns.processShots()
+end
+
+-- The batch, once it's due. In combat it waits (grids do anyway), so the rest of the fight joins
+-- it; PLAYER_REGEN_ENABLED calls this again.
+function ns.flushLive()
+  if not batchDue or (InCombatLockdown and InCombatLockdown()) then return end
+  queueBatch()
+end
+
+local function scheduleBatch()
+  batchTimer = batchTimer + 1
+  local mine = batchTimer
+  local wait = math.max(0, math.min(BATCH_QUIET, batchStarted + BATCH_MAX - time()))
+  C_Timer.After(wait, function()
+    if mine ~= batchTimer then return end -- a newer event moved it
+    batchDue = true
+    ns.flushLive()
+  end)
+end
+
+function ns.sendLive(e)
+  -- Without the app, nobody reads the grid and its screenshots would just pile up.
+  if ns.loggingOut or not ns.hasApp() or WoWCharacterTrackerDB.live == false or type(Screenshot) ~= "function" then return end
+  if e and ns.isIgnored(e.guid) then return end -- Ignore tracking: not even the check-in
+  local line = encode(e)
+  if #batch > 0 and batchBytes + 1 + #line > BATCH_BYTES then queueBatch() end
+  if #batch == 0 then batchStarted = time() end
+  batchBytes = batchBytes + (#batch > 0 and 1 or 0) + #line
+  batch[#batch + 1] = line
+  if e.kind == "snapshot" then batchPortrait = true end
+  scheduleBatch()
 end
 
 -- How long to wait before a normal screenshot, so the moment is on screen (the ding glow, the
@@ -369,10 +448,21 @@ local SHOT_DELAY = { level = 1.0, boss = 1.5, keyrun = 2.0, loot = 0.3, mount = 
 -- Will the app post this event? Settings.lua carries the app's "What gets posted" choices, so
 -- the addon only sends events live (and screenshots them) when they'll actually be posted.
 -- Without those settings (an older app), everything counts as wanted.
+
+-- A dungeon run's loot, which goes into the run's one post (Runs.lua). The end boss still posts on
+-- its own, with its screenshot (the run is saved minutes later, often on a loading screen).
+local function heldForRun(e, post)
+  return e.run ~= nil and post and post.run == true and e.kind == "loot"
+end
+
 local function wanted(e)
   local post = ns.setting("post")
   if not post then return true end
-  if e.kind == "loot" and (e.quality or 0) >= 5 then return true end -- legendary: always worth a post
+  if e.kind == "ask" then return true end -- the player clicked Post (Ask.lua)
+  if post.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then return true end
+  if e.kind == "loot" and (e.quality or 0) >= 5 then return not e.mat end -- legendary gear: always worth a post, materials never
+  if heldForRun(e, post) then return false end
+  if e.kind == "run" then return post.run == true and (e.cleared or (e.drops or "") ~= "") and true or false end
   if e.maxLevel and post.maxLevel ~= false then return true end -- max level has its own switch
   if e.kind == "level" then
     local l = post.level
@@ -398,11 +488,13 @@ local function wantsScreenshot(kind)
 end
 
 -- Stores an event in SavedVariables and sends it live, so the app's level history and highlights
--- stay current while you play, whether it gets posted or not (before 0.21.2 loot that wouldn't be
--- posted waited for /reload). Only events that will be posted get a screenshot (if the app asked
--- for one).
+-- stay current while you play, whether it gets posted or not. Only events that will be posted get
+-- a screenshot (if the app asked for one).
 function ns.addEvent(e)
   table.insert(WoWCharacterTrackerDB.events, e)
+  -- Incognito (Shared.lua): kept for your own history, but nothing goes out: no live post, chat
+  -- line, screenshot or ask box, and the app skips it when the saved file brings it.
+  if ns.incognitoActive() then return end
   if ns.announce then ns.announce(e) end -- guild/group chat (Announce.lua)
   local posted = wanted(e)
   local shot = posted and wantsScreenshot(e.kind)
@@ -412,6 +504,8 @@ function ns.addEvent(e)
     table.insert(shotQueue, { delay = SHOT_DELAY[e.kind] or 0.5, kind = e.kind })
     ns.processShots()
   end
+  -- not posted by itself: maybe on request (not a run's loot, the run's post has it)
+  if not posted and ns.offerAsk and not heldForRun(e, ns.setting("post")) then ns.offerAsk(e) end
 end
 
 -- One live check-in per login, so the app shows the character (level, gear, zone) right away.
@@ -419,10 +513,16 @@ local checkedIn = false
 function ns.checkIn()
   if checkedIn or not WoWCharacterTrackerDB or WoWCharacterTrackerDB.live == false then return end
   checkedIn = true
-  local e = ns.characterInfo()
-  e.kind = "snapshot"
+  local e = ns.liveEvent("snapshot")
   e.played = ns.playedNow()
-  e.at = time()
-  e.id = string.format("%s:snapshot:%d", e.guid, e.at)
   ns.sendLive(e)
+end
+
+-- An event that only goes live, never into the saved file (the check-in, /wct test), with
+-- everything characterInfo knows (the check-in carries the talent export).
+function ns.liveEvent(kind)
+  local e = ns.characterInfo()
+  e.kind, e.at = kind, time()
+  e.id = ns.eventId(e.guid, kind, e.at)
+  return e
 end

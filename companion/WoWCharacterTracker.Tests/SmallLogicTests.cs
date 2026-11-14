@@ -2,6 +2,18 @@ using WoWCharacterTracker.Services.Discord;
 
 namespace WoWCharacterTracker.Tests;
 
+public class RealmTextTests
+{
+    [Theory]
+    [InlineData("eu", "CAMWOW EU5 Realm 6 PvP", "EU · PvP")]
+    [InlineData("eu", "CAMWOW EU5 Realm 2 Normal", "EU · Normal")]
+    [InlineData("eu", "Tarren Mill", "EU · Tarren Mill")]
+    [InlineData("", "Firemaw", "Firemaw")]
+    [InlineData("us", "", "US · ")]
+    public void Forever_realms_show_their_type(string region, string realm, string expected) =>
+        Assert.Equal(expected, Format.Realm(region, realm));
+}
+
 public class TalentLinkTests
 {
     [Fact]
@@ -99,10 +111,83 @@ public class RatingTests
     [InlineData(0, "", "")]
     public void Ratings_text(int score, string pvp, string expected) => Assert.Equal(expected, Format.RatingsText(score, pvp));
 
+    // Gold reads the same on a Swedish PC as everywhere else (the stream card used Windows' language).
+    [Fact]
+    public void Gold_is_written_the_same_whatever_the_language()
+    {
+        var before = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = new("sv-SE");
+        try
+        {
+            Assert.Equal("12,345g", Format.Gold(123_456_789));
+            Assert.Equal("12,345g 67s 89c", Format.Money(123_456_789));
+            Assert.Equal("5s 3c", Format.Money(503));
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = before; }
+    }
+
     [Fact]
     public void Release_notes_read_as_plain_text_in_the_banner() =>
         Assert.Equal("• Notes in game: type /wct note.\n      ◦ Lock it.\n\nComes with the addon.",
             Format.ReleaseNotes("- **Notes in game**: type `/wct note`.\r\n  - Lock it.\r\n\r\nComes with the addon.\r\n"));
+
+    [Fact]
+    public void Release_notes_show_section_headings_as_plain_lines() =>
+        Assert.Equal("New\n\n• A thing", Format.ReleaseNotes("### New\r\n\r\n- A thing\r\n"));
+
+    [Fact]
+    public void Changelog_splits_versions_groups_and_feature_names()
+    {
+        var versions = Changelog.Parse("# Changelog\r\n\r\nAbout this file.\r\n\r\n## v2.0.0\r\n\r\nBig one, /reload.\r\n\r\n### New\r\n\r\n- **Notes**: type `/wct note`.\r\n  - Lock it.\r\n\r\n### Fixes and tweaks\r\n\r\n- Fixed **this**.\r\n\r\n## v1.0.0\r\n\r\n- Old style line.\r\n");
+
+        Assert.Equal(["v2.0.0", "v1.0.0"], versions.Select(v => v.Name));
+        var latest = versions[0];
+        Assert.Equal("Big one, /reload.", latest.Intro);
+        Assert.True(latest.Groups[0].IsNew);
+        Assert.False(latest.Groups[1].IsNew);
+        Assert.Equal(new ChangelogItem("Notes", ": type /wct note.", false), latest.Groups[0].Items[0]);
+        Assert.Equal(new ChangelogItem("", "Lock it.", true), latest.Groups[0].Items[1]);
+        Assert.Equal(new ChangelogItem("", "Fixed this.", false), latest.Groups[1].Items[0]);
+        Assert.Equal("Old style line.", versions[1].Groups[0].Items[0].Text);
+    }
+
+    // The addon has its own version: the same one is left alone whatever version the app is.
+    [Theory]
+    [InlineData(null, "0.31.1", null)]
+    [InlineData("0.31.1", "0.31.1", 0)]
+    [InlineData("0.31.0", "0.31.1", -1)]
+    [InlineData("0.32.0", "0.31.1", 1)]
+    [InlineData("?", "0.31.1", -1)]
+    [InlineData("0.31", "0.31.0", 0)]
+    public void Addon_versions_compare(string? installed, string bundled, int? expected)
+    {
+        var result = AddonInstaller.Compare(installed, bundled);
+        Assert.Equal(expected, result is null ? null : Math.Sign(result.Value));
+    }
+
+    // Only when turned on, only a build that can replace itself, never while a game runs, one try per version.
+    [Theory]
+    [InlineData(true, true, false, false, true)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(true, false, false, false, false)]
+    [InlineData(true, true, true, false, false)]
+    [InlineData(true, true, false, true, false)]
+    public void An_update_installs_by_itself_only_when_allowed(bool optedIn, bool canInstall, bool gameRunning, bool tried, bool expected) =>
+        Assert.Equal(expected, Updater.ShouldAutoInstall(optedIn, canInstall, gameRunning, tried));
+
+    // The real file: What's new shows this version first, and every section keeps the two groups.
+    [Fact]
+    public void The_built_in_changelog_starts_at_this_version_and_uses_the_groups()
+    {
+        var all = Changelog.Recent(int.MaxValue);
+        Assert.Equal($"v{Updater.Current}", all[0].Name);
+        Assert.Equal(3, Changelog.Recent(3).Count);
+        Assert.All(all, v =>
+        {
+            Assert.NotEmpty(v.Groups);
+            Assert.All(v.Groups, g => Assert.Contains(g.Title, new[] { Changelog.NewTitle, Changelog.FixesTitle }));
+        });
+    }
 
     // A note edited in game replaces the app's only when it's newer; clearing counts as an edit.
     [Fact]
@@ -114,6 +199,165 @@ public class RatingTests
         Assert.True(config.TakeNewerNote(new GameNote("P-1", "", 1100)));
         Assert.Equal("", config.NoteOf("P-1"));
         Assert.Equal([new GameNote("P-1", "", 1100)], config.Notes().ToList()); // the clear still reaches the game
+    }
+
+    static InGameSettings GameChange(long at) => new(at, true, false, ["level"], ["death"], ["boss"], false, true, "BOTTOMLEFT", false, true, AskSeconds: 30);
+
+    // In game settings changed in game replace the app's only when that was the newest change.
+    [Fact]
+    public void The_newest_in_game_settings_win()
+    {
+        var s = new FlavorSettings { InGameAt = 1000, AnnounceGuild = false };
+        Assert.False(s.TakeInGame(null));
+        Assert.False(s.TakeInGame(GameChange(1000)));
+        Assert.False(s.AnnounceGuild);
+
+        Assert.True(s.TakeInGame(GameChange(1100)));
+        Assert.Equal(1100, s.InGameAt);
+        Assert.True(s.AnnounceGuild);
+        Assert.Equal(["level"], s.AnnounceKinds);
+        Assert.Equal(["death"], s.AnnouncePartyKinds);
+        Assert.Equal(["boss"], s.AskKinds);
+        Assert.False(s.FlightReloadPrompt);
+        Assert.Equal("BOTTOMLEFT", s.GridCorner);
+        Assert.False(s.GridLabel);
+        Assert.True(s.KeepAllHistory);
+        Assert.Equal(30, s.AskSeconds);
+    }
+
+    // How long the in-game post box stays: 10 seconds unless changed, written to Settings.lua for the addon.
+    [Fact]
+    public void The_post_box_time_is_10_seconds_and_reaches_the_addon()
+    {
+        Assert.Equal(10, new FlavorSettings().AskSeconds);
+        var dir = Path.Combine(Path.GetTempPath(), "wct-askseconds-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, new FlavorSettings { AskSeconds = 15 });
+            Assert.Contains("askSeconds = 15,", File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // A newer app version found by the update check: the addon says so in chat on a login, never on
+    // a /reload, and says nothing without one.
+    [Fact]
+    public void An_app_update_is_said_in_chat_on_login_only()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-appupdate-" + Guid.NewGuid().ToString("N"));
+        var settings = Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua");
+        Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
+        try
+        {
+            string Said(Version? update, bool login)
+            {
+                AddonInstaller.WriteSettings(dir, new FlavorSettings(), appUpdate: update);
+                var script = new MoonSharp.Interpreter.Script();
+                script.DoString("C_Timer = { After = function(_, fn) fn() end }");
+                script.DoString(File.ReadAllText(settings));
+                var said = "";
+                var ns = new MoonSharp.Interpreter.Table(script) { ["say"] = (Action<string>)(s => said += s) };
+                script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+                script.Call(ns.Get("sayAppUpdate"), login);
+                return said;
+            }
+
+            Assert.StartsWith("Version 0.37.0 of the app is out.", Said(new Version(0, 37, 0), login: true));
+            Assert.Contains("appUpdate = \"0.37.0\",", File.ReadAllText(settings));
+            Assert.Equal("", Said(new Version(0, 37, 0), login: false)); // a /reload
+            Assert.Equal("", Said(null, login: true));
+            Assert.DoesNotContain("appUpdate", File.ReadAllText(settings));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void In_game_settings_are_read_from_the_saved_file()
+    {
+        var script = new MoonSharp.Interpreter.Script();
+        var read = SavedVariables.ReadInGame(script.DoString("""
+            return { at = 1234, announce = { guild = true, kinds = { level = true, boss = true }, partyKinds = { death = true } },
+              ask = { rare = true }, chatReminder = false, gridCorner = 'TOPRIGHT', keepAllHistory = true, askSeconds = 15 }
+            """));
+
+        Assert.NotNull(read);
+        Assert.Equal(1234, read.At);
+        Assert.True(read.AnnounceGuild);
+        Assert.False(read.AnnounceParty);
+        Assert.Equal(["boss", "level"], read.AnnounceKinds.Order());
+        Assert.Equal(["death"], read.AnnouncePartyKinds);
+        Assert.Equal(["rare"], read.AskKinds);
+        Assert.Null(read.FlightReload); // missing: the addon reads the app's value, so the app keeps it
+        Assert.Null(read.GridLabel);
+        Assert.False(read.ChatReminder);
+        Assert.Equal("TOPRIGHT", read.GridCorner);
+        Assert.True(read.KeepAllHistory);
+        Assert.Equal(15, read.AskSeconds);
+        Assert.Null(SavedVariables.ReadInGame(MoonSharp.Interpreter.DynValue.Nil));
+    }
+
+    // A change from an older addon that didn't keep every setting: the ones it has win, the rest stay.
+    [Fact]
+    public void Settings_missing_from_the_in_game_change_keep_the_apps_values()
+    {
+        var s = new FlavorSettings { InGameAt = 1000, KeepAllHistory = true, AskKinds = ["epic"], GridCorner = "BOTTOMRIGHT", ChatReloadReminder = true, AnnouncePartyKinds = ["boss"] };
+        Assert.True(s.TakeInGame(new InGameSettings(1100, true, false, ["level"], null, null, null, false, null, null, null)));
+
+        Assert.True(s.AnnounceGuild);
+        Assert.Equal(["boss"], s.AnnouncePartyKinds);
+        Assert.False(s.ChatReloadReminder);
+        Assert.True(s.KeepAllHistory);
+        Assert.Equal(["epic"], s.AskKinds);
+        Assert.Equal("BOTTOMRIGHT", s.GridCorner);
+    }
+
+    // Ignore tracking: an In game setting both ways, and nothing of that character is posted.
+    [Fact]
+    public void An_ignored_character_is_never_posted_and_the_setting_goes_both_ways()
+    {
+        var s = new FlavorSettings { InGameAt = 1000, PostLevels = true, LevelSplit = 0 };
+        var ding = new Entry { Id = "a", Guid = "Player-1-0000000A", Kind = "level", Level = 10 };
+        Assert.True(s.Wants(ding, []));
+
+        var read = SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString(
+            "return { at = 1100, ignored = { ['Player-1-0000000A'] = true, ['Player-1-0000000B'] = false } }"));
+        Assert.Equal(["Player-1-0000000A"], read!.Ignored);
+        Assert.True(s.TakeInGame(read));
+        Assert.False(s.Wants(ding, []));
+        Assert.True(s.Wants(ding with { Guid = "Player-1-0000000B" }, []));
+
+        // A change from an older addon without the setting keeps the app's.
+        Assert.True(s.TakeInGame(new InGameSettings(1200, true, false, ["level"], null, null, null, false, null, null, null)));
+        Assert.Contains("Player-1-0000000A", s.Ignored);
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-ignored-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, s);
+            Assert.Contains("ignored = { [\"Player-1-0000000A\"] = true, },", File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // Clicking Post in game: always wanted, whatever the rules say, and posted as the moment it carries.
+    [Fact]
+    public void A_request_to_post_is_posted_as_its_moment()
+    {
+        var ask = new Entry { Id = "x", Kind = "ask", AskedKind = "boss", Boss = "Rethilgore", MidBoss = true };
+        Assert.True(new FlavorSettings { PostBosses = false }.Wants(ask));
+        Assert.True(ask.IsAsk);
+        Assert.Equal("boss", ask.Moment.Kind);
+        Assert.False(ask.Moment.IsAsk);
+    }
+
+    // Asking is on by default where moments are rare enough, and old configs get their game's.
+    [Fact]
+    public void Asking_defaults_differ_per_game()
+    {
+        Assert.Equal(FlavorSettings.AllAskKinds, Flavors.Forever.Defaults().AskKinds);
+        Assert.Empty(Flavors.Retail.Defaults().AskKinds!);
     }
 
     [Fact]
@@ -159,7 +403,6 @@ public class OpponentTests
         var fields = new Dictionary<string, string> { ["id"] = "x", ["kind"] = "duel", ["opponent"] = "Grimtusk", ["opponentInfo"] = "30~MAGE~Mage~Troll" };
         var e = Entry.From(k => fields.GetValueOrDefault(k, ""), _ => 0);
         Assert.Equal("level 30 Troll Mage", e.OpponentText);
-        Assert.Equal("MAGE", e.OpponentClassFile);
     }
 }
 
@@ -329,10 +572,18 @@ public class ItemKindTests
     public async Task Classic_enchants_are_found_by_id_without_asking_Wowhead()
     {
         // Forever only shows the stats ("+4 All Stats"), so the id has to do it: 1891 is Enchant Chest - Greater Stats.
-        Assert.Equal(20025, Enchants.SpellFor(1891));
+        Assert.Equal(20025, Enchants.SpellFor(1891, Flavors.Forever));
         Assert.Equal(("spell", 20025), await Enchants.FindAsync(1891, "+4 All Stats", Flavors.Forever));
-        Assert.Null(Enchants.SpellFor(0));
-        Assert.Null(Enchants.SpellFor(999999));
+        Assert.Null(Enchants.SpellFor(0, Flavors.Forever));
+        Assert.Null(Enchants.SpellFor(999999, Flavors.Forever));
+    }
+
+    [Fact]
+    public void Each_game_reads_enchant_ids_with_its_own_map()
+    {
+        // Forever renumbered some: its 805 is Minor Impact (7745), Classic's (and Retail's) is Greater Striking (13943).
+        Assert.Equal(7745, Enchants.SpellFor(805, Flavors.Forever));
+        Assert.Equal(13943, Enchants.SpellFor(805, Flavors.Retail));
     }
 
     [Fact]
@@ -431,17 +682,12 @@ public class DiscordCreditTests
         Assert.Equal("Testy sent a test message.", embed["title"]);
     }
 }
-public class SetupPlacementTests
+public class OldConfigTests
 {
-    // Older configs have no placement: the checks go to the right column. A value this version
-    // doesn't know (hand edited, or from a newer one) reads as right too, so the checks never vanish.
-    [Theory]
-    [InlineData("{}", "right")]
-    [InlineData("{\"SetupPlacement\":\"top\"}", "top")]
-    [InlineData("{\"SetupPlacement\":\"bottom\"}", "bottom")]
-    [InlineData("{\"SetupPlacement\":\"sideways\"}", "right")]
-    public void Placement_from_config(string json, string expected) =>
-        Assert.Equal(expected, System.Text.Json.JsonSerializer.Deserialize<Config>(json)!.SetupPlace);
+    // The setup checks' placement is gone (they sit across the top now): an old config with it still loads.
+    [Fact]
+    public void Old_setup_placement_is_ignored() =>
+        Assert.False(System.Text.Json.JsonSerializer.Deserialize<Config>("{\"SetupPlacement\":\"top\",\"Animations\":false}")!.Animations);
 }
 
 public class IntroTests
@@ -462,11 +708,20 @@ public class IntroTests
         Assert.Equal(expected, config.WantsIntro);
     }
 
+    // The setup helper's steps, in order; the view shows each step's part by its key.
     [Fact]
-    public void Tour_steps_start_with_a_welcome_and_point_at_known_parts()
+    public void Setup_goes_games_addon_discord_sharing_done() =>
+        Assert.Equal(["games", "addon", "discord", "sharing", "done"], IntroViewModel.Steps.Select(s => s.Key));
+
+    // (Closing saves the config, which other tests write too, so only opening is checked here.)
+    [Fact]
+    public void Setup_opens_at_the_step_asked_for()
     {
-        Assert.Null(IntroViewModel.Steps[0].Target);
-        Assert.All(IntroViewModel.Steps.Skip(1), s => Assert.Contains(s.Target, new[] { "tabs", "setup", "discord", "pages", "settings" }));
+        var main = new MainViewModel(backfill: false, justUpdated: false);
+        main.Intro.OpenAt("discord");
+        Assert.True(main.Intro.IsOpen);
+        Assert.Equal("discord", main.Intro.Step.Key);
+        Assert.Equal(["done", "done", "open", "", ""], main.Intro.Progress);
     }
 }
 
@@ -497,5 +752,24 @@ public class LevelingEstimateTests
         var whole = CharacterLeveling.From(Dings, 11, Saved(11, 0, 0), new Dictionary<int, long>(), estimate: true).EstimateText;
         Assert.StartsWith("About ", stale);
         Assert.Equal(whole, stale);
+    }
+
+    // The chart ends with a paler bar for the level being played: played since the last ding, or the
+    // time the addon saved (a friend's); none at max level.
+    [Fact]
+    public void The_chart_has_a_bar_for_the_level_being_played()
+    {
+        static IReadOnlyList<LevelBar> Bars(List<Entry> dings, Snapshot saved) =>
+            CharacterRow.Build(new TrackerData(dings, [saved]), Flavors.Forever, new GameLookup(Flavors.Forever, () => { })).Single().Leveling.Bars;
+        List<Entry> played = [.. Dings.Select(d => d.Level == 11 ? new Entry { Kind = "level", Guid = "Player-1", Level = 11, Seconds = 600, At = 1011, Played = 6000 } : d)];
+        var bars = Bars(played, Saved(11, 3000, 7600) with { Played = 6300 });
+        Assert.Equal(11, bars.Count);
+        Assert.Equal((12, true, "11 to 12 so far: 5m 0s"), (bars[^1].Level, bars[^1].Current, bars[^1].Tooltip));
+
+        var shared = Bars(Dings, Saved(11, 3000, 7600) with { LevelTime = 900 }); // a friend's, no played at the ding
+        Assert.Equal("11 to 12 so far: 15m 0s", shared[^1].Tooltip);
+        Assert.Equal(70, shared[^1].Height); // the tallest bar now
+
+        Assert.DoesNotContain(Bars(Dings, Saved(60, 0, 0) with { LevelTime = 900 }), b => b.Current); // max level
     }
 }

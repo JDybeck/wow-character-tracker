@@ -6,14 +6,15 @@ namespace WoWCharacterTracker.Ui;
 
 // For testing: CHARACTERTRACKER_SCREENSHOT=<png> renders the window to that file and quits, so
 // the layout can be checked without clicking around. CHARACTERTRACKER_SCREENSHOT_VIEW picks what
-// to show, as "tab:page[:extra[:extra2]]", e.g. "forever:posting" or "forever:characters:testchars:post".
+// to show, as "tab:page[:extra[:extra2]]", e.g. "forever:sharing:custom:advanced" or "forever:characters:testchars:post".
 //   extra:  rename | options (a webhook) | removehook | addhook (the Add form open) | testchars | updating (the update banner mid-download) | updateready (a new version offered)
 //           | stream (the Stream overlay panel on and open) | testall (every Test button; test characters on when Forever has none) | addonupdate
-//           | nofolder (the tab as if no game folder was found, faked: no detection runs)
-//           | settings (the settings menu, saved next to it as <name>-settings.png) | orb (switches tab, captured mid-animation)
+//           | nofolder (the tab as if no game folder was found, faked: no detection runs) | betafolder (the still-on-the-beta-folder reminder)
+//           | settings (the settings menu, saved next to it as <name>-settings.png) | changelog (What's new, saved as <name>-changelog.png) | orb (switches tab, captured mid-animation)
 //           | intro (the first-run tour; extra2 = which step, 1 = the welcome)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
-//   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now)
+//   extra2 (friends page): gear or leveling (a friend's tab) | sharing (the sharing settings) | professions (friends' professions)
+//   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | followedsearch (Followed items page, a search done) | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | recipes (Professions page: the first recipes open) | recipesearch (Professions page: a recipe search) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now) | end (with stream: scrolled to the panel's bottom)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
@@ -32,21 +33,44 @@ static class ScreenshotMode
 
             if (vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Part(0)) is { } tab) vm.SelectedFlavor = tab;
             if (Part(1) == "uninstall") vm.ShowUninstallCommand.Execute(null); // fills the list too
+            else if (Part(1) is "posting" or "ingame") vm.Page = "sharing"; // the two pages Sharing replaced
             else if (Part(1).Length > 0) vm.Page = Part(1);
+            if (Part(2) == "custom" && vm.SelectedFlavor is { } sharing) sharing.ShowCustomize = true;
             if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
             if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
             if (Part(2) == "removehook" && vm.Discord.Webhooks.FirstOrDefault() is { } rh) rh.ConfirmRemove = true;
             if (Part(2) == "addhook") vm.Discord.ShowAddWebhook = true;
+            if (Part(2) is "addhook" or "options" or "rename" or "removehook" && vm.SelectedFlavor is { } hooks) hooks.OpenPlace = "discord"; // the webhooks fold
             if (Part(2) == "testchars") { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             // Test buttons need a character; without a game folder, the test characters stand in.
             if (Part(2) == "testall" && vm.SelectedFlavor is { HasCharacters: false, Flavor.HasRulesets: true }) { vm.ShowTestCharacters = true; await Task.Delay(1500); }
             if (Part(2) == "testall")
-                foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "keyrun", "death", "duel", "makgora", "mplus", "pvp" })
+                foreach (var kind in new[] { "level", "max", "rare", "epic", "legendary", "mount", "boss", "run", "keyrun", "death", "duel", "makgora", "mplus", "pvp" })
                     vm.TestKindCommand.Execute(kind);
             // show the details panel too, for CHARACTERTRACKER_SCREENSHOT_CHARACTER (a name) or the first character
             var pick = Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_CHARACTER");
             if (vm.SelectedFlavor is { } f) f.SelectedCharacter = f.Characters.FirstOrDefault(c => c.Name == pick) ?? f.Characters.FirstOrDefault();
+            // The Friends page: the same for a friend's character, or the sharing settings (extra2 sharing).
+            if (Part(1) == "friends" && vm.SelectedFlavor?.Friends is { } fr)
+            {
+                fr.SelectedCharacter = fr.Characters.FirstOrDefault(c => c.Name == pick) ?? fr.Characters.FirstOrDefault();
+                if (Part(3) == "sharing") fr.ShowSettings = true;
+                if (Part(3) == "professions") fr.ShowProfessions = true;
+                if (Part(3) is "gear" or "leveling" && fr.SelectedCharacter is { } frc) frc.DetailTab = Part(3);
+            }
             if (Part(3) == "cardopts") vm.ShowCardOptions = true;
+            // The Professions page with the first recipes open, or a recipe search (CHARACTERTRACKER_SCREENSHOT_SEARCH, default "copper").
+            if (Part(3) == "recipes" && vm.SelectedFlavor?.Professions is { } pv && pv.Owners.SelectMany(o => o.Realms).SelectMany(r => r.Professions)
+                    .SelectMany(p => p.Characters).FirstOrDefault(c => c.HasRecipes) is { } recipes)
+            {
+                pv.Open(recipes);
+                await Task.Delay(4000); // recipe names and the picked one's reagents
+            }
+            if (Part(3) == "recipesearch" && vm.SelectedFlavor?.Professions is { } ps)
+            {
+                ps.Query = Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_SEARCH") ?? "copper";
+                await Task.Delay(4000);
+            }
             if (Part(3) == "closed" && vm.SelectedFlavor is { } cf) cf.SelectedCharacter = null; // every row closed
             if (Part(3) is "gear" or "leveling" or "notes" && vm.SelectedFlavor?.SelectedCharacter is { } dc) dc.DetailTab = Part(3);
             if (Part(3) == "gearset" && vm.SelectedFlavor?.SelectedCharacter is { } gc) // the gear tab showing the last Equipment Manager set
@@ -55,10 +79,18 @@ static class ScreenshotMode
                 if (gc.Gear.Choices.Count > 0) gc.Gear.Show(gc.Gear.Choices[^1]);
             }
             if (Part(3) == "search" && vm.SelectedFlavor is { } sf) { await Task.Delay(2500); sf.Items.Search = "potion"; }
+            if (Part(3) == "followedsearch" && vm.SelectedFlavor is { } ff) // the Followed items page with a search done (CHARACTERTRACKER_SCREENSHOT_SEARCH, default "sword")
+            {
+                ff.FollowedItems.Query = Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_SEARCH") ?? "sword";
+                ff.FollowedItems.SearchCommand.Execute(null);
+                await Task.Delay(5000);
+            }
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
+            if (Part(3) == "ignored" && vm.SelectedFlavor is { HasIgnored: true } ig) ig.ShowIgnored = true; // the footer's Ignored list (saved as <name>-ignored.png too)
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
             if (Part(2) == "nofolder") vm.SelectedFlavor?.ShowFolderMissing();
+            if (Part(2) == "betafolder") vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Folders.Length > 1)?.ShowOldFolder(Path.Combine(Wow.DefaultRoot, "_classic_beta_"));
             if (Part(2) == "addonupdate") vm.SelectedFlavor?.AddonStep.ActionCommand?.Execute(null);
             if (Part(2) == "updateready") // the update banner and header button for a new version
             {
@@ -69,7 +101,7 @@ static class ScreenshotMode
                 vm.Updates.Offer(new Updater.Release(next, $"v{next}", notes, "", ""));
                 if (notesFile is { Length: > 0 }) vm.Updates.ShowNotes = true;
             }
-            if (Part(2) == "stream") { vm.Stream.PanelOpen = true; vm.Stream.Enabled = true; }
+            if (Part(2) == "stream") { vm.Stream.PanelOpen = true; vm.Stream.Enabled = true; if (vm.SelectedFlavor is { } overlay) overlay.OpenPlace = "stream"; }
             if (Part(3) == "exclude" && vm.SelectedFlavor is { } xf) // Items: Bags focused, then Bank left out (saved as <name>-only.png first)
             {
                 await Task.Delay(2500);
@@ -85,6 +117,7 @@ static class ScreenshotMode
                 vm.Updates.InstallSteps.Clear();
                 foreach (var s in Updater.Steps) vm.Updates.InstallSteps.Add(new UpdateStepRow(s == "Downloading" ? "Downloading version 0.15.0" : s));
                 vm.Updates.IsInstalling = true;
+                vm.Updates.ShowSteps = true;
                 vm.Updates.ShowStep(new Updater.Step(0, 0.42, "29.6 of 70.4 MB"));
             }
             if (Part(3) == "posthighlight" && vm.SelectedFlavor?.SelectedCharacter?.Highlights.FirstOrDefault() is { } h)
@@ -107,10 +140,12 @@ static class ScreenshotMode
             }
             if (Part(2) == "settings" && Part(3) == "themes") vm.Appearance.ShowAll = true; // the theme swatches unfolded
             if (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_THEME") is { Length: > 0 } theme) vm.Appearance.PickCommand.Execute(theme);
-            if (Part(2) == "settings") vm.ShowSettings = true;
+            if (Part(2) == "help") vm.ShowHelp = true;
+            if (Part(2) == "console") vm.ConsoleOpen = true;
+            if (Part(2) == "changelog") vm.Updates.ShowChangelog = true;
             if (Part(2) == "intro")
             {
-                vm.Intro.Open();
+                vm.Intro.OpenAt(IntroViewModel.Steps[0].Key);
                 vm.Intro.Index = int.TryParse(Part(3), out var step) ? step - 1 : 0;
             }
             await Task.Delay(2500);
@@ -121,9 +156,18 @@ static class ScreenshotMode
                 var ms = int.TryParse(Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_ORBMS"), out var v) ? v : 250;
                 await Task.Delay(ms);
             }
+            if (Part(2) == "stream" && Part(3) == "end" && Find<Views.StreamPanel>(window) is { } panel) // the panel's bottom, it's taller than most screens
+            {
+                panel.BringIntoView(new Rect(0, panel.ActualHeight - 1, 1, 1));
+                await Task.Delay(300);
+            }
             Save(window, target);
-            if (Part(2) == "settings" && Find<Views.Header>(window)?.FindName("SettingsMenu") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement menu })
-                Save(menu, Path.ChangeExtension(target, null) + "-settings.png");
+            if (Part(2) == "help" && Find<Views.Header>(window)?.FindName("HelpMenu") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement menu })
+                Save(menu, Path.ChangeExtension(target, null) + "-help.png");
+            if (Part(3) == "ignored" && Find<Views.CharactersPage>(window)?.FindName("IgnoredPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement ignoredList })
+                Save(ignoredList, Path.ChangeExtension(target, null) + "-ignored.png");
+            if (Part(2) == "changelog" && Find<Views.Header>(window)?.FindName("ChangelogPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement changes })
+                Save(changes, Path.ChangeExtension(target, null) + "-changelog.png");
             window.Close();
         };
     }

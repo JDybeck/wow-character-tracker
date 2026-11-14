@@ -48,15 +48,15 @@ sealed class FlavorViewModel : Observable
         WatchSetup();
         Lookup = new GameLookup(flavor, NameLoaded);
         Items = new ItemsViewModel(Lookup.Item);
+        Home = new HomeViewModel(flavor, Lookup);
+        FollowedItems = new FollowedItemsViewModel(flavor, Lookup, () => Settings, FollowedChanged);
+        Friends = new FriendsViewModel(flavor, Lookup, main.Config, () => Settings, AddonSettingsChanged, main.Config.Save);
+        Friends.OrderChanged += main.SetFriendOrder; // dragged: every tab and every game's addon
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
         _ = LoadLogoAsync();
-        Shots = EventKinds.ShotKinds.ToDictionary(k => k, k => new ShotOption(Settings, k, AddonSettingsChanged));
     }
-
-    // Screenshot options per kind of event, bound as Shots[level].Take and so on.
-    public Dictionary<string, ShotOption> Shots { get; }
 
     // Settings the addon reads (Settings.lua): saved, written for the addon, and the reload banner
     // shown if the game is running.
@@ -90,22 +90,30 @@ sealed class FlavorViewModel : Observable
         if (!Wow.IsRunning(flavorDir) || NewestSavedFile() > settingsWrittenAt) ReloadNeeded = false;
     }
 
+    // The newest of the files the tracker reads (one per account).
     DateTime NewestSavedFile()
     {
-        var wtf = Path.Combine(flavorDir!, "WTF");
-        if (!Directory.Exists(wtf)) return DateTime.MinValue;
         try
         {
-            return Directory.EnumerateFiles(wtf, Wow.SavedVarsName, SearchOption.AllDirectories)
-                .Select(File.GetLastWriteTime).DefaultIfEmpty(DateTime.MinValue).Max();
+            return Wow.Accounts(flavorDir!)
+                .Select(account => Wow.SavedVarsFile(flavorDir!, account))
+                .Where(File.Exists)
+                .Select(File.GetLastWriteTime)
+                .DefaultIfEmpty(DateTime.MinValue)
+                .Max();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return DateTime.MinValue; }
     }
 
-    void WriteAddonSettings()
+    public void WriteAddonSettings()
     {
         if (flavorDir is null) return;
-        try { AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes()); }
+        try
+        {
+            AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0, main.Config.FriendNicknames, main.Updates.Available,
+                SharingPresets.Detect(Settings, Flavor), main.Config.FriendNicknamesAt,
+                new GameFriendOrder(main.Config.FriendOrder, main.Config.FriendOrderAt));
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log.Warn($"[{Name}] Couldn't save the screenshot settings for the addon: {ex.Message}");
@@ -123,7 +131,6 @@ sealed class FlavorViewModel : Observable
     async Task LoadLogoAsync() => Logo = Flavor.LogoUrl.Length > 0 ? await ImageCache.LoadAsync(Flavor.LogoUrl) : null;
     FlavorSettings Settings => main.Config.For(Flavor);
     public Tracker? Tracker => tracker;
-    public string? FolderPath => flavorDir; // the game folder in use
     // The folder in use, or for a game that's turned off the one it had (the Uninstall page lists what's in it).
     public string? KnownFolder => flavorDir ?? (Wow.IsFlavorDir(Settings.Path) ? Settings.Path : null);
 
@@ -165,6 +172,13 @@ sealed class FlavorViewModel : Observable
 
     // Clicking the open page's tab again: that page as it is when first opened (the sort order is a
     // saved choice, so it stays).
+    // A character from Home: open on the Characters page, its filters reset when they hide it.
+    public void OpenCharacter(CharacterRow row)
+    {
+        if (!Characters.Any(c => c.Guid == row.Guid)) ResetPage("characters");
+        SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == row.Guid);
+    }
+
     public void ResetPage(string page)
     {
         if (page == "characters")
@@ -175,6 +189,8 @@ sealed class FlavorViewModel : Observable
             ShowData(lastData);
         }
         else if (page == "items") Items.Reset();
+        else if (page == "followed") FollowedItems.Reset();
+        else if (page == "friends") Friends.Reset();
     }
 
     string statusText = "Starting up...";
@@ -183,9 +199,9 @@ sealed class FlavorViewModel : Observable
     // --- what gets posted (bound two-way from the settings page) ---
 
     public bool PostLevels { get => Settings.PostLevels; set { Settings.PostLevels = value; Changed(); } }
-    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); Changed(); } }
-    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); Changed(); } }
-    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); Changed(); } }
+    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); TypedChanged(); } }
+    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); TypedChanged(); } }
+    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); TypedChanged(); } }
     public bool PostRare { get => Settings.PostRare; set { Settings.PostRare = value; Changed(); } }
     public bool RareBoeOnly { get => Settings.RareBoeOnly; set { Settings.RareBoeOnly = value; Changed(); } }
     public bool PostBattlegrounds { get => Settings.PostBattlegrounds; set { Settings.PostBattlegrounds = value; Changed(); } }
@@ -201,7 +217,7 @@ sealed class FlavorViewModel : Observable
     public bool PostMPlus { get => Settings.PostMPlus; set { Settings.PostMPlus = value; Changed(); } }
     public bool PostPvp { get => Settings.PostPvp; set { Settings.PostPvp = value; Changed(); } }
     public bool PostKeyRuns { get => Settings.PostKeyRuns; set { Settings.PostKeyRuns = value; Changed(); } }
-    public int KeyRunMinLevel { get => Settings.KeyRunMinLevel; set { Settings.KeyRunMinLevel = Math.Clamp(value, FlavorSettings.KeyLevelMin, FlavorSettings.KeyLevelMax); Changed(); } }
+    public int KeyRunMinLevel { get => Settings.KeyRunMinLevel; set { Settings.KeyRunMinLevel = Math.Clamp(value, FlavorSettings.KeyLevelMin, FlavorSettings.KeyLevelMax); TypedChanged(); } }
     public bool KeyRunTimedOnly { get => Settings.KeyRunTimedOnly; set { Settings.KeyRunTimedOnly = value; Changed(); } }
     public bool IsRetail => Flavor.HasRatings; // Mythic+ runs (instead of end boss kills) and the rating options
 
@@ -219,9 +235,125 @@ sealed class FlavorViewModel : Observable
     public bool HideChatInShots { get => Settings.HideChatInShots; set { Settings.HideChatInShots = value; Changed(); } }
     public bool HideUiInShots { get => Settings.HideUiInShots; set { Settings.HideUiInShots = value; Changed(); } }
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
-    public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; Changed(); } }
-    public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; Changed(); } }
-    public bool KeepAllHistory { get => Settings.KeepAllHistory; set { Settings.KeepAllHistory = value; Changed(); } }
+    public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; InGameChanged(); } }
+    public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; InGameChanged(); } }
+    public bool KeepAllHistory { get => Settings.KeepAllHistory; set { Settings.KeepAllHistory = value; InGameChanged(); } }
+
+    // A setting that can be changed in game too changed here: the newest change wins (FlavorSettings.TakeInGame).
+    void InGameChanged([CallerMemberName] string? name = null)
+    {
+        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Changed(name);
+    }
+
+    // The In game settings as changed in the addon's options page, when that's the newest change.
+    void TakeInGameSettings(InGameSettings? game)
+    {
+        if (!Settings.TakeInGame(game)) return;
+        if (SharingPresets.TakeFromGame(Settings, Flavor, game!.Preset)) Log.Info($"[{Name}] Sharing set to {game.Preset} in game.");
+        main.Config.Save();
+        WriteAddonSettings();
+        RefreshAskSeconds();
+        SharingChanged();
+        foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces),
+            nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
+            nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight) })
+            Raise(name);
+        Log.Info($"[{Name}] Took the In game settings you changed in the game.");
+    }
+
+    // The Sharing table (Models/Moments): one row per moment this game has.
+    IReadOnlyList<SharingRow>? sharingRows;
+    public IReadOnlyList<SharingRow> SharingRows => sharingRows ??=
+        [.. Moments.For(Flavor).Select(m => new SharingRow(m, Settings, () => main.Config.StreamOptions.AlertKinds,
+            () => Changed(nameof(Preset)), () => InGameChanged(nameof(Preset)), main.Stream.AlertsChanged))];
+
+    // How much gets shared: Quiet, Normal or Everything, or Custom when the table matches none of them.
+    // Picking one over custom choices asks first (ConfirmPreset).
+    public string Preset => SharingPresets.Detect(Settings, Flavor);
+    public bool IsCustom => Preset == SharingPresets.Custom;
+    public bool PresetQuiet { get => Preset == SharingPresets.Quiet; set { if (value) PickPreset(SharingPresets.Quiet); } }
+    public bool PresetNormal { get => Preset == SharingPresets.Normal; set { if (value) PickPreset(SharingPresets.Normal); } }
+    public bool PresetEverything { get => Preset == SharingPresets.Everything; set { if (value) PickPreset(SharingPresets.Everything); } }
+
+    string? pendingPreset;
+    public bool ConfirmPreset => pendingPreset is not null;
+    public ICommand ConfirmPresetCommand => new RelayCommand(_ => { if (pendingPreset is { } key) ApplyPreset(key); });
+    public ICommand CancelPresetCommand => new RelayCommand(_ => { pendingPreset = null; PresetChanged(); });
+
+    void PickPreset(string key)
+    {
+        if (Preset == key) return;
+        if (IsCustom)
+        {
+            pendingPreset = key;
+            PresetChanged();
+            return;
+        }
+        ApplyPreset(key);
+    }
+
+    void ApplyPreset(string key)
+    {
+        pendingPreset = null;
+        SharingPresets.Apply(Settings, Flavor, key);
+        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); // chat and ask lists changed too
+        PostingReplaced();
+        Log.Info($"[{Name}] Sharing set to {key}.");
+    }
+
+    void PresetChanged()
+    {
+        foreach (var name in new[] { nameof(Preset), nameof(IsCustom), nameof(PresetQuiet), nameof(PresetNormal), nameof(PresetEverything), nameof(ConfirmPreset) })
+            Raise(name);
+    }
+
+    // Which place's own settings show under the Sharing page's top row: "discord" (webhooks), "stream"
+    // (the overlay) or "" (none). One at a time; clicking the open one closes it.
+    string openPlace = "";
+    public string OpenPlace
+    {
+        get => openPlace;
+        set
+        {
+            if (!Set(ref openPlace, value)) return;
+            Raise(nameof(DiscordOpen));
+            Raise(nameof(StreamOpen));
+            if (value == "stream") main.Stream.PanelOpen = true; // its options, not just its header
+        }
+    }
+    public bool DiscordOpen => openPlace == "discord";
+    public bool StreamOpen => openPlace == "stream";
+    public ICommand TogglePlaceCommand => new RelayCommand(p => OpenPlace = OpenPlace == (string)p! ? "" : (string)p!);
+
+    // The Sharing page's fold: the table opens by itself when the choices are custom (Advanced is always open).
+    bool? showCustomize;
+    public bool ShowCustomize { get => showCustomize ??= IsCustom; set { showCustomize = value; Raise(nameof(ShowCustomize)); } }
+    public ICommand ToggleCustomizeCommand => new RelayCommand(_ => ShowCustomize = !ShowCustomize);
+
+    // The table's screenshot box takes and attaches; off here keeps them in the Screenshots folder only.
+    public bool AttachShots
+    {
+        get => EventKinds.ShotKinds.Where(Settings.Shoots).All(Settings.PostsShot);
+        set
+        {
+            foreach (var k in EventKinds.ShotKinds) Settings.PostScreenshot[k] = value;
+            Changed();
+        }
+    }
+
+    // The Discord switch: off pauses this game's posts without forgetting its webhooks.
+    public bool DiscordOn
+    {
+        get => !Settings.DiscordPaused;
+        set
+        {
+            Settings.DiscordPaused = !value;
+            main.Config.Save();
+            Raise(nameof(DiscordOn));
+            Log.Info(value ? $"[{Name}] Posting to Discord again." : $"[{Name}] Discord posts paused. What happens meanwhile won't be posted later.");
+        }
+    }
 
     // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
     // for a note that came from the game: it has it already.
@@ -233,35 +365,30 @@ sealed class FlavorViewModel : Observable
     }
 
     // Telling the guild and/or group in game chat (In game page; the addon's Announce.lua).
-    public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; Changed(); Raise(nameof(Announces)); } }
-    public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; Changed(); Raise(nameof(Announces)); } }
-    public bool Announces => AnnounceGuild || AnnounceParty;
-    static readonly (string Kind, string Name, string Tip)[] AnnounceNames =
-    [
-        ("level", "Level-ups", "\"Ding! Level 23. 22 to 23 took 41m 12s.\""), ("maxlevel", "Max level", "\"Reached max level 60! Total played 6d 4h 12m.\""),
-        ("boss", "Boss kills", "\"Killed Edwin VanCleef in The Deadmines!\" (without the group)"),
-        ("keyrun", "Mythic+ runs", "\"Timed +12 Ara-Kara, City of Echoes (+2)!\" (from the lowest key level set for Discord)"), ("loot", "Epic loot", "Epic and legendary items, as a link you can click"),
-        ("mount", "Mounts", "\"Got a new mount: Swift Palomino!\""), ("duel", "Duel wins", "\"Won a duel against Grimtusk.\""),
-        ("makgora", "Mak'gora wins", "\"Won a Mak'gora against Grimtusk!\""), ("bg", "Battleground wins", "\"Won Warsong Gulch!\""),
-        ("profession", "Professions", "\"Reached 150 Mining!\" (the steps set for Discord)"),
-        ("mplus", "Mythic+", "Mythic+ rating steps (Retail)"), ("pvp", "PvP rating", "PvP rating steps (Retail)"), ("death", "Deaths", "Hardcore deaths"),
-    ];
-    ObservableCollection<ToggleOption>? announceKinds;
-    public ObservableCollection<ToggleOption> AnnounceKinds => announceKinds ??=
-        ToggleOption.Kinds(EventKinds.Offered(AnnounceNames, Flavor.HasRatings), Settings.AnnounceKinds, () => AddonSettingsChanged());
-
+    public bool AnnounceGuild { get => Settings.AnnounceGuild; set { Settings.AnnounceGuild = value; InGameChanged(); Raise(nameof(Announces)); } }
+    public bool AnnounceParty { get => Settings.AnnounceParty; set { Settings.AnnounceParty = value; InGameChanged(); Raise(nameof(Announces)); } }
+    public bool Announces => (ShowGuildChat && AnnounceGuild) || AnnounceParty;
+    public bool ShowGuildChat => FlavorSettings.GuildChatOn;
+    public int PlaceColumns => ShowGuildChat ? 4 : 3; // the Sharing page's place cards
     // The data grid's corner (four radio buttons) and its label (In game page).
-    public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; Changed(); } }
+    public bool GridLabel { get => Settings.GridLabel; set { Settings.GridLabel = value; InGameChanged(); } }
     public bool GridTopLeft { get => Corner == "TOPLEFT"; set { if (value) SetCorner("TOPLEFT"); } }
     public bool GridTopRight { get => Corner == "TOPRIGHT"; set { if (value) SetCorner("TOPRIGHT"); } }
     public bool GridBottomLeft { get => Corner == "BOTTOMLEFT"; set { if (value) SetCorner("BOTTOMLEFT"); } }
     public bool GridBottomRight { get => Corner == "BOTTOMRIGHT"; set { if (value) SetCorner("BOTTOMRIGHT"); } }
+    // How long the in-game post box stays: one chip per choice, picked like radio buttons.
+    IReadOnlyList<SecondsChoice>? askSecondsChoices;
+    public IReadOnlyList<SecondsChoice> AskSecondsChoices => askSecondsChoices ??=
+        [.. FlavorSettings.AskSecondsChoices.Select(n => new SecondsChoice(n, $"askseconds-{Name}",
+            () => Settings.AskSeconds == n, () => { Settings.AskSeconds = n; InGameChanged(nameof(AskSecondsChoices)); RefreshAskSeconds(); }))];
+    void RefreshAskSeconds() { foreach (var c in AskSecondsChoices) c.Refresh(); }
+
     string Corner => FlavorSettings.CornerOrDefault(Settings.GridCorner);
     void SetCorner(string corner)
     {
         if (Corner == corner) return;
         Settings.GridCorner = corner;
-        Changed();
+        InGameChanged();
         Raise(nameof(GridTopLeft)); Raise(nameof(GridTopRight)); Raise(nameof(GridBottomLeft)); Raise(nameof(GridBottomRight));
     }
 
@@ -284,21 +411,13 @@ sealed class FlavorViewModel : Observable
         set
         {
             Settings.SkipBossGroupRegex = value;
-            main.Config.Save();
+            main.SaveSoon(); // typed
             Raise(nameof(SkipBossGroupRegex));
             Raise(nameof(SkipRegexProblem));
         }
     }
 
-    public string SkipRegexProblem
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(Settings.SkipBossGroupRegex)) return "";
-            try { _ = new System.Text.RegularExpressions.Regex(Settings.SkipBossGroupRegex); return ""; }
-            catch (ArgumentException) { return "That isn't a valid pattern, so nothing gets skipped."; }
-        }
-    }
+    public string SkipRegexProblem => Settings.SkipRegexValid ? "" : "That isn't a valid pattern, so nothing gets skipped.";
 
     // "Posts at levels 5, 10, 15, 20, 25, 30, 31, 32, 33 and so on."
     public string LevelPreview
@@ -316,6 +435,24 @@ sealed class FlavorViewModel : Observable
         AddonSettingsChanged(); // the addon only sends live (and screenshots) what will be posted
         Raise(name!);
         Raise(nameof(LevelPreview));
+        SharingChanged();
+    }
+
+    // Rules under the table's names and which preset matches follow every posting change.
+    void SharingChanged()
+    {
+        foreach (var row in sharingRows ?? []) row.Refresh();
+        PresetChanged();
+    }
+
+    // Like Changed, for boxes that change with every keystroke: the config and the addon's Settings.lua
+    // are written a moment after the last one (MainViewModel.SaveSoon), the preview right away.
+    void TypedChanged([CallerMemberName] string? name = null)
+    {
+        main.SaveSoon(addonSettings: true);
+        Raise(name!);
+        Raise(nameof(LevelPreview));
+        SharingChanged();
     }
 
     public void ResetPosting()
@@ -342,7 +479,7 @@ sealed class FlavorViewModel : Observable
     void PostingReplaced()
     {
         AddonSettingsChanged();
-        foreach (var o in Shots.Values) o.Refresh();
+        SharingChanged();
         Raise(string.Empty); // every property
     }
 
@@ -376,6 +513,7 @@ sealed class FlavorViewModel : Observable
         tracker = null;
         flavorDir = null;
         ReloadNeeded = false;
+        OldFolderNote = null;
         ShowData(TrackerData.Empty);
         StatusText = $"{Name} is turned off";
         Log.Info($"[{Name}] Turned off: the app no longer looks at {Name}." + (AddonLeftInstalled ? " The addon is still installed there; remove it on the tab if you like." : ""));
@@ -440,6 +578,15 @@ sealed class FlavorViewModel : Observable
         UseFolder(path, installAddon: moved && AddonInstaller.InstalledVersion(saved!) is not null);
     }
 
+    // On an older folder for this game (Forever's beta, which is over): a banner on every tab says so
+    // (MainViewModel.OldFolderTab) until the user picks the live folder.
+    string? oldFolderNote;
+    public string? OldFolderNote { get => oldFolderNote; private set => Set(ref oldFolderNote, value); }
+
+    // Screenshot mode fakes it with this too.
+    internal void ShowOldFolder(string path) => OldFolderNote =
+        $"{Name} is watching the beta's folder ({Path.GetFileName(path)}), but the beta is over: nothing you play now is tracked. Click Browse and pick {Flavor.Folders[0]} (install {Name} in Battle.net first if it isn't there).";
+
     // No game folder: the checks say so (the big card over the pages asks for one). Screenshot mode
     // fakes this state with it, so test runs never go looking for the real game.
     internal void ShowFolderMissing()
@@ -478,6 +625,13 @@ sealed class FlavorViewModel : Observable
             main.Config.Save();
         }
 
+        OldFolderNote = null;
+        if (Wow.IsOlderFolder(path, Flavor))
+        {
+            ShowOldFolder(path);
+            Log.Warn($"[{Name}] {OldFolderNote}");
+        }
+
         var version = Wow.ClientVersion(path);
         var product = Wow.Product(path);
         FolderStep.Ok = true;
@@ -494,7 +648,7 @@ sealed class FlavorViewModel : Observable
         // A sync that finds nothing new doesn't raise DataChanged, so a game that closed without
         // writing its saved file (a crash) clears the reload banner this way.
         tracker.GameClosed += () => MainViewModel.OnUi(CheckReloaded);
-        tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); });
+        tracker.Posted += e => MainViewModel.OnUi(() => { lastPost = e; UpdateStatus(); Home.MarkPosted(e.Id); });
         tracker.LiveTest += _ => MainViewModel.OnUi(() => AddonStep.Detail = $"v{AddonInstaller.BundledVersion}, instant posting works");
         // Logging in on a game switches the app to that game's tab, with the character picked.
         tracker.CheckedIn += e => MainViewModel.OnUi(() =>
@@ -510,9 +664,10 @@ sealed class FlavorViewModel : Observable
     }
 
     // Installs the addon when the user clicks Install in the setup checks (force), since that adds
-    // something to their game folder. An installed addon that's older than the one in this app is
-    // updated right away: the app and the addon have to speak the same version. Also keeps the
-    // interface number in step with game patches, so the game doesn't call it out of date.
+    // something to their game folder. An installed addon that's older than the one in this app, or the
+    // same version with other files (an app update that changed the addon without raising its version),
+    // is replaced right away, so the game always runs this app's addon. Also keeps the interface number
+    // in step with game patches, so the game doesn't call it out of date.
     void SetUpAddon(bool force)
     {
         if (flavorDir is null) return;
@@ -522,14 +677,16 @@ sealed class FlavorViewModel : Observable
 
         try
         {
-            switch (force ? -1 : AddonInstaller.Compare(installed, bundled))
+            var compare = force ? -1 : AddonInstaller.Compare(installed, bundled);
+            var refresh = compare == 0 && !AddonInstaller.MatchesBundled(flavorDir);
+            switch (refresh ? -1 : compare)
             {
                 case null: // not installed: waits for the user's click
                     AddonStep.Set(ok: false, "Not installed in this game folder yet", action: "Install");
                     Log.Info($"[{Name}] The addon isn't installed in this game folder yet. Click Install next to Addon in the setup checks to add it.");
                     return;
 
-                case > 0: // newer than this app's (a test build put there by hand): left alone
+                case > 0: // newer than this app's (a test build, or later an addon site's update): left alone
                     KeepInterfaceCurrent(installed!, interfaceVersion);
                     AddonStep.Set(ok: true, $"v{installed} installed (newer than this app's v{bundled})");
                     break;
@@ -539,9 +696,10 @@ sealed class FlavorViewModel : Observable
                     AddonStep.Set(ok: true, $"v{bundled} installed. Type /wct test in game to check instant posting");
                     break;
 
-                default: // older (the app and the addon have to speak the same version), or the user clicked
+                default: // older, the same version with other files, or the user clicked
                     AddonInstaller.Install(flavorDir, interfaceVersion);
-                    Log.Success($"[{Name}] " + (installed is null ? $"Installed the addon (v{bundled})." : $"Updated the addon to v{bundled}."));
+                    Log.Success($"[{Name}] " + (installed is null ? $"Installed the addon (v{bundled})."
+                        : refresh ? $"Refreshed the addon (v{bundled}) with this app's copy." : $"Updated the addon to v{bundled}."));
                     if (Wow.IsRunning(flavorDir))
                         Log.Warn(installed is null
                             ? $"[{Name}] The game is running: exit it fully and start it again so it finds the new addon."
@@ -606,6 +764,24 @@ sealed class FlavorViewModel : Observable
     // The Items page: everything the tab's characters carry, searchable, per server.
     public ItemsViewModel Items { get; }
 
+    // The Followed items page, and the switch for its post (What gets posted).
+    public FollowedItemsViewModel FollowedItems { get; }
+    // The Friends page: what Battle.net friends shared, apart from your own characters.
+    public FriendsViewModel Friends { get; }
+    // The Stats page: this week's leaderboards, you against your friends.
+    public StatsViewModel Stats { get; } = new();
+    // The Professions page: your characters' professions by server and faction.
+    public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions yet. They show up once a character with one has been played with the addon." };
+    public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
+    public StreamViewModel Stream => main.Stream;
+
+    // The addon needs the list (it only records rare and better otherwise), the overlay its marks.
+    void FollowedChanged()
+    {
+        AddonSettingsChanged();
+        main.Stream.Update(Flavor, allRows, Settings.MarkFollowed(lastData.Events));
+    }
+
     public void Refresh() => ShowData(lastData);
 
     // The realm (Retail) or ruleset (Forever) chips over the character list.
@@ -627,6 +803,21 @@ sealed class FlavorViewModel : Observable
     });
     ICommand? sortCommand;
 
+    // Home: rebuilt with the character list, and when the game starts or stops (playing now or not).
+    // Every level time of your characters and the shown friends', so each chart bar can list the others.
+    static void AddLevelBoard(IReadOnlyList<CharacterRow> rows)
+    {
+        var board = LevelRace.Board(rows.Select(r => (r.Guid, r.IsFriend ? $"{r.Name} ({r.FriendName})" : r.Name,
+            (IReadOnlyList<LevelStats.Level>)LevelStats.Timed(r.Events))));
+        foreach (var r in rows) r.Leveling.AddOthers(r.Guid, board);
+    }
+
+    public HomeViewModel Home { get; }
+    IReadOnlyList<Entry> homeEvents = [];
+    IReadOnlyList<DayTotals> homeDays = [];
+    public void RefreshHome() =>
+        Home.Show(allRows, homeEvents, homeDays, tracker?.SentIds ?? new HashSet<string>(), flavorDir is not null && Wow.IsRunning(flavorDir), Friends.Shown);
+
     // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
     List<CharacterRow> allRows = [];
     public CharacterRow? RowFor(string guid) => allRows.FirstOrDefault(r => r.Guid == guid);
@@ -634,6 +825,7 @@ sealed class FlavorViewModel : Observable
     void ShowData(TrackerData data)
     {
         lastData = data;
+        CleanStressTestOnce(data);
         var keepRow = SelectedCharacter;
         var keep = keepRow?.Guid;
         var removed = Settings.Removed;
@@ -647,15 +839,31 @@ sealed class FlavorViewModel : Observable
                 XpTable = data.XpTable.Count > 0 ? data.XpTable : test.XpTable,
                 ItemClasses = data.ItemClasses,
                 Notes = data.Notes,
+                Nicknames = data.Nicknames,
+                FriendOrder = data.FriendOrder,
+                Today = data.Today,
+                Days = data.Days,
             };
         }
         main.TakeGameNotes(data.Notes); // notes edited in game, newer than the app's
+        main.TakeGameNicknames(data.Nicknames); // and friends' nicknames
+        main.TakeGameFriendOrder(data.FriendOrder); // and their order on the Friends page
+        TakeInGameSettings(data.InGame); // and the same for the In game settings
+        if (Settings.TakeShare(data.Share)) // and sharing with friends
+        {
+            main.Config.Save();
+            WriteAddonSettings();
+        }
         Lookup.SetItemClasses(data.ItemClasses);
         var keepTab = SelectedCharacter?.DetailTab;
         Motion.Quiet(); // the rows are rebuilt: what's open stays still
-        var rows = CharacterRow.Build(data, Flavor, Lookup)
+        var built = CharacterRow.Build(data, Flavor, Lookup)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
             .ToList();
+        // Ignored ones only show under the footer's Ignored button, nowhere else.
+        var ignored = Settings.Ignored;
+        var rows = built.Where(r => !ignored.Contains(r.Guid)).ToList();
+        IgnoredCharacters = [.. built.Where(r => ignored.Contains(r.Guid)).OrderBy(r => r.FullName, StringComparer.CurrentCultureIgnoreCase)];
 
         allRows = rows;
         if (keepRow is not null) rows.FirstOrDefault(r => r.Guid == keep)?.KeepGearFrom(keepRow);
@@ -679,13 +887,36 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
-        main.Stream.Update(Flavor, rows, data.Events);
+        Professions.Show(rows);
+        Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
+        AddLevelBoard([.. rows, .. Friends.Shown]);
+        Stats.Show(rows, data.Events, [.. data.Today, .. data.Days], Friends.Shown, lastData.Friends);
+        homeEvents = data.Events;
+        homeDays = data.Today;
+        RefreshHome(); // after Friends: Home lists the friends seen lately
+        main.Stream.Update(Flavor, rows, Settings.MarkFollowed(data.Events));
         SelectCheckedIn(); // a character that just logged in wins
         Raise(nameof(HasCharacters));
+        Raise(nameof(IgnoredCharacters));
+        Raise(nameof(HasIgnored));
+        Raise(nameof(IgnoredText));
+        Raise(nameof(ShowsFooter));
         Raise(nameof(TotalGoldText));
         Raise(nameof(TotalCoins));
         Raise(nameof(TotalPlayedText));
         UpdateStatus();
+    }
+
+    // Once per game tab with a pre-launch stress test (Forever): its characters go (StressTestCleanup).
+    // The addon cleans the saved file on its side; until then the app keeps them hidden.
+    void CleanStressTestOnce(TrackerData data)
+    {
+        if (Flavor.StressTestBefore <= 0 || Settings.StressTestCleaned || data.Characters.Count == 0) return;
+        var old = StressTestCleanup.OldCharacters(data, Flavor.StressTestBefore);
+        StressTestCleanup.Apply(main.Config, Settings, old, Flavor.StressTestBefore, guid => Files.TryDelete(CharacterArt.PortraitPath(guid)));
+        main.Config.Save();
+        WriteAddonSettings();
+        if (old.Count > 0) Log.Info($"[{Name}] Removed {Format.Count(old.Count, "character")} left from the stress test (before November 4).");
     }
 
     // "Total gold on Tarren Mill (3 characters):" followed by the coins, for what the filter shows.
@@ -711,7 +942,33 @@ sealed class FlavorViewModel : Observable
     {
         Settings.Removed[row.Guid] = Math.Max(row.LastSeen, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         main.Config.Save();
+        WriteAddonSettings(); // the addon stops sharing it with friends (Settings.lua removed)
         Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");
+        ShowData(lastData);
+    }
+
+    // Characters with Ignore tracking on, for the footer's Ignored button (hidden while there are none).
+    public IReadOnlyList<CharacterRow> IgnoredCharacters { get; private set; } = [];
+    public bool HasIgnored => IgnoredCharacters.Count > 0;
+    public string IgnoredText => $"Ignored ({IgnoredCharacters.Count})";
+    public bool ShowsFooter => HasCharacters || HasIgnored; // all ignored: still a way back to them
+    bool showIgnored;
+    public bool ShowIgnored { get => showIgnored; set => Set(ref showIgnored, value); }
+    public ICommand TrackAgainCommand => trackAgain ??= new RelayCommand(p => { if (p is CharacterRow c) SetIgnored(c, false); });
+    ICommand? trackAgain;
+
+    // Ignore tracking on or off. Off doesn't bring back what happened meanwhile: the addon recorded
+    // nothing for the character, so nothing old gets posted.
+    public void SetIgnored(CharacterRow row, bool on)
+    {
+        var next = new HashSet<string>(Settings.Ignored);
+        if (on) next.Add(row.Guid); else next.Remove(row.Guid);
+        Settings.Ignored = next; // replaced, the tracker's thread reads it
+        InGameChanged(nameof(IgnoredCharacters)); // saves; the addon's own toggle is the same setting
+        Log.Info(on
+            ? $"[{Name}] Stopped tracking {row.FullName}: nothing is posted, announced or shared for it. Ignored, under the list, tracks it again."
+            : $"[{Name}] Tracking {row.FullName} again.");
+        if (next.Count == 0) ShowIgnored = false;
         ShowData(lastData);
     }
 

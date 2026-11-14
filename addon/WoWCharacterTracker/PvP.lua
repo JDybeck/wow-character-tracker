@@ -3,25 +3,6 @@ local ADDON, ns = ...
 
 -- Duels ----------------------------------------------------------------------
 
--- Turns a game string like "%1$s has defeated %2$s in a duel" into a Lua pattern, plus the order
--- its arguments appear in (so translated strings with swapped arguments still work).
-local function toPattern(fmt)
-  local order, out, i = {}, {}, 1
-  while i <= #fmt do
-    local n = fmt:match("^%%(%d)%$s", i)
-    if n then
-      order[#order + 1] = tonumber(n); out[#out + 1] = "(.-)"; i = i + 4
-    elseif fmt:sub(i, i + 1) == "%s" then
-      order[#order + 1] = #order + 1; out[#out + 1] = "(.-)"; i = i + 2
-    else
-      local c = fmt:sub(i, i)
-      out[#out + 1] = c:match("%W") and ("%" .. c) or c
-      i = i + 1
-    end
-  end
-  return "^" .. table.concat(out) .. "$", order
-end
-
 -- Returns the string's arguments in argument order, or nil when it doesn't match.
 local function matchFormat(text, compiled)
   local caps = { text:match(compiled[1]) }
@@ -33,20 +14,32 @@ end
 
 local duelPatterns, makgoraPatterns
 local function buildDuelPatterns()
-  duelPatterns, makgoraPatterns = {}, {}
+  duelPatterns = {}
   -- Argument 1 is the winner in both: "%1$s has defeated %2$s in a duel", "%2$s has fled from %1$s in a duel".
   for _, name in ipairs({ "DUEL_WINNER_KNOCKOUT", "DUEL_WINNER_RETREAT" }) do
     local s = _G[name]
     if type(s) == "string" then
-      local p, order = toPattern(s)
+      local p, order = ns.formatPattern(s)
       duelPatterns[#duelPatterns + 1] = { p, order, fled = name == "DUEL_WINNER_RETREAT" }
     end
   end
-  -- Hardcore Mak'gora (duel to the death): the game's own strings, whatever they're called.
+end
+
+-- Text about a Mak'gora (hardcore duel to the death).
+local function aboutMakgora(s)
+  return s:find("Mak'gora", 1, true) or s:find("to the death", 1, true)
+end
+
+-- Hardcore Mak'gora results: the game's own strings, whatever they're called. That means going
+-- through every global, so only once a message about one arrives, and the cheap checks go first.
+local NONE = {}
+local function buildMakgoraPatterns()
+  makgoraPatterns = {}
   for k, v in pairs(_G) do
-    if type(k) == "string" and type(v) == "string" and #v < 200 and select(2, v:gsub("%%", "")) >= 2
-        and (v:find("Mak'gora") or v:find("to the death")) and (v:find("defeated") or v:find("slain") or v:find("won")) then
-      local p, order = toPattern(v)
+    if type(v) == "string" and #v < 200 and type(k) == "string" and aboutMakgora(v)
+        and (v:find("defeated", 1, true) or v:find("slain", 1, true) or v:find("won", 1, true))
+        and select(2, v:gsub("%%", "")) >= 2 then
+      local p, order = ns.formatPattern(v)
       makgoraPatterns[#makgoraPatterns + 1] = { p, order }
     end
   end
@@ -100,9 +93,11 @@ end
 
 -- Argument 1 is the winner, argument 2 the loser, in every duel and Mak'gora message.
 function ns.onSystemMessage(text)
+  text = ns.plain(text) -- chat is hidden from addons during a boss fight
   if not text then return end
   if not duelPatterns then buildDuelPatterns() end
-  for _, c in ipairs(makgoraPatterns) do
+  if not makgoraPatterns and aboutMakgora(text) then buildMakgoraPatterns() end
+  for _, c in ipairs(makgoraPatterns or NONE) do
     local a = matchFormat(text, c)
     if a and isMe(a[1]) then recordDuel("makgora", a[2]); return end
     if a and isMe(a[2]) then recordDuel("makgora", a[1], nil, true); return end
@@ -136,7 +131,6 @@ end
 
 -- Rating milestones (retail) -------------------------------------------------
 
-local PVP_BRACKETS = { [1] = "2v2", [2] = "3v3", [4] = "Rated Battlegrounds", [7] = "Solo Shuffle", [9] = "Battleground Blitz" }
 local DEFAULT_MPLUS_STEPS = { 2000, 2500, 3000, 3500, 4000 }
 local DEFAULT_PVP_STEPS = { 1800, 2100, 2400, 2700 }
 
@@ -144,40 +138,36 @@ local function recordRating(kind, rating, step, bracket)
   -- Once per step and season: a new season can post the same step again.
   local season = (kind == "mplus" and C_MythicPlus and C_MythicPlus.GetCurrentSeason and C_MythicPlus.GetCurrentSeason())
     or (kind == "pvp" and GetCurrentArenaSeason and GetCurrentArenaSeason()) or 0
-  ns.record(kind, { rating = rating, step = step, bracket = bracket }, -- "mplus" or "pvp"
+  ns.recordOnce(kind, { rating = rating, step = step, bracket = bracket }, -- "mplus" or "pvp"
     string.format("%s:%s:%d:s%s", kind, bracket or "", step, tostring(season)))
 end
 
--- The first reading per character only sets the baseline, so nothing is posted for ratings that
--- were already there before the addon.
-function ns.checkRatings()
-  if not ns.IS_RETAIL then return end -- Forever has the APIs, but no ratings
-  local guid = UnitGUID("player")
-  if not guid or not WoWCharacterTrackerDB then return end
+-- Mythic+ steps come only from a finished key's own before and after scores. The score the game
+-- reports around a login can be 0 or the previous character's, so it can't be compared to anything.
+function ns.checkKeyRating(old, new)
+  if type(old) ~= "number" or type(new) ~= "number" then return end
   local post = ns.setting("post") or {}
-  WoWCharacterTrackerDB.ratings = WoWCharacterTrackerDB.ratings or {}
-  local known = WoWCharacterTrackerDB.ratings[guid] or {}
-  WoWCharacterTrackerDB.ratings[guid] = known
+  local step = ns.stepPassed(old, new, post.mplusSteps or DEFAULT_MPLUS_STEPS)
+  if step then recordRating("mplus", math.floor(new), step) end
+end
 
-  if C_ChallengeMode and C_ChallengeMode.GetOverallDungeonScore then
-    local score = C_ChallengeMode.GetOverallDungeonScore() or 0
-    if known.mplus then
-      local step = ns.stepPassed(known.mplus, score, post.mplusSteps or DEFAULT_MPLUS_STEPS)
-      if step then recordRating("mplus", score, step) end
-    end
-    known.mplus = score
-  end
-  if type(GetPersonalRatedInfo) == "function" then
-    for index, name in pairs(PVP_BRACKETS) do
-      local ok, rating = pcall(GetPersonalRatedInfo, index)
-      if ok and type(rating) == "number" then
-        local key = "pvp" .. index
-        if known[key] then
-          local step = ns.stepPassed(known[key], rating, post.pvpSteps or DEFAULT_PVP_STEPS)
-          if step then recordRating("pvp", rating, step, name) end
-        end
-        known[key] = rating
+-- PvP ratings read as 0 until the game has answered RequestRatedInfo, so only that answer calls
+-- this and zeros are skipped. The first rating of a session is only the baseline: a rating that
+-- was already there at login never counts.
+local sessionRatings = {}
+function ns.checkPvpRatings()
+  if not ns.IS_RETAIL or type(GetPersonalRatedInfo) ~= "function" then return end -- Forever has the APIs, but no ratings
+  if WoWCharacterTrackerDB then WoWCharacterTrackerDB.ratings = nil end -- the baselines older versions saved
+  local post = ns.setting("post") or {}
+  for _, bracket in ipairs(ns.PVP_BRACKETS) do
+    local index, name = bracket[1], bracket[2]
+    local ok, rating = pcall(GetPersonalRatedInfo, index)
+    if ok and type(rating) == "number" and rating > 0 then
+      if sessionRatings[index] then
+        local step = ns.stepPassed(sessionRatings[index], rating, post.pvpSteps or DEFAULT_PVP_STEPS)
+        if step then recordRating("pvp", rating, step, name) end
       end
+      sessionRatings[index] = rating
     end
   end
 end

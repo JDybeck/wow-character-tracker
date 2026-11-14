@@ -73,7 +73,7 @@
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
       <Border Grid.Row="2" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,12"
-              Padding="24,10" Visibility="{Binding HasCharacters, Converter={StaticResource Visible}}">
+              Padding="24,10" Visibility="{Binding ShowsFooter, Converter={StaticResource Visible}}">
         <StackPanel Orientation="Horizontal">
           <Image Source="{StaticResource GoldBag}" Width="22" Height="22" Margin="0,0,8,0" VerticalAlignment="Center"/>
           <TextBlock Text="{Binding TotalGoldText}" Foreground="{StaticResource TextSoft}" FontSize="13" Margin="0,0,10,0" VerticalAlignment="Center"/>
@@ -81,6 +81,50 @@
           <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Dim}" FontSize="13" Margin="18,0,8,0"
                      Visibility="{Binding TotalPlayedText, Converter={StaticResource VisibleIfSet}}"/>
           <TextBlock Text="{Binding TotalPlayedText}" Foreground="{StaticResource TextSoft}" FontSize="13" VerticalAlignment="Center"/>
+          <!-- Characters with Ignore tracking on; only there while there are some. -->
+          <ToggleButton x:Name="IgnoredButton" IsChecked="{Binding ShowIgnored}" Cursor="Hand" Margin="18,0,0,0" VerticalAlignment="Center"
+                        ToolTip="Characters you stopped tracking. They're not in the list or the totals, and nothing is posted for them."
+                        Visibility="{Binding HasIgnored, Converter={StaticResource Visible}}">
+            <ToggleButton.Template>
+              <ControlTemplate TargetType="ToggleButton">
+                <Border x:Name="Bd" Padding="9,3" CornerRadius="7" BorderThickness="1" BorderBrush="{DynamicResource Line}" Background="Transparent">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE8F8;" FontSize="12" Foreground="{StaticResource Dim}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding IgnoredText}" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Border>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+                  <Trigger Property="IsChecked" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate>
+            </ToggleButton.Template>
+          </ToggleButton>
+          <Popup x:Name="IgnoredPopup" IsOpen="{Binding ShowIgnored}" StaysOpen="False" PlacementTarget="{Binding ElementName=IgnoredButton}" Placement="Top"
+                 VerticalOffset="-6" AllowsTransparency="True" PopupAnimation="Fade">
+            <Border Width="320" Padding="14,12" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10">
+              <StackPanel>
+                <TextBlock Text="Ignored characters" FontWeight="SemiBold" Foreground="White"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,8" Text="Not tracked: nothing is posted, announced or shared for them."/>
+                <ItemsControl ItemsSource="{Binding IgnoredCharacters}" Focusable="False">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:CharacterRow}">
+                      <DockPanel Margin="0,4">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="10,3" ToolTip="Track this character again"
+                                Command="{Binding DataContext.TrackAgainCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                          <TextBlock Text="Track again" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+                        </Button>
+                        <StackPanel VerticalAlignment="Center">
+                          <TextBlock Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="13" FontWeight="SemiBold"/>
+                          <TextBlock FontSize="11" Foreground="{StaticResource Dim}"><Run Text="Level "/><Run Text="{Binding Level, Mode=OneWay}"/><Run Text=" "/><Run Text="{Binding ClassName, Mode=OneWay}"/></TextBlock>
+                        </StackPanel>
+                      </DockPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </Popup>
         </StackPanel>
       </Border>
       <Border Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" CornerRadius="12,12,0,0">
@@ -123,92 +167,7 @@
         <ListBox.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:CharacterRow}">
             <StackPanel>
-              <Grid>
-              <!-- Faction edge: a short bar inside the frame's left side, clear of its rounded corners. -->
-              <Rectangle Width="3" Margin="0,14" RadiusX="1.5" RadiusY="1.5" HorizontalAlignment="Left" Fill="{Binding FactionBrush}"
-                         ToolTip="{Binding Faction}" Visibility="{Binding HasFaction, Converter={StaticResource Visible}}"/>
-              <Grid Margin="24,12" Background="Transparent" PreviewMouseLeftButtonDown="CharacterHeader_MouseDown">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="{StaticResource ColClass}"/>
-                  <ColumnDefinition Width="{StaticResource ColLevel}"/>
-                  <ColumnDefinition Width="{StaticResource ColIlvl}"/>
-                  <ColumnDefinition Width="{StaticResource ColGold}"/>
-                  <ColumnDefinition Width="{StaticResource ColSeen}"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Portrait, then the name (trimmed when long) over realm and tag. -->
-                <DockPanel>
-                  <Grid DockPanel.Dock="Left" Width="42" Height="42" Margin="0,0,12,0">
-                    <Ellipse Fill="{Binding ClassSoftBrush}" Stroke="#1AFFFFFF"/>
-                    <TextBlock Text="{Binding Initial}" Foreground="{Binding ClassBrush}" FontSize="17" FontWeight="Bold"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    <Image Source="{Binding PictureUrl, Converter={StaticResource WebImage}}" Stretch="UniformToFill">
-                      <Image.Clip>
-                        <EllipseGeometry Center="21,21" RadiusX="21" RadiusY="21"/>
-                      </Image.Clip>
-                    </Image>
-                    <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="1.5" Opacity="0.7"/>
-                    <!-- The faction crest as a small badge on the portrait's lower right, ringed in the row color. -->
-                    <Grid Width="18" Height="18" Margin="0,0,-5,-3" HorizontalAlignment="Right" VerticalAlignment="Bottom" ToolTip="{Binding Faction}"
-                          Visibility="{Binding FactionCrestUrl, Converter={StaticResource VisibleIfSet}}">
-                      <Image Source="{Binding FactionCrestUrl, Converter={StaticResource WebImage}}" RenderOptions.BitmapScalingMode="HighQuality">
-                        <Image.Clip>
-                          <EllipseGeometry Center="9,9" RadiusX="9" RadiusY="9"/>
-                        </Image.Clip>
-                      </Image>
-                      <Ellipse Stroke="{DynamicResource RowBg}" StrokeThickness="1.5" Margin="-0.75"/>
-                    </Grid>
-                  </Grid>
-                  <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
-                    <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
-                    <!-- On a narrow window the tag wraps under the realm, and the realm trims when even alone it doesn't fit. -->
-                    <WrapPanel Margin="0,2,0,0">
-                      <DockPanel Margin="0,0,8,0">
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE774;" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,0,5,0"/>
-                        <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding RealmText}" Foreground="{StaticResource Dim}" FontSize="12"/>
-                      </DockPanel>
-                      <Border x:Name="TagBox" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
-                              Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
-                        <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
-                      </Border>
-                    </WrapPanel>
-                  </StackPanel>
-                </DockPanel>
-
-                <!-- DockPanel, not a horizontal StackPanel: it keeps the texts inside the column (long ones trim) instead of running into the level. -->
-                <DockPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,6,0">
-                  <Border Width="22" Height="22" CornerRadius="4" ClipToBounds="True" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding SpecIconTip}"
-                          Visibility="{Binding SpecIconUrl, Converter={StaticResource VisibleIfSet}}">
-                    <Image Source="{Binding SpecIconUrl, Converter={StaticResource WebImage}}" RenderOptions.BitmapScalingMode="HighQuality"/>
-                  </Border>
-                  <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="{Binding ClassName}" Foreground="{Binding ClassBrush}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding Spec}" Foreground="{StaticResource Dim}" FontSize="11" TextTrimming="CharacterEllipsis"
-                               Visibility="{Binding Spec, Converter={StaticResource VisibleIfSet}}"/>
-                  </StackPanel>
-                </DockPanel>
-
-                <Border Grid.Column="2" Style="{StaticResource Pill}">
-                  <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
-                </Border>
-
-                <Border Grid.Column="3" Style="{StaticResource Pill}" Background="#4D1E3A8A" BorderBrush="#801D4ED8">
-                  <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{DynamicResource BlueText}"/>
-                </Border>
-
-                <Grid Grid.Column="4" VerticalAlignment="Center" ToolTip="{Binding MoneyText}">
-                  <ItemsControl ItemsSource="{Binding ShortCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}"
-                                Visibility="{Binding HasMoney, Converter={StaticResource Visible}}"/>
-                  <TextBlock Text="-" Foreground="{StaticResource Dim}" Visibility="{Binding HasMoney, Converter={StaticResource Hidden}}"/>
-                </Grid>
-                <StackPanel Grid.Column="5" VerticalAlignment="Center">
-                  <TextBlock Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13"/>
-                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0"
-                             Visibility="{Binding PlayedLine, Converter={StaticResource VisibleIfSet}}"/>
-                </StackPanel>
-              </Grid>
-              </Grid>
+              <views:CharacterRowView/>
 
               <!-- Details for the selected character, in tabs so it stays readable. They're only built
                    for the open character and the open tab: the gear and bags alone are hundreds of icons. -->

@@ -11,9 +11,8 @@ local ADDON, ns = ...
 -- statistic for each final boss, which Wowhead lists, so new ones show up there:
 -- https://www.wowhead.com/forever/guide/dungeons-overview-locations-details
 -- https://www.wowhead.com/forever/guide/raids-overview-hub-dates-locations
--- Still unknown (October 2026): The Drowned City, Krol'dok Stronghold, Blackmaw Hold, and the
--- Forever raids (The Wild King in Hyjal Summit and Sonya Darkhallow in Barrow Deeps have kill
--- statistics already; add them once the raids are out).
+-- Still unknown (checked 2026-11-04, no kill statistic on Wowhead yet): The Drowned City,
+-- Krol'dok Stronghold, Blackmaw Hold. Wowhead's Forever kill statistics are around ids 63570-63593.
 -- Later, if players ask: other languages. Names only match an English client; the encounter id
 -- from ENCOUNTER_END would work in every language.
 local END_BOSSES = {
@@ -24,6 +23,9 @@ local END_BOSSES = {
   ["Shade of the Archmage"] = "City of Dalaran",
   ["Blazeroar"] = "Alcaz Prison",
   ["Nanaya"] = "Shaper's Terrace",
+  -- Forever's raids (from their kill statistics, in before the raids open).
+  ["The Wild King"] = "Hyjal Summit",
+  ["Sonya Darkhallow"] = "Barrow Deeps",
   -- Classic dungeons and raids (also in Forever).
   ["Bazzalan"] = "Ragefire Chasm",
   ["Mutanus the Devourer"] = "Wailing Caverns",
@@ -84,10 +86,7 @@ end
 -- The last 20 /played requests and answers with times, for /wct debug: shows whether the game
 -- answers the addon's own requests on this client.
 function ns.notePlayed(text)
-  local log = WoWCharacterTrackerDB.playedLog or {}
-  WoWCharacterTrackerDB.playedLog = log
-  table.insert(log, date("%H:%M:%S ") .. text)
-  while #log > 20 do table.remove(log, 1) end
+  WoWCharacterTrackerDB.playedLog = ns.appendCapped(WoWCharacterTrackerDB.playedLog or {}, date("%H:%M:%S ") .. text, 20)
 end
 
 function ns.requestPlayed(reason)
@@ -99,23 +98,15 @@ function ns.requestPlayed(reason)
   C_Timer.After(5, ns.unmutePlayed)
 end
 
--- (Older versions also replaced ChatFrame_DisplayTimePlayed to hide it. Replacing Blizzard
--- functions taints the default UI, which on Classic clients blocked Esc and showed "blocked from an
--- action" errors, so that's gone. Muting the chat windows above does the same job safely.)
+-- (Muting the chat windows, not replacing ChatFrame_DisplayTimePlayed: replacing a Blizzard function
+-- taints the default UI, which on Classic clients blocks Esc and shows "blocked from an action".)
 
 -- Reload prompts ----------------------------------------------------------------
--- Small boxes that offer a /reload (the game only writes the saved file then, and only a click may
--- reload). A dialog is only added to Blizzard's StaticPopupDialogs when it's first used: anything an
--- addon puts in Blizzard's tables can spread taint, so it stays out unless it's needed.
-local function askReload(name, text, accept, decline, arg)
-  if not StaticPopupDialogs[name] then
-    StaticPopupDialogs[name] = {
-      text = text, button1 = accept, button2 = decline,
-      OnAccept = function() ReloadUI() end,
-      timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
-    }
-  end
-  StaticPopup_Show(name, arg)
+-- Small boxes that offer a /reload (the game only writes the saved file then, and only a click may reload).
+-- alt and onAlt: an optional third button (the flight box's snooze).
+local function askReload(name, text, accept, decline, arg, alt, onAlt)
+  ns.popup(name, { text = text, button1 = accept, button2 = decline, button3 = alt, OnAlt = onAlt,
+    OnAccept = function() ReloadUI() end }, arg)
 end
 
 -- Optional (off by default, /wct popup): after a ding, for when the live channel doesn't work on a client.
@@ -130,18 +121,26 @@ end
 
 -- On a flight path, with gear or bags changed since the last save: so the app gets the new items
 -- (the flight goes on through the loading screen). Once per flight, never in combat, and only when
--- the app's "Offer a reload on flight paths" is on (Settings.lua flightReload).
+-- the app's "Offer a reload on flight paths" is on (Settings.lua flightReload). "Not for 30 min"
+-- keeps it quiet on every flight until then; kept in the saved file so a /reload doesn't undo it.
 local askedThisFlight = false
+local FLIGHT_SNOOZE = 1800
 
 function ns.onFlightStart()
   if askedThisFlight or ns.setting("flightReload") == false or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
+  if time() < (WoWCharacterTrackerDB.flightSnoozeUntil or 0) then return end
   if InCombatLockdown() or not ns.itemsChanged() then return end
   askedThisFlight = true
   askReload("CHARACTERTRACKER_FLIGHT_RELOAD",
-    "Character Tracker\n\nYour bags changed since the last save.\nReload now to update the app? (You keep flying.)", "Reload", "Not now")
+    "Character Tracker\n\nYour bags changed since the last save.\nReload now to update the app? (You keep flying.)", "Reload", "Not now",
+    nil, "Not for 30 min", function() WoWCharacterTrackerDB.flightSnoozeUntil = time() + FLIGHT_SNOOZE end)
 end
 
-function ns.onFlightEnd() askedThisFlight = false end
+-- Landed: the box is about the flight, so an unanswered one goes away.
+function ns.onFlightEnd()
+  askedThisFlight = false
+  if StaticPopup_Hide then StaticPopup_Hide("CHARACTERTRACKER_FLIGHT_RELOAD") end
+end
 
 -- A line in chat when gear or bags changed since the last save: at good moments (moment = true:
 -- after the bank, mailbox, a vendor or the auction house, leaving a dungeon), at most every 10
@@ -163,13 +162,6 @@ local getGroup -- below, with the boss kills
 -- timed right away from the played time already known (ns.playedNow), so posts don't wait on the
 -- server; /played answers, when the game sends them, make the next level's start exact.
 
-local function knownEvent(id)
-  for _, e in ipairs(WoWCharacterTrackerDB.events) do
-    if e.id == id then return true end
-  end
-  return false
-end
-
 -- Times a finished level: newStart is the total played when `level` began. If the saved start
 -- belongs to the level before, the level is done (also later, at login, when a /reload or logout
 -- came before the game answered the ding's /played request). Returns true when the level is
@@ -178,10 +170,11 @@ local function finishLevel(guid, level, newStart, total, live)
   local oldStart = WoWCharacterTrackerDB.start[guid]
   local startLevel = WoWCharacterTrackerDB.startLevel[guid]
   -- Level 1 always starts at 0 played, so 1 to 2 never needs a baseline (a brand new character's
-  -- login answer can go missing, and the addon may have been installed after creating it).
-  if level == 2 and startLevel ~= 2 then oldStart, startLevel = 0, 1 end
+  -- login answer can go missing, and the addon may have been installed after creating it). Only at
+  -- the ding: a later answer on a level 2 character would record a ding from long ago.
+  if level == 2 and startLevel ~= 2 and live then oldStart, startLevel = 0, 1 end
   if not (oldStart and newStart >= oldStart and (startLevel == level - 1 or (startLevel == nil and live))) then return false end
-  if not knownEvent(guid .. ":" .. level) then
+  if not ns.hasEvent(guid .. ":" .. level) then
     local seconds = newStart - oldStart
     ns.recordLevel(guid, level, seconds, total)
     ns.say(string.format("Level %d took %s.", level - 1, ns.formatDuration(seconds)))
@@ -193,7 +186,7 @@ end
 -- A ding without a starting point for its level (the addon came in mid-level) is still logged,
 -- without a time.
 local function logUntimed(guid, level, total)
-  if knownEvent(guid .. ":" .. level) then return end
+  if ns.hasEvent(guid .. ":" .. level) then return end
   ns.recordLevel(guid, level, nil, total)
   ns.say(string.format("Level %d logged. Its time is unknown (no starting point for level %d yet).", level, level - 1))
   ns.offerPost(level)
@@ -219,10 +212,19 @@ function ns.onLogin()
   C_Timer.After(3, function() ns.requestPlayed("login") end) -- once the world has loaded
 end
 
+-- A ding still waiting for its /played answer is logged without a time, so no level goes unrecorded
+-- (the answer may never come, and a /reload or logout ends the wait).
+local function giveUpWaiting(level)
+  if ns.pendingLevel ~= level then return end
+  ns.pendingLevel = nil
+  logUntimed(UnitGUID("player"), level, nil)
+end
+
 function ns.onLogout() -- also on /reload, right before the game writes the saved file
+  if ns.pendingLevel then giveUpWaiting(ns.pendingLevel) end
   local played = ns.playedNow()
   if played then WoWCharacterTrackerDB.logoutPlayed[UnitGUID("player")] = played end
-  ns.saveSnapshot()
+  ns.saveSnapshot(true)
 end
 
 function ns.onLevelUp(level)
@@ -234,10 +236,11 @@ function ns.onLevelUp(level)
     setStart(guid, level, total)
   end
   -- Ask the server too, for the exact start of the new level. The answer can be slow or not come at
-  -- all, so ask a moment later and again after a while.
+  -- all, so ask a moment later and again after a while, then log it without a time.
   for _, delay in ipairs({ 1, 15, 45 }) do
     C_Timer.After(delay, function() if ns.pendingLevel == level then ns.requestPlayed("level " .. level) end end)
   end
+  C_Timer.After(60, function() giveUpWaiting(level) end)
 end
 
 function ns.onTimePlayed(total, thisLevel)
@@ -316,8 +319,17 @@ function ns.onInspectReady()
   C_Timer.After(1.5, inspectNext) -- the server limits how quickly inspects may follow
 end
 
+-- The role the group gave a member (the group finder or a role check): TANK, HEALER, DAMAGER, else "".
+local function groupRole(unit)
+  if not UnitGroupRolesAssigned then return "" end
+  local ok, role = pcall(UnitGroupRolesAssigned, unit)
+  role = ok and ns.plain(role)
+  return (role == "TANK" or role == "HEALER" or role == "DAMAGER") and role or ""
+end
+
 -- The other people in the party: "Name~level~CLASSFILE~Class~Race~Realm~Spec" per member (spec on
--- Retail when known), joined by commas. Raids list only how many there are, since 40 names don't fit a post.
+-- Retail when known), plus "~Role" when the group set one, joined by commas. Raids list only how many
+-- there are, since 40 names don't fit a post.
 getGroup = function()
   if not IsInGroup or not IsInGroup() then return nil, 1 end
   local size = GetNumGroupMembers and GetNumGroupMembers() or 1
@@ -334,26 +346,39 @@ getGroup = function()
       local className, classFile = UnitClass(unit)
       local raceName = UnitRace(unit)
       local spec = (name and groupSpecs[name]) or specName(unit)
-      table.insert(members, table.concat({ name or "?", UnitLevel(unit) or 0, classFile or "", className or "",
-        raceName or "", (realm and realm ~= "") and realm or "", spec or "" }, "~"))
+      local fields = { name or "?", UnitLevel(unit) or 0, classFile or "", className or "",
+        raceName or "", (realm and realm ~= "") and realm or "", spec or "" }
+      local role = groupRole(unit)
+      if role ~= "" then table.insert(fields, role) end
+      table.insert(members, table.concat(fields, "~"))
     end
   end
   return table.concat(members, ","), size
 end
+ns.getGroup = getGroup
 
 function ns.recordBoss(name)
-  -- END_BOSSES is Classic's list; on Retail it only matched old raids soloed for transmog. Retail
-  -- records finished Mythic+ runs instead (ns.recordKeyRun).
-  if ns.IS_RETAIL then return end
-  local instance = END_BOSSES[name]
-  if not instance then return end
   local now = time()
   if ns.recentBosses[name] and now - ns.recentBosses[name] < 600 then return end
   ns.recentBosses[name] = now
 
   local group, groupSize = getGroup()
+  local instance = END_BOSSES[name]
+  -- With dungeon runs summed up (Runs.lua), the kill also goes into the run's post.
+  local run = ns.runBossDown and ns.runBossDown(name, instance ~= nil, group, groupSize)
+  -- END_BOSSES is Classic's list; on Retail it only matched old raids soloed for transmog. Retail
+  -- records finished Mythic+ runs instead (ns.recordKeyRun). Any other boss isn't a recorded moment
+  -- (first kills and the stream's dungeon alert count end bosses), but can be posted on request.
+  if ns.IS_RETAIL or not instance then
+    if ns.offerAsk and not run then
+      ns.offerAsk({ kind = "boss", boss = name, midBoss = true, instance = GetInstanceInfo and GetInstanceInfo() or nil,
+        group = group, groupSize = groupSize, at = now })
+    end
+    return
+  end
+
   ns.record("boss", { boss = name, instance = (GetInstanceInfo and GetInstanceInfo()) or instance,
-    group = group, groupSize = groupSize, at = now }, string.format("boss:%s:%d", name, now))
+    group = group, groupSize = groupSize, run = run, at = now }, string.format("boss:%s:%d", name, now))
   ns.say(string.format("End boss down: %s.", name))
 end
 
@@ -372,10 +397,10 @@ local function completionInfo()
     if ok and type(info) == "table" then return info end
   end
   if cm.GetCompletionInfo then
-    local ok, mapID, level, ms, onTime, upgrades, practice, _, newScore = pcall(cm.GetCompletionInfo)
+    local ok, mapID, level, ms, onTime, upgrades, practice, oldScore, newScore = pcall(cm.GetCompletionInfo)
     if ok then
-      return { mapChallengeModeID = mapID, level = level, time = ms, onTime = onTime,
-        keystoneUpgradeLevels = upgrades, practiceRun = practice, newOverallDungeonScore = newScore }
+      return { mapChallengeModeID = mapID, level = level, time = ms, onTime = onTime, keystoneUpgradeLevels = upgrades,
+        practiceRun = practice, oldOverallDungeonScore = oldScore, newOverallDungeonScore = newScore }
     end
   end
   return nil
@@ -403,31 +428,26 @@ function ns.recordKeyRun()
     rating = (type(score) == "number" and score > 0) and math.floor(score) or nil,
     group = group, groupSize = groupSize, at = now,
   }, string.format("keyrun:%d:%d", mapID, now))
+  ns.checkKeyRating(plain(info.oldOverallDungeonScore), score)
   ns.say(string.format("Mythic+ done: +%d %s, %s.", keyLevel, dungeon or "?", timed and ("timed +" .. math.max(1, up)) or "over time"))
 end
 
 -- LOOT_ITEM_SELF is "You receive loot: %s." (and a "%sx%d." variant for stacks). Turned into
--- Lua patterns so this works with the client's own language.
-local function lootPattern(fmt)
-  if type(fmt) ~= "string" then return nil end
-  local p = fmt:gsub("[%(%)%.%+%-%*%?%[%]%^%$]", "%%%0")
-  p = p:gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
-  return "^" .. p .. "$"
-end
+-- Lua patterns so this works with the client's own language; the item link comes first.
 -- (By count, not ipairs: a client without the first string would otherwise lose them all.)
 local function patterns(...)
   local list = {}
   for i = 1, select("#", ...) do
-    local p = lootPattern((select(i, ...)))
-    if p then table.insert(list, p) end
+    local fmt = select(i, ...)
+    if type(fmt) == "string" then table.insert(list, (ns.formatPattern(fmt))) end
   end
   return list
 end
 local LOOT_PATTERNS = patterns(LOOT_ITEM_SELF_MULTIPLE, LOOT_ITEM_SELF)
--- "You receive item: %s." covers vendor purchases and quest rewards.
-local PUSHED_PATTERNS = patterns(LOOT_ITEM_PUSHED_SELF_MULTIPLE, LOOT_ITEM_PUSHED_SELF)
+-- "You receive item: %s." covers vendor purchases and quest rewards, "You create: %s." crafting.
+local PUSHED_PATTERNS = patterns(LOOT_ITEM_PUSHED_SELF_MULTIPLE, LOOT_ITEM_PUSHED_SELF, LOOT_ITEM_CREATED_SELF_MULTIPLE, LOOT_ITEM_CREATED_SELF)
 
-local QUALITY_BY_COLOR = { ["ff0070dd"] = 3, ["ffa335ee"] = 4, ["ffff8000"] = 5, ["ffe6cc80"] = 6 }
+local QUALITY_BY_COLOR = { ["ff9d9d9d"] = 0, ["ffffffff"] = 1, ["ff1eff00"] = 2, ["ff0070dd"] = 3, ["ffa335ee"] = 4, ["ffff8000"] = 5, ["ffe6cc80"] = 6 }
 
 local function matchAny(list, text)
   for _, p in ipairs(list) do
@@ -437,29 +457,79 @@ local function matchAny(list, text)
   return nil
 end
 
-local lastMountAt = 0
+local lastItemMountAt, lastMountName, lastMountSpell, lastMountAt = 0, nil, nil, 0
 
--- itemId when the mount came as an item, spellId when it was learned straight into the mount journal.
+-- itemId when the mount came as an item, spellId when it was learned (the mount journal, or a class
+-- mount from a trainer or quest).
 function ns.recordMount(name, itemId, spellId)
-  -- Buying a mount item and then learning it would count twice on clients with a mount journal.
-  if time() - lastMountAt < 120 then return end
-  lastMountAt = time()
-
   local now = time()
+  -- The same mount twice in a row (looted and pushed, or a class mount seen both as a learned spell
+  -- and by the mount journal), or a mount item and then learning it on clients with a mount journal
+  -- (the item and the mount have different names): once. Any other mount, however soon after, counts.
+  if (name == lastMountName or (spellId and spellId == lastMountSpell)) and now - lastMountAt < 120 then return end
+  if not itemId and now - lastItemMountAt < 120 then
+    lastItemMountAt = 0 -- that item's learning; the next one is a mount of its own
+    return
+  end
+  lastMountName, lastMountSpell, lastMountAt = name, spellId, now
+  if itemId then lastItemMountAt = now end
+
   ns.record("mount", { mount = name, itemId = itemId, spellId = spellId, bought = ns.merchantOpen or nil, at = now },
     string.format("mount:%s:%d", name, now))
   ns.say(string.format("New mount: %s.", name))
 end
 
+-- Class mounts are learned as spells, from a trainer or a quest, with no item to loot, and clients
+-- without a mount journal say nothing else. Spell ids from Forever's and Retail's data (wago.tools):
+-- warlock Felsteed and Dreadsteed; paladin Warhorse and Charger, the undead paladin's Forsaken Charger
+-- and Skeletal Steed, and the Thalassian ones.
+local CLASS_MOUNTS = {
+  [5784] = true, [23161] = true,
+  [13819] = true, [13820] = true, [1279399] = true, [1279400] = true, [23214] = true, [23215] = true,
+  [1296534] = true, [1296537] = true, [370637] = true, [381598] = true, [381599] = true,
+  [34769] = true, [34767] = true,
+}
+
+-- A spell was just learned (LEARNED_SPELL_IN_TAB, or LEARNED_SPELL_IN_SKILL_LINE on newer clients).
+function ns.onSpellLearned(spellId)
+  if not CLASS_MOUNTS[spellId] then return end
+  local name = (C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellId))
+    or (GetSpellInfo and GetSpellInfo(spellId)) or "Class mount"
+  ns.recordMount((name:gsub("^Summon ", "")), nil, spellId) -- "Summon Felsteed" posts as Felsteed
+end
+
 -- Mount items are class 15 (miscellaneous), subclass 5 (mount).
 local function isMountItem(link)
-  local getInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
-  if not getInstant then return false end
-  local _, _, _, _, _, classID, subclassID = getInstant(link)
+  local classID, subclassID = ns.itemClass(link)
   return classID == 15 and subclassID == 5
 end
 
-function ns.recordLoot(text)
+-- Anything but weapons (2) and armor (4): can't be worn, so a legendary one (Elementium Bar) isn't
+-- worth the always-posted treatment. Not known counts as gear.
+local function isNotGear(link)
+  local classID = ns.itemClass(link)
+  return classID ~= nil and classID ~= 2 and classID ~= 4
+end
+
+-- The item's quality from its link: Forever's links name it ("|cnIQ4:"), older ones have the color.
+local function qualityFromLink(link)
+  local named = link:match("|cnIQ(%d+):")
+  if named then return tonumber(named) end
+  local color = link:match("|c(%x%x%x%x%x%x%x%x)")
+  return color and QUALITY_BY_COLOR[color:lower()]
+end
+
+-- An item's quality from the game, else from its link (a drop the game doesn't know yet).
+function ns.itemQuality(link)
+  local _, _, quality = ns.itemInfo(link)
+  return quality or qualityFromLink(link)
+end
+
+-- text is hidden from addons during a boss fight on Midnight-era clients (a secret value), so loot
+-- from the fight itself can't be seen. retried: the second look at an item the game didn't have yet.
+function ns.recordLoot(text, retried)
+  text = ns.plain(text)
+  if type(text) ~= "string" then return end
   local link = matchAny(LOOT_PATTERNS, text)
   local pushed = false
   if not link then
@@ -476,23 +546,25 @@ function ns.recordLoot(text)
     ns.recordMount(name, itemId)
     return
   end
-  if pushed then return end -- rare loot means looted, not bought or handed out
+  -- Items on the app's followed list count at any quality and however they came.
+  local followed = ns.isFollowed(itemId)
+  if pushed and not followed then return end -- rare loot means looted, not bought or handed out
 
   -- Quality is the 3rd value, the bind type the 14th (2 = Bind on Equip). Both nil while the game
-  -- doesn't have the item yet: the quality then comes from the link's color, and it doesn't count as BoE.
-  local quality, bindType
-  if GetItemInfo then
-    local info = { GetItemInfo(link) }
-    quality, bindType = info[3], info[14]
+  -- doesn't have the item yet (asking makes it fetch it), so a new drop gets a second look a moment
+  -- later. Still nothing: the quality comes from the link, and it doesn't count as BoE.
+  local _, _, quality, _, _, _, _, _, _, _, _, _, _, bindType = ns.itemInfo(link)
+  if not quality and not retried and C_Timer then
+    C_Timer.After(1, function() ns.recordLoot(text, true) end)
+    return
   end
-  if not quality then
-    local color = link:match("|c(%x%x%x%x%x%x%x%x)")
-    quality = color and QUALITY_BY_COLOR[color:lower()]
-  end
-  if not quality or quality < 3 then return end -- rare (blue) and better only
+  if not quality then quality = qualityFromLink(link) end
+  if not followed and (not quality or quality < 3) then return end -- rare (blue) and better only
+  if not followed and ns.isRareReagent(link, quality) then return end
 
   local now = time()
-  ns.record("loot", { item = name, itemId = itemId, quality = quality, boe = bindType == 2 or nil, at = now },
+  ns.record("loot", { item = name, itemId = itemId, quality = quality, boe = bindType == 2 or nil, mat = isNotGear(link) or nil,
+    run = ns.runId and ns.runId() or nil, at = now },
     string.format("loot:%d:%d", itemId, now))
 end
 
@@ -514,16 +586,51 @@ function ns.checkProfessions()
     elseif old then
       local step = ns.stepPassed(old, p.rank, steps)
       if step then
-        ns.record("profession", { profession = p.name, step = step, rating = p.rank }, string.format("profession:%s:%d", p.name, step))
+        ns.recordOnce("profession", { profession = p.name, step = step, rating = p.rank }, string.format("profession:%s:%d", p.name, step))
       end
     end
     if p.rank > 0 then known[p.name] = p.rank end
   end
 end
 
+-- What killed you, from the game's death recap (the combat log is off limits on newer clients): the
+-- newest hit, by its time when it has one, else the last listed. An attacker's name, or falling,
+-- drowning and so on as "Falling". Nil when the recap is empty or has none.
+local function deathCause()
+  if not (DeathRecap_HasEvents and DeathRecap_GetEvents) then return nil end
+  local ok, events = pcall(function() return DeathRecap_HasEvents() and DeathRecap_GetEvents() end)
+  if not ok or type(events) ~= "table" or #events == 0 then return nil end
+  local last = events[#events]
+  for _, hit in ipairs(events) do
+    if hit.timestamp and (not last.timestamp or hit.timestamp > last.timestamp) then last = hit end
+  end
+  local environment = ns.plain(last.environmentalType)
+  if environment then
+    environment = tostring(environment)
+    return environment:sub(1, 1):upper() .. environment:sub(2):lower()
+  end
+  local source = ns.plain(last.sourceName)
+  return source ~= "" and source or nil
+end
+
+-- PLAYER_DEAD has been seen firing twice for one death on Forever (a hunter, cause unknown), and a
+-- second post would announce a hardcore character dying twice. Nobody dies twice in 10 seconds.
+local DEATH_COOLDOWN = 10
+local lastDeathAt, deathWaiting = -math.huge, false
+
+local function writeDeath()
+  deathWaiting = false
+  lastDeathAt = time()
+  ns.record("death", { killer = deathCause(), played = ns.playedNow(), gold = GetMoney and GetMoney() or 0 }) -- gold in copper
+  ns.saveSnapshot()
+end
+
 function ns.recordDeath()
   if not ns.isHardcore() then return end
-  -- (No killer: that came from the combat log, which newer clients keep from addons.)
-  ns.record("death", { played = ns.playedNow(), gold = GetMoney and GetMoney() or 0 }) -- gold in copper
-  ns.saveSnapshot()
+  if UnitIsFeignDeath and UnitIsFeignDeath("player") then return end
+  if deathWaiting or time() - lastDeathAt < DEATH_COOLDOWN then return end
+  -- The recap can land a moment after the event: one short wait when it's still empty.
+  if deathCause() or not C_Timer then return writeDeath() end
+  deathWaiting = true
+  C_Timer.After(0.5, writeDeath)
 end

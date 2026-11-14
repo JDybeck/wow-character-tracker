@@ -1,8 +1,7 @@
-<!-- Update banner, reload reminder and the three setup checks (game folder, addon, Discord) for the
-     selected game. Where it sits is a setting (Config.SetupPlacement): in the right column it's narrow,
-     at the top or bottom of the window Wide puts the checks and what needs doing side by side.
-     All fine = one quiet line of chips; a check that needs something done gets its own amber row,
-     except a missing game folder or addon, which gets the big card over the pages (SetupCard). -->
+<!-- The notices across the top of the window: update banner, reload reminder, the old beta folder and the
+     three setup checks (game folder, addon, Discord) for the selected game. All fine = nothing shows; a
+     check that needs something done shows the chips and its own amber row, except a missing game folder
+     or addon, which gets the big card over the pages (SetupCard). Wide puts the fixes side by side. -->
 <UserControl x:Class="WoWCharacterTracker.Views.SetupBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -46,7 +45,7 @@
       </ScrollViewer>
 
       <!-- Updating: each step as it happens, the download with its progress. -->
-      <StackPanel Margin="25,8,0,2" Visibility="{Binding Updates.IsInstalling, Converter={StaticResource Visible}}">
+      <StackPanel Margin="25,8,0,2" Visibility="{Binding Updates.ShowSteps, Converter={StaticResource Visible}}">
         <ItemsControl ItemsSource="{Binding Updates.InstallSteps}">
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:UpdateStepRow}">
@@ -103,9 +102,20 @@
     </DockPanel>
   </Border>
 
+  <!-- A game still on Forever's beta folder, shown on every tab: nothing from the live game reaches it. -->
+  <Border DataContext="{Binding OldFolderTab}" Visibility="{Binding Converter={StaticResource VisibleIfSet}}" Margin="0,0,0,10" Padding="12,8" CornerRadius="10"
+          Background="{StaticResource AmberSoft}" BorderBrush="{StaticResource Amber}" BorderThickness="1">
+    <DockPanel>
+      <Button DockPanel.Dock="Right" Style="{StaticResource SmallButton}" Margin="8,0,0,0" Padding="10,3" VerticalAlignment="Center"
+              Content="Browse" Command="{Binding FolderStep.ActionCommand}" ToolTip="{Binding FolderStep.ActionTooltip}"/>
+      <TextBlock Style="{StaticResource Icon}" Text="&#xE7BA;" Foreground="{StaticResource Amber}" FontSize="13" Margin="0,2,10,0" VerticalAlignment="Top"/>
+      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12" Foreground="White" Text="{Binding OldFolderNote}"/>
+    </DockPanel>
+  </Border>
+
   <!-- The checks: a chip each (hover for the detail, click for its action, like changing the folder),
        and a row with the fix for each one that needs something done. -->
-  <Border Style="{StaticResource CardBorder}" CornerRadius="10" Padding="8,6">
+  <Border Style="{StaticResource CardBorder}" CornerRadius="10" Padding="8,6" Visibility="{Binding SelectedFlavor.HasSetupProblems, Converter={StaticResource Visible}}">
     <DockPanel>
       <ItemsControl ItemsSource="{Binding SelectedFlavor.Steps}" Focusable="False" VerticalAlignment="Center">
         <ItemsControl.Style>

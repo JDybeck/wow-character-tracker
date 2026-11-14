@@ -58,6 +58,8 @@ sealed class OverlayServer : IDisposable
         return true;
     }
 
+    string? lastProblem;
+
     async Task ServeAsync()
     {
         while (listener.IsListening)
@@ -65,8 +67,20 @@ sealed class OverlayServer : IDisposable
             HttpListenerContext ctx;
             try { ctx = await listener.GetContextAsync(); }
             catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException or InvalidOperationException) { return; }
-            try { Answer(ctx); }
+            try
+            {
+                Answer(ctx);
+                lastProblem = null;
+            }
             catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException) { }
+            catch (Exception ex) // anything else only fails this request, the overlay keeps serving
+            {
+                // The page asks every couple of seconds, so the same problem is said once until it's gone.
+                var problem = $"{ctx.Request.Url?.AbsolutePath} ({ex.Message})";
+                if (problem != lastProblem) Log.Warn($"The stream overlay couldn't answer {problem}.");
+                lastProblem = problem;
+                try { ctx.Response.Abort(); } catch (ObjectDisposedException) { }
+            }
         }
     }
 

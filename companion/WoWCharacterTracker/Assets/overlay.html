@@ -12,7 +12,7 @@
 <meta charset="utf-8">
 <title>Character Tracker overlay</title>
 <style>
-  :root { --scale: 1; --bg: .78; --bgc: 10, 8, 6; --edge: #d97706; }
+  :root { --scale: 1; --bg: .78; --hl-bg: .78; --bgc: 10, 8, 6; --edge: #d97706; }
   /* The body fills the source: it clips what's outside it, and a fitted part is scaled past its own
      layout size (transforms don't grow the body), so a content-high body would cut the card off. */
   html, body { margin: 0; background: transparent; overflow: hidden; height: 100%; }
@@ -64,6 +64,7 @@
   .since { margin-top: 8px; font-size: 11px; color: #94a3b8; }
   /* The highlights box as a column, so with a set height the brand line sits at its bottom; lines
      keep their height (never squeezed) and what doesn't fit is dropped by show(). */
+  .hl { background: rgba(var(--bgc), var(--hl-bg)); }
   .hl.on { display: flex; flex-direction: column; }
   .hl > * { flex: none; }
   .hl.sized { overflow: hidden; }
@@ -200,9 +201,10 @@
   const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(", ");
 
   function show(s) {
-    const look = s.look || { cardOpacity: 78, stats: true, levels: true, today: true, duels: true, makgora: true, highlights: true };
+    const look = s.look || { cardOpacity: 78, highlightsOpacity: 78, stats: true, levels: true, today: true, duels: true, makgora: true, highlights: true };
     const root = document.documentElement.style;
     root.setProperty("--bg", look.cardOpacity / 100);
+    root.setProperty("--hl-bg", look.highlightsOpacity / 100);
     root.setProperty("--bgc", look.background ? rgb(look.background) : "10, 8, 6");
     root.setProperty("--edge", look.accent || s.classColor || "#d97706");
     document.body.classList.toggle("accent", !!look.accent);
@@ -210,7 +212,7 @@
     if (!fitting && !q.get("scale")) root.setProperty("--scale", (look.scale || 100) / 100);
     const has = field => !look.fields || look.fields.includes(field); // configs from before 0.26.0 have no list
     const card = $("card"), hl = $("hl");
-    card.classList.toggle("solid", look.cardOpacity >= 50); hl.classList.toggle("solid", look.cardOpacity >= 50);
+    card.classList.toggle("solid", look.cardOpacity >= 50); hl.classList.toggle("solid", look.highlightsOpacity >= 50);
     card.style.width = look.width ? look.width + "px" : "";
     card.style.minHeight = look.height ? look.height + "px" : "";
     card.classList.toggle("sized", !!look.width);

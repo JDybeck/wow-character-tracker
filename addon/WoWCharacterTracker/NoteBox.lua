@@ -50,6 +50,12 @@ local function updateButtons()
   for _, b in ipairs(box.buttons) do b:SetShown(on) end
 end
 
+-- The mouse is only watched (every frame, checked 10 times a second) when the buttons show on hover.
+local function applyHover()
+  box:SetScript("OnUpdate", hoverButtons() and box.watchHover or nil)
+  updateButtons()
+end
+
 -- Locked: the box can't be dragged and clicks go through it to the game (only its buttons and
 -- the edit field take them).
 local function applyLock()
@@ -134,12 +140,13 @@ local function build()
 
   box.buttons = { close, box.lock, box.editButton }
   local sinceCheck = 0
-  box:SetScript("OnUpdate", function(_, elapsed)
+  box.watchHover = function(_, elapsed)
     sinceCheck = sinceCheck + elapsed
     if sinceCheck < 0.1 then return end
     sinceCheck = 0
     updateButtons()
-  end)
+  end
+  applyHover()
 
   box.text = box:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   box.text:SetPoint("TOPLEFT", PAD, -PAD - 18)
@@ -184,7 +191,7 @@ end
 function ns.noteButtonsOnHover() return hoverButtons() end
 function ns.setNoteButtonsOnHover(on)
   state().hoverButtons = on
-  if box then updateButtons() end
+  if box then applyHover() end
 end
 
 -- show: true/false, or nil to flip.

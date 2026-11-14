@@ -16,6 +16,19 @@ static partial class Format
     // "1 character", "3 characters" (plural defaults to the word plus "s").
     public static string Count(int n, string word, string? plural = null) => $"{n} {(n == 1 ? word : plural ?? word + "s")}";
 
+    // Forever realms are named like "CAMWOW EU5 Realm 6 PvP": only the realm type at the end means
+    // anything to players. Other realm names stay as they are.
+    static readonly string[] RealmTypes = ["PvP", "PvE", "RP", "RPPvP", "RP-PvP", "Normal"];
+
+    // "EU · Tarren Mill", "EU · PvP" (region first when known, so same-named realms stand apart).
+    public static string Realm(string region, string realm)
+    {
+        var last = realm.LastIndexOf(' ');
+        var type = last > 0 ? realm[(last + 1)..] : "";
+        var name = RealmTypes.FirstOrDefault(t => t.Equals(type, StringComparison.OrdinalIgnoreCase)) ?? realm;
+        return region.Length > 0 ? $"{region.ToUpperInvariant()} · {name}" : name;
+    }
+
     // Discord can't show item icons in text, so professions get a plain emoji each.
     static readonly Dictionary<string, string> ProfessionEmoji = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -25,16 +38,9 @@ static partial class Format
         ["Fishing"] = "🎣", ["First Aid"] = "🩹", ["Archaeology"] = "🏺",
     };
 
-    // "Mining 150, Herbalism 75" -> "⛏️ Mining 150, 🌿 Herbalism 75"
-    public static string ProfessionsWithEmoji(string professions)
-    {
-        if (professions is "" or "None") return "";
-        return string.Join(", ", professions.Split(", ").Select(p =>
-        {
-            var name = p.TrimEnd("0123456789 ".ToCharArray());
-            return ProfessionEmoji.TryGetValue(name, out var emoji) ? $"{emoji} {p}" : p;
-        }));
-    }
+    // "Mining 150/225, Herbalism 75" -> "⛏️ Mining 150, 🌿 Herbalism 75" (posts keep their wording, no max)
+    public static string ProfessionsWithEmoji(string professions) => string.Join(", ", ProfessionSkills.Parse(professions)
+        .Select(p => ProfessionEmoji.TryGetValue(p.Name, out var emoji) ? $"{emoji} {p.Text}" : p.Text));
 
     // Crests as text: "id~qty~name,..." (or the older "Name 45, Name 120") -> "Name 45, Name 120"
     public static string Crests(string crests)
@@ -110,23 +116,36 @@ static partial class Format
     }
 
     // A release's notes (CHANGELOG markdown) as plain text for the update banner: no ** or `,
-    // bullets as dots, sub-bullets indented.
+    // bullets as dots, sub-bullets indented, section headings as plain lines.
     public static string ReleaseNotes(string markdown) => string.Join("\n", markdown.Trim().Split('\n').Select(line =>
     {
-        line = line.TrimEnd('\r').Replace("**", "").Replace("`", "");
+        line = PlainNotes(line.TrimEnd('\r'));
+        if (line.StartsWith("### ")) return line[4..];
         if (line.StartsWith("  - ")) return "      ◦ " + line[4..];
         if (line.StartsWith("- ")) return "• " + line[2..];
         return line;
     }));
 
+    // Changelog text without its ** and ` marks.
+    public static string PlainNotes(string text) => text.Replace("**", "").Replace("`", "");
+
+    // Copper as gold, silver and copper.
+    public static (long Gold, long Silver, long Copper) Coins(long copper) => (copper / 10000, copper / 100 % 100, copper % 100);
+
+    // "12,345" the same on every PC (the game shows gold that way, whatever Windows' language).
+    public static string Thousands(long n) => n.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+
     // Copper as "12,345g 34s 56c", leaving out leading zero parts.
     public static string Money(long copper)
     {
-        long g = copper / 10000, s = copper / 100 % 100, c = copper % 100;
-        if (g > 0) return $"{g.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)}g {s}s {c}c";
+        var (g, s, c) = Coins(copper);
+        if (g > 0) return $"{Thousands(g)}g {s}s {c}c";
         if (s > 0) return $"{s}s {c}c";
         return $"{c}c";
     }
+
+    // Copper as whole gold: "12,345g".
+    public static string Gold(long copper) => $"{Thousands(Coins(copper).Gold)}g";
 
     // "840 KB", "77.1 MB".
     public static string Size(long bytes) => bytes switch

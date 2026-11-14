@@ -16,8 +16,13 @@ static class Payload
         ["u"] = "ruleset", ["d"] = "seconds", ["y"] = "played", ["b"] = "boss", ["I"] = "instance", ["m"] = "item",
         ["M"] = "itemId", ["q"] = "quality", ["G"] = "gold", ["K"] = "killer", ["w"] = "mount", ["B"] = "bought",
         ["S"] = "shot", ["P"] = "group", ["Z"] = "groupSize", ["N"] = "money", ["R"] = "crests", ["X"] = "maxLevel", ["U"] = "guild", ["L"] = "surname", ["O"] = "opponent", ["F"] = "fled", ["T"] = "rating", ["H"] = "step", ["D"] = "bracket", ["J"] = "talentExport", ["Q"] = "talentCalc", ["A"] = "region", ["Y"] = "lost", ["V"] = "opponentInfo", ["W"] = "keystone", ["f"] = "zoneType",
-        ["j"] = "mplusScore", ["pr"] = "pvpRatings", ["fa"] = "faction", ["sp"] = "spellId", ["kl"] = "keyLevel", ["ku"] = "upgrades", ["pf"] = "profession", ["be"] = "boe", // single letters are used up, so new keys get two
+        ["j"] = "mplusScore", ["pr"] = "pvpRatings", ["fa"] = "faction", ["sp"] = "spellId", ["kl"] = "keyLevel", ["ku"] = "upgrades", ["pf"] = "profession", ["be"] = "boe", ["mt"] = "mat", ["ak"] = "askedKind", ["mb"] = "midBoss", ["rn"] = "run", ["bs"] = "bosses", ["dr"] = "drops", ["cl"] = "cleared", // single letters are used up, so new keys get two
     };
+
+    // A grid's events: one per line (the addon sends a few seconds of them together; older addons
+    // one per grid, which is one line). Line breaks inside values come escaped.
+    public static IReadOnlyList<Entry> ParseAll(string data) =>
+        [.. data.Split('\n').Select(Parse).OfType<Entry>()];
 
     public static Entry? Parse(string data)
     {

@@ -7,6 +7,12 @@ public partial class Header : UserControl
 {
     public Header() => InitializeComponent();
 
+    // Typing a search shows the results: Characters, Items.
+    void Search_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (SearchBox.IsKeyboardFocused && SearchBox.Text.Length > 0 && DataContext is MainViewModel vm) vm.Page = "items";
+    }
+
     // Switching game tabs plays the orb animation from the old tab to the new one (not at startup,
     // when there's no old tab).
     void Tabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
