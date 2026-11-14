@@ -341,7 +341,7 @@ public class FriendMapLuaTests
     [InlineData(false, "CAMWOW EU5 Realm 6 PvP", "CamWowEu5Realm6PVP", false, null)] // Battle.net's case differs
     [InlineData(false, "CAMWOW EU5 Realm 4 PvP", "CAMWOWEU5Realm6PvP", false, null)] // seen in game: Realm 4 and 6 on one layer
     [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm2Normal", true, "On another realm: Normal")]
-    [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU4Realm5PvP", true, "On another realm: PvP")]
+    [InlineData(false, "CAMWOW EU5 Realm 6 PvP", "CAMWOWEU4Realm4PvP", false, null)] // seen in game: EU4 and EU5 on one layer too
     [InlineData(false, "CAMWOW EU5 Realm 5 PvP", "CAMWOWEU5Realm1RPPvP", true, "On another realm: RP-PvP")]
     [InlineData(false, "Firemaw", "Gehennas", true, "On another realm: Gehennas")]
     [InlineData(true, "Tarren Mill", "TarrenMill", false, null)]

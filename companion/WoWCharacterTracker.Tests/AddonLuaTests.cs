@@ -1424,7 +1424,7 @@ public class AddonLuaTests
                 """);
             var ns = new Table(script);
             ns["say"] = (Action<string>)(_ => { });
-            foreach (var file in new[] { "Shared.lua", "FriendData.lua", "Comms.lua", "Friends.lua", "NoteBox.lua", "Ui.lua", "Window.lua", "Options.lua" })
+            foreach (var file in new[] { "Shared.lua", "Leveling.lua", "FriendData.lua", "Comms.lua", "Friends.lua", "NoteBox.lua", "Ui.lua", "Window.lua", "Options.lua" })
                 script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
 
             Assert.Equal("WoW Character Tracker", script.DoString("return registered").String);

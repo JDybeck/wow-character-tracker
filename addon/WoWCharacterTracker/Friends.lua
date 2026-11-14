@@ -249,11 +249,22 @@ local function levelsOf(guid)
   return out
 end
 
+-- The snapshot of the character being played with the XP bar as it is now (the snapshot is only saved
+-- every few minutes), stamped now; other characters' snapshots as they are.
+local function withLiveXp(guid, char)
+  if guid ~= UnitGUID("player") or not (UnitXP and UnitXPMax and UnitLevel) then return char end
+  local xp, xpMax, level = ns.plain(UnitXP("player")), ns.plain(UnitXPMax("player")), ns.plain(UnitLevel("player"))
+  if type(xp) ~= "number" or type(xpMax) ~= "number" or xpMax <= 0 or level ~= char.level then return char end
+  if xp == char.xp and xpMax == char.xpMax then return char end
+  return setmetatable({ xp = xp, xpMax = xpMax, lastSeen = time() }, { __index = char })
+end
+
 -- One of your characters as a contact may see it, and its change key; nil without a snapshot.
 local function charText(guid, contact)
   local db = WoWCharacterTrackerDB
   local char = db.chars and db.chars[guid]
   if not char then return nil end
+  char = withLiveXp(guid, char)
   readEvents()
   return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact),
     recentHighlights[guid], levelsOf(guid))

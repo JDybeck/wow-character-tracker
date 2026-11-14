@@ -207,15 +207,15 @@ local function layerNote(theirs, mine)
 end
 
 -- The tooltip's realm line and whether the friend is somewhere you can't meet them (their ring goes
--- grey). Battle.net's and the game's names can differ in case. On Forever "Realm 6" is only the home
--- realm (players of Realm 4 and 6 meet), so the realm's type and cluster decide another realm, and
--- the layers (Layer.lua) the rest. Retail has no layers.
+-- grey). Battle.net's and the game's names can differ in case. On Forever only the realm's type
+-- (PvP, Normal...) tells worlds apart: "CAMWOW EU5 Realm 6 PvP" and "CAMWOW EU4 Realm 4 PvP" play
+-- together on one layer (seen in game). The layers (Layer.lua) decide the rest. Retail has no layers.
 local function realmNote(theirs, mine, theirLayer, myLayer)
   if not theirs or not mine then return nil, false end
   local same = theirs:upper() == mine:upper()
   local their, our
   if not ns.IS_RETAIL then their, our = ns.realmType(theirs), ns.realmType(mine) end
-  if their and our then same = ns.realmWorld(theirs) == ns.realmWorld(mine) end
+  if their and our then same = their == our end
   if not same then return "On another realm: " .. (their or theirs), true end
   if ns.IS_RETAIL then return nil, false end
   return layerNote(theirLayer, myLayer)

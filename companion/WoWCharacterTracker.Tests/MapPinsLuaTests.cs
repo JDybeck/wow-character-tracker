@@ -40,7 +40,8 @@ public class MapPinsLuaTests
         script.DoString(Map);
         var ns = new Table(script);
         script.Globals["ns"] = ns;
-        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "MapPins.lua")), codeFriendlyName: "MapPins.lua"), "WoWCharacterTracker", ns);
+        foreach (var file in new[] { "Leveling.lua", "MapPins.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file)), codeFriendlyName: file), "WoWCharacterTracker", ns);
         script.DoString("""
             opened = nil
             ns.setMapOpen = function(open) opened = open end

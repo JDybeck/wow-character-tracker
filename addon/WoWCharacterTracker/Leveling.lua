@@ -44,6 +44,16 @@ function ns.levelText(l)
   return string.format("%d to %d took %s", l.level - 1, l.level, ns.formatDuration(l.seconds))
 end
 
+-- How far into its level a character is, in whole percent (the game's XP bar), or nil: not known,
+-- at max level, or the XP is from another level than `level` (default: its own).
+function ns.levelPercent(c, level)
+  level = level or (c and c.level)
+  if not (c and type(c.xp) == "number" and type(c.xpMax) == "number" and c.xpMax > 0 and level) then return nil end
+  if c.level and c.level ~= level then return nil end
+  if c.maxLevel and level >= c.maxLevel then return nil end
+  return math.floor(100 * c.xp / c.xpMax)
+end
+
 -- The leveling lines a character's details list, each { label, value }, only what's known.
 -- c: { level, played, levelTime, xp, xpMax, maxLevel }; xpTable: this client's XP per level, or nil.
 function ns.levelingFacts(levels, c, xpTable)
@@ -58,6 +68,8 @@ function ns.levelingFacts(levels, c, xpTable)
     end
   end
   local atMax = c.level and c.maxLevel and c.level >= c.maxLevel
+  local percent = ns.levelPercent(c)
+  if percent then add("Progress", string.format("%d%% into level %d", percent, c.level)) end
   if not atMax and type(c.levelTime) == "number" and c.levelTime > 0 then add("This level", ns.formatDuration(c.levelTime)) end
   if type(c.played) == "number" and c.played > 0 then add("Played", ns.formatPlayed(c.played)) end
   local left = not ns.IS_RETAIL and ns.timeToMax(levels, xpTable, c.level, c.xp, c.xpMax, c.maxLevel)

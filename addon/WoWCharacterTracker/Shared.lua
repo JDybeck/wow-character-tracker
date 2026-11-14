@@ -280,12 +280,6 @@ function ns.realmType(name)
   return nil
 end
 
--- The world a Forever realm plays in: its name without the home realm number ("CAMWOWEU5PVP").
-function ns.realmWorld(name)
-  local plain = ns.plainRealm(name)
-  return plain and (plain:upper():gsub("REALM%d+", ""))
-end
-
 -- The GUIDs of everyone in your party or raid, as a set.
 function ns.groupGuids()
   local set = {}

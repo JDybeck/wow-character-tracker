@@ -37,7 +37,7 @@ public class FriendDataTests
     [Fact]
     public void Highlights_from_the_addon_become_the_characters_events()
     {
-        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "FriendData.lua"]);
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua", "FriendData.lua"]);
         c.Lua("""
             events = {
               { kind = 'boss', at = 11, level = 60, boss = 'Ragnaros', instance = 'Molten Core', groupSize = 40 },
@@ -72,19 +72,22 @@ public class FriendDataTests
     [Fact]
     public void Level_times_from_the_addon_become_level_events()
     {
-        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "FriendData.lua"]);
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua", "FriendData.lua"]);
         c.Lua("""
             char = { char = 'Zeb', lastSeen = 20, level = 12, played = 9000, levelTime = 600, xp = 300, xpMax = 7600, maxLevel = 60 }
             levels = { { level = 11, seconds = 1500, at = 15 }, { level = 10, seconds = 1200, at = 10 }, { level = 12, seconds = 0, at = 16 } }
             on, onKey = ns.encodeFriendChar('Player-1-0000000B', char, nil, { leveling = true }, nil, levels)
             off = ns.encodeFriendChar('Player-1-0000000B', char, nil, {}, nil, levels)
-            char.played, char.levelTime = 9500, 1100
+            char.played, char.levelTime, char.xp = 9500, 1100, 303 -- 3.9%, still 3
             _, laterKey = ns.encodeFriendChar('Player-1-0000000B', char, nil, { leveling = true }, nil, levels)
+            char.xp = 400 -- 5.2%
+            _, percentKey = ns.encodeFriendChar('Player-1-0000000B', char, nil, { leveling = true }, nil, levels)
             friends = { ['Zeb#2222'] = { chars = { ['Player-1-0000000B'] = ns.decodeFriendChar(on) } } }
             """);
         Assert.DoesNotContain("levels=", c.Lua("return off").String);
         Assert.DoesNotContain("played=", c.Lua("return off").String);
-        Assert.Equal(c.Lua("return onKey").String, c.Lua("return laterKey").String); // played time alone doesn't resend
+        Assert.Equal(c.Lua("return onKey").String, c.Lua("return laterKey").String); // played time and a little XP don't resend
+        Assert.NotEqual(c.Lua("return onKey").String, c.Lua("return percentKey").String); // a whole percent more on the bar does
         Assert.Equal(2, c.Lua("return #ns.friendLevels(friends['Zeb#2222'].chars['Player-1-0000000B'])").Number);
 
         var zeb = Assert.Single(FriendData.ReadFriends(c.Lua("return friends")));
@@ -122,6 +125,24 @@ public class FriendDataTests
         Assert.True(c.Lua("return ns.timeToMax({ levels[1] }, nil, 25, 0, 0, 60) == nil").Boolean); // one level is too little
         c.Lua("summary = ns.levelSummary(levels)");
         Assert.Equal((6, 20, 25), ((int)c.Lua("return summary.count").Number, (int)c.Lua("return summary.fastest.level").Number, (int)c.Lua("return summary.slowest.level").Number));
+    }
+
+    // "44% into level 59": the addon (Leveling.lua) and the app (LevelStats) say the same, and nothing
+    // for XP from another level or at max level.
+    [Theory]
+    [InlineData(59, 94113, 209800, 60, 59, 44)] // Kitty in game: 44.86% shows as 44, like the XP bar
+    [InlineData(59, 0, 209800, 60, 59, 0)]
+    [InlineData(58, 94113, 209800, 60, 59, null)] // XP from before the ding
+    [InlineData(60, 100, 209800, 60, 60, null)]   // max level
+    [InlineData(59, 94113, 0, 60, 59, null)]      // no XP known
+    public void The_addon_and_app_agree_on_how_far_into_the_level(int snapLevel, long xp, long xpMax, int maxLevel, int level, int? percent)
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua"]);
+        var lua = c.Lua($"return ns.levelPercent({{ level = {snapLevel}, xp = {xp}, xpMax = {xpMax}, maxLevel = {maxLevel} }}, {level})");
+        Assert.Equal(percent, lua.IsNil() ? null : (int)lua.Number);
+        var snap = new Snapshot("Player-1-0000000A", "Kitty", "Firemaw", snapLevel, "Druid", "DRUID", "Night Elf", "NightElf", "female", "", "", 0, 0, "", "", "", 5, false, "",
+            Xp: xp, XpMax: xpMax, MaxLevel: maxLevel);
+        Assert.Equal(percent, LevelStats.Percent(snap, level));
     }
 
     [Fact]

@@ -13,6 +13,9 @@ Update the addon with the app (it does this by itself) and /reload in game.
 - When the game blocks a guild or group chat line, the addon's warning now says so, instead of naming whatever it did just before.
 - Friends on the map now show the right layer. It used to take the number from the realm name, but "Realm 6" is your home realm, not your layer, so friends on the same layer could show as layer 4 and 6. The addon now reads the layer from the NPCs around you, and the tooltip says "Same layer as you" or "On another layer" once both of you have seen a couple of NPCs. `/wct layer` shows what it has read.
 - The addon window's character info shows the realm as "PvP, realm 6" instead of a wrong layer line.
+- A friend on another Forever realm of the same type (like "EU4 Realm 4 PvP" and "EU5 Realm 6 PvP") no longer shows as "On another realm" on the map: you play together.
+- A friend's XP stays current. It used to stay at what it was when they logged in, so the map could say 44% into the level while they were at 47%. Your friend needs this version of the addon for it.
+- How far into the level a character is now shows under the level on the Characters and Friends pages (hover for when it's from), and as **Progress** in the addon window. The map tooltip says when the friend's info was updated.
 
 ## v0.40.1
 

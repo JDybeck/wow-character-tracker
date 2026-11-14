@@ -75,9 +75,13 @@
                   </StackPanel>
                 </DockPanel>
 
-                <Border Grid.Column="2" Style="{StaticResource Pill}">
-                  <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
-                </Border>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Left" ToolTip="{Binding LevelPercentTip}">
+                  <Border Style="{StaticResource Pill}">
+                    <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+                  </Border>
+                  <TextBlock Text="{Binding LevelPercentText}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0" HorizontalAlignment="Center"
+                             Visibility="{Binding LevelPercentText, Converter={StaticResource VisibleIfSet}}"/>
+                </StackPanel>
 
                 <Border Grid.Column="3" Style="{StaticResource Pill}" Background="#4D1E3A8A" BorderBrush="#801D4ED8">
                   <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{DynamicResource BlueText}"/>

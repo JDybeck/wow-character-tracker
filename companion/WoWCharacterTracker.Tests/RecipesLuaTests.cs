@@ -42,7 +42,7 @@ public class RecipesLuaTests
 
     static FriendsLuaTests.Client Client(string db = "{ chars = { ['Player-1-0000000A'] = { char = 'Zeb' } }, items = {} }")
     {
-        var c = new FriendsLuaTests.Client(Me, "{}", db, files: ["Shared.lua", "FriendData.lua", "Recipes.lua"]);
+        var c = new FriendsLuaTests.Client(Me, "{}", db, files: ["Shared.lua", "Leveling.lua", "FriendData.lua", "Recipes.lua"]);
         c.Lua(TradeSkill);
         return c;
     }
