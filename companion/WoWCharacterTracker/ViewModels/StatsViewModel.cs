@@ -2,13 +2,43 @@ using System.Windows.Input;
 
 namespace WoWCharacterTracker.ViewModels;
 
-// The Stats page of one game tab: the week's MVP podium and a leaderboard per stat (Leaderboards),
+// The Stats page of one game tab: the period's MVP podium and a leaderboard per stat (Leaderboards),
 // you against every friend who shares with you. A board shows the top three and your own row; Show
-// all lists everyone, and stays open across syncs.
+// all lists everyone, and stays open across syncs. The period (today, week, month, all time) is kept
+// for the session.
 sealed class StatsViewModel : Observable
 {
     const int Top = 3;
     readonly HashSet<string> expanded = [];
+    List<Leaderboards.Source> sources = [];
+
+    // The picker's periods: its key (CommandParameter), the page's heading, its line and the empty text's start.
+    sealed record PeriodInfo(string Key, Leaderboards.Period Period, string Label, string Text, string Empty);
+    static readonly PeriodInfo[] Periods =
+    [
+        new("today", Leaderboards.Period.Today, "TODAY", "Today so far", "Nothing yet today."),
+        new("week", Leaderboards.Period.Week, "THIS WEEK", "The last 7 days", "Nothing yet this week."),
+        new("month", Leaderboards.Period.Month, "THIS MONTH", "The last 30 days", "Nothing yet this month."),
+        new("all", Leaderboards.Period.All, "ALL TIME", "Everything since the app started keeping your days", "Nothing yet."),
+    ];
+
+    PeriodInfo period = Periods[1];
+    public string PeriodKey => period.Key;
+    public string PeriodLabel => period.Label;
+    public string PeriodText => $"{period.Text}, you against every friend who shares with you. A board won is 3 points, second 2, third 1.";
+    public string EmptyText => $"{period.Empty} Level up, kill a boss or turn in a quest and the boards fill up, and so do your friends' once they share with you.";
+
+    public ICommand ShowPeriodCommand => showPeriod ??= new RelayCommand(p =>
+    {
+        if (Periods.FirstOrDefault(x => x.Key == p as string) is not { } picked || picked == period) return;
+        period = picked;
+        Raise(nameof(PeriodKey));
+        Raise(nameof(PeriodLabel));
+        Raise(nameof(PeriodText));
+        Raise(nameof(EmptyText));
+        Rebuild();
+    });
+    ICommand? showPeriod;
 
     IReadOnlyList<BoardView> boards = [];
     public IReadOnlyList<BoardView> Boards
@@ -33,27 +63,28 @@ sealed class StatsViewModel : Observable
     public string YourPlace { get => yourPlace; private set { Set(ref yourPlace, value); Raise(nameof(HasYourPlace)); } }
     public bool HasYourPlace => yourPlace.Length > 0;
 
-    // own: your rows (no test characters); days: your today and finished days; friends: the shown friends'
-    // rows; contacts: what friends sent (their days).
-    public void Show(IReadOnlyList<CharacterRow> own, IReadOnlyList<Entry> events, IEnumerable<DayTotals> days,
-        IEnumerable<CharacterRow> friends, IEnumerable<FriendContact> contacts)
+    // own: your rows (no test characters); days: yours and friends' (DayHistory); friends: the shown friends' rows.
+    public void Show(IReadOnlyList<CharacterRow> own, IReadOnlyList<Entry> events, IReadOnlyList<DayTotals> days, IEnumerable<CharacterRow> friends)
     {
         var mine = own.Where(r => !r.IsTest).ToList();
         var mineGuids = mine.Select(r => r.Guid).ToHashSet();
-        var sources = new List<Leaderboards.Source>
-        {
+        sources =
+        [
             new(new("you", "You", true), [.. events.Where(e => mineGuids.Contains(e.Guid))], [.. days.Where(d => mineGuids.Contains(d.Guid))],
                 mine.ToDictionary(r => r.Guid, r => r.FullName)),
-        };
-        var friendDays = contacts.SelectMany(c => c.Days).ToList();
+        ];
         foreach (var g in friends.GroupBy(f => f.FriendTag))
         {
             var guids = g.Select(f => f.Guid).ToHashSet();
-            sources.Add(new(new(g.Key, g.First().FriendName, false), [.. g.SelectMany(f => f.Events)], [.. friendDays.Where(d => guids.Contains(d.Guid))],
+            sources.Add(new(new(g.Key, g.First().FriendName, false), [.. g.SelectMany(f => f.Events)], [.. days.Where(d => guids.Contains(d.Guid))],
                 g.GroupBy(f => f.Guid).ToDictionary(x => x.Key, x => x.First().FullName)));
         }
+        Rebuild();
+    }
 
-        var built = Leaderboards.Build(sources, DateTimeOffset.Now);
+    void Rebuild()
+    {
+        var built = Leaderboards.Build(sources, DateTimeOffset.Now, period.Period);
         Boards = [.. built.Select(b => new BoardView(b, expanded.Contains(b.Key), open => { if (open) expanded.Add(b.Key); else expanded.Remove(b.Key); }))];
 
         var mvps = Leaderboards.Mvps(built);

@@ -768,8 +768,11 @@ sealed class FlavorViewModel : Observable
     public FollowedItemsViewModel FollowedItems { get; }
     // The Friends page: what Battle.net friends shared, apart from your own characters.
     public FriendsViewModel Friends { get; }
-    // The Stats page: this week's leaderboards, you against your friends.
+    // The Stats page: leaderboards for today, the week, the month or all time, you against your friends.
     public StatsViewModel Stats { get; } = new();
+    // Every day seen, yours and friends', for the Stats page's month and all time (the addon keeps 8).
+    DayHistory DayHistory => dayHistory ??= new(Path.Combine(Config.Dir, $"days-{Flavor.Key}.json"));
+    DayHistory? dayHistory;
     // The Professions page: your characters' professions by server and faction.
     public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions yet. They show up once a character with one has been played with the addon." };
     public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
@@ -890,7 +893,7 @@ sealed class FlavorViewModel : Observable
         Professions.Show(rows);
         Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
         AddLevelBoard([.. rows, .. Friends.Shown]);
-        Stats.Show(rows, data.Events, [.. data.Today, .. data.Days], Friends.Shown, lastData.Friends);
+        Stats.Show(rows, data.Events, DayHistory.Add([.. data.Today, .. data.Days, .. lastData.Friends.SelectMany(c => c.Days)]), Friends.Shown);
         homeEvents = data.Events;
         homeDays = data.Today;
         RefreshHome(); // after Friends: Home lists the friends seen lately

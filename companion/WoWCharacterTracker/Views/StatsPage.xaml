@@ -1,5 +1,5 @@
-<!-- The Stats page: the week's MVP podium (second, first, third) and a leaderboard per stat, you against
-     your friends (StatsViewModel). DataContext: the game tab (FlavorViewModel); MainWindow has one per tab. -->
+<!-- The Stats page: the period's MVP podium (second, first, third) and a leaderboard per stat, you against
+     your friends (StatsViewModel), for today, the week, the month or all time. DataContext: the game tab (FlavorViewModel); MainWindow has one per tab. -->
 <UserControl x:Class="WoWCharacterTracker.Views.StatsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -68,16 +68,32 @@
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=stats}">
     <ScrollViewer DataContext="{Binding Stats}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
       <StackPanel Margin="28,20,28,24">
-        <TextBlock Style="{StaticResource FactLabel}" Text="THIS WEEK"/>
-        <TextBlock Text="The last 7 days, you against every friend who shares with you. A board won is 3 points, second 2, third 1."
-                   FontSize="12" Foreground="{StaticResource Dim}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+        <DockPanel>
+          <!-- The period: today, the last 7 or 30 days, or all time. -->
+          <Border DockPanel.Dock="Right" Style="{StaticResource SegmentBox}" VerticalAlignment="Top" Margin="16,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource SegmentButton}" Content="Today" Tag="{Binding PeriodKey, Converter={StaticResource ActiveIf}, ConverterParameter=today}"
+                      Command="{Binding ShowPeriodCommand}" CommandParameter="today" ToolTip="Since midnight"/>
+              <Button Style="{StaticResource SegmentButton}" Content="Week" Tag="{Binding PeriodKey, Converter={StaticResource ActiveIf}, ConverterParameter=week}"
+                      Command="{Binding ShowPeriodCommand}" CommandParameter="week" ToolTip="The last 7 days"/>
+              <Button Style="{StaticResource SegmentButton}" Content="Month" Tag="{Binding PeriodKey, Converter={StaticResource ActiveIf}, ConverterParameter=month}"
+                      Command="{Binding ShowPeriodCommand}" CommandParameter="month" ToolTip="The last 30 days"/>
+              <Button Style="{StaticResource SegmentButton}" Content="All time" Tag="{Binding PeriodKey, Converter={StaticResource ActiveIf}, ConverterParameter=all}"
+                      Command="{Binding ShowPeriodCommand}" CommandParameter="all" ToolTip="Everything the app has seen. Quests, gathering, item level and gold count from the day the app started keeping them."/>
+            </StackPanel>
+          </Border>
+          <StackPanel>
+            <TextBlock Style="{StaticResource FactLabel}" Text="{Binding PeriodLabel}"/>
+            <TextBlock Text="{Binding PeriodText}" FontSize="12" Foreground="{StaticResource Dim}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+          </StackPanel>
+        </DockPanel>
 
-        <TextBlock Text="Nothing yet this week. Level up, kill a boss or turn in a quest and the boards fill up, and so do your friends' once they share with you."
+        <TextBlock Text="{Binding EmptyText}"
                    FontSize="13" Foreground="{StaticResource Dim}" TextWrapping="Wrap" Margin="0,24,0,0"
                    Visibility="{Binding HasBoards, Converter={StaticResource Hidden}}"/>
 
         <StackPanel Visibility="{Binding HasBoards, Converter={StaticResource Visible}}">
-          <!-- MVP of the week: second, first (highest) and third, side by side. -->
+          <!-- The MVP: second, first (highest) and third, side by side. -->
           <ItemsControl ItemsSource="{Binding Podium}" Focusable="False" HorizontalAlignment="Center" Margin="0,18,0,0">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>

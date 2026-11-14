@@ -2,7 +2,7 @@ using WoWCharacterTracker.Services;
 
 namespace WoWCharacterTracker.Tests;
 
-// The Stats page (Leaderboards): the last seven days per person, one board per stat, and the MVP.
+// The Stats page (Leaderboards): a period (the last seven days unless said) per person, one board per stat, and the MVP.
 public class LeaderboardsTests
 {
     static readonly DateTimeOffset Now = new(2026, 11, 14, 20, 0, 0, TimeSpan.Zero);
@@ -57,7 +57,7 @@ public class LeaderboardsTests
                 OnDay("y1", "2026-11-12", quests: 10, herbs: 4, ilvlStart: 30, ilvl: 33, moneyStart: 100_000, money: 150_000),
                 OnDay("y1", "2026-11-14", quests: 5, ilvlStart: 33, ilvl: 35.5, moneyStart: 150_000, money: 120_000), // spent: no gold
             ], "y1", "Zeb"),
-            Source(Benne, [], [OnDay("b1", "2026-11-13", quests: 30)], "b1", "Benne Benlös"),
+            Source(Benne, [], [OnDay("b1", "2026-11-13", quests: 30)], "b1", "Benne BenlÃ¶s"),
         ], Now);
 
         Assert.Equal([30, 15], Board(boards, "quests").Scores.Select(s => s.Value));
@@ -100,6 +100,32 @@ public class LeaderboardsTests
         // r1: 7 + 3 from its days (its one highlight not counted again); r2, on an older addon: its 2 highlights.
         Assert.Equal(12, Board(boards, "bosses").Scores[0].Value);
         Assert.Equal(2, Board(boards, "epics").Scores[0].Value);
+    }
+
+    // Today starts at midnight; the week and month roll; all time has no start.
+    [Theory]
+    [InlineData("Today", 1, 5)]
+    [InlineData("Week", 2, 15)]
+    [InlineData("Month", 3, 45)]
+    [InlineData("All", 4, 145)]
+    public void The_period_picks_the_events_and_days(string periodName, int bosses, int quests)
+    {
+        var period = Enum.Parse<Leaderboards.Period>(periodName);
+        // Now is 20:00, so 21 hours ago is yesterday.
+        var boards = Leaderboards.Build(
+        [
+            Source(You,
+                [Moment("y1", "boss", 3600), Moment("y1", "boss", 21 * 3600), Moment("y1", "boss", 20 * Day), Moment("y1", "boss", 400 * Day)],
+                [
+                    OnDay("y1", "2026-11-14", quests: 5),
+                    OnDay("y1", "2026-11-10", quests: 10),
+                    OnDay("y1", "2026-10-20", quests: 30),
+                    OnDay("y1", "2025-06-01", quests: 100),
+                ]),
+        ], Now, period);
+
+        Assert.Equal(bosses, Board(boards, "bosses").Scores[0].Value);
+        Assert.Equal(quests, Board(boards, "quests").Scores[0].Value);
     }
 
     [Fact]

@@ -4,6 +4,10 @@ The app shows the notes for a new version when it finds an update, and the newes
 
 ## v0.41.1
 
+### New
+
+- **Stats for today, the week, the month or all time.** Pick the period at the top of the Stats page. The app now keeps every day of quests, gathering, item level and gold it sees, yours and your friends', so the month and all time fill up from here on (the addon only keeps the last 8 days).
+
 ### Fixes and tweaks
 
 - Discord posts now say the region and realm type under the post, like "EU · PvP", instead of Forever's full realm name ("CAMWOW EU4 Realm 4 PvP").
