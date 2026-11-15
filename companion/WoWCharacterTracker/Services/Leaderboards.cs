@@ -28,7 +28,7 @@ static class Leaderboards
     public sealed record Mvp(Player Who, int Points, int Firsts, IReadOnlyList<string> Won, int Rank);
 
     // One person's period, worked out once for every board.
-    sealed record Tally(Player Who, int Levels, long LevelSeconds, string Mover, (string Who, int Level, long Seconds)? Fastest,
+    sealed record Tally(Player Who, int LevelScore, long LevelSeconds, string Mover, (string Who, int Level, long Seconds)? Fastest,
         int Bosses, int Epics, int Mounts, int Duels, int Battlegrounds, int Deaths,
         int Quests, int Herbs, int Ore, int Skins, int Fish, (string Who, double Gain)? Ilvl, long Gold);
 
@@ -37,10 +37,14 @@ static class Leaderboards
 
     static string Count(double v) => ((long)v).ToString("N0", CultureInfo.CurrentCulture);
 
+    // What a level-up is worth on the levels board: the higher, the longer it took. Below 10 nothing,
+    // those take a minute each.
+    public static int LevelScore(int level) => level switch { < 10 => 0, < 30 => 1, < 50 => 2, _ => 3 };
+
     // The boards in the page's order. Glyphs: Segoe Fluent Icons.
     static readonly Stat[] Stats =
     [
-        new("levels", "Most level-ups", "", w => w.Levels, Count, w => w.Mover),
+        new("levels", "Level-up score", "", w => w.LevelScore, Count, w => w.Mover),
         new("leveling", "Most time leveling", "", w => w.LevelSeconds, v => Format.Played((long)v)),
         new("fastest", "Fastest level", "", w => w.Fastest?.Seconds ?? 0, v => Format.Duration((long)v),
             w => w.Fastest is { } f ? $"{f.Who}, {f.Level - 1} to {f.Level}" : "", LowerWins: true),
@@ -117,7 +121,8 @@ static class Leaderboards
         string Name(string guid, string fallback) => s.Characters.GetValueOrDefault(guid) ?? fallback;
 
         var levels = events.Where(e => e.Kind == "level").GroupBy(e => (e.Guid, e.Level)).Select(g => g.First()).ToList();
-        var mover = levels.GroupBy(e => e.Guid).MaxBy(g => g.Count());
+        // The levels board's detail: the character that scored the most, with its levels that scored.
+        var mover = levels.Where(e => LevelScore(e.Level) > 0).GroupBy(e => e.Guid).MaxBy(g => g.Sum(e => LevelScore(e.Level)));
         var fastest = levels.Where(e => e.Level >= FastestFrom && e.Seconds > 0).MinBy(e => e.Seconds);
 
         // Days by the local date, the period's last n including today; one per character and day.
@@ -145,8 +150,8 @@ static class Leaderboards
         var moments = events.Where(e => !countedGuids.Contains(e.Guid)).ToList();
         int Moments(Func<Entry, bool> isOne, Func<DayTotals, int> perDay) => moments.Count(isOne) + counted.Sum(perDay);
 
-        return new Tally(s.Who, levels.Count, levels.Sum(e => e.Seconds),
-            mover is null ? "" : $"{Name(mover.Key, mover.First().Char)} {mover.Min(e => e.Level) - 1} to {mover.Max(e => e.Level)}",
+        return new Tally(s.Who, levels.Sum(e => LevelScore(e.Level)), levels.Sum(e => e.Seconds),
+            mover is null ? "" : $"{Name(mover.Key, mover.First().Char)} {mover.Min(e => e.Level) - 1} to {mover.Max(e => e.Level)}, {Format.Count(mover.Count(), "level")}",
             fastest is null ? null : (Name(fastest.Guid, fastest.Char), fastest.Level, fastest.Seconds),
             Moments(e => e.Kind is "boss" or "keyrun", d => d.Bosses),
             Moments(e => e.Kind == "loot" && e.Quality >= 4 && !e.Mat, d => d.Epics),

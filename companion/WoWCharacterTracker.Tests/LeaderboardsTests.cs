@@ -35,16 +35,36 @@ public class LeaderboardsTests
             Source(Rasmus, [Ding("r1", 50, 7200, Day), Ding("r1", 51, 1800, Day), Ding("r1", 52, 7200, Day)], guid: "r1", name: "Kitty Pryde"),
         ], Now);
 
+        // 50-52 at 3 points each against 41-42 at 2.
         var levels = Board(boards, "levels");
         Assert.Equal(["Rasmus", "You"], levels.Scores.Select(s => s.Who.Name));
-        Assert.Equal("Kitty Pryde 49 to 52", levels.Scores[0].Detail);
-        Assert.Equal("Zeb Drygbeck 40 to 42", levels.Scores[1].Detail);
+        Assert.Equal([9, 4], levels.Scores.Select(s => s.Value));
+        Assert.Equal("Kitty Pryde 49 to 52, 3 levels", levels.Scores[0].Detail);
+        Assert.Equal("Zeb Drygbeck 40 to 42, 2 levels", levels.Scores[1].Detail);
 
         // Fastest: the lowest wins.
         var fastest = Board(boards, "fastest");
         Assert.Equal(["Rasmus", "You"], fastest.Scores.Select(s => s.Who.Name));
         Assert.Equal("30m 0s", fastest.Scores[0].Text);
         Assert.Equal("Kitty Pryde, 50 to 51", fastest.Scores[0].Detail);
+    }
+
+    // Many quick low levels lose to a few high ones, and below 10 is worth nothing.
+    [Fact]
+    public void Higher_levels_score_more_and_the_first_nine_score_nothing()
+    {
+        Assert.Equal([0, 1, 1, 2, 2, 3, 3], new[] { 9, 10, 29, 30, 49, 50, 80 }.Select(Leaderboards.LevelScore));
+
+        var boards = Leaderboards.Build(
+        [
+            Source(You, [.. Enumerable.Range(2, 12).Select(l => Ding("y1", l, 60, Day))], guid: "y1", name: "Zeb"), // 2-13: 4 points
+            Source(Rasmus, [Ding("r1", 50, 7200, Day), Ding("r1", 51, 7200, Day)], guid: "r1", name: "Kitty"), // 6 points
+            Source(Benne, [Ding("b1", 5, 60, Day)]), // nothing
+        ], Now);
+
+        var levels = Board(boards, "levels");
+        Assert.Equal(["Rasmus", "You"], levels.Scores.Select(s => s.Who.Name));
+        Assert.Equal("Zeb 9 to 13, 4 levels", levels.Scores[1].Detail);
     }
 
     [Fact]
