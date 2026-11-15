@@ -889,8 +889,7 @@ sealed class FlavorViewModel : Observable
             r.SetNote(main.NoteFor(r.Guid), text => main.SaveNote(r.Guid, text));
             r.SetPortraitChoice(main.Config.StandardPortraits.Contains(r.Guid), standard =>
             {
-                main.Config.StandardPortraits.Remove(r.Guid);
-                if (standard) main.Config.StandardPortraits.Add(r.Guid);
+                main.Config.SetStandardPortrait(r.Guid, standard);
                 main.Config.Save();
             });
             Characters.Add(r);
