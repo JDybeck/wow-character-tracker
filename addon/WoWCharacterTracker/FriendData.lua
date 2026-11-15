@@ -383,6 +383,19 @@ function ns.friendGear(c)
   return out
 end
 
+-- What a friend shares with you, read from the characters they sent: { category = true } for every
+-- category one of them came with. Empty fields don't travel, so a shared category can be missing
+-- (no professions or highlights yet), and map positions only come while your map is open.
+function ns.friendSharedCategories(chars)
+  local out = {}
+  for _, c in pairs(chars or {}) do
+    for key, field in pairs(FIELDS) do
+      if field.category and c[key] ~= nil then out[field.category] = true end
+    end
+  end
+  return out
+end
+
 -- The character in a friend's text, or nil when it isn't one. Only known fields are kept.
 function ns.decodeFriendChar(text)
   if type(text) ~= "string" or #text > MAX_TEXT then return nil end

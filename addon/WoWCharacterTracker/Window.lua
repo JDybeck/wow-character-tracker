@@ -1,7 +1,8 @@
 -- The addon window (/wct, the minimap button): every in-game option in tabs. Settings the game
 -- keeps (WoWCharacterTrackerDB) and the In game settings shared with the app (ns.editSettings, the
 -- newest change wins) apply right away. What gets posted to Discord comes from the app
--- (Settings.lua) and is listed read-only on the Settings tab. Plain frames only, so it opens in combat.
+-- (Settings.lua) and is listed read-only on the Settings tab, apart from the preset and the level
+-- steps and filters on the Sharing tab. Plain frames only, so it opens in combat.
 -- Built on first open, each tab on its first showing.
 local ADDON, ns = ...
 local ui = ns.ui
@@ -121,6 +122,59 @@ local function buildIncognito(p)
   return friends
 end
 
+-- "Posts at levels 5, 10, 15, 20, 25, 30, 31, 32 and so on." (the app's LevelPreview)
+local function levelPreview()
+  local post = ns.setting("post") or {}
+  if not (post.level and post.level.on) then return "Level-ups aren't posted." end
+  local levels = {}
+  for level = 2, 100 do
+    if #levels >= 12 then break end
+    if ns.levelPosted(level) then levels[#levels + 1] = level end
+  end
+  return #levels == 0 and "No levels match." or ("Posts at levels " .. table.concat(levels, ", ") .. " and so on.")
+end
+
+-- The app's level steps and filters (ns.filters, an In game setting): what gets posted, the Home
+-- tab's moments and the chat lines follow them.
+local LEVEL_BOXES = { { "split", "Up to level" }, { "before", "post every" }, { "after", "levels, then every" } }
+
+local function buildFilters(p, anchor)
+  local title = ui.heading(p, "Level steps and filters", anchor, -24)
+  local hint = ui.hint(p, "The same as the app's Sharing page, Advanced. The app picks changes up on your next /reload.", title)
+  local last
+  for i, box in ipairs(LEVEL_BOXES) do
+    local key = box[1]
+    local label = ui.text(p, "GameFontHighlight", box[2])
+    if last then label:SetPoint("LEFT", last, "RIGHT", 8, 0) else label:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -14) end
+    local input = ui.inputBox(p, 40, 3, function(text)
+      local n = tonumber(text)
+      if n then ns.editSettings(function(s) s.filters[key] = math.max(1, math.min(100, math.floor(n))) end) end
+      ui.refresh(p)
+    end)
+    input:SetPoint("LEFT", label, "RIGHT", 6, 0)
+    ui.onRefresh(p, function() ui.showInput(input, key, tostring(ns.filters()[key] or 1)) end)
+    last = input
+    if i == #LEVEL_BOXES then
+      local tail = ui.text(p, "GameFontHighlight", "level(s)")
+      tail:SetPoint("LEFT", input, "RIGHT", 6, 0)
+    end
+  end
+  local preview = ui.text(p, "GameFontDisableSmall")
+  preview:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -42)
+  ui.onRefresh(p, function() preview:SetText(levelPreview()) end)
+
+  local rareBoe = ui.checkbox(p, "Rares: Bind on Equip only", nil,
+    function() return ns.filters().rareBoe == true end,
+    function(on) ns.editSettings(function(s) s.filters.rareBoe = on end) end)
+  rareBoe:SetPoint("TOPLEFT", preview, "BOTTOMLEFT", -2, -8)
+  if ns.IS_RETAIL then return rareBoe end -- Retail posts Mythic+ runs, not end bosses
+  local firstKill = ui.checkbox(p, "End bosses: first kill only", nil,
+    function() return ns.filters().firstKill ~= false end,
+    function(on) ns.editSettings(function(s) s.filters.firstKill = on end) end)
+  firstKill:SetPoint("LEFT", rareBoe, "RIGHT", 200, 0)
+  return rareBoe
+end
+
 local function buildSharingTab(p)
   local withApp = ns.hasApp()
   local top = buildIncognito(p)
@@ -133,7 +187,7 @@ local function buildSharingTab(p)
     local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own picks from the app.")
     custom:SetPoint("LEFT", presets, "RIGHT", 6, 0)
     ui.onRefresh(p, function() custom:SetShown(ns.setting("preset") == "custom") end)
-    top = presets
+    top = buildFilters(p, presets)
   end
 
   local chatTitle = ui.heading(p, "Tell in chat", top, top and -24 or nil)
@@ -720,10 +774,10 @@ end
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
 local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
-local SHARING_HEIGHT = 630
+local SHARING_HEIGHT = 660
 local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", highlights = "Highlights", leveling = "Level times",
   gold = "Gold", map = "Map position", otherFaction = "Map for the other faction" }
-local sharingTag, sharingTitle, sharingSummary, askSaid, nickname
+local sharingTag, sharingTitle, sharingSummary, theirsText, askSaid, nickname
 local categoryButtons, askButtons = {}, {}
 local askWants = {} -- [category] = true: picked to ask them for
 
@@ -735,6 +789,13 @@ local function categoryText(cat)
 end
 
 local function sharingNow() return sharingTag and ns.contactSharing and ns.contactSharing(sharingTag) end
+
+-- "They share with you: gear, talents, level times." from what their characters came with.
+local function theirsLine(o)
+  if not o.receive then return "You don't keep what they share, so it doesn't show here." end
+  if o.theirCount == 0 then return "Nothing from them yet." end
+  return "They share with you: " .. ns.shareSummary(o.theirs) .. "."
+end
 
 local function drawSharing()
   local o = sharingNow()
@@ -753,7 +814,14 @@ local function drawSharing()
     end
   end
   sharingSummary:SetText(o.share and ("They get " .. o.summary .. ".") or "They get nothing while you don't share with them.")
-  for _, b in ipairs(askButtons) do ui.styleButton(b, askWants[b.key] and "selected" or nil) end
+  theirsText:SetText(theirsLine(o))
+  -- What they already share needs no asking: greyed out.
+  for _, b in ipairs(askButtons) do
+    local have = o.theirs[b.key] == true
+    if have then askWants[b.key] = nil end
+    b:SetEnabled(not have)
+    ui.styleButton(b, askWants[b.key] and "selected" or nil)
+  end
   ui.refresh(sharing) -- the checkboxes
 end
 
@@ -808,8 +876,11 @@ local function buildSharing()
   sharingSummary:SetWidth(DETAILS_WIDTH - 28)
 
   -- Asking them for more of theirs: pick what, then Ask. Their box asks them with those ticked.
+  theirsText = ui.text(sharing, "GameFontHighlightSmall")
+  theirsText:SetPoint("TOPLEFT", sharingSummary, "BOTTOMLEFT", 0, -16)
+  theirsText:SetWidth(DETAILS_WIDTH - 28)
   local askTitle = ui.text(sharing, "GameFontNormalSmall", "Ask them to share:")
-  askTitle:SetPoint("TOPLEFT", sharingSummary, "BOTTOMLEFT", 0, -16)
+  askTitle:SetPoint("TOPLEFT", theirsText, "BOTTOMLEFT", 0, -12)
   local chip = math.floor((DETAILS_WIDTH - 28 - 12) / 3)
   local categories = ns.SHARE_CATEGORIES or {}
   local function slot(b, i)
@@ -1964,7 +2035,7 @@ end
 local TABS = {
   { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
   { key = "characters", label = "Characters", height = 1000, build = buildCharacters }, -- grows with the list
-  { key = "sharing", label = "Sharing", height = 700, build = buildSharingTab }, -- without the app: the whole chat table
+  { key = "sharing", label = "Sharing", height = 830, build = buildSharingTab }, -- without the app: the whole chat table
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
   { key = "settings", label = "Settings", height = 780, build = buildSettings },
@@ -2036,6 +2107,26 @@ local function fitPages()
   end
 end
 
+local function setSizeBounds(maxWidth, maxHeight)
+  if window.SetResizeBounds then window:SetResizeBounds(WIDTH, HEIGHT, maxWidth, maxHeight)
+  elseif window.SetMinResize then -- older clients
+    window:SetMinResize(WIDTH, HEIGHT)
+    window:SetMaxResize(maxWidth, maxHeight)
+  end
+end
+
+-- Clamped to the screen, a window sized past the screen's edge is pushed back instead, title bar
+-- and all off the top. So it grows from its top left and only as far as the screen has room.
+local function startSizing()
+  local left, top, screen = window:GetLeft(), window:GetTop(), UIParent:GetRight()
+  if left and top and screen then
+    window:ClearAllPoints()
+    window:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    setSizeBounds(math.max(WIDTH, math.min(MAX_WIDTH, screen - left)), math.max(HEIGHT, math.min(MAX_HEIGHT, top)))
+  end
+  window:StartSizing("BOTTOMRIGHT")
+end
+
 local function resizeGrip()
   local grip = CreateFrame("Button", nil, window)
   grip:SetSize(16, 16)
@@ -2043,13 +2134,12 @@ local function resizeGrip()
   grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
   grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
   grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-  grip:SetScript("OnMouseDown", function() window:StartSizing("BOTTOMRIGHT") end)
+  grip:SetScript("OnMouseDown", startSizing)
   grip:SetScript("OnMouseUp", function()
-    window:StopMovingOrSizing()
+    savePosition(window) -- the sizing anchored it at its top left
     local s = saved()
     s.width, s.height = math.floor(window:GetWidth() + 0.5), math.floor(window:GetHeight() + 0.5)
     fitPages()
-    placePanels()
     if current and tabs[current] and tabs[current].page then ui.refresh(tabs[current].page) end
   end)
   return grip
@@ -2111,11 +2201,7 @@ local function build()
   window:SetSize(math.max(WIDTH, math.min(MAX_WIDTH, tonumber(size.width) or WIDTH)),
     math.max(HEIGHT, math.min(MAX_HEIGHT, tonumber(size.height) or HEIGHT)))
   window:SetResizable(true)
-  if window.SetResizeBounds then window:SetResizeBounds(WIDTH, HEIGHT, MAX_WIDTH, MAX_HEIGHT)
-  elseif window.SetMinResize then -- older clients
-    window:SetMinResize(WIDTH, HEIGHT)
-    window:SetMaxResize(MAX_WIDTH, MAX_HEIGHT)
-  end
+  setSizeBounds(MAX_WIDTH, MAX_HEIGHT)
   window:SetScript("OnSizeChanged", fitPages)
   window:SetFrameStrata("DIALOG")
   window:SetToplevel(true)

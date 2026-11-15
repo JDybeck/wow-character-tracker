@@ -183,6 +183,12 @@ class FlavorSettings
         AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
         Ignored = game.Ignored is { } ignored ? [.. ignored] : Ignored;
+        if (game.Filters is { } f)
+        {
+            static int Level(int? typed, int now) => typed is int n ? Math.Clamp(n, 1, 100) : now;
+            (LevelSplit, LevelEveryBefore, LevelEveryAfter) = (Level(f.Split, LevelSplit), Level(f.Before, LevelEveryBefore), Level(f.After, LevelEveryAfter));
+            (RareBoeOnly, FirstBossKillOnly) = (f.RareBoe ?? RareBoeOnly, f.FirstKill ?? FirstBossKillOnly);
+        }
         return true;
     }
 

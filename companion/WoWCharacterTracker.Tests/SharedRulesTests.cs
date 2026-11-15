@@ -169,8 +169,23 @@ public class SharedRulesTests
         Assert.False(AddonWants(s, e));
     }
 
+    // Level steps and Bind on Equip only changed in game apply in the addon right away, before the app has them.
+    [Fact]
+    public void Filters_changed_in_game_decide_what_the_addon_sends()
+    {
+        var s = new FlavorSettings { LevelSplit = 30, LevelEveryBefore = 5, LevelEveryAfter = 1, PostRare = true, RareBoeOnly = true };
+        var ding = new Entry { Kind = "level", Level = 12 };
+        var blue = new Entry { Kind = "loot", Level = 20, Quality = 3 };
+        Assert.False(AddonWants(s, ding));
+        Assert.False(AddonWants(s, blue));
+        const string inGame = "WoWCharacterTrackerDB.gameSettings = { at = 5, filters = { split = 30, before = 2, after = 1, rareBoe = false } }";
+        Assert.True(AddonWants(s, ding, inGame));
+        Assert.True(AddonWants(s, blue, inGame));
+    }
+
     // Runs LiveGrid.lua's wanted() through ns.addEvent with the Settings.lua the app would write.
-    internal static bool AddonWants(FlavorSettings s, Entry e)
+    // lua: run before loading, to set up the saved file.
+    internal static bool AddonWants(FlavorSettings s, Entry e, string lua = "")
     {
         var dir = Path.Combine(Path.GetTempPath(), "wct-wanted-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
@@ -179,7 +194,7 @@ public class SharedRulesTests
             AddonInstaller.WriteSettings(dir, s);
             var script = new Script();
             script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
-            script.DoString("WoWCharacterTrackerDB = { events = {}, live = false } function CreateFrame() return { SetScript = function() end } end Screenshot = nil");
+            script.DoString("WoWCharacterTrackerDB = { events = {}, live = false } function CreateFrame() return { SetScript = function() end } end Screenshot = nil " + lua);
             var ns = new Table(script);
             foreach (var file in new[] { "Shared.lua", "LiveGrid.lua" })
                 script.Call(script.LoadString(AddonFile(file)), "WoWCharacterTracker", ns);

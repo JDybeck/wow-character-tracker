@@ -300,6 +300,29 @@ public class RatingTests
         Assert.Null(SavedVariables.ReadInGame(MoonSharp.Interpreter.DynValue.Nil));
     }
 
+    // The level steps and filters, changed on the addon's Sharing tab, come back to the app and out again.
+    [Fact]
+    public void Level_steps_and_filters_changed_in_game_reach_the_app()
+    {
+        var s = new FlavorSettings { InGameAt = 1000 };
+        var read = SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString(
+            "return { at = 1100, filters = { split = 20, before = 2, after = 500, rareBoe = false } }"));
+        Assert.True(s.TakeInGame(read));
+        Assert.Equal((20, 2, 100), (s.LevelSplit, s.LevelEveryBefore, s.LevelEveryAfter)); // clamped like the app's boxes
+        Assert.False(s.RareBoeOnly);
+        Assert.True(s.FirstBossKillOnly); // not in the change: the app's stays
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-filters-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, s);
+            Assert.Contains("filters = { split = 20, before = 2, after = 100, rareBoe = false, firstKill = true }",
+                File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // A change from an older addon that didn't keep every setting: the ones it has win, the rest stay.
     [Fact]
     public void Settings_missing_from_the_in_game_change_keep_the_apps_values()

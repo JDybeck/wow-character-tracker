@@ -63,8 +63,7 @@ ns.momentLine = message
 local function announceKey(e)
   if e.maxLevel then return "maxlevel" end
   if e.kind == "loot" and (e.quality or 0) == 3 then
-    local post = ns.setting("post") or {}
-    if post.rareBoe and not e.boe then return nil end
+    if ns.filters().rareBoe and not e.boe then return nil end
     return "rare"
   end
   return e.kind

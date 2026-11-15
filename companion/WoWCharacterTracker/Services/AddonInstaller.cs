@@ -132,6 +132,8 @@ static partial class AddonInstaller
                   + "WoWCharacterTrackerSettings = {\n"
                   + $"  screenshot = {{ {shots} }},\n"
                   + $"  post = {{ {post} }},\n"
+                  // The level steps and filters, an In game setting the addon's Sharing tab changes too.
+                  + $"  filters = {{ split = {s.LevelSplit}, before = {s.LevelEveryBefore}, after = {s.LevelEveryAfter}, rareBoe = {B(s.RareBoeOnly)}, firstKill = {B(s.FirstBossKillOnly)} }},\n"
                   // The followed items, since the addon only records rare and better otherwise.
                   + $"  followed = {{ {string.Concat(s.AllFollowed.Select(i => $"[{i.Id}] = true, "))}}},\n"
                   + $"  hideChat = {B(s.HideChatInShots)},\n"

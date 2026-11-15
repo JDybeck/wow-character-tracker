@@ -1435,8 +1435,8 @@ public class AddonLuaTests
             Assert.Contains("boss kills", script.DoString("return texts[#texts]").String);
             var before = (int)script.DoString("return #frames").Number;
             script.Call(ns.Get("openWindow"), "chat"); // now the Sharing tab
-            // Group chat is on in Settings.lua, and it's the only box on the tab that is.
-            Assert.Equal(1, script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
+            // Group chat is on in Settings.lua, and so are the two filters (Bind on Equip only, first kill only).
+            Assert.Equal(3,script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

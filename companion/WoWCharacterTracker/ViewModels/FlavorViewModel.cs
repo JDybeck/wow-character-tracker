@@ -199,18 +199,19 @@ sealed class FlavorViewModel : Observable
     // --- what gets posted (bound two-way from the settings page) ---
 
     public bool PostLevels { get => Settings.PostLevels; set { Settings.PostLevels = value; Changed(); } }
-    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); TypedChanged(); } }
-    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); TypedChanged(); } }
-    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); TypedChanged(); } }
+    // The level steps and the two filters can be changed in the addon too (Settings.lua `filters`).
+    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
+    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
+    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
     public bool PostRare { get => Settings.PostRare; set { Settings.PostRare = value; Changed(); } }
-    public bool RareBoeOnly { get => Settings.RareBoeOnly; set { Settings.RareBoeOnly = value; Changed(); } }
+    public bool RareBoeOnly { get => Settings.RareBoeOnly; set { Settings.RareBoeOnly = value; InGameChanged(); } }
     public bool PostBattlegrounds { get => Settings.PostBattlegrounds; set { Settings.PostBattlegrounds = value; Changed(); } }
     public bool PostProfessions { get => Settings.PostProfessions; set { Settings.PostProfessions = value; Changed(); } }
     public bool PostEpic { get => Settings.PostEpic; set { Settings.PostEpic = value; Changed(); } }
     public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; Changed(); } }
     public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
     public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
-    public bool FirstBossKillOnly { get => Settings.FirstBossKillOnly; set { Settings.FirstBossKillOnly = value; main.Config.Save(); Raise(nameof(FirstBossKillOnly)); } }
+    public bool FirstBossKillOnly { get => Settings.FirstBossKillOnly; set { Settings.FirstBossKillOnly = value; InGameChanged(); } }
     public bool PostMaxLevel { get => Settings.PostMaxLevel; set { Settings.PostMaxLevel = value; Changed(); } }
     public bool PostDuels { get => Settings.PostDuels; set { Settings.PostDuels = value; Changed(); } }
     public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; Changed(); } }
@@ -242,9 +243,11 @@ sealed class FlavorViewModel : Observable
     // A setting that can be changed in game too changed here: the newest change wins (FlavorSettings.TakeInGame).
     void InGameChanged([CallerMemberName] string? name = null)
     {
-        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        MarkInGameChanged();
         Changed(name);
     }
+
+    void MarkInGameChanged() => Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
     // The In game settings as changed in the addon's options page, when that's the newest change.
     void TakeInGameSettings(InGameSettings? game)
@@ -257,7 +260,8 @@ sealed class FlavorViewModel : Observable
         SharingChanged();
         foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces),
             nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
-            nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight) })
+            nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight),
+            nameof(LevelSplit), nameof(LevelEveryBefore), nameof(LevelEveryAfter), nameof(LevelPreview), nameof(RareBoeOnly), nameof(FirstBossKillOnly) })
             Raise(name);
         Log.Info($"[{Name}] Took the In game settings you changed in the game.");
     }
@@ -297,7 +301,6 @@ sealed class FlavorViewModel : Observable
     {
         pendingPreset = null;
         SharingPresets.Apply(Settings, Flavor, key);
-        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); // chat and ask lists changed too
         PostingReplaced();
         Log.Info($"[{Name}] Sharing set to {key}.");
     }
@@ -478,6 +481,7 @@ sealed class FlavorViewModel : Observable
     // After all posting settings changed at once: save, tell the addon, refresh the whole page.
     void PostingReplaced()
     {
+        MarkInGameChanged(); // the filters, chat and ask lists changed too
         AddonSettingsChanged();
         SharingChanged();
         Raise(string.Empty); // every property

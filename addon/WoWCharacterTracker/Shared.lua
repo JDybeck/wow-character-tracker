@@ -70,7 +70,7 @@ end
 -- right away, the app takes it from the saved file, and a later change in the app (Settings.lua
 -- inGameAt) wins over it.
 local IN_GAME = { announce = true, ask = true, flightReload = true, chatReminder = true,
-  gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true, preset = true }
+  gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true, preset = true, filters = true }
 
 local function changedInGame()
   local changed = WoWCharacterTrackerDB and WoWCharacterTrackerDB.gameSettings
@@ -85,6 +85,24 @@ function ns.setting(key)
   -- A key an older version didn't keep in game still comes from the app.
   if changed and changed[key] ~= nil then return changed[key] end
   return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key]
+end
+
+-- The app's Sharing page filters, an In game setting: level steps (post every `before` levels up to
+-- `split`, then every `after`), rares Bind on Equip only, end bosses first kill only. An older app
+-- only wrote them in its post rules.
+function ns.filters()
+  local f = ns.setting("filters")
+  if type(f) == "table" then return f end
+  local post = ns.setting("post") or {}
+  local l = post.level or {}
+  return { split = l.split, before = l.before, after = l.after, rareBoe = post.rareBoe, firstKill = true }
+end
+
+-- Whether the level rule posts this level (the app's FlavorSettings.LevelWanted).
+function ns.levelPosted(level)
+  local f = ns.filters()
+  local every = (level <= (f.split or 0)) and (f.before or 1) or (f.after or 1)
+  return level % math.max(1, every) == 0
 end
 
 -- Ignore tracking (`ignored` = { [guid] = true }, an In game setting): nothing is recorded, sent
@@ -173,6 +191,7 @@ function ns.editSettings(edit)
   changed.announce.kinds = changed.announce.kinds or {}
   changed.announce.partyKinds = changed.announce.partyKinds or copy(changed.announce.kinds) -- from before the group had its own
   changed.ask = changed.ask or {}
+  changed.filters = changed.filters or copy(ns.filters()) -- from before filters were In game
   edit(changed)
   local fromApp = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.inGameAt or 0
   changed.at = math.max(time(), fromApp + 1)

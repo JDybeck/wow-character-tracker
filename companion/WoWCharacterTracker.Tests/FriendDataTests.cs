@@ -67,6 +67,28 @@ public class FriendDataTests
         Assert.Equal(40, events[0].GroupSize);
     }
 
+    // What a friend shares shows in what their characters came with, across all of them.
+    [Fact]
+    public void The_categories_a_friend_shares_come_from_their_characters()
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua", "FriendData.lua"]);
+        c.Lua("""
+            local char = { char = 'Zeb', lastSeen = 20, level = 30, zone = 'Duskwood', money = 500, talentCalc = '--505', played = 3600 }
+            local items = { gear = '1~19019' }
+            local a = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000B', char, items, { gear = true, leveling = true }))
+            local b = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000C', char, items, { talents = true }))
+            got = ns.friendSharedCategories({ a = a, b = b })
+            none = ns.friendSharedCategories(nil)
+            """);
+        Assert.Equal("gear,leveling,talents", c.Lua("""
+            local out = {}
+            for k in pairs(got) do out[#out + 1] = k end
+            table.sort(out)
+            return table.concat(out, ',')
+            """).String);
+        Assert.True(c.Lua("return next(none) == nil").Boolean);
+    }
+
     // Level times go out with Level times on (and only then), and the app reads them as level events,
     // with played time and the XP bar on the character.
     [Fact]

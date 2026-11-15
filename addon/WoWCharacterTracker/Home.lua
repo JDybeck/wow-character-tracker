@@ -176,6 +176,27 @@ local function sizeMomentRow(row, width)
   row.what:SetWidth(math.max(40, width - WHO - 4 - 56))
 end
 
+-- events[i] as the feed shows it, or nil when it doesn't go to Discord: what LiveGrid's wanted()
+-- says, a boss again only without first kills only (the app's IsRepeatKill), and a moment posted
+-- from the ask box as the moment it was. Without the app every moment counts.
+local function postedMoment(events, i)
+  local e = events[i]
+  if e.kind == "ask" then
+    local shown = ns.copy(e)
+    shown.kind = e.askedKind
+    return shown
+  end
+  if not ns.setting("post") then return e end
+  if ns.wanted and not ns.wanted(e) then return nil end
+  if e.kind == "boss" and ns.filters().firstKill ~= false then
+    for j = i - 1, 1, -1 do
+      local o = events[j]
+      if type(o) == "table" and o.kind == "boss" and o.guid == e.guid and o.boss == e.boss then return nil end
+    end
+  end
+  return e
+end
+
 -- At y below the card's top edge.
 local function at(w, card, y, x)
   w:ClearAllPoints()
@@ -541,12 +562,12 @@ function ns.buildHomeTab(p)
     factLines[2]:SetText(summary and summary.count > 1 and string.format("Slowest %s (%d to %d)",
       ns.formatDuration(summary.slowest.seconds), summary.slowest.level - 1, summary.slowest.level) or "")
 
-    -- Your newest moments with a line (ns.momentLine), any of your characters.
+    -- Your newest moments that go to Discord, with a line (ns.momentLine), any of your characters.
     local list = {}
     for i = #events, 1, -1 do
       if #list >= FEED_SIZE then break end
-      local e = events[i]
-      if type(e) == "table" and e.kind ~= "ask" and ns.momentLine and ns.momentLine(e) then list[#list + 1] = { e = e } end
+      local e = type(events[i]) == "table" and postedMoment(events, i)
+      if e and ns.momentLine and ns.momentLine(e) then list[#list + 1] = { e = e } end
     end
     fillColumn(mine, list)
   end

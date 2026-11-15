@@ -467,11 +467,10 @@ local function wanted(e)
   if e.kind == "level" then
     local l = post.level
     if not l or not l.on then return false end
-    local every = (e.level <= (l.split or 0)) and (l.before or 1) or (l.after or 1)
-    return e.level % math.max(1, every) == 0
+    return ns.levelPosted(e.level)
   elseif e.kind == "loot" then
     if (e.quality or 0) >= 4 then return post.epic and true or false end
-    return (post.rare and (e.boe or not post.rareBoe)) and true or false -- rareBoe: Bind on Equip only
+    return (post.rare and (e.boe or not ns.filters().rareBoe)) and true or false -- rareBoe: Bind on Equip only
   elseif e.kind == "keyrun" then -- Mythic+ runs: from a key level, maybe only timed ones
     local k = post.keyrun
     if not k or not k.on or (e.keyLevel or 0) < (k.min or 0) then return false end
