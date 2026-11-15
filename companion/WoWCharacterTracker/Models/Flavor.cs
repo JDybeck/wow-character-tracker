@@ -18,8 +18,11 @@ sealed record Flavor(string Key, string Name, string[] Folders, string WowheadPa
     // UnitName gives a surname (Ronnie Raket), so posts can use the first, last or full name.
     public bool HasSurnames { get; init; }
 
-    // No armory: the character's picture is the portrait the addon shows in its check-in shot.
+    // Your character's picture is the portrait the addon shows in its check-in shot.
     public bool HasInGamePortraits { get; init; }
+
+    // Blizzard's armory by name and surname (BlizzardArmory): the page to link, and friends' pictures. "" = none.
+    public string ArmoryGame { get; init; } = "";
 
     // Raider.IO has a render of the character (needs the region).
     public bool HasRenders { get; init; }
@@ -75,7 +78,7 @@ static class Flavors
     })
     {
         LogoUrl = "https://warcraft.wiki.gg/images/thumb/WoW_Forever_Logo.png/250px-WoW_Forever_Logo.png",
-        HasRulesets = true, HasSurnames = true, HasInGamePortraits = true, HasClassicTalents = true,
+        HasRulesets = true, HasSurnames = true, HasInGamePortraits = true, ArmoryGame = "forever", HasClassicTalents = true,
         StressTestBefore = 1793746800, // 2026-11-04 00:00 Swedish time: earlier characters are from the stress test
         HasRangedSlot = true, EstimatesXp = true, ReadyMadeLists = ReadyMadeList.All, MaxLevel = 60,
         EnchantSpells = "enchant-spells-forever.json", // Forever renumbered some of Classic's enchants

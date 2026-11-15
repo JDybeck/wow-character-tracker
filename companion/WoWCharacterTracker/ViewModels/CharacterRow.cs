@@ -50,8 +50,11 @@ sealed class CharacterRow : Observable
     public bool HasTalentPicks => TalentPickList.Count > 0;
     public string TalentExport { get; init; } = ""; // the game's loadout string (retail)
     public bool HasTalentExport => TalentExport.Length > 0;
-    public string Region { get; init; } = ""; // "eu", "us"... for the Retail character render
+    public string Region { get; set; } = ""; // "eu", "us"... for the Retail render and the armory (friends get yours)
     public string RealmText => Realms.Label(Region, Realm);
+    public string ArmoryGame { get; init; } = ""; // Flavor.ArmoryGame
+    public string? ArmoryUrl => IsTest ? null : BlizzardArmory.ProfileUrl(ArmoryGame, Region, Name, Surname);
+    public bool HasArmoryLink => ArmoryUrl is not null;
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
@@ -253,19 +256,32 @@ sealed class CharacterRow : Observable
     public async Task LoadPictureAsync(Flavor flavor)
     {
         pictureFlavor = flavor;
-        HasGamePortrait = CharacterPicture.GamePortrait(flavor, Guid, standardChosen: false) is not null;
-        if (CharacterPicture.GamePortrait(flavor, Guid, useStandard) is { } own) { PictureUrl = own; return; }
-        PictureUrl = CharacterArt.ClassIconUrl(ClassFile);
+        if (IsFriend)
+        {
+            PictureUrl ??= CharacterArt.ClassIconUrl(ClassFile);
+            var armory = await CharacterPicture.ArmoryAsync(flavor, Picture);
+            HasGamePortrait = armory is not null;
+            if (armory is not null && !useStandard) { PictureUrl = armory; return; }
+        }
+        else
+        {
+            HasGamePortrait = CharacterPicture.GamePortrait(flavor, Guid, standardChosen: false) is not null;
+            if (CharacterPicture.GamePortrait(flavor, Guid, useStandard) is { } own) { PictureUrl = own; return; }
+            PictureUrl = CharacterArt.ClassIconUrl(ClassFile);
+        }
         if (await CharacterPicture.StandardAsync(flavor, Picture) is { } url) PictureUrl = url;
     }
 
-    // Forever: which picture to show once an in-game portrait was captured, the in-game one or the
-    // standard (race) one. The choice is saved (Config.StandardPortraits) through the callback.
+    // Which picture to show when there's more than the standard (race) one: yours on Forever, the
+    // in-game portrait once one was captured; a friend's, the armory picture. The choice is saved
+    // (Config.StandardPortraits) through the callback.
     Flavor? pictureFlavor;
     bool useStandard;
     Action<bool>? portraitChosen;
     bool hasGamePortrait;
     public bool HasGamePortrait { get => hasGamePortrait; private set => Set(ref hasGamePortrait, value); }
+    public string GamePortraitName => IsFriend ? "Armory" : "In-game";
+    public string GamePortraitTip => IsFriend ? "Their character's picture from the armory" : "The portrait your character has in game, captured when you log in";
     public bool UseGamePortrait { get => !useStandard; set { if (value) ChoosePortrait(false); } }
     public bool UseStandardPortrait { get => useStandard; set { if (value) ChoosePortrait(true); } }
 
@@ -356,6 +372,7 @@ sealed class CharacterRow : Observable
                 TalentExport = Newest(guid, c => c.TalentExport),
                 TalentCalc = Newest(guid, c => c.TalentCalc),
                 Region = Newest(guid, c => c.Region),
+                ArmoryGame = flavor.ArmoryGame,
                 Stats = Newest(guid, c => c.Stats),
                 Recipes = Newest(guid, c => c.Recipes),
                 Levels = levels

@@ -7,6 +7,8 @@ sealed record PictureSubject(string Guid, string Region, string Realm, string Na
 // Discord posts, character cards), so they always agree:
 // - Forever: the in-game portrait from the character's last check-in, unless the user picked the
 //   standard picture for it (Config.StandardPortraits).
+// - A friend's character, where the game has Blizzard's armory: its armory picture (there are no
+//   check-ins of theirs here), unless the user picked the standard picture for it.
 // - Otherwise the standard picture: on Retail the character's render from Raider.IO (needs the
 //   region), else the race portrait, else the class icon (CharacterArt).
 // Discord needs a web address for the sender's avatar, so posts use the standard picture there and
@@ -23,4 +25,8 @@ static class CharacterPicture
     // The in-game portrait file when that's the one to show, else null.
     public static string? GamePortrait(Flavor flavor, string guid, bool standardChosen) =>
         flavor.HasInGamePortraits && !standardChosen ? CharacterArt.LocalPortrait(guid) : null;
+
+    // A friend's armory picture when the armory has one, else null.
+    public static async Task<string?> ArmoryAsync(Flavor flavor, PictureSubject who) =>
+        BlizzardArmory.AvatarUrl(flavor.ArmoryGame, who.Region, who.Guid) is { } url && await CharacterArt.ExistsAsync(url) ? url : null;
 }

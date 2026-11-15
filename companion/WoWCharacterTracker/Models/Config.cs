@@ -118,8 +118,15 @@ class Config
         return true;
     }
 
-    // Forever characters (GUIDs) shown with their standard race portrait instead of the in-game one.
+    // Forever characters (GUIDs) shown with their standard race portrait instead of the in-game one
+    // (a friend's: instead of the armory picture).
     public List<string> StandardPortraits { get; set; } = [];
+
+    public void SetStandardPortrait(string guid, bool standard)
+    {
+        StandardPortraits.Remove(guid);
+        if (standard) StandardPortraits.Add(guid);
+    }
 
     // Older name, from when the window itself started with Windows. Moved on load.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
