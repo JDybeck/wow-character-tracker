@@ -13,7 +13,8 @@ local CHART_HEIGHT = 36
 local BAR_STEP = 12 -- a bar and its gap
 local HISTORY_ROWS = 20
 local ROW = 16
-local FEED_SIZE = 6
+local FEED_SIZE = 6  -- rows shown per moment column
+local FEED_MAX = 50  -- kept per column, the mouse wheel scrolls through them
 local FRIENDS_SHOWN = 4
 local TODAY_MAX = 12 -- room for every stat Today.lua has
 local REDRAW_EVERY = 2 -- seconds
@@ -156,10 +157,12 @@ local function setMomentRow(row, who, classFile, what, at, open)
   row:Show()
 end
 
--- A column of moments from list ({ e, c, label }: c and label for a friend's, whose click opens it).
-local function fillColumn(col, list)
+-- Shows col.list from col.offset (the mouse wheel moves it), and "1-6 of 50" when there's more.
+local function showColumn(col)
+  local list = col.list
+  col.offset = math.max(0, math.min(col.offset or 0, #list - FEED_SIZE))
   for i, row in ipairs(col.rows) do
-    local item = list[i]
+    local item = list[col.offset + i]
     if item then
       local e = item.e
       local open = item.c and function() ns.toggleFriendDetails(item.c, item.label) end or nil
@@ -169,6 +172,22 @@ local function fillColumn(col, list)
     end
   end
   col.empty:SetShown(#list == 0)
+  col.more:SetShown(#list > FEED_SIZE)
+  col.more:SetText(string.format("%d-%d of %d", col.offset + 1, math.min(col.offset + FEED_SIZE, #list), #list))
+end
+
+-- A column of moments from list ({ e, c, label }: c and label for a friend's, whose click opens it).
+local function fillColumn(col, list)
+  col.list = list
+  showColumn(col)
+end
+
+-- Scrolls col by delta (the wheel's: 1 up, -1 down); false at the end, so the page scrolls instead.
+local function scrollColumn(col, delta)
+  local before = col.offset or 0
+  col.offset = before - delta
+  showColumn(col)
+  return col.offset ~= before
 end
 
 local function sizeMomentRow(row, width)
@@ -340,9 +359,10 @@ function ns.buildHomeTab(p)
   moments:SetSize(WIDTH, 26 + FEED_SIZE * 20)
   moments:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -18)
   local function column(title, empty)
-    local col = { title = ui.text(moments, "GameFontNormal", title), rows = {} }
+    local col = { title = ui.text(moments, "GameFontNormal", title), rows = {}, list = {}, offset = 0 }
     ui.tint(col.title, C.accent)
     col.empty = ui.text(moments, "GameFontDisableSmall", empty)
+    col.more = ui.text(moments, "GameFontDisableSmall")
     for i = 1, FEED_SIZE do col.rows[i] = newMomentRow(moments) end
     return col
   end
@@ -363,6 +383,8 @@ function ns.buildHomeTab(p)
     col.empty:ClearAllPoints()
     col.empty:SetPoint("TOPLEFT", moments, "TOPLEFT", x, -24)
     col.empty:SetWidth(w)
+    col.more:ClearAllPoints()
+    col.more:SetPoint("TOPRIGHT", moments, "TOPLEFT", x + w, -2)
     for i, row in ipairs(col.rows) do
       row:ClearAllPoints()
       row:SetPoint("TOPLEFT", moments, "TOPLEFT", x, -24 - (i - 1) * 20)
@@ -400,6 +422,17 @@ function ns.buildHomeTab(p)
     self.dragging = false
     self:SetScript("OnUpdate", nil)
     ui.fill(dividerLine, C.border)
+  end)
+  -- The wheel scrolls the column under the cursor; past its ends, or without more, the page scrolls.
+  moments:EnableMouseWheel(true)
+  moments:SetScript("OnMouseWheel", function(_, delta)
+    local x = GetCursorPosition() / (moments:GetEffectiveScale() or 1) - (moments:GetLeft() or 0)
+    if scrollColumn(x < split(width) and mine or theirs, delta) then return end
+    local page = p:GetParent()
+    if page and page.GetVerticalScroll and page.GetVerticalScrollRange then
+      local y = (page:GetVerticalScroll() or 0) - delta * 40
+      page:SetVerticalScroll(math.max(0, math.min(y, page:GetVerticalScrollRange() or 0)))
+    end
   end)
 
   -- Friends who share with you, the one seen last first -----------------------------------------
@@ -576,7 +609,7 @@ function ns.buildHomeTab(p)
     -- Your newest moments that go to Discord, with a line (ns.momentLine), any of your characters.
     local list, repeats = {}, repeatKills(events)
     for i = #events, 1, -1 do
-      if #list >= FEED_SIZE then break end
+      if #list >= FEED_MAX then break end
       local e = type(events[i]) == "table" and postedMoment(events, i, repeats)
       if e and ns.momentLine and ns.momentLine(e) then list[#list + 1] = { e = e } end
     end
@@ -598,7 +631,7 @@ function ns.buildHomeTab(p)
       end
     end
     table.sort(happened, function(a, b) return a.e.at > b.e.at end)
-    for i = #happened, FEED_SIZE + 1, -1 do happened[i] = nil end
+    for i = #happened, FEED_MAX + 1, -1 do happened[i] = nil end
     fillColumn(theirs, happened)
 
     table.sort(latest, function(a, b) return a.at > b.at end)

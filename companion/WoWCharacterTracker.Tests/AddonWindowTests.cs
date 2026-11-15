@@ -1088,6 +1088,76 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
     }
 
+    // Your character's Highlights button opens its highlights beside the window, newest first, losses
+    // too; a second click closes them, and the gear panel makes way.
+    [Fact]
+    public void A_characters_highlights_open_beside_the_window()
+    {
+        var c = Load("""
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', level = 45, classFile = 'WARRIOR', lastSeen = 200 } }, items = {}, events = {
+              { kind = 'level', guid = 'Player-1-0000000A', level = 45, seconds = 10440, at = 150 },
+              { kind = 'boss', guid = 'Player-1-0000000A', level = 45, boss = 'Archaedas', instance = 'Uldaman', at = 160 },
+              { kind = 'duel', guid = 'Player-1-0000000A', level = 45, opponent = 'Bob', lost = true, at = 170 },
+              { kind = 'boss', guid = 'Player-1-0000000C', level = 20, boss = 'Mutanus', instance = 'Wailing Caverns', at = 180 } } }
+            """);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Call("openWindow", "characters");
+        c.Lua("local r = shownText('Zeb').owner; r.scripts.OnMouseUp(r)");
+        c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerHighlightsPanel'))"));
+        Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+        Assert.True(Bool(c, "shownText('2 highlights, newest first') ~= nil"));
+        Assert.True(Bool(c, "shownText('Lost a duel to Bob.').owner.point[5] == 0")); // newest on top
+        Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
+        Assert.True(Bool(c, "shownText('Killed Mutanus in Wailing Caverns!') == nil")); // another character's
+        c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
+        Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerHighlightsPanel'))"));
+    }
+
+    // A friend's character has the button too, with what they share.
+    [Fact]
+    public void A_friends_character_shows_their_shared_highlights()
+    {
+        var c = FriendsTab();
+        c.Lua("shared[1].chars[1].highlights = 'boss~99000~60~Ragnaros~Molten Core~40\\nmount~98000~60~Swift Razzashi Raptor~19872~'");
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Lua("openFriend('Cidro')");
+        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
+        Assert.True(Bool(c, "shownText('Got a new mount: [Swift Razzashi Raptor]!').owner.itemId == 19872")); // its game tooltip on hover
+    }
+
+    // Home keeps more moments than it shows: the wheel scrolls the column under the cursor.
+    [Fact]
+    public void Home_moments_scroll_with_the_wheel()
+    {
+        var events = string.Join(",\n", Enumerable.Range(1, 8).Select(i =>
+            $"{{ kind = 'boss', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, boss = 'Boss {i}', instance = 'Uldaman', at = {i} }}"));
+        var c = Load("{ chars = {}, items = {}, events = {\n" + events + " } }");
+        c.Lua("""
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitLevel() return 45 end
+            function date() return { year = 2026, month = 11, day = 9 } end
+            function GetCursorPosition() return 10, 0 end
+            ns.playedNow = function() return 100 end
+            ns.levelTimeNow = function() return 10 end
+            """);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Call("openWindow", "home");
+        Assert.True(Bool(c, "shownText('1-6 of 8') ~= nil"));
+        Assert.True(Bool(c, "shownText('Killed Boss 8 in Uldaman!') ~= nil and shownText('Killed Boss 2 in Uldaman!') == nil"));
+        c.Lua("""
+            for _, f in ipairs(frames) do if f.scripts.OnMouseWheel then moments = f end end
+            moments.GetLeft = function() return 0 end
+            moments.scripts.OnMouseWheel(moments, -1)
+            moments.scripts.OnMouseWheel(moments, -1)
+            moments.scripts.OnMouseWheel(moments, -1) -- past the end: stays
+            """);
+        Assert.True(Bool(c, "shownText('3-8 of 8') ~= nil"));
+        Assert.True(Bool(c, "shownText('Killed Boss 1 in Uldaman!') ~= nil and shownText('Killed Boss 8 in Uldaman!') == nil"));
+    }
+
     [Fact]
     public void Find_online_friends_lists_each_friend_with_the_buttons_for_their_state()
     {

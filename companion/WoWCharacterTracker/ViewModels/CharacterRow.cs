@@ -116,7 +116,7 @@ sealed class CharacterRow : Observable
     }
     public CharacterLeveling Leveling { get; init; } = new();
 
-    // The details are split into tabs: "overview", "gear" (gear and bags), "leveling" and "notes".
+    // The details are split into tabs: "overview", "gear" (gear and bags), "leveling", "highlights" and "notes".
     string detailTab = "overview";
     public string DetailTab
     {
@@ -124,9 +124,18 @@ sealed class CharacterRow : Observable
         set
         {
             if (!Set(ref detailTab, value)) return;
-            Raise(nameof(IsOverviewTab)); Raise(nameof(IsGearTab)); Raise(nameof(IsLevelingTab)); Raise(nameof(IsNotesTab));
+            Raise(nameof(IsOverviewTab)); Raise(nameof(IsGearTab)); Raise(nameof(IsLevelingTab)); Raise(nameof(IsNotesTab)); Raise(nameof(IsHighlightsTab));
         }
     }
+    public bool IsHighlightsTab { get => DetailTab == "highlights"; set { if (value) DetailTab = "highlights"; } }
+
+    // The Overview shows the newest few; the Highlights tab has them all.
+    const int HighlightPreview = 5;
+    public IReadOnlyList<HighlightRow> RecentHighlights => Highlights.Count > HighlightPreview ? Highlights.Take(HighlightPreview).ToList() : Highlights;
+    public bool HasMoreHighlights => Highlights.Count > HighlightPreview;
+    public string AllHighlightsText => $"All {Highlights.Count} highlights";
+    RelayCommand? showHighlights;
+    public RelayCommand ShowHighlightsCommand => showHighlights ??= new RelayCommand(_ => DetailTab = "highlights");
     public bool IsNotesTab { get => DetailTab == "notes"; set { if (value) DetailTab = "notes"; } }
 
     // The user's own notes for the character (the Notes tab), stored by the app's config.
