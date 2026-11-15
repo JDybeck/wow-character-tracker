@@ -257,7 +257,7 @@ public class AddonWindowTests
     [Fact]
     public void The_moved_options_write_the_same_settings_as_before()
     {
-        var c = Load();
+        var c = Load(settings: "{ post = {} }"); // Instant posting needs the app
         c.Call("openWindow", "chat");
         c.Lua("click('Party / raid chat')");
         Assert.True(Bool(c, "ns.setting('announce').party"));
@@ -393,12 +393,25 @@ public class AddonWindowTests
         Assert.True(Bool(c, "find('Box stays: 15 seconds') ~= nil"));
     }
 
+    // The ask checkbox turns boss kills and gear on and off, and keeps what else the app's table picked.
+    [Fact]
+    public void The_ask_checkbox_keeps_the_other_moments_the_app_picked()
+    {
+        var c = Load(settings: "{ post = {}, ask = { boss = true, level = true } }");
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "find('Offer to post what Discord skips').checked"));
+        c.Lua("click('Offer to post what Discord skips')");
+        Assert.True(Bool(c, "ns.setting('ask').boss == nil and ns.setting('ask').level == true"));
+        c.Lua("click('Offer to post what Discord skips')");
+        Assert.True(Bool(c, "ns.setting('ask').boss and ns.setting('ask').rare and ns.setting('ask').epic and ns.setting('ask').level"));
+    }
+
     // Reload reminders: one choice over the ding popup, the flight box and the chat line. The
     // defaults (no popup, flight box and chat line on) are Gentle.
     [Fact]
     public void Reload_reminders_are_one_choice_over_three_settings()
     {
-        var c = Load();
+        var c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
         Assert.Equal("gentle", c.Lua("return ns.reloadChoice()").String);
         c.Lua("click('Every chance')");
@@ -538,6 +551,22 @@ public class AddonWindowTests
 
     // The Settings tab links to the app's page with the app and without it.
     [Fact]
+    public void The_settings_tab_shows_what_needs_the_app_only_with_the_app()
+    {
+        var c = Load();
+        c.Call("openWindow", "settings");
+        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern" })
+            Assert.True(Bool(c, $"shownText('{label}') == nil"), label);
+        Assert.True(Bool(c, "shownText('Keep all history') ~= nil and shownText('Show the minimap button') ~= nil"));
+        Assert.True(Bool(c, "shownText('The Character Tracker app') ~= nil"));
+
+        c = Load(settings: "{ post = {} }");
+        c.Call("openWindow", "settings");
+        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern", "Set in the Character Tracker app" })
+            Assert.True(Bool(c, $"shownText('{label}') ~= nil"), label);
+    }
+
+    [Fact]
     public void The_settings_tab_links_to_the_apps_page()
     {
         foreach (var settings in new[] { "{}", "{ post = {} }" })
@@ -575,6 +604,7 @@ public class AddonWindowTests
         ns.askFriend = function(tag) call('ask ' .. tag) return 'Asked ' .. tag .. '.' end
         ns.shareWithFriend = function(tag) call('share ' .. tag) return 'Sharing with ' .. tag .. '.' end
         ns.inviteFriend = function(tag) call('invite ' .. tag) return true, 'Invited ' .. tag .. '.' end
+        ns.unblockFriend = function(tag) call('unblock ' .. tag) online[6].blocked = nil return tag .. ' can ask again.' end
         ns.pendingRequests = function() return requests end
         ns.answerFriendRequest = function(f, choice) call(f.tag .. ' ' .. choice) end
         ns.sharedWithYou = function() return shared end
@@ -744,7 +774,7 @@ public class AddonWindowTests
         Assert.Equal(700, Num(c, "WoWCharacterTrackerDB.window.y"));
     }
 
-    // A friend who's offline shows the character seen last; online friends come first.
+    // Online and Offline split the grid, with their counts; an offline friend shows the character seen last.
     [Fact]
     public void An_offline_friend_shows_the_character_seen_last()
     {
@@ -755,10 +785,36 @@ public class AddonWindowTests
             shared[1].chars[2] = { char = 'Cidra', level = 20, at = clock - 90000, received = clock - 90000 }
             local b = findFriendsButton(); b.scripts.OnClick(b)
             """);
-        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
-        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  last seen 2h ago') ~= nil"));
+        Assert.True(Bool(c, "find('Online (1)') ~= nil and find('Offline (1)') ~= nil"));
         Assert.True(Bool(c, "shownText('Level 12  ·  online') ~= nil"));
-        Assert.True(Bool(c, "friendCard('Bobo').point[4] < friendCard('Cidrin Frostmane').point[4]")); // online first, top left
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') == nil")); // Online is picked first
+        c.Lua("local b = find('Offline (1)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil and friendCard('Bobo') == nil"));
+        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  last seen 2h ago') ~= nil"));
+        Assert.Equal("offline", c.Lua("return WoWCharacterTrackerDB.window.friendsView").String);
+    }
+
+    // Nobody in the picked view says so; Home's link to an offline friend's character switches to Offline.
+    [Fact]
+    public void The_friends_view_says_when_its_empty_and_follows_a_reveal()
+    {
+        var c = FriendsTab();
+        c.Lua("online = {}; ns.friendsChanged()");
+        Assert.True(Bool(c, "shownText('None of them are online in this game right now.') ~= nil"));
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') == nil"));
+        c.Call("toggleFriendDetails", c.Lua("return shared[1].chars[1]"), "Cid#3");
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
+        Assert.Equal("offline", c.Lua("return WoWCharacterTrackerDB.window.friendsView").String);
+    }
+
+    [Fact]
+    public void Unblock_lets_a_blocked_friend_ask_again()
+    {
+        var c = FriendsTab();
+        c.Lua("local b = findFriendsButton(); b.scripts.OnClick(b); calls = {}");
+        c.Lua("clickFriend('Fayla', 'Unblock')");
+        Assert.Equal("unblock Fay#6", Calls(c));
+        Assert.Equal("Ask,Share", c.Lua("return friendButtons('Fayla')").String);
     }
 
     // A click on a character unfolds its info under the row and its gear beside the window; the
@@ -969,8 +1025,8 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('You share, shares with you') ~= nil"));
         Assert.Equal("Invite", c.Lua("return friendButtons('Danno')").String);
         Assert.Equal("Invited", c.Lua("return friendButtons('Evie')").String);
-        Assert.Equal("", c.Lua("return friendButtons('Fayla')").String);
-        Assert.True(Bool(c, "shownText('Fay#6  ·  Blocked') ~= nil"));
+        Assert.Equal("Unblock", c.Lua("return friendButtons('Fayla')").String);
+        Assert.True(Bool(c, "shownText('Fay#6  ·  Blocked') ~= nil")); // still says why, next to the button
 
         // The class color from RAID_CLASS_COLORS, white without one.
         Assert.Equal(0.25, Num(c, "shownText('Annie').color[1]"), 3);

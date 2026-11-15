@@ -261,7 +261,8 @@ function ui.button(parent, label, width, onClick, style)
 end
 
 -- A row of buttons where one is picked (presets, reload reminders). items: { { key, label }, ... };
--- get() says the picked key (a key not among them picks none), set(key) picks one. Returns the row.
+-- get() says the picked key (a key not among them picks none), set(key) picks one. Returns the row;
+-- row.buttons[i] is item i's button, for labels that change (counts); row.draw() shows a pick made elsewhere.
 function ui.choice(parent, items, get, set, width)
   local row = CreateFrame("Frame", nil, parent)
   local w = width or 104
@@ -281,6 +282,7 @@ function ui.choice(parent, items, get, set, width)
     b:SetPoint("LEFT", row, "LEFT", (i - 1) * (w + 6), 0)
     buttons[i] = b
   end
+  row.buttons, row.draw = buttons, draw
   ui.onRefresh(parent, draw)
   return row
 end

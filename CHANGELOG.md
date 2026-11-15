@@ -2,6 +2,17 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.42.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- The addon's **Friends** tab splits your friends into **Online** and **Offline**, with how many are in each. Clicking a friend's character on Home opens the right one.
+- A friend you said **Never** to now has an **Unblock** button in the addon when they're online, so you don't need `/wct friends unblock`.
+- Turning the addon's **Offer to post what Discord skips** off and on again no longer drops the other moments you picked under **Ask first** in the app.
+- Without the app, the addon's **Settings** tab no longer shows options that only work with it (instant posting, reload reminders, the pattern corner), and its hints no longer talk about Discord or the app.
+
 ## v0.41.1
 
 Update the addon with the app (it does this by itself) and /reload in game.
