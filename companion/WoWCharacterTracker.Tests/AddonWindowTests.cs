@@ -388,9 +388,92 @@ public class AddonWindowTests
     {
         var c = Load(settings: "{ post = {} }"); // the ask box needs the app
         c.Call("openWindow", "sharing");
-        c.Lua("local b = find('Box stays: 10 seconds'); b.scripts.OnClick(b)");
+        c.Lua("local b = find('15 sec'); b.scripts.OnClick(b)");
         Assert.Equal(15, Num(c, "ns.setting('askSeconds')"));
-        Assert.True(Bool(c, "find('Box stays: 15 seconds') ~= nil"));
+    }
+
+    // Settings.lua as the app writes it for Forever with the Normal preset, edit applied first: the
+    // table literal the tests load as WoWCharacterTrackerSettings.
+    static string AppSettings(Action<FlavorSettings>? edit = null)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-window-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(AddonInstaller.TargetDir(dir));
+        try
+        {
+            var s = Flavors.Forever.Defaults();
+            SharingPresets.Apply(s, Flavors.Forever, SharingPresets.Normal);
+            edit?.Invoke(s);
+            AddonInstaller.WriteSettings(dir, s, preset: SharingPresets.Detect(s, Flavors.Forever), flavor: Flavors.Forever);
+            var lua = File.ReadAllText(Path.Combine(AddonInstaller.TargetDir(dir), "Settings.lua"));
+            return lua[(lua.IndexOf("= {", StringComparison.Ordinal) + 2)..];
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // The Sharing table's box for a row and column (1 Discord, 2 Screenshot, 3 Group, 4 Ask first),
+    // nil where that moment can't go.
+    const string CellLua = """
+        function cell(row, column)
+          local name = shownText(row)
+          for _, f in ipairs(frames) do
+            if f.point and f.point[2] == name and f.point[4] == 206 + (column - 1) * 105 then return f end
+          end
+        end
+        function clickCell(row, column) local f = cell(row, column); f.checked = not f.checked; f.scripts.OnClick(f) end
+        """;
+
+    // The app's table in game: its rows, and the Discord and screenshot boxes go in as In game settings
+    // that change what's posted right away.
+    [Fact]
+    public void The_sharing_table_changes_discord_and_screenshots()
+    {
+        var c = Load(settings: AppSettings(s => (s.PostEpic, s.PostMounts) = (true, false)));
+        c.Lua(CellLua);
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "shownText('Level-ups') ~= nil and shownText('End boss kills') ~= nil"));
+        Assert.True(Bool(c, "shownText('Mythic+ runs') == nil")); // Retail's
+        Assert.True(Bool(c, "shownText('Guild') == nil")); // guild chat is off until it works
+        Assert.Equal("custom", c.Lua("return ns.currentPreset()").String); // the edit isn't Normal
+        Assert.True(Bool(c, "cell('Epic loot', 1).checked and not cell('New mounts', 1).checked"));
+        Assert.True(Bool(c, "cell('Followed items', 2) == nil and cell('Dungeon runs', 3) == nil")); // nothing to pick there
+
+        c.Lua("clickCell('New mounts', 1); clickCell('Epic loot', 1)");
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.gameSettings.posts.mount == true and WoWCharacterTrackerDB.gameSettings.posts.epic == false"));
+        Assert.True(Bool(c, "ns.postRules().mount and not ns.postRules().epic"));
+        Assert.Equal("custom", c.Lua("return WoWCharacterTrackerDB.gameSettings.preset").String);
+
+        var shot = Bool(c, "cell('Rare loot', 2).checked");
+        c.Lua("clickCell('Rare loot', 2)");
+        Assert.Equal(!shot, Bool(c, "WoWCharacterTrackerDB.gameSettings.screenshot.loot == true"));
+        Assert.Equal(!shot, Bool(c, "cell('Epic loot', 2).checked == true")); // one screenshot setting for all loot
+
+        // The app takes it all on sync.
+        var s = Flavors.Forever.Defaults();
+        Assert.True(s.TakeInGame(SavedVariables.ReadInGame(c.Lua("return WoWCharacterTrackerDB.gameSettings"))));
+        Assert.True(s.PostMounts);
+        Assert.False(s.PostEpic);
+        Assert.Equal(!shot, s.Shoots("loot"));
+    }
+
+    // A preset picked in game goes in right away, and the app reads back the same preset.
+    [Fact]
+    public void A_preset_picked_in_game_goes_in_right_away()
+    {
+        var c = Load(settings: AppSettings());
+        c.Lua(CellLua);
+        c.Call("openWindow", "sharing");
+        Assert.Equal("normal", c.Lua("return ns.currentPreset()").String);
+        c.Lua("click('Quiet')");
+        Assert.Equal("quiet", c.Lua("return ns.currentPreset()").String);
+        Assert.Equal("quiet", c.Lua("return WoWCharacterTrackerDB.gameSettings.preset").String);
+        Assert.True(Bool(c, "not cell('End boss kills', 1).checked and cell('Level-ups', 1).checked"));
+        Assert.Equal(10, Num(c, "ns.filters().before"));
+
+        var s = Flavors.Forever.Defaults();
+        SharingPresets.Apply(s, Flavors.Forever, SharingPresets.Normal);
+        Assert.True(SharingPresets.TakeInGame(s, Flavors.Forever, SavedVariables.ReadInGame(c.Lua("return WoWCharacterTrackerDB.gameSettings")), out var applied));
+        Assert.Null(applied); // nothing left for the app to apply: the game's change is the preset
+        Assert.Equal(SharingPresets.Quiet, SharingPresets.Detect(s, Flavors.Forever));
     }
 
     // The ask checkbox turns boss kills and gear on and off, and keeps what else the app's table picked.

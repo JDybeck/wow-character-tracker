@@ -1,8 +1,7 @@
 -- The addon window (/wct, the minimap button): every in-game option in tabs. Settings the game
 -- keeps (WoWCharacterTrackerDB) and the In game settings shared with the app (ns.editSettings, the
--- newest change wins) apply right away. What gets posted to Discord comes from the app
--- (Settings.lua) and is listed read-only on the Settings tab, apart from the preset and the level
--- steps and filters on the Sharing tab. Plain frames only, so it opens in combat.
+-- newest change wins) apply right away, including the Sharing tab's table of what goes where. Plain
+-- frames only, so it opens in combat.
 -- Built on first open, each tab on its first showing.
 local ADDON, ns = ...
 local ui = ns.ui
@@ -73,17 +72,19 @@ local function announceKinds(a, column)
   return column == "guild" and a.kinds or (a.partyKinds or a.kinds)
 end
 
--- The Sharing tab: how much gets shared (the app's preset, which the app applies on your next
--- /reload), the guild and group lines, and the ask box. The per-moment table is the app's; without
--- the app the chat table is here instead, since nothing else sets it.
+-- The Sharing tab, like the app's Sharing page: how much gets shared (a preset), a row per moment
+-- with a box per place, the level steps and filters, the ask box and Incognito. The moments and
+-- presets come from the app (ns.momentRows); an older app has the preset only, and without the
+-- app the table has the group chat column alone.
 local PRESETS_SHOWN = { { "quiet", "Quiet" }, { "normal", "Normal" }, { "everything", "Everything" } }
 local ASK_KINDS = { "boss", "rare", "epic" }
+local ASK_SECONDS = { { 5, "5 sec" }, { 10, "10 sec" }, { 15, "15 sec" }, { 30, "30 sec" }, { 60, "60 sec" } }
 
 -- Incognito (Shared.lua, Commands.lua): a while without posts or chat lines, never caught up later.
 local INCOGNITO_CHOICES = { { "30m", "30 minutes" }, { "1h", "1 hour" }, { "2h", "2 hours" }, { "4h", "4 hours" } }
 
-local function buildIncognito(p)
-  local title = ui.heading(p, "Incognito")
+local function buildIncognito(p, anchor)
+  local title = ui.heading(p, "Incognito", anchor, anchor and -30 or nil)
   local hint = ui.hint(p, ns.hasApp() and "For a while nothing is posted to Discord or said in chat, and none of it is posted later. Your own history keeps it."
     or "For a while nothing is said in chat. Your own history keeps it.", title)
   local friendsToo = false
@@ -125,7 +126,7 @@ end
 
 -- "Posts at levels 5, 10, 15, 20, 25, 30, 31, 32 and so on." (the app's LevelPreview)
 local function levelPreview()
-  local post = ns.setting("post") or {}
+  local post = ns.postRules() or {}
   if not (post.level and post.level.on) then return "Level-ups aren't posted." end
   local levels = {}
   for level = 2, 100 do
@@ -176,42 +177,117 @@ local function buildFilters(p, anchor)
   return rareBoe
 end
 
+-- The chat places (guild while it works, ns.GUILD_CHAT_ON, and the group) under anchor; returns the last box.
+local function buildChatPlaces(p, anchor)
+  local places = { { "party", "Party / raid chat" } }
+  if ns.GUILD_CHAT_ON then table.insert(places, 1, { "guild", "Guild chat" }) end
+  return ui.checkGrid(p, places, anchor,
+    function(key) return (ns.setting("announce") or {})[key] == true end,
+    function(key, on) ns.editSettings(function(s) s.announce[key] = on end) end)
+end
+
+-- A chat column's box: the kind in guild's or the group's list (Group, and Guild once it works again).
+local function chatOn(column, kind)
+  local kinds = announceKinds(ns.setting("announce") or {}, column)
+  return kinds ~= nil and kinds[kind] == true
+end
+local function setChat(column, kind, on)
+  ns.editSettings(function(s) announceKinds(s.announce, column)[kind] = on or nil end)
+end
+
+-- The app's Sharing table: a row per moment (ns.momentRows), Discord, Screenshot, Group and Ask
+-- first. No Guild column while guild chat is off (ns.GUILD_CHAT_ON); add { "guild", "Guild" } here
+-- when it's back. Stream alerts and the Test buttons stay in the app.
+local MOMENT_COLUMNS = { { "post", "Discord" }, { "shot", "Screenshot" }, { "party", "Group" }, { "ask", "Ask first" } }
+
+local function buildMomentTable(p, anchor, rows)
+  local byKey, items = {}, {}
+  for _, row in ipairs(rows) do
+    byKey[row.key] = row
+    items[#items + 1] = { row.key, row.name }
+  end
+  -- Which kind each column keys on: the moment for Discord, the shared screenshot, chat and ask kinds.
+  local function kind(column, key)
+    local row = byKey[key]
+    if column == "post" then return key end
+    if column == "shot" then return row.shot end
+    if column == "ask" then return row.ask end
+    return row.announce
+  end
+  local function get(column, key)
+    local k = kind(column, key)
+    if column == "post" then return ((ns.setting("posts") or {})[k]) == true end
+    if column == "shot" then return ((ns.setting("screenshot") or {})[k]) == true end
+    if column == "ask" then return ((ns.setting("ask") or {})[k]) == true end
+    return chatOn(column, k)
+  end
+  local function set(column, key, on)
+    local k = kind(column, key)
+    if column == "party" or column == "guild" then return setChat(column, k, on) end
+    ns.editSettings(function(s)
+      s.posts = s.posts or {}
+      local list = column == "post" and s.posts or (column == "shot" and s.screenshot or s.ask)
+      if column == "post" or column == "shot" then list[k] = on else list[k] = on or nil end
+    end)
+    ui.refresh(p) -- a screenshot box can stand for two rows (rare and epic loot), and the preset follows
+  end
+  return ui.checkTable(p, items, MOMENT_COLUMNS, anchor, get, set,
+    { title = "Moment", first = 210, width = 105, has = function(column, key) return kind(column, key) ~= nil end })
+end
+
+-- How long the ask box stays (askSeconds, the app's choices).
+local function buildAskSeconds(p, anchor, x)
+  local label = ui.text(p, "GameFontHighlight", "The ask box stays")
+  label:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x or 0, -18)
+  local choice = ui.choice(p, ASK_SECONDS, function() return tonumber(ns.setting("askSeconds")) or 10 end,
+    function(n) ns.editSettings(function(s) s.askSeconds = n end) end, 64)
+  choice:SetPoint("LEFT", label, "RIGHT", 10, 0)
+  return label
+end
+
+-- How much gets shared: the preset. With the app's presets it goes in right away and follows the
+-- table; from an older app the app applies it on sync.
+local function buildPresets(p, anchor)
+  local title = ui.heading(p, "How much gets shared", anchor, anchor and -30 or nil)
+  local hint = ui.hint(p, "Pick one, or choose per moment below. Changes reach the app on your next /reload.", title)
+  local presets = ui.choice(p, PRESETS_SHOWN, ns.currentPreset, function(key)
+    ns.applyPreset(key)
+    ui.refresh(p) -- the table's boxes and the filters
+  end)
+  presets:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -10)
+  local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own picks.")
+  custom:SetPoint("LEFT", presets, "RIGHT", 6, 0)
+  ui.onRefresh(p, function() custom:SetShown(ns.currentPreset() == "custom") end)
+  return presets
+end
+
 local function buildSharingTab(p)
   local withApp = ns.hasApp()
+  local rows = withApp and ns.momentRows()
+  if rows then
+    local presets = buildPresets(p)
+    local chat = buildChatPlaces(p, presets)
+    local last = buildMomentTable(p, chat, rows)
+    local always = ui.hint(p, "Legendary gear is always posted. Stream alerts and test posts are on the app's Sharing page.", last)
+    always:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -14)
+    local seconds = buildAskSeconds(p, buildFilters(p, always))
+    buildIncognito(p, seconds)
+    return
+  end
+
   local top = buildIncognito(p)
-  if withApp then
-    local presetTitle = ui.heading(p, "How much gets shared", top, -30)
-    local presetHint = ui.hint(p, "What goes to Discord, chat and the ask box. The app picks it up on your next /reload; choose per moment on the app's Sharing page.", presetTitle)
-    local presets = ui.choice(p, PRESETS_SHOWN, function() return ns.setting("preset") end,
-      function(key) ns.editSettings(function(s) s.preset = key end) end)
-    presets:SetPoint("TOPLEFT", presetHint, "BOTTOMLEFT", 0, -10)
-    local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own picks from the app.")
-    custom:SetPoint("LEFT", presets, "RIGHT", 6, 0)
-    ui.onRefresh(p, function() custom:SetShown(ns.setting("preset") == "custom") end)
-    top = buildFilters(p, presets)
+  if withApp then -- an older app: the preset, the filters, the chat places and the ask box
+    top = buildFilters(p, buildPresets(p, top))
   end
 
   local chatTitle = ui.heading(p, "Tell in chat", top, top and -24 or nil)
   local chatHint = ui.hint(p, "One line in chat as you when something happens. Lines wait until you're out of combat.", chatTitle)
-  local places, columns = { { "party", "Party / raid chat" } }, { { "party", "Group chat" } }
-  if ns.GUILD_CHAT_ON then
-    table.insert(places, 1, { "guild", "Guild chat" })
-    table.insert(columns, 1, { "guild", "Guild chat" })
-  end
-  local whereLast = ui.checkGrid(p, places, chatHint,
-    function(key)
-      local a = ns.setting("announce") or {}
-      return a[key] == true
-    end,
-    function(key, on) ns.editSettings(function(s) s.announce[key] = on end) end)
+  local columns = { { "party", "Group chat" } }
+  if ns.GUILD_CHAT_ON then table.insert(columns, 1, { "guild", "Guild chat" }) end
+  local whereLast = buildChatPlaces(p, chatHint)
   local last = whereLast
   if not withApp then
-    last = ui.checkTable(p, ANNOUNCE_KINDS, columns, whereLast,
-      function(column, key)
-        local kinds = announceKinds(ns.setting("announce") or {}, column)
-        return kinds ~= nil and kinds[key] == true
-      end,
-      function(column, key, on) ns.editSettings(function(s) announceKinds(s.announce, column)[key] = on or nil end) end)
+    last = ui.checkTable(p, ANNOUNCE_KINDS, columns, whereLast, chatOn, setChat)
   end
 
   if not withApp then return end
@@ -229,22 +305,7 @@ local function buildSharingTab(p)
       end)
     end)
   ask:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", -2, -6)
-
-  -- How long the box stays (askSeconds, the same choices as the app): click for the next.
-  local CHOICES = { 5, 10, 15, 30, 60 }
-  local function current() return tonumber(ns.setting("askSeconds")) or 10 end
-  local secondsButton
-  local function showSeconds() secondsButton:SetText(string.format("Box stays: %d seconds", current())) end
-  secondsButton = ui.button(p, "Box stays: 10 seconds", 190, function()
-    local now, nextChoice = current(), CHOICES[1]
-    for i, n in ipairs(CHOICES) do
-      if n == now then nextChoice = CHOICES[i % #CHOICES + 1] end
-    end
-    ns.editSettings(function(s) s.askSeconds = nextChoice end)
-    showSeconds()
-  end)
-  secondsButton:SetPoint("TOPLEFT", ask, "BOTTOMLEFT", 32, -22)
-  ui.onRefresh(p, showSeconds)
+  buildAskSeconds(p, ask, 34)
 end
 
 -- Note ------------------------------------------------------------------------------------------
@@ -1983,7 +2044,7 @@ local function appSummary()
   if not ns.hasApp() then
     return "No app found. Discord posts, screenshots, the stream overlay and characters from other WoW accounts need the free Character Tracker app, from the link below (click it, then Ctrl+C). Group lines, this window, friends and notes work without it."
   end
-  local post = ns.setting("post") or {}
+  local post = ns.postRules() or {}
   local postKinds = {}
   for k, v in pairs(post) do postKinds[k] = (type(v) == "table" and v.on) or v == true end
   return table.concat({
@@ -2092,7 +2153,7 @@ end
 local TABS = {
   { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
   { key = "characters", label = "Characters", height = 1000, build = buildCharacters }, -- grows with the list
-  { key = "sharing", label = "Sharing", height = 830, build = buildSharingTab }, -- without the app: the whole chat table
+  { key = "sharing", label = "Sharing", height = 1180, build = buildSharingTab }, -- a row per moment
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
   { key = "settings", label = "Settings", height = 780, build = buildSettings },

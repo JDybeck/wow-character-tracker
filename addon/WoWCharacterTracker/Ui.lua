@@ -408,9 +408,12 @@ end
 
 -- Checkboxes in a table under anchor: a row per item (its name on the left), a column per entry of
 -- columns ({ key, title }). get(column, key) and set(column, key, on). Returns the last row's name.
-function ui.checkTable(parent, items, columns, anchor, get, set)
-  local FIRST, WIDTH = 230, 110
-  local header = ui.text(parent, "GameFontNormalSmall", "What")
+-- opts (optional): first (the names' width), width (each column's), has(column, key) false = a dash
+-- instead of a box, for a place that moment can't go.
+function ui.checkTable(parent, items, columns, anchor, get, set, opts)
+  opts = opts or {}
+  local FIRST, WIDTH = opts.first or 230, opts.width or 110
+  local header = ui.text(parent, "GameFontNormalSmall", opts.title or "What")
   header:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -10)
   for c, column in ipairs(columns) do
     local title = ui.text(parent, "GameFontNormalSmall", column[2])
@@ -421,8 +424,14 @@ function ui.checkTable(parent, items, columns, anchor, get, set)
     local name = ui.text(parent, "GameFontHighlight", item[2])
     name:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -14)
     for c, column in ipairs(columns) do
-      local cb = ui.checkbox(parent, "", nil, function() return get(column[1], item[1]) end, function(on) set(column[1], item[1], on) end)
-      cb:SetPoint("LEFT", name, "LEFT", FIRST + (c - 1) * WIDTH - 4, 0)
+      local x = FIRST + (c - 1) * WIDTH
+      if opts.has and not opts.has(column[1], item[1]) then
+        local dash = ui.text(parent, "GameFontDisable", "-")
+        dash:SetPoint("LEFT", name, "LEFT", x + 6, 0)
+      else
+        local cb = ui.checkbox(parent, "", nil, function() return get(column[1], item[1]) end, function(on) set(column[1], item[1], on) end)
+        cb:SetPoint("LEFT", name, "LEFT", x - 4, 0)
+      end
     end
     last = name
   end

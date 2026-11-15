@@ -6,8 +6,13 @@ The app shows the notes for a new version when it finds an update, and the newes
 
 Update the addon with the app (it does this by itself) and /reload in game.
 
+### New
+
+- **The Sharing table in game.** The addon window's **Sharing** tab now works like the app's Sharing page: Quiet, Normal or Everything, and a row per moment with **Discord**, **Screenshot**, **Group** and **Ask first**. Changes count right away in game and reach the app on your next /reload, and the newest change wins, in the app or in game. Stream alerts and test posts stay in the app.
+
 ### Fixes and tweaks
 
+- Changing the level steps, filters or chat lines in game could be undone by the app on the next sync, when your settings had matched Quiet, Normal or Everything. They now stay.
 - The addon's **Friends** tab splits your friends into **Online** and **Offline**, with how many are in each. Clicking a friend's character on Home opens the right one.
 - A friend you said **Never** to now has an **Unblock** button in the addon when they're online, so you don't need `/wct friends unblock`.
 - Turning the addon's **Offer to post what Discord skips** off and on again no longer drops the other moments you picked under **Ask first** in the app.
