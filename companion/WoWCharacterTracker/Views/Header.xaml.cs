@@ -11,11 +11,14 @@ public partial class Header : UserControl
         InitializeComponent();
         Loaded += (_, _) =>
         {
-            if (Window.GetWindow(this) is not { } window) return;
+            if (hooked is not null || Window.GetWindow(this) is not { } window) return; // Loaded can come again
+            hooked = window;
             window.PreviewMouseDown += (_, _) => { if (!SearchArea.IsMouseOver) CloseSearch(); };
             window.Deactivated += (_, _) => CloseSearch();
         };
     }
+
+    Window? hooked;
 
     // The search list closes on a click anywhere but the box and the list, or when the window loses focus.
     void CloseSearch()

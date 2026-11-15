@@ -427,6 +427,7 @@ sealed class Tracker : IDisposable
             catch (Exception ex)
             {
                 parsed.Remove(file);
+                cleanedAt = 0; // unknown for this account, so no Data page cleanup counts as done everywhere
                 Log.Warn($"{Tag}Couldn't read the data for account {account} ({ex.Message}). Will try again on the next change.");
             }
         }

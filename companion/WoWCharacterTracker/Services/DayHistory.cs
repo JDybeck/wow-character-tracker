@@ -21,6 +21,9 @@ sealed class DayHistory(string filePath)
         return merged;
     }
 
+    // Every day kept, one per character and day.
+    public IReadOnlyList<DayTotals> All => days ??= Read();
+
     // Drops the days a Data page cleanup removes.
     public void Remove(Func<DayTotals, bool> gone)
     {

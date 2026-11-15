@@ -62,11 +62,33 @@ function ns.cleanStressTest(db, before, keep)
   return count
 end
 
--- One order (the app's CleanupOrder): chars = { [guid] = true } go completely; events of `kinds`
+-- An order's removed characters (the app's DataCleanup, same rules). One not played since the order
+-- goes completely. One played since (logged in when the order came, saved at the /reload) keeps
+-- what it is now and starts fresh: its events up to the order and its days up to `charsDay` go.
+local function removeOrdered(db, o)
+  local gone, played = {}, {}
+  for guid in pairs(o.chars) do
+    local c = db.chars and db.chars[guid]
+    if type(c) == "table" and (c.lastSeen or 0) > (o.at or 0) then played[guid] = true else gone[guid] = true end
+  end
+  removeCharacters(db, gone)
+  if not next(played) then return end
+  keepEvents(db, function(e) return not (played[e.guid] and (e.at or 0) <= (o.at or 0)) end)
+  local day = type(o.charsDay) == "string" and o.charsDay or ""
+  for guid in pairs(played) do
+    for d in pairs(db.days and db.days[guid] or {}) do
+      if d <= day then db.days[guid][d] = nil end
+    end
+    local t = db.today and db.today[guid]
+    if type(t) == "table" and (t.day or "") <= day then db.today[guid] = nil end
+  end
+end
+
+-- One order (the app's CleanupOrder): chars = { [guid] = true } (removeOrdered); events of `kinds`
 -- older than `before` (an ask event counts as the kind it asked about); day stats older than
 -- `beforeDay` ("YYYY-MM-DD", the app's local date); friends' characters received before `friendsBefore`.
 local function applyOrder(db, o)
-  if type(o.chars) == "table" then removeCharacters(db, o.chars) end
+  if type(o.chars) == "table" then removeOrdered(db, o) end
   if (o.before or 0) > 0 and type(o.kinds) == "table" then
     keepEvents(db, function(e)
       local kind = e.kind == "ask" and e.askedKind or e.kind

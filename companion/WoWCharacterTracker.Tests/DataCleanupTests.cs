@@ -83,15 +83,38 @@ public class DataCleanupTests
         Assert.False(Gone(s, $"WoWCharacterTrackerDB.chars['{A}']"));
     }
 
+    // Removed while being played: saved at the /reload after the order, so it stays as it is now and
+    // starts fresh, like the app shows it (A_removed_character_played_again_...).
+    [Fact]
+    public void The_addon_keeps_a_character_played_since_with_only_whats_newer()
+    {
+        var day = DataCleanup.CharsDay(Order);
+        var s = Addon(Order);
+        s.DoString($$"""
+            local db = WoWCharacterTrackerDB
+            db.chars['{{A}}'].lastSeen = 3000
+            db.days['{{A}}'] = { ['{{day}}'] = { quests = 1 }, ['2099-01-01'] = { quests = 2 } }
+            db.today['{{A}}'] = { day = '{{day}}' }
+            table.insert(db.events, { id = 'a2', guid = '{{A}}', kind = 'level', level = 11, at = 2500 })
+            """);
+        Assert.Equal(1, Apply(s));
+        Assert.False(Gone(s, $"WoWCharacterTrackerDB.chars['{A}']"));
+        Assert.False(Gone(s, $"WoWCharacterTrackerDB.start['{A}']")); // the session's level timing stays
+        Assert.Equal("b2,b3,a2", s.DoString("local ids = {} for _, e in ipairs(WoWCharacterTrackerDB.events) do ids[#ids + 1] = e.id end return table.concat(ids, ',')").String);
+        Assert.True(Gone(s, $"WoWCharacterTrackerDB.days['{A}']['{day}']"));
+        Assert.False(Gone(s, $"WoWCharacterTrackerDB.days['{A}']['2099-01-01']"));
+        Assert.True(Gone(s, $"WoWCharacterTrackerDB.today['{A}']"));
+    }
+
     [Fact]
     public void Only_orders_newer_than_the_last_one_done_apply()
     {
-        var s = Addon(Order, Order with { At = 3000, Chars = [B], Before = 0, Kinds = [], BeforeDay = "", FriendsBefore = 0 });
+        var s = Addon(Order, Order with { At = 6000, Chars = [B], Before = 0, Kinds = [], BeforeDay = "", FriendsBefore = 0 });
         s.DoString("WoWCharacterTrackerDB.cleanedAt = 2000");
         Assert.Equal(1, Apply(s));
         Assert.False(Gone(s, $"WoWCharacterTrackerDB.chars['{A}']")); // the first was done already
         Assert.True(Gone(s, $"WoWCharacterTrackerDB.chars['{B}']"));
-        Assert.Equal(3000, s.DoString("return WoWCharacterTrackerDB.cleanedAt").Number);
+        Assert.Equal(6000, s.DoString("return WoWCharacterTrackerDB.cleanedAt").Number);
     }
 
     [Fact]
@@ -127,15 +150,19 @@ public class DataCleanupTests
     public void A_removed_character_played_again_shows_with_only_whats_newer()
     {
         var data = Read();
+        var day = DataCleanup.CharsDay(Order);
         data = data with
         {
             Characters = [.. data.Characters.Select(c => c.Guid == A ? c with { LastSeen = 3000 } : c)],
             Events = [.. data.Events, new Entry { Id = "a2", Guid = A, Kind = "level", Level = 11, At = 2500 }],
+            Days = [.. data.Days, new DayTotals(A, day, 0, 0, 0, 0, 1, 0, 0, 0, 0), new DayTotals(A, "2099-01-01", 0, 0, 0, 0, 2, 0, 0, 0, 0)],
         };
         var shown = DataCleanup.Hide(data, [Order]);
         Assert.Contains(shown.Characters, c => c.Guid == A);
         Assert.Contains(shown.Events, e => e.Id == "a2");
         Assert.DoesNotContain(shown.Events, e => e.Id == "a1");
+        // Its old days stay hidden, so the app's day history can't keep them again.
+        Assert.Equal(["2099-01-01"], shown.Days.Where(d => d.Guid == A).Select(d => d.Day));
     }
 
     [Fact]

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace WoWCharacterTracker.Services;
 
 // The Data page's cleanups (CleanupOrder). The app forgets its own copies right away (Forget), the
@@ -11,16 +13,21 @@ static class DataCleanup
         (o.Chars.Contains(e.Guid) && e.At <= o.At)
         || (o.Before > 0 && e.At < o.Before && o.Kinds.Contains(e.Moment.Kind));
 
-    // A day the order removes (a character's day stats).
-    public static bool Removes(CleanupOrder o, DayTotals d) => o.Chars.Contains(d.Guid) || TooOld(o, d);
+    // A day the order removes: a removed character's up to the order's day, or any older than BeforeDay.
+    public static bool Removes(CleanupOrder o, DayTotals d) =>
+        (o.Chars.Contains(d.Guid) && string.CompareOrdinal(d.Day, CharsDay(o)) <= 0) || TooOld(o, d);
 
     static bool TooOld(CleanupOrder o, DayTotals d) => o.BeforeDay.Length > 0 && string.CompareOrdinal(d.Day, o.BeforeDay) < 0;
+
+    // The local date the order was made ("2026-11-15"): a removed character played since keeps only later days.
+    public static string CharsDay(CleanupOrder o) =>
+        DateTimeOffset.FromUnixTimeSeconds(o.At).ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     // A friend's character the order removes.
     public static bool RemovesFriend(CleanupOrder o, Snapshot c) => o.FriendsBefore > 0 && c.LastSeen < o.FriendsBefore;
 
-    // The data without what pending orders cover. A removed character played again since the order
-    // shows again, with only what's newer.
+    // The data without what pending orders cover. A removed character played since the order shows
+    // again as it is now, without its events and days up to the order (Cleanup.lua removeOrdered).
     public static TrackerData Hide(TrackerData data, IReadOnlyList<CleanupOrder> orders)
     {
         if (orders.Count == 0) return data;
@@ -32,8 +39,8 @@ static class DataCleanup
             Characters = [.. data.Characters.Where(c => !gone.Contains(c.Guid))],
             Inventories = [.. data.Inventories.Where(i => !gone.Contains(i.Guid))],
             Notes = [.. data.Notes.Where(n => !gone.Contains(n.Guid))],
-            Today = [.. data.Today.Where(d => !gone.Contains(d.Guid) && !orders.Any(o => TooOld(o, d)))],
-            Days = [.. data.Days.Where(d => !gone.Contains(d.Guid) && !orders.Any(o => TooOld(o, d)))],
+            Today = [.. data.Today.Where(d => !gone.Contains(d.Guid) && !orders.Any(o => Removes(o, d)))],
+            Days = [.. data.Days.Where(d => !gone.Contains(d.Guid) && !orders.Any(o => Removes(o, d)))],
             Friends = [.. data.Friends.Select(f => HideFriend(f, orders))],
         };
     }

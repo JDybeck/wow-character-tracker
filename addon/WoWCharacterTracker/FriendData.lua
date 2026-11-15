@@ -383,14 +383,21 @@ function ns.friendGear(c)
   return out
 end
 
--- What a friend shares with you, read from the characters they sent: { category = true } for every
--- category one of them came with. Empty fields don't travel, so a shared category can be missing
--- (no professions or highlights yet), and map positions only come while your map is open.
+-- What a friend shares with you, read from the newest character they sent (older ones can carry
+-- what they've stopped sharing since): { category = true } for every category it came with. Empty
+-- fields don't travel, so a shared category can be missing (no professions or highlights yet), and
+-- map positions only come while your map is open.
 function ns.friendSharedCategories(chars)
+  local newest
+  for _, c in pairs(chars or {}) do
+    if (c.at or 0) > (newest or -1) then newest = c.at or 0 end
+  end
   local out = {}
   for _, c in pairs(chars or {}) do
-    for key, field in pairs(FIELDS) do
-      if field.category and c[key] ~= nil then out[field.category] = true end
+    if (c.at or 0) == newest then
+      for key, field in pairs(FIELDS) do
+        if field.category and c[key] ~= nil then out[field.category] = true end
+      end
     end
   end
   return out

@@ -974,7 +974,7 @@ sealed class FlavorViewModel : Observable
 
     // For the Data page: the days the app keeps for the Stats page, how each character is listed, and
     // the newest order (the next one must be newer).
-    public IReadOnlyList<DayTotals> KeptDays => DayHistory.Add([]);
+    public IReadOnlyList<DayTotals> KeptDays => DayHistory.All;
     public bool IsIgnored(string guid) => Settings.Ignored.Contains(guid);
     public bool IsRemovedFromList(Snapshot c) => Settings.Removed.TryGetValue(c.Guid, out var at) && c.LastSeen <= at;
     public long LastCleanupAt => Settings.Cleanups.LastOrDefault()?.At ?? 0;

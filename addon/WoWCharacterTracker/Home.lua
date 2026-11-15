@@ -178,8 +178,8 @@ end
 
 -- events[i] as the feed shows it, or nil when it doesn't go to Discord: what LiveGrid's wanted()
 -- says, a boss again only without first kills only (the app's IsRepeatKill), and a moment posted
--- from the ask box as the moment it was. Without the app every moment counts.
-local function postedMoment(events, i)
+-- from the ask box as the moment it was. Without the app every moment counts. repeats: repeatKills.
+local function postedMoment(events, i, repeats)
   local e = events[i]
   if e.kind == "ask" then
     local shown = ns.copy(e)
@@ -188,13 +188,24 @@ local function postedMoment(events, i)
   end
   if not ns.setting("post") then return e end
   if ns.wanted and not ns.wanted(e) then return nil end
-  if e.kind == "boss" and ns.filters().firstKill ~= false then
-    for j = i - 1, 1, -1 do
-      local o = events[j]
-      if type(o) == "table" and o.kind == "boss" and o.guid == e.guid and o.boss == e.boss then return nil end
+  if repeats[i] then return nil end
+  return e
+end
+
+-- { [i] = true } for each boss kill a character had made before, in one pass; empty without first kills only.
+local function repeatKills(events)
+  local out = {}
+  if not ns.setting("post") or ns.filters().firstKill == false then return out end
+  local seen = {}
+  for i = 1, #events do
+    local e = events[i]
+    if type(e) == "table" and e.kind == "boss" then
+      local key = tostring(e.guid) .. "\0" .. tostring(e.boss)
+      if seen[key] then out[i] = true end
+      seen[key] = true
     end
   end
-  return e
+  return out
 end
 
 -- At y below the card's top edge.
@@ -563,10 +574,10 @@ function ns.buildHomeTab(p)
       ns.formatDuration(summary.slowest.seconds), summary.slowest.level - 1, summary.slowest.level) or "")
 
     -- Your newest moments that go to Discord, with a line (ns.momentLine), any of your characters.
-    local list = {}
+    local list, repeats = {}, repeatKills(events)
     for i = #events, 1, -1 do
       if #list >= FEED_SIZE then break end
-      local e = type(events[i]) == "table" and postedMoment(events, i)
+      local e = type(events[i]) == "table" and postedMoment(events, i, repeats)
       if e and ns.momentLine and ns.momentLine(e) then list[#list + 1] = { e = e } end
     end
     fillColumn(mine, list)

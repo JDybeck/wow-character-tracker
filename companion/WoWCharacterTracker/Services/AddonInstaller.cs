@@ -207,7 +207,9 @@ static partial class AddonInstaller
         if (orders.Count == 0) return "";
         static string Set(IEnumerable<string> keys) => string.Concat(keys.Order(StringComparer.Ordinal).Select(k => $"[{LuaString(k)}] = true, "));
         var lines = orders.OrderBy(o => o.At).Select(o =>
-            $"    {{ at = {o.At}, chars = {{ {Set(o.Chars)}}}, before = {o.Before}, kinds = {{ {Set(o.Kinds)}}}, "
+            $"    {{ at = {o.At}, chars = {{ {Set(o.Chars)}}}, "
+            + (o.Chars.Count > 0 ? $"charsDay = {LuaString(DataCleanup.CharsDay(o))}, " : "")
+            + $"before = {o.Before}, kinds = {{ {Set(o.Kinds)}}}, "
             + (o.BeforeDay.Length > 0 ? $"beforeDay = {LuaString(o.BeforeDay)}, " : "")
             + $"friendsBefore = {o.FriendsBefore} }},\n");
         return "  cleanup = {\n" + string.Concat(lines) + "  },\n";

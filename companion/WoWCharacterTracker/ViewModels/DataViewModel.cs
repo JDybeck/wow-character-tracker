@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows.Input;
 
 namespace WoWCharacterTracker.ViewModels;
@@ -131,7 +132,7 @@ sealed class DataViewModel : Observable
             At = NextAt(),
             Before = picked.Any(k => k != DaysKey) ? now.AddDays(-HistoryAge).ToUnixTimeSeconds() : 0,
             Kinds = [.. picked.Where(k => k != DaysKey)],
-            BeforeDay = picked.Contains(DaysKey) ? now.AddDays(-HistoryAge).ToString("yyyy-MM-dd") : "",
+            BeforeDay = picked.Contains(DaysKey) ? now.AddDays(-HistoryAge).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "",
         };
     }
 
