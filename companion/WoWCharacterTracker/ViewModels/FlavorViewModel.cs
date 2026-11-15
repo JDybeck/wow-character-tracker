@@ -112,7 +112,7 @@ sealed class FlavorViewModel : Observable
         {
             AddonInstaller.WriteSettings(flavorDir, Settings, main.Config.Notes(), main.Config.ActiveWebhooks(Flavor).Count > 0, main.Config.FriendNicknames, main.Updates.Available,
                 SharingPresets.Detect(Settings, Flavor), main.Config.FriendNicknamesAt,
-                new GameFriendOrder(main.Config.FriendOrder, main.Config.FriendOrderAt));
+                new GameFriendOrder(main.Config.FriendOrder, main.Config.FriendOrderAt), Flavor);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -198,26 +198,26 @@ sealed class FlavorViewModel : Observable
 
     // --- what gets posted (bound two-way from the settings page) ---
 
-    public bool PostLevels { get => Settings.PostLevels; set { Settings.PostLevels = value; Changed(); } }
+    public bool PostLevels { get => Settings.PostLevels; set { Settings.PostLevels = value; InGameChanged(); } }
     // The level steps and the two filters can be changed in the addon too (Settings.lua `filters`).
     public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
     public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
     public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
-    public bool PostRare { get => Settings.PostRare; set { Settings.PostRare = value; Changed(); } }
+    public bool PostRare { get => Settings.PostRare; set { Settings.PostRare = value; InGameChanged(); } }
     public bool RareBoeOnly { get => Settings.RareBoeOnly; set { Settings.RareBoeOnly = value; InGameChanged(); } }
-    public bool PostBattlegrounds { get => Settings.PostBattlegrounds; set { Settings.PostBattlegrounds = value; Changed(); } }
-    public bool PostProfessions { get => Settings.PostProfessions; set { Settings.PostProfessions = value; Changed(); } }
-    public bool PostEpic { get => Settings.PostEpic; set { Settings.PostEpic = value; Changed(); } }
-    public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; Changed(); } }
-    public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
-    public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
+    public bool PostBattlegrounds { get => Settings.PostBattlegrounds; set { Settings.PostBattlegrounds = value; InGameChanged(); } }
+    public bool PostProfessions { get => Settings.PostProfessions; set { Settings.PostProfessions = value; InGameChanged(); } }
+    public bool PostEpic { get => Settings.PostEpic; set { Settings.PostEpic = value; InGameChanged(); } }
+    public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; InGameChanged(); } }
+    public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; InGameChanged(); } }
+    public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; InGameChanged(); } }
     public bool FirstBossKillOnly { get => Settings.FirstBossKillOnly; set { Settings.FirstBossKillOnly = value; InGameChanged(); } }
-    public bool PostMaxLevel { get => Settings.PostMaxLevel; set { Settings.PostMaxLevel = value; Changed(); } }
-    public bool PostDuels { get => Settings.PostDuels; set { Settings.PostDuels = value; Changed(); } }
-    public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; Changed(); } }
-    public bool PostMPlus { get => Settings.PostMPlus; set { Settings.PostMPlus = value; Changed(); } }
-    public bool PostPvp { get => Settings.PostPvp; set { Settings.PostPvp = value; Changed(); } }
-    public bool PostKeyRuns { get => Settings.PostKeyRuns; set { Settings.PostKeyRuns = value; Changed(); } }
+    public bool PostMaxLevel { get => Settings.PostMaxLevel; set { Settings.PostMaxLevel = value; InGameChanged(); } }
+    public bool PostDuels { get => Settings.PostDuels; set { Settings.PostDuels = value; InGameChanged(); } }
+    public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; InGameChanged(); } }
+    public bool PostMPlus { get => Settings.PostMPlus; set { Settings.PostMPlus = value; InGameChanged(); } }
+    public bool PostPvp { get => Settings.PostPvp; set { Settings.PostPvp = value; InGameChanged(); } }
+    public bool PostKeyRuns { get => Settings.PostKeyRuns; set { Settings.PostKeyRuns = value; InGameChanged(); } }
     public int KeyRunMinLevel { get => Settings.KeyRunMinLevel; set { Settings.KeyRunMinLevel = Math.Clamp(value, FlavorSettings.KeyLevelMin, FlavorSettings.KeyLevelMax); TypedChanged(); } }
     public bool KeyRunTimedOnly { get => Settings.KeyRunTimedOnly; set { Settings.KeyRunTimedOnly = value; Changed(); } }
     public bool IsRetail => Flavor.HasRatings; // Mythic+ runs (instead of end boss kills) and the rating options
@@ -252,8 +252,8 @@ sealed class FlavorViewModel : Observable
     // The In game settings as changed in the addon's options page, when that's the newest change.
     void TakeInGameSettings(InGameSettings? game)
     {
-        if (!Settings.TakeInGame(game)) return;
-        if (SharingPresets.TakeFromGame(Settings, Flavor, game!.Preset)) Log.Info($"[{Name}] Sharing set to {game.Preset} in game.");
+        if (!SharingPresets.TakeInGame(Settings, Flavor, game, out var applied)) return;
+        if (applied is not null) Log.Info($"[{Name}] Sharing set to {applied} in game.");
         main.Config.Save();
         WriteAddonSettings();
         RefreshAskSeconds();
@@ -270,7 +270,7 @@ sealed class FlavorViewModel : Observable
     IReadOnlyList<SharingRow>? sharingRows;
     public IReadOnlyList<SharingRow> SharingRows => sharingRows ??=
         [.. Moments.For(Flavor).Select(m => new SharingRow(m, Settings, () => main.Config.StreamOptions.AlertKinds,
-            () => Changed(nameof(Preset)), () => InGameChanged(nameof(Preset)), main.Stream.AlertsChanged))];
+            () => InGameChanged(nameof(Preset)), () => InGameChanged(nameof(Preset)), main.Stream.AlertsChanged))];
 
     // How much gets shared: Quiet, Normal or Everything, or Custom when the table matches none of them.
     // Picking one over custom choices asks first (ConfirmPreset).
@@ -781,7 +781,7 @@ sealed class FlavorViewModel : Observable
     DayHistory? dayHistory;
     // The Professions page: your characters' professions by server and faction.
     public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions yet. They show up once a character with one has been played with the addon." };
-    public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
+    public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; InGameChanged(); } }
     public StreamViewModel Stream => main.Stream;
 
     // The addon needs the list (it only records rare and better otherwise), the overlay its marks.

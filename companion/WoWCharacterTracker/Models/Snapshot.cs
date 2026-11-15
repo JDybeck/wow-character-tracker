@@ -23,7 +23,8 @@ record Snapshot(string Guid, string Char, string Realm, int Level, string Class,
 // the change doesn't have that setting (an older addon), so the app's own value stays, as in the addon.
 record InGameSettings(long At, bool? AnnounceGuild, bool? AnnounceParty, List<string>? AnnounceKinds, List<string>? AnnouncePartyKinds, List<string>? AskKinds,
     bool? FlightReload, bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null,
-    string? Preset = null, GameFilters? Filters = null);
+    string? Preset = null, GameFilters? Filters = null,
+    IReadOnlyDictionary<string, bool>? Posts = null, IReadOnlyDictionary<string, bool>? Shots = null);
 
 // The Sharing page's level steps and filters as changed in game (Settings.lua `filters`); null = not in the change.
 record GameFilters(int? Split, int? Before, int? After, bool? RareBoe, bool? FirstKill);

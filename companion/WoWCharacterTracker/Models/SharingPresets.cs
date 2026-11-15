@@ -60,6 +60,18 @@ static class SharingPresets
         return true;
     }
 
+    // In game settings that are newer (FlavorSettings.TakeInGame), and the preset only when a different
+    // one was picked in game: the addon carries the preset it last saw along with every change, and
+    // applying that one again would undo the change it came with. applied: the preset put in, if any.
+    public static bool TakeInGame(FlavorSettings s, Flavor flavor, InGameSettings? game, out string? applied)
+    {
+        applied = null;
+        var before = Detect(s, flavor);
+        if (!s.TakeInGame(game)) return false;
+        if (game!.Preset != before && TakeFromGame(s, flavor, game.Preset)) applied = game.Preset;
+        return true;
+    }
+
     // The preset these settings match, or Custom.
     public static string Detect(FlavorSettings s, Flavor flavor)
     {

@@ -15,7 +15,7 @@ local STALE = 7200     -- inside with nothing happening for this long: a new vis
 local MAX_DROPS = 40   -- room in the post
 
 local function wanted()
-  local post = ns.setting("post")
+  local post = ns.postRules()
   return not ns.IS_RETAIL and type(post) == "table" and post.run == true
 end
 

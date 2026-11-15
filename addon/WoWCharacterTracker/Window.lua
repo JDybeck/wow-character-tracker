@@ -1,8 +1,7 @@
 -- The addon window (/wct, the minimap button): every in-game option in tabs. Settings the game
 -- keeps (WoWCharacterTrackerDB) and the In game settings shared with the app (ns.editSettings, the
--- newest change wins) apply right away. What gets posted to Discord comes from the app
--- (Settings.lua) and is listed read-only on the Settings tab, apart from the preset and the level
--- steps and filters on the Sharing tab. Plain frames only, so it opens in combat.
+-- newest change wins) apply right away, including the Sharing tab's table of what goes where. Plain
+-- frames only, so it opens in combat.
 -- Built on first open, each tab on its first showing.
 local ADDON, ns = ...
 local ui = ns.ui
@@ -18,6 +17,8 @@ local window, area, version
 -- The width tab pages have now: the window can be made wider than WIDTH (the grip, bottom right).
 local function pageWidth() return ((window and window:GetWidth()) or WIDTH) - 50 end
 ns.pageWidth = pageWidth -- Home.lua's
+-- The height a page is shown in now (the window can be made taller): Home fills it with moments.
+function ns.pageHeight() return ((window and window:GetHeight()) or HEIGHT) - TITLE_BAR - TAB_BAR - 8 end
 local tabs = {}  -- [key] = { button, holder, page }
 local current
 
@@ -73,17 +74,19 @@ local function announceKinds(a, column)
   return column == "guild" and a.kinds or (a.partyKinds or a.kinds)
 end
 
--- The Sharing tab: how much gets shared (the app's preset, which the app applies on your next
--- /reload), the guild and group lines, and the ask box. The per-moment table is the app's; without
--- the app the chat table is here instead, since nothing else sets it.
+-- The Sharing tab, like the app's Sharing page: how much gets shared (a preset), a row per moment
+-- with a box per place, the level steps and filters, the ask box and Incognito. The moments and
+-- presets come from the app (ns.momentRows); an older app has the preset only, and without the
+-- app the table has the group chat column alone.
 local PRESETS_SHOWN = { { "quiet", "Quiet" }, { "normal", "Normal" }, { "everything", "Everything" } }
 local ASK_KINDS = { "boss", "rare", "epic" }
+local ASK_SECONDS = { { 5, "5 sec" }, { 10, "10 sec" }, { 15, "15 sec" }, { 30, "30 sec" }, { 60, "60 sec" } }
 
 -- Incognito (Shared.lua, Commands.lua): a while without posts or chat lines, never caught up later.
 local INCOGNITO_CHOICES = { { "30m", "30 minutes" }, { "1h", "1 hour" }, { "2h", "2 hours" }, { "4h", "4 hours" } }
 
-local function buildIncognito(p)
-  local title = ui.heading(p, "Incognito")
+local function buildIncognito(p, anchor)
+  local title = ui.heading(p, "Incognito", anchor, anchor and -30 or nil)
   local hint = ui.hint(p, ns.hasApp() and "For a while nothing is posted to Discord or said in chat, and none of it is posted later. Your own history keeps it."
     or "For a while nothing is said in chat. Your own history keeps it.", title)
   local friendsToo = false
@@ -125,7 +128,7 @@ end
 
 -- "Posts at levels 5, 10, 15, 20, 25, 30, 31, 32 and so on." (the app's LevelPreview)
 local function levelPreview()
-  local post = ns.setting("post") or {}
+  local post = ns.postRules() or {}
   if not (post.level and post.level.on) then return "Level-ups aren't posted." end
   local levels = {}
   for level = 2, 100 do
@@ -176,42 +179,117 @@ local function buildFilters(p, anchor)
   return rareBoe
 end
 
+-- The chat places (guild while it works, ns.GUILD_CHAT_ON, and the group) under anchor; returns the last box.
+local function buildChatPlaces(p, anchor)
+  local places = { { "party", "Party / raid chat" } }
+  if ns.GUILD_CHAT_ON then table.insert(places, 1, { "guild", "Guild chat" }) end
+  return ui.checkGrid(p, places, anchor,
+    function(key) return (ns.setting("announce") or {})[key] == true end,
+    function(key, on) ns.editSettings(function(s) s.announce[key] = on end) end)
+end
+
+-- A chat column's box: the kind in guild's or the group's list (Group, and Guild once it works again).
+local function chatOn(column, kind)
+  local kinds = announceKinds(ns.setting("announce") or {}, column)
+  return kinds ~= nil and kinds[kind] == true
+end
+local function setChat(column, kind, on)
+  ns.editSettings(function(s) announceKinds(s.announce, column)[kind] = on or nil end)
+end
+
+-- The app's Sharing table: a row per moment (ns.momentRows), Discord, Screenshot, Group and Ask
+-- first. No Guild column while guild chat is off (ns.GUILD_CHAT_ON); add { "guild", "Guild" } here
+-- when it's back. Stream alerts and the Test buttons stay in the app.
+local MOMENT_COLUMNS = { { "post", "Discord" }, { "shot", "Screenshot" }, { "party", "Group" }, { "ask", "Ask first" } }
+
+local function buildMomentTable(p, anchor, rows)
+  local byKey, items = {}, {}
+  for _, row in ipairs(rows) do
+    byKey[row.key] = row
+    items[#items + 1] = { row.key, row.name }
+  end
+  -- Which kind each column keys on: the moment for Discord, the shared screenshot, chat and ask kinds.
+  local function kind(column, key)
+    local row = byKey[key]
+    if column == "post" then return key end
+    if column == "shot" then return row.shot end
+    if column == "ask" then return row.ask end
+    return row.announce
+  end
+  local function get(column, key)
+    local k = kind(column, key)
+    if column == "post" then return ((ns.setting("posts") or {})[k]) == true end
+    if column == "shot" then return ((ns.setting("screenshot") or {})[k]) == true end
+    if column == "ask" then return ((ns.setting("ask") or {})[k]) == true end
+    return chatOn(column, k)
+  end
+  local function set(column, key, on)
+    local k = kind(column, key)
+    if column == "party" or column == "guild" then return setChat(column, k, on) end
+    ns.editSettings(function(s)
+      s.posts = s.posts or {}
+      local list = column == "post" and s.posts or (column == "shot" and s.screenshot or s.ask)
+      if column == "post" or column == "shot" then list[k] = on else list[k] = on or nil end
+    end)
+    ui.refresh(p) -- a screenshot box can stand for two rows (rare and epic loot), and the preset follows
+  end
+  return ui.checkTable(p, items, MOMENT_COLUMNS, anchor, get, set,
+    { title = "Moment", first = 210, width = 105, has = function(column, key) return kind(column, key) ~= nil end })
+end
+
+-- How long the ask box stays (askSeconds, the app's choices).
+local function buildAskSeconds(p, anchor, x)
+  local label = ui.text(p, "GameFontHighlight", "The ask box stays")
+  label:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x or 0, -18)
+  local choice = ui.choice(p, ASK_SECONDS, function() return tonumber(ns.setting("askSeconds")) or 10 end,
+    function(n) ns.editSettings(function(s) s.askSeconds = n end) end, 64)
+  choice:SetPoint("LEFT", label, "RIGHT", 10, 0)
+  return label
+end
+
+-- How much gets shared: the preset. With the app's presets it goes in right away and follows the
+-- table; from an older app the app applies it on sync.
+local function buildPresets(p, anchor)
+  local title = ui.heading(p, "How much gets shared", anchor, anchor and -30 or nil)
+  local hint = ui.hint(p, "Pick one, or choose per moment below. Changes reach the app on your next /reload.", title)
+  local presets = ui.choice(p, PRESETS_SHOWN, ns.currentPreset, function(key)
+    ns.applyPreset(key)
+    ui.refresh(p) -- the table's boxes and the filters
+  end)
+  presets:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -10)
+  local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own picks.")
+  custom:SetPoint("LEFT", presets, "RIGHT", 6, 0)
+  ui.onRefresh(p, function() custom:SetShown(ns.currentPreset() == "custom") end)
+  return presets
+end
+
 local function buildSharingTab(p)
   local withApp = ns.hasApp()
+  local rows = withApp and ns.momentRows()
+  if rows then
+    local presets = buildPresets(p)
+    local chat = buildChatPlaces(p, presets)
+    local last = buildMomentTable(p, chat, rows)
+    local always = ui.hint(p, "Legendary gear is always posted. Stream alerts and test posts are on the app's Sharing page.", last)
+    always:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -14)
+    local seconds = buildAskSeconds(p, buildFilters(p, always))
+    buildIncognito(p, seconds)
+    return
+  end
+
   local top = buildIncognito(p)
-  if withApp then
-    local presetTitle = ui.heading(p, "How much gets shared", top, -30)
-    local presetHint = ui.hint(p, "What goes to Discord, chat and the ask box. The app picks it up on your next /reload; choose per moment on the app's Sharing page.", presetTitle)
-    local presets = ui.choice(p, PRESETS_SHOWN, function() return ns.setting("preset") end,
-      function(key) ns.editSettings(function(s) s.preset = key end) end)
-    presets:SetPoint("TOPLEFT", presetHint, "BOTTOMLEFT", 0, -10)
-    local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own picks from the app.")
-    custom:SetPoint("LEFT", presets, "RIGHT", 6, 0)
-    ui.onRefresh(p, function() custom:SetShown(ns.setting("preset") == "custom") end)
-    top = buildFilters(p, presets)
+  if withApp then -- an older app: the preset, the filters, the chat places and the ask box
+    top = buildFilters(p, buildPresets(p, top))
   end
 
   local chatTitle = ui.heading(p, "Tell in chat", top, top and -24 or nil)
   local chatHint = ui.hint(p, "One line in chat as you when something happens. Lines wait until you're out of combat.", chatTitle)
-  local places, columns = { { "party", "Party / raid chat" } }, { { "party", "Group chat" } }
-  if ns.GUILD_CHAT_ON then
-    table.insert(places, 1, { "guild", "Guild chat" })
-    table.insert(columns, 1, { "guild", "Guild chat" })
-  end
-  local whereLast = ui.checkGrid(p, places, chatHint,
-    function(key)
-      local a = ns.setting("announce") or {}
-      return a[key] == true
-    end,
-    function(key, on) ns.editSettings(function(s) s.announce[key] = on end) end)
+  local columns = { { "party", "Group chat" } }
+  if ns.GUILD_CHAT_ON then table.insert(columns, 1, { "guild", "Guild chat" }) end
+  local whereLast = buildChatPlaces(p, chatHint)
   local last = whereLast
   if not withApp then
-    last = ui.checkTable(p, ANNOUNCE_KINDS, columns, whereLast,
-      function(column, key)
-        local kinds = announceKinds(ns.setting("announce") or {}, column)
-        return kinds ~= nil and kinds[key] == true
-      end,
-      function(column, key, on) ns.editSettings(function(s) announceKinds(s.announce, column)[key] = on or nil end) end)
+    last = ui.checkTable(p, ANNOUNCE_KINDS, columns, whereLast, chatOn, setChat)
   end
 
   if not withApp then return end
@@ -229,22 +307,7 @@ local function buildSharingTab(p)
       end)
     end)
   ask:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", -2, -6)
-
-  -- How long the box stays (askSeconds, the same choices as the app): click for the next.
-  local CHOICES = { 5, 10, 15, 30, 60 }
-  local function current() return tonumber(ns.setting("askSeconds")) or 10 end
-  local secondsButton
-  local function showSeconds() secondsButton:SetText(string.format("Box stays: %d seconds", current())) end
-  secondsButton = ui.button(p, "Box stays: 10 seconds", 190, function()
-    local now, nextChoice = current(), CHOICES[1]
-    for i, n in ipairs(CHOICES) do
-      if n == now then nextChoice = CHOICES[i % #CHOICES + 1] end
-    end
-    ns.editSettings(function(s) s.askSeconds = nextChoice end)
-    showSeconds()
-  end)
-  secondsButton:SetPoint("TOPLEFT", ask, "BOTTOMLEFT", 32, -22)
-  ui.onRefresh(p, showSeconds)
+  buildAskSeconds(p, ask, 34)
 end
 
 -- Note ------------------------------------------------------------------------------------------
@@ -469,6 +532,7 @@ local function newGearRow()
 end
 
 local sharing -- the sharing panel, built further down
+local highlights -- the highlights panel, built on its first open
 
 -- The side panels (details, sharing) go beside the window on the side with room: clamped to the
 -- screen on the full side, they would slide over the window.
@@ -486,6 +550,7 @@ end
 local function placePanels()
   placeBeside(details)
   placeBeside(sharing)
+  placeBeside(highlights)
 end
 
 -- A side panel: the window's look, a close button, Esc closes it.
@@ -637,7 +702,125 @@ drawDetails = function(c, friend)
   details:SetHeight(y + 14)
   placeBeside(details)
   if sharing then sharing:Hide() end -- one side panel at a time
+  if highlights then highlights:Hide() end
   details:Show()
+end
+
+-- The highlights panel: one character's highlights beside the window, newest first, scrolling.
+-- Yours come from the saved events, a friend's from what they share (their newest few). Its parts
+-- live in HL (the file is near Lua 5.1's 200 locals).
+local HL = { WIDTH = 380, MAX = 480, ROW = 22, OWN = 200, rows = {},
+  LOSSES = { duel = "Lost a duel to %s.", makgora = "Lost a Mak'gora to %s." } }
+
+-- The chat line for a highlight (Announce.lua's), and the losses it leaves out; nil: nothing to show.
+local function highlightLine(e)
+  local line = ns.momentLine and ns.momentLine(e)
+  if line or not e.lost then return line end
+  if e.kind == "bg" then return string.format("Lost %s.", e.instance or "a battleground") end
+  return HL.LOSSES[e.kind] and string.format(HL.LOSSES[e.kind], e.opponent or "someone")
+end
+
+-- c's highlights that have a line, newest first: { e, line }. friend nil: one of yours.
+local function highlightsOf(c, friend)
+  local out = {}
+  local function add(e)
+    local line = highlightLine(e)
+    if line then out[#out + 1] = { e = e, line = line } end
+  end
+  if friend == nil and c.guid then
+    local events = (WoWCharacterTrackerDB or {}).events or {}
+    for i = #events, 1, -1 do
+      local e = events[i]
+      if #out >= HL.OWN then break end
+      if type(e) == "table" and e.guid == c.guid and ns.isFriendHighlight(e) then add(e) end
+    end
+  else
+    for _, e in ipairs(ns.friendHighlights(c)) do add(e) end
+  end
+  return out
+end
+
+-- A row: the item's icon, the line and when. Hover: the item's game tooltip for loot and mounts,
+-- else the whole line (a long one is cut short).
+local function newHighlightRow()
+  local r = CreateFrame("Frame", nil, HL.list)
+  r:SetSize(HL.WIDTH - 52, HL.ROW)
+  r:EnableMouse(true)
+  r.icon = r:CreateTexture(nil, "ARTWORK")
+  r.icon:SetSize(18, 18)
+  r.icon:SetPoint("LEFT", r, "LEFT", 0, 0)
+  r.lineText = ui.text(r, "GameFontHighlightSmall")
+  r.lineText:SetPoint("LEFT", r, "LEFT", 24, 0)
+  r.lineText:SetWidth(HL.WIDTH - 52 - 24 - 62)
+  r.lineText:SetWordWrap(false)
+  r.when = ui.text(r, "GameFontDisableSmall")
+  r.when:SetPoint("RIGHT", r, "RIGHT", 0, 0)
+  r:SetScript("OnEnter", function(self)
+    if not GameTooltip then return end
+    if self.itemId then return showItemTip(self) end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(self.full or "", 1, 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  r:SetScript("OnLeave", hideTip)
+  return r
+end
+
+local function drawHighlights(c, friend)
+  HL.key = charKey(c)
+  HL.title:SetText(fullName(c))
+  classColor(HL.title, c.classFile)
+  local list = highlightsOf(c, friend)
+  HL.sub:SetText(#list == 1 and "1 highlight, newest first" or string.format("%d highlights, newest first", #list))
+  HL.none:SetText(friend and "No highlights shared yet." or "None yet. Boss kills, loot, mounts, duels and the like show up here.")
+  HL.none:SetShown(#list == 0)
+  for i, h in ipairs(list) do
+    local r = pooled(HL.rows, i, newHighlightRow)
+    local e = h.e
+    r.itemId = (e.kind == "loot" or e.kind == "mount") and type(e.itemId) == "number" and e.itemId or nil
+    r.icon:SetTexture(r.itemId and itemIcon(r.itemId) or nil)
+    r.lineText:SetText(h.line)
+    r.when:SetText(e.at and ago(e.at) or "")
+    r.full = h.line
+    place(r, HL.list, 0, (i - 1) * HL.ROW)
+  end
+  hideFrom(HL.rows, #list + 1)
+  HL.list:SetHeight(math.max(1, #list * HL.ROW))
+  if HL.scroll.SetVerticalScroll then HL.scroll:SetVerticalScroll(0) end
+  highlights:SetHeight(math.min(HL.MAX, 60 + math.max(1, #list) * HL.ROW + 16))
+  placeBeside(highlights)
+  if details then details:Hide() end -- one side panel at a time
+  if sharing then sharing:Hide() end
+  highlights:Show()
+end
+
+-- Opens c's highlights beside the window (built on the first open), or closes them when they're
+-- the ones shown.
+local function toggleHighlights(c, friend)
+  if not highlights then
+    highlights = sidePanel("WoWCharacterTrackerHighlightsPanel")
+    highlights:SetWidth(HL.WIDTH)
+    HL.title = ui.text(highlights, "GameFontHighlightLarge")
+    HL.title:SetPoint("TOPLEFT", 14, -14)
+    HL.title:SetWidth(HL.WIDTH - 50)
+    HL.sub = ui.text(highlights, "GameFontDisableSmall")
+    HL.sub:SetPoint("TOPLEFT", HL.title, "BOTTOMLEFT", 0, -4)
+    HL.sub:SetWidth(HL.WIDTH - 28)
+    HL.scroll = CreateFrame("ScrollFrame", nil, highlights, "UIPanelScrollFrameTemplate")
+    HL.scroll:SetPoint("TOPLEFT", 14, -60)
+    HL.scroll:SetPoint("BOTTOMRIGHT", -30, 12)
+    HL.list = CreateFrame("Frame", nil, HL.scroll)
+    HL.list:SetSize(HL.WIDTH - 52, 1)
+    HL.scroll:SetScrollChild(HL.list)
+    HL.none = ui.text(highlights, "GameFontDisableSmall")
+    HL.none:SetPoint("TOPLEFT", 14, -62)
+    HL.none:SetWidth(HL.WIDTH - 28)
+  end
+  if highlights:IsShown() and HL.key == charKey(c) then
+    highlights:Hide()
+  else
+    drawHighlights(c, friend)
+  end
 end
 
 -- The character whose info is unfolded under its row (one at a time, on the Friends and
@@ -655,6 +838,7 @@ local function toggleDetails(self)
   if expandedKey == charKey(c) then
     expandedKey = nil
     details:Hide()
+    if highlights then highlights:Hide() end
   else
     expandedKey = charKey(c)
     drawDetails(c, self.friend)
@@ -751,25 +935,34 @@ local function drawExpansion(ex, c, friend)
     setHidden(c, not hidden)
     expandedKey = nil
     if details then details:Hide() end
+    if highlights then highlights:Hide() end
     redrawTab()
   end)
   local h = math.max(left, right) + 10
   place(ex.hide, ex, ex.width - 122, h)
-  -- A button per profession with known recipes: opens them in the recipe window (RecipeWindow.lua).
+  -- Highlights (the panel beside the window), then a button per profession with known recipes,
+  -- which opens them in the recipe window (RecipeWindow.lua).
+  local actions = {}
+  local count = #highlightsOf(c, friend)
+  if count > 0 then
+    actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end }
+  end
+  for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do
+    actions[#actions + 1] = { string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end }
+  end
   ex.recipes = ex.recipes or {}
-  local profs = ns.recipeProfessions and ns.recipeProfessions(c) or {}
   local x = 12
-  for i, prof in ipairs(profs) do
+  for i, action in ipairs(actions) do
     if x + 150 > ex.width - 130 then -- the next line, clear of Hide
       x = 12
       h = h + 28
     end
     local b = pooled(ex.recipes, i, function() return cardButton(ex, 150) end)
-    setButton(b, string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end)
+    setButton(b, action[1], action[2])
     place(b, ex, x, h)
     x = x + 156
   end
-  hideFrom(ex.recipes, #profs + 1)
+  hideFrom(ex.recipes, #actions + 1)
   h = h + 30
   ex:SetHeight(h)
   ex:Show()
@@ -932,6 +1125,7 @@ openSharing = function(tag)
   end
   sharingTag = tag
   if details then details:Hide() end -- one side panel at a time
+  if highlights then highlights:Hide() end
   placeBeside(sharing)
   drawSharing()
   sharing:Show()
@@ -1983,7 +2177,7 @@ local function appSummary()
   if not ns.hasApp() then
     return "No app found. Discord posts, screenshots, the stream overlay and characters from other WoW accounts need the free Character Tracker app, from the link below (click it, then Ctrl+C). Group lines, this window, friends and notes work without it."
   end
-  local post = ns.setting("post") or {}
+  local post = ns.postRules() or {}
   local postKinds = {}
   for k, v in pairs(post) do postKinds[k] = (type(v) == "table" and v.on) or v == true end
   return table.concat({
@@ -2092,7 +2286,7 @@ end
 local TABS = {
   { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
   { key = "characters", label = "Characters", height = 1000, build = buildCharacters }, -- grows with the list
-  { key = "sharing", label = "Sharing", height = 830, build = buildSharingTab }, -- without the app: the whole chat table
+  { key = "sharing", label = "Sharing", height = 1180, build = buildSharingTab }, -- a row per moment
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
   { key = "settings", label = "Settings", height = 780, build = buildSettings },

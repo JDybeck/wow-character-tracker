@@ -87,7 +87,16 @@ static class SavedVariables
             t.Get("askSeconds").CastToNumber() is double seconds ? (int)seconds : null,
             t.Get("ignored").Type == DataType.Table ? On(t.Get("ignored")) : null,
             t.Get("preset").Type == DataType.String ? t.Get("preset").String : null,
-            ReadFilters(t.Get("filters")));
+            ReadFilters(t.Get("filters")),
+            Switches(t.Get("posts")), Switches(t.Get("screenshot")));
+    }
+
+    // { key = true/false }: the Sharing table's Discord and screenshot boxes, off ones included.
+    static Dictionary<string, bool>? Switches(DynValue value)
+    {
+        if (value.Type != DataType.Table) return null;
+        return value.Table.Pairs.Where(p => p.Key.Type == DataType.String && p.Value.Type == DataType.Boolean)
+            .ToDictionary(p => p.Key.String, p => p.Value.Boolean);
     }
 
     static GameFilters? ReadFilters(DynValue value)
