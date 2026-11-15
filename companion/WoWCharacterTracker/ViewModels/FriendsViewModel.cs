@@ -63,6 +63,8 @@ sealed class FriendsViewModel : Observable
         var keep = SelectedCharacter?.Guid;
         var keepTab = SelectedCharacter?.DetailTab; // the list refreshes on every sync
         var rows = new List<CharacterRow>();
+        // Friends don't share their region, and Battle.net friends who share play in yours.
+        var region = data.Characters.Where(c => c.Region.Length > 0).MaxBy(c => c.LastSeen)?.Region ?? "";
         // Only friends whose characters you keep: unticking "Keep theirs" or blocking them hides what came before.
         foreach (var contact in data.Friends.Where(c => ContactFor(c.Tag).Receive && !Share.Blocked.Contains(c.Tag)))
             foreach (var row in CharacterRow.Build(new TrackerData(contact.Events, contact.Characters) { Inventories = contact.Inventories }, flavor, lookup))
@@ -70,6 +72,10 @@ sealed class FriendsViewModel : Observable
                 row.IsFriend = true;
                 row.FriendTag = contact.Tag;
                 row.FriendSynced = contact.Seen;
+                if (row.Region.Length == 0) row.Region = region;
+                var guid = row.Guid;
+                row.SetPortraitChoice(config.StandardPortraits.Contains(guid), standard => { config.SetStandardPortrait(guid, standard); save(); });
+                row.SetArmoryChoice(config.ArmorySd, config.ArmoryModels.TryGetValue(guid, out var sd) ? sd : null, choice => { config.SetArmoryModel(guid, choice); save(); });
                 rows.Add(row);
             }
         AddRaces(rows, data);
@@ -222,6 +228,22 @@ sealed class FriendsViewModel : Observable
     bool showProfessions;
     public bool ShowProfessions { get => showProfessions; set { if (Set(ref showProfessions, value)) ViewChanged(value ? "professions" : null); } }
     public bool ShowCharacters => !ShowSettings && !ShowProfessions;
+
+    // Friends' armory pictures with the new (HD) or old (SD) models, for every friend's character
+    // that doesn't have its own choice (MainWindow's switch beside the sub-tabs).
+    public bool HasArmory => flavor.ArmoryGame.Length > 0;
+    public string ArmoryModel => config.ArmorySd ? "sd" : "hd";
+    public ICommand ShowArmoryModelCommand => showArmoryModel ??= new RelayCommand(p =>
+    {
+        var sd = p as string == "sd";
+        if (config.ArmorySd == sd) return;
+        config.ArmorySd = sd;
+        foreach (var guid in config.ArmoryModels.Where(m => m.Value == sd).Select(m => m.Key).ToList()) config.ArmoryModels.Remove(guid);
+        foreach (var r in allRows) r.SetArmoryDefault(sd);
+        save();
+        Raise(nameof(ArmoryModel));
+    });
+    ICommand? showArmoryModel;
 
     // The page's sub-tabs (MainWindow's switch beside the page tabs): "list" or "professions".
     public string View => ShowProfessions ? "professions" : "list";

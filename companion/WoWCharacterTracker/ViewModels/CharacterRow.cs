@@ -50,8 +50,11 @@ sealed class CharacterRow : Observable
     public bool HasTalentPicks => TalentPickList.Count > 0;
     public string TalentExport { get; init; } = ""; // the game's loadout string (retail)
     public bool HasTalentExport => TalentExport.Length > 0;
-    public string Region { get; init; } = ""; // "eu", "us"... for the Retail character render
+    public string Region { get; set; } = ""; // "eu", "us"... for the Retail render and the armory (friends get yours)
     public string RealmText => Realms.Label(Region, Realm);
+    public string ArmoryGame { get; init; } = ""; // Flavor.ArmoryGame
+    public string? ArmoryUrl => IsTest ? null : BlizzardArmory.ProfileUrl(ArmoryGame, Region, Name, Surname);
+    public bool HasArmoryLink => ArmoryUrl is not null;
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
@@ -253,14 +256,25 @@ sealed class CharacterRow : Observable
     public async Task LoadPictureAsync(Flavor flavor)
     {
         pictureFlavor = flavor;
-        HasGamePortrait = CharacterPicture.GamePortrait(flavor, Guid, standardChosen: false) is not null;
-        if (CharacterPicture.GamePortrait(flavor, Guid, useStandard) is { } own) { PictureUrl = own; return; }
-        PictureUrl = CharacterArt.ClassIconUrl(ClassFile);
+        if (IsFriend)
+        {
+            PictureUrl ??= CharacterArt.ClassIconUrl(ClassFile);
+            var armory = await CharacterPicture.ArmoryAsync(flavor, Picture, ArmorySd);
+            HasGamePortrait = armory is not null;
+            if (armory is not null && !useStandard) { PictureUrl = armory; return; }
+        }
+        else
+        {
+            HasGamePortrait = CharacterPicture.GamePortrait(flavor, Guid, standardChosen: false) is not null;
+            if (CharacterPicture.GamePortrait(flavor, Guid, useStandard) is { } own) { PictureUrl = own; return; }
+            PictureUrl = CharacterArt.ClassIconUrl(ClassFile);
+        }
         if (await CharacterPicture.StandardAsync(flavor, Picture) is { } url) PictureUrl = url;
     }
 
-    // Forever: which picture to show once an in-game portrait was captured, the in-game one or the
-    // standard (race) one. The choice is saved (Config.StandardPortraits) through the callback.
+    // Which picture to show when there's more than the standard (race) one: yours on Forever, the
+    // in-game portrait once one was captured; a friend's, the armory picture. The choice is saved
+    // (Config.StandardPortraits) through the callback.
     Flavor? pictureFlavor;
     bool useStandard;
     Action<bool>? portraitChosen;
@@ -276,8 +290,44 @@ sealed class CharacterRow : Observable
         if (useStandard == standard) return;
         useStandard = standard;
         portraitChosen?.Invoke(standard);
+        RaisePortrait();
+    }
+
+    void RaisePortrait()
+    {
         Raise(nameof(UseGamePortrait)); Raise(nameof(UseStandardPortrait));
+        Raise(nameof(UseArmoryHd)); Raise(nameof(UseArmorySd));
         if (pictureFlavor is { } f) _ = LoadPictureAsync(f);
+    }
+
+    // A friend's armory picture: old (SD) or new (HD) models. The Friends page's switch sets it for
+    // all (Config.ArmorySd), a character's own choice overrides it (Config.ArmoryModels, only kept
+    // while it differs, so picking the switch's again follows the switch).
+    bool armorySdDefault;
+    bool? armorySdOverride;
+    Action<bool?>? armoryChosen;
+    public bool ArmorySd => armorySdOverride ?? armorySdDefault;
+    public bool UseArmoryHd { get => !useStandard && !ArmorySd; set { if (value) ChooseArmory(false); } }
+    public bool UseArmorySd { get => !useStandard && ArmorySd; set { if (value) ChooseArmory(true); } }
+
+    public void SetArmoryChoice(bool sdDefault, bool? sdOverride, Action<bool?> chosen) =>
+        (armorySdDefault, armorySdOverride, armoryChosen) = (sdDefault, sdOverride, chosen);
+
+    // The switch for all friends moved (its owner drops the saved choices that now match it).
+    public void SetArmoryDefault(bool sd)
+    {
+        if (armorySdDefault == sd) return;
+        armorySdDefault = sd;
+        if (armorySdOverride == sd) armorySdOverride = null;
+        RaisePortrait();
+    }
+
+    void ChooseArmory(bool sd)
+    {
+        if (useStandard) { useStandard = false; portraitChosen?.Invoke(false); }
+        armorySdOverride = sd == armorySdDefault ? null : sd;
+        armoryChosen?.Invoke(armorySdOverride);
+        RaisePortrait();
     }
 
     // One row per character: the latest snapshot, filled in from events when there isn't one yet.
@@ -356,6 +406,7 @@ sealed class CharacterRow : Observable
                 TalentExport = Newest(guid, c => c.TalentExport),
                 TalentCalc = Newest(guid, c => c.TalentCalc),
                 Region = Newest(guid, c => c.Region),
+                ArmoryGame = flavor.ArmoryGame,
                 Stats = Newest(guid, c => c.Stats),
                 Recipes = Newest(guid, c => c.Recipes),
                 Levels = levels

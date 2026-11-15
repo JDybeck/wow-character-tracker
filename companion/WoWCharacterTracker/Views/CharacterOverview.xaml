@@ -14,19 +14,33 @@
     <StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="CHARACTER"/>
       <TextBlock Style="{StaticResource FactValue}" Text="{Binding Description}"/>
+      <Button Style="{StaticResource GhostButton}" Padding="12,4" Margin="-12,0,0,0" HorizontalAlignment="Left"
+              ToolTip="{Binding ArmoryUrl}" Visibility="{Binding HasArmoryLink, Converter={StaticResource Visible}}"
+              Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding ArmoryUrl}">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE8A7;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+          <TextBlock Text="Open in the armory" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+        </StackPanel>
+      </Button>
       <!-- A friend's character (Friends page): who shared it. What's yours to change is left out below. -->
       <StackPanel Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="SHARED BY"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding FriendName}"/>
       </StackPanel>
-      <!-- Forever: the in-game portrait from the login check-in, or the standard one. -->
+      <!-- Forever: the in-game portrait from the login check-in (a friend's: the armory picture), or the standard one. -->
       <StackPanel Visibility="{Binding HasGamePortrait, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="PORTRAIT"/>
         <WrapPanel>
           <CheckBox Style="{StaticResource OptionChip}" Content="In-game" IsChecked="{Binding UseGamePortrait}" Margin="0,0,6,0"
-                    ToolTip="The portrait your character has in game, captured when you log in"/>
+                    ToolTip="The portrait your character has in game, captured when you log in" Visibility="{Binding IsOwn, Converter={StaticResource Visible}}"/>
+          <CheckBox Style="{StaticResource OptionChip}" Content="HD" IsChecked="{Binding UseArmoryHd}" Margin="0,0,6,0"
+                    ToolTip="The armory picture with the new character models, for this character only. The HD/SD switch at the top sets it for all"
+                    Visibility="{Binding IsFriend, Converter={StaticResource Visible}}"/>
+          <CheckBox Style="{StaticResource OptionChip}" Content="SD" IsChecked="{Binding UseArmorySd}" Margin="0,0,6,0"
+                    ToolTip="The armory picture with the old character models, for this character only. The HD/SD switch at the top sets it for all"
+                    Visibility="{Binding IsFriend, Converter={StaticResource Visible}}"/>
           <CheckBox Style="{StaticResource OptionChip}" Content="Standard" IsChecked="{Binding UseStandardPortrait}"
-                    ToolTip="The standard portrait for your race"/>
+                    ToolTip="The standard portrait for the race"/>
         </WrapPanel>
       </StackPanel>
       <StackPanel Visibility="{Binding HasGuild, Converter={StaticResource Visible}}">

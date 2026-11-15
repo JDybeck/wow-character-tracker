@@ -26,9 +26,9 @@ static class CharacterArt
         return ClassIconUrl(classFile);
     }
 
-    // Forever has no armory to get a render from, so the addon shows the character's own portrait in
-    // its check-in shot after login, and the app keeps it here (<data dir>\portraits\<guid>.png). Only
-    // used in the app: Discord needs a web address for pictures.
+    // On Forever the addon shows your character's own portrait in its check-in shot after login, and
+    // the app keeps it here (<data dir>\portraits\<guid>.png). Only used in the app: Discord needs a
+    // web address for pictures.
     internal static string PortraitPath(string guid) => Path.Combine(Config.Dir, "portraits", string.Concat(guid.Split(Path.GetInvalidFileNameChars())) + ".png");
 
     public static string? LocalPortrait(string guid) => File.Exists(PortraitPath(guid)) ? PortraitPath(guid) : null;
@@ -46,7 +46,7 @@ static class CharacterArt
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
-    static async Task<bool> ExistsAsync(string url)
+    internal static async Task<bool> ExistsAsync(string url)
     {
         if (UrlExists.TryGetValue(url, out var known)) return known;
         try
