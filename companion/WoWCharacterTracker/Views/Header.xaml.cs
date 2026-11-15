@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace WoWCharacterTracker.Views;
 
@@ -7,10 +8,30 @@ public partial class Header : UserControl
 {
     public Header() => InitializeComponent();
 
-    // Typing a search shows the results: Characters, Items.
-    void Search_TextChanged(object sender, TextChangedEventArgs e)
+    // The search list: Up/Down pick a result, Enter opens it, Esc clears the box.
+    void Search_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (SearchBox.IsKeyboardFocused && SearchBox.Text.Length > 0 && DataContext is MainViewModel vm) vm.Page = "items";
+        if (DataContext is not MainViewModel { Search: var search }) return;
+        switch (e.Key)
+        {
+            case Key.Down or Key.Up:
+                search.Move(e.Key == Key.Down ? 1 : -1);
+                if (SearchResults.ItemContainerGenerator.ContainerFromItem(search.Selected) is FrameworkElement picked) picked.BringIntoView();
+                break;
+            case Key.Enter:
+                SearchBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource(); // typed faster than the binding's delay
+                search.OpenSelected();
+                break;
+            case Key.Escape: search.Query = ""; break;
+            default: return;
+        }
+        e.Handled = true;
+    }
+
+    // Back in the box with a search still in it: the list again.
+    void Search_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (DataContext is MainViewModel { Search: { Query.Length: > 0 } search }) search.IsOpen = true;
     }
 
     // Switching game tabs plays the orb animation from the old tab to the new one (not at startup,

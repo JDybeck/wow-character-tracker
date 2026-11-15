@@ -10,6 +10,9 @@ sealed class GameLookup(Flavor flavor, Action loaded)
 
     public ItemInfo Item(int id) => For("item", id);
 
+    // An item already looked up, without starting a lookup (the header's search only lists names it has).
+    public ItemInfo? KnownItem(int id) => infos.GetValueOrDefault(("item", id));
+
     public ItemInfo For(string type, int id)
     {
         if (infos.TryGetValue((type, id), out var info))

@@ -825,6 +825,7 @@ sealed class FlavorViewModel : Observable
 
     // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
     List<CharacterRow> allRows = [];
+    public IReadOnlyList<CharacterRow> AllCharacters => allRows;
     public CharacterRow? RowFor(string guid) => allRows.FirstOrDefault(r => r.Guid == guid);
 
     void ShowData(TrackerData data)

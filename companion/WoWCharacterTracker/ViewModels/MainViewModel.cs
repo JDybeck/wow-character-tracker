@@ -19,6 +19,7 @@ sealed class MainViewModel : Observable
         Appearance = new AppearanceViewModel(this);
         Stream = new StreamViewModel(this);
         Intro = new IntroViewModel(this);
+        Search = new SearchViewModel(this);
         Log.Written += line => OnUi(() =>
         {
             Logs.Insert(0, line);
@@ -106,6 +107,7 @@ sealed class MainViewModel : Observable
     public AppearanceViewModel Appearance { get; }
     public StreamViewModel Stream { get; }
     public IntroViewModel Intro { get; }
+    public SearchViewModel Search { get; }
 
     // Settings, Animations: slides, fades and the tab orb (Ui/Motion), or everything instant.
     public bool Animations
@@ -163,6 +165,7 @@ sealed class MainViewModel : Observable
             Config.SelectedFlavor = value.Flavor.Key;
             Config.Save();
             Discord.Refresh();
+            Search.Refresh();
         }
     }
 
