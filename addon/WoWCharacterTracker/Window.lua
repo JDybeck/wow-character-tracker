@@ -2148,7 +2148,9 @@ local function build()
   version = buildVersion()
   version:SetPoint("LEFT", title, "RIGHT", 6, -1)
 
-  closeButton(window, function() window:Hide() end)
+  local close = closeButton(window, function() window:Hide() end)
+  local author = ui.text(window, "GameFontDisableSmall", ui.author())
+  author:SetPoint("RIGHT", close, "LEFT", -4, 0)
 
   local last
   for _, t in ipairs(TABS) do

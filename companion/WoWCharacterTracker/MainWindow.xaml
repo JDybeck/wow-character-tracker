@@ -128,6 +128,35 @@
     </Grid>
   </Grid>
 
+  <!-- The maker and a tip link, faint in the page's bottom margin so it never covers a page. -->
+  <StackPanel x:Name="Credit" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,4">
+    <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
+      <Button.Template>
+        <ControlTemplate TargetType="Button">
+          <TextBlock x:Name="Maker" Text="made by JDybeck · twitch" FontSize="11" Foreground="{StaticResource Faint}"/>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Maker" Property="Foreground" Value="#9146FF"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Button.Template>
+    </Button>
+    <TextBlock Text="·" FontSize="11" Foreground="{StaticResource Faint}" Margin="6,0"/>
+    <Button Cursor="Hand" ToolTip="Like the app? Tips are welcome (streamlabs.com/zebdryg/tip)" Command="{Binding OpenUrlCommand}" CommandParameter="https://streamlabs.com/zebdryg/tip">
+      <Button.Template>
+        <ControlTemplate TargetType="Button">
+          <TextBlock x:Name="Tip" Text="tip ♥" FontSize="11" Foreground="{StaticResource Faint}"/>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Tip" Property="Foreground" Value="#F87171"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Button.Template>
+    </Button>
+  </StackPanel>
+
   <!-- The console slides out from the rail over the page (MainWindow: hover, click or pinned). -->
   <Border x:Name="ConsoleFlyout" Width="460" HorizontalAlignment="Right" Margin="0,112,0,22" Padding="0,0,10,0"
           Visibility="{Binding ConsoleOpen, Converter={StaticResource Visible}}">
