@@ -10,6 +10,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 - **The Sharing table in game.** The addon window's **Sharing** tab now works like the app's Sharing page: Quiet, Normal or Everything, and a row per moment with **Discord**, **Screenshot**, **Group** and **Ask first**. Changes count right away in game and reach the app on your next /reload, and the newest change wins, in the app or in game. Stream alerts and test posts stay in the app.
 - **Highlights for every character.** In the app, a character's details (yours and friends') have a **Highlights** tab with all of them, and Overview shows the newest five with a link there. In the addon window, an unfolded character has **Highlights (N)**, which opens them beside the window. On the addon's Home, scroll over the moment columns with the mouse wheel to see the newest 50.
+- **Item tooltips in game.** Hover a loot or mount moment on the addon's Home for the item's own tooltip from the game, like the app shows. Item links in chat show theirs on hover too, no click needed.
 
 ### Fixes and tweaks
 

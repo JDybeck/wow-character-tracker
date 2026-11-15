@@ -111,8 +111,10 @@ local function showRowTip(self)
   GameTooltip:Show()
 end
 
+-- Loot and mounts show the item's own tooltip, the rest the whole line.
 local function rowEnter(self)
   self.hover:SetShown(self.open ~= nil)
+  if self.itemId then return ui.itemTip(self, self.itemId, nil, "ANCHOR_CURSOR") end
   showRowTip(self)
 end
 local function rowLeave(self)
@@ -147,15 +149,18 @@ local function newMomentRow(parent)
   return row
 end
 
--- open: what a click does (nil: nothing, no hover).
-local function setMomentRow(row, who, classFile, what, at, open)
+-- open: what a click does (nil: nothing, no hover). itemId: the item the moment is about, for its tooltip.
+local function setMomentRow(row, who, classFile, what, at, open, itemId)
   row.who:SetText(who)
   row.who:SetTextColor(ui.classRgb(classFile))
   row.what:SetText(what)
   row.when:SetText(ns.ago(at))
-  row.full, row.open = who .. ": " .. what, open
+  row.full, row.open, row.itemId = who .. ": " .. what, open, itemId
   row:Show()
 end
+
+local ITEM_KINDS = { loot = true, mount = true }
+local function momentItem(e) return ITEM_KINDS[e.kind] and tonumber(e.itemId) or nil end
 
 -- Shows col.size rows of col.list from col.offset (the mouse wheel moves it), and "1-6 of 50" when
 -- there's more. col.size grows with a taller window.
@@ -167,7 +172,7 @@ local function showColumn(col)
     if item then
       local e = item.e
       local open = item.c and function() ns.toggleFriendDetails(item.c, item.label) end or nil
-      setMomentRow(row, ns.fullName(e), e.classFile, ns.momentLine(e), e.at, open)
+      setMomentRow(row, ns.fullName(e), e.classFile, ns.momentLine(e), e.at, open, momentItem(e))
     else
       row:Hide()
     end

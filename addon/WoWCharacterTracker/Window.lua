@@ -487,12 +487,7 @@ local function itemIcon(id)
   return ok and icon or nil
 end
 
-local function showItemTip(self)
-  if not (GameTooltip and self.itemId) then return end
-  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:SetHyperlink("item:" .. self.itemId .. ":" .. (self.enchantId or ""))
-  GameTooltip:Show()
-end
+local function showItemTip(self) ui.itemTip(self, self.itemId, self.enchantId) end
 
 -- A label and its value, the value wrapping in what's left of width.
 local function newFactRow(parent, width)

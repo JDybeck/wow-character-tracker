@@ -152,6 +152,31 @@ function ui.author()
   return name ~= "" and ("by " .. name) or ""
 end
 
+-- The game's own tooltip for an item, next to owner: item is an id (with enchantId, if known) or a
+-- whole "item:..." link from chat. anchor: the game's ANCHOR_ name, ANCHOR_RIGHT by default.
+function ui.itemTip(owner, item, enchantId, anchor)
+  if not (GameTooltip and item) then return end
+  GameTooltip:SetOwner(owner, anchor or "ANCHOR_RIGHT")
+  GameTooltip:SetHyperlink(type(item) == "string" and item or ("item:" .. item .. ":" .. (enchantId or "")))
+  GameTooltip:Show()
+end
+
+-- Item links in chat show that tooltip on hover too (normally it takes a click). Hooked, never
+-- replaced, so the chat frames' own handlers run as before.
+function ui.hookChatItemTips()
+  if ui.chatTipsHooked then return end
+  ui.chatTipsHooked = true
+  for i = 1, (NUM_CHAT_WINDOWS or 0) do
+    local frame = _G["ChatFrame" .. i]
+    if frame and frame.HookScript then
+      frame:HookScript("OnHyperlinkEnter", function(self, link)
+        if type(link) == "string" and link:match("^item:") then ui.itemTip(self, link, nil, "ANCHOR_CURSOR") end
+      end)
+      frame:HookScript("OnHyperlinkLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    end
+  end
+end
+
 function ui.text(parent, template, s)
   local fs = parent:CreateFontString(nil, "ARTWORK", template)
   fs:SetJustifyH("LEFT")
