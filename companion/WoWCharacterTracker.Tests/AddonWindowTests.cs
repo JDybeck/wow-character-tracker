@@ -1156,6 +1156,12 @@ public class AddonWindowTests
             """);
         Assert.True(Bool(c, "shownText('3-8 of 8') ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Boss 1 in Uldaman!') ~= nil and shownText('Killed Boss 8 in Uldaman!') == nil"));
+
+        // A taller window fills its bottom with more moments: all eight fit, nothing left to scroll.
+        c.Lua("named('WoWCharacterTrackerWindow').GetHeight = function() return 1400 end");
+        c.Call("openWindow", "home");
+        Assert.True(Bool(c, "shownText('Killed Boss 8 in Uldaman!') ~= nil and shownText('Killed Boss 1 in Uldaman!') ~= nil"));
+        Assert.True(Bool(c, "shownText('1-8 of 8') == nil and shownText('3-8 of 8') == nil"));
     }
 
     [Fact]

@@ -17,6 +17,8 @@ local window, area, version
 -- The width tab pages have now: the window can be made wider than WIDTH (the grip, bottom right).
 local function pageWidth() return ((window and window:GetWidth()) or WIDTH) - 50 end
 ns.pageWidth = pageWidth -- Home.lua's
+-- The height a page is shown in now (the window can be made taller): Home fills it with moments.
+function ns.pageHeight() return ((window and window:GetHeight()) or HEIGHT) - TITLE_BAR - TAB_BAR - 8 end
 local tabs = {}  -- [key] = { button, holder, page }
 local current
 

@@ -157,12 +157,13 @@ local function setMomentRow(row, who, classFile, what, at, open)
   row:Show()
 end
 
--- Shows col.list from col.offset (the mouse wheel moves it), and "1-6 of 50" when there's more.
+-- Shows col.size rows of col.list from col.offset (the mouse wheel moves it), and "1-6 of 50" when
+-- there's more. col.size grows with a taller window.
 local function showColumn(col)
-  local list = col.list
-  col.offset = math.max(0, math.min(col.offset or 0, #list - FEED_SIZE))
+  local list, size = col.list, col.size
+  col.offset = math.max(0, math.min(col.offset or 0, #list - size))
   for i, row in ipairs(col.rows) do
-    local item = list[col.offset + i]
+    local item = i <= size and list[col.offset + i]
     if item then
       local e = item.e
       local open = item.c and function() ns.toggleFriendDetails(item.c, item.label) end or nil
@@ -172,8 +173,8 @@ local function showColumn(col)
     end
   end
   col.empty:SetShown(#list == 0)
-  col.more:SetShown(#list > FEED_SIZE)
-  col.more:SetText(string.format("%d-%d of %d", col.offset + 1, math.min(col.offset + FEED_SIZE, #list), #list))
+  col.more:SetShown(#list > size)
+  col.more:SetText(string.format("%d-%d of %d", col.offset + 1, math.min(col.offset + size, #list), #list))
 end
 
 -- A column of moments from list ({ e, c, label }: c and label for a friend's, whose click opens it).
@@ -359,7 +360,7 @@ function ns.buildHomeTab(p)
   moments:SetSize(WIDTH, 26 + FEED_SIZE * 20)
   moments:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -18)
   local function column(title, empty)
-    local col = { title = ui.text(moments, "GameFontNormal", title), rows = {}, list = {}, offset = 0 }
+    local col = { title = ui.text(moments, "GameFontNormal", title), rows = {}, list = {}, offset = 0, size = FEED_SIZE }
     ui.tint(col.title, C.accent)
     col.empty = ui.text(moments, "GameFontDisableSmall", empty)
     col.more = ui.text(moments, "GameFontDisableSmall")
@@ -401,6 +402,20 @@ function ns.buildHomeTab(p)
     divider:SetPoint("BOTTOMLEFT", moments, "BOTTOMLEFT", s - 5, 0)
   end
   placeMoments()
+  -- A taller window gives the moments its extra room: n rows per column, built as they're needed.
+  local feedRows = FEED_SIZE
+  local function setFeedRows(n)
+    if n == feedRows then return end
+    feedRows = n
+    for _, col in ipairs({ mine, theirs }) do
+      col.size = n
+      for i = #col.rows + 1, n do col.rows[i] = newMomentRow(moments) end
+    end
+    moments:SetHeight(26 + n * 20)
+    placeMoments()
+    showColumn(mine)
+    showColumn(theirs)
+  end
   -- Dragging the bar moves the split; the hand cursor and a lighter line say it can be dragged.
   divider:SetScript("OnEnter", function()
     ui.fill(dividerLine, C.accent)
@@ -457,7 +472,7 @@ function ns.buildHomeTab(p)
     row.what:SetWidth(WIDTH - 196 - 70)
     friendRows[i] = row
   end
-  local BELOW_CARD = 18 + 26 + FEED_SIZE * 20 + 16 + 26 + FRIENDS_SHOWN * 20 + 20 -- the moments and friends under the card
+  local BELOW_CARD = 18 + 26 + 16 + 26 + FRIENDS_SHOWN * 20 + 20 -- the moments' title and the friends under the card, without the moment rows
 
   -- Everything sized for the window's width, again when it changed (the window can be resized).
   local function fit()
@@ -567,7 +582,11 @@ function ns.buildHomeTab(p)
     end
     local bottom = y + 56 + (math.ceil(math.max(shown, 1) / ns.TODAY_SHOWN) - 1) * 22
     card:SetHeight(bottom)
-    p:SetHeight(12 + hintHeight + bottom + BELOW_CARD)
+    -- What the window shows below the rest goes to more moment rows, so a tall window has no empty bottom.
+    local rest = 12 + hintHeight + bottom + BELOW_CARD
+    local room = (ns.pageHeight and ns.pageHeight() or 0) - rest - FEED_SIZE * 20
+    setFeedRows(math.max(FEED_SIZE, math.min(FEED_MAX, FEED_SIZE + math.floor(room / 20))))
+    p:SetHeight(rest + feedRows * 20)
   end
   hint.onHide = layout
 
