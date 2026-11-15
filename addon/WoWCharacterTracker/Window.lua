@@ -2028,6 +2028,14 @@ local function buildSettings(p)
   local appLink = ui.copyBox(p, ns.APP_URL, 380)
   appLink:SetPoint("TOPLEFT", appText, "BOTTOMLEFT", 0, -8)
   ui.onRefresh(p, function() appText:SetText(appSummary()) end)
+  -- Tips, never needed: the same Ko-fi link as the app's corner.
+  local tipText = ui.text(p, "GameFontDisableSmall",
+    "Like it? Tips are welcome on Ko-fi (click the link, then Ctrl+C). Never needed, always appreciated.")
+  tipText:SetPoint("TOPLEFT", appLink, "BOTTOMLEFT", 0, -16)
+  tipText:SetWidth(PAGE_WIDTH - 40)
+  tipText:SetJustifyH("LEFT")
+  local tipLink = ui.copyBox(p, ns.TIP_URL, 380)
+  tipLink:SetPoint("TOPLEFT", tipText, "BOTTOMLEFT", 0, -6)
 end
 
 -- The window ------------------------------------------------------------------------------------
@@ -2038,7 +2046,7 @@ local TABS = {
   { key = "sharing", label = "Sharing", height = 830, build = buildSharingTab }, -- without the app: the whole chat table
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
-  { key = "settings", label = "Settings", height = 780, build = buildSettings },
+  { key = "settings", label = "Settings", height = 840, build = buildSettings },
 }
 local BY_KEY = {}
 for _, t in ipairs(TABS) do BY_KEY[t.key] = t end

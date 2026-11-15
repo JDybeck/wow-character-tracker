@@ -536,15 +536,17 @@ public class AddonWindowTests
         Assert.Equal(1, Num(c, "pinged"));
     }
 
-    // The Settings tab links to the app's page with the app and without it.
+    // The Settings tab links to the app's page and the tip page, with the app and without it.
     [Fact]
-    public void The_settings_tab_links_to_the_apps_page()
+    public void The_settings_tab_links_to_the_apps_page_and_tips()
     {
+        Assert.Equal("https://ko-fi.com/jdybeck", Load().Lua("return ns.TIP_URL").String);
         foreach (var settings in new[] { "{}", "{ post = {} }" })
         {
             var c = Load(settings: settings);
             c.Call("openWindow", "settings");
             Assert.True(Bool(c, "(function() for _, f in ipairs(frames) do if f.kind == 'EditBox' and f.text == ns.APP_URL and onScreen(f) then return true end end end)()"));
+            Assert.True(Bool(c, "(function() for _, f in ipairs(frames) do if f.kind == 'EditBox' and f.text == ns.TIP_URL and onScreen(f) then return true end end end)()"));
         }
     }
 

@@ -212,6 +212,8 @@ end
 
 -- Where the app (and everything about it) is, for the addon on its own.
 ns.APP_URL = "https://github.com/JDybeck/wow-character-tracker"
+-- Where tips go, same link as the app's corner and the README.
+ns.TIP_URL = "https://ko-fi.com/jdybeck"
 
 -- Is the app there? It writes `post` into Settings.lua; the addon on its own (from an addon site)
 -- has only the bundled defaults, and nobody to send live events to.
