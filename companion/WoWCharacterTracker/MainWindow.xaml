@@ -23,7 +23,7 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <views:Header x:Name="HeaderView"/>
+    <views:Header x:Name="HeaderView" Panel.ZIndex="1"/> <!-- on top: the search list hangs over the page -->
     <!-- Notices across the top: an update, a /reload reminder, the old beta folder and setup that needs
          doing. Nothing shows when all is fine. -->
     <views:SetupBar x:Name="SetupStrip" Grid.Row="1" Wide="True" Margin="0,0,0,14" Visibility="{Binding SelectedFlavor.IsOn, Converter={StaticResource Visible}}"/>

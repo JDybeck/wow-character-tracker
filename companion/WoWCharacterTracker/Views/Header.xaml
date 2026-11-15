@@ -208,17 +208,18 @@
       </Button>
       </StackPanel>
 
-      <!-- Search: characters, friends, items and settings of the open game (SearchViewModel), listed under the box. -->
-      <Grid Width="200" HorizontalAlignment="Right">
+      <!-- Search: characters, friends, items and settings of the open game (SearchViewModel), listed under the box.
+           The list is drawn in the window over the page (MainWindow puts the header on top), not in a Popup:
+           a popup's first open stalls the window about a second while Windows sets up its own surface. -->
+      <Grid x:Name="SearchArea" Width="200" HorizontalAlignment="Right">
         <TextBox x:Name="SearchBox" ToolTip="Search characters, friends, items and settings" Padding="14,7,5,7"
                  Text="{Binding Search.Query, UpdateSourceTrigger=PropertyChanged, Delay=150}"
                  PreviewKeyDown="Search_PreviewKeyDown" GotKeyboardFocus="Search_GotKeyboardFocus"/>
         <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" Foreground="{StaticResource Dim}" FontSize="13" Margin="11,0,0,0" IsHitTestVisible="False"/>
         <TextBlock Text="Search characters, items..." Foreground="{StaticResource Faint}" FontSize="13" Margin="31,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
                    TextTrimming="CharacterEllipsis" Visibility="{Binding Text, ElementName=SearchBox, Converter={StaticResource HiddenIfSet}}"/>
-        <Popup x:Name="SearchPopup" IsOpen="{Binding Search.IsOpen}" StaysOpen="False" PlacementTarget="{Binding ElementName=SearchBox}"
-               Placement="Bottom" HorizontalOffset="-180" VerticalOffset="6" AllowsTransparency="True" PopupAnimation="Fade">
-          <Border Width="380" Padding="6" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10">
+        <Canvas x:Name="SearchDrop" VerticalAlignment="Bottom" HorizontalAlignment="Right" Visibility="{Binding Search.IsOpen, Converter={StaticResource Visible}}">
+          <Border Canvas.Top="6" Canvas.Right="0" Width="380" Padding="6" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10">
             <Grid>
               <TextBlock Text="{Binding Search.EmptyText}" Style="{StaticResource Hint}" Margin="10,8"
                          Visibility="{Binding Search.HasResults, Converter={StaticResource Hidden}}"/>
@@ -285,7 +286,7 @@
               </ScrollViewer>
             </Grid>
           </Border>
-        </Popup>
+        </Canvas>
       </Grid>
     </DockPanel>
   </Grid>

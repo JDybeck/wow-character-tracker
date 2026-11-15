@@ -6,7 +6,22 @@ namespace WoWCharacterTracker.Views;
 
 public partial class Header : UserControl
 {
-    public Header() => InitializeComponent();
+    public Header()
+    {
+        InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            if (Window.GetWindow(this) is not { } window) return;
+            window.PreviewMouseDown += (_, _) => { if (!SearchArea.IsMouseOver) CloseSearch(); };
+            window.Deactivated += (_, _) => CloseSearch();
+        };
+    }
+
+    // The search list closes on a click anywhere but the box and the list, or when the window loses focus.
+    void CloseSearch()
+    {
+        if (DataContext is MainViewModel vm) vm.Search.IsOpen = false;
+    }
 
     // The search list: Up/Down pick a result, Enter opens it, Esc clears the box.
     void Search_PreviewKeyDown(object sender, KeyEventArgs e)

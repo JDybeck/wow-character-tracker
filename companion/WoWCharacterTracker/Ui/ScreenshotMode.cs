@@ -174,7 +174,7 @@ static class ScreenshotMode
                 Save(menu, Path.ChangeExtension(target, null) + "-help.png");
             if (Part(3) == "ignored" && Find<Views.CharactersPage>(window)?.FindName("IgnoredPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement ignoredList })
                 Save(ignoredList, Path.ChangeExtension(target, null) + "-ignored.png");
-            if (Part(2) == "find" && Find<Views.Header>(window)?.FindName("SearchPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement found })
+            if (Part(2) == "find" && Find<Views.Header>(window)?.FindName("SearchDrop") is System.Windows.Controls.Canvas { Children: [FrameworkElement found] })
                 Save(found, Path.ChangeExtension(target, null) + "-find.png");
             if (Part(2) == "changelog" && Find<Views.Header>(window)?.FindName("ChangelogPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement changes })
                 Save(changes, Path.ChangeExtension(target, null) + "-changelog.png");
