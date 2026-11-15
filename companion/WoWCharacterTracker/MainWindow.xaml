@@ -107,14 +107,29 @@
         </ItemsControl.ItemContainerStyle>
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="{x:Type vm:FlavorViewModel}">
+            <!-- Each page is built the first time it's shown (ui:LazyPage), so startup only builds the one you see. -->
             <Grid>
-              <views:HomePage/>
-              <views:CharactersPage/>
-              <views:ItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="1" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}"/>
-              <views:ProfessionsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}"/>
-              <views:FollowedItemsPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="5" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=followed}"/>
-              <views:FriendsPage/>
-              <views:StatsPage/>
+              <ui:LazyPage Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=home}">
+                <ui:LazyPage.Page><DataTemplate><views:HomePage/></DataTemplate></ui:LazyPage.Page>
+              </ui:LazyPage>
+              <ui:LazyPage Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=characters}">
+                <ui:LazyPage.Page><DataTemplate><views:CharactersPage/></DataTemplate></ui:LazyPage.Page>
+              </ui:LazyPage>
+              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="1" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}">
+                <ui:LazyPage.Page><DataTemplate><views:ItemsPage/></DataTemplate></ui:LazyPage.Page>
+              </ui:LazyPage>
+              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}">
+                <ui:LazyPage.Page><DataTemplate><views:ProfessionsPage/></DataTemplate></ui:LazyPage.Page>
+              </ui:LazyPage>
+              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="5" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=followed}">
+                <ui:LazyPage.Page><DataTemplate><views:FollowedItemsPage/></DataTemplate></ui:LazyPage.Page>
+              </ui:LazyPage>
+              <ui:LazyPage Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=friends}">
+                <ui:LazyPage.Page><DataTemplate><views:FriendsPage/></DataTemplate></ui:LazyPage.Page>
+              </ui:LazyPage>
+              <ui:LazyPage Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=stats}">
+                <ui:LazyPage.Page><DataTemplate><views:StatsPage/></DataTemplate></ui:LazyPage.Page>
+              </ui:LazyPage>
             </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
