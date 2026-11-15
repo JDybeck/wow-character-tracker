@@ -8,11 +8,12 @@ namespace WoWCharacterTracker.Services;
 // picture sits under 4017085 % 256 = 189. A character the armory has no picture for answers 403.
 static class BlizzardArmory
 {
-    // game: Flavor.ArmoryGame ("forever"), region: "eu", "us"...
-    public static string? AvatarUrl(string game, string region, string guid)
+    // game: Flavor.ArmoryGame ("forever"), region: "eu", "us"... sd: the old character models
+    // ("-avatar-sd"), else the new ones; the armory has both for every character with a picture.
+    public static string? AvatarUrl(string game, string region, string guid, bool sd = false)
     {
         if (game.Length == 0 || region.Length == 0 || CharacterId(guid) is not { } id) return null;
-        return $"https://render.worldofwarcraft.com/{game}-{region}/character/{id % 256}/{id}-avatar.jpg";
+        return $"https://render.worldofwarcraft.com/{game}-{region}/character/{id % 256}/{id}-avatar{(sd ? "-sd" : "")}.jpg";
     }
 
     // "Zeb" "Drygbeck" -> .../armory/character/zeb-drygbeck. Without a surname there's no address to make.

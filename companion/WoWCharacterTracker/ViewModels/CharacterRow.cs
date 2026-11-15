@@ -259,7 +259,7 @@ sealed class CharacterRow : Observable
         if (IsFriend)
         {
             PictureUrl ??= CharacterArt.ClassIconUrl(ClassFile);
-            var armory = await CharacterPicture.ArmoryAsync(flavor, Picture);
+            var armory = await CharacterPicture.ArmoryAsync(flavor, Picture, ArmorySd);
             HasGamePortrait = armory is not null;
             if (armory is not null && !useStandard) { PictureUrl = armory; return; }
         }
@@ -280,8 +280,6 @@ sealed class CharacterRow : Observable
     Action<bool>? portraitChosen;
     bool hasGamePortrait;
     public bool HasGamePortrait { get => hasGamePortrait; private set => Set(ref hasGamePortrait, value); }
-    public string GamePortraitName => IsFriend ? "Armory" : "In-game";
-    public string GamePortraitTip => IsFriend ? "Their character's picture from the armory" : "The portrait your character has in game, captured when you log in";
     public bool UseGamePortrait { get => !useStandard; set { if (value) ChoosePortrait(false); } }
     public bool UseStandardPortrait { get => useStandard; set { if (value) ChoosePortrait(true); } }
 
@@ -292,8 +290,44 @@ sealed class CharacterRow : Observable
         if (useStandard == standard) return;
         useStandard = standard;
         portraitChosen?.Invoke(standard);
+        RaisePortrait();
+    }
+
+    void RaisePortrait()
+    {
         Raise(nameof(UseGamePortrait)); Raise(nameof(UseStandardPortrait));
+        Raise(nameof(UseArmoryHd)); Raise(nameof(UseArmorySd));
         if (pictureFlavor is { } f) _ = LoadPictureAsync(f);
+    }
+
+    // A friend's armory picture: old (SD) or new (HD) models. The Friends page's switch sets it for
+    // all (Config.ArmorySd), a character's own choice overrides it (Config.ArmoryModels, only kept
+    // while it differs, so picking the switch's again follows the switch).
+    bool armorySdDefault;
+    bool? armorySdOverride;
+    Action<bool?>? armoryChosen;
+    public bool ArmorySd => armorySdOverride ?? armorySdDefault;
+    public bool UseArmoryHd { get => !useStandard && !ArmorySd; set { if (value) ChooseArmory(false); } }
+    public bool UseArmorySd { get => !useStandard && ArmorySd; set { if (value) ChooseArmory(true); } }
+
+    public void SetArmoryChoice(bool sdDefault, bool? sdOverride, Action<bool?> chosen) =>
+        (armorySdDefault, armorySdOverride, armoryChosen) = (sdDefault, sdOverride, chosen);
+
+    // The switch for all friends moved (its owner drops the saved choices that now match it).
+    public void SetArmoryDefault(bool sd)
+    {
+        if (armorySdDefault == sd) return;
+        armorySdDefault = sd;
+        if (armorySdOverride == sd) armorySdOverride = null;
+        RaisePortrait();
+    }
+
+    void ChooseArmory(bool sd)
+    {
+        if (useStandard) { useStandard = false; portraitChosen?.Invoke(false); }
+        armorySdOverride = sd == armorySdDefault ? null : sd;
+        armoryChosen?.Invoke(armorySdOverride);
+        RaisePortrait();
     }
 
     // One row per character: the latest snapshot, filled in from events when there isn't one yet.

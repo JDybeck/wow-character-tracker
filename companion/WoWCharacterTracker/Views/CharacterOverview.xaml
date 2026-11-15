@@ -31,8 +31,14 @@
       <StackPanel Visibility="{Binding HasGamePortrait, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="PORTRAIT"/>
         <WrapPanel>
-          <CheckBox Style="{StaticResource OptionChip}" Content="{Binding GamePortraitName}" IsChecked="{Binding UseGamePortrait}" Margin="0,0,6,0"
-                    ToolTip="{Binding GamePortraitTip}"/>
+          <CheckBox Style="{StaticResource OptionChip}" Content="In-game" IsChecked="{Binding UseGamePortrait}" Margin="0,0,6,0"
+                    ToolTip="The portrait your character has in game, captured when you log in" Visibility="{Binding IsOwn, Converter={StaticResource Visible}}"/>
+          <CheckBox Style="{StaticResource OptionChip}" Content="HD" IsChecked="{Binding UseArmoryHd}" Margin="0,0,6,0"
+                    ToolTip="The armory picture with the new character models, for this character only. The HD/SD switch at the top sets it for all"
+                    Visibility="{Binding IsFriend, Converter={StaticResource Visible}}"/>
+          <CheckBox Style="{StaticResource OptionChip}" Content="SD" IsChecked="{Binding UseArmorySd}" Margin="0,0,6,0"
+                    ToolTip="The armory picture with the old character models, for this character only. The HD/SD switch at the top sets it for all"
+                    Visibility="{Binding IsFriend, Converter={StaticResource Visible}}"/>
           <CheckBox Style="{StaticResource OptionChip}" Content="Standard" IsChecked="{Binding UseStandardPortrait}"
                     ToolTip="The standard portrait for the race"/>
         </WrapPanel>

@@ -122,6 +122,16 @@ class Config
     // (a friend's: instead of the armory picture).
     public List<string> StandardPortraits { get; set; } = [];
 
+    // Friends' armory pictures with the old (SD) character models instead of the new (HD) ones, and
+    // characters (GUIDs) that override it (true = SD).
+    public bool ArmorySd { get; set; }
+    public Dictionary<string, bool> ArmoryModels { get; set; } = [];
+
+    public void SetArmoryModel(string guid, bool? sd)
+    {
+        if (sd is { } v) ArmoryModels[guid] = v; else ArmoryModels.Remove(guid);
+    }
+
     public void SetStandardPortrait(string guid, bool standard)
     {
         StandardPortraits.Remove(guid);

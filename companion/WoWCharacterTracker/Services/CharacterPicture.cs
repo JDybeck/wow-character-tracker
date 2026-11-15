@@ -26,7 +26,7 @@ static class CharacterPicture
     public static string? GamePortrait(Flavor flavor, string guid, bool standardChosen) =>
         flavor.HasInGamePortraits && !standardChosen ? CharacterArt.LocalPortrait(guid) : null;
 
-    // A friend's armory picture when the armory has one, else null.
-    public static async Task<string?> ArmoryAsync(Flavor flavor, PictureSubject who) =>
-        BlizzardArmory.AvatarUrl(flavor.ArmoryGame, who.Region, who.Guid) is { } url && await CharacterArt.ExistsAsync(url) ? url : null;
+    // A friend's armory picture (sd: old models, Config.ArmorySd) when the armory has one, else null.
+    public static async Task<string?> ArmoryAsync(Flavor flavor, PictureSubject who, bool sd) =>
+        BlizzardArmory.AvatarUrl(flavor.ArmoryGame, who.Region, who.Guid, sd) is { } url && await CharacterArt.ExistsAsync(url) ? url : null;
 }
