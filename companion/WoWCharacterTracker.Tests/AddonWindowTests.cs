@@ -786,22 +786,20 @@ public class AddonWindowTests
         Assert.True(Bool(c, "next(WoWCharacterTrackerDB.window.hiddenChars) == nil"));
     }
 
-    // On Forever the realm's name is a type and a home realm ("Realm 6 PvP"), not a layer: no Layer
-    // line. The ruleset is the game's rules (Hardcore, Self-found), shown only when it isn't Normal.
+    // On Forever the realm's name is only a ruleset ("Realm 6 PvP" -> "PvP"): no Realm or Layer line,
+    // and the game's rules (Hardcore, Self-found) join it when they aren't Normal.
     [Theory]
-    [InlineData("Normal", null)]
-    [InlineData("Hardcore", "Hardcore")]
-    public void A_forever_character_shows_its_realm_type(string ruleset, string? shown)
+    [InlineData("Normal", "PvP")]
+    [InlineData("Hardcore", "PvP, Hardcore")]
+    public void A_forever_character_shows_its_ruleset(string ruleset, string shown)
     {
         var c = FriendsTab();
         c.Lua($"shared[1].chars[1].realm = 'CAMWOW EU5 Realm 6 PvP'; shared[1].chars[1].ruleset = '{ruleset}'; ns.friendsChanged()");
         c.Lua("openFriend('Cidro')");
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "shownText('Realm') ~= nil and shownText('PvP, realm 6') ~= nil"));
-        Assert.True(Bool(c, "shownText('Layer') == nil"));
-        Assert.True(Bool(c, "shownText('Normal') == nil"));
-        Assert.Equal(shown != null, Bool(c, "shownText('Ruleset') ~= nil"));
-        if (shown != null) Assert.True(Bool(c, $"shownText('{shown}') ~= nil"));
+        Assert.True(Bool(c, $"shownText('Ruleset') ~= nil and shownText('{shown}') ~= nil"));
+        Assert.True(Bool(c, "shownText('Realm') == nil and shownText('Layer') == nil"));
+        Assert.True(Bool(c, "shownText('realm 6') == nil and shownText('PvP, realm 6') == nil"));
     }
 
     // Settings, Look: picking a look repaints what's built and is kept; Classic gold until then.
