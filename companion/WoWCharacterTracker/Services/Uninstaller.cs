@@ -22,7 +22,7 @@ static class Uninstaller
             var unpacked = ExtractedFiles.BaseDir();
             parts.Add(new Part(Kind.App, "The app",
                 "The program, its Start menu shortcut, the files Windows unpacked for it in your temp folder and its entry in Windows startup (Open with World of Warcraft). It's removed a moment after the app closes.",
-                unpacked is null ? files : [.. files, unpacked], files.Sum(f => new FileInfo(f).Length) + (unpacked is null ? 0 : Size(unpacked))));
+                unpacked is null ? files : [.. files, unpacked], files.Sum(f => new FileInfo(f).Length) + (unpacked is null ? 0 : Files.Size(unpacked))));
         }
         foreach (var (flavor, dir) in games)
         {
@@ -31,7 +31,7 @@ static class Uninstaller
             if (Directory.Exists(addon))
                 parts.Add(new Part(Kind.Addon, $"The addon in {flavor.Name}",
                     "The addon's files and the settings the app wrote for it. Your other addons aren't touched.",
-                    [addon], Size(addon), flavor, dir));
+                    [addon], Files.Size(addon), flavor, dir));
             var saved = Wow.Accounts(dir)
                 .Select(account => Wow.SavedVarsFile(dir, account))
                 .SelectMany(file => new[] { file, file + ".bak" })
@@ -44,7 +44,7 @@ static class Uninstaller
         if (Directory.Exists(Config.Dir))
             parts.Add(new Part(Kind.Settings, "App settings and caches",
                 "Your webhooks and settings, what has been posted, the Wowhead cache, icons, portraits and tab logos.",
-                [Config.Dir], Size(Config.Dir)));
+                [Config.Dir], Files.Size(Config.Dir)));
         return parts;
     }
 
@@ -91,11 +91,5 @@ static class Uninstaller
         var unpacked = ExtractedFiles.BaseDir() is { } dir ? $" & rmdir /s /q \"{dir}\"" : "";
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe",
             $"/c ping 127.0.0.1 -n 4 >nul & del /f /q \"{exe}\"{unpacked}") { CreateNoWindow = true, UseShellExecute = false });
-    }
-
-    static long Size(string dir)
-    {
-        try { return new DirectoryInfo(dir).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return 0; }
     }
 }

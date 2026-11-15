@@ -190,7 +190,7 @@ The window has five tabs, **Home**, **Characters**, **Friends**, **Stats** and *
 - **Notices**: an update, a `/reload` reminder or setup that still needs doing show across the top, and only then.
 - **Hover for info**: most buttons and options say what they do when you hover them for a moment.
 - **Sync**: the round arrow at the top reads the game's saved data again and posts anything new (it also happens by itself). The icon spins while it works, and the console says what it found.
-- **Settings** (the gear at the top) is a page: the app on one side, the addon's in game options for the open game on the other (see [In game](#in-game)), and Uninstall.
+- **Settings** (the gear at the top) is a page: the app on one side, the addon's in game options for the open game on the other (see [In game](#in-game)), Manage data and Uninstall.
 
   <img src="images/settings.png" alt="The Settings page: the app on the left, in game for Forever on the right" width="640">
 
@@ -203,6 +203,14 @@ The window has five tabs, **Home**, **Characters**, **Friends**, **Stats** and *
 - **Uninstall** (Settings, at the bottom): lists everything the app and the addon put on your PC, with every path and its size, and you pick what goes: the app (with its Start menu shortcut and the files Windows unpacked for it in your temp folder), the addon in each game, your character data in each game, and the app's settings and caches. **Keep my data** (the default) removes the app and the addon but keeps your characters and settings for later, **Remove everything** removes it all, **Only the app** leaves the addon running. Afterwards it shows what was removed, closes, and the app deletes itself a moment later. Close the game first, since it writes the addon's files again when it exits. Your screenshots, your webhooks in Discord and the game's Advanced combat logging setting stay either way.
 
   <img src="images/uninstall.png" alt="The Uninstall page: every part with its paths and size" width="640">
+
+- **Manage data** (Settings, next to Uninstall): clean out what's stored for the open game without uninstalling anything. Each removal asks first.
+  - **Characters**: tick the ones to remove completely: level history, gear, bags and bank, highlights, notes, recipes and day stats, plus the app's tags and portrait for them. Unlike **Remove from list**, the data is gone. Playing one again starts it fresh.
+  - **Old history**: moments older than 30 days, 90 days, 6 months or a year, of the kinds you pick (loot, boss kills, duels, battlegrounds...), and the day stats behind the Stats page. Level-ups are off to start with, since level times and the Leveling tab are built from them. The characters themselves, their gear and bags stay.
+  - **What friends shared**: their characters you haven't heard from in 30 or 90 days, or all of it. Friends who still share with you send theirs again.
+  - **App caches** (all games): Wowhead item info, Raider.IO renders, icons and tab logos. Nothing is lost, they download again when needed.
+
+  The addon's data lives in the game's saved file, which the game writes back when you log out or /reload, so the app can't edit it while you play. Instead the addon does the removal the next time the game loads it (log in or /reload), once per WoW account. The app hides it right away.
 
 ## Streaming
 

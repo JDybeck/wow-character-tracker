@@ -9,6 +9,7 @@ sealed class ToggleOption(string name, bool on, Action<bool> changed, string? ti
     bool isOn = on;
     public string Name { get; } = name;
     public string? Tip { get; } = tip;
+    public string? Key { get; init; } // what it stands for, when the owner reads the picks back
     public bool IsOn
     {
         get => isOn;

@@ -176,6 +176,13 @@
               <TextBlock Text="Uninstall..." FontSize="13" Foreground="{StaticResource TextSoft}"/>
             </StackPanel>
           </Button>
+          <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Margin="4,0,0,0" Padding="12,4"
+                  Command="{Binding ShowDataCommand}" ToolTip="Remove characters, old history, what friends shared, or the app's caches">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE8B7;" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,7,0"/>
+              <TextBlock Text="Manage data..." FontSize="13" Foreground="{StaticResource TextSoft}"/>
+            </StackPanel>
+          </Button>
           <!-- The maker and a tip link. -->
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
             <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">

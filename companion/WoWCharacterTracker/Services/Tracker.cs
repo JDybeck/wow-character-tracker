@@ -395,6 +395,7 @@ sealed class Tracker : IDisposable
         var incognito = new List<IncognitoWindow>();
         var today = new List<DayTotals>();
         var days = new List<DayTotals>();
+        long? cleanedAt = null;
         var stamp = new System.Text.StringBuilder().Append(Volatile.Read(ref liveVersion));
         foreach (var account in Wow.Accounts(flavorDir))
         {
@@ -421,6 +422,7 @@ sealed class Tracker : IDisposable
                 incognito.AddRange(d.Incognito);
                 today.AddRange(d.Today);
                 days.AddRange(d.Days);
+                cleanedAt = Math.Min(cleanedAt ?? long.MaxValue, d.CleanedAt);
             }
             catch (Exception ex)
             {
@@ -432,7 +434,7 @@ sealed class Tracker : IDisposable
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(Snapshot.Of));
         return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values], Nicknames = [.. nicknames.Values], FriendOrder = friendOrder, InGame = inGame,
-            Friends = FriendData.Merge(friends), Share = share, Incognito = incognito, Today = today, Days = days },
+            Friends = FriendData.Merge(friends), Share = share, Incognito = incognito, Today = today, Days = days, CleanedAt = cleanedAt ?? 0 },
             stamp.ToString());
     }
 

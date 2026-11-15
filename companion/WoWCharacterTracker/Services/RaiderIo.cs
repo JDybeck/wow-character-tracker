@@ -10,6 +10,8 @@ static class RaiderIo
 {
     static readonly ConcurrentDictionary<string, Task<string?>> Lookups = new();
     static readonly JsonFileCache<Cached> Cache = new("renders.json");
+    public static string CacheFile => Cache.FilePath;
+    public static void ClearCache() => Cache.Clear();
     static readonly TimeSpan MaxAge = TimeSpan.FromDays(1);
 
     sealed record Cached(string? Url, DateTimeOffset At);

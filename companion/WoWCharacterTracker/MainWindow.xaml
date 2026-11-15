@@ -122,6 +122,7 @@
       <views:SharingPage x:Name="SharingView" Grid.Row="2"/>
       <views:SettingsPage Grid.Row="2"/>
       <views:UninstallPage Grid.Row="2"/>
+      <views:DataPage Grid.Row="2"/>
       <!-- A turned-off game: covers the page tabs and pages (opaque card) with a way back on. -->
       <views:GameOffPage Grid.Row="0" Grid.RowSpan="3"/>
     </Grid>

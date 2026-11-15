@@ -34,6 +34,7 @@ static class SavedVariables
             Incognito = IncognitoWindow.Read(db.Table.Get("incognito")),
             Today = ReadToday(db.Table.Get("today")),
             Days = ReadDays(db.Table.Get("days")),
+            CleanedAt = db.Table.Get("cleanedAt") is { Type: DataType.Number } cleaned ? (long)cleaned.Number : 0,
         };
     }
 

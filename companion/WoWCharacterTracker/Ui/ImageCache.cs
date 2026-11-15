@@ -102,12 +102,15 @@ static class ImageCache
         }
     }
 
+    // Where pictures are kept on disk (the Data page's Clear caches empties it; shown ones stay in memory).
+    public static string KeptDir => Path.Combine(Config.Dir, "images");
+
     // Where a picture that never changes at its address is kept, or null for the others.
     static string? KeptFile(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || !KeptHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase)) return null;
         var name = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..24].ToLowerInvariant();
-        return Path.Combine(Config.Dir, "images", name);
+        return Path.Combine(KeptDir, name);
     }
 
     // A picture WPF downloaded for a binding, kept as PNG (WPF doesn't hand out the downloaded bytes).

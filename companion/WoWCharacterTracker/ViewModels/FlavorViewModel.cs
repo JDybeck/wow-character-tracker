@@ -756,6 +756,8 @@ sealed class FlavorViewModel : Observable
     }
 
     TrackerData lastData = TrackerData.Empty;
+    // lastData without what pending Data page cleanups cover (DataCleanup.Hide): what every page shows.
+    public TrackerData ShownData { get; private set; } = TrackerData.Empty;
 
     // Names, icons and tooltips of everything from the game, shared by the whole tab (characters and the Items page).
     public GameLookup Lookup { get; }
@@ -782,7 +784,7 @@ sealed class FlavorViewModel : Observable
     void FollowedChanged()
     {
         AddonSettingsChanged();
-        main.Stream.Update(Flavor, allRows, Settings.MarkFollowed(lastData.Events));
+        main.Stream.Update(Flavor, allRows, Settings.MarkFollowed(ShownData.Events));
     }
 
     public void Refresh() => ShowData(lastData);
@@ -829,6 +831,8 @@ sealed class FlavorViewModel : Observable
     {
         lastData = data;
         CleanStressTestOnce(data);
+        DropDoneCleanups(data.CleanedAt);
+        data = ShownData = DataCleanup.Hide(data, Settings.Cleanups);
         var keepRow = SelectedCharacter;
         var keep = keepRow?.Guid;
         var removed = Settings.Removed;
@@ -891,9 +895,9 @@ sealed class FlavorViewModel : Observable
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
         Professions.Show(rows);
-        Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
+        Friends.Show(ShownData); // friends' rows stay on their own page (not the test characters either)
         AddLevelBoard([.. rows, .. Friends.Shown]);
-        Stats.Show(rows, data.Events, DayHistory.Add([.. data.Today, .. data.Days, .. lastData.Friends.SelectMany(c => c.Days)]), Friends.Shown);
+        Stats.Show(rows, data.Events, DayHistory.Add([.. data.Today, .. data.Days, .. ShownData.Friends.SelectMany(c => c.Days)]), Friends.Shown);
         homeEvents = data.Events;
         homeDays = data.Today;
         RefreshHome(); // after Friends: Home lists the friends seen lately
@@ -948,6 +952,37 @@ sealed class FlavorViewModel : Observable
         WriteAddonSettings(); // the addon stops sharing it with friends (Settings.lua removed)
         Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");
         ShowData(lastData);
+    }
+
+    // A cleanup from the Data page: the app forgets its own copies now, the addon does the saved file the
+    // next time the game loads it, and until then the app hides it (ShowData).
+    public void Clean(CleanupOrder order)
+    {
+        var friendGuids = ShownData.Friends.SelectMany(f => f.Characters).Where(c => DataCleanup.RemovesFriend(order, c)).Select(c => c.Guid).ToHashSet();
+        DataCleanup.Forget(main.Config, Settings, order.Chars, order.At, guid => Files.TryDelete(CharacterArt.PortraitPath(guid)));
+        DayHistory.Remove(d => DataCleanup.Removes(order, d) || friendGuids.Contains(d.Guid));
+        Settings.Cleanups = [.. Settings.Cleanups, order];
+        main.Config.Save();
+        WriteAddonSettings();
+        ShowData(lastData);
+    }
+
+    // For the Data page: the days the app keeps for the Stats page, how each character is listed, and
+    // the newest order (the next one must be newer).
+    public IReadOnlyList<DayTotals> KeptDays => DayHistory.Add([]);
+    public bool IsIgnored(string guid) => Settings.Ignored.Contains(guid);
+    public bool IsRemovedFromList(Snapshot c) => Settings.Removed.TryGetValue(c.Guid, out var at) && c.LastSeen <= at;
+    public long LastCleanupAt => Settings.Cleanups.LastOrDefault()?.At ?? 0;
+
+    // Orders every account's saved file has had go from Settings.lua.
+    void DropDoneCleanups(long cleanedAt)
+    {
+        if (Settings.Cleanups.Count == 0) return;
+        var pending = DataCleanup.StillPending(Settings.Cleanups, cleanedAt);
+        if (pending.Count == Settings.Cleanups.Count) return;
+        Settings.Cleanups = pending;
+        main.Config.Save();
+        WriteAddonSettings();
     }
 
     // Characters with Ignore tracking on, for the footer's Ignored button (hidden while there are none).

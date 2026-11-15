@@ -148,6 +148,8 @@ static partial class AddonInstaller
                   + $"  removed = {{ {string.Concat(s.Removed.OrderBy(r => r.Key, StringComparer.Ordinal).Select(r => $"[{LuaString(r.Key)}] = {r.Value}, "))}}},\n"
                   // Characters not tracked: nothing recorded, announced or shared for them (an In game setting).
                   + $"  ignored = {{ {string.Concat(s.Ignored.Order(StringComparer.Ordinal).Select(g => $"[{LuaString(g)}] = true, "))}}},\n"
+                  // What the Data page asked to remove, done once per account (Cleanup.lua applyCleanups).
+                  + CleanupLua(s.Cleanups)
                   + $"  discord = {B(hasWebhook)},\n"
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
@@ -196,6 +198,17 @@ static partial class AddonInstaller
                + $"    contacts = {{ {contacts}}},\n"
                + $"    chars = {{ {chars}}},\n"
                + $"    blocked = {{ {blocked}}} }},\n";
+    }
+
+    static string CleanupLua(IReadOnlyList<CleanupOrder> orders)
+    {
+        if (orders.Count == 0) return "";
+        static string Set(IEnumerable<string> keys) => string.Concat(keys.Order(StringComparer.Ordinal).Select(k => $"[{LuaString(k)}] = true, "));
+        var lines = orders.OrderBy(o => o.At).Select(o =>
+            $"    {{ at = {o.At}, chars = {{ {Set(o.Chars)}}}, before = {o.Before}, kinds = {{ {Set(o.Kinds)}}}, "
+            + (o.BeforeDay.Length > 0 ? $"beforeDay = {LuaString(o.BeforeDay)}, " : "")
+            + $"friendsBefore = {o.FriendsBefore} }},\n");
+        return "  cleanup = {\n" + string.Concat(lines) + "  },\n";
     }
 
     // A Lua string literal for any text. "|" is doubled: in a game font string it starts a color or

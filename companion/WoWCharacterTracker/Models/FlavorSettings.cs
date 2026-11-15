@@ -212,6 +212,9 @@ class FlavorSettings
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
 
+    // Cleanups from the Data page the addon hasn't done on every account yet (DataCleanup). Replaced, never mutated.
+    public List<CleanupOrder> Cleanups { get; set; } = [];
+
     // The stress test's characters were cleaned out (StressTestCleanup), once.
     public bool StressTestCleaned { get; set; }
 

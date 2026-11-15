@@ -22,6 +22,8 @@ static class Wowhead
     // load so it doesn't sit in memory (WithoutText).
     static readonly JsonFileCache<Info> Cache = new("wowhead.json",
         new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }, WithoutText);
+    public static string CacheFile => Cache.FilePath;
+    public static void ClearCache() => Cache.Clear();
 
     public static string IconUrl(string icon, string size = "medium") =>
         $"https://wow.zamimg.com/images/wow/icons/{size}/{icon}.jpg";

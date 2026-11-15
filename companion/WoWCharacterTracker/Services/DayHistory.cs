@@ -17,10 +17,23 @@ sealed class DayHistory(string filePath)
         days ??= Read();
         var merged = OnePerDay([.. days, .. seen]);
         if (merged.SequenceEqual(days)) return days;
-        days = merged;
+        Save(merged);
+        return merged;
+    }
+
+    // Drops the days a Data page cleanup removes.
+    public void Remove(Func<DayTotals, bool> gone)
+    {
+        days ??= Read();
+        var kept = days.Where(d => !gone(d)).ToList();
+        if (kept.Count < days.Count) Save(kept);
+    }
+
+    void Save(List<DayTotals> next)
+    {
+        days = next;
         try { Files.WriteAtomic(filePath, Serialize(days)); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { } // kept in memory, saved next time
-        return days;
     }
 
     // One per character and day, by character and date: the busiest, and of equals the later one (a day

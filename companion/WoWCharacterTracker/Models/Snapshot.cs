@@ -57,6 +57,7 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
     public List<IncognitoWindow> Incognito { get; init; } = []; // stretches of incognito: nothing from them is posted (Shared.lua)
     public List<DayTotals> Today { get; init; } = []; // each character's day so far (Today.lua)
     public List<DayTotals> Days { get; init; } = [];  // finished days, the last 8 per character (Today.lua days), for the Stats page
+    public long CleanedAt { get; init; } // the newest Data page cleanup the addon has done (Cleanup.lua); merged: the oldest of all accounts
 
     public static TrackerData Empty { get; } = new([], []);
 }

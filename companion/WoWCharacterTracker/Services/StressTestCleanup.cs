@@ -16,15 +16,7 @@ static class StressTestCleanup
 
     public static void Apply(Config config, FlavorSettings settings, IEnumerable<string> guids, long before, Action<string> deletePortrait)
     {
-        foreach (var guid in guids)
-        {
-            config.CharacterTags.Remove(guid);
-            config.CharacterNotes.Remove(guid);
-            config.CharacterNotesAt.Remove(guid);
-            config.StandardPortraits.Remove(guid);
-            settings.Removed[guid] = before; // hidden until the addon has cleaned it out of the saved file
-            deletePortrait(guid);
-        }
+        DataCleanup.Forget(config, settings, guids, before, deletePortrait); // hidden until the addon has cleaned it out of the saved file
         settings.StressTestCleaned = true;
     }
 }

@@ -7,6 +7,7 @@ The app shows the notes for a new version when it finds an update, and the newes
 ### New
 
 - **Stats for today, the week, the month or all time.** Pick the period at the top of the Stats page. The app now keeps every day of quests, gathering, item level and gold it sees, yours and your friends', so the month and all time fill up from here on (the addon only keeps the last 8 days).
+- **Manage data.** Settings has a new **Manage data** page: remove characters completely, history older than 30 days to a year (pick the kinds), what friends shared, or the app's caches. The addon does the removal from the game's saved file on your next login or /reload, the app hides it right away.
 - **Level-up score.** The level-ups board now weighs each level by how high it is: levels 10 to 29 are worth 1, 30 to 49 are worth 2, 50 and up 3. Levels below 10 take a minute each and count for nothing, so a fresh alt can't beat a main grinding out its last levels.
 
 ### Fixes and tweaks

@@ -15,6 +15,7 @@ sealed class MainViewModel : Observable
         Updates.Found += () => { foreach (var tab in FlavorTabs) tab.WriteAddonSettings(); };
         Discord = new DiscordViewModel(this);
         Uninstall = new UninstallViewModel(this);
+        Data = new DataViewModel(this);
         Appearance = new AppearanceViewModel(this);
         Stream = new StreamViewModel(this);
         Intro = new IntroViewModel(this);
@@ -89,6 +90,11 @@ sealed class MainViewModel : Observable
             Uninstall.Refresh();
             Page = "uninstall";
         });
+        ShowDataCommand = new RelayCommand(_ =>
+        {
+            Data.Refresh();
+            Page = "data";
+        });
     }
 
     public bool Backfill { get; }
@@ -96,6 +102,7 @@ sealed class MainViewModel : Observable
     public UpdatesViewModel Updates { get; }
     public DiscordViewModel Discord { get; }
     public UninstallViewModel Uninstall { get; }
+    public DataViewModel Data { get; }
     public AppearanceViewModel Appearance { get; }
     public StreamViewModel Stream { get; }
     public IntroViewModel Intro { get; }
@@ -192,6 +199,7 @@ sealed class MainViewModel : Observable
     public ICommand TestKindCommand { get; }
     public ICommand OpenUrlCommand { get; }
     public ICommand ShowUninstallCommand { get; }
+    public ICommand ShowDataCommand { get; }
 
     public async Task StartAsync()
     {
