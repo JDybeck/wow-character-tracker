@@ -21,6 +21,24 @@
       <Setter Property="Foreground" Value="White"/>
       <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     </Style>
+    <!-- A moment's character name (DataContext MomentRow): class colored, underlined on hover, opens the
+         character on Characters, or a friend's on the Friends page. -->
+    <Style x:Key="CharacterLink" TargetType="Hyperlink">
+      <Setter Property="Foreground" Value="{Binding Character.ClassBrush}"/>
+      <Setter Property="TextDecorations" Value="{x:Null}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="ToolTip" Value="Open this character"/>
+      <Setter Property="Command" Value="{Binding DataContext.OpenCharacterCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Character.IsFriend}" Value="True">
+          <Setter Property="Command" Value="{Binding DataContext.OpenFriendCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+          <Setter Property="ToolTip" Value="Open on the Friends page"/>
+        </DataTrigger>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="TextDecorations" Value="Underline"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
     <!-- A scrolling list of moments (MomentRow): the feed and the friends' one under it. -->
     <Style x:Key="MomentList" TargetType="ItemsControl">
       <Setter Property="Focusable" Value="False"/>
@@ -67,12 +85,20 @@
                           Command="{Binding DataContext.PostHighlightCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
                           Visibility="{Binding Posted, Converter={StaticResource Hidden}}"/>
                 </Grid>
-                <StackPanel VerticalAlignment="Center" DataContext="{Binding Row}">
-                  <TextBlock FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
-                    <Run Text="{Binding Verb, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run Text="{Binding Subject, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/>
-                  </TextBlock>
-                  <TextBlock FontSize="11" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis"
-                             Text="{Binding DataContext.Who, RelativeSource={RelativeSource AncestorType=DockPanel}}"/>
+                <!-- "Kitty Pryde looted Felvine Seed": the name opens the character (a friend's on Friends), the thing
+                     has the same tooltip as its icon. -->
+                <StackPanel VerticalAlignment="Center">
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" FontSize="13" FontWeight="SemiBold">
+                      <Hyperlink Style="{StaticResource CharacterLink}" CommandParameter="{Binding Character}">
+                        <Run Text="{Binding Character.FullName, Mode=OneWay}"/>
+                      </Hyperlink>
+                    </TextBlock>
+                    <TextBlock DockPanel.Dock="Left" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Text}" Text="{Binding Verb}"/>
+                    <TextBlock FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Text="{Binding Subject}" Foreground="{Binding Row.Brush}"
+                               HorizontalAlignment="Left" ui:ItemTip.Info="{Binding Row.Info}"/>
+                  </DockPanel>
+                  <TextBlock FontSize="11" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" Text="{Binding When}"/>
                 </StackPanel>
               </DockPanel>
             </Border>

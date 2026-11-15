@@ -168,7 +168,7 @@
           </Border>
         </Grid>
 
-        <DockPanel Margin="0,18,0,0">
+        <DockPanel Margin="0,18,0,0" LastChildFill="False">
           <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Margin="-12,0,0,0" Padding="12,4"
                   Command="{Binding ShowUninstallCommand}" ToolTip="Pick what to remove: the app, the addon, your data, settings">
             <StackPanel Orientation="Horizontal">
@@ -176,34 +176,43 @@
               <TextBlock Text="Uninstall..." FontSize="13" Foreground="{StaticResource TextSoft}"/>
             </StackPanel>
           </Button>
-          <!-- The maker and a tip link. -->
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-            <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
-              <Button.Template>
-                <ControlTemplate TargetType="Button">
-                  <TextBlock x:Name="Credit" Text="made by ZebDryg @ twitch" FontSize="11" Foreground="{StaticResource Faint}"/>
-                  <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                      <Setter TargetName="Credit" Property="Foreground" Value="#9146FF"/>
-                    </Trigger>
-                  </ControlTemplate.Triggers>
-                </ControlTemplate>
-              </Button.Template>
-            </Button>
-            <TextBlock Text="·" FontSize="11" Foreground="{StaticResource Faint}" Margin="6,0"/>
-            <Button Cursor="Hand" ToolTip="Like the app? Tips are welcome (streamlabs.com/zebdryg/tip)" Command="{Binding OpenUrlCommand}" CommandParameter="https://streamlabs.com/zebdryg/tip">
-              <Button.Template>
-                <ControlTemplate TargetType="Button">
-                  <TextBlock x:Name="Tip" Text="tip ♥" FontSize="11" Foreground="{StaticResource Faint}"/>
-                  <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                      <Setter TargetName="Tip" Property="Foreground" Value="#F87171"/>
-                    </Trigger>
-                  </ControlTemplate.Triggers>
-                </ControlTemplate>
-              </Button.Template>
-            </Button>
-          </StackPanel>
+          <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Margin="4,0,0,0" Padding="12,4"
+                  Command="{Binding ShowDataCommand}" ToolTip="Remove characters, old history, what friends shared, or the app's caches">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE8B7;" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,7,0"/>
+              <TextBlock Text="Manage data..." FontSize="13" Foreground="{StaticResource TextSoft}"/>
+            </StackPanel>
+          </Button>
+          <!-- Reads the open game's saved data again; it also happens by itself. The icon spins while it runs. -->
+          <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Margin="4,0,0,0" Padding="12,4" Command="{Binding SyncCommand}"
+                  ToolTip="Read the game's saved data again and post anything new. It also happens by itself, the console says what it found.">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE72C;" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,0,7,0" RenderTransformOrigin="0.5,0.5">
+                <TextBlock.RenderTransform>
+                  <RotateTransform/>
+                </TextBlock.RenderTransform>
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsSyncing}" Value="True">
+                        <DataTrigger.EnterActions>
+                          <BeginStoryboard x:Name="Spin">
+                            <Storyboard RepeatBehavior="Forever">
+                              <DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle" From="0" To="360" Duration="0:0:0.8"/>
+                            </Storyboard>
+                          </BeginStoryboard>
+                        </DataTrigger.EnterActions>
+                        <DataTrigger.ExitActions>
+                          <StopStoryboard BeginStoryboardName="Spin"/>
+                        </DataTrigger.ExitActions>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+              <TextBlock Text="Sync now" FontSize="13" Foreground="{StaticResource TextSoft}"/>
+            </StackPanel>
+          </Button>
         </DockPanel>
       </StackPanel>
     </ScrollViewer>

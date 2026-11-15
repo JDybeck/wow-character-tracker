@@ -23,6 +23,8 @@ function on.ADDON_LOADED(name)
   db.items = db.items or {}               -- [guid] = gear, bags and bank (Inventory.lua)
   db.xpTable = db.xpTable or {}           -- [level] = XP that level needs, on this client
   db.friends = db.friends or {}           -- [battleTag] = what that friend shares (Friends.lua)
+  -- What the app's Data page asked to remove (Cleanup.lua), before anything new is recorded.
+  ns.cleanupsApplied = ns.applyCleanups(db, ns.setting("cleanup"))
   if db.popup == nil then db.popup = false end
   ns.ui.applyTheme() -- the window's look (Ui.lua), before anything is built
   ns.flushBlocked()
@@ -36,6 +38,10 @@ function on.PLAYER_LOGIN()
     local removed = ns.cleanStressTest(db, ns.STRESS_TEST_BEFORE, UnitGUID("player"))
     db.stressTestCleaned = time()
     if removed > 0 then ns.say(string.format("Removed %d characters left from the stress test (before November 4).", removed)) end
+  end
+  if (ns.cleanupsApplied or 0) > 0 then
+    ns.say("Removed the saved data you picked on the app's Data page.")
+    ns.cleanupsApplied = 0 -- once, not again on a later login in this session
   end
   ns.onLogin()
   ns.restoreNoteBox()

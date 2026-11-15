@@ -15,9 +15,11 @@ sealed class MainViewModel : Observable
         Updates.Found += () => { foreach (var tab in FlavorTabs) tab.WriteAddonSettings(); };
         Discord = new DiscordViewModel(this);
         Uninstall = new UninstallViewModel(this);
+        Data = new DataViewModel(this);
         Appearance = new AppearanceViewModel(this);
         Stream = new StreamViewModel(this);
         Intro = new IntroViewModel(this);
+        Search = new SearchViewModel(this);
         Log.Written += line => OnUi(() =>
         {
             Logs.Insert(0, line);
@@ -89,6 +91,11 @@ sealed class MainViewModel : Observable
             Uninstall.Refresh();
             Page = "uninstall";
         });
+        ShowDataCommand = new RelayCommand(_ =>
+        {
+            Data.Refresh();
+            Page = "data";
+        });
     }
 
     public bool Backfill { get; }
@@ -96,9 +103,11 @@ sealed class MainViewModel : Observable
     public UpdatesViewModel Updates { get; }
     public DiscordViewModel Discord { get; }
     public UninstallViewModel Uninstall { get; }
+    public DataViewModel Data { get; }
     public AppearanceViewModel Appearance { get; }
     public StreamViewModel Stream { get; }
     public IntroViewModel Intro { get; }
+    public SearchViewModel Search { get; }
 
     // Settings, Animations: slides, fades and the tab orb (Ui/Motion), or everything instant.
     public bool Animations
@@ -156,6 +165,7 @@ sealed class MainViewModel : Observable
             Config.SelectedFlavor = value.Flavor.Key;
             Config.Save();
             Discord.Refresh();
+            Search.Refresh();
         }
     }
 
@@ -192,6 +202,7 @@ sealed class MainViewModel : Observable
     public ICommand TestKindCommand { get; }
     public ICommand OpenUrlCommand { get; }
     public ICommand ShowUninstallCommand { get; }
+    public ICommand ShowDataCommand { get; }
 
     public async Task StartAsync()
     {

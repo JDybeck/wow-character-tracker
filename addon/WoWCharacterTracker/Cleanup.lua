@@ -1,13 +1,45 @@
--- Forever's stress test (before launch on 2026-11-05) left characters behind in the saved data.
--- They go once per account, completely: snapshot, items, events, notes, level timing, and friends'
--- characters from then. The character being played always stays, and so does one with events after.
--- No game calls, so the app's tests load it; WoWCharacterTracker.lua runs it at login on Forever.
+-- Removing saved data. The game owns the saved file and writes it back on logout and /reload, so the
+-- app can't edit it: its Data page writes cleanup orders into Settings.lua instead, and the addon
+-- applies each one once per account at ADDON_LOADED (applyCleanups), before anything new is recorded.
+-- Forever's stress test (before launch on 2026-11-05) left characters behind; they go the same way,
+-- once per account at login (cleanStressTest).
+-- No game calls, so the app's tests load it.
 local ADDON, ns = ...
 
 ns.STRESS_TEST_BEFORE = 1793746800 -- 2026-11-04 00:00 Swedish time
 
 -- Tables keyed by character GUID.
-local BY_GUID = { "chars", "items", "notes", "start", "startLevel", "logoutPlayed", "professions" }
+local BY_GUID = { "chars", "items", "notes", "start", "startLevel", "logoutPlayed", "professions", "recipes", "today", "days", "runs" }
+
+-- Keeps only the events keep(e) says yes to, in order.
+local function keepEvents(db, keep)
+  if type(db.events) ~= "table" then return end
+  local kept = {}
+  for _, e in ipairs(db.events) do
+    if keep(e) then kept[#kept + 1] = e end
+  end
+  db.events = kept
+end
+
+-- Everything saved about these characters (gone = { [guid] = true }).
+local function removeCharacters(db, gone)
+  for _, name in ipairs(BY_GUID) do
+    local t = db[name]
+    if type(t) == "table" then
+      for guid in pairs(gone) do t[guid] = nil end
+    end
+  end
+  keepEvents(db, function(e) return not gone[e.guid] end)
+end
+
+-- Friends' characters received before `before`.
+local function removeFriendsBefore(db, before)
+  for _, friend in pairs(db.friends or {}) do
+    for guid, c in pairs(friend.chars or {}) do
+      if (c.at or 0) < before then friend.chars[guid] = nil end
+    end
+  end
+end
 
 -- Removes what's from before `before` (keep: the GUID being played). Returns how many characters went.
 function ns.cleanStressTest(db, before, keep)
@@ -25,24 +57,68 @@ function ns.cleanStressTest(db, before, keep)
   for guid, at in pairs(newest) do
     if not (db.chars and db.chars[guid]) then old(guid, at) end
   end
+  removeCharacters(db, gone)
+  removeFriendsBefore(db, before)
+  return count
+end
 
-  for _, name in ipairs(BY_GUID) do
-    local t = db[name]
-    if type(t) == "table" then
-      for guid in pairs(gone) do t[guid] = nil end
+-- An order's removed characters (the app's DataCleanup, same rules). One not played since the order
+-- goes completely. One played since (logged in when the order came, saved at the /reload) keeps
+-- what it is now and starts fresh: its events up to the order and its days up to `charsDay` go.
+local function removeOrdered(db, o)
+  local gone, played = {}, {}
+  for guid in pairs(o.chars) do
+    local c = db.chars and db.chars[guid]
+    if type(c) == "table" and (c.lastSeen or 0) > (o.at or 0) then played[guid] = true else gone[guid] = true end
+  end
+  removeCharacters(db, gone)
+  if not next(played) then return end
+  keepEvents(db, function(e) return not (played[e.guid] and (e.at or 0) <= (o.at or 0)) end)
+  local day = type(o.charsDay) == "string" and o.charsDay or ""
+  for guid in pairs(played) do
+    for d in pairs(db.days and db.days[guid] or {}) do
+      if d <= day then db.days[guid][d] = nil end
+    end
+    local t = db.today and db.today[guid]
+    if type(t) == "table" and (t.day or "") <= day then db.today[guid] = nil end
+  end
+end
+
+-- One order (the app's CleanupOrder): chars = { [guid] = true } (removeOrdered); events of `kinds`
+-- older than `before` (an ask event counts as the kind it asked about); day stats older than
+-- `beforeDay` ("YYYY-MM-DD", the app's local date); friends' characters received before `friendsBefore`.
+local function applyOrder(db, o)
+  if type(o.chars) == "table" then removeOrdered(db, o) end
+  if (o.before or 0) > 0 and type(o.kinds) == "table" then
+    keepEvents(db, function(e)
+      local kind = e.kind == "ask" and e.askedKind or e.kind
+      return not (kind and o.kinds[kind] and (e.at or 0) < o.before)
+    end)
+  end
+  if type(o.beforeDay) == "string" and o.beforeDay ~= "" then
+    for _, byDay in pairs(db.days or {}) do
+      for day in pairs(byDay) do
+        if day < o.beforeDay then byDay[day] = nil end
+      end
+    end
+    for guid, t in pairs(db.today or {}) do
+      if type(t) == "table" and (t.day or "") < o.beforeDay then db.today[guid] = nil end
     end
   end
-  if db.events then
-    local kept = {}
-    for _, e in ipairs(db.events) do
-      if not gone[e.guid] then kept[#kept + 1] = e end
+  if (o.friendsBefore or 0) > 0 then removeFriendsBefore(db, o.friendsBefore) end
+end
+
+-- Applies the orders this account hasn't had yet (newer than db.cleanedAt). Returns how many.
+function ns.applyCleanups(db, orders)
+  if type(orders) ~= "table" then return 0 end
+  local done, newest, count = db.cleanedAt or 0, db.cleanedAt or 0, 0
+  for _, o in ipairs(orders) do
+    if type(o) == "table" and (o.at or 0) > done then
+      applyOrder(db, o)
+      newest = math.max(newest, o.at)
+      count = count + 1
     end
-    db.events = kept
   end
-  for _, friend in pairs(db.friends or {}) do
-    for guid, c in pairs(friend.chars or {}) do
-      if (c.at or 0) < before then friend.chars[guid] = nil end
-    end
-  end
+  db.cleanedAt = newest
   return count
 end

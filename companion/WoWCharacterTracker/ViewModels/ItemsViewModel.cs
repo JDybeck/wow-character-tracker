@@ -64,7 +64,7 @@ sealed class ItemsViewModel : Observable
     public void Show(List<CharacterRow> rows)
     {
         characters = rows;
-        Realms.Fill(rows.Where(r => r.Inventory is not null).ToList(), r => r.Realm);
+        Realms.Fill(rows.Where(r => r.Inventory is not null).ToList(), r => r.RealmText);
         Rebuild();
     }
 
@@ -150,10 +150,10 @@ sealed class ItemsViewModel : Observable
         }
         stale = false;
         var built = new List<ItemGroup>();
-        var shown = characters.Where(c => c.Inventory is not null && Realms.Matches(c.Realm));
+        var shown = characters.Where(c => c.Inventory is not null && Realms.Matches(c.RealmText));
         var query = Search.Trim();
         var kind = SelectedKind.Key;
-        foreach (var realm in shown.GroupBy(c => c.Realm).OrderBy(g => g.Key))
+        foreach (var realm in shown.GroupBy(c => c.RealmText).OrderBy(g => g.Key))
         {
             var rows = realm
                 .SelectMany(c => c.Inventory!.Placed.Where(p => Wanted(p.Place)).Select(p => (Character: c, p.Slot, p.Place)))
@@ -168,7 +168,7 @@ sealed class ItemsViewModel : Observable
             // When each character's bags were last saved (and where), so it's clear how fresh this is.
             var saved = realm.Select(c => (c, Text: CharacterGear.SavedTextOf(c.Inventory))).Where(x => x.Text.Length > 0)
                 .Select(x => new ItemPlace(x.c.FullName, x.c.ClassBrush, x.Text)).ToList();
-            built.Add(new ItemGroup(new ItemHeader(realm.First().RealmText, $"{Format.Count(rows.Count, "item")}, {Format.Count(realm.Count(), "character")}", saved), rows));
+            built.Add(new ItemGroup(new ItemHeader(realm.Key,$"{Format.Count(rows.Count, "item")}, {Format.Count(realm.Count(), "character")}", saved), rows));
         }
         groups = built;
         Relayout();

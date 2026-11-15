@@ -11,7 +11,7 @@ namespace WoWCharacterTracker.Ui;
 //           | stream (the Stream overlay panel on and open) | testall (every Test button; test characters on when Forever has none) | addonupdate
 //           | nofolder (the tab as if no game folder was found, faked: no detection runs) | betafolder (the still-on-the-beta-folder reminder)
 //           | settings (the settings menu, saved next to it as <name>-settings.png) | changelog (What's new, saved as <name>-changelog.png) | orb (switches tab, captured mid-animation)
-//           | intro (the first-run tour; extra2 = which step, 1 = the welcome)
+//           | intro (the first-run tour; extra2 = which step, 1 = the welcome) | find (the header's search, CHARACTERTRACKER_SCREENSHOT_SEARCH or "go", saved as <name>-find.png) | confirm (page data: the first character ticked, its question open)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
 //   extra2 (friends page): gear or leveling (a friend's tab) | sharing (the sharing settings) | professions (friends' professions)
 //   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling (a details tab) | closed (no character open) | search (Items page, "potion") | followedsearch (Followed items page, a search done) | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | recipes (Professions page: the first recipes open) | recipesearch (Professions page: a recipe search) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now) | end (with stream: scrolled to the panel's bottom)
@@ -33,8 +33,14 @@ static class ScreenshotMode
 
             if (vm.FlavorTabs.FirstOrDefault(t => t.Flavor.Key == Part(0)) is { } tab) vm.SelectedFlavor = tab;
             if (Part(1) == "uninstall") vm.ShowUninstallCommand.Execute(null); // fills the list too
+            else if (Part(1) == "data") vm.ShowDataCommand.Execute(null);
             else if (Part(1) is "posting" or "ingame") vm.Page = "sharing"; // the two pages Sharing replaced
             else if (Part(1).Length > 0) vm.Page = Part(1);
+            if (Part(1) == "data" && Part(2) == "confirm" && vm.Data.Characters.FirstOrDefault() is { } picked)
+            {
+                picked.IsOn = true;
+                vm.Data.Confirming = "chars";
+            }
             if (Part(2) == "custom" && vm.SelectedFlavor is { } sharing) sharing.ShowCustomize = true;
             if (Part(2) == "rename" && vm.Discord.Webhooks.FirstOrDefault() is { } w) w.IsEditing = true;
             if (Part(2) == "options" && vm.Discord.Webhooks.LastOrDefault() is { } o) o.IsExpanded = true;
@@ -141,6 +147,8 @@ static class ScreenshotMode
             if (Part(2) == "settings" && Part(3) == "themes") vm.Appearance.ShowAll = true; // the theme swatches unfolded
             if (Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_THEME") is { Length: > 0 } theme) vm.Appearance.PickCommand.Execute(theme);
             if (Part(2) == "help") vm.ShowHelp = true;
+            if (Part(2) == "find" && vm.SelectedFlavor is { HasCharacters: false, Flavor.HasRulesets: true }) { vm.ShowTestCharacters = true; await Task.Delay(1500); }
+            if (Part(2) == "find") vm.Search.Query = Environment.GetEnvironmentVariable("CHARACTERTRACKER_SCREENSHOT_SEARCH") ?? "go";
             if (Part(2) == "console") vm.ConsoleOpen = true;
             if (Part(2) == "changelog") vm.Updates.ShowChangelog = true;
             if (Part(2) == "intro")
@@ -166,6 +174,8 @@ static class ScreenshotMode
                 Save(menu, Path.ChangeExtension(target, null) + "-help.png");
             if (Part(3) == "ignored" && Find<Views.CharactersPage>(window)?.FindName("IgnoredPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement ignoredList })
                 Save(ignoredList, Path.ChangeExtension(target, null) + "-ignored.png");
+            if (Part(2) == "find" && Find<Views.Header>(window)?.FindName("SearchDrop") is System.Windows.Controls.Canvas { Children: [FrameworkElement found] })
+                Save(found, Path.ChangeExtension(target, null) + "-find.png");
             if (Part(2) == "changelog" && Find<Views.Header>(window)?.FindName("ChangelogPopup") is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement changes })
                 Save(changes, Path.ChangeExtension(target, null) + "-changelog.png");
             window.Close();

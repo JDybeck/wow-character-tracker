@@ -34,6 +34,7 @@ static class SavedVariables
             Incognito = IncognitoWindow.Read(db.Table.Get("incognito")),
             Today = ReadToday(db.Table.Get("today")),
             Days = ReadDays(db.Table.Get("days")),
+            CleanedAt = db.Table.Get("cleanedAt") is { Type: DataType.Number } cleaned ? (long)cleaned.Number : 0,
         };
     }
 
@@ -85,7 +86,17 @@ static class SavedVariables
             Flag("gridLabel"), Flag("keepAllHistory"),
             t.Get("askSeconds").CastToNumber() is double seconds ? (int)seconds : null,
             t.Get("ignored").Type == DataType.Table ? On(t.Get("ignored")) : null,
-            t.Get("preset").Type == DataType.String ? t.Get("preset").String : null);
+            t.Get("preset").Type == DataType.String ? t.Get("preset").String : null,
+            ReadFilters(t.Get("filters")));
+    }
+
+    static GameFilters? ReadFilters(DynValue value)
+    {
+        if (value.Type != DataType.Table) return null;
+        var f = value.Table;
+        int? Number(string key) => f.Get(key).CastToNumber() is double n ? (int)n : null;
+        bool? Flag(string key) => f.Get(key).Type == DataType.Boolean ? f.Get(key).Boolean : null;
+        return new GameFilters(Number("split"), Number("before"), Number("after"), Flag("rareBoe"), Flag("firstKill"));
     }
 
     // notes[guid] = { text, at }: notes edited in game. The game keeps "|" as "||".

@@ -67,6 +67,34 @@ public class FriendDataTests
         Assert.Equal(40, events[0].GroupSize);
     }
 
+    // What a friend shares shows in what their newest characters came with; an older one can still
+    // carry gear they've stopped sharing since.
+    [Fact]
+    public void The_categories_a_friend_shares_come_from_their_newest_character()
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua", "FriendData.lua"]);
+        c.Lua("""
+            local char = { char = 'Zeb', lastSeen = 20, level = 30, zone = 'Duskwood', money = 500, talentCalc = '--505', played = 3600 }
+            local items = { gear = '1~19019' }
+            local a = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000B', char, items, { gear = true, leveling = true }))
+            local b = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000C', char, items, { talents = true }))
+            got = ns.friendSharedCategories({ a = a, b = b })
+            local old = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000D', { char = 'Alt', lastSeen = 5, level = 10 }, items, { gear = true }))
+            local new = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000E', char, items, { talents = true }))
+            later = ns.friendSharedCategories({ old = old, new = new })
+            none = ns.friendSharedCategories(nil)
+            """);
+        string Keys(string table) => c.Lua($$"""
+            local out = {}
+            for k in pairs({{table}}) do out[#out + 1] = k end
+            table.sort(out)
+            return table.concat(out, ',')
+            """).String;
+        Assert.Equal("gear,leveling,talents", Keys("got"));
+        Assert.Equal("talents", Keys("later"));
+        Assert.True(c.Lua("return next(none) == nil").Boolean);
+    }
+
     // Level times go out with Level times on (and only then), and the app reads them as level events,
     // with played time and the XP bar on the character.
     [Fact]

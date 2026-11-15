@@ -199,18 +199,19 @@ sealed class FlavorViewModel : Observable
     // --- what gets posted (bound two-way from the settings page) ---
 
     public bool PostLevels { get => Settings.PostLevels; set { Settings.PostLevels = value; Changed(); } }
-    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); TypedChanged(); } }
-    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); TypedChanged(); } }
-    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); TypedChanged(); } }
+    // The level steps and the two filters can be changed in the addon too (Settings.lua `filters`).
+    public int LevelSplit { get => Settings.LevelSplit; set { Settings.LevelSplit = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
+    public int LevelEveryBefore { get => Settings.LevelEveryBefore; set { Settings.LevelEveryBefore = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
+    public int LevelEveryAfter { get => Settings.LevelEveryAfter; set { Settings.LevelEveryAfter = Math.Clamp(value, 1, 100); MarkInGameChanged(); TypedChanged(); } }
     public bool PostRare { get => Settings.PostRare; set { Settings.PostRare = value; Changed(); } }
-    public bool RareBoeOnly { get => Settings.RareBoeOnly; set { Settings.RareBoeOnly = value; Changed(); } }
+    public bool RareBoeOnly { get => Settings.RareBoeOnly; set { Settings.RareBoeOnly = value; InGameChanged(); } }
     public bool PostBattlegrounds { get => Settings.PostBattlegrounds; set { Settings.PostBattlegrounds = value; Changed(); } }
     public bool PostProfessions { get => Settings.PostProfessions; set { Settings.PostProfessions = value; Changed(); } }
     public bool PostEpic { get => Settings.PostEpic; set { Settings.PostEpic = value; Changed(); } }
     public bool PostMounts { get => Settings.PostMounts; set { Settings.PostMounts = value; Changed(); } }
     public bool PostBosses { get => Settings.PostBosses; set { Settings.PostBosses = value; Changed(); } }
     public bool PostDeaths { get => Settings.PostDeaths; set { Settings.PostDeaths = value; Changed(); } }
-    public bool FirstBossKillOnly { get => Settings.FirstBossKillOnly; set { Settings.FirstBossKillOnly = value; main.Config.Save(); Raise(nameof(FirstBossKillOnly)); } }
+    public bool FirstBossKillOnly { get => Settings.FirstBossKillOnly; set { Settings.FirstBossKillOnly = value; InGameChanged(); } }
     public bool PostMaxLevel { get => Settings.PostMaxLevel; set { Settings.PostMaxLevel = value; Changed(); } }
     public bool PostDuels { get => Settings.PostDuels; set { Settings.PostDuels = value; Changed(); } }
     public bool PostMakgora { get => Settings.PostMakgora; set { Settings.PostMakgora = value; Changed(); } }
@@ -242,9 +243,11 @@ sealed class FlavorViewModel : Observable
     // A setting that can be changed in game too changed here: the newest change wins (FlavorSettings.TakeInGame).
     void InGameChanged([CallerMemberName] string? name = null)
     {
-        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        MarkInGameChanged();
         Changed(name);
     }
+
+    void MarkInGameChanged() => Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
     // The In game settings as changed in the addon's options page, when that's the newest change.
     void TakeInGameSettings(InGameSettings? game)
@@ -257,7 +260,8 @@ sealed class FlavorViewModel : Observable
         SharingChanged();
         foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces),
             nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
-            nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight) })
+            nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight),
+            nameof(LevelSplit), nameof(LevelEveryBefore), nameof(LevelEveryAfter), nameof(LevelPreview), nameof(RareBoeOnly), nameof(FirstBossKillOnly) })
             Raise(name);
         Log.Info($"[{Name}] Took the In game settings you changed in the game.");
     }
@@ -297,7 +301,6 @@ sealed class FlavorViewModel : Observable
     {
         pendingPreset = null;
         SharingPresets.Apply(Settings, Flavor, key);
-        Settings.InGameAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); // chat and ask lists changed too
         PostingReplaced();
         Log.Info($"[{Name}] Sharing set to {key}.");
     }
@@ -478,6 +481,7 @@ sealed class FlavorViewModel : Observable
     // After all posting settings changed at once: save, tell the addon, refresh the whole page.
     void PostingReplaced()
     {
+        MarkInGameChanged(); // the filters, chat and ask lists changed too
         AddonSettingsChanged();
         SharingChanged();
         Raise(string.Empty); // every property
@@ -756,6 +760,8 @@ sealed class FlavorViewModel : Observable
     }
 
     TrackerData lastData = TrackerData.Empty;
+    // lastData without what pending Data page cleanups cover (DataCleanup.Hide): what every page shows.
+    public TrackerData ShownData { get; private set; } = TrackerData.Empty;
 
     // Names, icons and tooltips of everything from the game, shared by the whole tab (characters and the Items page).
     public GameLookup Lookup { get; }
@@ -768,8 +774,11 @@ sealed class FlavorViewModel : Observable
     public FollowedItemsViewModel FollowedItems { get; }
     // The Friends page: what Battle.net friends shared, apart from your own characters.
     public FriendsViewModel Friends { get; }
-    // The Stats page: this week's leaderboards, you against your friends.
+    // The Stats page: leaderboards for today, the week, the month or all time, you against your friends.
     public StatsViewModel Stats { get; } = new();
+    // Every day seen, yours and friends', for the Stats page's month and all time (the addon keeps 8).
+    DayHistory DayHistory => dayHistory ??= new(Path.Combine(Config.Dir, $"days-{Flavor.Key}.json"));
+    DayHistory? dayHistory;
     // The Professions page: your characters' professions by server and faction.
     public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions yet. They show up once a character with one has been played with the addon." };
     public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; Changed(); } }
@@ -779,14 +788,14 @@ sealed class FlavorViewModel : Observable
     void FollowedChanged()
     {
         AddonSettingsChanged();
-        main.Stream.Update(Flavor, allRows, Settings.MarkFollowed(lastData.Events));
+        main.Stream.Update(Flavor, allRows, Settings.MarkFollowed(ShownData.Events));
     }
 
     public void Refresh() => ShowData(lastData);
 
     // The realm (Retail) or ruleset (Forever) chips over the character list.
     public ChipFilter Groups { get; }
-    string GroupOf(CharacterRow r) => Flavor.HasRulesets ? r.Ruleset : r.Realm;
+    string GroupOf(CharacterRow r) => Flavor.HasRulesets ? r.Ruleset : r.RealmText;
     // Alliance / Horde chips under them.
     public ChipFilter FactionChips { get; }
 
@@ -820,12 +829,15 @@ sealed class FlavorViewModel : Observable
 
     // Every character of the tab, whatever the filter shows (posts look up the one an event is about).
     List<CharacterRow> allRows = [];
+    public IReadOnlyList<CharacterRow> AllCharacters => allRows;
     public CharacterRow? RowFor(string guid) => allRows.FirstOrDefault(r => r.Guid == guid);
 
     void ShowData(TrackerData data)
     {
         lastData = data;
         CleanStressTestOnce(data);
+        DropDoneCleanups(data.CleanedAt);
+        data = ShownData = DataCleanup.Hide(data, Settings.Cleanups);
         var keepRow = SelectedCharacter;
         var keep = keepRow?.Guid;
         var removed = Settings.Removed;
@@ -888,9 +900,9 @@ sealed class FlavorViewModel : Observable
         if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
         Items.Show(rows);
         Professions.Show(rows);
-        Friends.Show(lastData); // friends' rows stay on their own page (not the test characters either)
+        Friends.Show(ShownData); // friends' rows stay on their own page (not the test characters either)
         AddLevelBoard([.. rows, .. Friends.Shown]);
-        Stats.Show(rows, data.Events, [.. data.Today, .. data.Days], Friends.Shown, lastData.Friends);
+        Stats.Show(rows, data.Events, DayHistory.Add([.. data.Today, .. data.Days, .. ShownData.Friends.SelectMany(c => c.Days)]), Friends.Shown);
         homeEvents = data.Events;
         homeDays = data.Today;
         RefreshHome(); // after Friends: Home lists the friends seen lately
@@ -945,6 +957,37 @@ sealed class FlavorViewModel : Observable
         WriteAddonSettings(); // the addon stops sharing it with friends (Settings.lua removed)
         Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");
         ShowData(lastData);
+    }
+
+    // A cleanup from the Data page: the app forgets its own copies now, the addon does the saved file the
+    // next time the game loads it, and until then the app hides it (ShowData).
+    public void Clean(CleanupOrder order)
+    {
+        var friendGuids = ShownData.Friends.SelectMany(f => f.Characters).Where(c => DataCleanup.RemovesFriend(order, c)).Select(c => c.Guid).ToHashSet();
+        DataCleanup.Forget(main.Config, Settings, order.Chars, order.At, guid => Files.TryDelete(CharacterArt.PortraitPath(guid)));
+        DayHistory.Remove(d => DataCleanup.Removes(order, d) || friendGuids.Contains(d.Guid));
+        Settings.Cleanups = [.. Settings.Cleanups, order];
+        main.Config.Save();
+        WriteAddonSettings();
+        ShowData(lastData);
+    }
+
+    // For the Data page: the days the app keeps for the Stats page, how each character is listed, and
+    // the newest order (the next one must be newer).
+    public IReadOnlyList<DayTotals> KeptDays => DayHistory.All;
+    public bool IsIgnored(string guid) => Settings.Ignored.Contains(guid);
+    public bool IsRemovedFromList(Snapshot c) => Settings.Removed.TryGetValue(c.Guid, out var at) && c.LastSeen <= at;
+    public long LastCleanupAt => Settings.Cleanups.LastOrDefault()?.At ?? 0;
+
+    // Orders every account's saved file has had go from Settings.lua.
+    void DropDoneCleanups(long cleanedAt)
+    {
+        if (Settings.Cleanups.Count == 0) return;
+        var pending = DataCleanup.StillPending(Settings.Cleanups, cleanedAt);
+        if (pending.Count == Settings.Cleanups.Count) return;
+        Settings.Cleanups = pending;
+        main.Config.Save();
+        WriteAddonSettings();
     }
 
     // Characters with Ignore tracking on, for the footer's Ignored button (hidden while there are none).

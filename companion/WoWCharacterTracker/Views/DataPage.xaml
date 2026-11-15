@@ -1,0 +1,135 @@
+<!-- Manage data (Settings, Manage data...): for the selected game, remove characters completely, old
+     history, what friends shared, and the app's caches. Each removal asks first, right here. -->
+<UserControl x:Class="WoWCharacterTracker.Views.DataPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
+             xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels">
+  <UserControl.Resources>
+    <DataTemplate x:Key="ChipTemplate" DataType="{x:Type vm:ToggleOption}">
+      <CheckBox Style="{StaticResource OptionChip}" Content="{Binding Name}" IsChecked="{Binding IsOn}" ToolTip="{Binding Tip}" Margin="0,0,6,6"/>
+    </DataTemplate>
+    <Style x:Key="Section" TargetType="Border" BasedOn="{StaticResource PanelBorder}">
+      <Setter Property="Margin" Value="0,0,0,14"/>
+    </Style>
+    <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+      <Setter Property="Padding" Value="12,5"/>
+      <Setter Property="Background" Value="#7F1D1D"/>
+      <Setter Property="BorderBrush" Value="#B91C1C"/>
+      <Setter Property="Margin" Value="0,0,8,0"/>
+    </Style>
+  </UserControl.Resources>
+
+  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="7" DataContext="{Binding Data}"
+          Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=data}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="26,22" MaxWidth="900" HorizontalAlignment="Left">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Back" Command="{Binding BackCommand}" ToolTip="Back to Settings" VerticalAlignment="Top"/>
+          <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Foreground="White"/>
+        </DockPanel>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,18" TextWrapping="Wrap" Text="{Binding HowText}"/>
+
+        <!-- Characters -->
+        <Border Style="{StaticResource Section}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Characters" Margin="0,0,0,10"/>
+            <TextBlock Style="{StaticResource Hint}" Text="No characters yet." Visibility="{Binding Characters.Count, Converter={StaticResource PageIs}, ConverterParameter=0}"/>
+            <ItemsControl ItemsSource="{Binding Characters}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:DataCharacter}">
+                  <CheckBox IsChecked="{Binding IsOn}" Margin="0,0,0,8" ToolTip="Ticked gets removed">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource Text}"/>
+                      <TextBlock Style="{StaticResource Hint}" Text="{Binding Detail}"/>
+                    </StackPanel>
+                  </CheckBox>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding CharactersText}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+            <Button Style="{StaticResource ButtonBase}" Padding="12,5" HorizontalAlignment="Left" Content="Remove characters..." Command="{Binding AskCommand}" CommandParameter="chars"
+                    ToolTip="Asks first" IsEnabled="{Binding HasPickedCharacters}"
+                    Visibility="{Binding Confirming, Converter={StaticResource PageIs}, ConverterParameter=|history|friends}"/>
+            <StackPanel Orientation="Horizontal" Visibility="{Binding Confirming, Converter={StaticResource PageIs}, ConverterParameter=chars}">
+              <Button Style="{StaticResource DangerButton}" Command="{Binding RemoveCharactersCommand}" ToolTip="Remove the ticked characters for good">
+                <TextBlock Text="Yes, remove them" Foreground="White"/>
+              </Button>
+              <Button Style="{StaticResource ButtonBase}" Padding="12,5" Content="Cancel" Command="{Binding CancelAskCommand}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Old history -->
+        <Border Style="{StaticResource Section}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+              <Border DockPanel.Dock="Right" Style="{StaticResource SegmentBox}" VerticalAlignment="Top">
+                <StackPanel Orientation="Horizontal">
+                  <Button Style="{StaticResource SegmentButton}" Content="30 days" Tag="{Binding HistoryAge, Converter={StaticResource ActiveIf}, ConverterParameter=30}" Command="{Binding PickHistoryAgeCommand}" CommandParameter="30"/>
+                  <Button Style="{StaticResource SegmentButton}" Content="90 days" Tag="{Binding HistoryAge, Converter={StaticResource ActiveIf}, ConverterParameter=90}" Command="{Binding PickHistoryAgeCommand}" CommandParameter="90"/>
+                  <Button Style="{StaticResource SegmentButton}" Content="6 months" Tag="{Binding HistoryAge, Converter={StaticResource ActiveIf}, ConverterParameter=180}" Command="{Binding PickHistoryAgeCommand}" CommandParameter="180"/>
+                  <Button Style="{StaticResource SegmentButton}" Content="1 year" Tag="{Binding HistoryAge, Converter={StaticResource ActiveIf}, ConverterParameter=365}" Command="{Binding PickHistoryAgeCommand}" CommandParameter="365"/>
+                </StackPanel>
+              </Border>
+              <StackPanel>
+                <TextBlock Style="{StaticResource SectionTitle}" Text="Old history"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Moments older than the picked age, of the kinds picked below. Characters, gear and bags stay."/>
+              </StackPanel>
+            </DockPanel>
+            <ItemsControl ItemsSource="{Binding HistoryKinds}" ItemsPanel="{StaticResource Wrap}" ItemTemplate="{StaticResource ChipTemplate}"/>
+            <TextBlock Text="{Binding HistoryText}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+            <Button Style="{StaticResource ButtonBase}" Padding="12,5" HorizontalAlignment="Left" Content="Remove old history..." Command="{Binding AskCommand}" CommandParameter="history"
+                    ToolTip="Asks first" Visibility="{Binding Confirming, Converter={StaticResource PageIs}, ConverterParameter=|chars|friends}"/>
+            <StackPanel Orientation="Horizontal" Visibility="{Binding Confirming, Converter={StaticResource PageIs}, ConverterParameter=history}">
+              <Button Style="{StaticResource DangerButton}" Command="{Binding RemoveHistoryCommand}" ToolTip="Remove it for good">
+                <TextBlock Text="Yes, remove it" Foreground="White"/>
+              </Button>
+              <Button Style="{StaticResource ButtonBase}" Padding="12,5" Content="Cancel" Command="{Binding CancelAskCommand}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Friends -->
+        <Border Style="{StaticResource Section}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+              <Border DockPanel.Dock="Right" Style="{StaticResource SegmentBox}" VerticalAlignment="Top">
+                <StackPanel Orientation="Horizontal">
+                  <Button Style="{StaticResource SegmentButton}" Content="30 days" Tag="{Binding FriendsAge, Converter={StaticResource ActiveIf}, ConverterParameter=30}" Command="{Binding PickFriendsAgeCommand}" CommandParameter="30"/>
+                  <Button Style="{StaticResource SegmentButton}" Content="90 days" Tag="{Binding FriendsAge, Converter={StaticResource ActiveIf}, ConverterParameter=90}" Command="{Binding PickFriendsAgeCommand}" CommandParameter="90"/>
+                  <Button Style="{StaticResource SegmentButton}" Content="All" Tag="{Binding FriendsAge, Converter={StaticResource ActiveIf}, ConverterParameter=0}" Command="{Binding PickFriendsAgeCommand}" CommandParameter="0"/>
+                </StackPanel>
+              </Border>
+              <StackPanel>
+                <TextBlock Style="{StaticResource SectionTitle}" Text="What friends shared"/>
+                <TextBlock Style="{StaticResource Hint}" Text="Their characters you haven't heard from in that long, or all of them. Your friends list and sharing choices stay."/>
+              </StackPanel>
+            </DockPanel>
+            <TextBlock Text="{Binding FriendsText}" FontSize="12" Foreground="{StaticResource TextSoft}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+            <Button Style="{StaticResource ButtonBase}" Padding="12,5" HorizontalAlignment="Left" Content="Remove friends' data..." Command="{Binding AskCommand}" CommandParameter="friends"
+                    ToolTip="Asks first" IsEnabled="{Binding HasFriendsToRemove}" Visibility="{Binding Confirming, Converter={StaticResource PageIs}, ConverterParameter=|chars|history}"/>
+            <StackPanel Orientation="Horizontal" Visibility="{Binding Confirming, Converter={StaticResource PageIs}, ConverterParameter=friends}">
+              <Button Style="{StaticResource DangerButton}" Command="{Binding RemoveFriendsCommand}" ToolTip="Remove it for good">
+                <TextBlock Text="Yes, remove it" Foreground="White"/>
+              </Button>
+              <Button Style="{StaticResource ButtonBase}" Padding="12,5" Content="Cancel" Command="{Binding CancelAskCommand}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Caches (all games) -->
+        <Border Style="{StaticResource Section}">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Padding="12,5" VerticalAlignment="Center" Margin="12,0,0,0"
+                    Content="Clear caches" Command="{Binding ClearCachesCommand}" ToolTip="Nothing is lost: they're downloaded again when needed"/>
+            <StackPanel>
+              <TextBlock Style="{StaticResource SectionTitle}" Text="App caches (all games)"/>
+              <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Text="{Binding CachesText}"/>
+            </StackPanel>
+          </DockPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Border>
+</UserControl>

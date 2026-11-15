@@ -91,7 +91,7 @@ static class CardImage
         who.Children.Add(Txt($"Level {c.Level} {c.Description}".Trim(), 14, soft));
         var place = new List<string>();
         if (shows("guild") && c.HasGuild) place.Add($"<{c.Guild}>");
-        place.Add(c.Realm);
+        place.Add(c.RealmText);
         if (flavor.HasRulesets && c.Ruleset.Length > 0) place.Add(c.Ruleset);
         who.Children.Add(Txt(string.Join("  ·  ", place), 12, dim));
         header.Children.Add(who);

@@ -15,8 +15,6 @@ sealed class JsonFileCache<T>(string fileName, JsonSerializerOptions? json = nul
     Dictionary<string, T>? entries;
     int version;
 
-    string FilePath => Path.Combine(Config.Dir, fileName);
-
     public bool TryGet(string key, [MaybeNullWhen(false)] out T value)
     {
         lock (gate) return Entries().TryGetValue(key, out value);
@@ -27,6 +25,19 @@ sealed class JsonFileCache<T>(string fileName, JsonSerializerOptions? json = nul
         lock (gate) Entries()[key] = value;
         SaveSoon();
     }
+
+    // Forgets every entry and removes the file (the Data page's Clear caches).
+    public void Clear()
+    {
+        lock (gate)
+        {
+            entries = [];
+            Interlocked.Increment(ref version); // a save waiting to run skips
+            Files.TryDelete(FilePath);
+        }
+    }
+
+    public string FilePath => Path.Combine(Config.Dir, fileName);
 
     // The file's text for these entries, and back (kept public for the tests of each cache's format).
     public string Serialize(Dictionary<string, T> cache) => JsonSerializer.Serialize(cache, json);

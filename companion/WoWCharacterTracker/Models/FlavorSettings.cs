@@ -183,6 +183,12 @@ class FlavorSettings
         AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
         Ignored = game.Ignored is { } ignored ? [.. ignored] : Ignored;
+        if (game.Filters is { } f)
+        {
+            static int Level(int? typed, int now) => typed is int n ? Math.Clamp(n, 1, 100) : now;
+            (LevelSplit, LevelEveryBefore, LevelEveryAfter) = (Level(f.Split, LevelSplit), Level(f.Before, LevelEveryBefore), Level(f.After, LevelEveryAfter));
+            (RareBoeOnly, FirstBossKillOnly) = (f.RareBoe ?? RareBoeOnly, f.FirstKill ?? FirstBossKillOnly);
+        }
         return true;
     }
 
@@ -211,6 +217,9 @@ class FlavorSettings
 
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
+
+    // Cleanups from the Data page the addon hasn't done on every account yet (DataCleanup). Replaced, never mutated.
+    public List<CleanupOrder> Cleanups { get; set; } = [];
 
     // The stress test's characters were cleaned out (StressTestCleanup), once.
     public bool StressTestCleaned { get; set; }

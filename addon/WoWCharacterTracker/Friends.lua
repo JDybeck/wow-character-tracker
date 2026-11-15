@@ -1059,11 +1059,15 @@ end
 
 -- What a contact gets, for the Friends tab's sharing panel: nil when tag isn't a contact.
 -- categories: { key, own (true, false or nil = like all friends), general, on, rule } for CATEGORIES,
--- then RULES (rule = true).
+-- then RULES (rule = true). theirs: what they share with you (ns.friendSharedCategories), theirCount:
+-- how many of their characters you have.
 function ns.contactSharing(tag)
   local s = ns.shareSettings()
   local c = s.contacts[tag]
   if not c then return nil end
+  local got = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[tag]
+  local theirCount = 0
+  for _ in pairs(got and got.chars or {}) do theirCount = theirCount + 1 end
   local allowed, categories = ns.allowedFor(s, c), {}
   for _, k in ipairs(CATEGORIES) do
     categories[#categories + 1] = { key = k, own = c[k], general = s.defaults[k] == true, on = allowed[k] }
@@ -1072,7 +1076,7 @@ function ns.contactSharing(tag)
     categories[#categories + 1] = { key = k, own = c[k], general = s.defaults[k] == true, on = allowed[k], rule = true }
   end
   return { tag = tag, label = label(tag), nickname = ns.friendNickname(tag), share = c.share == true, receive = c.receive == true,
-    categories = categories, summary = picked(allowed) }
+    categories = categories, summary = picked(allowed), theirs = ns.friendSharedCategories(got and got.chars), theirCount = theirCount }
 end
 
 -- /wct friends set all|<BattleTag> <category or rule> <on|off|default>

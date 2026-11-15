@@ -135,10 +135,21 @@ function ui.refresh(parent)
   for _, fn in ipairs(refreshers[parent] or {}) do fn() end
 end
 
--- "v0.33.2" from the .toc, or "" when the client can't say.
-function ui.version()
+-- A field from the .toc (## Version, ## Author), or "" when the client can't say.
+local function tocField(field)
   local metadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-  return metadata and ("v" .. tostring(metadata(ADDON, "Version") or "")) or ""
+  return metadata and tostring(metadata(ADDON, field) or "") or ""
+end
+
+-- "v0.33.2", or "".
+function ui.version()
+  local v = tocField("Version")
+  return v ~= "" and ("v" .. v) or ""
+end
+
+function ui.author()
+  local name = tocField("Author")
+  return name ~= "" and ("by " .. name) or ""
 end
 
 function ui.text(parent, template, s)

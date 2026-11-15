@@ -51,7 +51,7 @@ sealed class CharacterRow : Observable
     public string TalentExport { get; init; } = ""; // the game's loadout string (retail)
     public bool HasTalentExport => TalentExport.Length > 0;
     public string Region { get; init; } = ""; // "eu", "us"... for the Retail character render
-    public string RealmText => Format.Realm(Region, Realm);
+    public string RealmText => Realms.Label(Region, Realm);
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."

@@ -13,6 +13,17 @@ static class Files
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    // Bytes in a file or a whole folder; 0 when it's not there or can't be read.
+    public static long Size(string path)
+    {
+        try
+        {
+            if (File.Exists(path)) return new FileInfo(path).Length;
+            return Directory.Exists(path) ? new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length) : 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return 0; }
+    }
+
     // Writes next to the file first and then moves it over the old one, so a crash or power cut
     // mid-write leaves the old file instead of a broken one (a broken config.json lost every webhook,
     // a broken posted-*.json stopped every sync). Throws like File.WriteAllBytes.

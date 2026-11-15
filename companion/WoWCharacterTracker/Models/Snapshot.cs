@@ -23,7 +23,10 @@ record Snapshot(string Guid, string Char, string Realm, int Level, string Class,
 // the change doesn't have that setting (an older addon), so the app's own value stays, as in the addon.
 record InGameSettings(long At, bool? AnnounceGuild, bool? AnnounceParty, List<string>? AnnounceKinds, List<string>? AnnouncePartyKinds, List<string>? AskKinds,
     bool? FlightReload, bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null,
-    string? Preset = null);
+    string? Preset = null, GameFilters? Filters = null);
+
+// The Sharing page's level steps and filters as changed in game (Settings.lua `filters`); null = not in the change.
+record GameFilters(int? Split, int? Before, int? After, bool? RareBoe, bool? FirstKill);
 
 // One character's day (the addon's today[guid]), Day as "2026-11-09": item level and copper at the
 // day's start and now, and what was turned in and gathered.
@@ -57,6 +60,7 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
     public List<IncognitoWindow> Incognito { get; init; } = []; // stretches of incognito: nothing from them is posted (Shared.lua)
     public List<DayTotals> Today { get; init; } = []; // each character's day so far (Today.lua)
     public List<DayTotals> Days { get; init; } = [];  // finished days, the last 8 per character (Today.lua days), for the Stats page
+    public long CleanedAt { get; init; } // the newest Data page cleanup the addon has done (Cleanup.lua); merged: the oldest of all accounts
 
     public static TrackerData Empty { get; } = new([], []);
 }
