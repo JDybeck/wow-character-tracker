@@ -84,7 +84,7 @@ sealed class DataViewModel : Observable
                          .OrderByDescending(c => c.LastSeen))
             {
                 var note = tab.IsIgnored(c.Guid) ? ", not tracked" : tab.IsRemovedFromList(c) ? ", removed from the list" : "";
-                Characters.Add(new DataCharacter(c.Guid, c.Char, $"Level {c.Level} {c.Class}, {c.Realm}, played {Format.Ago(c.LastSeen)}{note}", Counted));
+                Characters.Add(new DataCharacter(c.Guid, c.Char, $"Level {c.Level} {c.Class}, {Realms.Label(c.Region, c.Realm)}, played {Format.Ago(c.LastSeen)}{note}", Counted));
             }
             // Level-ups are left off to start with: level times and the Leveling tab are built from them.
             var kinds = EventKinds.All.Where(k => EventKinds.OfferedIn(k.Key, tab.Flavor.HasRatings))

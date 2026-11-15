@@ -388,6 +388,7 @@ public class FriendMapLuaTests
         var got = b.Lua($"return {{ ns.realmType('{realm}') }}").Table;
         Assert.Equal(type, got.Get(1).IsNil() ? null : got.Get(1).String);
         Assert.Equal(number, got.Get(2).IsNil() ? null : (int)got.Get(2).Number);
+        Assert.Equal(type, Realms.Type(realm)); // the app reads realms the same way
     }
 
     [Theory]

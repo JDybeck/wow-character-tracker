@@ -791,7 +791,7 @@ sealed class FlavorViewModel : Observable
 
     // The realm (Retail) or ruleset (Forever) chips over the character list.
     public ChipFilter Groups { get; }
-    string GroupOf(CharacterRow r) => Flavor.HasRulesets ? r.Ruleset : r.Realm;
+    string GroupOf(CharacterRow r) => Flavor.HasRulesets ? r.Ruleset : r.RealmText;
     // Alliance / Horde chips under them.
     public ChipFilter FactionChips { get; }
 

@@ -22,7 +22,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         // A made-up test character says so in the name and under the post, so nobody takes it for real.
         var testChar = TestCharacters.IsTest(e.Guid);
         // "EU · PvP" instead of Forever's "CAMWOW EU4 Realm 4 PvP".
-        var realm = e.Realm.Length > 0 ? Format.Realm(e.Region, e.Realm) : "";
+        var realm = Realms.Label(e.Region, e.Realm);
         e = e with
         {
             Char = Marked(Format.Name(e.Char, e.Surname, nameStyle), testChar),
@@ -167,7 +167,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         };
         if (GameColors.Class(c.ClassFile) is int color) embed["color"] = color;
         if (CharacterArt.ClassIconUrl(c.ClassFile) is { } classIcon)
-            embed["author"] = new Dictionary<string, object> { ["name"] = c.Realm, ["icon_url"] = classIcon };
+            embed["author"] = new Dictionary<string, object> { ["name"] = c.RealmText, ["icon_url"] = classIcon };
         return embed;
     }
 
