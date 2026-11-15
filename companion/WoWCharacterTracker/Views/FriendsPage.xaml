@@ -15,6 +15,7 @@
             <RadioButton Style="{StaticResource DetailTab}" Content="Overview" ToolTip="Who the character is and what your friend shares" IsChecked="{Binding IsOverviewTab}" GroupName="{Binding Guid}"/>
             <RadioButton Style="{StaticResource DetailTab}" Content="Gear" ToolTip="What they wear, when they share gear" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>
             <RadioButton Style="{StaticResource DetailTab}" Content="Leveling" ToolTip="Their level times, when they share them" IsChecked="{Binding IsLevelingTab}" GroupName="{Binding Guid}"/>
+            <RadioButton Style="{StaticResource DetailTab}" Content="Highlights" ToolTip="Their boss kills, loot, mounts and more, when they share highlights" IsChecked="{Binding IsHighlightsTab}" GroupName="{Binding Guid}"/>
           </StackPanel>
           <ContentControl Content="{Binding}" Focusable="False">
             <ContentControl.Style>
@@ -36,6 +37,13 @@
                     <Setter Property="ContentTemplate">
                       <Setter.Value>
                         <DataTemplate><views:CharacterLeveling ui:Motion.FadeIn="True"/></DataTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding DetailTab}" Value="highlights">
+                    <Setter Property="ContentTemplate">
+                      <Setter.Value>
+                        <DataTemplate><views:CharacterHighlights ui:Motion.FadeIn="True"/></DataTemplate>
                       </Setter.Value>
                     </Setter>
                   </DataTrigger>

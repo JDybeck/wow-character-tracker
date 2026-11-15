@@ -183,6 +183,28 @@ public class SharedRulesTests
         Assert.True(AddonWants(s, blue, inGame));
     }
 
+    // Discord boxes changed in the addon's Sharing table: the addon posts by them right away, and the
+    // app agrees once it has taken the change.
+    [Fact]
+    public void Discord_boxes_changed_in_game_decide_what_is_posted()
+    {
+        var s = new FlavorSettings { PostMounts = false, PostEpic = true, PostLevels = true };
+        var mount = new Entry { Kind = "mount", Level = 20 };
+        var epic = new Entry { Kind = "loot", Level = 20, Quality = 4 };
+        var ding = new Entry { Kind = "level", Level = 20 };
+        const string inGame = "WoWCharacterTrackerDB.gameSettings = { at = 5, posts = { mount = true, epic = false, level = false } }";
+        Assert.True(AddonWants(s, mount, inGame));
+        Assert.False(AddonWants(s, epic, inGame));
+        Assert.False(AddonWants(s, ding, inGame));
+        Assert.False(AddonWants(s, mount)); // the app's own until then
+
+        var game = SavedVariables.ReadInGame(new Script().DoString("return { at = 5, posts = { mount = true, epic = false, level = false } }"));
+        Assert.True(s.TakeInGame(game));
+        Assert.True(s.Wants(mount));
+        Assert.False(s.Wants(epic));
+        Assert.False(s.Wants(ding));
+    }
+
     // Runs LiveGrid.lua's wanted() through ns.addEvent with the Settings.lua the app would write.
     // lua: run before loading, to set up the saved file.
     internal static bool AddonWants(FlavorSettings s, Entry e, string lua = "")

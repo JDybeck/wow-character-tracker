@@ -26,6 +26,50 @@
     <WrapPanel/>
   </ItemsPanelTemplate>
 
+  <!-- A character's highlight (the Overview's newest few and the Highlights tab). The list's
+       DataContext is the CharacterRow, whose IsOwn decides the post button. -->
+  <DataTemplate x:Key="HighlightRowTemplate" DataType="{x:Type vm:HighlightRow}">
+    <Grid Margin="0,3,8,3" Background="Transparent" ui:ItemTip.Info="{Binding Info}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="22"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" Foreground="{Binding Brush}" FontSize="12"
+                 Visibility="{Binding HasIcon, Converter={StaticResource Hidden}}"/>
+      <Image Source="{Binding IconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" HorizontalAlignment="Left"
+             Visibility="{Binding HasIcon, Converter={StaticResource Visible}}"/>
+      <StackPanel Grid.Column="1">
+        <!-- Wraps rather than trims: the row's hover is the item's tooltip, so a cut name couldn't be read. -->
+        <TextBlock FontSize="12" TextWrapping="Wrap">
+          <Run Text="{Binding Verb, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run Text="{Binding Subject, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/>
+        </TextBlock>
+        <!-- What the death cost, who you dueled. -->
+        <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{StaticResource Dim}" TextWrapping="Wrap" Margin="0,1,0,0"
+                   Visibility="{Binding HasDetail, Converter={StaticResource Visible}}"/>
+        <!-- Who was at the boss kill or Mythic+ run: names in class colors, then their spec. -->
+        <ItemsControl ItemsSource="{Binding Group}" Margin="0,1,0,0" Visibility="{Binding HasGroup, Converter={StaticResource Visible}}"
+                      ItemsPanel="{StaticResource Wrap}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:GroupPart}">
+              <TextBlock FontSize="11" Foreground="{StaticResource Dim}" Margin="0,0,4,0">
+                <Run Text="{Binding Lead, Mode=OneWay}"/><Run Text="{Binding Name, Mode=OneWay}" Foreground="{Binding Brush, Mode=OneWay}"/><Run Text="{Binding Rest, Mode=OneWay}"/>
+              </TextBlock>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+      <TextBlock Grid.Column="2" Text="{Binding When}" FontSize="12" Foreground="{StaticResource Dim}" Margin="8,0,0,0" VerticalAlignment="Top"/>
+      <!-- Only your own: a friend's highlight is theirs to post. -->
+      <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="6,0" Margin="4,0,0,0" ToolTip="Post this to Discord" VerticalAlignment="Top"
+              Visibility="{Binding DataContext.IsOwn, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=1}, Converter={StaticResource Visible}}"
+              Command="{Binding DataContext.PostHighlightCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+        <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="11" Foreground="{StaticResource Dim}"/>
+      </Button>
+    </Grid>
+  </DataTemplate>
+
   <!-- A gold bag (total gold): a stylized burlap sack, open with coins showing, tied with a rope whose
        ends hang down, and a coin next to it. Drawn in a 32x32 box. -->
   <LinearGradientBrush x:Key="CoinGold" StartPoint="0,0" EndPoint="1,1">

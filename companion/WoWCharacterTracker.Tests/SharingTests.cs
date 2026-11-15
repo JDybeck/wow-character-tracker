@@ -277,6 +277,40 @@ public class SharingPresetsTests
         Assert.False(SharingPresets.TakeFromGame(s, Flavors.Forever, null)); // an older addon
     }
 
+    // A change made in game comes with the preset the addon last saw: taking it never puts that
+    // preset back over the change (seen with the level steps on 0.41.1).
+    [Fact]
+    public void A_change_in_game_isnt_undone_by_the_preset_it_came_with()
+    {
+        var s = Flavors.Forever.Defaults();
+        SharingPresets.Apply(s, Flavors.Forever, SharingPresets.Normal);
+        var game = SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString(
+            "return { at = 5, preset = 'normal', filters = { split = 30, before = 2, after = 1, rareBoe = true, firstKill = true } }"));
+        Assert.True(SharingPresets.TakeInGame(s, Flavors.Forever, game, out var applied));
+        Assert.Null(applied);
+        Assert.Equal(2, s.LevelEveryBefore);
+
+        // A different one picked in game by an addon that can't apply it itself still goes in.
+        var picked = SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString("return { at = 6, preset = 'quiet' }"));
+        Assert.True(SharingPresets.TakeInGame(s, Flavors.Forever, picked, out applied));
+        Assert.Equal(SharingPresets.Quiet, applied);
+    }
+
+    // The Discord and screenshot boxes changed in the addon's Sharing tab come back in gameSettings.
+    [Fact]
+    public void Discord_and_screenshot_boxes_changed_in_game_are_taken()
+    {
+        var s = Flavors.Forever.Defaults();
+        var game = SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString(
+            "return { at = 5, posts = { epic = false, duel = true, level = false }, screenshot = { mount = true, loot = false } }"));
+        Assert.True(s.TakeInGame(game));
+        Assert.False(s.PostEpic);
+        Assert.True(s.PostDuels);
+        Assert.False(s.PostLevels);
+        Assert.True(s.Shoots("mount") && s.PostsShot("mount"));
+        Assert.False(s.Shoots("loot"));
+    }
+
     [Fact]
     public void Settings_lua_says_which_preset_matches()
     {

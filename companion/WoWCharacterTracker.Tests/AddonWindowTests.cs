@@ -257,7 +257,7 @@ public class AddonWindowTests
     [Fact]
     public void The_moved_options_write_the_same_settings_as_before()
     {
-        var c = Load();
+        var c = Load(settings: "{ post = {} }"); // Instant posting needs the app
         c.Call("openWindow", "chat");
         c.Lua("click('Party / raid chat')");
         Assert.True(Bool(c, "ns.setting('announce').party"));
@@ -388,9 +388,105 @@ public class AddonWindowTests
     {
         var c = Load(settings: "{ post = {} }"); // the ask box needs the app
         c.Call("openWindow", "sharing");
-        c.Lua("local b = find('Box stays: 10 seconds'); b.scripts.OnClick(b)");
+        c.Lua("local b = find('15 sec'); b.scripts.OnClick(b)");
         Assert.Equal(15, Num(c, "ns.setting('askSeconds')"));
-        Assert.True(Bool(c, "find('Box stays: 15 seconds') ~= nil"));
+    }
+
+    // Settings.lua as the app writes it for Forever with the Normal preset, edit applied first: the
+    // table literal the tests load as WoWCharacterTrackerSettings.
+    static string AppSettings(Action<FlavorSettings>? edit = null)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "wct-window-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(AddonInstaller.TargetDir(dir));
+        try
+        {
+            var s = Flavors.Forever.Defaults();
+            SharingPresets.Apply(s, Flavors.Forever, SharingPresets.Normal);
+            edit?.Invoke(s);
+            AddonInstaller.WriteSettings(dir, s, preset: SharingPresets.Detect(s, Flavors.Forever), flavor: Flavors.Forever);
+            var lua = File.ReadAllText(Path.Combine(AddonInstaller.TargetDir(dir), "Settings.lua"));
+            return lua[(lua.IndexOf("= {", StringComparison.Ordinal) + 2)..];
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    // The Sharing table's box for a row and column (1 Discord, 2 Screenshot, 3 Group, 4 Ask first),
+    // nil where that moment can't go.
+    const string CellLua = """
+        function cell(row, column)
+          local name = shownText(row)
+          for _, f in ipairs(frames) do
+            if f.point and f.point[2] == name and f.point[4] == 206 + (column - 1) * 105 then return f end
+          end
+        end
+        function clickCell(row, column) local f = cell(row, column); f.checked = not f.checked; f.scripts.OnClick(f) end
+        """;
+
+    // The app's table in game: its rows, and the Discord and screenshot boxes go in as In game settings
+    // that change what's posted right away.
+    [Fact]
+    public void The_sharing_table_changes_discord_and_screenshots()
+    {
+        var c = Load(settings: AppSettings(s => (s.PostEpic, s.PostMounts) = (true, false)));
+        c.Lua(CellLua);
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "shownText('Level-ups') ~= nil and shownText('End boss kills') ~= nil"));
+        Assert.True(Bool(c, "shownText('Mythic+ runs') == nil")); // Retail's
+        Assert.True(Bool(c, "shownText('Guild') == nil")); // guild chat is off until it works
+        Assert.Equal("custom", c.Lua("return ns.currentPreset()").String); // the edit isn't Normal
+        Assert.True(Bool(c, "cell('Epic loot', 1).checked and not cell('New mounts', 1).checked"));
+        Assert.True(Bool(c, "cell('Followed items', 2) == nil and cell('Dungeon runs', 3) == nil")); // nothing to pick there
+
+        c.Lua("clickCell('New mounts', 1); clickCell('Epic loot', 1)");
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.gameSettings.posts.mount == true and WoWCharacterTrackerDB.gameSettings.posts.epic == false"));
+        Assert.True(Bool(c, "ns.postRules().mount and not ns.postRules().epic"));
+        Assert.Equal("custom", c.Lua("return WoWCharacterTrackerDB.gameSettings.preset").String);
+
+        var shot = Bool(c, "cell('Rare loot', 2).checked");
+        c.Lua("clickCell('Rare loot', 2)");
+        Assert.Equal(!shot, Bool(c, "WoWCharacterTrackerDB.gameSettings.screenshot.loot == true"));
+        Assert.Equal(!shot, Bool(c, "cell('Epic loot', 2).checked == true")); // one screenshot setting for all loot
+
+        // The app takes it all on sync.
+        var s = Flavors.Forever.Defaults();
+        Assert.True(s.TakeInGame(SavedVariables.ReadInGame(c.Lua("return WoWCharacterTrackerDB.gameSettings"))));
+        Assert.True(s.PostMounts);
+        Assert.False(s.PostEpic);
+        Assert.Equal(!shot, s.Shoots("loot"));
+    }
+
+    // A preset picked in game goes in right away, and the app reads back the same preset.
+    [Fact]
+    public void A_preset_picked_in_game_goes_in_right_away()
+    {
+        var c = Load(settings: AppSettings());
+        c.Lua(CellLua);
+        c.Call("openWindow", "sharing");
+        Assert.Equal("normal", c.Lua("return ns.currentPreset()").String);
+        c.Lua("click('Quiet')");
+        Assert.Equal("quiet", c.Lua("return ns.currentPreset()").String);
+        Assert.Equal("quiet", c.Lua("return WoWCharacterTrackerDB.gameSettings.preset").String);
+        Assert.True(Bool(c, "not cell('End boss kills', 1).checked and cell('Level-ups', 1).checked"));
+        Assert.Equal(10, Num(c, "ns.filters().before"));
+
+        var s = Flavors.Forever.Defaults();
+        SharingPresets.Apply(s, Flavors.Forever, SharingPresets.Normal);
+        Assert.True(SharingPresets.TakeInGame(s, Flavors.Forever, SavedVariables.ReadInGame(c.Lua("return WoWCharacterTrackerDB.gameSettings")), out var applied));
+        Assert.Null(applied); // nothing left for the app to apply: the game's change is the preset
+        Assert.Equal(SharingPresets.Quiet, SharingPresets.Detect(s, Flavors.Forever));
+    }
+
+    // The ask checkbox turns boss kills and gear on and off, and keeps what else the app's table picked.
+    [Fact]
+    public void The_ask_checkbox_keeps_the_other_moments_the_app_picked()
+    {
+        var c = Load(settings: "{ post = {}, ask = { boss = true, level = true } }");
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "find('Offer to post what Discord skips').checked"));
+        c.Lua("click('Offer to post what Discord skips')");
+        Assert.True(Bool(c, "ns.setting('ask').boss == nil and ns.setting('ask').level == true"));
+        c.Lua("click('Offer to post what Discord skips')");
+        Assert.True(Bool(c, "ns.setting('ask').boss and ns.setting('ask').rare and ns.setting('ask').epic and ns.setting('ask').level"));
     }
 
     // Reload reminders: one choice over the ding popup, the flight box and the chat line. The
@@ -398,7 +494,7 @@ public class AddonWindowTests
     [Fact]
     public void Reload_reminders_are_one_choice_over_three_settings()
     {
-        var c = Load();
+        var c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
         Assert.Equal("gentle", c.Lua("return ns.reloadChoice()").String);
         c.Lua("click('Every chance')");
@@ -538,6 +634,22 @@ public class AddonWindowTests
 
     // The Settings tab links to the app's page with the app and without it.
     [Fact]
+    public void The_settings_tab_shows_what_needs_the_app_only_with_the_app()
+    {
+        var c = Load();
+        c.Call("openWindow", "settings");
+        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern" })
+            Assert.True(Bool(c, $"shownText('{label}') == nil"), label);
+        Assert.True(Bool(c, "shownText('Keep all history') ~= nil and shownText('Show the minimap button') ~= nil"));
+        Assert.True(Bool(c, "shownText('The Character Tracker app') ~= nil"));
+
+        c = Load(settings: "{ post = {} }");
+        c.Call("openWindow", "settings");
+        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern", "Set in the Character Tracker app" })
+            Assert.True(Bool(c, $"shownText('{label}') ~= nil"), label);
+    }
+
+    [Fact]
     public void The_settings_tab_links_to_the_apps_page()
     {
         foreach (var settings in new[] { "{}", "{ post = {} }" })
@@ -575,6 +687,7 @@ public class AddonWindowTests
         ns.askFriend = function(tag) call('ask ' .. tag) return 'Asked ' .. tag .. '.' end
         ns.shareWithFriend = function(tag) call('share ' .. tag) return 'Sharing with ' .. tag .. '.' end
         ns.inviteFriend = function(tag) call('invite ' .. tag) return true, 'Invited ' .. tag .. '.' end
+        ns.unblockFriend = function(tag) call('unblock ' .. tag) online[6].blocked = nil return tag .. ' can ask again.' end
         ns.pendingRequests = function() return requests end
         ns.answerFriendRequest = function(f, choice) call(f.tag .. ' ' .. choice) end
         ns.sharedWithYou = function() return shared end
@@ -744,7 +857,7 @@ public class AddonWindowTests
         Assert.Equal(700, Num(c, "WoWCharacterTrackerDB.window.y"));
     }
 
-    // A friend who's offline shows the character seen last; online friends come first.
+    // Online and Offline split the grid, with their counts; an offline friend shows the character seen last.
     [Fact]
     public void An_offline_friend_shows_the_character_seen_last()
     {
@@ -755,10 +868,36 @@ public class AddonWindowTests
             shared[1].chars[2] = { char = 'Cidra', level = 20, at = clock - 90000, received = clock - 90000 }
             local b = findFriendsButton(); b.scripts.OnClick(b)
             """);
-        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
-        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  last seen 2h ago') ~= nil"));
+        Assert.True(Bool(c, "find('Online (1)') ~= nil and find('Offline (1)') ~= nil"));
         Assert.True(Bool(c, "shownText('Level 12  ·  online') ~= nil"));
-        Assert.True(Bool(c, "friendCard('Bobo').point[4] < friendCard('Cidrin Frostmane').point[4]")); // online first, top left
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') == nil")); // Online is picked first
+        c.Lua("local b = find('Offline (1)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil and friendCard('Bobo') == nil"));
+        Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  last seen 2h ago') ~= nil"));
+        Assert.Equal("offline", c.Lua("return WoWCharacterTrackerDB.window.friendsView").String);
+    }
+
+    // Nobody in the picked view says so; Home's link to an offline friend's character switches to Offline.
+    [Fact]
+    public void The_friends_view_says_when_its_empty_and_follows_a_reveal()
+    {
+        var c = FriendsTab();
+        c.Lua("online = {}; ns.friendsChanged()");
+        Assert.True(Bool(c, "shownText('None of them are online in this game right now.') ~= nil"));
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') == nil"));
+        c.Call("toggleFriendDetails", c.Lua("return shared[1].chars[1]"), "Cid#3");
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
+        Assert.Equal("offline", c.Lua("return WoWCharacterTrackerDB.window.friendsView").String);
+    }
+
+    [Fact]
+    public void Unblock_lets_a_blocked_friend_ask_again()
+    {
+        var c = FriendsTab();
+        c.Lua("local b = findFriendsButton(); b.scripts.OnClick(b); calls = {}");
+        c.Lua("clickFriend('Fayla', 'Unblock')");
+        Assert.Equal("unblock Fay#6", Calls(c));
+        Assert.Equal("Ask,Share", c.Lua("return friendButtons('Fayla')").String);
     }
 
     // A click on a character unfolds its info under the row and its gear beside the window; the
@@ -949,6 +1088,82 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
     }
 
+    // Your character's Highlights button opens its highlights beside the window, newest first, losses
+    // too; a second click closes them, and the gear panel makes way.
+    [Fact]
+    public void A_characters_highlights_open_beside_the_window()
+    {
+        var c = Load("""
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', level = 45, classFile = 'WARRIOR', lastSeen = 200 } }, items = {}, events = {
+              { kind = 'level', guid = 'Player-1-0000000A', level = 45, seconds = 10440, at = 150 },
+              { kind = 'boss', guid = 'Player-1-0000000A', level = 45, boss = 'Archaedas', instance = 'Uldaman', at = 160 },
+              { kind = 'duel', guid = 'Player-1-0000000A', level = 45, opponent = 'Bob', lost = true, at = 170 },
+              { kind = 'boss', guid = 'Player-1-0000000C', level = 20, boss = 'Mutanus', instance = 'Wailing Caverns', at = 180 } } }
+            """);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Call("openWindow", "characters");
+        c.Lua("local r = shownText('Zeb').owner; r.scripts.OnMouseUp(r)");
+        c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerHighlightsPanel'))"));
+        Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+        Assert.True(Bool(c, "shownText('2 highlights, newest first') ~= nil"));
+        Assert.True(Bool(c, "shownText('Lost a duel to Bob.').owner.point[5] == 0")); // newest on top
+        Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
+        Assert.True(Bool(c, "shownText('Killed Mutanus in Wailing Caverns!') == nil")); // another character's
+        c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
+        Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerHighlightsPanel'))"));
+    }
+
+    // A friend's character has the button too, with what they share.
+    [Fact]
+    public void A_friends_character_shows_their_shared_highlights()
+    {
+        var c = FriendsTab();
+        c.Lua("shared[1].chars[1].highlights = 'boss~99000~60~Ragnaros~Molten Core~40\\nmount~98000~60~Swift Razzashi Raptor~19872~'");
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Lua("openFriend('Cidro')");
+        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
+        Assert.True(Bool(c, "shownText('Got a new mount: [Swift Razzashi Raptor]!').owner.itemId == 19872")); // its game tooltip on hover
+    }
+
+    // Home keeps more moments than it shows: the wheel scrolls the column under the cursor.
+    [Fact]
+    public void Home_moments_scroll_with_the_wheel()
+    {
+        var events = string.Join(",\n", Enumerable.Range(1, 8).Select(i =>
+            $"{{ kind = 'boss', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, boss = 'Boss {i}', instance = 'Uldaman', at = {i} }}"));
+        var c = Load("{ chars = {}, items = {}, events = {\n" + events + " } }");
+        c.Lua("""
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitLevel() return 45 end
+            function date() return { year = 2026, month = 11, day = 9 } end
+            function GetCursorPosition() return 10, 0 end
+            ns.playedNow = function() return 100 end
+            ns.levelTimeNow = function() return 10 end
+            """);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Call("openWindow", "home");
+        Assert.True(Bool(c, "shownText('1-6 of 8') ~= nil"));
+        Assert.True(Bool(c, "shownText('Killed Boss 8 in Uldaman!') ~= nil and shownText('Killed Boss 2 in Uldaman!') == nil"));
+        c.Lua("""
+            for _, f in ipairs(frames) do if f.scripts.OnMouseWheel then moments = f end end
+            moments.GetLeft = function() return 0 end
+            moments.scripts.OnMouseWheel(moments, -1)
+            moments.scripts.OnMouseWheel(moments, -1)
+            moments.scripts.OnMouseWheel(moments, -1) -- past the end: stays
+            """);
+        Assert.True(Bool(c, "shownText('3-8 of 8') ~= nil"));
+        Assert.True(Bool(c, "shownText('Killed Boss 1 in Uldaman!') ~= nil and shownText('Killed Boss 8 in Uldaman!') == nil"));
+
+        // A taller window fills its bottom with more moments: all eight fit, nothing left to scroll.
+        c.Lua("named('WoWCharacterTrackerWindow').GetHeight = function() return 1400 end");
+        c.Call("openWindow", "home");
+        Assert.True(Bool(c, "shownText('Killed Boss 8 in Uldaman!') ~= nil and shownText('Killed Boss 1 in Uldaman!') ~= nil"));
+        Assert.True(Bool(c, "shownText('1-8 of 8') == nil and shownText('3-8 of 8') == nil"));
+    }
+
     [Fact]
     public void Find_online_friends_lists_each_friend_with_the_buttons_for_their_state()
     {
@@ -969,8 +1184,8 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('You share, shares with you') ~= nil"));
         Assert.Equal("Invite", c.Lua("return friendButtons('Danno')").String);
         Assert.Equal("Invited", c.Lua("return friendButtons('Evie')").String);
-        Assert.Equal("", c.Lua("return friendButtons('Fayla')").String);
-        Assert.True(Bool(c, "shownText('Fay#6  ·  Blocked') ~= nil"));
+        Assert.Equal("Unblock", c.Lua("return friendButtons('Fayla')").String);
+        Assert.True(Bool(c, "shownText('Fay#6  ·  Blocked') ~= nil")); // still says why, next to the button
 
         // The class color from RAID_CLASS_COLORS, white without one.
         Assert.Equal(0.25, Num(c, "shownText('Annie').color[1]"), 3);

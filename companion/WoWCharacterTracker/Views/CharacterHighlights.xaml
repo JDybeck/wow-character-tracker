@@ -1,0 +1,12 @@
+<!-- The Highlights tab of the character details: every highlight, newest first. -->
+<UserControl x:Class="WoWCharacterTracker.Views.CharacterHighlights"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <StackPanel>
+    <TextBlock Style="{StaticResource FactLabel}" Text="HIGHLIGHTS"/>
+    <ItemsControl ItemsSource="{Binding Highlights}" ItemTemplate="{StaticResource HighlightRowTemplate}"
+                  Visibility="{Binding HasHighlights, Converter={StaticResource Visible}}"/>
+    <TextBlock Style="{StaticResource FactValue}" Text="None yet. Boss kills, loot, mounts, duels and the like show up here."
+               Visibility="{Binding HasHighlights, Converter={StaticResource Hidden}}"/>
+  </StackPanel>
+</UserControl>

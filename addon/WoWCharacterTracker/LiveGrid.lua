@@ -456,7 +456,7 @@ local function heldForRun(e, post)
 end
 
 local function wanted(e)
-  local post = ns.setting("post")
+  local post = ns.postRules()
   if not post then return true end
   if e.kind == "ask" then return true end -- the player clicked Post (Ask.lua)
   if post.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then return true end
@@ -504,7 +504,7 @@ function ns.addEvent(e)
     ns.processShots()
   end
   -- not posted by itself: maybe on request (not a run's loot, the run's post has it)
-  if not posted and ns.offerAsk and not heldForRun(e, ns.setting("post")) then ns.offerAsk(e) end
+  if not posted and ns.offerAsk and not heldForRun(e, ns.postRules()) then ns.offerAsk(e) end
 end
 
 -- One live check-in per login, so the app shows the character (level, gear, zone) right away.

@@ -112,9 +112,10 @@ static partial class AddonInstaller
     // hasWebhook: the tab has somewhere to post, so the addon may offer to post a highlight.
     // appUpdate: a newer app version, which the addon mentions in chat on the next login.
     // preset: which Sharing preset the settings match (or "custom"), for the addon window's choice.
+    // flavor: the game, for the Sharing table's rows and what each preset sets (the addon's Sharing tab).
     public static void WriteSettings(string flavorDir, FlavorSettings s, IEnumerable<GameNote>? notes = null, bool hasWebhook = false,
         IReadOnlyDictionary<string, string>? friendNames = null, Version? appUpdate = null, string? preset = null,
-        IReadOnlyDictionary<string, long>? friendNamesAt = null, GameFriendOrder? friendOrder = null)
+        IReadOnlyDictionary<string, long>? friendNamesAt = null, GameFriendOrder? friendOrder = null, Flavor? flavor = null)
     {
         var target = TargetDir(flavorDir);
         if (!Directory.Exists(target)) return;
@@ -132,6 +133,9 @@ static partial class AddonInstaller
                   + "WoWCharacterTrackerSettings = {\n"
                   + $"  screenshot = {{ {shots} }},\n"
                   + $"  post = {{ {post} }},\n"
+                  // The Sharing table's Discord boxes, an In game setting the addon's Sharing tab changes too.
+                  + $"  posts = {{ {Posts(s)} }},\n"
+                  + (flavor is { } game ? SharingTableLua(game) : "")
                   // The level steps and filters, an In game setting the addon's Sharing tab changes too.
                   + $"  filters = {{ split = {s.LevelSplit}, before = {s.LevelEveryBefore}, after = {s.LevelEveryAfter}, rareBoe = {B(s.RareBoeOnly)}, firstKill = {B(s.FirstBossKillOnly)} }},\n"
                   // The followed items, since the addon only records rare and better otherwise.
@@ -179,6 +183,31 @@ static partial class AddonInstaller
                   + "}\n";
         var file = Path.Combine(target, "Settings.lua");
         if (!File.Exists(file) || File.ReadAllText(file) != lua) Files.WriteAtomic(file, lua);
+    }
+
+    static string Posts(FlavorSettings s) => string.Join(", ", Moments.All.Select(m => $"{m.Key} = {(m.GetPost(s) ? "true" : "false")}"));
+
+    // The addon's Sharing tab: a row per moment this game has (Shared.lua ns.momentRows), and what each
+    // preset sets, so the addon can apply and recognize them without its own copy of SharingPresets.
+    static string SharingTableLua(Flavor flavor)
+    {
+        static string B(bool v) => v ? "true" : "false";
+        static string Set(IEnumerable<string> keys) => string.Join(", ", keys.Select(k => $"{k} = true"));
+        static string Opt(string key, string? value) => value is null ? "" : $", {key} = {LuaString(value)}";
+        var rows = Moments.For(flavor);
+        var lines = rows.Select(m => $"    {{ key = {LuaString(m.Key)}, name = {LuaString(m.Name)}"
+            + Opt("shot", m.Shot) + Opt("announce", m.Announce) + Opt("ask", m.Ask) + " },\n");
+        var presets = SharingPresets.Keys.Select(key =>
+        {
+            var p = new FlavorSettings();
+            SharingPresets.Apply(p, flavor, key);
+            return $"    {key} = {{ posts = {{ {Posts(p)} }}, "
+                + $"screenshot = {{ {string.Join(", ", EventKinds.ShotKinds.Select(k => $"{k} = {B(p.Shoots(k))}"))} }}, "
+                + $"filters = {{ split = {p.LevelSplit}, before = {p.LevelEveryBefore}, after = {p.LevelEveryAfter}, rareBoe = {B(p.RareBoeOnly)}, firstKill = {B(p.FirstBossKillOnly)} }}, "
+                + $"kinds = {{ {Set(p.AnnounceKinds)} }}, ask = {{ {Set(p.AskKinds ?? [])} }} }},\n";
+        });
+        return "  moments = {\n" + string.Concat(lines) + "  },\n"
+               + "  presets = {\n" + string.Concat(presets) + "  },\n";
     }
 
     // Sharing with friends (the addon's Friends.lua `share`), only when the app has a copy: otherwise
