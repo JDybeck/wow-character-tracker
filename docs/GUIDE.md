@@ -145,7 +145,7 @@ It all goes through Battle.net while you're both online: the character you're on
 
 ![Home: the last played character with today's numbers, and the recent moments with Share](images/home.png)
 
-The window has five tabs, **Home**, **Characters**, **Friends**, **Stats** and **Sharing**, a search box, sync, the **?** menu and the gear (Settings) at the top, and the rail at the right edge.
+The window has five tabs, **Home**, **Characters**, **Friends**, **Stats** and **Sharing**, a search box, the **?** menu and the gear (Settings) at the top, and the rail at the right edge.
 
 The search box at the top finds your characters (by name, class, race, realm or guild), your friends' characters, items your characters carry and the app's settings and pages, all in a list under the box. Click a result or use the arrow keys and Enter: a character opens with its details, a setting opens the page it's on, and **Search all items** opens the Items page with the search done. Items show in the list once their names are loaded (after you've opened Items or a character's gear). Esc clears it.
 
@@ -191,8 +191,7 @@ The search box at the top finds your characters (by name, class, race, realm or 
 - **Console**: the bottom icon on the rail. Rest the mouse on it or click it and it slides out over the page; it goes away when you move off, and the pin keeps it open. It says what the app is doing, like posts sent and anything that needs your attention, and it says **new** in amber when a warning comes in. Instant posts say how long they took to reach Discord, and where the time went.
 - **Notices**: an update, a `/reload` reminder or setup that still needs doing show across the top, and only then.
 - **Hover for info**: most buttons and options say what they do when you hover them for a moment.
-- **Sync**: the round arrow at the top reads the game's saved data again and posts anything new (it also happens by itself). The icon spins while it works, and the console says what it found.
-- **Settings** (the gear at the top) is a page: the app on one side, the addon's in game options for the open game on the other (see [In game](#in-game)), Manage data and Uninstall.
+- **Settings** (the gear at the top) is a page: the app on one side, the addon's in game options for the open game on the other (see [In game](#in-game)), Manage data, Uninstall and **Sync now**. The app reads the game's saved data by itself whenever the game writes it, so you rarely need Sync now; it reads it again right away, posts anything new and says in the console what it found.
 
   <img src="images/settings.png" alt="The Settings page: the app on the left, in game for Forever on the right" width="640">
 

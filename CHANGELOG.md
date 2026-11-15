@@ -16,6 +16,7 @@ The app shows the notes for a new version when it finds an update, and the newes
 - Discord posts now say the region and realm type under the post, like "EU · PvP", instead of Forever's full realm name ("CAMWOW EU4 Realm 4 PvP").
 - On Forever the addon window's character info shows a **Ruleset** line ("PvP", or "PvP, Hardcore") instead of "Realm: PvP, realm 6", since there's no real realm to name.
 - The addon's character list could show a character as level 1 after logging out, because the game sometimes reports level 1 while logging out. It now keeps the last real level.
+- **Sync now** moved from the top bar to the bottom of Settings. The app already reads the game's saved data by itself whenever the game writes it, so it was rarely needed.
 
 ## v0.41.0
 
