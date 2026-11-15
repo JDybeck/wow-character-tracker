@@ -9,7 +9,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 ### New
 
 - **Stats for today, the week, the month or all time.** Pick the period at the top of the Stats page. The app now keeps every day of quests, gathering, item level and gold it sees, yours and your friends', so the month and all time fill up from here on (the addon only keeps the last 8 days).
-- **Manage data.** Settings has a new **Manage data** page: remove characters completely, history older than 30 days to a year (pick the kinds), what friends shared, or the app's caches. The addon does the removal from the game's saved file on your next login or /reload, the app hides it right away.
+- **Manage data.** Settings has a new **Manage data** page: remove characters completely, history older than 30 days to a year (pick the kinds), what friends shared, or the app's caches. The addon does the removal from the game's saved file on your next login or /reload, the app hides it right away. A character you're logged in on keeps going, with its history up to then removed.
 - **Search everything.** The search box at the top now finds your characters, your friends' characters, items and settings, listed under the box as you type. Pick one with the mouse or the arrow keys and Enter to go straight there.
 - **Level-up score.** The level-ups board now weighs each level by how high it is: levels 10 to 29 are worth 1, 30 to 49 are worth 2, 50 and up 3. Levels below 10 take a minute each and count for nothing, so a fresh alt can't beat a main grinding out its last levels.
 
@@ -23,6 +23,8 @@ Update the addon with the app (it does this by itself) and /reload in game.
 - The addon's character list could show a character as level 1 after logging out, because the game sometimes reports level 1 while logging out. It now keeps the last real level.
 - Moments on Home now read like a sentence, "Kitty Pryde looted Felvine Seed", with the name in class colors. Click the name to open the character (a friend's on the Friends page), and hover the item for its tooltip.
 - **Sync now** moved from the top bar to the bottom of Settings. The app already reads the game's saved data by itself whenever the game writes it, so it was rarely needed.
+- The empty Friends page now walks you through adding friends in game (/wct, Friends, Find online friends, Ask), and says friends only need the addon, not the app.
+- The credit and tip link moved from Settings to the window's bottom right corner, and the addon window says who made it in its title bar.
 
 ## v0.41.0
 

@@ -206,7 +206,7 @@ The search box at the top finds your characters (by name, class, race, realm or 
   <img src="images/uninstall.png" alt="The Uninstall page: every part with its paths and size" width="640">
 
 - **Manage data** (Settings, next to Uninstall): clean out what's stored for the open game without uninstalling anything. Each removal asks first.
-  - **Characters**: tick the ones to remove completely: level history, gear, bags and bank, highlights, notes, recipes and day stats, plus the app's tags and portrait for them. Unlike **Remove from list**, the data is gone. Playing one again starts it fresh.
+  - **Characters**: tick the ones to remove completely: level history, gear, bags and bank, highlights, notes, recipes and day stats, plus the app's tags and portrait for them. Unlike **Remove from list**, the data is gone. Playing one again starts it fresh. One you're logged in on (or play before the addon has done the removal) stays as it is now, with only its history and day stats up to the removal gone.
   - **Old history**: moments older than 30 days, 90 days, 6 months or a year, of the kinds you pick (loot, boss kills, duels, battlegrounds...), and the day stats behind the Stats page. Level-ups are off to start with, since level times and the Leveling tab are built from them. The characters themselves, their gear and bags stay.
   - **What friends shared**: their characters you haven't heard from in 30 or 90 days, or all of it. Friends who still share with you send theirs again.
   - **App caches** (all games): Wowhead item info, Raider.IO renders, icons and tab logos. Nothing is lost, they download again when needed.
