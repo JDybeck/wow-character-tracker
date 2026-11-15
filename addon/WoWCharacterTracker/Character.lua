@@ -525,6 +525,8 @@ function ns.saveSnapshot(atLogout)
     if info.money == nil or (info.money == 0 and atLogout == true) then info.money = old.money end
     -- Guild: "" means no guild (keep that), nil means not known yet.
     if info.guild == nil then info.guild = old.guild end
+    -- Level: during logout the game can also report level 1 with that 0 of 0 bar. Levels never go down.
+    if old.level and (info.level == nil or (info.level < old.level and (info.xpMax or 0) == 0)) then info.level = old.level end
     -- XP: during logout the game reports 0 of 0, so keep the last known bar, but only one from this
     -- level (0 XP with a real bar is a fresh level and stays).
     if (info.xpMax or 0) == 0 and old.level == info.level then info.xp, info.xpMax = old.xp, old.xpMax end

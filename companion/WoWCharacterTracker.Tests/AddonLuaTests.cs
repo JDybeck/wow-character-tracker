@@ -1539,12 +1539,14 @@ public class AddonLuaTests
     }
 
     // ns.saveSnapshot at logout, where the game reports 0 of 0 XP: the saved bar stays, but only one
-    // from the same level; a fresh level's 0 XP with a real bar is saved as it is.
+    // from the same level; a fresh level's 0 XP with a real bar is saved as it is. A lower level with
+    // that 0 of 0 bar (seen on Forever as level 1) keeps the saved level.
     [Theory]
-    [InlineData(11, 0, 0, 3000, 7600)] // logout: keep the bar
-    [InlineData(12, 0, 0, 0, 0)] // dinged since: the old level's bar doesn't carry over
-    [InlineData(11, 0, 7600, 0, 7600)] // just dinged: 0 XP is real
-    public void Logout_keeps_the_xp_bar_of_the_same_level(int level, int xp, int xpMax, int savedXp, int savedXpMax)
+    [InlineData(11, 0, 0, 11, 3000, 7600)] // logout: keep the bar
+    [InlineData(12, 0, 0, 12, 0, 0)] // dinged since: the old level's bar doesn't carry over
+    [InlineData(11, 0, 7600, 11, 0, 7600)] // just dinged: 0 XP is real
+    [InlineData(1, 0, 0, 11, 3000, 7600)] // logout read level 1: keep level and bar
+    public void Logout_keeps_the_level_and_xp_bar(int level, int xp, int xpMax, int savedLevel, int savedXp, int savedXpMax)
     {
         var script = new Script();
         script.DoString("""
@@ -1563,6 +1565,7 @@ public class AddonLuaTests
         script.Call(ns.Get("saveSnapshot"));
 
         var saved = script.DoString("return WoWCharacterTrackerDB.chars['Player-1']").Table;
+        Assert.Equal(savedLevel, saved.Get("level").Number);
         Assert.Equal(savedXp, saved.Get("xp").Number);
         Assert.Equal(savedXpMax, saved.Get("xpMax").Number);
     }

@@ -11,6 +11,7 @@ The app shows the notes for a new version when it finds an update, and the newes
 ### Fixes and tweaks
 
 - Discord posts now say the region and realm type under the post, like "EU · PvP", instead of Forever's full realm name ("CAMWOW EU4 Realm 4 PvP").
+- The addon's character list could show a character as level 1 after logging out, because the game sometimes reports level 1 while logging out. It now keeps the last real level.
 
 ## v0.41.0
 
