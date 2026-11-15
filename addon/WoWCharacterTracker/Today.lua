@@ -183,7 +183,7 @@ function ns.todayStats(events, today, day, since, isRetail)
   if v.gold < 100 then v.gold = 0 end -- less than a silver isn't worth a spot
 
   local out = {}
-  local function add(key) out[#out + 1] = { key = key, name = key == "bosses" and isRetail and "keys" or NAMES[key], value = v[key] } end
+  local function add(key) out[#out + 1] = { key = key, name = ns.todayName(key, v[key], isRetail), value = v[key] } end
   for _, key in ipairs(ORDER) do if v[key] > 0 then add(key) end end
   for _, key in ipairs(MAIN) do
     if #out >= ns.TODAY_SHOWN then break end
@@ -192,15 +192,25 @@ function ns.todayStats(events, today, day, since, isRetail)
   return out
 end
 
--- The value as Home shows it: "+2.5" item levels, "12g" or "40s", else the count.
+-- What a stat is called: gold under one gold is silver ("98 silver"), bosses are keys on Retail.
+function ns.todayName(key, value, isRetail)
+  if key == "gold" and value < 10000 then return "silver" end
+  if key == "bosses" and isRetail then return "keys" end
+  return NAMES[key]
+end
+
+-- The value as Home shows it: "+2.5" item levels, gold as "12" or "1,234" (silver under one gold:
+-- "98"), else the count. The name after it says which.
 function ns.todayValue(s)
   if s.key == "ilvl" then
     local text = string.format("%.1f", s.value):gsub("%.0$", "")
     return "+" .. text
   end
   if s.key == "gold" then
-    if s.value >= 10000 then return string.format("%dg", math.floor(s.value / 10000)) end
-    return string.format("%ds", math.floor(s.value / 100))
+    if s.value < 10000 then return tostring(math.floor(s.value / 100)) end
+    local text, n = tostring(math.floor(s.value / 10000)), 0
+    repeat text, n = text:gsub("^(%d+)(%d%d%d)", "%1,%2") until n == 0
+    return text
   end
   return tostring(s.value)
 end

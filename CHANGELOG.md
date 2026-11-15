@@ -20,6 +20,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 - Turning the addon's **Offer to post what Discord skips** off and on again no longer drops the other moments you picked under **Ask first** in the app.
 - Without the app, the addon's **Settings** tab no longer shows options that only work with it (instant posting, reload reminders, the pattern corner), and its hints no longer talk about Discord or the app.
 - The app no longer freezes for about two seconds when it starts (now about half a second). It builds each page the first time you open it instead of all of them at once, reads your saved files in the background, and comes precompiled. That last part is why the download is about 5 MB bigger (55 to 60 MB): without it the code is compiled while the window first draws, which alone held the window up for close to half a second.
+- Today's gold on Home, in the app and the addon, now reads "12 gold", or "98 silver" under one gold, instead of "12g gold" or "98s gold".
 - Tips now go to Ko-fi (ko-fi.com/jdybeck). The app's tip link points there, and the addon's **Settings** tab has the link to copy at the bottom.
 
 ## v0.41.1
