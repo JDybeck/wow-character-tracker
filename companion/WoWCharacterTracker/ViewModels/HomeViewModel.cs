@@ -139,14 +139,18 @@ sealed record OtherToday(CharacterRow Character, IReadOnlyList<TodayCount> Count
     public string Line => string.Join("  ·  ", Counts.Select(c => $"{c.Value} {c.What}"));
 }
 
-// A moment in Home's feed: the highlight line, whose it is and whether it went to Discord.
+// A moment in Home's feed: who did what ("Kitty Pryde looted Felvine Seed"), when, and whether it went to Discord.
 sealed class MomentRow(HighlightRow row, CharacterRow character, bool posted) : Observable
 {
     public HighlightRow Row { get; } = row;
     public CharacterRow Character { get; } = character;
-    public string Who => Character.IsFriend
-        ? $"{Character.FullName} ({Character.FriendName}) · {Format.Ago(Row.Source?.At ?? 0)}"
-        : $"{Character.FullName} · {Format.Ago(Row.Source?.At ?? 0)}";
+    readonly (string Verb, string Subject) line = HighlightText.AfterName(row.Verb, row.Subject);
+    public string Verb => " " + line.Verb;
+    public string Subject => line.Subject;
+    // "Rasmus · 1h ago" for a friend's (whose friend it is), "1h ago" for yours.
+    public string When => Character.IsFriend
+        ? $"{Character.FriendName} · {Format.Ago(Row.Source?.At ?? 0)}"
+        : Format.Ago(Row.Source?.At ?? 0);
 
     bool isPosted = posted;
     public bool Posted { get => isPosted; set => Set(ref isPosted, value); }

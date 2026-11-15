@@ -1,5 +1,15 @@
 namespace WoWCharacterTracker.Tests;
 
+public class HighlightAfterNameTests
+{
+    [Theory]
+    [InlineData("Looted ", "Felvine Seed", "looted ", "Felvine Seed")]
+    [InlineData("Won a Mak'gora against ", "Grimtusk", "won a Mak'gora against ", "Grimtusk")]
+    [InlineData("", "Died at level 40", "", "died at level 40")] // no verb: the subject starts the sentence
+    public void Reads_after_a_name(string verb, string subject, string expectedVerb, string expectedSubject) =>
+        Assert.Equal((expectedVerb, expectedSubject), HighlightText.AfterName(verb, subject));
+}
+
 public class SearchTests
 {
     [Theory]

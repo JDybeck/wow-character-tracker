@@ -25,6 +25,12 @@ static class HighlightText
         _ => ("", ""),
     };
 
+    // The same after a name: "Kitty Pryde " + "looted " + "Felvine Seed", "Zeb " + "" + "died at level 40".
+    public static (string Verb, string Subject) AfterName(string verb, string subject) =>
+        verb.Length > 0 ? (Lower(verb), subject) : ("", Lower(subject));
+
+    static string Lower(string s) => s.Length > 0 ? char.ToLowerInvariant(s[0]) + s[1..] : s;
+
     // The whole line, "" when the event has nothing to say (an item or opponent we don't know).
     public static string Text(Entry e)
     {
