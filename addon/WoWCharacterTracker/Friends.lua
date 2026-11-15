@@ -1158,10 +1158,7 @@ function ns.friendsCommand(args)
     return ns.say(name ~= "" and string.format("%s is now called %s here and in the app.", tag, name)
       or (tag .. " has no nickname now."))
   end
-  if cmd == "unblock" then
-    ns.editShare(function(s) s.blocked[tag] = nil end)
-    return ns.say(label(tag) .. " can ask again.")
-  end
+  if cmd == "unblock" then return ns.say(ns.unblockFriend(tag)) end
   if not ns.shareSettings().contacts[tag] then return ns.say(label(tag) .. " isn't a contact. /wct friends share " .. tag .. " adds them.") end
   if cmd == "stop" then return ns.setContactShare(tag, false) end
   ns.editShare(function(s) s.contacts[tag] = nil end)
@@ -1207,6 +1204,12 @@ ns.friendLabel = label
 
 -- The only real chat message the addon sends: one Battle.net whisper with a link, on the player's
 -- click, at most once a day per friend and never to one who has the addon. Returns ok, message.
+-- Lets someone you said Never to ask again. Returns what to tell the player.
+function ns.unblockFriend(tag)
+  ns.editShare(function(s) s.blocked[tag] = nil end)
+  return label(tag) .. " can ask again."
+end
+
 function ns.inviteFriend(tag)
   -- A contact, or someone who shared with you, runs the addon (an older one may not answer PING).
   local known = ns.shareSettings().contacts[tag] or (WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[tag])

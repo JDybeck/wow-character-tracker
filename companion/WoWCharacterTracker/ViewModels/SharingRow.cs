@@ -2,7 +2,8 @@ namespace WoWCharacterTracker.ViewModels;
 
 // One row of the Sharing table: a moment and a box for each place it can go. The boxes edit the
 // existing settings and kind lists (Moments). posted: a Discord or screenshot box changed; inGame: a
-// chat or ask box (the addon can change those too, so they carry the In game time); stream: an alert box.
+// chat or ask box. The addon's Sharing tab can change all four, so both carry the In game time.
+// stream: an alert box.
 sealed class SharingRow(Moment moment, FlavorSettings settings, Func<List<string>> streamAlerts,
     Action posted, Action inGame, Action stream) : Observable
 {
@@ -26,8 +27,7 @@ sealed class SharingRow(Moment moment, FlavorSettings settings, Func<List<string
         set
         {
             if (Moment.Shot is not { } k) return;
-            settings.Screenshot[k] = value;
-            if (value && !settings.PostScreenshot.ContainsKey(k)) settings.PostScreenshot[k] = true;
+            settings.SetShot(k, value);
             posted();
             Raise(nameof(Shot));
         }

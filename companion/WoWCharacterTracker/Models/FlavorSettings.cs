@@ -189,6 +189,11 @@ class FlavorSettings
             (LevelSplit, LevelEveryBefore, LevelEveryAfter) = (Level(f.Split, LevelSplit), Level(f.Before, LevelEveryBefore), Level(f.After, LevelEveryAfter));
             (RareBoeOnly, FirstBossKillOnly) = (f.RareBoe ?? RareBoeOnly, f.FirstKill ?? FirstBossKillOnly);
         }
+        // The Sharing table's Discord and screenshot boxes, from an addon that has them.
+        foreach (var m in Moments.All)
+            if (game.Posts?.TryGetValue(m.Key, out var post) == true) m.SetPost(this, post);
+        foreach (var kind in EventKinds.ShotKinds)
+            if (game.Shots?.TryGetValue(kind, out var shot) == true) SetShot(kind, shot);
         return true;
     }
 
@@ -242,6 +247,13 @@ class FlavorSettings
 
     public bool Shoots(string kind) => Screenshot.GetValueOrDefault(kind);
     public bool PostsShot(string kind) => Shoots(kind) && PostScreenshot.GetValueOrDefault(kind);
+
+    // The Sharing table's screenshot box: taken in game, and attached unless Advanced said not to.
+    public void SetShot(string kind, bool on)
+    {
+        Screenshot[kind] = on;
+        if (on && !PostScreenshot.ContainsKey(kind)) PostScreenshot[kind] = true;
+    }
 
     public bool LevelWanted(int level)
     {

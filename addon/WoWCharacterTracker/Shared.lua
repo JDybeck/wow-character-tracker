@@ -70,7 +70,8 @@ end
 -- right away, the app takes it from the saved file, and a later change in the app (Settings.lua
 -- inGameAt) wins over it.
 local IN_GAME = { announce = true, ask = true, flightReload = true, chatReminder = true,
-  gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true, preset = true, filters = true }
+  gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true, preset = true, filters = true,
+  posts = true, screenshot = true }
 
 local function changedInGame()
   local changed = WoWCharacterTrackerDB and WoWCharacterTrackerDB.gameSettings
@@ -96,6 +97,87 @@ function ns.filters()
   local post = ns.setting("post") or {}
   local l = post.level or {}
   return { split = l.split, before = l.before, after = l.after, rareBoe = post.rareBoe, firstKill = true }
+end
+
+-- The app's post rules (Settings.lua `post`) with the Discord box of each moment from the Sharing
+-- table, `posts` = { [moment key] = on }, an In game setting. Nil without the app; an older app has
+-- no `posts`, then it's `post` as written. Read post flags through this, never ns.setting("post").
+local POST_FIELDS = { level = { "level", "on" }, maxlevel = "maxLevel", keyrun = { "keyrun", "on" } }
+
+function ns.postRules()
+  local post, posts = ns.setting("post"), ns.setting("posts")
+  if type(post) ~= "table" or type(posts) ~= "table" then return post end
+  local out = ns.copy(post)
+  for key, on in pairs(posts) do
+    local field = POST_FIELDS[key] or key
+    if type(field) == "table" then
+      out[field[1]] = type(out[field[1]]) == "table" and out[field[1]] or {}
+      out[field[1]][field[2]] = on == true
+    else
+      out[field] = on == true
+    end
+  end
+  return out
+end
+
+-- Presets, applied and recognized in game: the app writes what each one sets (Settings.lua
+-- `presets`, its SharingPresets) and the table's rows (`moments`: key, name, shot, announce, ask).
+-- Nil from an older app, which applies a preset picked here itself.
+local PRESET_KEYS = { "quiet", "normal", "everything" }
+
+local function fromApp(key) return WoWCharacterTrackerSettings and WoWCharacterTrackerSettings[key] end
+
+function ns.momentRows()
+  local rows = fromApp("moments")
+  return type(rows) == "table" and type(fromApp("presets")) == "table" and rows or nil
+end
+
+local function on(t, key) return type(t) == "table" and t[key] == true end
+
+-- Whether s (In game settings: posts, screenshot, filters, announce, ask) does what preset p does,
+-- for the moments this game has (the app's SharingPresets.Same).
+local function matches(s, p, rows)
+  for _, row in ipairs(rows) do
+    if on(s.posts, row.key) ~= on(p.posts, row.key) then return false end
+    if row.shot and on(s.screenshot, row.shot) ~= on(p.screenshot, row.shot) then return false end
+    local a = s.announce or {}
+    if row.announce and (on(a.kinds, row.announce) ~= on(p.kinds, row.announce)
+      or on(a.partyKinds or a.kinds, row.announce) ~= on(p.kinds, row.announce)) then return false end
+    if row.ask and on(s.ask, row.ask) ~= on(p.ask, row.ask) then return false end
+  end
+  local f, pf = s.filters or {}, p.filters or {}
+  return f.split == pf.split and f.before == pf.before and f.after == pf.after
+    and (f.rareBoe == true) == (pf.rareBoe == true) and (f.firstKill ~= false) == (pf.firstKill ~= false)
+end
+
+-- "quiet", "normal", "everything" or "custom" for In game settings s; nil without the app's presets.
+function ns.detectPreset(s)
+  local rows, presets = ns.momentRows(), fromApp("presets")
+  if not rows then return nil end
+  for _, key in ipairs(PRESET_KEYS) do
+    if type(presets[key]) == "table" and matches(s, presets[key], rows) then return key end
+  end
+  return "custom"
+end
+
+-- The preset the settings match now, or the one picked here when the app can't tell (older app).
+function ns.currentPreset()
+  local s = { posts = ns.setting("posts"), screenshot = ns.setting("screenshot"), filters = ns.filters(),
+    announce = ns.setting("announce"), ask = ns.setting("ask") }
+  return ns.detectPreset(s) or ns.setting("preset")
+end
+
+-- Picks a preset: its choices go in right away when the app said what they are, else the app
+-- applies it on sync.
+function ns.applyPreset(key)
+  local p = (fromApp("presets") or {})[key]
+  ns.editSettings(function(s)
+    s.preset = key
+    if type(p) ~= "table" then return end
+    local copy = ns.copy
+    s.posts, s.screenshot, s.filters, s.ask = copy(p.posts or {}), copy(p.screenshot or {}), copy(p.filters or {}), copy(p.ask or {})
+    s.announce.kinds, s.announce.partyKinds = copy(p.kinds or {}), copy(p.kinds or {})
+  end)
 end
 
 -- Whether the level rule posts this level (the app's FlavorSettings.LevelWanted).
@@ -192,7 +274,11 @@ function ns.editSettings(edit)
   changed.announce.partyKinds = changed.announce.partyKinds or copy(changed.announce.kinds) -- from before the group had its own
   changed.ask = changed.ask or {}
   changed.filters = changed.filters or copy(ns.filters()) -- from before filters were In game
+  changed.screenshot = changed.screenshot or copy(ns.setting("screenshot")) or {} -- from before these were In game
+  changed.posts = changed.posts or copy(ns.setting("posts")) -- nil from an older app
   edit(changed)
+  -- The preset these now match, so the app never puts a preset back over a change made here.
+  changed.preset = ns.detectPreset(changed) or changed.preset
   local fromApp = WoWCharacterTrackerSettings and WoWCharacterTrackerSettings.inGameAt or 0
   changed.at = math.max(time(), fromApp + 1)
   WoWCharacterTrackerDB.gameSettings = changed

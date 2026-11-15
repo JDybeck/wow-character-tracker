@@ -2,6 +2,24 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.42.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **The Sharing table in game.** The addon window's **Sharing** tab now works like the app's Sharing page: Quiet, Normal or Everything, and a row per moment with **Discord**, **Screenshot**, **Group** and **Ask first**. Changes count right away in game and reach the app on your next /reload, and the newest change wins, in the app or in game. Stream alerts and test posts stay in the app.
+- **Highlights for every character.** In the app, a character's details (yours and friends') have a **Highlights** tab with all of them, and Overview shows the newest five with a link there. In the addon window, an unfolded character has **Highlights (N)**, which opens them beside the window. On the addon's Home, scroll over the moment columns with the mouse wheel to see the newest 50.
+
+### Fixes and tweaks
+
+- Changing the level steps, filters or chat lines in game could be undone by the app on the next sync, when your settings had matched Quiet, Normal or Everything. They now stay.
+- The addon's **Friends** tab splits your friends into **Online** and **Offline**, with how many are in each. Clicking a friend's character on Home opens the right one.
+- A friend you said **Never** to now has an **Unblock** button in the addon when they're online, so you don't need `/wct friends unblock`.
+- Turning the addon's **Offer to post what Discord skips** off and on again no longer drops the other moments you picked under **Ask first** in the app.
+- Without the app, the addon's **Settings** tab no longer shows options that only work with it (instant posting, reload reminders, the pattern corner), and its hints no longer talk about Discord or the app.
+- Tips now go to Ko-fi (ko-fi.com/jdybeck). The app's tip link points there, and the addon's **Settings** tab has the link to copy at the bottom.
+
 ## v0.41.1
 
 Update the addon with the app (it does this by itself) and /reload in game.
