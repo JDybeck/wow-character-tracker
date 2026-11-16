@@ -1556,7 +1556,7 @@ public class FriendsLuaTests
         a.Run(3);
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
         a.Run(2);
-        Assert.False(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon == false").Boolean);
         Assert.Equal(1, Changes(a));
         a.Receive("1:HI:1:1:1:0.33.0", BAccount); // any message later says they do
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
@@ -1596,7 +1596,19 @@ public class FriendsLuaTests
         Assert.Equal(1, Count(a, "PING"));
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil()); // it only just went
         a.Run(20);
-        Assert.False(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon == false").Boolean);
+    }
+
+    // Seen in game: map and DATA traffic kept the queue busy and every friend stayed on "Checking...".
+    [Fact]
+    public void Other_traffic_behind_a_sent_ping_does_not_hold_up_the_answer()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Call("findOnlineFriends");
+        a.Lua("ns.comms.send(99, 'DATA', string.rep('x', 240 * 50))"); // about 12 s of parts
+        a.Run(5);
+        Assert.True(a.Lua("return ns.comms.pending()").Number > 0);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon == false").Boolean); // not nil: still checking
     }
 
     [Fact]

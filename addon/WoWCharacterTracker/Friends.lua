@@ -353,12 +353,15 @@ local pinged = {}       -- [account] = true: PING went out
 local silent = {}       -- [account] = true: no answer to it in PING_WAIT
 local answeredPing = {} -- [account] = when we last said PONG
 
--- No answer counts only PING_WAIT after the PING really went: while anything still waits to go out
--- (combat, lockdown, a backlog), the wait starts over.
+-- No answer counts only PING_WAIT after the PING really went: while that PING still waits to go out
+-- (combat, lockdown, a backlog ahead of it), the wait starts over. Only its own: other traffic
+-- behind it (map, DATA) kept everyone on "Checking..." for minutes.
+local function pingQueued(account) return ns.comms.queued(account, "PING") end
+
 local function waitForAnswer(account, sentAlready)
   C_Timer.After(PING_WAIT, function()
     if heard[account] then return end
-    local queued = ns.comms.pending and ns.comms.pending() > 0
+    local queued = pingQueued(account)
     if queued or not sentAlready then return waitForAnswer(account, not queued) end
     silent[account] = true
     changed()
@@ -372,7 +375,7 @@ function ns.findOnlineFriends()
     local account = f.account
     if not pinged[account] and not heard[account] and ns.comms.send(account, "PING", "") then
       pinged[account] = true
-      waitForAnswer(account, not (ns.comms.pending and ns.comms.pending() > 0))
+      waitForAnswer(account, not pingQueued(account))
     end
   end
 end

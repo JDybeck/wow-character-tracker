@@ -118,6 +118,14 @@ end
 -- How many messages wait to go out.
 function comms.pending() return #queue end
 
+-- Whether a kind to account still waits to go out.
+function comms.queued(account, kind)
+  for _, item in ipairs(queue) do
+    if item.to == account and item.kind == kind then return true end
+  end
+  return false
+end
+
 local partial = {} -- ["sender:id"] = { parts, got, total, kind, at }
 
 -- Drops half messages that waited too long; returns how many still wait, and how many of those from sender.
