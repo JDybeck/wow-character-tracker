@@ -52,7 +52,7 @@ local function describe(e)
   if e.kind == "boss" then
     return string.format("Killed %s%s", e.boss, (e.instance and e.instance ~= "") and (" in " .. e.instance) or "")
   end
-  if e.kind == "loot" then return "Looted " .. ns.itemLink(e.itemId, e.item) end
+  if e.kind == "loot" then return "Looted " .. ns.itemLink(e.itemId, e.item, e.quality) end
   return (ns.momentLine and ns.momentLine(e)) or e.kind -- the same words as the chat line (Announce.lua)
 end
 

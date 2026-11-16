@@ -1191,7 +1191,7 @@ public class AddonWindowTests
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
         c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
         Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
-        Assert.True(Bool(c, "shownText('Got a new mount: [Swift Razzashi Raptor]!').owner.itemId == 19872")); // its game tooltip on hover
+        Assert.True(Bool(c, "shownText('Got a new mount: |cffffffff|Hitem:19872::::::::|h[Swift Razzashi Raptor]|h|r!').owner.itemId == 19872")); // its game tooltip on hover
     }
 
     // Home keeps more moments than it shows: the wheel scrolls the column under the cursor.

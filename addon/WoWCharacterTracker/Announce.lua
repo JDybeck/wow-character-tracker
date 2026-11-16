@@ -11,10 +11,16 @@ local ADDON, ns = ...
 -- /wct guildtest still sends one, to look into it.
 ns.GUILD_CHAT_ON = false
 
--- The item as a clickable link when the game has it, else its name in brackets.
-local function itemLink(id, name)
+-- The item as a clickable link. A friend's item is often not in our item cache yet, so with an id
+-- the link is built from it (colored by quality when known), and the game fills the tooltip on click.
+local function itemLink(id, name, quality)
   local link = id and select(2, ns.itemInfo(id))
-  return link or string.format("[%s]", name or "?")
+  if link then return link end
+  id = tonumber(id)
+  if not id then return string.format("[%s]", name or "?") end
+  local color = quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
+  local hex = color and color.hex or "|cffffffff"
+  return string.format("%s|Hitem:%d::::::::|h[%s]|h|r", hex, id, name or ("item " .. id))
 end
 ns.itemLink = itemLink
 
@@ -29,7 +35,7 @@ local function message(e)
   elseif k == "boss" then
     return string.format("Killed %s%s!", e.boss, (e.instance and e.instance ~= "") and (" in " .. e.instance) or "")
   elseif k == "loot" and (e.quality or 0) >= 3 and not ((e.quality or 0) >= 5 and e.mat) then -- not legendary materials
-    return "Looted " .. itemLink(e.itemId, e.item) .. "!"
+    return "Looted " .. itemLink(e.itemId, e.item, e.quality) .. "!"
   elseif k == "mount" then
     return (e.bought and "Bought a new mount: " or "Got a new mount: ") .. (e.itemId and itemLink(e.itemId, e.mount) or e.mount) .. "!"
   elseif k == "duel" and not e.lost then
@@ -148,7 +154,7 @@ local function lineFor(e, kinds)
   if not kinds then return nil end
   -- A followed item says so, instead of (not as well as) its usual line.
   if kinds.followed and (e.kind == "loot" or e.kind == "mount") and ns.isFollowed(e.itemId) then
-    return string.format("Got %s from my followed items!", itemLink(e.itemId, e.item or e.mount))
+    return string.format("Got %s from my followed items!", itemLink(e.itemId, e.item or e.mount, e.quality))
   end
   local key = announceKey(e)
   if not key or not kinds[key] then return nil end

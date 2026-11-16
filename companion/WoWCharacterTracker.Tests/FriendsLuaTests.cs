@@ -556,6 +556,40 @@ public class FriendsLuaTests
         Assert.Empty(b.Said());
     }
 
+    // A friend's item is rarely in our item cache: the chat line still gets a clickable link.
+    [Fact]
+    public void A_friends_loot_in_chat_is_a_link_without_the_item_cached()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives), files: [.. AllFiles, "Announce.lua"]);
+        b.Lua("""
+            clock = 100000
+            ITEM_QUALITY_COLORS = { [3] = { hex = '|cff0070dd' } }
+            ns.sayFriendMoments('Zeb#2222', { char = 'Kitty' }, { char = 'Kitty', highlights = 'loot~99900~53~Wildheart Belt~16716~3' })
+            """);
+        Assert.Equal(["Kitty (Zeb): Looted |cff0070dd|Hitem:16716::::::::|h[Wildheart Belt]|h|r!"], b.Said());
+    }
+
+    [Fact]
+    public void Friends_versions_lists_each_friends_addon_against_yours()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives)); // GetAddOnMetadata says 0.33.0
+        b.Lua("""
+            WoWCharacterTrackerDB.friends = {
+              ['Old#1'] = { chars = {}, version = '0.32.9' },
+              ['New#2'] = { chars = {}, version = '0.40.0' },
+              ['Same#3'] = { chars = {}, version = '0.33.0' },
+              ['Quiet#4'] = { chars = {} },
+            }
+            """);
+        b.Call("friendsCommand", "versions");
+        Assert.Equal([
+            "Your addon: 0.33.0.",
+            "New#2: 0.40.0, newer than yours.",
+            "Old#1: 0.32.9, older than yours.",
+            "Same#3: 0.33.0.",
+        ], b.Said());
+    }
+
     static int Count(Client c, string kind) => c.Sent().Count(m => m.Get("text").String.Contains($":{kind}:"));
 
     // Map position (off) and the other faction rule (off) work like the categories: general, or per friend.

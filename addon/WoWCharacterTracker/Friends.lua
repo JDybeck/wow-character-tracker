@@ -933,6 +933,7 @@ local HELP = {
   "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",
   "/wct friends name <BattleTag> <nickname> gives a friend a nickname (here and in the app), without one clears it.",
   "/wct friends chat on or off: friends' level-ups, boss kills, loot and other moments in your chat as they come in.",
+  "/wct friends versions lists which addon version each friend has.",
 }
 
 -- What set takes: a category or a rule, its key exact (IS_CHOICE) or typed in any case (CHOICE_BY_WORD).
@@ -970,6 +971,27 @@ local function listContacts()
       c.receive and "theirs kept" or "theirs not kept", count))
   end
   if not any then ns.say("No contacts yet. /wct friends ask <BattleTag> or /wct friends share <BattleTag>.") end
+end
+
+-- /wct friends versions: the addon version each friend last said hello with, older ones marked.
+local function listVersions()
+  local mine = ns.addonVersion()
+  ns.say("Your addon: " .. (mine ~= "" and mine or "unknown") .. ".")
+  local tags = {}
+  for tag, got in pairs(WoWCharacterTrackerDB.friends or {}) do
+    if got.version or got.protocol then tags[#tags + 1] = tag end
+  end
+  table.sort(tags, function(x, y) return label(x):lower() < label(y):lower() end)
+  for _, tag in ipairs(tags) do
+    local got = WoWCharacterTrackerDB.friends[tag]
+    local note = ""
+    if got.protocol then note = ", speaks another protocol"
+    elseif ns.isNewerVersion(mine, got.version) then note = ", older than yours"
+    elseif ns.isNewerVersion(got.version, mine) then note = ", newer than yours" end
+    ns.say(string.format("%s: %s%s%s.", label(tag), got.version or "unknown", note,
+      got.seen and (", heard " .. ns.ago(got.seen)) or ""))
+  end
+  if #tags == 0 then ns.say("No friend has said which version they have yet.") end
 end
 
 -- Says message and returns it, for the Friends tab.
@@ -1112,6 +1134,7 @@ function ns.friendsCommand(args)
   local cmd, rest = strtrim(args or ""):match("^(%S*)%s*(.-)$")
   cmd = (cmd or ""):lower()
   if cmd == "" then return listContacts() end
+  if cmd == "versions" then return listVersions() end
   if cmd == "on" or cmd == "off" then
     ns.editShare(function(s) s.enabled = cmd == "on" end)
     return ns.say("Sharing with friends is now " .. cmd .. ".")

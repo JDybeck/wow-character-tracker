@@ -289,10 +289,10 @@ public class FollowedItemsTests
 
     // Guild and group chat: the followed line replaces the usual one, and only when picked.
     [Theory]
-    [InlineData("followed = true", 2589, 1, "Got [Linen Cloth] from my followed items!")]
-    [InlineData("followed = true, loot = true", 2589, 4, "Got [Linen Cloth] from my followed items!")]
+    [InlineData("followed = true", 2589, 1, "Got |cffffffff|Hitem:2589::::::::|h[Linen Cloth]|h|r from my followed items!")]
+    [InlineData("followed = true, loot = true", 2589, 4, "Got |cffffffff|Hitem:2589::::::::|h[Linen Cloth]|h|r from my followed items!")]
     [InlineData("loot = true", 2589, 1, null)]
-    [InlineData("loot = true", 2589, 4, "Looted [Linen Cloth]!")]
+    [InlineData("loot = true", 2589, 4, "Looted |cffffffff|Hitem:2589::::::::|h[Linen Cloth]|h|r!")]
     [InlineData("followed = true", 7, 4, null)]
     public void Chat_tells_about_followed_items_once(string kinds, int itemId, int quality, string? said)
     {
