@@ -487,12 +487,7 @@ local function itemIcon(id)
   return ok and icon or nil
 end
 
-local function showItemTip(self)
-  if not (GameTooltip and self.itemId) then return end
-  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:SetHyperlink("item:" .. self.itemId .. ":" .. (self.enchantId or ""))
-  GameTooltip:Show()
-end
+local function showItemTip(self) ui.itemTip(self, self.itemId, self.enchantId) end
 
 -- A label and its value, the value wrapping in what's left of width.
 local function newFactRow(parent, width)
@@ -2279,6 +2274,14 @@ local function buildSettings(p)
   local appLink = ui.copyBox(p, ns.APP_URL, 380)
   appLink:SetPoint("TOPLEFT", appText, "BOTTOMLEFT", 0, -8)
   ui.onRefresh(p, function() appText:SetText(appSummary()) end)
+  -- Tips, never needed: the same Ko-fi link as the app's corner.
+  local tipText = ui.text(p, "GameFontDisableSmall",
+    "Like it? Tips are welcome on Ko-fi (click the link, then Ctrl+C). Never needed, always appreciated.")
+  tipText:SetPoint("TOPLEFT", appLink, "BOTTOMLEFT", 0, -16)
+  tipText:SetWidth(PAGE_WIDTH - 40)
+  tipText:SetJustifyH("LEFT")
+  local tipLink = ui.copyBox(p, ns.TIP_URL, 380)
+  tipLink:SetPoint("TOPLEFT", tipText, "BOTTOMLEFT", 0, -6)
 end
 
 -- The window ------------------------------------------------------------------------------------
@@ -2289,7 +2292,7 @@ local TABS = {
   { key = "sharing", label = "Sharing", height = 1180, build = buildSharingTab }, -- a row per moment
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
   { key = "note", label = "Note", height = 330, build = buildNote },
-  { key = "settings", label = "Settings", height = 780, build = buildSettings },
+  { key = "settings", label = "Settings", height = 840, build = buildSettings },
 }
 local BY_KEY = {}
 for _, t in ipairs(TABS) do BY_KEY[t.key] = t end

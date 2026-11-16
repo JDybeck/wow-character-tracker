@@ -150,6 +150,70 @@ public class AddonWindowTests
         Assert.True(Bool(c, "WoWCharacterTrackerDB.window.homeHistory == true"));
     }
 
+    const string TooltipStub = """
+        GameTooltip = {
+          SetOwner = function(self, owner, anchor) self.owner, self.anchor, self.link, self.text = owner, anchor, nil, nil end,
+          SetHyperlink = function(self, link) self.link = link end,
+          SetText = function(self, s) self.text = s end,
+          Show = function(self) self.up = true end,
+          Hide = function(self) self.up = false end,
+        }
+        """;
+
+    // A loot or mount moment on Home shows the item's own tooltip from the game, any other moment its whole line.
+    [Fact]
+    public void Home_moments_show_the_items_tooltip()
+    {
+        var c = Load("""
+            { chars = {}, items = {}, events = {
+              { kind = 'loot', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, item = 'Krol Blade', itemId = 2244, quality = 4, at = 10 },
+              { kind = 'boss', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, boss = 'Archaedas', instance = 'Uldaman', at = 20 } } }
+            """);
+        c.Lua("""
+            function UnitName() return 'Zeb' end
+            function UnitLevel() return 45 end
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitRace() return 'Night Elf' end
+            function date() return { year = 2026, month = 11, day = 9 } end
+            ns.playedNow = function() return 100000 end
+            ns.levelTimeNow = function() return 1200 end
+            """);
+        c.Lua(TooltipStub);
+        c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
+        c.Lua("SlashCmdList.CHARACTERTRACKER('')");
+
+        c.Lua("r = shownText('Looted [Krol Blade]!').owner; r.scripts.OnEnter(r)");
+        Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == r"));
+        Assert.Equal("item:2244:", c.Lua("return GameTooltip.link").String);
+
+        c.Lua("r = shownText('Killed Archaedas in Uldaman!').owner; r.scripts.OnEnter(r)");
+        Assert.True(Bool(c, "GameTooltip.link == nil"));
+        Assert.Equal("Zeb: Killed Archaedas in Uldaman!", c.Lua("return GameTooltip.text").String);
+    }
+
+    // Item links in chat show their tooltip on hover (the game only does it on a click), hooked once.
+    [Fact]
+    public void Item_links_in_chat_show_their_tooltip_on_hover()
+    {
+        var c = Load();
+        c.Lua(TooltipStub);
+        c.Lua("""
+            hooks, hooked = {}, 0
+            NUM_CHAT_WINDOWS = 2
+            ChatFrame1 = { HookScript = function(self, name, fn) hooks[name] = fn; hooked = hooked + 1 end }
+            ns.ui.hookChatItemTips()
+            ns.ui.hookChatItemTips()
+            """);
+        Assert.Equal(2, Num(c, "hooked")); // enter and leave, once, and no ChatFrame2 to hook
+        c.Lua("hooks.OnHyperlinkEnter(ChatFrame1, 'player:Zeb')");
+        Assert.False(Bool(c, "GameTooltip.up == true"));
+        c.Lua("hooks.OnHyperlinkEnter(ChatFrame1, 'item:19019:0:0:0')");
+        Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == ChatFrame1"));
+        Assert.Equal("item:19019:0:0:0", c.Lua("return GameTooltip.link").String);
+        c.Lua("hooks.OnHyperlinkLeave(ChatFrame1)");
+        Assert.False(Bool(c, "GameTooltip.up"));
+    }
+
     // Latest moments lists what goes to Discord: not the levels the level steps skip, not a boss
     // killed before with first kills only, and a moment posted from the ask box as that moment.
     [Fact]
@@ -632,7 +696,6 @@ public class AddonWindowTests
         Assert.Equal(1, Num(c, "pinged"));
     }
 
-    // The Settings tab links to the app's page with the app and without it.
     [Fact]
     public void The_settings_tab_shows_what_needs_the_app_only_with_the_app()
     {
@@ -649,14 +712,17 @@ public class AddonWindowTests
             Assert.True(Bool(c, $"shownText('{label}') ~= nil"), label);
     }
 
+    // The Settings tab links to the app's page and the tip page, with the app and without it.
     [Fact]
-    public void The_settings_tab_links_to_the_apps_page()
+    public void The_settings_tab_links_to_the_apps_page_and_tips()
     {
+        Assert.Equal("https://ko-fi.com/jdybeck", Load().Lua("return ns.TIP_URL").String);
         foreach (var settings in new[] { "{}", "{ post = {} }" })
         {
             var c = Load(settings: settings);
             c.Call("openWindow", "settings");
             Assert.True(Bool(c, "(function() for _, f in ipairs(frames) do if f.kind == 'EditBox' and f.text == ns.APP_URL and onScreen(f) then return true end end end)()"));
+            Assert.True(Bool(c, "(function() for _, f in ipairs(frames) do if f.kind == 'EditBox' and f.text == ns.TIP_URL and onScreen(f) then return true end end end)()"));
         }
     }
 

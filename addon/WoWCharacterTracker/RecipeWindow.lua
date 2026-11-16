@@ -163,9 +163,9 @@ end
 
 local function showTip(self)
   if not GameTooltip then return end
+  if self.itemId then return ui.itemTip(self, self.itemId) end
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  if self.itemId then GameTooltip:SetHyperlink("item:" .. self.itemId)
-  elseif self.spellId then GameTooltip:SetHyperlink("spell:" .. self.spellId) end
+  if self.spellId then GameTooltip:SetHyperlink("spell:" .. self.spellId) end
   GameTooltip:Show()
 end
 

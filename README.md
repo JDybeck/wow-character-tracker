@@ -76,7 +76,7 @@ In Discord: a level-up with the screenshot the addon took in game, and a charact
 
 Use [Discussions](https://github.com/JDybeck/wow-character-tracker/discussions) (the **Feedback** button in the app goes there) for questions, ideas and showing off your posts, and [Issues](https://github.com/JDybeck/wow-character-tracker/issues) for bugs. What changed in each version is in the [changelog](CHANGELOG.md).
 
-Like it? Tips are welcome at [streamlabs.com/zebdryg/tip](https://streamlabs.com/zebdryg/tip) (there's a small **tip** link in the app's corner too). Never needed, always appreciated.
+Like it? Tips are welcome on Ko-fi at [ko-fi.com/jdybeck](https://ko-fi.com/jdybeck) (there's a small **tip** link in the app's corner too). Never needed, always appreciated.
 
 ## Privacy
 

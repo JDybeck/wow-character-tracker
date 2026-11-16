@@ -46,8 +46,16 @@ static class TodayStats
 
         var shown = Order.Where(k => v[k] > 0).ToList();
         if (pad) shown.AddRange(Main.Where(k => v[k] == 0).Take(Math.Max(0, Shown - shown.Count)));
-        return [.. shown.Select(k => new TodayCount(Value(k, v[k]), k == "bosses" && keys ? "keys" : Names[k]))];
+        return [.. shown.Select(k => new TodayCount(Value(k, v[k]), Name(k, v[k], keys)))];
     }
+
+    // Gold under one gold is silver ("98 silver"), bosses are keys on Retail (the addon's ns.todayName).
+    internal static string Name(string key, double value, bool keys) => key switch
+    {
+        "gold" when value < 10000 => "silver",
+        "bosses" when keys => "keys",
+        _ => Names[key],
+    };
 
     // The characters that did something today (a moment, a quest, gold, gathering...), each with
     // what, unpadded. Only logging in doesn't count: that alone starts the addon's day counters.
@@ -75,12 +83,13 @@ static class TodayStats
         return days.Where(d => d.Day == day);
     }
 
-    // "+2.5" item levels, "12g" or "40s", else the count (the addon's ns.todayValue).
-    static string Value(string key, double value) => key switch
+    // "+2.5" item levels, gold as "12" or "1,234" (silver under one gold: "98"), else the count; the
+    // name after it says which (the addon's ns.todayValue).
+    internal static string Value(string key, double value) => key switch
     {
         "ilvl" => "+" + value.ToString("0.#", CultureInfo.InvariantCulture),
-        "gold" when value >= 10000 => Format.Gold((long)value),
-        "gold" => $"{(long)(value / 100)}s",
+        "gold" when value >= 10000 => Format.Thousands((long)value / 10000),
+        "gold" => ((long)(value / 100)).ToString(CultureInfo.InvariantCulture),
         _ => ((long)value).ToString(CultureInfo.InvariantCulture),
     };
 }

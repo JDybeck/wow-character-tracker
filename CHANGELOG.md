@@ -10,14 +10,21 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 - **The Sharing table in game.** The addon window's **Sharing** tab now works like the app's Sharing page: Quiet, Normal or Everything, and a row per moment with **Discord**, **Screenshot**, **Group** and **Ask first**. Changes count right away in game and reach the app on your next /reload, and the newest change wins, in the app or in game. Stream alerts and test posts stay in the app.
 - **Highlights for every character.** In the app, a character's details (yours and friends') have a **Highlights** tab with all of them, and Overview shows the newest five with a link there. In the addon window, an unfolded character has **Highlights (N)**, which opens them beside the window. On the addon's Home, scroll over the moment columns with the mouse wheel to see the newest 50.
+- **Armory pictures for friends (Forever).** Forever has Blizzard's armory now, so friends' characters show their real armory picture on cards, rows and Home instead of a race portrait. An **HD/SD** switch next to Friends picks the new or old character models for all of them, and a friend character's **Portrait** chips (HD, SD, Standard) set it for that one. Your own characters keep their in-game portrait.
+- **Open in the armory (Forever).** Every Forever character with a surname, yours and friends', has **Open in the armory** on its Overview.
+- **Item tooltips in game.** Hover a loot or mount moment on the addon's Home for the item's own tooltip from the game, like the app shows. Item links in chat show theirs on hover too, no click needed.
 
 ### Fixes and tweaks
 
 - Changing the level steps, filters or chat lines in game could be undone by the app on the next sync, when your settings had matched Quiet, Normal or Everything. They now stay.
 - The addon's **Friends** tab splits your friends into **Online** and **Offline**, with how many are in each. Clicking a friend's character on Home opens the right one.
+- Making the addon window taller now fills Home with more moments, instead of leaving the bottom empty.
 - A friend you said **Never** to now has an **Unblock** button in the addon when they're online, so you don't need `/wct friends unblock`.
 - Turning the addon's **Offer to post what Discord skips** off and on again no longer drops the other moments you picked under **Ask first** in the app.
 - Without the app, the addon's **Settings** tab no longer shows options that only work with it (instant posting, reload reminders, the pattern corner), and its hints no longer talk about Discord or the app.
+- The app no longer freezes for about two seconds when it starts (now about half a second). It builds each page the first time you open it instead of all of them at once, reads your saved files in the background, and comes precompiled. That last part is why the download is about 5 MB bigger (55 to 60 MB): without it the code is compiled while the window first draws, which alone held the window up for close to half a second.
+- Today's gold on Home, in the app and the addon, now reads "12 gold", or "98 silver" under one gold, instead of "12g gold" or "98s gold".
+- Tips now go to Ko-fi (ko-fi.com/jdybeck). The app's tip link points there, and the addon's **Settings** tab has the link to copy at the bottom.
 
 ## v0.41.1
 

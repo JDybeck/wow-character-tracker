@@ -141,8 +141,22 @@ public class TodayStatsTests
         };
         var app = string.Join(", ", TodayStats.Build(events, days, new HashSet<string>(), keys: false, Now).Select(s => $"{s.Value} {s.What}"));
 
-        Assert.Equal("2 levels, 1 epics, +2.5 item level, 7 quests, 12g gold, 3 herbs, 2 veins", lua);
+        Assert.Equal("2 levels, 1 epics, +2.5 item level, 7 quests, 12 gold, 3 herbs, 2 veins", lua);
         Assert.Equal(lua, app);
+    }
+
+    // Gold earned reads as a plain number and what it is: gold, or silver under one gold. No "g" or "s".
+    [Theory]
+    [InlineData(9850, "98 silver")]
+    [InlineData(10000, "1 gold")]
+    [InlineData(125000, "12 gold")]
+    [InlineData(12345678, "1,234 gold")]
+    public void Gold_earned_today_is_gold_or_silver(double copper, string shown)
+    {
+        var (script, _) = Load();
+        var v = copper.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(shown, script.DoString($"return ns.todayValue({{ key = 'gold', value = {v} }}) .. ' ' .. ns.todayName('gold', {v}, false)").String);
+        Assert.Equal(shown, $"{TodayStats.Value("gold", copper)} {TodayStats.Name("gold", copper, keys: false)}");
     }
 
     [Fact]

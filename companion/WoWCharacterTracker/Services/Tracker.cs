@@ -106,7 +106,8 @@ sealed class Tracker : IDisposable
         }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
 
         // Live events only after old ones are handled (and not when the tab was turned off meanwhile).
-        _ = SyncAsync().ContinueWith(_ => { if (!disposed) shots.Start(); });
+        // Off the UI thread like every later sync: reading the saved files there held up the window at startup.
+        _ = Task.Run(() => SyncAsync()).ContinueWith(_ => { if (!disposed) shots.Start(); });
     }
 
     void OnLiveEntry(Entry e, DateTime shotAt, byte[]? portrait)

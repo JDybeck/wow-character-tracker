@@ -47,6 +47,7 @@ function on.PLAYER_LOGIN()
   ns.restoreNoteBox()
   ns.createMinimapButton()
   ns.attachMapPins() -- friends on the world map (MapPins.lua)
+  ns.ui.hookChatItemTips() -- item links in chat show their tooltip on hover (Ui.lua)
   ns.say("Loaded. Type /wct help for the commands.")
 end
 
