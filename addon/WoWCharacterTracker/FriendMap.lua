@@ -199,11 +199,14 @@ end)
 -- offline, switches character, says it's gone (empty POS) or a watch gap drops it.
 local function fadeAfter(rate) return math.max(30, 2 * rate) end
 
--- Both layers known and on the same map (continent): same or another. Else nothing to say.
+-- Their layer with ours when both are on the same map (continent); a layer number only compares
+-- within one map, so another map's says nothing. Ours not known yet: just theirs.
 local function layerNote(theirs, mine)
-  if not (theirs and mine and mine.server) or theirs.map ~= mine.map then return nil, false end
-  if theirs.server == mine.server then return "Same layer as you", false end
-  return "On another layer", true
+  if not theirs then return nil, false end
+  if not (mine and mine.server) then return string.format("Layer %d", theirs.server), false end
+  if theirs.map ~= mine.map then return nil, false end
+  if theirs.server == mine.server then return string.format("Same layer as you: %d", mine.server), false end
+  return string.format("On another layer: %d (you: %d)", theirs.server, mine.server), true
 end
 
 -- The tooltip's realm line and whether the friend is somewhere you can't meet them (their ring goes
