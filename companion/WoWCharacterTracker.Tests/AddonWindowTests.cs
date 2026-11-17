@@ -182,7 +182,8 @@ public class AddonWindowTests
         c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
         c.Lua("SlashCmdList.CHARACTERTRACKER('')");
 
-        c.Lua("r = shownText('Looted [Krol Blade]!').owner; r.scripts.OnEnter(r)");
+        // The item isn't in the stub's cache, so the line carries a link built from its id (Announce.lua itemLink).
+        c.Lua("r = shownText('Looted |cffffffff|Hitem:2244::::::::|h[Krol Blade]|h|r!').owner; r.scripts.OnEnter(r)");
         Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == r"));
         Assert.Equal("item:2244:", c.Lua("return GameTooltip.link").String);
 
@@ -1191,7 +1192,7 @@ public class AddonWindowTests
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
         c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
         Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
-        Assert.True(Bool(c, "shownText('Got a new mount: [Swift Razzashi Raptor]!').owner.itemId == 19872")); // its game tooltip on hover
+        Assert.True(Bool(c, "shownText('Got a new mount: |cffffffff|Hitem:19872::::::::|h[Swift Razzashi Raptor]|h|r!').owner.itemId == 19872")); // its game tooltip on hover
     }
 
     // Home keeps more moments than it shows: the wheel scrolls the column under the cursor.

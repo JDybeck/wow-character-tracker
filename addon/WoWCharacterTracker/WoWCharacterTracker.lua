@@ -126,6 +126,7 @@ function on.CHALLENGE_MODE_START() C_Timer.After(1, ns.inspectGroup) end -- the 
 function on.INSPECT_READY() ns.onInspectReady() end
 function on.CHALLENGE_MODE_COMPLETED() ns.recordKeyRun() end
 function on.PVP_RATED_STATS_UPDATE() ns.checkPvpRatings() end
+function on.ACHIEVEMENT_EARNED(id, alreadyEarned) ns.onAchievement(id, alreadyEarned) end
 function on.UPDATE_BATTLEFIELD_STATUS() ns.checkBattleground() end
 function on.PVP_MATCH_COMPLETE() ns.checkBattleground() end -- retail
 -- Skill-ups (weapon skills too, in a stream while fighting), so once per burst, and after a fight.

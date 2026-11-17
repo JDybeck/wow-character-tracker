@@ -19,6 +19,7 @@ static class HighlightText
         "makgora" => ("Won a Mak'gora against ", e.Opponent),
         "bg" => (e.Lost ? "Lost " : "Won ", e.Instance.Length > 0 ? e.Instance : "a battleground"),
         "profession" => ("Reached ", $"{e.Step} {e.Profession}"),
+        "achievement" => ("Earned ", e.Achievement),
         "mplus" => ("Reached ", $"{e.Step} Mythic+ rating" + (e.Rating > 0 ? $" ({e.Rating})" : "")),
         "pvp" => ("Reached ", $"{e.Step} in {e.Bracket}" + (e.Rating > 0 ? $" ({e.Rating})" : "")),
         "death" => ("", $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : "")),

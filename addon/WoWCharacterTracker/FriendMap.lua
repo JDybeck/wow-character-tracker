@@ -45,14 +45,21 @@ local function friendByAccount(account)
 end
 
 -- Sending -------------------------------------------------------------------------------------
--- Our position: mapID, x, y, or nil in an instance or where the game gives none.
-local function readPosition()
+-- Our position: mapID, x, y, or nil in an instance or where the game gives none. MapPins.lua
+-- measures distances from it.
+function ns.myMapPosition()
   if IsInInstance and IsInInstance() then return nil end
   if not (C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition) then return nil end
   local mapID = C_Map.GetBestMapForUnit("player")
   local pos = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
   if not pos or not pos.x or not pos.y or (pos.x == 0 and pos.y == 0) then return nil end
-  return mapID, round(pos.x), round(pos.y)
+  return mapID, pos.x, pos.y
+end
+
+local function readPosition()
+  local mapID, x, y = ns.myMapPosition()
+  if not mapID then return nil end
+  return mapID, round(x), round(y)
 end
 
 -- The reading to send: a new one once the rate allows, else the last one; nil without a position.
@@ -126,15 +133,18 @@ end
 function ns.friendMapTick()
   local now, rate = time(), ns.shareSettings().mapRate
   local paused = ns.comms.canSend and not ns.comms.canSend("POS")
-  local r, looked, any = nil, false, false
+  local r, looked, any, rows = nil, false, false, {}
   for account, w in pairs(watchers) do
     if now > w.untilAt then
       watchers[account] = nil
     else
       any = true
       if not paused then
-        if not looked then r, looked = currentReading(now, rate), true end
-        local f = friendByAccount(account)
+        if not looked then
+          r, looked = currentReading(now, rate), true
+          for _, f in ipairs(online()) do rows[f.account] = f end -- once per tick, not per watcher
+        end
+        local f = rows[account]
         sendTo(account, w, (f and mayGet(f)) and r or nil, rate, now)
       end
     end
@@ -199,11 +209,14 @@ end)
 -- offline, switches character, says it's gone (empty POS) or a watch gap drops it.
 local function fadeAfter(rate) return math.max(30, 2 * rate) end
 
--- Both layers known and on the same map (continent): same or another. Else nothing to say.
+-- Their layer with ours when both are on the same map (continent); a layer number only compares
+-- within one map, so another map's says nothing. Ours not known yet: just theirs.
 local function layerNote(theirs, mine)
-  if not (theirs and mine and mine.server) or theirs.map ~= mine.map then return nil, false end
-  if theirs.server == mine.server then return "Same layer as you", false end
-  return "On another layer", true
+  if not theirs then return nil, false end
+  if not (mine and mine.server) then return string.format("Layer %d", theirs.server), false end
+  if theirs.map ~= mine.map then return nil, false end
+  if theirs.server == mine.server then return string.format("Same layer as you: %d", mine.server), false end
+  return string.format("On another layer: %d (you: %d)", theirs.server, mine.server), true
 end
 
 -- The tooltip's realm line and whether the friend is somewhere you can't meet them (their ring goes

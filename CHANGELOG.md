@@ -2,6 +2,29 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.42.1
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Legacy achievements (Forever).** The first time your account earns a legacy achievement, like Conqueror of the Lair, Master Spelunker, a PvP rank or Master of Warsong Gulch, it's a moment like any other: a Discord post linked to Wowhead, a screenshot, a group chat line, Ask first, a stream alert and a highlight, picked on the Sharing table's new **Legacy achievements** row. The class level ones and the profession ones aren't included, since level-ups and profession milestones post those. The row starts with your profession milestones' choices, so your preset stays as it was.
+- **Friends' addon versions.** `/wct friends versions` lists which addon version each friend has, and whether it's older or newer than yours.
+- **The rest of Forever's dungeons count as boss kills.** Killing the last boss of The Drowned City (Min'loth the Serpent), Krol'dok Stronghold (Overseer Mugg) or Blackmaw Hold (Unbound Spirit) is now posted like any other end boss.
+- **How far away friends on the map are.** Hovering a friend's pin says how far and which way, like "About 350 m northeast", when you're on the same continent. Meters on EU, yards on US, or pick one in Settings (In game) or the addon window's Settings tab.
+- **Layer numbers on the map (Forever).** A friend's map pin says which layer they're on, and yours next to it: "Same layer as you: 6843" or "On another layer: 7001 (you: 6843)".
+
+### Fixes and tweaks
+
+- With Retail and Forever both installed, the app thought one game was running whenever the other was (both run Wow.exe): a Forever settings change while playing Retail asked you to /reload, and Home and Uninstall said the wrong game was open. It now checks which folder the game runs from.
+- A Discord webhook that stopped working (deleted, say) held back every post to your other webhooks on that tab. The others now keep posting, and the broken one gets its posts in order once it works again.
+- Friends' loot in your chat is a clickable item link now, also for items your game hasn't seen yet. Your own guild and group lines keep the game's own links, or the item's name.
+- **Find online friends** no longer stays on "Checking..." for minutes while the addon is busy sending characters, and friends whose addon was busy no longer show up as not having it.
+- Level-ups during **Incognito** with friends included are no longer shared with friends.
+- Friends' Mythic+ runs show in your chat whatever your own lowest key level for Discord is.
+- Data you removed on the Data page no longer shows up again until you restart the app.
+- C'Thun kills in Temple of Ahn'Qiraj (Forever) are recognized: the game spells the encounter "C'thun", which didn't match.
+
 ## v0.42.0
 
 Update the addon with the app (it does this by itself) and /reload in game.

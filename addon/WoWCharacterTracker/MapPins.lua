@@ -57,10 +57,89 @@ local function circle(pin, layer, inset, r, g, b)
   return t
 end
 
+-- Distances: "meters" or "yards", an In game setting; "auto" (or none) is yards in the Americas
+-- region and meters everywhere else.
+local YARD = 0.9144
+local US_REGION = 1
+
+function ns.distanceUnit()
+  local unit = ns.setting and ns.setting("distanceUnit")
+  if unit == "meters" or unit == "yards" then return unit end
+  local region = GetCurrentRegion and GetCurrentRegion()
+  return region == US_REGION and "yards" or "meters"
+end
+
+local COMPASS = { "east", "northeast", "north", "northwest", "west", "southwest", "south", "southeast" }
+
+local function world(mapID, x, y)
+  local continent, pos = C_Map.GetWorldPosFromMapPos(mapID, CreateVector2D(x, y))
+  if continent and pos then return continent, pos.x, pos.y end
+  return nil
+end
+
+-- How far a friend is from you in yards and which way, or nil unless you're both on one continent.
+-- East and north come from your map's own edges, so no world axis order is assumed.
+function ns.friendDistance(myMapID, myX, myY, pin)
+  if not (C_Map and C_Map.GetWorldPosFromMapPos and CreateVector2D) then return nil end
+  local mine, ax, ay = world(myMapID, myX, myY)
+  local theirs, bx, by = world(pin.mapID, pin.x, pin.y)
+  if not mine or mine ~= theirs then return nil end
+  local dx, dy = bx - ax, by - ay
+  local yards = math.sqrt(dx * dx + dy * dy)
+  local _, wx, wy = world(myMapID, 0, 0.5)
+  local _, ex, ey = world(myMapID, 1, 0.5)
+  local _, nx, ny = world(myMapID, 0.5, 0)
+  local _, sx, sy = world(myMapID, 0.5, 1)
+  if not (wx and ex and nx and sx) then return yards, nil end
+  local east = dx * (ex - wx) + dy * (ey - wy)
+  local north = dx * (nx - sx) + dy * (ny - sy)
+  local eastLen = math.sqrt((ex - wx) ^ 2 + (ey - wy) ^ 2)
+  local northLen = math.sqrt((nx - sx) ^ 2 + (ny - sy) ^ 2)
+  if eastLen == 0 or northLen == 0 then return yards, nil end
+  local angle = math.deg((math.atan2 or math.atan)(north / northLen, east / eastLen))
+  return yards, COMPASS[math.floor((angle + 22.5) / 45) % 8 + 1]
+end
+
+-- "1,250"
+local function grouped(n)
+  local s = tostring(n)
+  while true do
+    local done
+    s, done = s:gsub("^(%d+)(%d%d%d)", "%1,%2")
+    if done == 0 then return s end
+  end
+end
+
+-- "About 350 m northeast", "About 1.2 km south", "About 1,250 yd west", "Right next to you".
+function ns.distanceText(yards, direction, unit)
+  if yards < 15 then return "Right next to you" end
+  local text
+  if unit == "yards" then
+    text = grouped(math.floor(yards / 10 + 0.5) * 10) .. " yd"
+  else
+    local meters = yards * YARD
+    if meters >= 1000 then
+      text = string.format("%.1f km", meters / 1000)
+    else
+      text = math.floor(meters / 10 + 0.5) * 10 .. " m"
+    end
+  end
+  return "About " .. text .. (direction and (" " .. direction) or "")
+end
+
+-- The distance line for a pin, or nil when you're not on its continent (or in an instance).
+function ns.pinDistance(pin)
+  if not ns.myMapPosition then return nil end
+  local ok, mapID, x, y = pcall(ns.myMapPosition)
+  if not ok or not mapID then return nil end
+  local yards, direction = ns.friendDistance(mapID, x, y, pin)
+  return yards and ns.distanceText(yards, direction, ns.distanceUnit()) or nil
+end
+
 -- The tooltip of a pin (a row of ns.friendPins), as { text, r, g, b } lines after the label: the
--- character (with what they share: spec, item level, XP, professions), the zone, another layer or
--- realm, and how old the position is.
-function ns.pinLines(f, zone)
+-- character (with what they share: spec, item level, XP, professions), the zone, how far away (only
+-- on your continent), another layer or realm, and how old the position is.
+function ns.pinLines(f, zone, distance)
   local c = f.shared or {}
   local lines = {}
   local function add(text, r, g, b) lines[#lines + 1] = { text, r, g, b } end
@@ -74,6 +153,7 @@ function ns.pinLines(f, zone)
   end
   add(string.format("%s, level %s%s", name, tostring(level or "?"), what), r, g, b)
   if zone then add(zone, 0.8, 0.8, 0.8) end
+  if distance then add(distance, 0.8, 0.8, 0.8) end
   local facts = {}
   if c.ilvl then facts[#facts + 1] = "Item level " .. math.floor(c.ilvl) end
   local percent = ns.levelPercent(c, level) -- nil when what they shared is from another level
@@ -132,7 +212,7 @@ local function buildPin()
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(f.label, 1, 1, 1)
     local info = C_Map.GetMapInfo and C_Map.GetMapInfo(f.mapID)
-    for _, line in ipairs(ns.pinLines(f, info and info.name)) do
+    for _, line in ipairs(ns.pinLines(f, info and info.name, ns.pinDistance(f))) do
       GameTooltip:AddLine(line[1], line[2], line[3], line[4])
     end
     GameTooltip:Show()

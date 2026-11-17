@@ -244,7 +244,8 @@ local function readEvents()
       table.sort(list, function(x, y) return x.at > y.at end)
       list[ns.FRIEND_HIGHLIGHTS + 1] = nil
       recentHighlights[e.guid] = list
-    elseif type(e) == "table" and (e.kind == nil or e.kind == "level") and e.guid and type(e.level) == "number" and type(e.seconds) == "number" and e.seconds > 0 then
+    elseif type(e) == "table" and (e.kind == nil or e.kind == "level") and e.guid and type(e.level) == "number" and type(e.seconds) == "number" and e.seconds > 0
+      and not ns.inIncognito(e.at, true) then
       recentLevels[e.guid] = recentLevels[e.guid] or {}
       recentLevels[e.guid][e.level] = { level = e.level, seconds = e.seconds, at = e.at }
     end
@@ -353,12 +354,15 @@ local pinged = {}       -- [account] = true: PING went out
 local silent = {}       -- [account] = true: no answer to it in PING_WAIT
 local answeredPing = {} -- [account] = when we last said PONG
 
--- No answer counts only PING_WAIT after the PING really went: while anything still waits to go out
--- (combat, lockdown, a backlog), the wait starts over.
+-- No answer counts only PING_WAIT after the PING really went: while that PING still waits to go out
+-- (a boss fight, the chat lockdown), the wait starts over. Only its own: other traffic
+-- behind it (map, DATA) kept everyone on "Checking..." for minutes.
+local function pingQueued(account) return ns.comms.queued(account, "PING") end
+
 local function waitForAnswer(account, sentAlready)
   C_Timer.After(PING_WAIT, function()
     if heard[account] then return end
-    local queued = ns.comms.pending and ns.comms.pending() > 0
+    local queued = pingQueued(account)
     if queued or not sentAlready then return waitForAnswer(account, not queued) end
     silent[account] = true
     changed()
@@ -372,7 +376,7 @@ function ns.findOnlineFriends()
     local account = f.account
     if not pinged[account] and not heard[account] and ns.comms.send(account, "PING", "") then
       pinged[account] = true
-      waitForAnswer(account, not (ns.comms.pending and ns.comms.pending() > 0))
+      waitForAnswer(account, not pingQueued(account))
     end
   end
 end
@@ -523,8 +527,11 @@ function on.DATA(f, contact, body)
   local char = ns.decodeFriendChar(body)
   if not char then return end
   local had = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[f.tag]
-  ns.sayFriendMoments(f.tag, had and had.chars and had.chars[char.guid], char)
+  local old = had and had.chars and had.chars[char.guid]
   keep(f.tag, char)
+  -- After keeping it: a line that can't be worded (an odd field from another version) costs only the chat line.
+  local ok, err = pcall(ns.sayFriendMoments, f.tag, old, char)
+  if not ok then ns.lastCommsError = tostring(err) end
   noteArrival(f.tag, char)
   changed()
 end
@@ -933,6 +940,7 @@ local HELP = {
   "/wct friends unblock <BattleTag> lets someone you said Never to ask again.",
   "/wct friends name <BattleTag> <nickname> gives a friend a nickname (here and in the app), without one clears it.",
   "/wct friends chat on or off: friends' level-ups, boss kills, loot and other moments in your chat as they come in.",
+  "/wct friends versions lists which addon version each friend has.",
 }
 
 -- What set takes: a category or a rule, its key exact (IS_CHOICE) or typed in any case (CHOICE_BY_WORD).
@@ -970,6 +978,27 @@ local function listContacts()
       c.receive and "theirs kept" or "theirs not kept", count))
   end
   if not any then ns.say("No contacts yet. /wct friends ask <BattleTag> or /wct friends share <BattleTag>.") end
+end
+
+-- /wct friends versions: the addon version each friend last said hello with, older ones marked.
+local function listVersions()
+  local mine = ns.addonVersion()
+  ns.say("Your addon: " .. (mine ~= "" and mine or "unknown") .. ".")
+  local tags = {}
+  for tag, got in pairs(WoWCharacterTrackerDB.friends or {}) do
+    if got.version or got.protocol then tags[#tags + 1] = tag end
+  end
+  table.sort(tags, function(x, y) return label(x):lower() < label(y):lower() end)
+  for _, tag in ipairs(tags) do
+    local got = WoWCharacterTrackerDB.friends[tag]
+    local note = ""
+    if got.protocol then note = ", speaks another protocol"
+    elseif ns.isNewerVersion(mine, got.version) then note = ", older than yours"
+    elseif ns.isNewerVersion(got.version, mine) then note = ", newer than yours" end
+    ns.say(string.format("%s: %s%s%s.", label(tag), got.version or "unknown", note,
+      got.seen and (", heard " .. ns.ago(got.seen)) or ""))
+  end
+  if #tags == 0 then ns.say("No friend has said which version they have yet.") end
 end
 
 -- Says message and returns it, for the Friends tab.
@@ -1112,6 +1141,7 @@ function ns.friendsCommand(args)
   local cmd, rest = strtrim(args or ""):match("^(%S*)%s*(.-)$")
   cmd = (cmd or ""):lower()
   if cmd == "" then return listContacts() end
+  if cmd == "versions" then return listVersions() end
   if cmd == "on" or cmd == "off" then
     ns.editShare(function(s) s.enabled = cmd == "on" end)
     return ns.say("Sharing with friends is now " .. cmd .. ".")

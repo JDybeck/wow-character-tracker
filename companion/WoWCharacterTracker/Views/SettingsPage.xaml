@@ -153,6 +153,13 @@
               <CheckBox Style="{StaticResource Option}" ToolTip="Turn on the game's Advanced Combat Logging setting (System, Network)" IsChecked="{Binding AdvancedCombatLog}">
                 <TextBlock Style="{StaticResource OptionTitle}" Text="Advanced combat logging"/>
               </CheckBox>
+              <TextBlock Style="{StaticResource FactLabel}" Text="DISTANCES ON THE MAP" Margin="0,8,0,4"/>
+              <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8" Text="How far away a friend is when you hover them on the world map. Auto uses yards in the Americas and meters elsewhere."/>
+              <WrapPanel Margin="0,0,0,10">
+                <RadioButton Style="{StaticResource DetailTab}" Content="Auto" IsChecked="{Binding DistanceAuto}" GroupName="{Binding Name, StringFormat=distance-{0}}" Margin="0,0,6,6"/>
+                <RadioButton Style="{StaticResource DetailTab}" Content="Meters" IsChecked="{Binding DistanceMeters}" GroupName="{Binding Name, StringFormat=distance-{0}}" Margin="0,0,6,6"/>
+                <RadioButton Style="{StaticResource DetailTab}" Content="Yards" IsChecked="{Binding DistanceYards}" GroupName="{Binding Name, StringFormat=distance-{0}}" Margin="0,0,0,6"/>
+              </WrapPanel>
               <TextBlock Style="{StaticResource FactLabel}" Text="INSTANT POSTING PATTERN" Margin="0,8,0,4"/>
               <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8" Text="A small pattern the addon flashes for one frame per moment, so the app hears about it right away. Pick the corner that bothers you least."/>
               <WrapPanel Margin="0,0,0,10">

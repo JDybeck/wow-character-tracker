@@ -457,6 +457,43 @@ public class AddonLuaTests
         Assert.Equal("profession", recorded[0].Get("kind").String);
     }
 
+    // Forever's legacy achievements (flags and categories as in its Achievement tables): a first one is
+    // recorded once per name (each comes in two flag variants). Not the level ones (Classes), the
+    // profession ones (Tradeskills), hidden ones, ones that aren't legacy, already earned ones, or Retail's.
+    [Fact]
+    public void Legacy_achievements_are_recorded_once_and_only_the_wanted_ones()
+    {
+        var (script, ns, recorded) = ProfessionScript();
+        ns["addEvent"] = (Action<Table>)(e => { recorded.Add(e); script.DoString("WoWCharacterTrackerDB.events = WoWCharacterTrackerDB.events or {}"); script.Globals.Get("WoWCharacterTrackerDB").Table.Get("events").Table.Append(DynValue.NewTable(e)); });
+        script.DoString("""
+            achievements = {
+              [684] = { 'Conqueror of the Lair', 0x08020000, 15594 },     -- Raids
+              [64030] = { 'Conqueror of the Lair', 0x10020000, 15594 },   -- its second variant
+              [62045] = { 'Rank 14', 0x08020000, 15597 },                 -- PvP > Ranks
+              [100] = { 'Novice Warrior', 0x08020000, 15585 },            -- Classes > Warrior
+              [101] = { 'Journeyman Alchemist', 0x08020000, 15587 },      -- Tradeskills > Alchemy
+              [64063] = { 'Hidden: Rank 14', 0x08b20404, 15597 },         -- a hidden tracker
+              [102] = { 'Explore Dun Morogh', 0, 15596 },                 -- not legacy
+            }
+            parents = { [15585] = 15568, [15587] = 15586, [15597] = 15595 }
+            function GetAchievementInfo(id) local a = achievements[id]; return id, a[1], 0, true, 1, 1, 26, '', a[2] end
+            function GetAchievementCategory(id) return achievements[id][3] end
+            function GetCategoryInfo(id) return 'x', parents[id] or -1 end
+            """);
+        foreach (var id in new[] { 684, 64030, 62045, 100, 101, 64063, 102 })
+            script.Call(ns.Get("onAchievement"), id, false);
+        script.Call(ns.Get("onAchievement"), 62045, true); // already earned on the account
+
+        Assert.Equal(["Conqueror of the Lair:684", "Rank 14:62045"],
+            recorded.Select(e => $"{e.Get("achievement").String}:{e.Get("achievementId").Number}"));
+        Assert.Equal("achievement", recorded[0].Get("kind").String);
+
+        recorded.Clear();
+        ns["IS_RETAIL"] = true;
+        script.Call(ns.Get("onAchievement"), 62031, false);
+        Assert.Empty(recorded);
+    }
+
     // Classic-style clients: skill and max from the skill list (GetSkillLineInfo's 4th and 7th values).
     // The saved text has both, the max left out when the game gives none.
     [Fact]

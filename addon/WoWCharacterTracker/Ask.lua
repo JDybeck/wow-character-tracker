@@ -23,7 +23,7 @@ local box
 
 -- The kinds offered as themselves (wins only: a lost duel or battleground is never offered).
 local ASKED_AS_KIND = { mount = true, keyrun = true, death = true, profession = true, mplus = true, pvp = true,
-  duel = true, makgora = true, bg = true }
+  duel = true, makgora = true, bg = true, achievement = true }
 
 -- The `ask` switch that covers this moment, or nil when it's never offered.
 local function askKind(e)
@@ -52,7 +52,7 @@ local function describe(e)
   if e.kind == "boss" then
     return string.format("Killed %s%s", e.boss, (e.instance and e.instance ~= "") and (" in " .. e.instance) or "")
   end
-  if e.kind == "loot" then return "Looted " .. ns.itemLink(e.itemId, e.item) end
+  if e.kind == "loot" then return "Looted " .. ns.itemLink(e.itemId, e.item, e.quality) end
   return (ns.momentLine and ns.momentLine(e)) or e.kind -- the same words as the chat line (Announce.lua)
 end
 

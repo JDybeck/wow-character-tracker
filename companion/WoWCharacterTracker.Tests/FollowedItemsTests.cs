@@ -287,7 +287,8 @@ public class FollowedItemsTests
         Assert.Equal("Unknown", Assert.Single(recorded).Get("item").String);
     }
 
-    // Guild and group chat: the followed line replaces the usual one, and only when picked.
+    // Guild and group chat: the followed line replaces the usual one, and only when picked. An item the
+    // game doesn't have goes as its name: only the game's own links are safe in a chat message.
     [Theory]
     [InlineData("followed = true", 2589, 1, "Got [Linen Cloth] from my followed items!")]
     [InlineData("followed = true, loot = true", 2589, 4, "Got [Linen Cloth] from my followed items!")]
@@ -312,6 +313,18 @@ public class FollowedItemsTests
         script.Call(ns.Get("announce"), script.DoString($"return {{ kind = 'loot', item = 'Linen Cloth', itemId = {itemId}, quality = {quality} }}"));
         var sent = script.Globals.Get("sent").Table.Values.Select(v => v.String).ToList();
         Assert.Equal(said is null ? [] : [said], sent);
+    }
+
+    // A friend's loot in your own chat (not sent anywhere) gets a link built from its id, so it's clickable.
+    [Fact]
+    public void A_moment_line_builds_a_link_the_game_does_not_have()
+    {
+        var script = new Script();
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Announce.lua" })
+            script.Call(script.LoadString(SharedRulesTests.AddonFile(file)), "WoWCharacterTracker", ns);
+        var line = script.Call(ns.Get("momentLine"), script.DoString("return { kind = 'loot', item = 'Linen Cloth', itemId = 2589, quality = 4 }")).String;
+        Assert.Equal("Looted |cffffffff|Hitem:2589::::::::|h[Linen Cloth]|h|r!", line);
     }
 
     // --- the overlay ---

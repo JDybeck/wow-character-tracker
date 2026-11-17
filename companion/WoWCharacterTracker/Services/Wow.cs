@@ -186,15 +186,15 @@ static class Wow
             .Where(n => n is not null && n != "SavedVariables")!;
     }
 
-    // Is this flavor's game running? Each flavor folder has its own exe (Wow.exe, WowB.exe, WowClassic.exe...).
+    // Is this flavor's game running? Its exe running from this folder: Retail and Forever both have a Wow.exe.
     public static bool IsRunning(string flavorDir)
     {
         try
         {
             return Directory.GetFiles(flavorDir, "Wow*.exe")
                 .Select(Path.GetFileNameWithoutExtension)
-                .Any(n => GameProcesses.IsRunning(n!));
+                .Any(n => GameProcesses.IsRunningFrom(n!, flavorDir));
         }
-        catch (IOException) { return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return false; }
     }
 }

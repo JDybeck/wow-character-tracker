@@ -7,21 +7,26 @@ local ADDON, ns = ...
 -- the game's own instance name (GetInstanceInfo) is used when there is one.
 --
 -- KEEP THIS UP TO DATE (check on every release PR, see .github/pull_request_template.md):
--- Forever adds dungeons and raids as it goes. The game keeps a "<Boss> Kills (<Dungeon>)"
--- statistic for each final boss, which Wowhead lists, so new ones show up there:
--- https://www.wowhead.com/forever/guide/dungeons-overview-locations-details
--- https://www.wowhead.com/forever/guide/raids-overview-hub-dates-locations
--- Still unknown (checked 2026-11-04, no kill statistic on Wowhead yet): The Drowned City,
--- Krol'dok Stronghold, Blackmaw Hold. Wowhead's Forever kill statistics are around ids 63570-63593.
+-- Forever adds dungeons and raids as it goes. The names must be the game's own encounter names
+-- (ENCOUNTER_END reports those, letter case included): wago.tools' DungeonEncounter table for
+-- product wowf, with hotfixes on so the new maps have names. A dungeon's last encounter by
+-- OrderIndex is its end boss. The game also keeps a "<Boss> Kills (<Dungeon>)" statistic for most
+-- (Achievement table, ids around 63570-63593), which agrees where there is one.
+-- Checked 2026-11-17 (build 1.60.1.70959): every dungeon has its end boss here. Krol'dok Stronghold
+-- and Blackmaw Hold have no kill statistic yet, so theirs come from the encounter order only, not
+-- yet seen in game. Hyjal Summit and Barrow Deeps have statistics but no encounters yet.
 -- Later, if players ask: other languages. Names only match an English client; the encounter id
 -- from ENCOUNTER_END would work in every language.
 local END_BOSSES = {
   -- Forever's new dungeons (final bosses as the game's kill statistics name them).
   ["Durgen Dirgehammer"] = "The Hall of Thanes",
   ["Rath'mael"] = "Ruins of Lordaeron",
-  ["Relic Guardian"] = "Excavation Site: Wetlands", -- from the dungeon guide, no kill statistic yet
+  ["Relic Guardian"] = "Excavation Site: Wetlands", -- no kill statistic yet
   ["Shade of the Archmage"] = "City of Dalaran",
+  ["Min'loth the Serpent"] = "The Drowned City", -- no kill statistic yet
+  ["Overseer Mugg"] = "Krol'dok Stronghold", -- no kill statistic yet
   ["Blazeroar"] = "Alcaz Prison",
+  ["Unbound Spirit"] = "Blackmaw Hold", -- no kill statistic yet
   ["Nanaya"] = "Shaper's Terrace",
   -- Forever's raids (from their kill statistics, in before the raids open).
   ["The Wild King"] = "Hyjal Summit",
@@ -58,7 +63,7 @@ local END_BOSSES = {
   ["Nefarian"] = "Blackwing Lair",
   ["Hakkar"] = "Zul'Gurub",
   ["Ossirian the Unscarred"] = "Ruins of Ahn'Qiraj",
-  ["C'Thun"] = "Temple of Ahn'Qiraj",
+  ["C'thun"] = "Temple of Ahn'Qiraj", -- the game's spelling, lowercase t
   ["Kel'Thuzad"] = "Naxxramas",
 }
 
@@ -590,6 +595,43 @@ function ns.checkProfessions()
       end
     end
     if p.rank > 0 then known[p.name] = p.rank end
+  end
+end
+
+-- Forever's legacy achievements (raids, dungeons, PvP ranks and reputations, adventures), by
+-- ACHIEVEMENT_EARNED: only a first time (alreadyEarned false). They have the account flags 0x08020000
+-- or 0x10020000 (wago.tools Achievement, build 1.60.1.70959). Hidden ones (0x4, PvP rank trackers)
+-- are left out, so are the class level ones (levels post already) and the profession ones (the
+-- profession milestones post those), by their top category, which works in every language. Each
+-- comes twice (two flag variants), so it's once per character and name. Not on Retail.
+local SKIPPED_ACHIEVEMENT_CATEGORIES = { [15568] = true, [15586] = true } -- Classes, Tradeskills
+
+local function hasFlag(flags, flag) return math.floor(flags / flag) % 2 == 1 end
+
+local function topCategory(id)
+  if not (GetAchievementCategory and GetCategoryInfo) then return nil end
+  local category = GetAchievementCategory(id)
+  for _ = 1, 5 do
+    local _, parent = GetCategoryInfo(category)
+    if not parent or parent <= 0 then break end
+    category = parent
+  end
+  return category
+end
+
+function ns.isLegacyAchievement(id, flags)
+  if type(flags) ~= "number" or hasFlag(flags, 0x4) then return false end
+  if not (hasFlag(flags, 0x8000000) or hasFlag(flags, 0x10000000)) then return false end
+  return not SKIPPED_ACHIEVEMENT_CATEGORIES[topCategory(id) or 0]
+end
+
+function ns.onAchievement(id, alreadyEarned)
+  id, alreadyEarned = ns.plain(id), ns.plain(alreadyEarned)
+  if ns.IS_RETAIL or alreadyEarned == true or type(id) ~= "number" or not GetAchievementInfo then return end
+  local ok, _, name, _, _, _, _, _, _, flags = pcall(GetAchievementInfo, id)
+  if not ok or type(name) ~= "string" or name == "" or not ns.isLegacyAchievement(id, flags) then return end
+  if ns.recordOnce("achievement", { achievement = name, achievementId = id }, "achievement:" .. name) then
+    ns.say(string.format("Legacy achievement: %s.", name))
   end
 end
 

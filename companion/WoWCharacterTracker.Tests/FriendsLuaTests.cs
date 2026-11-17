@@ -556,6 +556,40 @@ public class FriendsLuaTests
         Assert.Empty(b.Said());
     }
 
+    // A friend's item is rarely in our item cache: the chat line still gets a clickable link.
+    [Fact]
+    public void A_friends_loot_in_chat_is_a_link_without_the_item_cached()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives), files: [.. AllFiles, "Announce.lua"]);
+        b.Lua("""
+            clock = 100000
+            ITEM_QUALITY_COLORS = { [3] = { hex = '|cff0070dd' } }
+            ns.sayFriendMoments('Zeb#2222', { char = 'Kitty' }, { char = 'Kitty', highlights = 'loot~99900~53~Wildheart Belt~16716~3' })
+            """);
+        Assert.Equal(["Kitty (Zeb): Looted |cff0070dd|Hitem:16716::::::::|h[Wildheart Belt]|h|r!"], b.Said());
+    }
+
+    [Fact]
+    public void Friends_versions_lists_each_friends_addon_against_yours()
+    {
+        var b = new Client(B, BFriends, BDb(BReceives)); // GetAddOnMetadata says 0.33.0
+        b.Lua("""
+            WoWCharacterTrackerDB.friends = {
+              ['Old#1'] = { chars = {}, version = '0.32.9' },
+              ['New#2'] = { chars = {}, version = '0.40.0' },
+              ['Same#3'] = { chars = {}, version = '0.33.0' },
+              ['Quiet#4'] = { chars = {} },
+            }
+            """);
+        b.Call("friendsCommand", "versions");
+        Assert.Equal([
+            "Your addon: 0.33.0.",
+            "New#2: 0.40.0, newer than yours.",
+            "Old#1: 0.32.9, older than yours.",
+            "Same#3: 0.33.0.",
+        ], b.Said());
+    }
+
     static int Count(Client c, string kind) => c.Sent().Count(m => m.Get("text").String.Contains($":{kind}:"));
 
     // Map position (off) and the other faction rule (off) work like the categories: general, or per friend.
@@ -1522,7 +1556,7 @@ public class FriendsLuaTests
         a.Run(3);
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
         a.Run(2);
-        Assert.False(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon == false").Boolean);
         Assert.Equal(1, Changes(a));
         a.Receive("1:HI:1:1:1:0.33.0", BAccount); // any message later says they do
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
@@ -1548,21 +1582,50 @@ public class FriendsLuaTests
         Assert.Equal(2, Count(a, "PING")); // nobody twice
     }
 
-    // A PING still waiting (combat, a full queue) isn't "no answer": the 10 s start once it went out.
+    // A PING still waiting (the chat lockdown) isn't "no answer": the wait starts once it went out.
     [Fact]
-    public void A_ping_waiting_in_combat_is_not_no_addon()
+    public void A_ping_waiting_in_the_lockdown_is_not_no_addon()
     {
         var a = new Client(A, AFriends, ADb("nil"));
-        a.Lua("inCombat = true");
+        a.Lua("lockdown = true");
         a.Call("findOnlineFriends");
         a.Run(15);
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
-        a.Lua("inCombat = false");
+        a.Lua("lockdown = false");
         a.Run(6);
         Assert.Equal(1, Count(a, "PING"));
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil()); // it only just went
         a.Run(20);
-        Assert.False(a.Lua("return ns.onlineFriends()[1].hasAddon").Boolean);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon == false").Boolean);
+    }
+
+    // PING and PONG are tiny: they go in combat and pass a backlog of characters, so the answer
+    // comes within the asker's wait.
+    [Fact]
+    public void Ping_and_pong_pass_a_backlog_and_go_in_combat()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Lua("inCombat = true");
+        a.Call("findOnlineFriends");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "PING"));
+        a.Lua("inCombat = false");
+        a.Lua("ns.comms.send(99, 'DATA', string.rep('x', 240 * 50))");
+        a.Lua("ns.comms.send(2, 'PONG', '0.42.0')");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "PONG"));
+    }
+
+    // Seen in game: map and DATA traffic kept the queue busy and every friend stayed on "Checking...".
+    [Fact]
+    public void Other_traffic_behind_a_sent_ping_does_not_hold_up_the_answer()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Call("findOnlineFriends");
+        a.Lua("ns.comms.send(99, 'DATA', string.rep('x', 240 * 50))"); // about 12 s of parts
+        a.Run(5);
+        Assert.True(a.Lua("return ns.comms.pending()").Number > 0);
+        Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon == false").Boolean); // not nil: still checking
     }
 
     [Fact]

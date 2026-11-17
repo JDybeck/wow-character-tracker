@@ -22,6 +22,7 @@ static class EventKinds
         new("makgora", "Mak'gora", Shot: true, Highlight: true, NoRatings: true),
         new("bg", "Battlegrounds", Shot: true, Highlight: true),
         new("profession", "Professions", Shot: true, Highlight: true),
+        new("achievement", "Legacy achievements", Shot: true, Highlight: true, NoRatings: true), // Forever's
         new("mplus", "Mythic+", Highlight: true, RatingsOnly: true),
         new("pvp", "PvP rating", Highlight: true, RatingsOnly: true),
     ];

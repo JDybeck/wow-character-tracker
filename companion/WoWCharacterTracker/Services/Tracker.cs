@@ -200,6 +200,9 @@ sealed class Tracker : IDisposable
                 sent = await PostPendingAsync(pending, data.Events, settings());
             }
 
+            // Shot times of live events handled without a post (Timing removes the posted ones).
+            foreach (var id in sentAt.Keys.Where(posted.Contains).ToList()) sentAt.TryRemove(id, out _);
+
             if (posted.Count != handled || firstRun && !File.Exists(statePath)) // only ever grows
                 Files.WriteAtomic(statePath, JsonSerializer.Serialize(posted));
             if (posted.Count != handled || sentIds.Count == 0) sentIds = SentIdsOf(posted);
@@ -281,33 +284,45 @@ sealed class Tracker : IDisposable
         }
 
         // Each webhook is tracked on its own ("<id>@<webhook>"), so one that fails gets the post
-        // later without the others getting it twice.
+        // later without the others getting it twice. A failed webhook gets nothing more this sync (its
+        // posts stay in order for the next one), while the others go on: a deleted webhook mustn't
+        // hold back the ones that work.
         var sent = 0;
+        var failed = new HashSet<string>();
         foreach (var e in toPost)
         {
             if (disposed) break; // the tab was turned off mid-batch: the rest waits for it to come back
             var forThis = webhooksFor(e);
-            var shot = forThis.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
+            var due = forThis.Where(w => !posted!.Contains($"{e.Id}@{w.Id}")).ToList();
+            // The app shows it as posted once any webhook has it, not only when all have.
+            var shown = due.Count < forThis.Count;
+            var waiting = due.Where(w => failed.Contains(w.Id)).ToList();
+            due = [.. due.Except(waiting)];
+            var shot = due.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
             // The game only reads its screenshot settings on /reload or login, so a box ticked
             // since then posts without a picture. Say so, instead of leaving it a mystery.
-            if (forThis.Count > 0 && !e.Shot && s.PostsShot(e.Kind))
+            if (due.Count > 0 && !e.Shot && s.PostsShot(e.Kind))
                 Log.Warn($"{Tag}No screenshot for {Describe(e)}: the game didn't take one. Screenshot settings reach the game on your next /reload.");
-            var allSent = true;
-            foreach (var w in forThis)
+            var allSent = waiting.Count == 0;
+            foreach (var w in due)
             {
-                var key = $"{e.Id}@{w.Id}";
-                if (posted!.Contains(key)) continue;
                 if (await posterFor(w).PostAsync(s.PostsAsFollowed(e) ? e with { Followed = true } : e.Moment, screenshot: shot))
                 {
-                    posted.Add(key);
+                    posted!.Add($"{e.Id}@{w.Id}");
                     sent++;
                     Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e.Moment)}.{Timing(e)}");
+                    if (!shown) Posted?.Invoke(e.Moment);
+                    shown = true;
                 }
-                else allSent = false;
+                else
+                {
+                    allSent = false;
+                    failed.Add(w.Id);
+                }
             }
-            if (!allSent) break; // keep order, retry the rest on the next sync
+            if (!allSent) continue; // tried again on the next sync, for the webhooks that didn't get it
             posted!.Add(e.Id);
-            Posted?.Invoke(e.Moment);
+            if (!shown) Posted?.Invoke(e.Moment); // no webhook takes it: handled all the same
         }
         return sent;
     }
@@ -432,6 +447,9 @@ sealed class Tracker : IDisposable
                 Log.Warn($"{Tag}Couldn't read the data for account {account} ({ex.Message}). Will try again on the next change.");
             }
         }
+        // A live event the saved file has now isn't needed any more: kept, it would come back after a
+        // Data page cleanup removed it from the file.
+        foreach (var id in live.Keys.Where(events.ContainsKey).ToList()) live.TryRemove(id, out _);
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(Snapshot.Of));

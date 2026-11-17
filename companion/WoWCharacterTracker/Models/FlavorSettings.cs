@@ -69,6 +69,23 @@ class FlavorSettings
     public static readonly int[] ClassicProfessionSteps = [75, 150, 225, 300];
     public static readonly int[] RetailProfessionSteps = [100];
 
+    // Forever's legacy achievements (raids, dungeons, PvP, adventures; not the level or profession ones).
+    // Configs from before 0.42.1 get the profession row's choices once (Config.Load, HasAchievements),
+    // which has the same defaults, so a Quiet, Normal or Everything config stays that preset.
+    public bool PostAchievements { get; set; } = true;
+    public bool HasAchievements { get; set; }
+
+    public void TakeAchievementsFromProfessions()
+    {
+        PostAchievements = PostProfessions;
+        if (Shoots("profession")) SetShot("achievement", true);
+        if (PostScreenshot.TryGetValue("profession", out var attach)) PostScreenshot = new(PostScreenshot) { ["achievement"] = attach };
+        if (AnnounceKinds.Contains("profession") && !AnnounceKinds.Contains("achievement")) AnnounceKinds = [.. AnnounceKinds, "achievement"];
+        if (AnnouncePartyKinds?.Contains("profession") == true && !AnnouncePartyKinds.Contains("achievement")) AnnouncePartyKinds = [.. AnnouncePartyKinds, "achievement"];
+        if (AskKinds?.Contains("profession") == true && !AskKinds.Contains("achievement")) AskKinds = [.. AskKinds, "achievement"];
+        HasAchievements = true;
+    }
+
     // Duels, hardcore Mak'gora, battleground wins, and retail rating milestones (posted when a step is passed).
     public bool PostDuels { get; set; }
     public bool PostMakgora { get; set; } = true;
@@ -145,7 +162,7 @@ class FlavorSettings
     public static bool GuildChatOn => false;
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
     public List<string>? AnnouncePartyKinds { get; set; }
-    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "mplus", "pvp"];
+    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "achievement", "mplus", "pvp"];
 
     // Highlights no setting posts that the addon offers to post (Ask.lua): boss, rare, epic. Null until
     // chosen; Config.Load fills it from the game's defaults.
@@ -158,6 +175,10 @@ class FlavorSettings
     public bool GridLabel { get; set; } = true;
     public static readonly string[] Corners = ["TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"];
     public static string CornerOrDefault(string? corner) => Corners.Contains(corner) ? corner! : "TOPLEFT";
+    // Distances to friends on the addon's world map (MapPins.lua): auto is yards in the Americas region, meters elsewhere.
+    public string DistanceUnit { get; set; } = "auto";
+    public static readonly string[] DistanceUnits = ["auto", "meters", "yards"];
+    public static string DistanceUnitOrDefault(string? unit) => DistanceUnits.Contains(unit) ? unit! : "auto";
     public bool? AdvancedCombatLog { get; set; } // the game's Advanced Combat Logging; null = leave the player's setting alone
 
     // When the In game settings last changed in the app, or came from the game. They can be changed in
@@ -183,6 +204,7 @@ class FlavorSettings
         AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
         Ignored = game.Ignored is { } ignored ? [.. ignored] : Ignored;
+        DistanceUnit = game.DistanceUnit is { } unit ? DistanceUnitOrDefault(unit) : DistanceUnit;
         if (game.Filters is { } f)
         {
             static int Level(int? typed, int now) => typed is int n ? Math.Clamp(n, 1, 100) : now;
@@ -239,7 +261,7 @@ class FlavorSettings
         (FirstBossKillOnly, PostRuns) = (d.FirstBossKillOnly, d.PostRuns);
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
-        (PostProfessions, ProfessionSteps) = (d.PostProfessions, [.. d.ProfessionSteps]);
+        (PostProfessions, ProfessionSteps, PostAchievements) = (d.PostProfessions, [.. d.ProfessionSteps], d.PostAchievements);
         (MPlusSteps, PvpSteps) = ([.. d.MPlusSteps], [.. d.PvpSteps]);
         Screenshot = new(d.Screenshot);
         PostScreenshot = new(d.PostScreenshot);
@@ -249,10 +271,18 @@ class FlavorSettings
     public bool PostsShot(string kind) => Shoots(kind) && PostScreenshot.GetValueOrDefault(kind);
 
     // The Sharing table's screenshot box: taken in game, and attached unless Advanced said not to.
+    // Screenshot and PostScreenshot are replaced, never changed in place: the tracker's thread reads them.
     public void SetShot(string kind, bool on)
     {
-        Screenshot[kind] = on;
-        if (on && !PostScreenshot.ContainsKey(kind)) PostScreenshot[kind] = true;
+        Screenshot = new(Screenshot) { [kind] = on };
+        if (on && !PostScreenshot.ContainsKey(kind)) PostScreenshot = new(PostScreenshot) { [kind] = true };
+    }
+
+    public void SetAttachShots(bool on)
+    {
+        var attach = new Dictionary<string, bool>(PostScreenshot);
+        foreach (var k in EventKinds.ShotKinds) attach[k] = on;
+        PostScreenshot = attach;
     }
 
     public bool LevelWanted(int level)
@@ -305,6 +335,7 @@ class FlavorSettings
         "makgora" => PostMakgora && !e.Lost,
         "bg" => PostBattlegrounds && !e.Lost,
         "profession" => PostProfessions,
+        "achievement" => PostAchievements,
         "mplus" => PostMPlus,
         "pvp" => PostPvp,
         _ => false,

@@ -68,9 +68,9 @@ public class FilesAndProcessesTests
         try
         {
             File.WriteAllText(file, """{ "StreamOptions": { "AlertKinds": ["level"] } }""");
-            Assert.Equal(["level", "bg", "keyrun", "profession", "dungeon", "followed"], Config.Load().StreamOptions.AlertKinds);
+            Assert.Equal(["level", "bg", "keyrun", "profession", "achievement", "dungeon", "followed"], Config.Load().StreamOptions.AlertKinds);
 
-            File.WriteAllText(file, """{ "StreamOptions": { "AlertKinds": ["level"], "HasBattlegrounds": true, "HasKeyRuns": true, "HasProfessions": true, "HasDungeonAlerts": true, "HasFollowed": true } }""");
+            File.WriteAllText(file, """{ "StreamOptions": { "AlertKinds": ["level"], "HasBattlegrounds": true, "HasKeyRuns": true, "HasProfessions": true, "HasAchievements": true, "HasDungeonAlerts": true, "HasFollowed": true } }""");
             Assert.Equal(["level"], Config.Load().StreamOptions.AlertKinds);
         }
         finally
@@ -112,5 +112,17 @@ public class FilesAndProcessesTests
         Assert.True(GameProcesses.IsRunning(me.ProcessName));
         Assert.True(GameProcesses.IsRunning(me.ProcessName.ToUpperInvariant()));
         Assert.False(GameProcesses.IsRunning("NoSuchProcess-" + Guid.NewGuid()));
+    }
+
+    // Retail and Forever both run Wow.exe: only the one from the asked folder counts.
+    [Fact]
+    public void GameProcesses_tells_the_same_exe_name_apart_by_folder()
+    {
+        using var me = System.Diagnostics.Process.GetCurrentProcess();
+        var folder = Path.GetDirectoryName(me.MainModule!.FileName)!;
+        Assert.True(GameProcesses.IsRunningFrom(me.ProcessName, folder));
+        Assert.True(GameProcesses.IsRunningFrom(me.ProcessName, folder + Path.DirectorySeparatorChar));
+        Assert.False(GameProcesses.IsRunningFrom(me.ProcessName, Path.Combine(Path.GetTempPath(), "_forever_")));
+        Assert.False(GameProcesses.IsRunningFrom("NoSuchProcess-" + Guid.NewGuid(), folder));
     }
 }

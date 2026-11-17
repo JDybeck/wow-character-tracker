@@ -48,6 +48,7 @@ static class SampleEvents
             "makgora" => e with { Kind = "makgora", Opponent = "Grimtusk", OpponentInfo = $"{Math.Max(e.Level, 2)}~WARRIOR~Warrior~Orc", Hardcore = true },
             "bg" => e with { Kind = "bg", Instance = "Warsong Gulch" },
             "profession" => e with { Kind = "profession", Profession = "Mining", Step = 150, Rating = 151 },
+            "achievement" => e with { Kind = "achievement", Achievement = "Conqueror of the Lair", AchievementId = 684 },
             "mplus" => e with { Kind = "mplus", Step = 2000, Rating = 2034 },
             "pvp" => e with { Kind = "pvp", Step = 1800, Rating = 1812, Bracket = "3v3" },
             "test" => e with { Kind = "test" },

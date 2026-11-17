@@ -40,7 +40,8 @@ static class Updater
             using var doc = JsonDocument.Parse(await Web.GetStringAsync(url, TimeSpan.FromSeconds(30)));
             var root = doc.RootElement;
             var tag = root.GetProperty("tag_name").GetString() ?? "";
-            if (!Version.TryParse(tag.TrimStart('v'), out var version)) return null;
+            if (!Version.TryParse(tag.TrimStart('v'), out var tagged)) return null;
+            var version = new Version(tagged.Major, tagged.Minor, Math.Max(0, tagged.Build)); // always x.y.z, like Current
             var download = root.GetProperty("assets").EnumerateArray()
                 .Where(a => a.GetProperty("name").GetString() == AssetName)
                 .Select(a => a.GetProperty("browser_download_url").GetString())

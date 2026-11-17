@@ -64,6 +64,7 @@ local HIGHLIGHT_FIELDS = {
   mplus = { "step", "rating" },
   pvp = { "step", "bracket", "rating" },
   death = { "killer", "played", "gold", "zone" },
+  achievement = { "achievement", "achievementId" },
 }
 local FIELD_CATEGORY = { gold = "gold", zone = "location" }
 ns.FRIEND_HIGHLIGHTS = MAX_HIGHLIGHTS

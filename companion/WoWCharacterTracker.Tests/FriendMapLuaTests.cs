@@ -449,17 +449,19 @@ public class FriendMapLuaTests
         Assert.Null(Layer(b));
     }
 
-    // Both on a known layer: same server = same layer. Another continent's layer can't be compared.
+    // Same server = same layer, both numbers shown. Another continent's layer can't be compared;
+    // ours not known yet (0) still shows theirs.
     [Theory]
-    [InlineData(6843, 0, 6843, 0, false, "Same layer as you")]
-    [InlineData(6843, 0, 7001, 0, true, "On another layer")]
+    [InlineData(6843, 0, 6843, 0, false, "Same layer as you: 6843")]
+    [InlineData(6843, 0, 7001, 0, true, "On another layer: 7001 (you: 6843)")]
     [InlineData(6843, 0, 6843, 1, false, null)]
+    [InlineData(0, 0, 7001, 0, false, "Layer 7001")]
     public void Friends_layers_are_compared_on_the_pin(int mine, int myMap, int theirs, int theirMap, bool other, string? note)
     {
         var (a, b) = Pair();
         b.Lua("ns.IS_RETAIL = false; function GetRealmName() return 'CAMWOW EU5 Realm 4 PvP' end; friends[1].realm = 'CAMWOWEU5Realm6PvP'");
         OnLayer(a, theirs, theirMap);
-        OnLayer(b, mine, myMap);
+        if (mine != 0) OnLayer(b, mine, myMap);
         b.Call("setMapOpen", true);
         Pass(a, b, 3);
         var pin = Pin(b)!;
@@ -478,13 +480,13 @@ public class FriendMapLuaTests
         Assert.True(Pin(b)!.Get("realmNote").IsNil()); // A's layer not known yet
         OnLayer(a, 6843);
         Pass(a, b, 3);
-        Assert.Equal("Same layer as you", Pin(b)!.Get("realmNote").String);
+        Assert.Equal("Same layer as you: 6843", Pin(b)!.Get("realmNote").String);
         a.Lua("sent = {}");
         Pass(a, b, 10);
         Assert.DoesNotContain(a.Sent(), m => m.Get("text").String.Contains(":LAYER:"));
         a.Lua($"see('{Creature(7001, 20)}'); see('{Creature(7001, 21)}')");
         Pass(a, b, 3);
-        Assert.Equal("On another layer", Pin(b)!.Get("realmNote").String);
+        Assert.Equal("On another layer: 7001 (you: 6843)", Pin(b)!.Get("realmNote").String);
         a.Call("forgetLayer"); // a loading screen: not known any more
         Pass(a, b, 3);
         Assert.True(Pin(b)!.Get("realmNote").IsNil());
