@@ -291,8 +291,6 @@ Level times: the addon stores your total played at the start of each level, and 
 
 Not built yet, roughly in order:
 
-- **Forever character pictures**: Retail characters already show their real render; Forever will once it has an armory.
-- **Forever talent link with your build**: the Wowhead link opens the right class, but doesn't fill in your points yet.
 - **Dual talent specs on Forever**: once they're live, track both builds per character (talents, Wowhead links and posts for each).
 - **Per-character posting rules**, on top of each game's Sharing.
 - **Warband bank** (Retail), maybe through Baganator's saved data.
