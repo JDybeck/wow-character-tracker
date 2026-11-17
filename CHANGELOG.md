@@ -8,6 +8,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 ### New
 
+- **Legacy achievements (Forever).** The first time your account earns a legacy achievement, like Conqueror of the Lair, Master Spelunker, a PvP rank or Master of Warsong Gulch, it's a moment like any other: a Discord post linked to Wowhead, a screenshot, a group chat line, Ask first, a stream alert and a highlight, picked on the Sharing table's new **Legacy achievements** row. The class level ones and the profession ones aren't included, since level-ups and profession milestones post those. The row starts with your profession milestones' choices, so your preset stays as it was.
 - **Friends' addon versions.** `/wct friends versions` lists which addon version each friend has, and whether it's older or newer than yours.
 - **The rest of Forever's dungeons count as boss kills.** Killing the last boss of The Drowned City (Min'loth the Serpent), Krol'dok Stronghold (Overseer Mugg) or Blackmaw Hold (Unbound Spirit) is now posted like any other end boss.
 - **Layer numbers on the map (Forever).** A friend's map pin says which layer they're on, and yours next to it: "Same layer as you: 6843" or "On another layer: 7001 (you: 6843)".

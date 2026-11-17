@@ -271,6 +271,12 @@ class Config
                 s.AnnouncePartyKinds = [.. s.AnnounceKinds];
                 changed = true;
             }
+            // Legacy achievements came in 0.42.1: they start like the profession row.
+            if (!s.HasAchievements)
+            {
+                s.TakeAchievementsFromProfessions();
+                changed = true;
+            }
         }
 
         var stream = config.StreamOptions;
@@ -293,6 +299,13 @@ class Config
             if (!stream.HighlightKinds.Contains("profession")) stream.HighlightKinds.Add("profession");
             if (!stream.AlertKinds.Contains("profession")) stream.AlertKinds.Add("profession");
             stream.HasProfessions = true;
+            changed = true;
+        }
+        if (!stream.HasAchievements)
+        {
+            if (!stream.HighlightKinds.Contains("achievement")) stream.HighlightKinds.Add("achievement");
+            if (!stream.AlertKinds.Contains("achievement")) stream.AlertKinds.Add("achievement");
+            stream.HasAchievements = true;
             changed = true;
         }
         if (!stream.HasDungeonAlerts)

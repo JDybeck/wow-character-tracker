@@ -67,11 +67,35 @@ public class MomentsTests
     [Fact]
     public void Every_announce_and_ask_kind_has_a_row()
     {
-        string[] announced = ["level", "maxlevel", "boss", "keyrun", "loot", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "mplus", "pvp", "death"];
+        string[] announced = ["level", "maxlevel", "boss", "keyrun", "loot", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "mplus", "pvp", "death"];
         Assert.Equal(announced.Order(), Moments.All.Select(m => m.Announce).OfType<string>().Order());
         // The defaults (boss, rare, epic) are among the moments that can be asked about.
         Assert.Subset(Moments.All.Select(m => m.Ask).OfType<string>().ToHashSet(), FlavorSettings.AllAskKinds.ToHashSet());
         Assert.Equal(["followed"], Moments.All.Where(m => m.Ask is null).Select(m => m.Key).Where(k => k != "run"));
+    }
+
+    // A config from before legacy achievements, on any preset, is still that preset once the new row
+    // takes the profession row's choices (Config.Load).
+    [Theory]
+    [InlineData(SharingPresets.Quiet)]
+    [InlineData(SharingPresets.Normal)]
+    [InlineData(SharingPresets.Everything)]
+    public void Old_configs_keep_their_preset_when_legacy_achievements_come(string preset)
+    {
+        var s = new FlavorSettings();
+        SharingPresets.Apply(s, Flavors.Forever, preset);
+        // As an older app saved it: nothing about achievements, the post switch at its default.
+        s.PostAchievements = true;
+        s.Screenshot.Remove("achievement");
+        s.PostScreenshot.Remove("achievement");
+        s.AnnounceKinds.Remove("achievement");
+        s.AnnouncePartyKinds?.Remove("achievement");
+        s.AskKinds?.Remove("achievement");
+
+        s.TakeAchievementsFromProfessions();
+
+        Assert.Equal(preset, SharingPresets.Detect(s, Flavors.Forever));
+        Assert.True(s.HasAchievements);
     }
 
     [Fact]

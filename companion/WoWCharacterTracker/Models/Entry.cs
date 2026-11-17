@@ -72,6 +72,8 @@ record Entry
     public int Step { get; init; }               // mplus / pvp / profession: the milestone passed
     public string Bracket { get; init; } = "";  // pvp: "3v3", "Solo Shuffle"...
     public string Profession { get; init; } = ""; // profession: "Mining" (from 0.29.0)
+    public string Achievement { get; init; } = "";  // achievement (Forever's legacy ones): its name (from 0.42.1)
+    public int AchievementId { get; init; }
     public bool Boe { get; init; }               // loot: binds when equipped (from 0.29.0; older loot reads as not)
     public bool Mat { get; init; }               // loot: can't be worn, so legendary doesn't mean always posted (from 0.30.0; older loot reads as gear)
     // On the tab's followed list. Not from the addon: the app marks it from the list as it is now
@@ -173,6 +175,8 @@ record Entry
             Step = (int)n("step"),
             Bracket = s("bracket"),
             Profession = s("profession"),
+            Achievement = s("achievement"),
+            AchievementId = (int)n("achievementId"),
             Boe = s("boe") is "true" or "1",
             Mat = s("mat") is "true" or "1",
             AskedKind = s("askedKind"),

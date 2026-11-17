@@ -598,6 +598,43 @@ function ns.checkProfessions()
   end
 end
 
+-- Forever's legacy achievements (raids, dungeons, PvP ranks and reputations, adventures), by
+-- ACHIEVEMENT_EARNED: only a first time (alreadyEarned false). They have the account flags 0x08020000
+-- or 0x10020000 (wago.tools Achievement, build 1.60.1.70959). Hidden ones (0x4, PvP rank trackers)
+-- are left out, so are the class level ones (levels post already) and the profession ones (the
+-- profession milestones post those), by their top category, which works in every language. Each
+-- comes twice (two flag variants), so it's once per character and name. Not on Retail.
+local SKIPPED_ACHIEVEMENT_CATEGORIES = { [15568] = true, [15586] = true } -- Classes, Tradeskills
+
+local function hasFlag(flags, flag) return math.floor(flags / flag) % 2 == 1 end
+
+local function topCategory(id)
+  if not (GetAchievementCategory and GetCategoryInfo) then return nil end
+  local category = GetAchievementCategory(id)
+  for _ = 1, 5 do
+    local _, parent = GetCategoryInfo(category)
+    if not parent or parent <= 0 then break end
+    category = parent
+  end
+  return category
+end
+
+function ns.isLegacyAchievement(id, flags)
+  if type(flags) ~= "number" or hasFlag(flags, 0x4) then return false end
+  if not (hasFlag(flags, 0x8000000) or hasFlag(flags, 0x10000000)) then return false end
+  return not SKIPPED_ACHIEVEMENT_CATEGORIES[topCategory(id) or 0]
+end
+
+function ns.onAchievement(id, alreadyEarned)
+  id, alreadyEarned = ns.plain(id), ns.plain(alreadyEarned)
+  if ns.IS_RETAIL or alreadyEarned == true or type(id) ~= "number" or not GetAchievementInfo then return end
+  local ok, _, name, _, _, _, _, _, _, flags = pcall(GetAchievementInfo, id)
+  if not ok or type(name) ~= "string" or name == "" or not ns.isLegacyAchievement(id, flags) then return end
+  if ns.recordOnce("achievement", { achievement = name, achievementId = id }, "achievement:" .. name) then
+    ns.say(string.format("Legacy achievement: %s.", name))
+  end
+end
+
 -- What killed you, from the game's death recap (the combat log is off limits on newer clients): the
 -- newest hit, by its time when it has one, else the last listed. An attacker's name, or falling,
 -- drowning and so on as "Falling". Nil when the recap is empty or has none.

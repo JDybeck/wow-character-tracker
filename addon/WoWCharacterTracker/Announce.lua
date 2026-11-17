@@ -59,6 +59,11 @@ local function message(e, forChat)
     return string.format("Reached %d Mythic+ rating!", e.step or 0)
   elseif k == "pvp" then
     return string.format("Reached %d rating in %s!", e.step or 0, e.bracket or "PvP")
+  elseif k == "achievement" then
+    -- The game's own achievement link (safe in chat too), else the name.
+    local ok, link = false, nil
+    if e.achievementId and GetAchievementLink then ok, link = pcall(GetAchievementLink, e.achievementId) end
+    return string.format("Earned the legacy achievement %s!", (ok and type(link) == "string" and link) or ("[" .. (e.achievement or "?") .. "]"))
   elseif k == "death" then
     local killer = (e.killer and e.killer ~= "") and (" to " .. e.killer) or ""
     return string.format("Fell at level %d%s. Rest in peace.", e.level or 0, killer)

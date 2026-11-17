@@ -34,6 +34,7 @@ sealed class EventEmbeds(Flavor flavor)
             "makgora" => MakgoraText(e),
             "bg" => BattlegroundText(e),
             "profession" => ProfessionText(e),
+            "achievement" => AchievementText(e),
             "mplus" => MPlusText(e),
             "pvp" => PvpText(e),
             "test" => TestText(e),
@@ -304,6 +305,15 @@ sealed class EventEmbeds(Flavor flavor)
         if (e.Rating > 0) lines.Add($"{Format.ProfessionsWithEmoji(e.Profession)} is now **{e.Rating}**.");
         if (e.Level > 0) lines.Add($"At level {e.Level}.");
         return ($"\U0001F6E0️ {e.Char} reached {e.Step} {e.Profession}!", lines);
+    }
+
+    // A legacy achievement (Forever), linked to Wowhead: "Conqueror of the Lair, a first on the account."
+    (string, List<string>) AchievementText(Entry e)
+    {
+        var name = e.AchievementId > 0 ? $"[{e.Achievement}]({WowheadUrl("achievement", e.AchievementId)})" : e.Achievement;
+        var lines = new List<string> { $"**{name}**, a legacy achievement for the whole account." };
+        if (e.Level > 0) lines.Add(e.Zone.Length > 0 ? $"At level {e.Level}, in **{e.Zone}**." : $"At level {e.Level}.");
+        return ($"\U0001F3C6 {e.Char} earned {e.Achievement}!", lines);
     }
 
     static (string, List<string>) MPlusText(Entry e)
