@@ -182,7 +182,8 @@ public class AddonWindowTests
         c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, "Announce.lua"))), "WoWCharacterTracker", c.Ns);
         c.Lua("SlashCmdList.CHARACTERTRACKER('')");
 
-        c.Lua("r = shownText('Looted [Krol Blade]!').owner; r.scripts.OnEnter(r)");
+        // The item isn't in the stub's cache, so the line carries a link built from its id (Announce.lua itemLink).
+        c.Lua("r = shownText('Looted |cffffffff|Hitem:2244::::::::|h[Krol Blade]|h|r!').owner; r.scripts.OnEnter(r)");
         Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == r"));
         Assert.Equal("item:2244:", c.Lua("return GameTooltip.link").String);
 
