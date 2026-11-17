@@ -9,6 +9,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 ### New
 
 - **Friends' addon versions.** `/wct friends versions` lists which addon version each friend has, and whether it's older or newer than yours.
+- **The rest of Forever's dungeons count as boss kills.** Killing the last boss of The Drowned City (Min'loth the Serpent), Krol'dok Stronghold (Overseer Mugg) or Blackmaw Hold (Unbound Spirit) is now posted like any other end boss.
 - **Layer numbers on the map (Forever).** A friend's map pin says which layer they're on, and yours next to it: "Same layer as you: 6843" or "On another layer: 7001 (you: 6843)".
 
 ### Fixes and tweaks
@@ -20,6 +21,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 - Level-ups during **Incognito** with friends included are no longer shared with friends.
 - Friends' Mythic+ runs show in your chat whatever your own lowest key level for Discord is.
 - Data you removed on the Data page no longer shows up again until you restart the app.
+- C'Thun kills in Temple of Ahn'Qiraj (Forever) are recognized: the game spells the encounter "C'thun", which didn't match.
 
 ## v0.42.0
 

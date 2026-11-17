@@ -7,21 +7,26 @@ local ADDON, ns = ...
 -- the game's own instance name (GetInstanceInfo) is used when there is one.
 --
 -- KEEP THIS UP TO DATE (check on every release PR, see .github/pull_request_template.md):
--- Forever adds dungeons and raids as it goes. The game keeps a "<Boss> Kills (<Dungeon>)"
--- statistic for each final boss, which Wowhead lists, so new ones show up there:
--- https://www.wowhead.com/forever/guide/dungeons-overview-locations-details
--- https://www.wowhead.com/forever/guide/raids-overview-hub-dates-locations
--- Still unknown (checked 2026-11-04, no kill statistic on Wowhead yet): The Drowned City,
--- Krol'dok Stronghold, Blackmaw Hold. Wowhead's Forever kill statistics are around ids 63570-63593.
+-- Forever adds dungeons and raids as it goes. The names must be the game's own encounter names
+-- (ENCOUNTER_END reports those, letter case included): wago.tools' DungeonEncounter table for
+-- product wowf, with hotfixes on so the new maps have names. A dungeon's last encounter by
+-- OrderIndex is its end boss. The game also keeps a "<Boss> Kills (<Dungeon>)" statistic for most
+-- (Achievement table, ids around 63570-63593), which agrees where there is one.
+-- Checked 2026-11-17 (build 1.60.1.70959): every dungeon has its end boss here. Krol'dok Stronghold
+-- and Blackmaw Hold have no kill statistic yet, so theirs come from the encounter order only, not
+-- yet seen in game. Hyjal Summit and Barrow Deeps have statistics but no encounters yet.
 -- Later, if players ask: other languages. Names only match an English client; the encounter id
 -- from ENCOUNTER_END would work in every language.
 local END_BOSSES = {
   -- Forever's new dungeons (final bosses as the game's kill statistics name them).
   ["Durgen Dirgehammer"] = "The Hall of Thanes",
   ["Rath'mael"] = "Ruins of Lordaeron",
-  ["Relic Guardian"] = "Excavation Site: Wetlands", -- from the dungeon guide, no kill statistic yet
+  ["Relic Guardian"] = "Excavation Site: Wetlands", -- no kill statistic yet
   ["Shade of the Archmage"] = "City of Dalaran",
+  ["Min'loth the Serpent"] = "The Drowned City", -- no kill statistic yet
+  ["Overseer Mugg"] = "Krol'dok Stronghold", -- no kill statistic yet
   ["Blazeroar"] = "Alcaz Prison",
+  ["Unbound Spirit"] = "Blackmaw Hold", -- no kill statistic yet
   ["Nanaya"] = "Shaper's Terrace",
   -- Forever's raids (from their kill statistics, in before the raids open).
   ["The Wild King"] = "Hyjal Summit",
@@ -58,7 +63,7 @@ local END_BOSSES = {
   ["Nefarian"] = "Blackwing Lair",
   ["Hakkar"] = "Zul'Gurub",
   ["Ossirian the Unscarred"] = "Ruins of Ahn'Qiraj",
-  ["C'Thun"] = "Temple of Ahn'Qiraj",
+  ["C'thun"] = "Temple of Ahn'Qiraj", -- the game's spelling, lowercase t
   ["Kel'Thuzad"] = "Naxxramas",
 }
 
