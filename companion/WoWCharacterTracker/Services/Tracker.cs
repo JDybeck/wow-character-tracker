@@ -294,6 +294,8 @@ sealed class Tracker : IDisposable
             if (disposed) break; // the tab was turned off mid-batch: the rest waits for it to come back
             var forThis = webhooksFor(e);
             var due = forThis.Where(w => !posted!.Contains($"{e.Id}@{w.Id}")).ToList();
+            // The app shows it as posted once any webhook has it, not only when all have.
+            var shown = due.Count < forThis.Count;
             var waiting = due.Where(w => failed.Contains(w.Id)).ToList();
             due = [.. due.Except(waiting)];
             var shot = due.Count > 0 && e.Shot && s.PostsShot(e.Kind) ? await FindScreenshotAsync(e) : null;
@@ -309,6 +311,8 @@ sealed class Tracker : IDisposable
                     posted!.Add($"{e.Id}@{w.Id}");
                     sent++;
                     Log.Success($"{Tag}Posted to \"{w.Name}\": {Describe(e.Moment)}.{Timing(e)}");
+                    if (!shown) Posted?.Invoke(e.Moment);
+                    shown = true;
                 }
                 else
                 {
@@ -318,7 +322,7 @@ sealed class Tracker : IDisposable
             }
             if (!allSent) continue; // tried again on the next sync, for the webhooks that didn't get it
             posted!.Add(e.Id);
-            Posted?.Invoke(e.Moment);
+            if (!shown) Posted?.Invoke(e.Moment); // no webhook takes it: handled all the same
         }
         return sent;
     }
