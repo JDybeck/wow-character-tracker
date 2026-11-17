@@ -71,7 +71,7 @@ end
 -- inGameAt) wins over it.
 local IN_GAME = { announce = true, ask = true, flightReload = true, chatReminder = true,
   gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true, preset = true, filters = true,
-  posts = true, screenshot = true }
+  posts = true, screenshot = true, distanceUnit = true }
 
 local function changedInGame()
   local changed = WoWCharacterTrackerDB and WoWCharacterTrackerDB.gameSettings

@@ -261,6 +261,7 @@ sealed class FlavorViewModel : Observable
         foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces),
             nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
             nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight),
+            nameof(DistanceAuto), nameof(DistanceMeters), nameof(DistanceYards),
             nameof(LevelSplit), nameof(LevelEveryBefore), nameof(LevelEveryAfter), nameof(LevelPreview), nameof(RareBoeOnly), nameof(FirstBossKillOnly) })
             Raise(name);
         Log.Info($"[{Name}] Took the In game settings you changed in the game.");
@@ -385,6 +386,19 @@ sealed class FlavorViewModel : Observable
         [.. FlavorSettings.AskSecondsChoices.Select(n => new SecondsChoice(n, $"askseconds-{Name}",
             () => Settings.AskSeconds == n, () => { Settings.AskSeconds = n; InGameChanged(nameof(AskSecondsChoices)); RefreshAskSeconds(); }))];
     void RefreshAskSeconds() { foreach (var c in AskSecondsChoices) c.Refresh(); }
+
+    // Distances to friends on the in-game map: three chips that act like radio buttons.
+    public bool DistanceAuto { get => DistanceUnit == "auto"; set { if (value) SetDistanceUnit("auto"); } }
+    public bool DistanceMeters { get => DistanceUnit == "meters"; set { if (value) SetDistanceUnit("meters"); } }
+    public bool DistanceYards { get => DistanceUnit == "yards"; set { if (value) SetDistanceUnit("yards"); } }
+    string DistanceUnit => FlavorSettings.DistanceUnitOrDefault(Settings.DistanceUnit);
+    void SetDistanceUnit(string unit)
+    {
+        if (DistanceUnit == unit) return;
+        Settings.DistanceUnit = unit;
+        InGameChanged();
+        Raise(nameof(DistanceAuto)); Raise(nameof(DistanceMeters)); Raise(nameof(DistanceYards));
+    }
 
     string Corner => FlavorSettings.CornerOrDefault(Settings.GridCorner);
     void SetCorner(string corner)

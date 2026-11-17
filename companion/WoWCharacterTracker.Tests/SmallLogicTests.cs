@@ -323,6 +323,29 @@ public class RatingTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
+    // Map distances: auto unless picked, taken from the game (a bad value is auto), written for the addon.
+    [Fact]
+    public void The_distance_unit_goes_both_ways()
+    {
+        var s = new FlavorSettings { InGameAt = 1000 };
+        Assert.Equal("auto", s.DistanceUnit);
+        Assert.True(s.TakeInGame(SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString("return { at = 1100, distanceUnit = 'yards' }"))));
+        Assert.Equal("yards", s.DistanceUnit);
+        Assert.True(s.TakeInGame(SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString("return { at = 1200, gridLabel = false }"))));
+        Assert.Equal("yards", s.DistanceUnit); // not in the change: stays
+        Assert.True(s.TakeInGame(SavedVariables.ReadInGame(new MoonSharp.Interpreter.Script().DoString("return { at = 1300, distanceUnit = 'furlongs' }"))));
+        Assert.Equal("auto", s.DistanceUnit);
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-distance-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, new FlavorSettings { DistanceUnit = "meters" });
+            Assert.Contains("distanceUnit = \"meters\",", File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // A change from an older addon that didn't keep every setting: the ones it has win, the rest stay.
     [Fact]
     public void Settings_missing_from_the_in_game_change_keep_the_apps_values()

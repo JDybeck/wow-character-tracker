@@ -159,6 +159,7 @@ static partial class AddonInstaller
                   + $"  discord = {B(hasWebhook)},\n"
                   + $"  gridCorner = \"{FlavorSettings.CornerOrDefault(s.GridCorner)}\",\n"
                   + $"  gridLabel = {B(s.GridLabel)},\n"
+                  + $"  distanceUnit = \"{FlavorSettings.DistanceUnitOrDefault(s.DistanceUnit)}\",\n"
                   + (appUpdate is { } update ? $"  appUpdate = \"{update.ToString(3)}\",\n" : "")
                   + (preset is { Length: > 0 } ? $"  preset = {LuaString(preset)},\n" : "")
                   + (s.AdvancedCombatLog is bool acl ? $"  advancedCombatLog = {B(acl)},\n" : "")

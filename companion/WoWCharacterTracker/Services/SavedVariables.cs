@@ -88,7 +88,8 @@ static class SavedVariables
             t.Get("ignored").Type == DataType.Table ? On(t.Get("ignored")) : null,
             t.Get("preset").Type == DataType.String ? t.Get("preset").String : null,
             ReadFilters(t.Get("filters")),
-            Switches(t.Get("posts")), Switches(t.Get("screenshot")));
+            Switches(t.Get("posts")), Switches(t.Get("screenshot")),
+            t.Get("distanceUnit").Type == DataType.String ? t.Get("distanceUnit").String : null);
     }
 
     // { key = true/false }: the Sharing table's Discord and screenshot boxes, off ones included.

@@ -45,14 +45,21 @@ local function friendByAccount(account)
 end
 
 -- Sending -------------------------------------------------------------------------------------
--- Our position: mapID, x, y, or nil in an instance or where the game gives none.
-local function readPosition()
+-- Our position: mapID, x, y, or nil in an instance or where the game gives none. MapPins.lua
+-- measures distances from it.
+function ns.myMapPosition()
   if IsInInstance and IsInInstance() then return nil end
   if not (C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition) then return nil end
   local mapID = C_Map.GetBestMapForUnit("player")
   local pos = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
   if not pos or not pos.x or not pos.y or (pos.x == 0 and pos.y == 0) then return nil end
-  return mapID, round(pos.x), round(pos.y)
+  return mapID, pos.x, pos.y
+end
+
+local function readPosition()
+  local mapID, x, y = ns.myMapPosition()
+  if not mapID then return nil end
+  return mapID, round(x), round(y)
 end
 
 -- The reading to send: a new one once the rate allows, else the last one; nil without a position.

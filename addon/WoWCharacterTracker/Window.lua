@@ -41,7 +41,9 @@ end
 -- Reload reminders: one choice over the three settings that ask for a /reload (the ding popup, the
 -- flight path box and the chat line). Gentle is how they start; any other mix is "custom".
 local RELOAD_CHOICES = { { "off", "Off" }, { "gentle", "Gentle" }, { "all", "Every chance" } }
-local RELOAD_SETS = { off = { false, false, false }, gentle = { false, true, true }, all = { true, true, true } }
+-- Auto: yards in the Americas region, meters elsewhere (ns.distanceUnit).
+local DISTANCE_CHOICES = { { "auto", "Auto" }, { "meters", "Meters" }, { "yards", "Yards" } }
+local RELOAD_SETS ={ off = { false, false, false }, gentle = { false, true, true }, all = { true, true, true } }
 
 local function reloadChoice()
   local now = { WoWCharacterTrackerDB.popup == true, isOn("flightReload"), isOn("chatReminder") }
@@ -2222,7 +2224,17 @@ local function buildSettings(p)
   end, 120)
   look:SetPoint("TOPLEFT", lookTitle, "BOTTOMLEFT", 0, -10)
 
-  local advancedTitle = ui.heading(p, "Advanced", look, -30)
+  -- How far away friends on the map are (MapPins.lua), an In game setting.
+  local distanceTitle = ui.heading(p, "Distances on the map", look, -30)
+  local distance = ui.choice(p, DISTANCE_CHOICES,
+    function()
+      local unit = ns.setting("distanceUnit")
+      return (unit == "meters" or unit == "yards") and unit or "auto"
+    end,
+    function(key) ns.editSettings(function(s) s.distanceUnit = key end) end)
+  distance:SetPoint("TOPLEFT", distanceTitle, "BOTTOMLEFT", 0, -10)
+
+  local advancedTitle = ui.heading(p, "Advanced", distance, -30)
   local keepAll = ui.checkbox(p, "Keep all history", "On: every loot, duel and battleground stays in the saved file, which keeps growing. Applies on your next /reload.",
     function() return ns.setting("keepAllHistory") == true end,
     function(on) ns.editSettings(function(s) s.keepAllHistory = on end) end)

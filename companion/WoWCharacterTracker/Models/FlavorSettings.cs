@@ -175,6 +175,10 @@ class FlavorSettings
     public bool GridLabel { get; set; } = true;
     public static readonly string[] Corners = ["TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"];
     public static string CornerOrDefault(string? corner) => Corners.Contains(corner) ? corner! : "TOPLEFT";
+    // Distances to friends on the addon's world map (MapPins.lua): auto is yards in the Americas region, meters elsewhere.
+    public string DistanceUnit { get; set; } = "auto";
+    public static readonly string[] DistanceUnits = ["auto", "meters", "yards"];
+    public static string DistanceUnitOrDefault(string? unit) => DistanceUnits.Contains(unit) ? unit! : "auto";
     public bool? AdvancedCombatLog { get; set; } // the game's Advanced Combat Logging; null = leave the player's setting alone
 
     // When the In game settings last changed in the app, or came from the game. They can be changed in
@@ -200,6 +204,7 @@ class FlavorSettings
         AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
         Ignored = game.Ignored is { } ignored ? [.. ignored] : Ignored;
+        DistanceUnit = game.DistanceUnit is { } unit ? DistanceUnitOrDefault(unit) : DistanceUnit;
         if (game.Filters is { } f)
         {
             static int Level(int? typed, int now) => typed is int n ? Math.Clamp(n, 1, 100) : now;
