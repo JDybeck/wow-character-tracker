@@ -1582,21 +1582,38 @@ public class FriendsLuaTests
         Assert.Equal(2, Count(a, "PING")); // nobody twice
     }
 
-    // A PING still waiting (combat, a full queue) isn't "no answer": the 10 s start once it went out.
+    // A PING still waiting (the chat lockdown) isn't "no answer": the wait starts once it went out.
     [Fact]
-    public void A_ping_waiting_in_combat_is_not_no_addon()
+    public void A_ping_waiting_in_the_lockdown_is_not_no_addon()
     {
         var a = new Client(A, AFriends, ADb("nil"));
-        a.Lua("inCombat = true");
+        a.Lua("lockdown = true");
         a.Call("findOnlineFriends");
         a.Run(15);
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil());
-        a.Lua("inCombat = false");
+        a.Lua("lockdown = false");
         a.Run(6);
         Assert.Equal(1, Count(a, "PING"));
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon").IsNil()); // it only just went
         a.Run(20);
         Assert.True(a.Lua("return ns.onlineFriends()[1].hasAddon == false").Boolean);
+    }
+
+    // PING and PONG are tiny: they go in combat and pass a backlog of characters, so the answer
+    // comes within the asker's wait.
+    [Fact]
+    public void Ping_and_pong_pass_a_backlog_and_go_in_combat()
+    {
+        var a = new Client(A, AFriends, ADb("nil"));
+        a.Lua("inCombat = true");
+        a.Call("findOnlineFriends");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "PING"));
+        a.Lua("inCombat = false");
+        a.Lua("ns.comms.send(99, 'DATA', string.rep('x', 240 * 50))");
+        a.Lua("ns.comms.send(2, 'PONG', '0.42.0')");
+        a.Run(1);
+        Assert.Equal(1, Count(a, "PONG"));
     }
 
     // Seen in game: map and DATA traffic kept the queue busy and every friend stayed on "Checking...".

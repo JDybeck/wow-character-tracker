@@ -249,10 +249,18 @@ class FlavorSettings
     public bool PostsShot(string kind) => Shoots(kind) && PostScreenshot.GetValueOrDefault(kind);
 
     // The Sharing table's screenshot box: taken in game, and attached unless Advanced said not to.
+    // Screenshot and PostScreenshot are replaced, never changed in place: the tracker's thread reads them.
     public void SetShot(string kind, bool on)
     {
-        Screenshot[kind] = on;
-        if (on && !PostScreenshot.ContainsKey(kind)) PostScreenshot[kind] = true;
+        Screenshot = new(Screenshot) { [kind] = on };
+        if (on && !PostScreenshot.ContainsKey(kind)) PostScreenshot = new(PostScreenshot) { [kind] = true };
+    }
+
+    public void SetAttachShots(bool on)
+    {
+        var attach = new Dictionary<string, bool>(PostScreenshot);
+        foreach (var k in EventKinds.ShotKinds) attach[k] = on;
+        PostScreenshot = attach;
     }
 
     public bool LevelWanted(int level)

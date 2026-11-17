@@ -126,15 +126,18 @@ end
 function ns.friendMapTick()
   local now, rate = time(), ns.shareSettings().mapRate
   local paused = ns.comms.canSend and not ns.comms.canSend("POS")
-  local r, looked, any = nil, false, false
+  local r, looked, any, rows = nil, false, false, {}
   for account, w in pairs(watchers) do
     if now > w.untilAt then
       watchers[account] = nil
     else
       any = true
       if not paused then
-        if not looked then r, looked = currentReading(now, rate), true end
-        local f = friendByAccount(account)
+        if not looked then
+          r, looked = currentReading(now, rate), true
+          for _, f in ipairs(online()) do rows[f.account] = f end -- once per tick, not per watcher
+        end
+        local f = rows[account]
         sendTo(account, w, (f and mayGet(f)) and r or nil, rate, now)
       end
     end

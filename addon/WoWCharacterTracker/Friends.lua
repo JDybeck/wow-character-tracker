@@ -244,7 +244,8 @@ local function readEvents()
       table.sort(list, function(x, y) return x.at > y.at end)
       list[ns.FRIEND_HIGHLIGHTS + 1] = nil
       recentHighlights[e.guid] = list
-    elseif type(e) == "table" and (e.kind == nil or e.kind == "level") and e.guid and type(e.level) == "number" and type(e.seconds) == "number" and e.seconds > 0 then
+    elseif type(e) == "table" and (e.kind == nil or e.kind == "level") and e.guid and type(e.level) == "number" and type(e.seconds) == "number" and e.seconds > 0
+      and not ns.inIncognito(e.at, true) then
       recentLevels[e.guid] = recentLevels[e.guid] or {}
       recentLevels[e.guid][e.level] = { level = e.level, seconds = e.seconds, at = e.at }
     end
@@ -354,7 +355,7 @@ local silent = {}       -- [account] = true: no answer to it in PING_WAIT
 local answeredPing = {} -- [account] = when we last said PONG
 
 -- No answer counts only PING_WAIT after the PING really went: while that PING still waits to go out
--- (combat, lockdown, a backlog ahead of it), the wait starts over. Only its own: other traffic
+-- (a boss fight, the chat lockdown), the wait starts over. Only its own: other traffic
 -- behind it (map, DATA) kept everyone on "Checking..." for minutes.
 local function pingQueued(account) return ns.comms.queued(account, "PING") end
 
@@ -526,8 +527,11 @@ function on.DATA(f, contact, body)
   local char = ns.decodeFriendChar(body)
   if not char then return end
   local had = WoWCharacterTrackerDB.friends and WoWCharacterTrackerDB.friends[f.tag]
-  ns.sayFriendMoments(f.tag, had and had.chars and had.chars[char.guid], char)
+  local old = had and had.chars and had.chars[char.guid]
   keep(f.tag, char)
+  -- After keeping it: a line that can't be worded (an odd field from another version) costs only the chat line.
+  local ok, err = pcall(ns.sayFriendMoments, f.tag, old, char)
+  if not ok then ns.lastCommsError = tostring(err) end
   noteArrival(f.tag, char)
   changed()
 end

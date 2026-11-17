@@ -28,8 +28,9 @@ local function sendGameData()
   return (C_BattleNet and C_BattleNet.SendGameData) or BNSendGameData
 end
 
--- Map kinds are tiny and FriendMap.lua paces them, so they go in combat too.
-local IN_COMBAT = { WATCH = true, POS = true, LAYER = true }
+-- Map kinds are tiny and FriendMap.lua paces them, so they go in combat too. PING and PONG as well:
+-- a PONG behind a backlog of characters for others came after the asker's wait, so they saw "no addon".
+local IN_COMBAT = { WATCH = true, POS = true, LAYER = true, PING = true, PONG = true }
 
 -- Not in a boss fight or the game's chat lockdown (Midnight-era clients), and out of combat
 -- unless kind is one of IN_COMBAT.
@@ -43,8 +44,8 @@ end
 
 local queue = {} -- { to, kind, text, tries }
 
--- The first message that may go right now. Map messages go first: they're tiny and only worth
--- something fresh, so they pass a backlog of characters, and in combat what waits for it to end.
+-- The first message that may go right now. Map messages, PING and PONG go first: they're tiny and
+-- only worth something fresh, so they pass a backlog of characters, and in combat what waits for it to end.
 local function nextSendable()
   for i, item in ipairs(queue) do
     if IN_COMBAT[item.kind] and comms.canSend(item.kind) then return i, item end

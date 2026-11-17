@@ -113,4 +113,16 @@ public class FilesAndProcessesTests
         Assert.True(GameProcesses.IsRunning(me.ProcessName.ToUpperInvariant()));
         Assert.False(GameProcesses.IsRunning("NoSuchProcess-" + Guid.NewGuid()));
     }
+
+    // Retail and Forever both run Wow.exe: only the one from the asked folder counts.
+    [Fact]
+    public void GameProcesses_tells_the_same_exe_name_apart_by_folder()
+    {
+        using var me = System.Diagnostics.Process.GetCurrentProcess();
+        var folder = Path.GetDirectoryName(me.MainModule!.FileName)!;
+        Assert.True(GameProcesses.IsRunningFrom(me.ProcessName, folder));
+        Assert.True(GameProcesses.IsRunningFrom(me.ProcessName, folder + Path.DirectorySeparatorChar));
+        Assert.False(GameProcesses.IsRunningFrom(me.ProcessName, Path.Combine(Path.GetTempPath(), "_forever_")));
+        Assert.False(GameProcesses.IsRunningFrom("NoSuchProcess-" + Guid.NewGuid(), folder));
+    }
 }

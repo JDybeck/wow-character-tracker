@@ -340,7 +340,7 @@ sealed class FlavorViewModel : Observable
         get => EventKinds.ShotKinds.Where(Settings.Shoots).All(Settings.PostsShot);
         set
         {
-            foreach (var k in EventKinds.ShotKinds) Settings.PostScreenshot[k] = value;
+            Settings.SetAttachShots(value);
             Changed();
         }
     }
