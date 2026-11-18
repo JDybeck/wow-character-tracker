@@ -19,6 +19,9 @@
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.AverageText}"/>
         <TextBlock Style="{StaticResource FactLabel}" Text="SLOWEST"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.SlowestText}"/>
+        <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL LEVELING TIME"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Leveling.TotalText}" TextWrapping="Wrap"
+                   ToolTip="Your timed level-ups added up, from the first level the addon timed. Time played at max level isn't counted."/>
       </StackPanel>
       <!-- A friend's character only: raced against one of yours. -->
       <StackPanel Visibility="{Binding HasRival, Converter={StaticResource Visible}}">

@@ -8,6 +8,7 @@ sealed class CharacterLeveling
 
     public string AverageText { get; init; } = "";
     public string SlowestText { get; init; } = "";
+    public string TotalText { get; init; } = "";
     public bool HasStats { get; init; }
     public string EstimateText { get; init; } = "";
     public bool HasEstimate => EstimateText.Length > 0;
@@ -44,6 +45,7 @@ sealed class CharacterLeveling
             HasStats = summary is not null,
             AverageText = summary is null ? "" : Format.Duration(summary.Average),
             SlowestText = summary is null ? "" : $"{Format.Duration(summary.Slowest.Seconds)} ({summary.Slowest.Number - 1} to {summary.Slowest.Number})",
+            TotalText = LevelStats.TotalText(timed),
             EstimateText = toMax is long left ? $"About {Format.Played(left)} played to level {(xp!.MaxLevel > 0 ? xp.MaxLevel : 60)}, at your recent pace" : "",
             Bars = bars,
             Progress = ProgressLines(all),
