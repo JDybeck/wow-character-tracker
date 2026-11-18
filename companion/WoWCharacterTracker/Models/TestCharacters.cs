@@ -17,7 +17,8 @@ static class TestCharacters
         var zeb = new Snapshot($"{GuidPrefix}Zeb", "Zeb", "Stormreach", 40, "Warrior", "WARRIOR", "Night Elf", "NightElf", "male",
             "Arms", "", 38.4, 3 * 86400 + 5 * 3600, "Scarlet Monastery", "Mining 210/225, Blacksmithing 205/225", "Arms 21 / Fury 10 / Protection 0",
             Ago(0.2), false, "Normal", 87_45_12, Guild: "Bloodhounds", Surname: "TESTCHAR", TalentPicks: "12282~3~3~1,16462~5~5~1,12292~1~1~1,12294~1~1~1,12320~5~5~2", Stats: "Strength~152,Agility~89,Stamina~141,Intellect~22,Spirit~48,Armor~2410,Attack Power~398,Crit~9.2%", Xp: 31200, XpMax: 90700, MaxLevel: 60, Region: "eu", ZoneType: "dungeon",
-            Recipes: "Blacksmithing~Weapon Stones=2660,3115/Armor=3328,2662,2663/Weapons=3293,2737\nMining~Smelting=2657");
+            Recipes: "Blacksmithing~Weapon Stones=2660,3115/Armor=3328,2662,2663/Weapons=3293,2737\nMining~Smelting=2657",
+            OtherSpec: new SpecBuild(2, "Arms 5 / Fury 0 / Protection 26", "Protection", "12301~5~5~1,12297~5~5~3,12975~1~1~3,12298~5~5~3", "05--5503051202"));
         var fagel = new Snapshot($"{GuidPrefix}Fagelmannen", "Fågelmannen", "Stormreach", 21, "Druid", "DRUID", "Tauren", "Tauren", "male",
             "Feral Combat", "", 18.1, 19 * 3600 + 40 * 60, "The Barrens", "Herbalism 95/150, Alchemy 80/150", "Balance 0 / Feral Combat 12 / Restoration 0",
             Ago(5), false, "Normal", 4_12_80, Guild: "Bloodhounds", Surname: "TESTCHAR", Xp: 6100, XpMax: 25200, MaxLevel: 60, Region: "eu", ZoneType: "zone",

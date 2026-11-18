@@ -10,12 +10,12 @@ namespace WoWCharacterTracker.Services;
 // the client has shown.
 static class LevelStats
 {
-    public sealed record Level(int Number, long Seconds);
+    public sealed record Level(int Number, long Seconds, long Played = 0); // Played: total /played at the ding, 0 = not known
     public sealed record Summary(int Count, long Average, Level Fastest, Level Slowest);
 
     // The timed level-ups in a character's events, one per level (the last one wins), lowest first.
     public static List<Level> Timed(IEnumerable<Entry> events) => events.Where(e => e.Kind == "level" && e.Seconds > 0)
-        .GroupBy(e => e.Level).Select(g => new Level(g.Key, g.Last().Seconds))
+        .GroupBy(e => e.Level).Select(g => new Level(g.Key, g.Last().Seconds, g.Last().Played))
         .OrderBy(l => l.Number).ToList();
 
     public static Summary? Summarize(IReadOnlyList<Level> timed)
@@ -23,6 +23,26 @@ static class LevelStats
         if (timed.Count == 0) return null;
         return new Summary(timed.Count, (long)timed.Average(l => l.Seconds),
             timed.MinBy(l => l.Seconds)!, timed.MaxBy(l => l.Seconds)!);
+    }
+
+    // "6d 3h 7m from level 1 to 60": played time from the first timed level's start to the last ding (no
+    // time spent at max level), so levels in between without their own time still count. Without
+    // /played on both ends (friends' levels), the timed levels added up, and the untimed ones are left
+    // out. "" without any. The addon's ns.levelTotalText.
+    public static string TotalText(IReadOnlyList<Level> timed)
+    {
+        if (timed.Count == 0) return "";
+        var (first, last) = (timed[0], timed[^1]);
+        var from = first.Number - 1;
+        var to = last.Number;
+        var missing = to - from - timed.Count;
+        var start = first.Played - first.Seconds;
+        var counted = first.Played > 0 && start >= 0 && last.Played > start;
+        var total = counted ? last.Played - start : timed.Sum(l => l.Seconds);
+        var text = $"{Format.Played(total)} from level {from} to {to}";
+        if (missing <= 0) return text;
+        var s = missing == 1 ? "" : "s";
+        return counted ? $"{text} ({missing} level{s} counted without their own time)" : $"{text} ({missing} level{s} not timed)";
     }
 
     // How far into `level` the XP bar is, in whole percent (the addon's ns.levelPercent), or null: no

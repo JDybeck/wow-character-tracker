@@ -78,8 +78,12 @@ sealed class MainViewModel : Observable
             HighlightRow h => PostHighlightAsync(h, SelectedFlavor?.SelectedCharacter),
             _ => Task.CompletedTask,
         });
-        OpenTalentsCommand = new RelayCommand(p => OpenTalents(p as CharacterRow));
-        PostTalentsCommand = new RelayCommand(p => { if (p is CharacterRow c) _ = PostTalentsAsync(c); });
+        OpenTalentsCommand = new RelayCommand(OpenTalents);
+        PostTalentsCommand = new RelayCommand(p =>
+        {
+            if (p is CharacterRow c) _ = PostTalentsAsync(c, null);
+            else if (p is SpecBuildRow b) _ = PostTalentsAsync(b.Owner, b);
+        });
         ExportCharacterCommand = new RelayCommand(p => { if (p is CharacterRow c) ExportCharacter(c); });
         ToggleCardOptionsCommand = new RelayCommand(_ => ShowCardOptions = !ShowCardOptions);
         AddTagCommand = new RelayCommand(p => AddTag((CharacterRow)p!));
@@ -379,21 +383,27 @@ sealed class MainViewModel : Observable
     bool showCardOptions;
     public bool ShowCardOptions { get => showCardOptions; set => Set(ref showCardOptions, value); }
 
-    // Opens the character's build in Wowhead's talent calculator.
-    void OpenTalents(CharacterRow? c)
+    // Opens a build in Wowhead's talent calculator: the character's active one, or its other dual spec.
+    void OpenTalents(object? p)
     {
-        if (c is null || SelectedFlavor is not { } tab) return;
-        if (Wowhead.TalentCalcUrl(tab.Flavor, c.ClassFile, c.TalentCalc, c.TalentExport) is { } url) Browser.Open(url);
+        if (SelectedFlavor is not { } tab) return;
+        var url = p switch
+        {
+            CharacterRow c => Wowhead.TalentCalcUrl(tab.Flavor, c.ClassFile, c.TalentCalc, c.TalentExport),
+            SpecBuildRow b => Wowhead.TalentCalcUrl(tab.Flavor, b.Owner.ClassFile, b.TalentCalc, ""),
+            _ => null,
+        };
+        if (url is not null) Browser.Open(url);
     }
 
     // Posts the character's talents (level, race, class, the build and its Wowhead link) to the
-    // webhooks a character card would go to.
-    async Task PostTalentsAsync(CharacterRow c)
+    // webhooks a character card would go to. other: the dual spec that isn't active, null for the active one.
+    async Task PostTalentsAsync(CharacterRow c, SpecBuildRow? other)
     {
         if (SelectedFlavor is not { } tab) return;
         foreach (var w in WebhooksFor(tab, c))
-            if (await PosterFor(tab, w).PostTalentsAsync(c))
-                Log.Success($"[{tab.Name}] Posted {c.Name}'s talents to \"{w.Name}\".");
+            if (await PosterFor(tab, w).PostTalentsAsync(c, other))
+                Log.Success($"[{tab.Name}] Posted {c.Name}'s {(other is null ? "" : other.Build.Name.ToLowerInvariant() + " ")}talents to \"{w.Name}\".");
     }
 
     // Saves the character as a JSON file for the armory proof of concept (ArmoryExport), where the user picks.

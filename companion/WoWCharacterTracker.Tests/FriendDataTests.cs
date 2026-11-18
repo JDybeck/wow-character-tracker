@@ -197,6 +197,54 @@ public class FriendDataTests
         Assert.Equal((6, 20, 25), ((int)c.Lua("return summary.count").Number, (int)c.Lua("return summary.fastest.level").Number, (int)c.Lua("return summary.slowest.level").Number));
     }
 
+    // Total leveling time: /played from the first timed level's start to the last ding when both are
+    // known (gaps then still count), else the timed level-ups added up. The addon (Leveling.lua) and the
+    // app (LevelStats) say it the same way. 20s per timed level; played: /played at each ding, "" = none.
+    [Theory]
+    [InlineData("2,3,4", "", "1m 0s from level 1 to 4")]
+    [InlineData("31,32,33", "", "1m 0s from level 30 to 33")]                          // only from 30
+    [InlineData("2,3,5,6", "", "1m 20s from level 1 to 6 (1 level not timed)")]        // friends: no played
+    [InlineData("2,6", "", "40s from level 1 to 6 (3 levels not timed)")]
+    [InlineData("2,3,5,6", "20,40,100,120", "2m 0s from level 1 to 6 (1 level counted without their own time)")]
+    [InlineData("31,32,33", "5020,5040,5060", "1m 0s from level 30 to 33")]           // played from before 30 isn't counted
+    public void The_addon_and_app_agree_on_total_leveling_time(string numbers, string played, string expected)
+    {
+        var levels = numbers.Split(',').Select(int.Parse).ToList();
+        var plays = played.Length > 0 ? played.Split(',').Select(long.Parse).ToList() : levels.Select(_ => 0L).ToList();
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua"]);
+        var lua = c.Lua("return ns.levelTotalText({ " + string.Join(", ", levels.Select((l, i) =>
+            $"{{ level = {l}, seconds = 20{(plays[i] > 0 ? $", played = {plays[i]}" : "")} }}")) + " })").String;
+        var app = LevelStats.TotalText([.. levels.Select((l, i) => new LevelStats.Level(l, 20, plays[i]))]);
+        Assert.Equal(expected, app);
+        Assert.Equal(app, lua);
+    }
+
+    // The addon window: at max level the total takes Last level's place, below it both show.
+    [Theory]
+    [InlineData(60, "Total leveling,Average,Slowest")]
+    [InlineData(40, "Last level,Average,Slowest,Total leveling,To max level")]
+    public void At_max_level_the_total_replaces_the_last_level(int level, string labels)
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua"]);
+        var shown = c.Lua($$"""
+            local facts = ns.levelingFacts({ { level = 39, seconds = 100 }, { level = 40, seconds = 200 } }, { level = {{level}}, maxLevel = 60 })
+            local out = {}
+            for _, f in ipairs(facts) do out[#out + 1] = f[1] end
+            return table.concat(out, ",")
+            """).String;
+        Assert.Equal(labels, shown);
+    }
+
+    [Fact]
+    public void Total_leveling_time_counts_days_and_needs_a_timed_level()
+    {
+        var days = new List<LevelStats.Level> { new(2, 86400), new(3, 3 * 3600 + 7 * 60) };
+        Assert.Equal("1d 3h 7m from level 1 to 3", LevelStats.TotalText(days));
+        Assert.Equal("", LevelStats.TotalText([]));
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua"]);
+        Assert.True(c.Lua("return ns.levelTotalText({}) == nil").Boolean);
+    }
+
     // "44% into level 59": the addon (Leveling.lua) and the app (LevelStats) say the same, and nothing
     // for XP from another level or at max level.
     [Theory]

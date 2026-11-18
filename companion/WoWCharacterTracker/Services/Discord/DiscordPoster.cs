@@ -103,16 +103,21 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
 
     // The character's talents: name, level, race and class, the points per tree, the talents picked
     // (Forever) and the build in Wowhead's talent calculator (the title links there too).
-    public async Task<bool> PostTalentsAsync(CharacterRow c)
+    // other: the dual spec that isn't active (Forever), posted instead of the active build.
+    public async Task<bool> PostTalentsAsync(CharacterRow c, SpecBuildRow? other = null)
     {
-        var url = Wowhead.TalentCalcUrl(flavor, c.ClassFile, c.TalentCalc, c.TalentExport);
-        var lines = new List<string> { $"**Level {c.Level} {c.Description}**".Replace("  ", " ") };
-        if (c.Talents.Length > 0) lines.Add(c.Talents);
-        var embed = CharacterEmbed(c, $"{CharacterName(c)}'s talents", string.Join("\n", lines));
+        var url = other is null
+            ? Wowhead.TalentCalcUrl(flavor, c.ClassFile, c.TalentCalc, c.TalentExport)
+            : Wowhead.TalentCalcUrl(flavor, c.ClassFile, other.TalentCalc, "");
+        var talents = other?.Talents ?? c.Talents;
+        var lines = new List<string> { $"**Level {c.Level} {other?.Description ?? c.Description}**".Replace("  ", " ") };
+        if (talents.Length > 0) lines.Add(talents);
+        var title = other is null ? $"{CharacterName(c)}'s talents" : $"{CharacterName(c)}'s {other.Build.Name.ToLowerInvariant()} talents";
+        var embed = CharacterEmbed(c, title, string.Join("\n", lines));
         if (url is not null) embed["url"] = url;
         var fields = new List<object>();
         // Discord fields take up to 1024 characters; long pick lists are cut at a whole talent.
-        var picks = string.Join(", ", c.TalentPickList.Select(p => p.Text).Where(t => t.Length > 0));
+        var picks = string.Join(", ", (other?.TalentPickList ?? c.TalentPickList).Select(p => p.Text).Where(t => t.Length > 0));
         if (picks.Length > 1000)
         {
             var cut = picks.LastIndexOf(", ", 1000, StringComparison.Ordinal);

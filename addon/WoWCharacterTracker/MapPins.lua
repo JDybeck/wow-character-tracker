@@ -13,6 +13,7 @@ local WHITE = "Interface\\Buttons\\WHITE8X8"
 
 local provider
 local redrawing = false
+local testPin -- /wct testpin: a made-up friend, memory only
 
 -- Where a pin falls on the shown map: x, y in 0..1, or nil. Through world coordinates for the maps
 -- above the friend's (continent, world); never on dungeon maps.
@@ -231,7 +232,9 @@ local function buildProvider()
     local map = self:GetMap()
     local shown = map and map:GetMapID()
     if not shown then return end
-    for _, friend in ipairs(ns.friendPins and ns.friendPins() or {}) do
+    local pins = ns.friendPins and ns.friendPins() or {}
+    if testPin then pins[#pins + 1] = testPin end
+    for _, friend in ipairs(pins) do
       local x, y = ns.pinSpot(friend, shown)
       if x then map:AcquirePin(TEMPLATE, friend, x, y) end
     end
@@ -257,6 +260,23 @@ end
 -- FriendMap.lua: a position came or went.
 function ns.friendPinsChanged()
   if provider and WorldMapFrame and WorldMapFrame:IsShown() then provider:RefreshAllData() end
+end
+
+-- A test friend a little east of you, to try the map without anyone online. True when placed, false
+-- when removed, nil without a position (an instance).
+function ns.toggleTestPin()
+  if testPin then
+    testPin = nil
+    ns.friendPinsChanged()
+    return false
+  end
+  local ok, mapID, x, y = pcall(ns.myMapPosition)
+  if not ok or not mapID then return nil end
+  local _, classFile = UnitClass("player")
+  testPin = { label = "Test pin", character = "Test friend", classFile = classFile, level = UnitLevel("player"),
+    mapID = mapID, x = math.min(1, x + 0.03), y = y, age = 0 }
+  ns.friendPinsChanged()
+  return true
 end
 
 -- Adds the pins to the world map once it exists (PLAYER_LOGIN, or when Blizzard_WorldMap loads).

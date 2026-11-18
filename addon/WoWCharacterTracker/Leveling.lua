@@ -18,7 +18,7 @@ function ns.levelTimes(events, guid)
   for _, e in ipairs(events or {}) do
     if type(e) == "table" and (e.kind == nil or e.kind == "level") and e.guid == guid
       and type(e.level) == "number" and type(e.seconds) == "number" and e.seconds > 0 then
-      byLevel[e.level] = { level = e.level, seconds = e.seconds, at = e.at or 0, zone = e.zone }
+      byLevel[e.level] = { level = e.level, seconds = e.seconds, at = e.at or 0, zone = e.zone, played = type(e.played) == "number" and e.played or nil }
     end
   end
   local out = {}
@@ -37,6 +37,31 @@ function ns.levelSummary(levels)
     if l.seconds > slowest.seconds then slowest = l end
   end
   return { count = #levels, average = math.floor(total / #levels), fastest = fastest, slowest = slowest }
+end
+
+-- "6d 3h 7m from level 1 to 60": played time from the first timed level's start to the last ding (no
+-- time spent at max level), so levels in between without their own time still count. Without
+-- /played on both ends (friends' levels), the timed levels added up, and the untimed ones are left
+-- out. Nil without any. The app's LevelStats.TotalText.
+function ns.levelTotalText(levels)
+  if not levels or #levels == 0 then return nil end
+  local first, last = levels[1], levels[#levels]
+  local from, to = first.level - 1, last.level
+  local missing = (to - from) - #levels
+  local total, counted
+  local start = first.played and first.played - first.seconds
+  if start and last.played and start >= 0 and last.played > start then
+    total, counted = last.played - start, true
+  else
+    total = 0
+    for _, l in ipairs(levels) do total = total + l.seconds end
+  end
+  local text = string.format("%s from level %d to %d", ns.formatPlayed(total), from, to)
+  if missing > 0 then
+    text = text .. string.format(counted and " (%d level%s counted without their own time)" or " (%d level%s not timed)",
+      missing, missing == 1 and "" or "s")
+  end
+  return text
 end
 
 -- "44 to 45 took 2h 54m" for a timed level.
@@ -60,14 +85,16 @@ function ns.levelingFacts(levels, c, xpTable)
   local out = {}
   local function add(label, value) if value then out[#out + 1] = { label, value } end end
   local summary = ns.levelSummary(levels)
+  local atMax = c.level and c.maxLevel and c.level >= c.maxLevel
   if summary then
-    add("Last level", ns.levelText(levels[#levels]))
+    -- At max level the total says more than the last ding, so it takes its place.
+    if atMax then add("Total leveling", ns.levelTotalText(levels)) else add("Last level", ns.levelText(levels[#levels])) end
     add("Average", string.format("%s over %d level%s", ns.formatDuration(summary.average), summary.count, summary.count == 1 and "" or "s"))
     if summary.count > 1 then
       add("Slowest", string.format("%s (%d to %d)", ns.formatDuration(summary.slowest.seconds), summary.slowest.level - 1, summary.slowest.level))
     end
+    if not atMax then add("Total leveling", ns.levelTotalText(levels)) end
   end
-  local atMax = c.level and c.maxLevel and c.level >= c.maxLevel
   local percent = ns.levelPercent(c)
   if percent then add("Progress", string.format("%d%% into level %d", percent, c.level)) end
   if not atMax and type(c.levelTime) == "number" and c.levelTime > 0 then add("This level", ns.formatDuration(c.levelTime)) end

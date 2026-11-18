@@ -1901,6 +1901,99 @@ public class AddonLuaTests
         Assert.True(script.DoString("return (ns.getTalents()) == nil").Boolean); // no trait tree stubbed: nothing, not the Retail split
     }
 
+    // The Forever hunter tree as the game lays it out (column x: node count), with one stray node far
+    // right. It's not a fourth tree: the three get their names and the top one is the spec.
+    [Fact]
+    public void Forever_hunter_stray_node_is_not_a_fourth_tree()
+    {
+        var script = new Script();
+        script.DoString("""
+            function GetBuildInfo() return "1.60.1", "1", "", 16001 end
+            function UnitClass() return "Hunter", "HUNTER" end
+            local columns = { [1020] = 4, [1620] = 5, [2220] = 5, [2820] = 2, [5020] = 4, [5620] = 5, [6220] = 5,
+              [6820] = 3, [9080] = 4, [9680] = 6, [10280] = 6, [10880] = 2, [102800] = 1 }
+            local nodes, ids = {}, {}
+            for x, count in pairs(columns) do
+              for y = 1, count do
+                ids[#ids + 1] = #ids + 1
+                nodes[#ids] = { posX = x, posY = y * 600, ranksPurchased = (x == 1020 or x == 5020) and 1 or 0, maxRanks = 5 }
+              end
+            end
+            C_ClassTalents = { GetActiveConfigID = function() return 1 end }
+            C_Traits = {
+              GetConfigInfo = function() return { treeIDs = { 7 } } end,
+              GetTreeNodes = function() return ids end,
+              GetNodeInfo = function(_, id) return nodes[id] end,
+            }
+            """);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Character.lua"))), "WoWCharacterTracker", ns);
+        script.Globals["ns"] = ns;
+
+        var result = script.DoString("local t, spec = ns.getTalents(true) return t .. '|' .. spec").String;
+
+        Assert.Equal("Beast Mastery 4 / Marksmanship 4 / Survival 0|Beast Mastery", result);
+    }
+
+    // Forever dual spec: each spec group has its own config, learned while it's active. Until both
+    // were seen there's no other build; after a swap the other group's build is read from its config.
+    [Fact]
+    public void Forever_dual_spec_reads_the_inactive_build_once_both_were_seen()
+    {
+        var script = new Script();
+        script.DoString("""
+            function GetBuildInfo() return "1.60.1", "1", "", 16001 end
+            function UnitClass() return "Warrior", "WARRIOR" end
+            activeGroup = 1
+            local configOf = { 10, 20 }
+            -- Three trees of two columns; config 10 is all Protection, config 20 all Arms.
+            local xs = { 1000, 1600, 5000, 5600, 9000, 9600 }
+            local ids = { 1, 2, 3, 4, 5, 6 }
+            local function ranks(config, id) if config == 10 then return id >= 5 and 5 or 0 end return id <= 2 and 3 or 0 end
+            C_SpecializationInfo = { GetActiveSpecGroup = function() return activeGroup end }
+            C_ClassTalents = { GetActiveConfigID = function() return configOf[activeGroup] end }
+            C_Traits = {
+              GetConfigInfo = function() return { treeIDs = { 7 } } end,
+              GetTreeNodes = function() return ids end,
+              GetNodeInfo = function(config, id) return { posX = xs[id], posY = 600, ranksPurchased = ranks(config, id), maxRanks = 5 } end,
+            }
+            """);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Character.lua"))), "WoWCharacterTracker", ns);
+        script.Globals["ns"] = ns;
+
+        var first = script.DoString("""
+            known, other = ns.dualSpec(nil)
+            return tostring(known[1]) .. '/' .. tostring(known[2]) .. '|' .. tostring(other)
+            """).String;
+        var swapped = script.DoString("""
+            activeGroup = 2
+            known, other = ns.dualSpec(known)
+            return tostring(known[1]) .. '/' .. tostring(known[2]) .. '|' .. other.group .. '|' .. other.talents .. '|' .. other.spec .. '|' .. other.talentCalc
+            """).String;
+
+        Assert.Equal("10/nil|nil", first);
+        Assert.Equal("10/20|1|Arms 0 / Fury 0 / Protection 10|Protection|--55", swapped);
+    }
+
+    // Retail has spec groups too, but no dual spec builds to track.
+    [Fact]
+    public void Retail_has_no_dual_spec()
+    {
+        var script = new Script();
+        script.DoString("""
+            function GetBuildInfo() return "12.0.5", "1", "", 120005 end
+            C_SpecializationInfo = { GetActiveSpecGroup = function() return 1 end }
+            """);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Character.lua"))), "WoWCharacterTracker", ns);
+
+        Assert.True(script.Call(ns.Get("dualSpec"), DynValue.Nil).IsNil());
+    }
+
     // A setting changed in game by an older version, which didn't keep this key: the app's value counts.
     [Fact]
     public void A_setting_missing_from_the_in_game_change_comes_from_the_app()
