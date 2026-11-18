@@ -131,12 +131,26 @@ local function getTraitTalents(skipPicks)
   end
   if #nodes == 0 then return nil end
   table.sort(xs)
-  -- Columns inside a tree are about 600 apart; trees are 2000+ apart.
-  local treeOfX, tree = {}, 1
+  -- Columns inside a tree are about 600 apart; trees are 2000+ apart. A lone column off on its own
+  -- isn't a tree (hunters have one node far right, at x 102800), so its nodes are left out.
+  local groups = {}
   for i, x in ipairs(xs) do
-    if i > 1 and x - xs[i - 1] > 1200 then tree = tree + 1 end
-    treeOfX[x] = tree
+    if i == 1 or x - xs[i - 1] > 1200 then groups[#groups + 1] = {} end
+    table.insert(groups[#groups], x)
   end
+  local treeOfX, tree = {}, 0
+  for _, columns in ipairs(groups) do
+    if #columns > 1 then
+      tree = tree + 1
+      for _, x in ipairs(columns) do treeOfX[x] = tree end
+    end
+  end
+  if tree == 0 then return nil end
+  local inTrees = {}
+  for _, node in ipairs(nodes) do
+    if treeOfX[node.posX] then inTrees[#inTrees + 1] = node end
+  end
+  nodes = inTrees
 
   local points, picks, total = {}, {}, 0
   for i = 1, tree do points[i] = 0 end

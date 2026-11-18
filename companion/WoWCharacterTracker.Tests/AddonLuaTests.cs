@@ -1901,6 +1901,41 @@ public class AddonLuaTests
         Assert.True(script.DoString("return (ns.getTalents()) == nil").Boolean); // no trait tree stubbed: nothing, not the Retail split
     }
 
+    // The Forever hunter tree as the game lays it out (column x: node count), with one stray node far
+    // right. It's not a fourth tree: the three get their names and the top one is the spec.
+    [Fact]
+    public void Forever_hunter_stray_node_is_not_a_fourth_tree()
+    {
+        var script = new Script();
+        script.DoString("""
+            function GetBuildInfo() return "1.60.1", "1", "", 16001 end
+            function UnitClass() return "Hunter", "HUNTER" end
+            local columns = { [1020] = 4, [1620] = 5, [2220] = 5, [2820] = 2, [5020] = 4, [5620] = 5, [6220] = 5,
+              [6820] = 3, [9080] = 4, [9680] = 6, [10280] = 6, [10880] = 2, [102800] = 1 }
+            local nodes, ids = {}, {}
+            for x, count in pairs(columns) do
+              for y = 1, count do
+                ids[#ids + 1] = #ids + 1
+                nodes[#ids] = { posX = x, posY = y * 600, ranksPurchased = (x == 1020 or x == 5020) and 1 or 0, maxRanks = 5 }
+              end
+            end
+            C_ClassTalents = { GetActiveConfigID = function() return 1 end }
+            C_Traits = {
+              GetConfigInfo = function() return { treeIDs = { 7 } } end,
+              GetTreeNodes = function() return ids end,
+              GetNodeInfo = function(_, id) return nodes[id] end,
+            }
+            """);
+        var ns = new Table(script);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Shared.lua"))), "WoWCharacterTracker", ns);
+        script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, "Character.lua"))), "WoWCharacterTracker", ns);
+        script.Globals["ns"] = ns;
+
+        var result = script.DoString("local t, spec = ns.getTalents(true) return t .. '|' .. spec").String;
+
+        Assert.Equal("Beast Mastery 4 / Marksmanship 4 / Survival 0|Beast Mastery", result);
+    }
+
     // A setting changed in game by an older version, which didn't keep this key: the app's value counts.
     [Fact]
     public void A_setting_missing_from_the_in_game_change_comes_from_the_app()

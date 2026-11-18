@@ -10,6 +10,10 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 - **Test pin on the map.** `/wct testpin` puts a made-up friend just east of you on the world map, so you can check the map (and other map addons with it) without a friend online. Type it again to remove it, /reload clears it too.
 
+### Fixes and tweaks
+
+- **Hunter talents on Forever.** Hunters showed "Tree 1 / Tree 2 / Tree 3 / Tree 4" and "Tree 1" as their spec, since a stray node in the hunter talent tree counted as a fourth tree. They now show Beast Mastery, Marksmanship and Survival again. A friend's hunter updates once they log in with the new addon.
+
 ## v0.42.1
 
 Update the addon with the app (it does this by itself) and /reload in game.
