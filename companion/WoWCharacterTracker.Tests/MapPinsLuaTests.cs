@@ -86,6 +86,27 @@ public class MapPinsLuaTests
         Assert.False(script.DoString("return opened").Boolean);
     }
 
+    [Fact]
+    public void The_test_pin_goes_next_to_you_and_away_again()
+    {
+        var script = Load();
+        script.DoString("""
+            ns.myMapPosition = function() return 1433, 0.4, 0.6 end
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitLevel() return 42 end
+            ns.attachMapPins()
+            WorldMapFrame.shown = true
+            """);
+        Assert.True(script.DoString("return ns.toggleTestPin()").Boolean);
+        Assert.Equal(2, script.DoString("return #acquired").Number);
+        Assert.Equal(0.43, script.DoString("return acquired[2].x").Number, 3);
+        Assert.Equal("WARRIOR", script.DoString("return acquired[2].friend.classFile").String);
+        Assert.False(script.DoString("return ns.toggleTestPin()").Boolean);
+        Assert.Equal(1, script.DoString("return #acquired").Number);
+        script.DoString("ns.myMapPosition = function() return nil end"); // in an instance
+        Assert.True(script.DoString("return ns.toggleTestPin()").IsNil());
+    }
+
     // The map's AcquirePin calls this on every pin; Blizzard's calls SetPassThroughButtons, ours nothing.
     [Fact]
     public void Our_pins_never_set_pass_through_buttons()

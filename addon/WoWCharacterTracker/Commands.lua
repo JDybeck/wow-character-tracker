@@ -158,6 +158,11 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     saveDebug()
   elseif msg == "layer" then
     ns.say(ns.layerStatus())
+  elseif msg == "testpin" then
+    local placed = ns.toggleTestPin()
+    if placed == nil then ns.say("No map position here, try outside an instance.")
+    elseif placed then ns.say("Test pin placed just east of you. Open the map to see it, /wct testpin again removes it.")
+    else ns.say("Test pin removed.") end
   elseif msg == "options" or msg == "config" then
     ns.openWindow() -- every option is in the window, which also opens in combat
   elseif msg == "note" then

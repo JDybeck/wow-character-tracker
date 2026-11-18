@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.42.2
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Test pin on the map.** `/wct testpin` puts a made-up friend just east of you on the world map, so you can check the map (and other map addons with it) without a friend online. Type it again to remove it, /reload clears it too.
+
 ## v0.42.1
 
 Update the addon with the app (it does this by itself) and /reload in game.
