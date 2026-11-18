@@ -73,7 +73,19 @@
                       Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>
         <TextBlock Style="{StaticResource FactValue}" Text="None yet" Visibility="{Binding HasProfessions, Converter={StaticResource Hidden}}"/>
       </StackPanel>
-      <TextBlock Style="{StaticResource FactLabel}" Text="TALENTS"/>
+      <!-- Forever dual spec: the switch shows the other build in place of the active one. -->
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Style="{StaticResource FactLabel}" Text="{Binding TalentsLabel}"/>
+        <Button Style="{StaticResource GhostButton}" Padding="8,0" Margin="8,0,0,0" VerticalAlignment="Bottom"
+                ToolTip="Switch between your two dual spec builds"
+                Visibility="{Binding HasOtherSpec, Converter={StaticResource Visible}}" Command="{Binding SwitchSpecCommand}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE8AB;" FontSize="11" Foreground="{DynamicResource BlueText}" Margin="0,0,5,0"/>
+            <TextBlock Text="{Binding SwitchSpecText}" FontSize="11" Foreground="{DynamicResource BlueText}"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
+      <StackPanel Visibility="{Binding ShowsActiveTalents, Converter={StaticResource Visible}}">
       <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
       <ItemsControl ItemsSource="{Binding TalentPickList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
                     Margin="0,6,0,0" Visibility="{Binding HasTalentPicks, Converter={StaticResource Visible}}"/>
@@ -96,6 +108,32 @@
           </StackPanel>
         </Button>
       </WrapPanel>
+      </StackPanel>
+      <!-- The build that isn't active, as read from the saved file. -->
+      <StackPanel DataContext="{Binding OtherSpec}" Visibility="{Binding DataContext.ShowOtherSpec, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Talents}"/>
+        <ItemsControl ItemsSource="{Binding TalentPickList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
+                      Margin="0,6,0,0" Visibility="{Binding HasTalentPicks, Converter={StaticResource Visible}}"/>
+        <WrapPanel Margin="-12,2,0,0">
+          <Button Style="{StaticResource GhostButton}" Padding="12,4"
+                  ToolTip="Open this build in Wowhead's talent calculator"
+                  Visibility="{Binding HasTalentLink, Converter={StaticResource Visible}}"
+                  Command="{Binding DataContext.OpenTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE8A7;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+              <TextBlock Text="Open in Wowhead talent calculator" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+            </StackPanel>
+          </Button>
+          <Button Style="{StaticResource GhostButton}" Padding="12,4" Visibility="{Binding Owner.IsOwn, Converter={StaticResource Visible}}"
+                  ToolTip="Post this build to Discord: level, race and class, the points per tree, the talents picked and the Wowhead calculator link"
+                  Command="{Binding DataContext.PostTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+              <TextBlock Text="Post talents to Discord" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+            </StackPanel>
+          </Button>
+        </WrapPanel>
+      </StackPanel>
       <StackPanel Visibility="{Binding HasStats, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="STATS"/>
         <ItemsControl ItemsSource="{Binding StatChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>

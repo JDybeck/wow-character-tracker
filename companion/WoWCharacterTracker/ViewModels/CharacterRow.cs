@@ -57,6 +57,32 @@ sealed class CharacterRow : Observable
     public bool HasArmoryLink => ArmoryUrl is not null;
     public string TalentCalc { get; init; } = ""; // Forever: Wowhead classic-style code, "--505..."
     public bool HasTalentLink => HasTalentExport || TalentCalc.Length > 0;
+    // Forever dual spec: the build that isn't active, null without a second spec (or before both were seen).
+    public SpecBuildRow? OtherSpec { get; private set; }
+    public bool HasOtherSpec => OtherSpec is not null;
+    // With two specs, one build shows at a time: the active one, or the other after the switch button.
+    bool showOtherSpec;
+    public bool ShowOtherSpec
+    {
+        get => showOtherSpec;
+        set
+        {
+            if (!Set(ref showOtherSpec, value)) return;
+            Raise(nameof(ShowsActiveTalents)); Raise(nameof(TalentsLabel)); Raise(nameof(SwitchSpecText));
+        }
+    }
+    public bool ShowsActiveTalents => !ShowOtherSpec;
+    RelayCommand? switchSpec;
+    public RelayCommand SwitchSpecCommand => switchSpec ??= new RelayCommand(_ => ShowOtherSpec = !ShowOtherSpec);
+    // The active spec's name: the group the other build isn't.
+    string ActiveSpecName => OtherSpec?.Build.Group == 1 ? "SECONDARY" : "PRIMARY";
+    public string TalentsLabel => OtherSpec switch
+    {
+        null => "TALENTS",
+        { } o when ShowOtherSpec => $"{o.Build.Name.ToUpperInvariant()} TALENTS (INACTIVE)",
+        _ => $"ACTIVE TALENTS ({ActiveSpecName})",
+    };
+    public string SwitchSpecText => ShowOtherSpec ? "Show active spec" : $"Show {OtherSpec?.Build.Name.ToLowerInvariant()} spec";
     public string Stats { get; init; } = "";        // "Strength~120,Crit~5.2%,..."
     public string Recipes { get; init; } = "";      // "Alchemy~Potions=2330/Elixirs=2329" lines (ProfessionSkills.Recipes)
     IReadOnlyDictionary<string, IReadOnlyList<RecipeGroup>>? recipeLists;
@@ -172,7 +198,6 @@ sealed class CharacterRow : Observable
         foreach (var chip in CrestList) chip.Info = Find("currency", chip.Tag);
         ProfessionList = ProfessionChips(Professions);
         TalentPickList = TalentChips(TalentPicks);
-        foreach (var chip in TalentPickList) chip.Info = Find("spell", chip.Tag);
         foreach (var h in Highlights) h.Info = Find("item", h.ItemId);
         Raise(nameof(TalentPickList));
         Raise(nameof(HasTalentPicks));
@@ -187,13 +212,21 @@ sealed class CharacterRow : Observable
             await chip.Info.LoadAsync(flavor);
             chip.IconUrl = chip.Info.IconUrl;
         }
-        foreach (var chip in TalentPickList.Where(c => c.Info is not null))
+        await LoadTalentIconsAsync(TalentPickList, Find, flavor);
+        if (OtherSpec is not null) await OtherSpec.LoadIconsAsync(flavor);
+        foreach (var h in Highlights) await h.LoadIconAsync(flavor);
+    }
+
+    // A talent chip's name and icon from Wowhead ("5/5" becomes "Deflection 5/5").
+    internal static async Task LoadTalentIconsAsync(IReadOnlyList<IconChip> chips, Func<string, int, ItemInfo?> find, Flavor flavor)
+    {
+        foreach (var chip in chips) chip.Info = find("spell", chip.Tag);
+        foreach (var chip in chips.Where(c => c.Info is not null))
         {
             await chip.Info!.LoadAsync(flavor);
             chip.IconUrl = chip.Info.IconUrl;
             if (chip.Info.Name.Length > 0) chip.Text = $"{chip.Info.Name} {chip.Text}";
         }
-        foreach (var h in Highlights) await h.LoadIconAsync(flavor);
     }
 
     // The user's tags as on/off chips for this character, and the box for making a new one.
@@ -370,7 +403,7 @@ sealed class CharacterRow : Observable
             var cap = Math.Max(xpSnaps.GetValueOrDefault(guid)?.MaxLevel ?? 0, s?.MaxLevel ?? 0);
             if (cap > 0 && level >= cap || all.Any(e => e.MaxLevel)) thisLevel = 0;
 
-            rows.Add(new CharacterRow
+            var row = new CharacterRow
             {
                 Guid = guid,
                 Name = s?.Char is { Length: > 0 } n ? n : last?.Char ?? "?",
@@ -425,7 +458,12 @@ sealed class CharacterRow : Observable
                 Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor.EstimatesXp, thisLevel),
                 LevelPercent = LevelStats.Percent(xpSnaps.GetValueOrDefault(guid), level),
                 LevelPercentAt = xpSnaps.GetValueOrDefault(guid)?.LastSeen ?? 0,
-            });
+            };
+            // The saved file has the other spec, a check-in may already have swapped to it: then it's the active one.
+            if (snapsOf[guid].Where(c => c.OtherSpec is not null).MaxBy(c => c.LastSeen)?.OtherSpec is { } other
+                && other.TalentCalc != row.TalentCalc)
+                row.OtherSpec = new SpecBuildRow(row, other);
+            rows.Add(row);
         }
 
         return rows.OrderByDescending(r => r.LastSeen).ToList();
@@ -433,7 +471,7 @@ sealed class CharacterRow : Observable
 
     // Forever talent picks, "spellID~rank~maxRank~tree,...": a chip per talent ("5/5" until
     // Wowhead gives the name and icon), ordered by tree.
-    static IReadOnlyList<IconChip> TalentChips(string picks) => picks.Length == 0 ? [] : picks.Split(',')
+    internal static IReadOnlyList<IconChip> TalentChips(string picks) => picks.Length == 0 ? [] : picks.Split(',')
         .Select(p => p.Split('~'))
         .Where(p => p.Length >= 4 && int.TryParse(p[0], out _))
         .OrderBy(p => int.TryParse(p[3], out var t) ? t : 0)

@@ -190,10 +190,21 @@ static class SavedVariables
                 MaxLevel = (int)N(t, "maxLevel"),
                 LevelTime = (long)N(t, "levelTime"),
                 Recipes = S(t, "recipes"),
+                OtherSpec = ReadSpecBuild(t.Get("otherSpec")),
             });
         }
 
         return list;
+    }
+
+    // chars[guid].otherSpec: the inactive dual spec build (Character.lua ns.dualSpec).
+    static SpecBuild? ReadSpecBuild(DynValue v)
+    {
+        if (v.Type != DataType.Table) return null;
+        var t = v.Table;
+        var group = (int)N(t, "group");
+        if (group is not (1 or 2) || S(t, "talents").Length == 0) return null;
+        return new SpecBuild(group, S(t, "talents"), S(t, "spec"), S(t, "talentPicks"), S(t, "talentCalc"));
     }
 
     // items[guid]: gear, bags and bank (the addon's Inventory.lua).

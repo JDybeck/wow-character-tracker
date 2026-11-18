@@ -76,6 +76,12 @@ local function saveDebug()
     end
     add("nodes: " .. table.concat(pos, " "))
   end)
+  pcall(function()
+    local saved = WoWCharacterTrackerDB.chars[UnitGUID("player")] or {}
+    local configs, other = ns.dualSpec(saved.specConfigs)
+    add(string.format("dual spec: active %s, configs %s/%s, other %s", dump(C_SpecializationInfo.GetActiveSpecGroup()),
+      tostring(configs and configs[1]), tostring(configs and configs[2]), other and (other.group .. " " .. other.talents) or "nil"))
+  end)
   add("UnitName: " .. dump(UnitName("player")) .. ", surnames: " .. tostring(ns.HAS_SURNAMES))
   add("guild: " .. dump(IsInGuild and IsInGuild(), GetGuildInfo and GetGuildInfo("player")))
   add("hardcore: " .. dump(ns.isHardcore()))

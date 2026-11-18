@@ -116,10 +116,12 @@ local CLASSIC_TREES = {
 -- columns starts the next tree). Returns "Holy 0 / Protection 0 / Retribution 16", the tree with
 -- the most points (shown as the spec), and the picked talents as "spellID~rank~maxRank~tree,..."
 -- (skipped with skipPicks: events don't keep them, and each pick costs two more lookups).
-local function getTraitTalents(skipPicks)
+-- otherConfigID: read that config (the inactive dual spec) on the active one's tree instead.
+local function getTraitTalents(skipPicks, otherConfigID)
   if not (C_Traits and C_Traits.GetTreeNodes) then return nil end
   local configID, treeID = activeTraitTree()
   if not treeID then return nil end
+  configID = otherConfigID or configID
 
   local nodes, xs, seen = {}, {}, {}
   for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
@@ -232,6 +234,26 @@ function ns.getTalents(skipPicks)
   local ok, traits, specName, picks, calc = pcall(getTraitTalents, skipPicks)
   if ok then return traits, specName, picks, calc end
   return nil
+end
+
+-- Forever dual spec: each spec group (1 primary, 2 secondary) has its own trait config, and the
+-- inactive one reads fine, but nothing lists its id, so each group's id is learned while it is
+-- active. known: the saved { [group] = configID }. Returns those ids and the inactive build as
+-- { group, talents, spec, talentPicks, talentCalc }, nil until both groups were seen.
+function ns.dualSpec(known)
+  local SI = C_SpecializationInfo
+  if ns.IS_RETAIL or not (SI and SI.GetActiveSpecGroup) then return nil end
+  local active = SI.GetActiveSpecGroup()
+  local configID = activeTraitTree()
+  if (active ~= 1 and active ~= 2) or not configID then return known end
+  local configs = { [1] = known and known[1], [2] = known and known[2] }
+  configs[active] = configID
+  local group = 3 - active
+  local other = configs[group]
+  if not other or other == configID then return configs end
+  local talents, spec, picks, calc = getTraitTalents(false, other)
+  if not talents then return configs end
+  return configs, { group = group, talents = talents, spec = spec, talentPicks = picks, talentCalc = calc }
 end
 
 -- Forever has surnames: UnitName gives the surname where other clients give the realm.
@@ -544,6 +566,15 @@ function ns.saveSnapshot(atLogout)
     -- XP: during logout the game reports 0 of 0, so keep the last known bar, but only one from this
     -- level (0 XP with a real bar is a fresh level and stays).
     if (info.xpMax or 0) == 0 and old.level == info.level then info.xp, info.xpMax = old.xp, old.xpMax end
+  end
+  -- Dual spec (saved file only). A build that can't be read right now (logout) keeps the saved one,
+  -- unless that is the build now active (a swap).
+  local okSpec, configs, otherSpec = pcall(ns.dualSpec, old and old.specConfigs)
+  info.specConfigs = okSpec and configs or (old and old.specConfigs)
+  if okSpec and otherSpec then
+    info.otherSpec = otherSpec
+  elseif old and old.otherSpec and old.otherSpec.talentCalc ~= info.talentCalc then
+    info.otherSpec = old.otherSpec
   end
   -- A saved "spec" that is the class, or a role, means nothing on Forever (it has no specs).
   if info.spec == info.class then info.spec = nil end

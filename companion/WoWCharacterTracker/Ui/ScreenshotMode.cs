@@ -14,7 +14,7 @@ namespace WoWCharacterTracker.Ui;
 //           | intro (the first-run tour; extra2 = which step, 1 = the welcome) | find (the header's search, CHARACTERTRACKER_SCREENSHOT_SEARCH or "go", saved as <name>-find.png) | confirm (page data: the first character ticked, its question open)
 // CHARACTERTRACKER_SCREENSHOT_THEME picks a color theme for the tab (Ui/Theme option key).
 //   extra2 (friends page): gear, leveling or highlights (a friend's tab) | sharing (the sharing settings) | professions (friends' professions)
-//   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling, highlights (a details tab) | closed (no character open) | search (Items page, "potion") | followedsearch (Followed items page, a search done) | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | recipes (Professions page: the first recipes open) | recipesearch (Professions page: a recipe search) | post (Post to Discord for the first character) | posttalents (its Post talents) | remove (its remove question) | sync (Sync now) | end (with stream: scrolled to the panel's bottom)
+//   extra2: gear | gearset (the gear tab on the last Equipment Manager set) | leveling, highlights (a details tab) | closed (no character open) | search (Items page, "potion") | followedsearch (Followed items page, a search done) | exclude (Items page: Bags only, then Bank left out) | cardopts (card options open) | recipes (Professions page: the first recipes open) | recipesearch (Professions page: a recipe search) | post (Post to Discord for the first character) | posttalents (its Post talents) | otherspec (its other dual spec build shown) | remove (its remove question) | sync (Sync now) | end (with stream: scrolled to the panel's bottom)
 // CHARACTERTRACKER_SCREENSHOT_SIZE sets the window size as "width" or "widthxheight", to check narrow layouts.
 static class ScreenshotMode
 {
@@ -92,6 +92,7 @@ static class ScreenshotMode
                 await Task.Delay(5000);
             }
             if (Part(3) == "remove" && vm.SelectedFlavor?.SelectedCharacter is { } r) r.ConfirmRemove = true;
+            if (Part(3) == "otherspec" && vm.SelectedFlavor?.SelectedCharacter is { HasOtherSpec: true } os) os.ShowOtherSpec = true;
             if (Part(3) == "ignored" && vm.SelectedFlavor is { HasIgnored: true } ig) ig.ShowIgnored = true; // the footer's Ignored list (saved as <name>-ignored.png too)
             if (Part(3) == "sync") vm.SyncCommand.Execute(null);
             if (Part(3) == "reload" && vm.SelectedFlavor is { } rf) rf.ReloadNeeded = true;
