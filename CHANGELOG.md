@@ -9,6 +9,8 @@ Update the addon with the app (it does this by itself) and /reload in game.
 ### New
 
 - **Test pin on the map.** `/wct testpin` puts a made-up friend just east of you on the world map, so you can check the map (and other map addons with it) without a friend online. Type it again to remove it, /reload clears it too.
+- **Dual spec (Forever).** The character overview shows your active build, and a button next to the heading switches to your other spec's talents, with its own Wowhead link and **Post talents to Discord** button. Switch to each spec once with the new addon, then /reload, and both stay up to date from then on.
+- **Total leveling time.** The Leveling tab and the addon window's level times show how long leveling took and which levels that covers, like "5d 2h 10m from level 1 to 60", or "from level 30 to 60" when the addon came along later. It's your /played from the first timed level to the last ding, so a few levels the addon missed still count. Time played at max level isn't part of it. At max level it takes the place of Last level in the addon window.
 
 ### Fixes and tweaks
 
