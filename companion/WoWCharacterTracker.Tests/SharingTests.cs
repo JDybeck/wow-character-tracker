@@ -67,7 +67,7 @@ public class MomentsTests
     [Fact]
     public void Every_announce_and_ask_kind_has_a_row()
     {
-        string[] announced = ["level", "maxlevel", "boss", "keyrun", "loot", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "mplus", "pvp", "death"];
+        string[] announced = ["level", "maxlevel", "boss", "keyrun", "loot", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "weekly", "mplus", "pvp", "death"];
         Assert.Equal(announced.Order(), Moments.All.Select(m => m.Announce).OfType<string>().Order());
         // The defaults (boss, rare, epic) are among the moments that can be asked about.
         Assert.Subset(Moments.All.Select(m => m.Ask).OfType<string>().ToHashSet(), FlavorSettings.AllAskKinds.ToHashSet());
@@ -96,6 +96,28 @@ public class MomentsTests
 
         Assert.Equal(preset, SharingPresets.Detect(s, Flavors.Forever));
         Assert.True(s.HasAchievements);
+    }
+
+    // The same for the weekly satchel, which takes the legacy achievement row's choices.
+    [Theory]
+    [InlineData(SharingPresets.Quiet)]
+    [InlineData(SharingPresets.Normal)]
+    [InlineData(SharingPresets.Everything)]
+    public void Old_configs_keep_their_preset_when_the_weekly_satchel_comes(string preset)
+    {
+        var s = new FlavorSettings();
+        SharingPresets.Apply(s, Flavors.Forever, preset);
+        s.PostWeekly = true;
+        s.Screenshot.Remove("weekly");
+        s.PostScreenshot.Remove("weekly");
+        s.AnnounceKinds.Remove("weekly");
+        s.AnnouncePartyKinds?.Remove("weekly");
+        s.AskKinds?.Remove("weekly");
+
+        s.TakeWeeklyFromAchievements();
+
+        Assert.Equal(preset, SharingPresets.Detect(s, Flavors.Forever));
+        Assert.True(s.HasWeekly);
     }
 
     [Fact]

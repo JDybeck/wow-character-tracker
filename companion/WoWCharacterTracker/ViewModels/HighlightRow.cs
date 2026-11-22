@@ -64,10 +64,11 @@ sealed class HighlightRow(string glyph, SolidColorBrush brush, string verb, stri
             "mount" => ("", 0x4ADE80),
             "profession" => ("", 0xFCD34D), // a wrench
             "achievement" => ("", 0xFFD100), // a star, in achievement gold
+            "weekly" => ("", 0xFFD100), // the loot bag, in gold
             _ => ("", 0xF87171), // Mak'gora wins, deaths
         };
         var brush = e.Kind == "loot" ? QualityBrush(e.Quality) ?? ClassColors.Hex(0x0070DD) : ClassColors.Hex(color);
-        return new(glyph, brush, verb, subject, Stamp(e.At), e.Kind is "loot" or "mount" ? e.ItemId : 0);
+        return new(glyph, brush, verb, subject, Stamp(e.At), e.Kind is "loot" or "mount" or "weekly" ? e.ItemId : 0);
     }
 
     static string Stamp(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");

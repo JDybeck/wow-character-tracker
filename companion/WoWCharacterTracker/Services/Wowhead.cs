@@ -237,6 +237,6 @@ static class Wowhead
         ["boss"] = "achievement_dungeon_classicdungeonmaster", ["loot"] = "inv_misc_bag_10", ["mount"] = "ability_mount_ridinghorse",
         ["duel"] = "ability_dualwield", ["makgora"] = "ability_warrior_challange", ["bg"] = "achievement_bg_winwsg",
         ["death"] = "inv_misc_bone_humanskull_01", ["profession"] = "trade_blacksmithing",
-        ["achievement"] = "achievement_general",
+        ["achievement"] = "achievement_general", ["weekly"] = "inv_misc_bag_10_green",
     };
 }

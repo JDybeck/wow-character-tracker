@@ -152,6 +152,7 @@ sealed class StreamViewModel : Observable
     [
         ("boss", "Boss kills", "Dungeon and raid end bosses killed"), ("makgora", "Mak'gora", "Mak'goras won and lost"), ("death", "Deaths", "Hardcore deaths"),
         ("achievement", "Legacy achievements", "Legacy achievements earned (not the level or profession ones)"),
+        ("weekly", "Weekly satchel", "What came out of the weekly In Demand satchel, and what it sells for"),
     ];
     internal static readonly (string Kind, string Name, string Tip)[] RetailKindNames =
     [
@@ -176,6 +177,7 @@ sealed class StreamViewModel : Observable
         ("boss", "Boss kills", "VICTORY! when an end boss dies. With Dungeon complete on too, dungeons get that alert and this one is for raids."),
         ("makgora", "Mak'gora wins", "MAK'GORA! in blood red"), ("death", "Deaths", "R.I.P. when a hardcore character dies"),
         ("achievement", "Legacy achievements", "ACHIEVEMENT! when you earn a legacy achievement"),
+        ("weekly", "Weekly satchel", "WEEKLY LOOT! when the weekly In Demand satchel is opened"),
     ];
     internal static readonly (string Kind, string Name, string Tip)[] RetailAlertNames =
     [

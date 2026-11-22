@@ -11,7 +11,7 @@ sealed class EventEmbeds(Flavor flavor)
     // spell. Null when there's none. The post's picture and links both use it.
     public static (string Type, int Id)? WowheadThing(Entry e) => e.Kind switch
     {
-        "loot" or "mount" when e.ItemId > 0 => ("item", e.ItemId),
+        "loot" or "mount" or "weekly" when e.ItemId > 0 => ("item", e.ItemId),
         "mount" when e.SpellId > 0 => ("spell", e.SpellId),
         _ => null,
     };
@@ -35,6 +35,7 @@ sealed class EventEmbeds(Flavor flavor)
             "bg" => BattlegroundText(e),
             "profession" => ProfessionText(e),
             "achievement" => AchievementText(e),
+            "weekly" => WeeklyText(e, itemPicture),
             "mplus" => MPlusText(e),
             "pvp" => PvpText(e),
             "test" => TestText(e),
@@ -58,6 +59,8 @@ sealed class EventEmbeds(Flavor flavor)
             embed["color"] = 0xFFD100; // gold, it's a big one
         else if (e.Kind == "loot" && e.Quality is >= 3 and <= 6 && GameColors.Quality(e.Quality) is int qc) // rare to artifact
             embed["color"] = qc;
+        else if (e.Kind == "weekly")
+            embed["color"] = 0xFFD100; // gold, it's about the gold
         else if (e.Kind is "death" or "makgora")
             embed["color"] = 0x8B0000;
         else if (e.Kind == "mplus" || (e.Kind == "keyrun" && e.Timed))
@@ -314,6 +317,20 @@ sealed class EventEmbeds(Flavor flavor)
         var lines = new List<string> { $"**{name}**, a legacy achievement for the whole account." };
         if (e.Level > 0) lines.Add(e.Zone.Length > 0 ? $"At level {e.Level}, in **{e.Zone}**." : $"At level {e.Level}.");
         return ($"\U0001F3C6 {e.Char} earned {e.Achievement}!", lines);
+    }
+
+    // The weekly In Demand satchel (Forever): what came out, what it sells for, the week's quest and the rest.
+    (string, List<string>) WeeklyText(Entry e, bool itemPicture)
+    {
+        var bag = e.Bag.Length > 0 ? e.Bag : "weekly satchel";
+        var item = e.ItemId > 0 ? $"[{e.Item}]({ItemUrl(e.ItemId)})" : e.Item;
+        var lines = new List<string>();
+        if (!itemPicture || e.Sell > 0)
+            lines.Add((itemPicture ? $"Out came **{e.Item}**" : $"Out came **{item}**") + (e.Sell > 0 ? $", it sells for **{Format.Price(e.Sell)}**." : "."));
+        lines.Add(e.Quest.Length > 0 ? $"The reward for **{e.Quest}** in Booty Bay." : "The reward for this week's In Demand quest in Booty Bay.");
+        if (e.ExtraList.Count > 0) lines.Add($"Also inside: {string.Join(", ", e.ExtraList)}.");
+        var value = e.Sell > 0 ? $" ({Format.Price(e.Sell)})" : "";
+        return ($"💰 {e.Char} opened the {bag}: {e.Item}{value}!", lines);
     }
 
     static (string, List<string>) MPlusText(Entry e)

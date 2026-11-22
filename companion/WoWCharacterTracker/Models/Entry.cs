@@ -74,6 +74,14 @@ record Entry
     public string Profession { get; init; } = ""; // profession: "Mining" (from 0.29.0)
     public string Achievement { get; init; } = "";  // achievement (Forever's legacy ones): its name (from 0.42.1)
     public int AchievementId { get; init; }
+    // weekly (Forever's In Demand satchel): the valuable is Item/ItemId/Quality; Sell what a
+    // vendor pays for it (copper), Quest the week's quest ("In Demand - Plague Records", "" when the
+    // addon didn't see the turn-in), Bag the satchel, Extras the rest that came out ("Thorium Ore x3^Black Lotus").
+    public long Sell { get; init; }
+    public string Quest { get; init; } = "";
+    public string Bag { get; init; } = "";
+    public string Extras { get; init; } = "";
+    public IReadOnlyList<string> ExtraList => Extras.Length == 0 ? [] : Extras.Split('^');
     public bool Boe { get; init; }               // loot: binds when equipped (from 0.29.0; older loot reads as not)
     public bool Mat { get; init; }               // loot: can't be worn, so legendary doesn't mean always posted (from 0.30.0; older loot reads as gear)
     // On the tab's followed list. Not from the addon: the app marks it from the list as it is now
@@ -177,6 +185,10 @@ record Entry
             Profession = s("profession"),
             Achievement = s("achievement"),
             AchievementId = (int)n("achievementId"),
+            Sell = (long)n("sell"),
+            Quest = s("quest"),
+            Bag = s("bag"),
+            Extras = s("extras"),
             Boe = s("boe") is "true" or "1",
             Mat = s("mat") is "true" or "1",
             AskedKind = s("askedKind"),

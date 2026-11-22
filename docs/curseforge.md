@@ -28,6 +28,7 @@ One line in party or raid chat, as you, when something happens. You pick which:
 - Duel, Mak'gora and battleground wins
 - Profession milestones and hardcore deaths
 - Legacy achievements (Forever), like Conqueror of the Lair or Master Spelunker
+- What came out of the weekly In Demand satchel from Booty Bay (Forever), like a Gold Ring that sells for 100g
 
 The lines wait until you're out of combat and are rate limited, so they never spam. Off until you turn them on.
 

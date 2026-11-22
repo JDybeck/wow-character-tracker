@@ -127,7 +127,7 @@ static partial class AddonInstaller
                    + $"rare = {B(s.PostRare)}, followed = {B(s.PostFollowed)}, rareBoe = {B(s.RareBoeOnly)}, epic = {B(s.PostEpic)}, mount = {B(s.PostMounts)}, boss = {B(s.PostBosses)}, run = {B(s.PostRuns)}, death = {B(s.PostDeaths)}, "
                    + $"keyrun = {{ on = {B(s.PostKeyRuns)}, min = {s.KeyRunMinLevel}, timed = {B(s.KeyRunTimedOnly)} }}, "
                    + $"maxLevel = {B(s.PostMaxLevel)}, duel = {B(s.PostDuels)}, makgora = {B(s.PostMakgora)}, bg = {B(s.PostBattlegrounds)}, mplus = {B(s.PostMPlus)}, pvp = {B(s.PostPvp)}, "
-                   + $"profession = {B(s.PostProfessions)}, achievement = {B(s.PostAchievements)}, professionSteps = {{ {string.Join(", ", s.ProfessionSteps)} }}, "
+                   + $"profession = {B(s.PostProfessions)}, achievement = {B(s.PostAchievements)}, weekly = {B(s.PostWeekly)}, professionSteps = {{ {string.Join(", ", s.ProfessionSteps)} }}, "
                    + $"mplusSteps = {{ {string.Join(", ", s.MPlusSteps)} }}, pvpSteps = {{ {string.Join(", ", s.PvpSteps)} }}";
         var lua = "-- Written by the Character Tracker app from its Sharing page. Changes apply on /reload.\n"
                   + "WoWCharacterTrackerSettings = {\n"

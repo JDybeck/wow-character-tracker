@@ -43,11 +43,11 @@ class StreamOptions
 
     // Which highlights the highlights box shows (Highlights.Kinds): loot, boss, keyrun, mount, duel, makgora, bg, profession, death, mplus, pvp.
     public List<string> HighlightKinds { get; set; } = [.. AllKinds];
-    public static readonly string[] AllKinds = ["loot", "boss", "keyrun", "mount", "duel", "makgora", "bg", "profession", "achievement", "death", "mplus", "pvp"];
+    public static readonly string[] AllKinds = ["loot", "boss", "keyrun", "mount", "duel", "makgora", "bg", "profession", "achievement", "weekly", "death", "mplus", "pvp"];
 
     // Which moments pop up as the big alert (StreamAlert kinds). Rare loot is off by default (it's often).
-    public List<string> AlertKinds { get; set; } = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "death", "mplus", "pvp"];
-    public static readonly string[] AllAlertKinds = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "death", "mplus", "pvp"];
+    public List<string> AlertKinds { get; set; } = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "weekly", "death", "mplus", "pvp"];
+    public static readonly string[] AllAlertKinds = ["level", "maxlevel", "boss", "dungeon", "keyrun", "legendary", "epic", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "weekly", "death", "mplus", "pvp"];
 
     // Bind on Equip only, like the Discord rule (Entry.PassesRareRule): for the RARE LOOT! alert (on,
     // as on Discord; those alerts are off by default anyway) and the highlights' rare lines (off, the
@@ -65,6 +65,7 @@ class StreamOptions
     public bool HasProfessions { get; set; }
     public bool HasDungeonAlerts { get; set; }
     public bool HasAchievements { get; set; } // legacy achievements, 0.42.1
+    public bool HasWeekly { get; set; } // the weekly satchel
 
     // The highlights box used to share the card's background: older configs start with the
     // value they already see. True when it changed something to save (Config.Load).

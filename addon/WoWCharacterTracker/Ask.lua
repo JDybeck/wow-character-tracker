@@ -23,7 +23,7 @@ local box
 
 -- The kinds offered as themselves (wins only: a lost duel or battleground is never offered).
 local ASKED_AS_KIND = { mount = true, keyrun = true, death = true, profession = true, mplus = true, pvp = true,
-  duel = true, makgora = true, bg = true, achievement = true }
+  duel = true, makgora = true, bg = true, achievement = true, weekly = true }
 
 -- The `ask` switch that covers this moment, or nil when it's never offered.
 local function askKind(e)

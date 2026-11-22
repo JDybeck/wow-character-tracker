@@ -23,6 +23,7 @@ static class EventKinds
         new("bg", "Battlegrounds", Shot: true, Highlight: true),
         new("profession", "Professions", Shot: true, Highlight: true),
         new("achievement", "Legacy achievements", Shot: true, Highlight: true, NoRatings: true), // Forever's
+        new("weekly", "Weekly satchel", Shot: true, Highlight: true, NoRatings: true), // Forever's In Demand
         new("mplus", "Mythic+", Highlight: true, RatingsOnly: true),
         new("pvp", "PvP rating", Highlight: true, RatingsOnly: true),
     ];

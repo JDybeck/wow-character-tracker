@@ -82,6 +82,7 @@ public class SharedRulesTests
     [InlineData("bg", 20, 0, false, true)]
     [InlineData("profession", 20, 0, false, false)]
     [InlineData("achievement", 20, 0, false, false)]
+    [InlineData("weekly", 60, 2, false, false)]
     [InlineData("mplus", 70, 0, false, false)]
     [InlineData("pvp", 70, 0, false, false)]
     public void Addon_and_app_agree_on_what_is_posted(string kind, int level, int quality, bool maxLevel, bool lost)
@@ -89,7 +90,7 @@ public class SharedRulesTests
         foreach (var settings in new[]
         {
             Flavors.Forever.Defaults(), Flavors.Retail.Defaults(),
-            new FlavorSettings { PostDuels = true, PostRare = true, PostMaxLevel = false, PostBattlegrounds = true, PostProfessions = false, PostAchievements = false },
+            new FlavorSettings { PostDuels = true, PostRare = true, PostMaxLevel = false, PostBattlegrounds = true, PostProfessions = false, PostAchievements = false, PostWeekly = false },
         })
         {
             foreach (var boe in new[] { false, true })

@@ -64,6 +64,9 @@ local function message(e, forChat)
     local ok, link = false, nil
     if e.achievementId and GetAchievementLink then ok, link = pcall(GetAchievementLink, e.achievementId) end
     return string.format("Earned the legacy achievement %s!", (ok and type(link) == "string" and link) or ("[" .. (e.achievement or "?") .. "]"))
+  elseif k == "weekly" then
+    local value = (e.sell or 0) > 0 and (", sells for " .. ns.goldText(e.sell)) or ""
+    return string.format("Opened my weekly %s: %s%s!", e.bag or "satchel", itemLink(e.itemId, e.item, e.quality, forChat), value)
   elseif k == "death" then
     local killer = (e.killer and e.killer ~= "") and (" to " .. e.killer) or ""
     return string.format("Fell at level %d%s. Rest in peace.", e.level or 0, killer)

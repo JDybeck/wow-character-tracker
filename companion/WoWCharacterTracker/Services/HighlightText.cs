@@ -20,6 +20,7 @@ static class HighlightText
         "bg" => (e.Lost ? "Lost " : "Won ", e.Instance.Length > 0 ? e.Instance : "a battleground"),
         "profession" => ("Reached ", $"{e.Step} {e.Profession}"),
         "achievement" => ("Earned ", e.Achievement),
+        "weekly" => ("Got ", e.Item + (e.Sell > 0 ? $" ({Format.Price(e.Sell)})" : "") + " from the weekly satchel"),
         "mplus" => ("Reached ", $"{e.Step} Mythic+ rating" + (e.Rating > 0 ? $" ({e.Rating})" : "")),
         "pvp" => ("Reached ", $"{e.Step} in {e.Bracket}" + (e.Rating > 0 ? $" ({e.Rating})" : "")),
         "death" => ("", $"Died at level {e.Level}" + (e.Killer.Length > 0 ? $", killed by {e.Killer}" : "")),

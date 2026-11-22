@@ -86,6 +86,22 @@ class FlavorSettings
         HasAchievements = true;
     }
 
+    // Forever's weekly In Demand satchel: what came out of it and what it sells for. Configs from before it
+    // came get the legacy achievement row's choices once (Config.Load, HasWeekly), same defaults.
+    public bool PostWeekly { get; set; } = true;
+    public bool HasWeekly { get; set; }
+
+    public void TakeWeeklyFromAchievements()
+    {
+        PostWeekly = PostAchievements;
+        if (Shoots("achievement")) SetShot("weekly", true);
+        if (PostScreenshot.TryGetValue("achievement", out var attach)) PostScreenshot = new(PostScreenshot) { ["weekly"] = attach };
+        if (AnnounceKinds.Contains("achievement") && !AnnounceKinds.Contains("weekly")) AnnounceKinds = [.. AnnounceKinds, "weekly"];
+        if (AnnouncePartyKinds?.Contains("achievement") == true && !AnnouncePartyKinds.Contains("weekly")) AnnouncePartyKinds = [.. AnnouncePartyKinds, "weekly"];
+        if (AskKinds?.Contains("achievement") == true && !AskKinds.Contains("weekly")) AskKinds = [.. AskKinds, "weekly"];
+        HasWeekly = true;
+    }
+
     // Duels, hardcore Mak'gora, battleground wins, and retail rating milestones (posted when a step is passed).
     public bool PostDuels { get; set; }
     public bool PostMakgora { get; set; } = true;
@@ -162,7 +178,7 @@ class FlavorSettings
     public static bool GuildChatOn => false;
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
     public List<string>? AnnouncePartyKinds { get; set; }
-    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "achievement", "mplus", "pvp"];
+    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "achievement", "weekly", "mplus", "pvp"];
 
     // Highlights no setting posts that the addon offers to post (Ask.lua): boss, rare, epic. Null until
     // chosen; Config.Load fills it from the game's defaults.
@@ -261,7 +277,7 @@ class FlavorSettings
         (FirstBossKillOnly, PostRuns) = (d.FirstBossKillOnly, d.PostRuns);
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
-        (PostProfessions, ProfessionSteps, PostAchievements) = (d.PostProfessions, [.. d.ProfessionSteps], d.PostAchievements);
+        (PostProfessions, ProfessionSteps, PostAchievements, PostWeekly) = (d.PostProfessions, [.. d.ProfessionSteps], d.PostAchievements, d.PostWeekly);
         (MPlusSteps, PvpSteps) = ([.. d.MPlusSteps], [.. d.PvpSteps]);
         Screenshot = new(d.Screenshot);
         PostScreenshot = new(d.PostScreenshot);
@@ -336,6 +352,7 @@ class FlavorSettings
         "bg" => PostBattlegrounds && !e.Lost,
         "profession" => PostProfessions,
         "achievement" => PostAchievements,
+        "weekly" => PostWeekly,
         "mplus" => PostMPlus,
         "pvp" => PostPvp,
         _ => false,
