@@ -71,7 +71,7 @@ sealed class HighlightRow(string glyph, SolidColorBrush brush, string verb, stri
         return new(glyph, brush, verb, subject, Stamp(e.At), e.Kind is "loot" or "mount" ? e.ItemId : 0);
     }
 
-    static string Stamp(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");
+    static string Stamp(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm", System.Globalization.CultureInfo.InvariantCulture); // English months, like the rest of the app
 
     // WoW's item quality colors (GameColors).
     public static SolidColorBrush? QualityBrush(int quality) => GameColors.Quality(quality) is int c ? ClassColors.Hex(c) : null;

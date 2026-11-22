@@ -25,7 +25,7 @@ static class Changelog
         foreach (var raw in markdown.Split('\n'))
         {
             var line = raw.TrimEnd();
-            if (line.StartsWith("## "))
+            if (line.StartsWith("## ", StringComparison.Ordinal))
             {
                 versions.Add(new ChangelogVersion(line[3..].Trim()));
                 continue;
@@ -33,9 +33,9 @@ static class Changelog
             if (versions.Count == 0 || line.Length == 0) continue;
 
             var version = versions[^1];
-            if (line.StartsWith("### ")) version.Groups.Add(new ChangelogGroup(line[4..].Trim()));
-            else if (line.StartsWith("- ")) GroupFor(version).Items.Add(Item(line[2..], isSub: false));
-            else if (line.StartsWith("  - ")) GroupFor(version).Items.Add(Item(line[4..], isSub: true));
+            if (line.StartsWith("### ", StringComparison.Ordinal)) version.Groups.Add(new ChangelogGroup(line[4..].Trim()));
+            else if (line.StartsWith("- ", StringComparison.Ordinal)) GroupFor(version).Items.Add(Item(line[2..], isSub: false));
+            else if (line.StartsWith("  - ", StringComparison.Ordinal)) GroupFor(version).Items.Add(Item(line[4..], isSub: true));
             else version.Intro = (version.Intro + " " + Format.PlainNotes(line)).Trim();
         }
         return versions;
@@ -51,7 +51,7 @@ static class Changelog
     // A leading **name** becomes the item's head, so the view can make it stand out.
     static ChangelogItem Item(string text, bool isSub)
     {
-        if (text.StartsWith("**") && text.IndexOf("**", 2, StringComparison.Ordinal) is > 2 and var end)
+        if (text.StartsWith("**", StringComparison.Ordinal) && text.IndexOf("**", 2, StringComparison.Ordinal) is > 2 and var end)
             return new ChangelogItem(Format.PlainNotes(text[2..end]), Format.PlainNotes(text[(end + 2)..]), isSub);
         return new ChangelogItem("", Format.PlainNotes(text), isSub);
     }

@@ -370,7 +370,7 @@ function ns.recordBoss(name)
   local group, groupSize = getGroup()
   local instance = END_BOSSES[name]
   -- With dungeon runs summed up (Runs.lua), the kill also goes into the run's post.
-  local run = ns.runBossDown and ns.runBossDown(name, instance ~= nil, group, groupSize)
+  local run = ns.runBossDown and ns.runBossDown(name, instance ~= nil)
   -- END_BOSSES is Classic's list; on Retail it only matched old raids soloed for transmog. Retail
   -- records finished Mythic+ runs instead (ns.recordKeyRun). Any other boss isn't a recorded moment
   -- (first kills and the stream's dungeon alert count end bosses), but can be posted on request.

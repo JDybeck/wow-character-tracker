@@ -77,6 +77,7 @@ public class DungeonRunTests
         Assert.Equal("Tanky~872~3~Rockslicer^~5191~4~Cruel Barb", run.Get("drops").String);
         Assert.True(run.Get("cleared").Boolean);
         Assert.Equal("Tanky~20~WARRIOR~Warrior~Dwarf~~~TANK", run.Get("group").String);
+        Assert.Equal(2, run.Get("groupSize").Number);
         Assert.Equal("Player-1:run:5000", run.Get("id").String);
 
         // The end boss and the loot belong to the run. The loot waits for its post, the end boss still

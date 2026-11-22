@@ -1,5 +1,3 @@
-using MoonSharp.Interpreter;
-
 namespace WoWCharacterTracker.Tests;
 
 // Window.lua and Ui.lua: the addon window with its tabs, built from stubbed frames. Every option

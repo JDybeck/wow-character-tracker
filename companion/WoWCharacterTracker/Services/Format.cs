@@ -107,9 +107,9 @@ static partial class Format
     public static string ReleaseNotes(string markdown) => string.Join("\n", markdown.Trim().Split('\n').Select(line =>
     {
         line = PlainNotes(line.TrimEnd('\r'));
-        if (line.StartsWith("### ")) return line[4..];
-        if (line.StartsWith("  - ")) return "      ◦ " + line[4..];
-        if (line.StartsWith("- ")) return "• " + line[2..];
+        if (line.StartsWith("### ", StringComparison.Ordinal)) return line[4..];
+        if (line.StartsWith("  - ", StringComparison.Ordinal)) return "      ◦ " + line[4..];
+        if (line.StartsWith("- ", StringComparison.Ordinal)) return "• " + line[2..];
         return line;
     }));
 

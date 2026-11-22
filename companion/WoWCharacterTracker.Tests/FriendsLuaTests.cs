@@ -920,7 +920,7 @@ public class FriendsLuaTests
         Talk(a, b);
         Assert.Equal("Drygbeck", Str(b, "WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'].char"));
         Assert.True(b.Lua("return WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000D']").IsNil());
-        Assert.Contains(b.Said(), s => s.StartsWith("Asked JDybeck#1111"));
+        Assert.Contains(b.Said(), s => s.StartsWith("Asked JDybeck#1111", StringComparison.Ordinal));
     }
 
     // Characters removed in the app (Settings.lua removed) are never shared, until played again.
@@ -1350,7 +1350,7 @@ public class FriendsLuaTests
     [Fact]
     public void The_toc_has_every_file_and_loads_the_friend_files_after_what_they_use()
     {
-        var lines = File.ReadAllLines(Path.Combine(AddonLuaTests.AddonDir, "WoWCharacterTracker.toc")).Where(l => l.EndsWith(".lua")).ToList();
+        var lines = File.ReadAllLines(Path.Combine(AddonLuaTests.AddonDir, "WoWCharacterTracker.toc")).Where(l => l.EndsWith(".lua", StringComparison.Ordinal)).ToList();
         Assert.Equal(Directory.GetFiles(AddonLuaTests.AddonDir, "*.lua").Select(f => Path.GetFileName(f)).Order(), lines.Order());
         Assert.True(lines.IndexOf("Shared.lua") < lines.IndexOf("FriendData.lua"));
         Assert.True(lines.IndexOf("Leveling.lua") < lines.IndexOf("FriendData.lua")); // ns.levelPercent

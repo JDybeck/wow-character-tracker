@@ -49,7 +49,7 @@ static partial class AddonInstaller
         Directory.CreateDirectory(target);
 
         var asm = Assembly.GetExecutingAssembly();
-        var bundled = asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix)).Select(n => n[Prefix.Length..]).ToList();
+        var bundled = asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix, StringComparison.Ordinal)).Select(n => n[Prefix.Length..]).ToList();
         foreach (var fileName in bundled)
         {
             if (!IsText(fileName))
@@ -58,7 +58,7 @@ static partial class AddonInstaller
                 continue;
             }
             var content = ReadBundled(fileName);
-            if (fileName.EndsWith(".toc") && interfaceVersion is int v)
+            if (fileName.EndsWith(".toc", StringComparison.Ordinal) && interfaceVersion is int v)
                 content = InterfaceLine().Replace(content, $"## Interface: {v}", 1);
             Files.WriteAtomic(Path.Combine(target, fileName), content);
         }
@@ -77,7 +77,7 @@ static partial class AddonInstaller
     {
         var target = TargetDir(flavorDir);
         var asm = Assembly.GetExecutingAssembly();
-        foreach (var fileName in asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix)).Select(n => n[Prefix.Length..]))
+        foreach (var fileName in asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix, StringComparison.Ordinal)).Select(n => n[Prefix.Length..]))
         {
             if (fileName.Equals("Settings.lua", StringComparison.OrdinalIgnoreCase)) continue;
             var path = Path.Combine(target, fileName);
@@ -89,7 +89,7 @@ static partial class AddonInstaller
             }
             var bundled = ReadBundled(fileName);
             var installed = File.ReadAllText(path);
-            if (fileName.EndsWith(".toc"))
+            if (fileName.EndsWith(".toc", StringComparison.Ordinal))
             {
                 bundled = InterfaceLine().Replace(bundled, "", 1);
                 installed = InterfaceLine().Replace(installed, "", 1);

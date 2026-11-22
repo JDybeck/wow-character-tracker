@@ -886,7 +886,7 @@ sealed class FlavorViewModel : Observable
         foreach (var w in active)
         {
             var (name, problem) = await DiscordWebhook.CheckAsync(w.Url);
-            if (name is null && !problem!.StartsWith("Couldn't reach") && !problem.Contains("too long"))
+            if (name is null && !problem!.StartsWith("Couldn't reach", StringComparison.Ordinal) && !problem.Contains("too long"))
             {
                 problems.Add(w.Name);
                 Log.Warn($"[{Name}] \"{w.Name}\": {problem}");

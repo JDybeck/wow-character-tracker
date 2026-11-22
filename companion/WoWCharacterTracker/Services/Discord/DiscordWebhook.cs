@@ -110,7 +110,7 @@ sealed partial class DiscordWebhook(string url)
                     for (var i = 0; i < files.Count; i++)
                     {
                         var file = new ByteArrayContent(files[i].Data);
-                        file.Headers.ContentType = new MediaTypeHeaderValue(files[i].Name.EndsWith(".png") ? "image/png" : "image/jpeg");
+                        file.Headers.ContentType = new MediaTypeHeaderValue(files[i].Name.EndsWith(".png", StringComparison.Ordinal) ? "image/png" : "image/jpeg");
                         form.Add(file, $"files[{i}]", files[i].Name);
                     }
                     using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = form };

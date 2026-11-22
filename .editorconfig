@@ -18,3 +18,4 @@ trim_trailing_whitespace = false
 [*.cs]
 csharp_style_namespace_declarations = file_scoped:warning
 dotnet_diagnostic.IDE0161.severity = warning
+dotnet_diagnostic.CA1310.severity = warning

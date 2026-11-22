@@ -94,10 +94,7 @@ local castIds = {} -- [spellID] = key or false
 local seenNodes, seenDay = {}, nil
 local pendingCast, pendingLoot -- { key, at } / { source, at }
 
-local function spellName(id)
-  if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(id) end
-  return GetSpellInfo and (GetSpellInfo(id)) or nil
-end
+local spellName = ns.spellName
 
 local function gatherKind(spellID)
   local known = castIds[spellID]

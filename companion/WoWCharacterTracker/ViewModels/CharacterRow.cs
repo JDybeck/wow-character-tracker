@@ -514,6 +514,6 @@ sealed class CharacterRow : Observable
     static IReadOnlyList<IconChip> ProfessionChips(string professions) => [.. ProfessionSkills.Parse(professions)
         .Select(p => new IconChip(p.Text, ProfessionSkills.IconUrl(p.Name), p.FullText))];
 
-    static string When(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");
+    static string When(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm", System.Globalization.CultureInfo.InvariantCulture); // English months, like the rest of the app
     static string Pick(string? a, string? b) => a is { Length: > 0 } ? a : b ?? "";
 }

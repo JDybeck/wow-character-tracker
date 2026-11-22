@@ -31,7 +31,7 @@ static partial class FriendData
 
     // A highlight line is "kind~at~level" and then these, in the addon's order (FriendData.lua HIGHLIGHT_FIELDS).
     const int MaxHighlights = 10;
-    static readonly Dictionary<string, string[]> HighlightFields = new()
+    internal static readonly Dictionary<string, string[]> HighlightFields = new()
     {
         ["boss"] = ["boss", "instance", "groupSize"],
         ["keyrun"] = ["instance", "keyLevel", "upgrades"],
