@@ -42,7 +42,7 @@ static partial class TooltipHtml
             Trim(left);
             Trim(right);
             var line = new Line(left, right, gap && lines.Count > 0);
-            if ((left.Count > 0 || right.Count > 0) && !HiddenLines.Any(h => line.Text.StartsWith(h)))
+            if ((left.Count > 0 || right.Count > 0) && !HiddenLines.Any(h => line.Text.StartsWith(h, StringComparison.Ordinal)))
             {
                 lines.Add(line);
                 gap = false;
@@ -100,7 +100,7 @@ static partial class TooltipHtml
 
             var classes = ClassAttr().Match(m.Groups["attrs"].Value).Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var colorClass = classes.LastOrDefault(c => IsColor(c));
-            var coinMark = classes.FirstOrDefault(c => c.StartsWith("money")) switch
+            var coinMark = classes.FirstOrDefault(c => c.StartsWith("money", StringComparison.Ordinal)) switch
             {
                 "moneygold" => "g",
                 "moneysilver" => "s",
@@ -117,7 +117,7 @@ static partial class TooltipHtml
     public static string ToText(string html) => string.Join("\n", Parse(html).Select(l => l.Gap ? "\n" + l.Text : l.Text));
 
     static bool IsColor(string c) =>
-        c is "q" or "toycolor" || c.StartsWith("money")
+        c is "q" or "toycolor" || c.StartsWith("money", StringComparison.Ordinal)
         || (c.Length >= 2 && c[0] is 'q' or 'c' && c[1..].All(char.IsDigit));
 
     // Spaces at either end of a line, and empty pieces, go.

@@ -575,3 +575,18 @@ function ns.ago(at)
   if s < 86400 then return math.floor(s / 3600) .. "h ago" end
   return math.floor(s / 86400) .. "d ago"
 end
+
+-- Names and icons by id, which the game may not have cached yet (nil until it has), on old and new APIs.
+function ns.spellName(id)
+  if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(id) end
+  return GetSpellInfo and (GetSpellInfo(id)) or nil
+end
+
+function ns.itemIcon(id)
+  local f = (C_Item and C_Item.GetItemIconByID) or GetItemIcon
+  if not f then return nil end
+  local ok, icon = pcall(f, id)
+  return ok and icon or nil
+end
+
+function ns.hideTip() if GameTooltip then GameTooltip:Hide() end end

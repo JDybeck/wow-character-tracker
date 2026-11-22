@@ -43,7 +43,8 @@ end
 -- Something happened: the run is alive, and the party is kept while it's there (people leave at the end).
 local function touch(run)
   run.lastAt = time()
-  local group, size = ns.getGroup and ns.getGroup()
+  if not ns.getGroup then return end
+  local group, size = ns.getGroup() -- not "ns.getGroup and ns.getGroup()": that keeps only the first value
   if group and group ~= "" then run.group, run.groupSize = group, size end
 end
 

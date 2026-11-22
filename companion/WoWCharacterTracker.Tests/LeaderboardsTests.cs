@@ -1,5 +1,3 @@
-using WoWCharacterTracker.Services;
-
 namespace WoWCharacterTracker.Tests;
 
 // The Stats page (Leaderboards): a period (the last seven days unless said) per person, one board per stat, and the MVP.

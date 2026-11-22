@@ -27,6 +27,17 @@ public class SharedRulesTests
         Assert.Equal(lua.OrderBy(p => p.Key), Payload.ShortKeys.OrderBy(p => p.Key));
     }
 
+    // Friends' highlight lines: each kind's fields, in order, the same in FriendData.lua and FriendData.cs.
+    [Fact]
+    public void Highlight_fields_match_the_addon()
+    {
+        var block = Regex.Match(AddonFile("FriendData.lua"), @"local HIGHLIGHT_FIELDS = \{(.*?)\n\}", RegexOptions.Singleline).Groups[1].Value;
+        var lua = Regex.Matches(block, @"(\w+) = \{([^}]*)\}").ToDictionary(
+            m => m.Groups[1].Value, m => string.Join(",", Regex.Matches(m.Groups[2].Value, @"""(\w+)""").Select(f => f.Groups[1].Value)));
+        Assert.NotEmpty(lua);
+        Assert.Equal(lua.OrderBy(p => p.Key), FriendData.HighlightFields.ToDictionary(p => p.Key, p => string.Join(",", p.Value)).OrderBy(p => p.Key));
+    }
+
     // The faction the addon recorded wins; older data (no faction) goes by the race, and races both
     // sides can play stay unknown.
     [Theory]

@@ -456,7 +456,7 @@ local function itemName(id)
   return name or ("item " .. id), 1, 1, 1
 end
 
-local function hideTip() if GameTooltip then GameTooltip:Hide() end end
+local hideTip = ns.hideTip
 
 local function closeButton(parent, onClick)
   local close = CreateFrame("Button", nil, parent)
@@ -482,12 +482,7 @@ local detailsKey -- which character the panel shows
 
 local function charKey(c) return c.guid or charTitle(c) end
 
-local function itemIcon(id)
-  local f = (C_Item and C_Item.GetItemIconByID) or GetItemIcon
-  if not f then return nil end
-  local ok, icon = pcall(f, id)
-  return ok and icon or nil
-end
+local itemIcon = ns.itemIcon
 
 local function showItemTip(self) ui.itemTip(self, self.itemId, self.enchantId) end
 

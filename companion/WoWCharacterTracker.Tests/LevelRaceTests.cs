@@ -1,4 +1,3 @@
-using WoWCharacterTracker.Services;
 using WoWCharacterTracker.ViewModels;
 
 namespace WoWCharacterTracker.Tests;
