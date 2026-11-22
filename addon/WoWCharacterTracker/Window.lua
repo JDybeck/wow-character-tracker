@@ -1542,6 +1542,10 @@ local function buildFriends(p)
     drawFriends()
   end
   local view = ui.choice(p, { { "online", "Online" }, { "offline", "Offline" } }, friendsView, setFriendsView, 110)
+  -- All friends' gold and played added up, beside Online / Offline (ns.friendTotals).
+  local totalsText = ui.text(p, "GameFontHighlightSmall")
+  totalsText:SetWordWrap(false)
+  totalsText:SetJustifyH("LEFT")
   local emptyView = note("")
   local requestRows, friendCards, charCards = {}, {}, {}
 
@@ -1692,6 +1696,11 @@ local function buildFriends(p)
   section.pill:SetPoint("LEFT", section.title, "RIGHT", 8, 0)
   section.stateText = ui.text(section.pill, "GameFontHighlightSmall")
   section.stateText:SetPoint("CENTER", section.pill, "CENTER", 0, 0)
+  -- Their gold and played added up, with their share of all friends' (ns.friendTotalsLine).
+  section.totals = ui.text(section, "GameFontHighlightSmall")
+  section.totals:SetPoint("LEFT", section.pill, "RIGHT", 10, 0)
+  section.totals:SetWordWrap(false)
+  section.totals:SetJustifyH("LEFT")
   section.b1, section.b2 = cardButton(section, 90), cardButton(section, 90)
   section.b1:SetPoint("TOPRIGHT", section, "TOPRIGHT", -106, -8)
   section.b2:SetPoint("TOPRIGHT", section, "TOPRIGHT", -10, -8)
@@ -1781,9 +1790,18 @@ local function buildFriends(p)
       end
     end
     emptyView:Hide()
+    -- Gold and played over everyone in the grid, online or not, hidden characters left out.
+    st.totals = ns.friendTotals and ns.friendTotals(all, isHidden) or nil
+    local totals = ns.allFriendsTotalsLine and ns.allFriendsTotalsLine(st.totals) or ""
+    if #all == 0 or totals == "" then totalsText:Hide() end
     if #all == 0 then
       view:Hide()
       return all, y
+    end
+    if totals ~= "" then
+      totalsText:SetText(totals)
+      totalsText:SetWidth(math.max(100, width - 244))
+      place(totalsText, p, 16 + 244, y + 6)
     end
     view.buttons[1]:SetText(string.format("Online (%d)", #online))
     view.buttons[2]:SetText(string.format("Offline (%d)", #offline))
@@ -1848,6 +1866,9 @@ local function buildFriends(p)
     local state, look, first, second = friendState(person)
     section.stateText:SetText(state)
     section.pill:SetWidth((section.stateText:GetStringWidth() or 60) + 14)
+    section.totals:SetText(ns.friendTotalsLine and ns.friendTotalsLine(st.totals, person.tag) or "")
+    -- Up to the buttons on the right; the nickname and pill come first.
+    section.totals:SetWidth(math.max(60, width - 230 - (section.title:GetStringWidth() or 100) - (section.pill:GetWidth() or 60)))
     ui.box(section.pill, C.bar, look == "good" and C.good or (look == "bad" and C.bad or C.border))
     for _, pair in ipairs({ { section.b1, first }, { section.b2, second } }) do
       local b, what = pair[1], pair[2]

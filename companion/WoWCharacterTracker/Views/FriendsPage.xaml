@@ -132,6 +132,10 @@
                           <Run Text="{Binding Current.Level, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
                         </TextBlock>
                         <TextBlock Text="{Binding SeenText}" FontSize="11" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis"/>
+                        <!-- Their gold and played added up, with their share of all friends'. -->
+                        <TextBlock Text="{Binding TotalsText}" FontSize="11" Foreground="{StaticResource TextSoft}" TextTrimming="CharacterEllipsis"
+                                   ToolTip="Their gold and played time, added up over the characters they share, and their share of all your friends'. Only friends who share gold or level times count."
+                                   Visibility="{Binding TotalsText, Converter={StaticResource VisibleIfSet}}"/>
                       </StackPanel>
                     </DockPanel>
                   </Button>
@@ -149,7 +153,25 @@
         <Grid.RowDefinitions>
           <RowDefinition Height="*"/>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+        <!-- The listed friends' gold and played added up (hidden characters left out), like the Characters page's footer. -->
+        <Border Grid.Row="2" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,12"
+                Padding="24,10" Visibility="{Binding ShowsTotals, Converter={StaticResource Visible}}">
+          <WrapPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,18,0" Visibility="{Binding HasTotalGold, Converter={StaticResource Visible}}">
+              <Image Source="{StaticResource GoldBag}" Width="22" Height="22" Margin="0,0,8,0" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding TotalGoldText}" Foreground="{StaticResource TextSoft}" FontSize="13" Margin="0,0,10,0" VerticalAlignment="Center"/>
+              <ItemsControl ItemsSource="{Binding TotalCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,18,0" Visibility="{Binding TotalPlayedText, Converter={StaticResource VisibleIfSet}}">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Dim}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding TotalPlayedText}" Foreground="{StaticResource TextSoft}" FontSize="13" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="{Binding NotSharedText}" Foreground="{StaticResource Dim}" FontSize="12" VerticalAlignment="Center"
+                       Visibility="{Binding NotSharedText, Converter={StaticResource VisibleIfSet}}"/>
+          </WrapPanel>
+        </Border>
         <ListBox x:Name="CharacterList" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
                  Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource CharacterItem}" Padding="0,6"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True"

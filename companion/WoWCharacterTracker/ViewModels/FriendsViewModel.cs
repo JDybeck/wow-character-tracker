@@ -125,6 +125,9 @@ sealed class FriendsViewModel : Observable
             _ = r.LoadPictureAsync(flavor);
         }
         Professions.Show(Characters, r => r.FriendName);
+        Listed = FriendTotals.Of(Characters.Where(r => !r.IsHiddenFriend));
+        foreach (var name in new[] { nameof(Listed), nameof(ShowsTotals), nameof(TotalGoldText), nameof(TotalCoins), nameof(HasTotalGold), nameof(TotalPlayedText), nameof(NotSharedText) })
+            Raise(name);
         Raise(nameof(HasFriends));
         Raise(nameof(HiddenCount));
         Raise(nameof(HasHidden));
@@ -141,6 +144,40 @@ sealed class FriendsViewModel : Observable
             .ThenByDescending(r => r.LastSeen)
             .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase);
 
+    // --- gold and played, added up ---
+
+    // The listed friends' characters (the picked friend's, or everyone's), hidden ones left out: the
+    // footer under the list, like the Characters page's.
+    public FriendTotals Listed { get; private set; } = FriendTotals.Empty;
+    public bool ShowsTotals => Listed.Money > 0 || Listed.Played > 0;
+    public bool HasTotalGold => Listed.Money > 0;
+
+    // "Total gold of 3 friends (12 characters):" followed by the coins; "Total gold of Zebbe (2 characters):" for one.
+    public string TotalGoldText
+    {
+        get
+        {
+            var whose = Listed.Friends == 1 ? NameOf(Listed.ByFriend.Keys.First()) : Format.Count(Listed.WithGold, "friend");
+            var count = Listed.ByFriend.Values.Where(f => f.SharesGold).Sum(f => f.Characters);
+            return $"Total gold of {whose} ({Format.Count(count, "character")}):";
+        }
+    }
+    public IReadOnlyList<Coin> TotalCoins => Coin.Full(Listed.Money);
+    public string TotalPlayedText => Listed.Played > 0 ? $"Total played: {Format.Played(Listed.Played)}" : "";
+
+    // Friends listed who keep their gold or level times to themselves, so they're not in the totals.
+    public string NotSharedText
+    {
+        get
+        {
+            int noGold = Listed.Friends - Listed.WithGold, noPlayed = Listed.Friends - Listed.WithPlayed;
+            var parts = new List<string>();
+            if (noGold > 0) parts.Add($"{Format.Count(noGold, "friend")} {(noGold == 1 ? "doesn't" : "don't")} share gold");
+            if (noPlayed > 0) parts.Add($"{Format.Count(noPlayed, "friend")} {(noPlayed == 1 ? "doesn't" : "don't")} share played time");
+            return string.Join(", ", parts);
+        }
+    }
+
     // --- the grid of friends over the list ---
 
     // One card per friend in the order you drag them into (Config.FriendOrder, shared with the addon's
@@ -153,10 +190,15 @@ sealed class FriendsViewModel : Observable
     void BuildCards()
     {
         Cards.Clear();
+        // Each friend's gold and played and their share of all friends' (hidden characters left out).
+        var totals = FriendTotals.Of(allRows.Where(r => !config.HiddenFriendCharacters.Contains(r.Guid)));
         foreach (var g in allRows.GroupBy(r => r.FriendTag).OrderBy(g => RankOf(g.Key)).ThenBy(g => NameOf(g.Key), StringComparer.CurrentCultureIgnoreCase))
         {
             var current = g.MaxBy(r => r.LastSeen)!;
-            Cards.Add(new FriendCard(g.Key, NameOf(g.Key), current, g.Count(), g.Key == Contacts.Key));
+            Cards.Add(new FriendCard(g.Key, NameOf(g.Key), current, g.Count(), g.Key == Contacts.Key)
+            {
+                TotalsText = totals.Text(g.Key),
+            });
             _ = current.LoadPictureAsync(flavor);
         }
     }
@@ -458,6 +500,8 @@ sealed record FriendCard(string Tag, string Name, CharacterRow Current, int Coun
 {
     public string CountText => Format.Count(Count, "character");
     public string SeenText => $"seen {Current.LastSeenText} · {Current.FriendSyncedText}";
+    // Their gold and played added up, with their share of all friends': "12,345g (40%) · 6d 4h 12m played (25%)". Empty when they share neither.
+    public string TotalsText { get; init; } = "";
 }
 
 // One category chip of a friend: State is "all" (follows what all friends get), "on" or "off".

@@ -17,6 +17,14 @@ function ns.formatPlayed(s)
   return string.format("%dd %dh %dm", math.floor(s / 86400), math.floor(s % 86400 / 3600), math.floor(s % 3600 / 60))
 end
 
+-- Copper as whole gold with thousands: 123456789 -> "12,345g" (the app's Format.Gold).
+function ns.formatGold(copper)
+  local g = tostring(math.floor(math.max(0, copper or 0) / 10000))
+  local out = g:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+  if out:sub(1, 1) == "," then out = out:sub(2) end
+  return out .. "g"
+end
+
 -- A function that runs fn once, delay seconds after it's first called; calls in the meantime belong
 -- to that same run (bag updates while looting, money ticks, a whole equipment set swapping in).
 function ns.debounce(delay, fn)
