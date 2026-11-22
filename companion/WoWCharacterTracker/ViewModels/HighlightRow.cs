@@ -63,6 +63,7 @@ sealed class HighlightRow(string glyph, SolidColorBrush brush, string verb, stri
             "pvp" => ("", 0xF87171),
             "mount" => ("", 0x4ADE80),
             "profession" => ("", 0xFCD34D), // a wrench
+            "reputation" => ("", 0x22C55E), // a thumbs up, in the game's friendly green
             "achievement" => ("", 0xFFD100), // a star, in achievement gold
             _ => ("", 0xF87171), // Mak'gora wins, deaths
         };

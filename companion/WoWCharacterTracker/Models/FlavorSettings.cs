@@ -86,6 +86,25 @@ class FlavorSettings
         HasAchievements = true;
     }
 
+    // Reputation milestones: a faction reaching ReputationFrom (5 Friendly to 8 Exalted) or higher, each
+    // standing once per character and faction, and a Retail renown faction reaching its top renown.
+    // Configs from before get the profession row's choices once (Config.Load, HasReputations), like
+    // legacy achievements, so a Quiet, Normal or Everything config stays that preset.
+    public bool PostReputations { get; set; } = true;
+    public int ReputationFrom { get; set; } = Reputations.Exalted;
+    public bool HasReputations { get; set; }
+
+    public void TakeReputationsFromProfessions()
+    {
+        PostReputations = PostProfessions;
+        if (Shoots("profession")) SetShot("reputation", true);
+        if (PostScreenshot.TryGetValue("profession", out var attach)) PostScreenshot = new(PostScreenshot) { ["reputation"] = attach };
+        if (AnnounceKinds.Contains("profession") && !AnnounceKinds.Contains("reputation")) AnnounceKinds = [.. AnnounceKinds, "reputation"];
+        if (AnnouncePartyKinds?.Contains("profession") == true && !AnnouncePartyKinds.Contains("reputation")) AnnouncePartyKinds = [.. AnnouncePartyKinds, "reputation"];
+        if (AskKinds?.Contains("profession") == true && !AskKinds.Contains("reputation")) AskKinds = [.. AskKinds, "reputation"];
+        HasReputations = true;
+    }
+
     // Duels, hardcore Mak'gora, battleground wins, and retail rating milestones (posted when a step is passed).
     public bool PostDuels { get; set; }
     public bool PostMakgora { get; set; } = true;
@@ -162,7 +181,7 @@ class FlavorSettings
     public static bool GuildChatOn => false;
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
     public List<string>? AnnouncePartyKinds { get; set; }
-    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "achievement", "mplus", "pvp"];
+    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "achievement", "reputation", "mplus", "pvp"];
 
     // Highlights no setting posts that the addon offers to post (Ask.lua): boss, rare, epic. Null until
     // chosen; Config.Load fills it from the game's defaults.
@@ -262,6 +281,7 @@ class FlavorSettings
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
         (PostProfessions, ProfessionSteps, PostAchievements) = (d.PostProfessions, [.. d.ProfessionSteps], d.PostAchievements);
+        (PostReputations, ReputationFrom) = (d.PostReputations, d.ReputationFrom);
         (MPlusSteps, PvpSteps) = ([.. d.MPlusSteps], [.. d.PvpSteps]);
         Screenshot = new(d.Screenshot);
         PostScreenshot = new(d.PostScreenshot);
@@ -336,6 +356,7 @@ class FlavorSettings
         "bg" => PostBattlegrounds && !e.Lost,
         "profession" => PostProfessions,
         "achievement" => PostAchievements,
+        "reputation" => PostReputations,
         "mplus" => PostMPlus,
         "pvp" => PostPvp,
         _ => false,

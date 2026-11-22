@@ -277,6 +277,12 @@ class Config
                 s.TakeAchievementsFromProfessions();
                 changed = true;
             }
+            // Reputation milestones came after 0.42.3: they start like the profession row too.
+            if (!s.HasReputations)
+            {
+                s.TakeReputationsFromProfessions();
+                changed = true;
+            }
         }
 
         var stream = config.StreamOptions;
@@ -306,6 +312,13 @@ class Config
             if (!stream.HighlightKinds.Contains("achievement")) stream.HighlightKinds.Add("achievement");
             if (!stream.AlertKinds.Contains("achievement")) stream.AlertKinds.Add("achievement");
             stream.HasAchievements = true;
+            changed = true;
+        }
+        if (!stream.HasReputations)
+        {
+            if (!stream.HighlightKinds.Contains("reputation")) stream.HighlightKinds.Add("reputation");
+            if (!stream.AlertKinds.Contains("reputation")) stream.AlertKinds.Add("reputation");
+            stream.HasReputations = true;
             changed = true;
         }
         if (!stream.HasDungeonAlerts)

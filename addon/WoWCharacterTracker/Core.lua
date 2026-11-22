@@ -38,6 +38,7 @@ local EVENTS = {
   "UPDATE_BATTLEFIELD_STATUS", "PVP_MATCH_COMPLETE",                     -- battleground results
   "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL",                               -- profession milestones
   "ACHIEVEMENT_EARNED",                                                  -- legacy achievements (Forever)
+  "CHAT_MSG_COMBAT_FACTION_CHANGE", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", -- reputations (Reputation.lua)
   "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "NEW_RECIPE_LEARNED",   -- known recipes (Recipes.lua)
   "CHALLENGE_MODE_START", "INSPECT_READY",                               -- party specs for Mythic+ runs
   "SCREENSHOT_SUCCEEDED", "SCREENSHOT_FAILED",                           -- the shot queue

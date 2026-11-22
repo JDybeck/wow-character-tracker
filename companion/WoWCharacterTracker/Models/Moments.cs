@@ -44,6 +44,9 @@ static class Moments
         new("achievement", "Legacy achievements", "A first legacy achievement on your account: raids, dungeons, PvP ranks and reputations, adventures. Not the level or profession ones, those post by their own rows.",
             s => s.PostAchievements, (s, on) => s.PostAchievements = on,
             Shot: "achievement", Announce: "achievement", AnnounceSample: "\"Earned the legacy achievement [Conqueror of the Lair]!\"", Ask: "achievement", Alert: "achievement", Test: "achievement"),
+        new("reputation", "Reputation milestones", "A faction reaching the standing set under Advanced or higher, each standing once per character. On Retail also a renown faction's top renown.",
+            s => s.PostReputations, (s, on) => s.PostReputations = on,
+            Shot: "reputation", Announce: "reputation", AnnounceSample: "\"Reached Exalted with Argent Dawn!\"", Ask: "reputation", Alert: "reputation", Test: "reputation"),
         new("mplus", "Mythic+ rating", "Passing a rating step", s => s.PostMPlus, (s, on) => s.PostMPlus = on,
             Announce: "mplus", AnnounceSample: "\"Reached 2500 Mythic+ rating!\"", Ask: "mplus", Alert: "mplus", Test: "mplus"),
         new("pvp", "PvP rating", "Passing a rating step", s => s.PostPvp, (s, on) => s.PostPvp = on,
@@ -63,6 +66,7 @@ static class Moments
         "run" => "in place of the run's loot posts",
         "keyrun" => $"+{s.KeyRunMinLevel} and up" + (s.KeyRunTimedOnly ? ", in time" : ""),
         "profession" => string.Join(", ", s.ProfessionSteps),
+        "reputation" => s.ReputationFrom >= Reputations.Exalted ? "Exalted" : $"{Reputations.StandingName(s.ReputationFrom)} and up",
         _ => null,
     };
 }

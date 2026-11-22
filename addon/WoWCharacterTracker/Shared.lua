@@ -56,6 +56,15 @@ function ns.trimEvents(events)
   return removed
 end
 
+-- Reputation standings as the game numbers them (Reputation.lua): 1 Hated to 8 Exalted.
+ns.STANDINGS = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+
+-- The game's name for a standing (in the client's language), else the English one.
+function ns.standingName(n)
+  local label = type(n) == "number" and _G and _G["FACTION_STANDING_LABEL" .. n]
+  return type(label) == "string" and label or ns.STANDINGS[n] or "?"
+end
+
 -- The highest step passed going from old to new (only upward), or nil. Rating and profession milestones.
 function ns.stepPassed(old, new, steps)
   local best

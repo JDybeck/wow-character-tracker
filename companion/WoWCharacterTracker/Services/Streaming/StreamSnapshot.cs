@@ -152,6 +152,7 @@ sealed record StreamSnapshot(
         "bg" when !e.Lost => new(e.Id, "bg", "VICTORY!", e.Instance.Length > 0 ? $"Won {e.Instance}" : "Battleground won", "", "victory", e.At),
         "death" => new(e.Id, "death", "R.I.P.", $"{e.Char} fell at level {e.Level}", e.Played > 0 ? $"After {Format.Played(e.Played)} played" : "", "death", e.At),
         "profession" => new(e.Id, "profession", "MILESTONE!", $"{e.Step} {e.Profession}", e.Rating > 0 ? $"Skill {e.Rating}" : "", "rating", e.At),
+        "reputation" when e.Reputation.Length > 0 => new(e.Id, "reputation", e.Renown > 0 ? "RENOWN!" : $"{EventEmbeds.ReputationReached(e).ToUpperInvariant()}!", e.Reputation, "Reputation", "rating", e.At),
         "achievement" when e.Achievement.Length > 0 => new(e.Id, "achievement", "ACHIEVEMENT!", e.Achievement, "Legacy achievement", "gold", e.At),
         "mplus" => new(e.Id, "mplus", "MILESTONE!", $"{e.Step} Mythic+ rating", e.Rating > 0 ? $"Rating {e.Rating}" : "", "rating", e.At),
         "pvp" => new(e.Id, "pvp", "MILESTONE!", $"{e.Step} in {e.Bracket}", e.Rating > 0 ? $"Rating {e.Rating}" : "", "rating", e.At),

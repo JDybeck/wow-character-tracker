@@ -190,6 +190,7 @@ static class SavedVariables
                 MaxLevel = (int)N(t, "maxLevel"),
                 LevelTime = (long)N(t, "levelTime"),
                 Recipes = S(t, "recipes"),
+                Reputations = S(t, "reputations"),
                 OtherSpec = ReadSpecBuild(t.Get("otherSpec")),
             });
         }

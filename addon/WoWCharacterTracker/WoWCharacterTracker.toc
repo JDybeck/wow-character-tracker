@@ -22,6 +22,7 @@ Events.lua
 Today.lua
 Runs.lua
 PvP.lua
+Reputation.lua
 Announce.lua
 Ask.lua
 Comms.lua
@@ -33,6 +34,7 @@ MapPins.xml
 NoteBox.lua
 Ui.lua
 RecipeWindow.lua
+ReputationWindow.lua
 Home.lua
 Window.lua
 Options.lua

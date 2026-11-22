@@ -64,7 +64,7 @@ end
 -- Chat ------------------------------------------------------------------------------------------
 -- The same kinds and names as the app's In game page (FlavorViewModel.AnnounceNames).
 local ANNOUNCE_KINDS = { { "level", "Level-ups" }, { "maxlevel", "Max level" }, { "loot", "Epic loot" }, { "rare", "Rare loot" }, { "followed", "Followed items" },
-  { "mount", "Mounts" }, { "duel", "Duel wins" }, { "bg", "Battleground wins" }, { "profession", "Professions" } }
+  { "mount", "Mounts" }, { "duel", "Duel wins" }, { "bg", "Battleground wins" }, { "profession", "Professions" }, { "reputation", "Reputations" } }
 for _, kind in ipairs(ns.IS_RETAIL
   and { { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
   or { { "boss", "Boss kills" }, { "makgora", "Mak'gora wins" }, { "death", "Deaths" }, { "achievement", "Legacy achievements" } }) do
@@ -937,12 +937,16 @@ local function drawExpansion(ex, c, friend)
   end)
   local h = math.max(left, right) + 10
   place(ex.hide, ex, ex.width - 122, h)
-  -- Highlights (the panel beside the window), then a button per profession with known recipes,
-  -- which opens them in the recipe window (RecipeWindow.lua).
+  -- Highlights (the panel beside the window), your own character's reputations (ReputationWindow.lua),
+  -- then a button per profession with known recipes, which opens them in the recipe window (RecipeWindow.lua).
   local actions = {}
   local count = #highlightsOf(c, friend)
   if count > 0 then
     actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end }
+  end
+  local reputations = friend == nil and ns.reputationCount and ns.reputationCount(c) or 0 -- your own only
+  if reputations > 0 then
+    actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end }
   end
   for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do
     actions[#actions + 1] = { string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end }
@@ -2162,7 +2166,7 @@ end
 -- App -------------------------------------------------------------------------------------------
 local KINDS = { { "level", "level-ups" }, { "maxLevel", "max level" }, { "rare", "rare loot" }, { "epic", "epic loot" },
   { "mount", "mounts" }, { "boss", "boss kills" }, { "death", "deaths" }, { "duel", "duels" }, { "makgora", "Mak'gora" },
-  { "bg", "battlegrounds" }, { "profession", "profession milestones" }, { "achievement", "legacy achievements" }, { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
+  { "bg", "battlegrounds" }, { "profession", "profession milestones" }, { "achievement", "legacy achievements" }, { "reputation", "reputation milestones" }, { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
 
 local function picked(t, names)
   local out = {}
