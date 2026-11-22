@@ -19,6 +19,14 @@ class FlavorSettings
     // posted later. Webhooks stay as they are.
     public bool DiscordPaused { get; set; }
 
+    // The weekly recap (WeeklyRecap): the Stats page's week posted to this tab's webhooks once a week,
+    // on RecapDay at RecapHour (local time). Off until turned on. RecapSentAt: the planned time
+    // (unix seconds) of the last one that went out, so each week posts once.
+    public bool PostRecap { get; set; }
+    public DayOfWeek RecapDay { get; set; } = DayOfWeek.Sunday;
+    public int RecapHour { get; set; } = 20;
+    public long RecapSentAt { get; set; }
+
     // Level-ups: up to LevelSplit, post every LevelEveryBefore levels; after that every LevelEveryAfter.
     public bool PostLevels { get; set; } = true;
     public int LevelSplit { get; set; } = 30;

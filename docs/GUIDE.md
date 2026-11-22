@@ -40,7 +40,8 @@ Each game has a **Sharing** page: who hears about your moments, and which moment
 
   ![The Sharing page: the four places at the top, the presets and the Customize table](images/sharing.png)
 - **Discord** and **Stream overlay** panels: your webhooks (see [Discord](#the-app) under The app) and the overlay's address and looks.
-- **Advanced**: the level rule numbers, Mythic+ and profession steps, the filters (rares Bind on Equip only, end bosses first kill only, the group regex), **Name in posts** on Forever, the screenshot options and settings codes.
+- **Advanced**: the level rule numbers, Mythic+ and profession steps, the filters (rares Bind on Equip only, end bosses first kill only, the group regex), **Name in posts** on Forever, the **Weekly recap**, the screenshot options and settings codes.
+- **Weekly recap** (off to start with): once a week one post to the game's webhooks with what each of your characters did that week, busiest first: "Levelled from 41 to 48 in 1d 2h", new epics and mounts by name, bosses killed, Mythic+ runs, profession skill reached, achievements, quests, gathering, item level, gold made, duel and battleground wins, and deaths. Only your own characters, no comparing with friends (that's what Stats is for). Pick the day and hour (your time, Sunday 20:00 to start with); **Post now** sends the last seven days right away. Turning it on or moving the day or hour starts from the next time, so it doesn't post the minute you tick it. If the app is closed at that time it posts when it opens, for the week up to the planned time, but not more than two days late. Paused Discord skips it, and a week where nothing happened has no post. It isn't part of settings codes.
 
 The moments:
 
