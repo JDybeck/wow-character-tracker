@@ -2,6 +2,14 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.42.3
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **See what a friend shares with you.** The friend's section in the addon window, the friend's header on the app's Friends page and their entry in the sharing settings now say what they share, like "They share with you: professions". When a friend's first character arrives after you ask, the chat line says it too. It's read from what their characters came with, so something they share but have nothing of yet (no professions learned) won't show.
+
 ## v0.42.2
 
 Update the addon with the app (it does this by itself) and /reload in game.
