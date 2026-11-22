@@ -1,5 +1,7 @@
 # Addon window, phase 1 Implementation Plan
 
+Status: built, shipped in 0.34.0.
+
 > Built by parallel agents in their own worktrees, merged by the main session. Each task below is self-contained: read only your task, the spec, and the files it names.
 
 **Goal:** One addon window with tabs, opened from a minimap button with the WCT icon, holding every option of today's Options page. The Options page shrinks to a button. `/wct` opens the window. Location is on by default for friends.

@@ -64,7 +64,7 @@ end
 -- Chat ------------------------------------------------------------------------------------------
 -- The same kinds and names as the app's In game page (FlavorViewModel.AnnounceNames).
 local ANNOUNCE_KINDS = { { "level", "Level-ups" }, { "maxlevel", "Max level" }, { "loot", "Epic loot" }, { "rare", "Rare loot" }, { "followed", "Followed items" },
-  { "mount", "Mounts" }, { "duel", "Duel wins" }, { "bg", "Battleground wins" }, { "profession", "Professions" } }
+  { "mount", "Mounts" }, { "duel", "Duel wins" }, { "bg", "Battleground wins" }, { "profession", "Professions" }, { "reputation", "Reputations" } }
 for _, kind in ipairs(ns.IS_RETAIL
   and { { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
   or { { "boss", "Boss kills" }, { "makgora", "Mak'gora wins" }, { "death", "Deaths" }, { "achievement", "Legacy achievements" } }) do
@@ -937,12 +937,16 @@ local function drawExpansion(ex, c, friend)
   end)
   local h = math.max(left, right) + 10
   place(ex.hide, ex, ex.width - 122, h)
-  -- Highlights (the panel beside the window), then a button per profession with known recipes,
-  -- which opens them in the recipe window (RecipeWindow.lua).
+  -- Highlights (the panel beside the window), your own character's reputations (ReputationWindow.lua),
+  -- then a button per profession with known recipes, which opens them in the recipe window (RecipeWindow.lua).
   local actions = {}
   local count = #highlightsOf(c, friend)
   if count > 0 then
     actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end }
+  end
+  local reputations = friend == nil and ns.reputationCount and ns.reputationCount(c) or 0 -- your own only
+  if reputations > 0 then
+    actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end }
   end
   for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do
     actions[#actions + 1] = { string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end }
@@ -1497,7 +1501,7 @@ end
 -- the app through ns.setFriendOrder), each showing the character they play or played last. A click
 -- opens the friend's section under their row: nickname, state and buttons, and their characters.
 local GRID_MIN_CARD, GRID_GAP, GRID_CARD = 210, 8, 64
-local SECTION_TOP = 74 -- the friend section's header, above their characters
+local SECTION_TOP = 90 -- the friend section's header, above their characters
 
 local function buildFriends(p)
   -- The room the window gives now (it can be resized): the grid's columns and card width follow it.
@@ -1542,6 +1546,10 @@ local function buildFriends(p)
     drawFriends()
   end
   local view = ui.choice(p, { { "online", "Online" }, { "offline", "Offline" } }, friendsView, setFriendsView, 110)
+  -- All friends' gold and played added up, beside Online / Offline (ns.friendTotals).
+  local totalsText = ui.text(p, "GameFontHighlightSmall")
+  totalsText:SetWordWrap(false)
+  totalsText:SetJustifyH("LEFT")
   local emptyView = note("")
   local requestRows, friendCards, charCards = {}, {}, {}
 
@@ -1692,6 +1700,11 @@ local function buildFriends(p)
   section.pill:SetPoint("LEFT", section.title, "RIGHT", 8, 0)
   section.stateText = ui.text(section.pill, "GameFontHighlightSmall")
   section.stateText:SetPoint("CENTER", section.pill, "CENTER", 0, 0)
+  -- Their gold and played added up, with their share of all friends' (ns.friendTotalsLine).
+  section.totals = ui.text(section, "GameFontHighlightSmall")
+  section.totals:SetPoint("LEFT", section.pill, "RIGHT", 10, 0)
+  section.totals:SetWordWrap(false)
+  section.totals:SetJustifyH("LEFT")
   section.b1, section.b2 = cardButton(section, 90), cardButton(section, 90)
   section.b1:SetPoint("TOPRIGHT", section, "TOPRIGHT", -106, -8)
   section.b2:SetPoint("TOPRIGHT", section, "TOPRIGHT", -10, -8)
@@ -1703,6 +1716,8 @@ local function buildFriends(p)
   section.nickname:SetPoint("LEFT", nickLabel, "LEFT", 66, 0)
   local nickHint = ui.text(section, "GameFontDisableSmall", "Enter saves, here and in the app. Empty clears it.")
   nickHint:SetPoint("LEFT", section.nickname, "RIGHT", 10, 0)
+  section.theirs = ui.text(section, "GameFontHighlightSmall")
+  section.theirs:SetPoint("TOPLEFT", section, "TOPLEFT", 12, -66)
 
   local function newCharCard() return newCharRow(p, width - 24) end
   local expansion -- the open row's info (newExpansion), built on the first click
@@ -1781,9 +1796,18 @@ local function buildFriends(p)
       end
     end
     emptyView:Hide()
+    -- Gold and played over everyone in the grid, online or not, hidden characters left out.
+    st.totals = ns.friendTotals and ns.friendTotals(all, isHidden) or nil
+    local totals = ns.allFriendsTotalsLine and ns.allFriendsTotalsLine(st.totals) or ""
+    if #all == 0 or totals == "" then totalsText:Hide() end
     if #all == 0 then
       view:Hide()
       return all, y
+    end
+    if totals ~= "" then
+      totalsText:SetText(totals)
+      totalsText:SetWidth(math.max(100, width - 244))
+      place(totalsText, p, 16 + 244, y + 6)
     end
     view.buttons[1]:SetText(string.format("Online (%d)", #online))
     view.buttons[2]:SetText(string.format("Offline (%d)", #offline))
@@ -1848,12 +1872,17 @@ local function buildFriends(p)
     local state, look, first, second = friendState(person)
     section.stateText:SetText(state)
     section.pill:SetWidth((section.stateText:GetStringWidth() or 60) + 14)
+    section.totals:SetText(ns.friendTotalsLine and ns.friendTotalsLine(st.totals, person.tag) or "")
+    -- Up to the buttons on the right; the nickname and pill come first.
+    section.totals:SetWidth(math.max(60, width - 230 - (section.title:GetStringWidth() or 100) - (section.pill:GetWidth() or 60)))
     ui.box(section.pill, C.bar, look == "good" and C.good or (look == "bad" and C.bad or C.border))
     for _, pair in ipairs({ { section.b1, first }, { section.b2, second } }) do
       local b, what = pair[1], pair[2]
       if what then setButton(b, what[1], what[2] and act(what[2], person.tag), what[3]) else b:Hide() end
     end
     ui.showInput(section.nickname, person.tag, ns.friendNickname and ns.friendNickname(person.tag) or "")
+    local theirs = ns.theirShareSummary and ns.theirShareSummary(person.chars)
+    section.theirs:SetText(theirs and ("They share with you: " .. theirs .. ".") or "They don't share with you yet.")
     place(section, p, 16, y)
     local h = drawCharRows(person, label, y + SECTION_TOP) - y + 6
     section:SetHeight(h)
@@ -2162,7 +2191,7 @@ end
 -- App -------------------------------------------------------------------------------------------
 local KINDS = { { "level", "level-ups" }, { "maxLevel", "max level" }, { "rare", "rare loot" }, { "epic", "epic loot" },
   { "mount", "mounts" }, { "boss", "boss kills" }, { "death", "deaths" }, { "duel", "duels" }, { "makgora", "Mak'gora" },
-  { "bg", "battlegrounds" }, { "profession", "profession milestones" }, { "achievement", "legacy achievements" }, { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
+  { "bg", "battlegrounds" }, { "profession", "profession milestones" }, { "achievement", "legacy achievements" }, { "reputation", "reputation milestones" }, { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
 
 local function picked(t, names)
   local out = {}

@@ -238,5 +238,6 @@ static class Wowhead
         ["duel"] = "ability_dualwield", ["makgora"] = "ability_warrior_challange", ["bg"] = "achievement_bg_winwsg",
         ["death"] = "inv_misc_bone_humanskull_01", ["profession"] = "trade_blacksmithing",
         ["achievement"] = "achievement_general",
+        ["reputation"] = "achievement_reputation_01",
     };
 }

@@ -1,5 +1,7 @@
 # Friends on the World Map Implementation Plan
 
+Status: built, shipped in 0.38.0.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Battle.net friends who both run the addon see each other as pins on the world map, live while the map is open, opt-in per friend.
@@ -44,7 +46,7 @@
 **Interfaces:**
 - Produces: `ns.allowedFor(s, contact)` now also has `.map` and `.otherFaction`; `ns.shareSettings().mapRate` (5, 60 or 300); `ns.SHARE_RULES = { "otherFaction" }`; `ns.onFriendKind(kind, handler)` where handler is `function(f, contact, body)` with `f = { tag, account }`, called only for contacts with sharing on; rows of `ns.friendsOnline()` and `ns.onlineFriends()` get `faction` (Battle.net `factionName`) and `realm` (`realmName`); `ns.contactSharing(tag).categories` lists CATEGORIES then RULES, rule entries have `rule = true`.
 
-- [ ] **Step 1: Give the test friends a faction and realm**
+- [x] **Step 1: Give the test friends a faction and realm**
 
 In `FriendsLuaTests.cs`, `Stubs`, the `GetFriendGameAccountInfo` line becomes:
 
@@ -56,7 +58,7 @@ In `FriendsLuaTests.cs`, `Stubs`, the `GetFriendGameAccountInfo` line becomes:
 
 Also make the two-client helpers reusable by Task 2: change `static void Deliver(` to `internal static void Deliver(` and `static void Talk(` to `internal static void Talk(`.
 
-- [ ] **Step 2: Write the failing Lua tests**
+- [x] **Step 2: Write the failing Lua tests**
 
 Add to `FriendsLuaTests.cs` (after `Professions_go_only_when_allowed_and_are_cut_to_length` or near the other settings tests):
 
@@ -129,12 +131,12 @@ Add to `FriendsLuaTests.cs` (after `Professions_go_only_when_allowed_and_are_cut
     }
 ```
 
-- [ ] **Step 3: Run them and see them fail**
+- [x] **Step 3: Run them and see them fail**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: the five new tests FAIL (`map` is nil, `onFriendKind` is nil, `maprate` prints the help), everything else passes.
 
-- [ ] **Step 4: The settings in Friends.lua**
+- [x] **Step 4: The settings in Friends.lua**
 
 Replace the top block (lines 15-18):
 
@@ -190,7 +192,7 @@ function ns.onFriendKind(kind, handler) on[kind] = handler end
 
 In `ns.onlineFriends`, add `faction = f.faction, realm = f.realm,` to the row (after `zone = f.zone,`).
 
-- [ ] **Step 5: Commands, summary and the per-friend panel data**
+- [x] **Step 5: Commands, summary and the per-friend panel data**
 
 Replace `HELP` (keep the last four lines as they are, after the two new ones):
 
@@ -283,12 +285,12 @@ In `ns.friendsCommand`, after the `hide`/`unhide` block and before `local typed,
   end
 ```
 
-- [ ] **Step 6: Run the Lua tests**
+- [x] **Step 6: Run the Lua tests**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: all PASS (`Friends_help_lines_have_no_raw_pipes` still finds `gear/talents/location/professions/gold` inside the longer line).
 
-- [ ] **Step 7: Write the failing window tests**
+- [x] **Step 7: Write the failing window tests**
 
 In `AddonWindowTests.cs`, `Sharing_opens_what_you_share_with_that_friend_and_changes_it`, the first button list assertion becomes:
 
@@ -323,12 +325,12 @@ Add:
     }
 ```
 
-- [ ] **Step 8: Run them and see them fail**
+- [x] **Step 8: Run them and see them fail**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo --filter "FullyQualifiedName~AddonWindowTests"`
 Expected: the two tests above FAIL (the panel shows `map: like all friends (off)` and no rule button, the Sharing tab has no Map position).
 
-- [ ] **Step 9: The window**
+- [x] **Step 9: The window**
 
 In `Window.lua`:
 
@@ -379,12 +381,12 @@ The Sharing tab's `buildSharing(p)`: replace the `ui.checkGrid(...)` call at its
 
 In `TABS`, the `sharing` tab's `height = 300` becomes `height = 400`.
 
-- [ ] **Step 10: Run all tests**
+- [x] **Step 10: Run all tests**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo`
 Expected: all PASS except the known `RatingTests` changelog failure.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker/Friends.lua addon/WoWCharacterTracker/Window.lua companion/WoWCharacterTracker.Tests/FriendsLuaTests.cs companion/WoWCharacterTracker.Tests/AddonWindowTests.cs
@@ -407,7 +409,7 @@ git commit -m "feat(addon): add map position sharing settings"
 - Consumes (Task 1): `ns.onFriendKind`, `ns.allowedFor(...).map/.otherFaction`, `ns.shareSettings().mapRate`, `ns.onlineFriends()` rows `{ tag, account, label, character, classFile, level, faction, realm, contact, blocked, hasAddon }`, `ns.isCharShared`, `ns.comms.send(account, kind, body)`, `FriendsLuaTests.Deliver` (now internal).
 - Produces: `ns.setMapOpen(open)` (MapPins calls it), `ns.friendPins()` returning a list sorted by label of `{ tag, label, character, classFile, level, realm, otherRealm, mapID, x, y, age, faded }`, `ns.friendMapTick()` (returns true while anyone watches), calls `ns.friendPinsChanged()` when set (MapPins sets it).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `companion/WoWCharacterTracker.Tests/FriendMapLuaTests.cs`:
 
@@ -663,12 +665,12 @@ public class FriendMapLuaTests
 }
 ```
 
-- [ ] **Step 2: Run them and see them fail**
+- [x] **Step 2: Run them and see them fail**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo --filter "FullyQualifiedName~FriendMapLuaTests"`
 Expected: FAIL, `FriendMap.lua` not found.
 
-- [ ] **Step 3: Write FriendMap.lua**
+- [x] **Step 3: Write FriendMap.lua**
 
 Create `addon/WoWCharacterTracker/FriendMap.lua`:
 
@@ -897,17 +899,17 @@ FriendMap.lua
 
 In `Comms.lua:86`, the comment's list becomes `-- Queues kind (HI, HEY, REQ, DATA, NO, PING, PONG, WATCH, POS) with body for one game account. False when`.
 
-- [ ] **Step 4: Run them**
+- [x] **Step 4: Run them**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo --filter "FullyQualifiedName~FriendMapLuaTests"`
 Expected: all PASS. If a timing test is off by a tick, check the tick times in its comment against `Pass` (both clocks start at 1000 and move 1 s per step) before touching the code: the rules in the spec are what must hold, the test windows can move.
 
-- [ ] **Step 5: Run all tests**
+- [x] **Step 5: Run all tests**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo`
 Expected: all PASS except the known `RatingTests` changelog failure (`Addon_file_compiles` now covers FriendMap.lua too).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker/FriendMap.lua addon/WoWCharacterTracker/WoWCharacterTracker.toc addon/WoWCharacterTracker/Comms.lua companion/WoWCharacterTracker.Tests/FriendMapLuaTests.cs
@@ -927,7 +929,7 @@ git commit -m "feat(addon): send friends map positions while their map is open"
 - Consumes (Task 2): `ns.friendPins()`, `ns.setMapOpen(open)`; sets `ns.friendPinsChanged`.
 - Produces: `ns.pinSpot(pin, shownMapID)` returning `x, y` or nil; `ns.attachMapPins()` returning true when it attached; `ns.ago(at)` ("just now", "3m ago", "2h ago", "1d ago"); global `WoWCharacterTrackerFriendPinMixin`; XML template `WoWCharacterTrackerFriendPinTemplate`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `companion/WoWCharacterTracker.Tests/MapPinsLuaTests.cs`:
 
@@ -1067,12 +1069,12 @@ public class MapPinsLuaTests
 }
 ```
 
-- [ ] **Step 2: Run them and see them fail**
+- [x] **Step 2: Run them and see them fail**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo --filter "FullyQualifiedName~MapPinsLuaTests"`
 Expected: FAIL, `MapPins.lua` not found and `ns.ago` is nil.
 
-- [ ] **Step 3: Move `ago` to Shared.lua**
+- [x] **Step 3: Move `ago` to Shared.lua**
 
 Append to `Shared.lua`:
 
@@ -1095,7 +1097,7 @@ local ago = ns.ago
 
 (If `DAY` is then unused in Window.lua, leave it only if something else uses it; the build has no Lua lint, so check with a search.)
 
-- [ ] **Step 4: Write MapPins.xml and MapPins.lua**
+- [x] **Step 4: Write MapPins.xml and MapPins.lua**
 
 Create `addon/WoWCharacterTracker/MapPins.xml`:
 
@@ -1298,17 +1300,17 @@ and in `on.PLAYER_LOGIN`, after `ns.createMinimapButton()`:
   ns.attachMapPins() -- friends on the world map (MapPins.lua)
 ```
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo --filter "FullyQualifiedName~MapPinsLuaTests|FullyQualifiedName~AddonWindowTests|FullyQualifiedName~AddonLuaTests"`
 Expected: all PASS (the window tests prove `ago` still reads the same there).
 
-- [ ] **Step 6: Run all tests**
+- [x] **Step 6: Run all tests**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo`
 Expected: all PASS except the known `RatingTests` changelog failure.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker/MapPins.lua addon/WoWCharacterTracker/MapPins.xml addon/WoWCharacterTracker/Shared.lua addon/WoWCharacterTracker/Window.lua addon/WoWCharacterTracker/WoWCharacterTracker.toc addon/WoWCharacterTracker/WoWCharacterTracker.lua companion/WoWCharacterTracker.Tests/MapPinsLuaTests.cs
@@ -1331,7 +1333,7 @@ git commit -m "feat(addon): show friends as pins on the world map"
 - Consumes (Task 1): the addon's `share.defaults.map/otherFaction`, `contacts[tag].map/otherFaction`, `share.mapRate`.
 - Produces: `GeneralCategories.Map`, `.OtherFaction`; `ShareContact.Map`, `.OtherFaction` (`bool?`); `ShareSettings.MapRate` (int, default 5), `ShareSettings.MapRates` (`[5, 60, 300]`); VM `ShareMap`, `ShareOtherFaction`, `IsMapLive`, `IsMapMinute`, `IsMapFiveMinutes`, `MapRateCommand` (parameter "5", "60" or "300"); chip keys `map` and `otherFaction`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `FriendDataTests.cs`:
 
@@ -1410,12 +1412,12 @@ Add to `FriendsViewModelTests.cs`:
     }
 ```
 
-- [ ] **Step 2: Run them and see them fail**
+- [x] **Step 2: Run them and see them fail**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo --filter "FullyQualifiedName~FriendDataTests|FullyQualifiedName~FriendsViewModelTests"`
 Expected: build FAILS (`Map`, `MapRate`, `ShareMap` don't exist).
 
-- [ ] **Step 3: Models**
+- [x] **Step 3: Models**
 
 `Models/Friends.cs`, replace the three records:
 
@@ -1439,7 +1441,7 @@ record ShareSettings(bool Enabled, bool NewChars, GeneralCategories Defaults, Di
 }
 ```
 
-- [ ] **Step 4: Reading and writing**
+- [x] **Step 4: Reading and writing**
 
 `FriendData.ReadShare`:
 
@@ -1477,7 +1479,7 @@ and the end:
                + $"    blocked = {{ {blocked}}} }},\n";
 ```
 
-- [ ] **Step 5: The view model**
+- [x] **Step 5: The view model**
 
 `FriendsViewModel.cs`: add `using System.Globalization;` at the top. In `RaiseSharing`, add `nameof(ShareMap), nameof(ShareOtherFaction), nameof(IsMapLive), nameof(IsMapMinute), nameof(IsMapFiveMinutes)` to the array. After `ShareGold`:
 
@@ -1538,7 +1540,7 @@ and in `CycleCommand`'s switch, before `default`:
             case "otherFaction": OtherFaction = next; break;
 ```
 
-- [ ] **Step 6: The page**
+- [x] **Step 6: The page**
 
 `FriendsPage.xaml`, in the WHAT FRIENDS GET `WrapPanel`, after the Gold chip:
 
@@ -1568,16 +1570,16 @@ and after that `WrapPanel`, before the FRIENDS label:
           </WrapPanel>
 ```
 
-- [ ] **Step 7: Run all tests**
+- [x] **Step 7: Run all tests**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo`
 Expected: all PASS except the known `RatingTests` changelog failure. If `An_old_config_without_map_settings_reads_as_live_and_off` fails with `MapRate == 0`, System.Text.Json didn't use the parameter default. Then fix it where config loads (`Config.cs`, next to the other migrations around line 210): any flavor's `Share` with a `MapRate` not in `ShareSettings.MapRates` becomes `Share with { MapRate = 5 }`, and change the test to go through that load. Keep the test either way.
 
-- [ ] **Step 8: Render the sharing settings**
+- [x] **Step 8: Render the sharing settings**
 
 Build and render the Friends page's sharing settings in screenshot mode against a fake data dir and fake flavor folders (`.claude/notes/testing.md`): `CHARACTERTRACKER_DATA_DIR=<scratch>\data`, `CHARACTERTRACKER_SCREENSHOT=<scratch>\friends-sharing.png`, `CHARACTERTRACKER_SCREENSHOT_VIEW=forever:friends::sharing`, both game paths in the test config pointing at fake `_forever_` and `_retail_` folders with an `Interface` folder in each. Look at the PNG: the Map position chip, the MAP POSITION section with the faction chip and three rate chips, Live picked. Send it to JDybeck.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add companion/WoWCharacterTracker/Models/Friends.cs companion/WoWCharacterTracker/Services/FriendData.cs companion/WoWCharacterTracker/Services/AddonInstaller.cs companion/WoWCharacterTracker/ViewModels/FriendsViewModel.cs companion/WoWCharacterTracker/Views/FriendsPage.xaml companion/WoWCharacterTracker.Tests/FriendDataTests.cs companion/WoWCharacterTracker.Tests/FriendsViewModelTests.cs
@@ -1591,7 +1593,7 @@ git commit -m "feat(companion): add map position to the friends sharing settings
 **Files:**
 - Modify: `docs/GUIDE.md` (the "Sharing with Battle.net friends" section), `CHANGELOG.md`, `.claude/notes/friends.md` (not tracked by git, edit it anyway)
 
-- [ ] **Step 1: GUIDE**
+- [x] **Step 1: GUIDE**
 
 In `docs/GUIDE.md`, "Sharing with Battle.net friends", add a bullet after the "What friends get" bullet:
 
@@ -1599,7 +1601,7 @@ In `docs/GUIDE.md`, "Sharing with Battle.net friends", add a bullet after the "W
 - **Friends on the map**: friends who get **Map position** (off until you turn it on, for all friends or just one) show up as a dot in their class color on your world map while you have it open, with a tooltip saying who, where and how long ago. A ring instead of a dot is a friend on another realm. Your position only goes out while a friend has their map open, never from a dungeon, raid or battleground, and never to a friend playing the other faction unless you turn on **Show to the other faction**. **Map updates** sets how often: live, every minute or every 5 minutes. Positions are never saved anywhere. `/wct friends set all map on`, `/wct friends set <BattleTag> otherfaction on` and `/wct friends maprate 1m` do the same from chat.
 ```
 
-- [ ] **Step 2: CHANGELOG**
+- [x] **Step 2: CHANGELOG**
 
 At the top of `CHANGELOG.md`, above `## v0.37.2`:
 
@@ -1615,7 +1617,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 (`RatingTests.The_built_in_changelog_starts_at_this_version_and_uses_the_groups` keeps failing until the release bumps the csproj to 0.38.0. It fails on main already.)
 
-- [ ] **Step 3: friends.md**
+- [x] **Step 3: friends.md**
 
 Add to `.claude/notes/friends.md`:
 
@@ -1625,23 +1627,23 @@ Add to `.claude/notes/friends.md`:
 
 And add WATCH and POS to its "Kinds" line: `WATCH (my map is open), POS (a map position, empty = gone).`
 
-- [ ] **Step 4: Full validation**
+- [x] **Step 4: Full validation**
 
 Run: `dotnet test companion\WoWCharacterTracker.Tests\WoWCharacterTracker.Tests.csproj -warnaserror --nologo`
 Expected: all PASS except the known `RatingTests` changelog failure.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/GUIDE.md CHANGELOG.md
 git commit -m "docs: describe friends on the world map"
 ```
 
-- [ ] **Step 6: Rebuild JDybeck's local copy**
+- [x] **Step 6: Rebuild JDybeck's local copy**
 
 Per the "always update local dist" memory: if JDybeck's copy runs from `dist`, find its PID (`Get-Process WoWCharacterTracker | Where-Object { $_.Path -like '*\dist\*' }`, read the PID, stop only that one by `Stop-Process -Id <pid>`), then `dotnet publish companion\WoWCharacterTracker\WoWCharacterTracker.csproj -c Release -o dist -p:Version=0.38.0` and start `dist\WoWCharacterTracker.exe` again. It installs the addon into the game folders by itself.
 
-- [ ] **Step 7: Hand JDybeck the in-game checklist**
+- [x] **Step 7: Hand JDybeck the in-game checklist**
 
 Not automatable. Report this list (and add the answers to `friends.md` and the spec's in-game section afterwards):
 
@@ -1655,7 +1657,7 @@ Not automatable. Report this list (and add the answers to `friends.md` and the s
 8. Any Battle.net throttling (a friend's dot stops updating while live) with 3 or more friends watching at once?
 ```
 
-- [ ] **Step 8: Wrap up**
+- [x] **Step 8: Wrap up**
 
 Nothing is pushed. Tell JDybeck the branch is ready for a PR once the in-game checks look good, and that the release (csproj and `.toc` version to 0.38.0, `release.cmd`) waits for them.
 

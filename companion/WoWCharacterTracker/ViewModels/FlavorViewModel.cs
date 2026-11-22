@@ -359,6 +359,120 @@ sealed class FlavorViewModel : Observable
         }
     }
 
+    // --- the weekly recap (Advanced on Sharing; WeeklyRecap) ---
+
+    // Turning it on, or moving its day or hour, starts from the next planned time: a time already
+    // passed this week doesn't post right away (Post now does).
+    public bool PostRecap
+    {
+        get => Settings.PostRecap;
+        set
+        {
+            Settings.PostRecap = value;
+            if (value) SkipToNextRecap();
+            main.Config.Save();
+            Raise(nameof(PostRecap));
+            Raise(nameof(RecapText));
+        }
+    }
+
+    public int RecapHour
+    {
+        get => Settings.RecapHour;
+        set
+        {
+            Settings.RecapHour = Math.Clamp(value, 0, 23);
+            SkipToNextRecap();
+            main.SaveSoon();
+            Raise(nameof(RecapHour));
+            Raise(nameof(RecapText));
+        }
+    }
+
+    IReadOnlyList<DayChoice>? recapDays;
+    // Monday first, like the game's calendar in Europe.
+    public IReadOnlyList<DayChoice> RecapDays => recapDays ??=
+        [.. Enumerable.Range(1, 7).Select(i => (DayOfWeek)(i % 7)).Select(d => new DayChoice(d, $"recapday-{Name}", () => Settings.RecapDay == d, () =>
+        {
+            Settings.RecapDay = d;
+            SkipToNextRecap();
+            main.Config.Save();
+            foreach (var c in RecapDays) c.Refresh();
+            Raise(nameof(RecapText));
+        }))];
+
+    void SkipToNextRecap() =>
+        Settings.RecapSentAt = WeeklyRecap.LastSlot(DateTimeOffset.Now, Settings.RecapDay, Settings.RecapHour).ToUnixTimeSeconds();
+
+    // "Next one: Sunday 23 November at 20:00."
+    public string RecapText
+    {
+        get
+        {
+            if (!Settings.PostRecap) return "Every week, one post to this game's webhooks with what each of your characters did: levels, epics, mounts, bosses, quests, gold and more.";
+            var next = WeeklyRecap.LastSlot(DateTimeOffset.Now, Settings.RecapDay, Settings.RecapHour).AddDays(7);
+            var c = System.Globalization.CultureInfo.InvariantCulture;
+            return $"Next one: {next.ToString("dddd d MMMM", c)} at {next.ToString("HH:mm", c)}. If the app is closed then, it posts when it opens (up to two days late).";
+        }
+    }
+
+    bool postingRecap;
+
+    // Checked every few minutes (MainViewModel): posts the week's recap when its time has come. Marked
+    // sent once it went out (or the week had nothing), so a failed post tries again on the next check.
+    public async Task PostRecapIfDueAsync(DateTimeOffset now)
+    {
+        if (!Settings.PostRecap || postingRecap || !IsOn || Stats.Yours is null) return;
+        if (WeeklyRecap.Due(now, Settings.RecapDay, Settings.RecapHour, Settings.RecapSentAt) is not { } slot) return;
+        if (await PostRecapAsync(slot) is not false)
+        {
+            Settings.RecapSentAt = slot.ToUnixTimeSeconds();
+            main.Config.Save();
+        }
+    }
+
+    // Post now (the recap's button): the last seven days, right away.
+    public ICommand PostRecapNowCommand => postRecapNow ??= new RelayCommand(_ => PostRecapAsync(DateTimeOffset.Now));
+    ICommand? postRecapNow;
+
+    // True: sent to at least one webhook; null: nothing to send (no webhook, paused, an empty week); false: it failed.
+    async Task<bool?> PostRecapAsync(DateTimeOffset at)
+    {
+        if (Settings.DiscordPaused)
+        {
+            Log.Info($"[{Name}] Discord posts are paused, so the weekly recap wasn't posted.");
+            return null;
+        }
+        var hooks = main.Config.ActiveWebhooks(Flavor);
+        if (hooks.Count == 0)
+        {
+            Log.Warn($"[{Name}] No webhook for the weekly recap. Turn one on under Sharing.");
+            return null;
+        }
+        var weeks = Stats.Yours is { } yours
+            ? WeeklyRecap.Build(allRows.Where(r => !r.IsTest).Select(r => new WeeklyRecap.Character(r.Guid, Format.Name(r.Name, r.Surname, Settings.NameStyle), r.Level)),
+                yours.Events, yours.Days, at)
+            : [];
+        if (WeeklyRecap.Embed(weeks, Flavor.Name, at) is not { } embed)
+        {
+            Log.Info($"[{Name}] None of your characters did anything this week, so there's no weekly recap.");
+            return null;
+        }
+        postingRecap = true;
+        try
+        {
+            var sent = false;
+            foreach (var w in hooks)
+                if (await main.PosterFor(this, w).PostRecapAsync(embed))
+                {
+                    sent = true;
+                    Log.Success($"[{Name}] Posted the weekly recap to \"{w.Name}\".");
+                }
+            return sent;
+        }
+        finally { postingRecap = false; }
+    }
+
     // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
     // for a note that came from the game: it has it already.
     public void NotesChanged(bool hint = true)
@@ -386,6 +500,17 @@ sealed class FlavorViewModel : Observable
         [.. FlavorSettings.AskSecondsChoices.Select(n => new SecondsChoice(n, $"askseconds-{Name}",
             () => Settings.AskSeconds == n, () => { Settings.AskSeconds = n; InGameChanged(nameof(AskSecondsChoices)); RefreshAskSeconds(); }))];
     void RefreshAskSeconds() { foreach (var c in AskSecondsChoices) c.Refresh(); }
+
+    // The lowest standing a reputation milestone posts (Friendly to Exalted), each standing above it too.
+    IReadOnlyList<StandingChoice>? reputationFromChoices;
+    public IReadOnlyList<StandingChoice> ReputationFromChoices => reputationFromChoices ??=
+        [.. Enumerable.Range(Reputations.LowestStep, Reputations.Exalted - Reputations.LowestStep + 1).Select(n => new StandingChoice(n, $"reputationfrom-{Name}",
+            () => Settings.ReputationFrom == n, () =>
+            {
+                Settings.ReputationFrom = n;
+                Changed(nameof(ReputationFromChoices));
+                foreach (var c in ReputationFromChoices) c.Refresh();
+            }))];
 
     // Distances to friends on the in-game map: three chips that act like radio buttons.
     public bool DistanceAuto { get => DistanceUnit == "auto"; set { if (value) SetDistanceUnit("auto"); } }
@@ -498,6 +623,7 @@ sealed class FlavorViewModel : Observable
         MarkInGameChanged(); // the filters, chat and ask lists changed too
         AddonSettingsChanged();
         SharingChanged();
+        foreach (var c in reputationFromChoices ?? []) c.Refresh(); // chips cache their own state
         Raise(string.Empty); // every property
     }
 

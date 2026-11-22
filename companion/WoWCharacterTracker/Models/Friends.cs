@@ -7,6 +7,22 @@ record FriendContact(string Tag, long Seen, string Version, int Protocol, bool R
     List<Entry> Events)
 {
     public List<DayTotals> Days { get; init; } = []; // their characters' last days (quests, gathering, item level), for the Stats page
+    public List<string> Shares { get; init; } = []; // what they share with you (FriendData.SharedCategories), in ShareCategories order
+}
+
+// The categories in the addon's order (Friends.lua CATEGORIES) and how a summary words them.
+static class ShareCategories
+{
+    public static readonly string[] Order = ["gear", "talents", "location", "professions", "highlights", "leveling", "gold", "map"];
+    static readonly Dictionary<string, string> Words = new() { ["leveling"] = "level times", ["map"] = "map position" };
+
+    // "gear, talents, level times", or "only the basics" for none (the addon's ns.shareSummary).
+    public static string Summary(IEnumerable<string> categories)
+    {
+        var set = categories.ToHashSet();
+        var picked = Order.Where(set.Contains).Select(k => Words.GetValueOrDefault(k, k)).ToList();
+        return picked.Count > 0 ? string.Join(", ", picked) : "only the basics";
+    }
 }
 
 // What all friends get, unless set for one of them. Gold and map position stay off until turned on.

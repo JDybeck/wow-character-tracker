@@ -35,6 +35,7 @@ sealed class EventEmbeds(Flavor flavor)
             "bg" => BattlegroundText(e),
             "profession" => ProfessionText(e),
             "achievement" => AchievementText(e),
+            "reputation" => ReputationText(e),
             "mplus" => MPlusText(e),
             "pvp" => PvpText(e),
             "test" => TestText(e),
@@ -315,6 +316,20 @@ sealed class EventEmbeds(Flavor flavor)
         if (e.Level > 0) lines.Add(e.Zone.Length > 0 ? $"At level {e.Level}, in **{e.Zone}**." : $"At level {e.Level}.");
         return ($"\U0001F3C6 {e.Char} earned {e.Achievement}!", lines);
     }
+
+    // A reputation milestone, the faction linked to Wowhead: "Exalted with Argent Dawn."
+    (string, List<string>) ReputationText(Entry e)
+    {
+        var faction = e.Reputation.Length > 0 ? e.Reputation : "a faction";
+        var name = e.FactionId > 0 ? $"[{faction}]({WowheadUrl("faction", e.FactionId)})" : faction;
+        var reached = ReputationReached(e);
+        var lines = new List<string> { $"**{reached}** with **{name}**." };
+        if (e.Level > 0) lines.Add(e.Zone.Length > 0 ? $"At level {e.Level}, in **{e.Zone}**." : $"At level {e.Level}.");
+        return ($"\U0001F91D {e.Char} reached {reached} with {faction}!", lines);
+    }
+
+    // "Exalted", or "Renown 25" for a renown faction's top.
+    internal static string ReputationReached(Entry e) => e.Renown > 0 ? $"Renown {e.Renown}" : Reputations.StandingName(e.Step > 0 ? e.Step : Reputations.Exalted);
 
     static (string, List<string>) MPlusText(Entry e)
     {

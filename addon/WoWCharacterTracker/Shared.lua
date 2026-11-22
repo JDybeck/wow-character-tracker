@@ -17,6 +17,14 @@ function ns.formatPlayed(s)
   return string.format("%dd %dh %dm", math.floor(s / 86400), math.floor(s % 86400 / 3600), math.floor(s % 3600 / 60))
 end
 
+-- Copper as whole gold with thousands: 123456789 -> "12,345g" (the app's Format.Gold).
+function ns.formatGold(copper)
+  local g = tostring(math.floor(math.max(0, copper or 0) / 10000))
+  local out = g:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+  if out:sub(1, 1) == "," then out = out:sub(2) end
+  return out .. "g"
+end
+
 -- A function that runs fn once, delay seconds after it's first called; calls in the meantime belong
 -- to that same run (bag updates while looting, money ticks, a whole equipment set swapping in).
 function ns.debounce(delay, fn)
@@ -54,6 +62,15 @@ function ns.trimEvents(events)
   for i = 1, #events do events[i] = nil end
   for i = #keep, 1, -1 do events[#events + 1] = keep[i] end -- back in time order
   return removed
+end
+
+-- Reputation standings as the game numbers them (Reputation.lua): 1 Hated to 8 Exalted.
+ns.STANDINGS = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+
+-- The game's name for a standing (in the client's language), else the English one.
+function ns.standingName(n)
+  local label = type(n) == "number" and _G and _G["FACTION_STANDING_LABEL" .. n]
+  return type(label) == "string" and label or ns.STANDINGS[n] or "?"
 end
 
 -- The highest step passed going from old to new (only upward), or nil. Rating and profession milestones.

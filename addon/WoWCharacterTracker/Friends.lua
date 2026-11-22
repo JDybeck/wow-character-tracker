@@ -473,14 +473,14 @@ function on.CHARS(f, contact, body)
   changed()
 end
 
--- "<label> shared <names> with you." once per ask, for the first characters that come after it.
+-- "<label> shared <name> with you (what)." once per ask, for the first character that comes after it.
 local function noteArrival(tag, char)
   local at = asked[tag]
   if not at or told[tag] == at or time() - at > 300 then return end
   told[tag] = at
   local name = ns.friendNickname(tag)
-  ns.say(string.format("%s shared %s with you. More of their characters follow if they share them.",
-    name ~= "" and name or tag, ns.fullName(char)))
+  ns.say(string.format("%s shared %s with you (%s). More of their characters follow if they share them.",
+    name ~= "" and name or tag, ns.fullName(char), ns.theirShareSummary(friendEntry(tag).chars) or "only the basics"))
 end
 
 -- Friends' moments in your chat --------------------------------------------------------------
@@ -961,6 +961,13 @@ end
 -- "gear, talents, professions" from { category = on }, for the request box, its chat line and /wct friends.
 ns.shareSummary = picked
 
+-- What a friend shares with you as a summary ("professions", "only the basics") from the characters
+-- they sent (ns.friendSharedCategories), nil without any.
+function ns.theirShareSummary(chars)
+  if not chars or next(chars) == nil then return nil end
+  return picked(ns.friendSharedCategories(chars))
+end
+
 local function listContacts()
   local s, me = ns.shareSettings(), UnitGUID("player")
   ns.say(string.format("Sharing with friends is %s. This character is %s. Friends get: %s.", s.enabled and "on" or "off",
@@ -1286,4 +1293,65 @@ function ns.sharedWithYou()
   end
   table.sort(out, byLabel)
   return out
+end
+
+-- Gold and played added up over what friends share: per friend and for all of them, with each
+-- friend's share of the whole. Gold comes with the gold category and played with level times, so a
+-- friend who shares neither has none and is left out of that share instead of counting as 0%. (The
+-- app's FriendTotals does the same.) persons: { { tag, chars } } as ns.sharedWithYou gives them;
+-- skip(c) true leaves a character out (hidden in the window). Returns { byTag = { [tag] = { money,
+-- played, chars, goldPct, playedPct } }, money, played, friends, withGold, withPlayed }.
+function ns.friendTotals(persons, skip)
+  local t = { byTag = {}, money = 0, played = 0, friends = 0, withGold = 0, withPlayed = 0 }
+  for _, person in ipairs(persons or {}) do
+    local f = { money = 0, played = 0, chars = 0 }
+    for _, c in ipairs(person.chars or {}) do
+      if not c.notShared and not (skip and skip(c)) then
+        f.chars = f.chars + 1
+        if type(c.money) == "number" and c.money > 0 then f.money = f.money + c.money end
+        if type(c.played) == "number" and c.played > 0 then f.played = f.played + c.played end
+      end
+    end
+    if f.chars > 0 and person.tag and not t.byTag[person.tag] then
+      t.byTag[person.tag] = f
+      t.friends = t.friends + 1
+      t.money, t.played = t.money + f.money, t.played + f.played
+      if f.money > 0 then t.withGold = t.withGold + 1 end
+      if f.played > 0 then t.withPlayed = t.withPlayed + 1 end
+    end
+  end
+  local function pct(part, whole) return whole > 0 and math.floor(100 * part / whole + 0.5) or 0 end
+  for _, f in pairs(t.byTag) do
+    f.goldPct, f.playedPct = pct(f.money, t.money), pct(f.played, t.played)
+  end
+  return t
+end
+
+-- One friend's line: "12,345g (40%)  ·  6d 4h 12m played (25%)", the percent only when more than one
+-- friend shares that. Empty when they share neither.
+function ns.friendTotalsLine(t, tag)
+  local f = t and t.byTag[tag]
+  if not f then return "" end
+  local parts = {}
+  if f.money > 0 then
+    parts[#parts + 1] = ns.formatGold(f.money) .. (t.withGold > 1 and string.format(" (%d%%)", f.goldPct) or "")
+  end
+  if f.played > 0 then
+    parts[#parts + 1] = ns.formatPlayed(f.played) .. " played" .. (t.withPlayed > 1 and string.format(" (%d%%)", f.playedPct) or "")
+  end
+  return table.concat(parts, "  ·  ")
+end
+
+-- All friends': "All friends: 45,678g, 20d 3h 5m played (2 of 3 share gold)". Empty with nothing to add up.
+function ns.allFriendsTotalsLine(t)
+  if not t or (t.money == 0 and t.played == 0) then return "" end
+  local parts = {}
+  if t.money > 0 then parts[#parts + 1] = ns.formatGold(t.money) end
+  if t.played > 0 then parts[#parts + 1] = ns.formatPlayed(t.played) .. " played" end
+  local line = "All friends: " .. table.concat(parts, ", ")
+  local notes = {}
+  if t.money > 0 and t.withGold < t.friends then notes[#notes + 1] = string.format("%d of %d share gold", t.withGold, t.friends) end
+  if t.played > 0 and t.withPlayed < t.friends then notes[#notes + 1] = string.format("%d of %d share played", t.withPlayed, t.friends) end
+  if #notes > 0 then line = line .. " (" .. table.concat(notes, ", ") .. ")" end
+  return line
 end
