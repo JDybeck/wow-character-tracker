@@ -46,62 +46,93 @@ public class WeeklyRecapTests
         Assert.Equal("26 November to 2 December", WeeklyRecap.WeekText(new DateTimeOffset(2026, 12, 2, 20, 0, 0, Cet)));
     }
 
-    static readonly Leaderboards.Player You = new("you", "You", true);
-    static readonly Leaderboards.Player Rasmus = new("Rasmus#1", "Rasmus", false);
-    static readonly Leaderboards.Player Benne = new("Benne#2", "Benne", false);
+    static readonly DateTimeOffset Slot = At(22, 20);
+    static readonly WeeklyRecap.Character Zeb = new("y1", "Zeb Drygbeck", 48);
+    static readonly WeeklyRecap.Character Ronnie = new("y2", "Ronnie", 12);
+    static readonly WeeklyRecap.Character Idle = new("y3", "Idle", 60);
 
-    static Leaderboards.Score Score(Leaderboards.Player who, int rank, string text, string detail = "") => new(who, rank, text, detail, rank);
+    static Entry E(string guid, string kind, long hoursAgo) => new() { Kind = kind, Guid = guid, At = Slot.ToUnixTimeSeconds() - hoursAgo * 3600 };
+    static Entry Ding(string guid, int level, long seconds, long hoursAgo) => E(guid, "level", hoursAgo) with { Level = level, Seconds = seconds };
+
+    static DayTotals Day(string guid, int day, int quests = 0, double ilvlStart = 0, double ilvl = 0, long moneyStart = 0, long money = 0, int herbs = 0) =>
+        new(guid, $"2026-11-{day:00}", ilvlStart, ilvl, moneyStart, money, quests, herbs, 0, 0, 0);
 
     [Fact]
-    public void The_post_has_the_podium_and_each_boards_top_three_with_your_name()
+    public void Each_character_gets_what_it_did_this_week()
     {
-        List<Leaderboards.Board> boards =
+        Entry[] events =
         [
-            new("quests", "Most quests", "", [Score(Rasmus, 1, "40"), Score(You, 2, "30"), Score(Benne, 3, "20"), new(new("x#4", "Fourth", false), 10, "10", "", 4)]),
-            new("epics", "Most epics", "", [Score(Rasmus, 1, "2")]),
-            new("ilvl", "Most item level gained", "", [Score(You, 1, "+12.5", "Zeb Drygbeck")]),
-            new("deaths", "Most deaths", "", [Score(Benne, 1, "3"), new(You, 0, "-", "", 0)]),
+            Ding("y1", 41, 3600, 100), Ding("y1", 42, 5400, 50), Ding("y1", 42, 5400, 50), Ding("y1", 48, 7200, 2),
+            E("y1", "loot", 30) with { Quality = 4, Item = "Gutgore Ripper" },
+            E("y1", "loot", 20) with { Quality = 3, Item = "A blue" },
+            E("y1", "mount", 10) with { Mount = "Swift Razzashi Raptor" },
+            E("y1", "boss", 9) with { Boss = "Onyxia" }, E("y1", "boss", 8) with { Boss = "Onyxia" },
+            E("y1", "profession", 7) with { Profession = "Mining", Step = 150, Rating = 151 },
+            E("y1", "death", 6),
+            Ding("y1", 40, 3600, 8 * 24), // last week
+            Ding("y2", 12, 600, 1),
+        ];
+        DayTotals[] days =
+        [
+            Day("y1", 15, quests: 99), // the Sunday before: not this week
+            Day("y1", 16, quests: 12, ilvlStart: 40, ilvl: 42, moneyStart: 100_0000, money: 150_0000, herbs: 3),
+            Day("y1", 22, quests: 8, ilvl: 45.5, moneyStart: 150_0000, money: 250_0000),
         ];
 
-        var embed = WeeklyRecap.Embed(boards, "Zeb", "WoW Forever", At(22, 20))!;
-        var json = JsonSerializer.SerializeToElement(embed);
+        var weeks = WeeklyRecap.Build([Ronnie, Zeb, Idle], events, days, Slot);
 
-        Assert.Equal("Weekly recap", json.GetProperty("title").GetString());
-        var text = json.GetProperty("description").GetString()!;
-        Assert.Contains("The week of 16 to 22 November.", text);
-        // Rasmus: 3 + 3 = 6, Zeb: 2 + 3 = 5, Benne: 1 + 3 = 4.
-        Assert.Contains("🥇 **Rasmus**, 6 points (won Most quests and Most epics)", text);
-        Assert.Contains("🥈 **Zeb**, 5 points (won Most item level gained)", text);
-        Assert.Contains("🥉 **Benne**, 4 points (won Most deaths)", text);
-        Assert.DoesNotContain("You", text);
-
-        var fields = json.GetProperty("fields").EnumerateArray().ToList();
-        Assert.Equal(["Most quests", "Most epics", "Most item level gained", "Most deaths"], fields.Select(f => f.GetProperty("name").GetString()));
-        // The top three only, and no dash for you when you're not on a board.
-        Assert.Equal("1. Rasmus: **40**\n2. Zeb: **30**\n3. Benne: **20**", fields[0].GetProperty("value").GetString());
-        Assert.Equal("1. Zeb: **+12.5** (Zeb Drygbeck)", fields[2].GetProperty("value").GetString());
-        Assert.Equal("1. Benne: **3**", fields[3].GetProperty("value").GetString());
-        Assert.All(fields, f => Assert.True(f.GetProperty("inline").GetBoolean()));
+        // The busiest first, and nothing for a character that did nothing.
+        Assert.Equal(["Zeb Drygbeck, level 48", "Ronnie, level 12"], weeks.Select(w => w.Title));
+        Assert.Equal(
+        [
+            "⬆️ Levelled from **40** to **48** (3 levels) in 4h 30m",
+            "💜 New epic: **Gutgore Ripper**",
+            "🐎 New mount: **Swift Razzashi Raptor**",
+            "💀 Killed **Onyxia**",
+            "⚒️ Reached Mining 151",
+            "📜 20 quests done",
+            "🌿 Gathered 3 herbs",
+            "🛡️ Item level 40 to **45.5**",
+            "💰 **+150g**",
+            "🪦 Died once",
+        ], weeks[0].Lines);
+        Assert.Equal(["⬆️ Levelled from **11** to **12** in 10m 0s"], weeks[1].Lines);
     }
 
     [Fact]
-    public void An_empty_week_has_no_post()
+    public void The_post_has_a_field_per_character_and_says_when_its_max_level()
     {
-        Assert.Null(WeeklyRecap.Embed([], "Zeb", "WoW Forever", At(22, 20)));
+        var weeks = WeeklyRecap.Build([Zeb], [Ding("y1", 60, 9000, 3) with { MaxLevel = true }], [], Slot);
+        var json = JsonSerializer.SerializeToElement(WeeklyRecap.Embed(weeks, "WoW Forever", Slot));
+
+        Assert.Equal("Weekly recap", json.GetProperty("title").GetString());
+        Assert.Equal("The week of 16 to 22 November: 1 character played.", json.GetProperty("description").GetString());
+        var field = Assert.Single(json.GetProperty("fields").EnumerateArray());
+        Assert.Equal("Zeb Drygbeck, level 48", field.GetProperty("name").GetString());
+        Assert.Contains("reaching max level!", field.GetProperty("value").GetString());
     }
 
-    // Built from the Stats page's data: a recap posted late still covers the week up to its planned time.
+    [Fact]
+    public void Many_epics_name_the_first_three()
+    {
+        var loot = Enumerable.Range(1, 5).Select(i => E("y1", "loot", i) with { Quality = 4, Item = $"Epic {i}" }).ToArray();
+        var line = Assert.Single(Assert.Single(WeeklyRecap.Build([Zeb], loot, [], Slot)).Lines);
+        Assert.Equal("💜 5 new epics: **Epic 5**, **Epic 4**, **Epic 3** and 2 more", line);
+    }
+
+    [Fact]
+    public void A_quiet_week_has_no_post()
+    {
+        var weeks = WeeklyRecap.Build([Zeb], [Ding("y1", 40, 3600, 8 * 24)], [], Slot);
+        Assert.Empty(weeks);
+        Assert.Null(WeeklyRecap.Embed(weeks, "WoW Forever", Slot));
+    }
+
+    // A recap posted late still covers the week up to its planned time.
     [Fact]
     public void A_late_recap_covers_the_week_up_to_its_planned_time()
     {
-        var slot = At(22, 20);
-        Entry Epic(long at) => new() { Kind = "loot", Guid = "y1", Quality = 4, At = at };
-        var source = new Leaderboards.Source(You, [Epic(slot.ToUnixTimeSeconds() - 3600), Epic(slot.ToUnixTimeSeconds() + 3600)], [],
-            new Dictionary<string, string> { ["y1"] = "Zeb" });
-
-        var boards = Leaderboards.Build([source], slot, Leaderboards.Period.Week);
-
-        // The one after Sunday 20:00 belongs to next week.
-        Assert.Equal(1, Assert.Single(boards, b => b.Key == "epics").Scores[0].Value);
+        var weeks = WeeklyRecap.Build([Zeb], [Ding("y1", 41, 60, 1), Ding("y1", 42, 60, -1)], [], Slot);
+        Assert.Equal("⬆️ Levelled from **40** to **41** in 1m 0s", Assert.Single(Assert.Single(weeks).Lines));
     }
 }

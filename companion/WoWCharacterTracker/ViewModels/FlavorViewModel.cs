@@ -409,7 +409,7 @@ sealed class FlavorViewModel : Observable
     {
         get
         {
-            if (!Settings.PostRecap) return "Every week, the Stats page's MVP podium and each board's top three, as one post to this game's webhooks.";
+            if (!Settings.PostRecap) return "Every week, one post to this game's webhooks with what each of your characters did: levels, epics, mounts, bosses, quests, gold and more.";
             var next = WeeklyRecap.LastSlot(DateTimeOffset.Now, Settings.RecapDay, Settings.RecapHour).AddDays(7);
             var c = System.Globalization.CultureInfo.InvariantCulture;
             return $"Next one: {next.ToString("dddd d MMMM", c)} at {next.ToString("HH:mm", c)}. If the app is closed then, it posts when it opens (up to two days late).";
@@ -422,7 +422,7 @@ sealed class FlavorViewModel : Observable
     // sent once it went out (or the week had nothing), so a failed post tries again on the next check.
     public async Task PostRecapIfDueAsync(DateTimeOffset now)
     {
-        if (!Settings.PostRecap || postingRecap || !IsOn || !Stats.IsShown) return;
+        if (!Settings.PostRecap || postingRecap || !IsOn || Stats.Yours is null) return;
         if (WeeklyRecap.Due(now, Settings.RecapDay, Settings.RecapHour, Settings.RecapSentAt) is not { } slot) return;
         if (await PostRecapAsync(slot) is not false)
         {
@@ -449,9 +449,13 @@ sealed class FlavorViewModel : Observable
             Log.Warn($"[{Name}] No webhook for the weekly recap. Turn one on under Sharing.");
             return null;
         }
-        if (WeeklyRecap.Embed(Stats.WeekBoards(at), RecapName(), Flavor.Name, at) is not { } embed)
+        var weeks = Stats.Yours is { } yours
+            ? WeeklyRecap.Build(allRows.Where(r => !r.IsTest).Select(r => new WeeklyRecap.Character(r.Guid, Format.Name(r.Name, r.Surname, Settings.NameStyle), r.Level)),
+                yours.Events, yours.Days, at)
+            : [];
+        if (WeeklyRecap.Embed(weeks, Flavor.Name, at) is not { } embed)
         {
-            Log.Info($"[{Name}] Nothing happened this week, so there's no weekly recap.");
+            Log.Info($"[{Name}] None of your characters did anything this week, so there's no weekly recap.");
             return null;
         }
         postingRecap = true;
@@ -468,10 +472,6 @@ sealed class FlavorViewModel : Observable
         }
         finally { postingRecap = false; }
     }
-
-    // What the recap calls you: your most played character, by the tab's name style.
-    string RecapName() =>
-        allRows.Where(r => !r.IsTest).MaxBy(r => r.Played) is { } most ? Format.Name(most.Name, most.Surname, Settings.NameStyle) : "You";
 
     // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
     // for a note that came from the game: it has it already.

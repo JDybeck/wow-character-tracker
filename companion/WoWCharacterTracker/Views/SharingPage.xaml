@@ -354,7 +354,7 @@
             </StackPanel>
 
             <TextBlock Style="{StaticResource Group}" Text="Weekly recap"/>
-            <CheckBox IsChecked="{Binding PostRecap}" Margin="0,0,0,8" ToolTip="Once a week, the Stats page's week as one Discord post: the MVP podium and each board's top three">
+            <CheckBox IsChecked="{Binding PostRecap}" Margin="0,0,0,8" ToolTip="Once a week, one Discord post with what each of your characters did that week">
               <TextBlock Style="{StaticResource OptionTitle}" Text="Post a weekly recap to Discord"/>
             </CheckBox>
             <StackPanel IsEnabled="{Binding PostRecap}">
