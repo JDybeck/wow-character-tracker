@@ -3,6 +3,7 @@ local ADDON, ns = ...
 
 local on = {}
 local professionsWaiting = false -- skill-ups during a fight, checked when it ends
+local reputationsWaiting = false -- reputation gains during a fight, read when it ends
 
 -- A chat reminder to /reload after the bank, mailbox, a vendor or the auction house, or leaving a
 -- dungeon (Events.lua remindReload), once the bag scan that follows has run.
@@ -76,6 +77,7 @@ function on.PLAYER_ENTERING_WORLD(isInitialLogin)
     C_Timer.After(10, ns.saveSnapshot)
     C_Timer.After(10, ns.scanInventory)
     C_Timer.After(12, ns.checkProfessions) -- the baseline, and anything learned while logged out
+    C_Timer.After(14, ns.checkReputations) -- the same for reputations
     C_Timer.After(15, ns.checkIn)
     C_Timer.After(20, ns.startFriends) -- after the snapshot, which is what friends get
     if ns.IS_RETAIL and type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
@@ -99,6 +101,10 @@ function on.PLAYER_REGEN_ENABLED()
   if professionsWaiting then
     professionsWaiting = false
     ns.checkProfessions()
+  end
+  if reputationsWaiting then
+    reputationsWaiting = false
+    ns.checkReputations()
   end
   if ns.popupLevel then
     local level = ns.popupLevel
@@ -139,6 +145,18 @@ local professionsSoon = ns.debounce(2, function()
 end)
 on.SKILL_LINES_CHANGED = professionsSoon
 on.CHAT_MSG_SKILL = professionsSoon
+-- Reputation gains ("Your reputation with ... has increased") come in bursts with every quest and
+-- kill, so once per burst, and after a fight. Not UPDATE_FACTION: reading the list opens its
+-- collapsed groups, which fires that again.
+local reputationsSoon = ns.debounce(3, function()
+  if InCombatLockdown and InCombatLockdown() then
+    reputationsWaiting = true
+    return
+  end
+  ns.checkReputations()
+end)
+on.CHAT_MSG_COMBAT_FACTION_CHANGE = reputationsSoon
+on.MAJOR_FACTION_RENOWN_LEVEL_CHANGED = reputationsSoon -- retail renown
 -- Recipes: read while a profession window is open (the list updates in bursts while it loads).
 local recipesSoon = ns.debounce(1, ns.scanRecipes)
 on.TRADE_SKILL_SHOW = recipesSoon

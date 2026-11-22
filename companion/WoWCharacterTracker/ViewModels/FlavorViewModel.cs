@@ -501,6 +501,17 @@ sealed class FlavorViewModel : Observable
             () => Settings.AskSeconds == n, () => { Settings.AskSeconds = n; InGameChanged(nameof(AskSecondsChoices)); RefreshAskSeconds(); }))];
     void RefreshAskSeconds() { foreach (var c in AskSecondsChoices) c.Refresh(); }
 
+    // The lowest standing a reputation milestone posts (Friendly to Exalted), each standing above it too.
+    IReadOnlyList<StandingChoice>? reputationFromChoices;
+    public IReadOnlyList<StandingChoice> ReputationFromChoices => reputationFromChoices ??=
+        [.. Enumerable.Range(Reputations.LowestStep, Reputations.Exalted - Reputations.LowestStep + 1).Select(n => new StandingChoice(n, $"reputationfrom-{Name}",
+            () => Settings.ReputationFrom == n, () =>
+            {
+                Settings.ReputationFrom = n;
+                Changed(nameof(ReputationFromChoices));
+                foreach (var c in ReputationFromChoices) c.Refresh();
+            }))];
+
     // Distances to friends on the in-game map: three chips that act like radio buttons.
     public bool DistanceAuto { get => DistanceUnit == "auto"; set { if (value) SetDistanceUnit("auto"); } }
     public bool DistanceMeters { get => DistanceUnit == "meters"; set { if (value) SetDistanceUnit("meters"); } }
@@ -612,6 +623,7 @@ sealed class FlavorViewModel : Observable
         MarkInGameChanged(); // the filters, chat and ask lists changed too
         AddonSettingsChanged();
         SharingChanged();
+        foreach (var c in reputationFromChoices ?? []) c.Refresh(); // chips cache their own state
         Raise(string.Empty); // every property
     }
 

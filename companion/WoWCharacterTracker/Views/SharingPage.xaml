@@ -343,6 +343,17 @@
               <TextBox Grid.Row="2" Grid.Column="1" ToolTip="Ratings that trigger a post, separated by commas" Text="{Binding PvpStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"
                        Visibility="{Binding IsRetail, Converter={StaticResource Visible}}"/>
             </Grid>
+            <StackPanel x:Name="ReputationFromRow" Orientation="Horizontal" Margin="0,6,0,0">
+              <TextBlock Text="Reputation from" Width="130" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+              <ItemsControl ItemsSource="{Binding ReputationFromChoices}" Focusable="False" ItemsPanel="{StaticResource Row}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <RadioButton Style="{StaticResource DetailTab}" Content="{Binding Label}" IsChecked="{Binding IsOn}" Margin="0,0,6,0"
+                                 GroupName="{Binding Group}" ToolTip="A faction reaching this standing posts, and each one above it too"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
 
             <StackPanel Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
               <TextBlock Style="{StaticResource Group}" Text="Name in posts"/>

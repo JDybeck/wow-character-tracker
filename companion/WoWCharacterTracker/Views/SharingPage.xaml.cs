@@ -17,6 +17,7 @@ public partial class SharingPage : UserControl
             "level" => LevelSplitBox,
             "profession" => ProfessionStepsBox,
             "keyrun" => KeyRunMinBox,
+            "reputation" => ReputationFromRow,
             _ => FiltersTitle, // rares Bind on Equip only, end bosses first kill only
         };
         target.BringIntoView(new Rect(0, -40, target.ActualWidth, target.ActualHeight + 160));

@@ -74,6 +74,9 @@ record Entry
     public string Profession { get; init; } = ""; // profession: "Mining" (from 0.29.0)
     public string Achievement { get; init; } = "";  // achievement (Forever's legacy ones): its name (from 0.42.1)
     public int AchievementId { get; init; }
+    public string Reputation { get; init; } = "";   // reputation: the faction's name; Step is the standing reached (8 Exalted)
+    public int FactionId { get; init; }
+    public int Renown { get; init; }               // reputation: a Retail renown faction's top renown, reached (Step 0 then)
     public bool Boe { get; init; }               // loot: binds when equipped (from 0.29.0; older loot reads as not)
     public bool Mat { get; init; }               // loot: can't be worn, so legendary doesn't mean always posted (from 0.30.0; older loot reads as gear)
     // On the tab's followed list. Not from the addon: the app marks it from the list as it is now
@@ -177,6 +180,9 @@ record Entry
             Profession = s("profession"),
             Achievement = s("achievement"),
             AchievementId = (int)n("achievementId"),
+            Reputation = s("reputation"),
+            FactionId = (int)n("factionId"),
+            Renown = (int)n("renown"),
             Boe = s("boe") is "true" or "1",
             Mat = s("mat") is "true" or "1",
             AskedKind = s("askedKind"),

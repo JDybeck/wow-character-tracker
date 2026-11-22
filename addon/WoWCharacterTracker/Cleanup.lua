@@ -9,7 +9,7 @@ local ADDON, ns = ...
 ns.STRESS_TEST_BEFORE = 1793746800 -- 2026-11-04 00:00 Swedish time
 
 -- Tables keyed by character GUID.
-local BY_GUID = { "chars", "items", "notes", "start", "startLevel", "logoutPlayed", "professions", "recipes", "today", "days", "runs" }
+local BY_GUID = { "chars", "items", "notes", "start", "startLevel", "logoutPlayed", "professions", "reputations", "recipes", "today", "days", "runs" }
 
 -- Keeps only the events keep(e) says yes to, in order.
 local function keepEvents(db, keep)

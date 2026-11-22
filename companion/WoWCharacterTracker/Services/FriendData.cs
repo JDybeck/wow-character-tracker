@@ -45,6 +45,7 @@ static partial class FriendData
         ["pvp"] = ["step", "bracket", "rating"],
         ["death"] = ["killer", "played", "gold", "zone"],
         ["achievement"] = ["achievement", "achievementId"],
+        ["reputation"] = ["reputation", "factionId", "step", "renown"],
     };
 
     public static List<FriendContact> ReadFriends(DynValue friends)
