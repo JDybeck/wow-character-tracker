@@ -11,10 +11,10 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same PR replaces the run still going.
+# A newer push to the same PR replaces the run still going. Pushes to main each finish their run.
 concurrency:
   group: tests-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:

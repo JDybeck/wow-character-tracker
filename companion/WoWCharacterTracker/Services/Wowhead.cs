@@ -62,7 +62,11 @@ static class Wowhead
             string Str(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
             var quality = root.TryGetProperty("quality", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : -1;
             var info = new Info(Str("name"), Str("icon"), quality, ToText(Str("tooltip")), Str("tooltip"));
-            if (info.Name.Length == 0) return null;
+            if (info.Name.Length == 0)
+            {
+                Lookups.TryRemove(key, out _); // no name (yet): asked again another time, like a failed lookup
+                return null;
+            }
             Cache.Set(key, WithoutText(info));
             return info;
         }
@@ -148,9 +152,9 @@ static class Wowhead
             var hits = ParseItemHits(await Web.GetStringAsync(SearchUrl(flavor.WowheadPath, query), Timeout));
             if (!flavor.WowheadPath.StartsWith("forever/", StringComparison.Ordinal)) return hits;
             try { return WithClassicHits(hits, ParseItemHits(await Web.GetStringAsync(SearchUrl("classic/", query), Timeout))); }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { return hits; }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or InvalidOperationException) { return hits; }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { return null; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or InvalidOperationException) { return null; }
         finally { Parallel.Release(); }
     });
 
