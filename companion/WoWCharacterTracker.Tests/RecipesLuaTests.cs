@@ -1,5 +1,3 @@
-using WoWCharacterTracker.Services;
-
 namespace WoWCharacterTracker.Tests;
 
 // Known recipes (Recipes.lua): read from the open profession window under its category headers, kept

@@ -18,12 +18,20 @@ static partial class FriendData
         ["faction"] = 10, ["spec"] = 32, ["talents"] = 1024, ["talentCalc"] = 256, ["gear"] = 512, ["enchants"] = 2048, ["zone"] = 64, ["professions"] = 256,
         ["highlights"] = 1024, ["levels"] = 1600, ["recipes"] = 3000, ["days"] = 900,
     };
+    // The category of each field that has one (the addon's FIELDS); the rest always go.
+    static readonly Dictionary<string, string> FieldCategory = new()
+    {
+        ["talents"] = "talents", ["talentCalc"] = "talents", ["gear"] = "gear", ["enchants"] = "gear", ["zone"] = "location",
+        ["professions"] = "professions", ["recipes"] = "professions", ["money"] = "gold", ["highlights"] = "highlights",
+        ["levels"] = "leveling", ["played"] = "leveling", ["levelTime"] = "leveling", ["xp"] = "leveling", ["xpMax"] = "leveling",
+        ["maxLevel"] = "leveling", ["days"] = "leveling",
+    };
     const int MaxDays = 7; // the addon's ns.SHARED_DAYS
     const int MaxLevels = 80;
 
     // A highlight line is "kind~at~level" and then these, in the addon's order (FriendData.lua HIGHLIGHT_FIELDS).
     const int MaxHighlights = 10;
-    static readonly Dictionary<string, string[]> HighlightFields = new()
+    internal static readonly Dictionary<string, string[]> HighlightFields = new()
     {
         ["boss"] = ["boss", "instance", "groupSize"],
         ["keyrun"] = ["instance", "keyLevel", "upgrades"],
@@ -37,6 +45,7 @@ static partial class FriendData
         ["pvp"] = ["step", "bracket", "rating"],
         ["death"] = ["killer", "played", "gold", "zone"],
         ["achievement"] = ["achievement", "achievementId"],
+        ["reputation"] = ["reputation", "factionId", "step", "renown"],
         ["weekly"] = ["item", "itemId", "quality", "sell", "quest", "bag"],
     };
 
@@ -52,18 +61,39 @@ static partial class FriendData
             var chars = ReadCharacters(t.Get("chars"));
             list.Add(new FriendContact(p.Key.String, (long)Number(t.Get("seen")), version, (int)Number(t.Get("protocol")),
                 Number(t.Get("refused")) > 0, [.. chars.Select(c => c.Snapshot)], [.. chars.Select(c => c.Inventory).OfType<Inventory>()],
-                [.. chars.SelectMany(c => c.Highlights)]) { Days = [.. chars.SelectMany(c => c.Days)] });
+                [.. chars.SelectMany(c => c.Highlights)]) { Days = [.. chars.SelectMany(c => c.Days)], Shares = Shares(chars) });
         }
         return list;
     }
+
+    // What a friend shares with you, from the fields their newest character came with (the addon's
+    // ns.friendSharedCategories): nothing on the wire says it. Only the characters ReadCharacters keeps
+    // count, with each field as it reads it, so a broken or dropped entry can't add a category. Empty
+    // fields don't travel, so a shared category can be missing (no professions yet), and map positions
+    // never show here.
+    public static List<string> SharedCategories(DynValue chars) => Shares(ReadCharacters(chars));
+
+    static List<string> Shares(List<(Snapshot Snapshot, Inventory? Inventory, List<Entry> Highlights, List<DayTotals> Days, HashSet<string> Categories)> chars)
+    {
+        if (chars.Count == 0) return [];
+        var newest = chars.Max(c => c.Snapshot.LastSeen);
+        var found = chars.Where(c => c.Snapshot.LastSeen == newest).SelectMany(c => c.Categories).ToHashSet();
+        return [.. ShareCategories.Order.Where(found.Contains)];
+    }
+
+    // The categories a character's fields came with: a text that's still there once cleaned, or a finite number.
+    static HashSet<string> CategoriesOf(Table t) =>
+        [.. FieldCategory.Where(f => Max.TryGetValue(f.Key, out var max)
+            ? Text(t.Get(f.Key), max, lines: true).Length > 0
+            : t.Get(f.Key).Type == DataType.Number && double.IsFinite(t.Get(f.Key).Number)).Select(f => f.Value)];
 
     // Several WoW accounts on one PC, each with its own saved friends: per friend, the newest news wins.
     public static List<FriendContact> Merge(IEnumerable<List<FriendContact>> perAccount) =>
         [.. perAccount.SelectMany(f => f).GroupBy(f => f.Tag).Select(g => g.MaxBy(f => f.Seen)!)];
 
-    static List<(Snapshot Snapshot, Inventory? Inventory, List<Entry> Highlights, List<DayTotals> Days)> ReadCharacters(DynValue chars)
+    static List<(Snapshot Snapshot, Inventory? Inventory, List<Entry> Highlights, List<DayTotals> Days, HashSet<string> Categories)> ReadCharacters(DynValue chars)
     {
-        var list = new List<(Snapshot, Inventory?, List<Entry>, List<DayTotals>)>();
+        var list = new List<(Snapshot, Inventory?, List<Entry>, List<DayTotals>, HashSet<string>)>();
         if (chars.Type != DataType.Table) return list;
         foreach (var p in chars.Table.Pairs)
         {
@@ -80,7 +110,7 @@ static partial class FriendData
                 Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200), LevelTime: Whole(N("levelTime")), Recipes: S("recipes")) { Surname = S("surname") };
             // No gear shared: no inventory, so the gear tab says it isn't shared.
             var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;
-            list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights")), .. ReadLevels(snapshot, S("levels"))], [.. ReadDays(guid, S("days"))]));
+            list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights")), .. ReadLevels(snapshot, S("levels"))], [.. ReadDays(guid, S("days"))], CategoriesOf(t)));
         }
         // At most MaxCharacters: the ones seen longest ago go.
         return [.. list.OrderByDescending(c => c.Item1.LastSeen).Take(MaxCharacters)];

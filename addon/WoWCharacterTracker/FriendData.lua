@@ -65,6 +65,7 @@ local HIGHLIGHT_FIELDS = {
   pvp = { "step", "bracket", "rating" },
   death = { "killer", "played", "gold", "zone" },
   achievement = { "achievement", "achievementId" },
+  reputation = { "reputation", "factionId", "step", "renown" },
   weekly = { "item", "itemId", "quality", "sell", "quest", "bag" },
 }
 local FIELD_CATEGORY = { gold = "gold", zone = "location" }

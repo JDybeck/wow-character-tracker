@@ -35,6 +35,7 @@ sealed class CharacterRow : Observable
     public string FriendName { get => friendName; set => Set(ref friendName, value); } // nickname, else the BattleTag
     // When your addon last heard from that friend (their contact's `seen`), shown as "updated 5m ago".
     public long FriendSynced { get; set; }
+    public string FriendSharesText { get; set; } = ""; // "Shares with you: gear, talents" on the friend's header
     public string FriendSyncedText => FriendSynced > 0 ? $"updated {Format.Ago(FriendSynced)}" : "not updated yet";
     bool isHiddenFriend;
     public bool IsHiddenFriend { get => isHiddenFriend; set => Set(ref isHiddenFriend, value); } // hidden on the Friends page, shown anyway
@@ -88,6 +89,25 @@ sealed class CharacterRow : Observable
     IReadOnlyDictionary<string, IReadOnlyList<RecipeGroup>>? recipeLists;
     public IReadOnlyList<RecipeGroup> RecipesOf(string profession) =>
         (recipeLists ??= ProfessionSkills.Recipes(Recipes)).GetValueOrDefault(profession) ?? [];
+    // Factions and standings (Reputations.Parse), saved file only: renown first, then the highest.
+    // The overview shows the first few until "Show all" is clicked.
+    public string Reputations { get; init; } = "";
+    const int ReputationsShownFirst = 8;
+    IReadOnlyList<ReputationRow>? reputationList;
+    public IReadOnlyList<ReputationRow> ReputationList => reputationList ??=
+        [.. Services.Reputations.Sorted(Services.Reputations.Parse(Reputations)).Select(r => new ReputationRow(r))];
+    public bool HasReputations => ReputationList.Count > 0;
+    bool allReputations;
+    public IReadOnlyList<ReputationRow> ReputationsShown => allReputations ? ReputationList : [.. ReputationList.Take(ReputationsShownFirst)];
+    public bool HasMoreReputations => !allReputations && ReputationList.Count > ReputationsShownFirst;
+    public string MoreReputationsText => $"Show all {ReputationList.Count}";
+    RelayCommand? allReputationsCommand;
+    public RelayCommand ShowAllReputationsCommand => allReputationsCommand ??= new RelayCommand(_ =>
+    {
+        allReputations = true;
+        Raise(nameof(ReputationsShown));
+        Raise(nameof(HasMoreReputations));
+    });
     // The lists below are made once per row (its data never changes; a sync builds new rows), not on
     // every read: bindings, sorting and the card all read them.
     IReadOnlyList<(string Name, string Value)>? statList;
@@ -442,6 +462,7 @@ sealed class CharacterRow : Observable
                 ArmoryGame = flavor.ArmoryGame,
                 Stats = Newest(guid, c => c.Stats),
                 Recipes = Newest(guid, c => c.Recipes),
+                Reputations = Newest(guid, c => c.Reputations),
                 Levels = levels
                     .OrderByDescending(e => e.Level)
                     .Select(e => new LevelRow($"{e.Level - 1} to {e.Level}", e.Seconds > 0 ? Format.Duration(e.Seconds) : "?", e.Zone, When(e.At)))
@@ -493,6 +514,6 @@ sealed class CharacterRow : Observable
     static IReadOnlyList<IconChip> ProfessionChips(string professions) => [.. ProfessionSkills.Parse(professions)
         .Select(p => new IconChip(p.Text, ProfessionSkills.IconUrl(p.Name), p.FullText))];
 
-    static string When(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");
+    static string When(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm", System.Globalization.CultureInfo.InvariantCulture); // English months, like the rest of the app
     static string Pick(string? a, string? b) => a is { Length: > 0 } ? a : b ?? "";
 }

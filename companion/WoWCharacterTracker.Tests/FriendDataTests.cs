@@ -1,5 +1,4 @@
 using MoonSharp.Interpreter;
-using WoWCharacterTracker.Services;
 
 namespace WoWCharacterTracker.Tests;
 
@@ -78,10 +77,12 @@ public class FriendDataTests
             local items = { gear = '1~19019' }
             local a = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000B', char, items, { gear = true, leveling = true }))
             local b = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000C', char, items, { talents = true }))
-            got = ns.friendSharedCategories({ a = a, b = b })
+            both = { a = a, b = b }
+            got = ns.friendSharedCategories(both)
             local old = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000D', { char = 'Alt', lastSeen = 5, level = 10 }, items, { gear = true }))
             local new = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000E', char, items, { talents = true }))
-            later = ns.friendSharedCategories({ old = old, new = new })
+            oldAndNew = { old = old, new = new }
+            later = ns.friendSharedCategories(oldAndNew)
             none = ns.friendSharedCategories(nil)
             """);
         string Keys(string table) => c.Lua($$"""
@@ -93,6 +94,24 @@ public class FriendDataTests
         Assert.Equal("gear,leveling,talents", Keys("got"));
         Assert.Equal("talents", Keys("later"));
         Assert.True(c.Lua("return next(none) == nil").Boolean);
+
+        // The app reads the same, in the addon's order, and words it like ns.shareSummary.
+        Assert.Equal(["gear", "talents", "leveling"], FriendData.SharedCategories(c.Lua("return both")));
+        Assert.Equal(["talents"], FriendData.SharedCategories(c.Lua("return oldAndNew")));
+        Assert.Empty(FriendData.SharedCategories(DynValue.Nil));
+        Assert.Equal("gear, talents, level times", ShareCategories.Summary(["leveling", "talents", "gear"]));
+        Assert.Equal("only the basics", ShareCategories.Summary([]));
+
+        // Only characters the app keeps count: a broken entry that's newer, or fields that clean to
+        // nothing, don't add a category.
+        var odd = c.Lua("""
+            local t = { new = oldAndNew.new }
+            t.broken = { guid = 'not-a-guid', char = 'Bad', at = 9999999999, gear = '1~19019', money = 5 }
+            t.noName = { guid = 'Player-1-0000000F', char = '', at = 9999999999, zone = 'Elwynn' }
+            t.blank = { guid = 'Player-1-00000010', char = 'Blank', at = oldAndNew.new.at, zone = '|', money = 'lots' }
+            return t
+            """);
+        Assert.Equal(["talents"], FriendData.SharedCategories(odd));
     }
 
     // Level times go out with Level times on (and only then), and the app reads them as level events,

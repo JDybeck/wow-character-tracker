@@ -1,5 +1,4 @@
 using MoonSharp.Interpreter;
-using WoWCharacterTracker.Services;
 
 namespace WoWCharacterTracker.Tests;
 

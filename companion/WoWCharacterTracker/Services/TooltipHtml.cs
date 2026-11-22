@@ -22,6 +22,7 @@ static partial class TooltipHtml
     // Wowhead keeps these for its own extended view (drop sources, max stack), not the tooltip.
     static readonly string[] Hidden = ["whtt-droppedby", "whtt-dropchance", "whtt-maxstack"];
     // Lines that say nothing about the character: a currency's cap is the game's, not how much is left.
+    // Matched like before CA1310 (a linguistic match, which skips zero-width characters in the tooltip text).
     static readonly string[] HiddenLines = ["Total cap:", "Weekly cap:"];
 
     // Walks the HTML once: a stack of colors from class attributes, a new line at <br>, rows, tables
@@ -42,7 +43,7 @@ static partial class TooltipHtml
             Trim(left);
             Trim(right);
             var line = new Line(left, right, gap && lines.Count > 0);
-            if ((left.Count > 0 || right.Count > 0) && !HiddenLines.Any(h => line.Text.StartsWith(h)))
+            if ((left.Count > 0 || right.Count > 0) && !HiddenLines.Any(h => line.Text.StartsWith(h, StringComparison.InvariantCulture)))
             {
                 lines.Add(line);
                 gap = false;
@@ -100,7 +101,7 @@ static partial class TooltipHtml
 
             var classes = ClassAttr().Match(m.Groups["attrs"].Value).Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var colorClass = classes.LastOrDefault(c => IsColor(c));
-            var coinMark = classes.FirstOrDefault(c => c.StartsWith("money")) switch
+            var coinMark = classes.FirstOrDefault(c => c.StartsWith("money", StringComparison.Ordinal)) switch
             {
                 "moneygold" => "g",
                 "moneysilver" => "s",
@@ -117,7 +118,7 @@ static partial class TooltipHtml
     public static string ToText(string html) => string.Join("\n", Parse(html).Select(l => l.Gap ? "\n" + l.Text : l.Text));
 
     static bool IsColor(string c) =>
-        c is "q" or "toycolor" || c.StartsWith("money")
+        c is "q" or "toycolor" || c.StartsWith("money", StringComparison.Ordinal)
         || (c.Length >= 2 && c[0] is 'q' or 'c' && c[1..].All(char.IsDigit));
 
     // Spaces at either end of a line, and empty pieces, go.

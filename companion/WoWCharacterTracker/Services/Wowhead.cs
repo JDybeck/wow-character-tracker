@@ -51,7 +51,7 @@ static class Wowhead
         {
             string json;
             try { json = await Web.GetStringAsync($"https://nether.wowhead.com/{TooltipPath(key)}", Timeout); }
-            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound && key.StartsWith("forever/"))
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound && key.StartsWith("forever/", StringComparison.Ordinal))
             {
                 // Wowhead's Forever database only has part of the items so far (no raid gear yet);
                 // Forever's items are mostly Classic's, so Classic's tooltip stands in.
@@ -62,11 +62,17 @@ static class Wowhead
             string Str(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
             var quality = root.TryGetProperty("quality", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : -1;
             var info = new Info(Str("name"), Str("icon"), quality, ToText(Str("tooltip")), Str("tooltip"));
-            if (info.Name.Length == 0) return null;
+            if (info.Name.Length == 0)
+            {
+                Lookups.TryRemove(key, out _); // no name (yet): asked again another time, like a failed lookup
+                return null;
+            }
             Cache.Set(key, WithoutText(info));
             return info;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        // Odd values in the JSON too (FormatException, InvalidOperationException): an error that got past
+        // this would leave the failed lookup cached, and the item wouldn't load again until a restart.
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or InvalidOperationException)
         {
             Lookups.TryRemove(key, out _); // try again another time
             // An older cached entry still beats nothing.
@@ -106,7 +112,7 @@ static class Wowhead
         {
             return PickByName(await Web.GetStringAsync(SearchUrl(flavor.WowheadPath, name), Timeout), name);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or InvalidOperationException)
         {
             Searches.TryRemove(flavor.WowheadPath + name, out _); // try again another time
             return null;
@@ -144,11 +150,11 @@ static class Wowhead
         try
         {
             var hits = ParseItemHits(await Web.GetStringAsync(SearchUrl(flavor.WowheadPath, query), Timeout));
-            if (!flavor.WowheadPath.StartsWith("forever/")) return hits;
+            if (!flavor.WowheadPath.StartsWith("forever/", StringComparison.Ordinal)) return hits;
             try { return WithClassicHits(hits, ParseItemHits(await Web.GetStringAsync(SearchUrl("classic/", query), Timeout))); }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { return hits; }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or InvalidOperationException) { return hits; }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException) { return null; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or InvalidOperationException) { return null; }
         finally { Parallel.Release(); }
     });
 
@@ -238,5 +244,6 @@ static class Wowhead
         ["duel"] = "ability_dualwield", ["makgora"] = "ability_warrior_challange", ["bg"] = "achievement_bg_winwsg",
         ["death"] = "inv_misc_bone_humanskull_01", ["profession"] = "trade_blacksmithing",
         ["achievement"] = "achievement_general", ["weekly"] = "inv_misc_bag_10_green",
+        ["reputation"] = "achievement_reputation_01",
     };
 }

@@ -1,5 +1,5 @@
 -- Tells your guild and/or group about a moment, in the game's own chat: level-ups, max level, end
--- bosses, Mythic+ runs, epic and rare loot (as an item link), new mounts, PvP wins, profession and rating milestones, hardcore deaths.
+-- bosses, Mythic+ runs, epic and rare loot (as an item link), new mounts, PvP wins, profession, reputation and rating milestones, hardcore deaths.
 -- What and where come from Settings.lua `announce` (the app's In game page): `kinds` for guild chat,
 -- `partyKinds` for group chat. Messages wait until
 -- you're out of combat, and boss kills don't list the group (they're right there). On Forever the
@@ -64,6 +64,10 @@ local function message(e, forChat)
     local ok, link = false, nil
     if e.achievementId and GetAchievementLink then ok, link = pcall(GetAchievementLink, e.achievementId) end
     return string.format("Earned the legacy achievement %s!", (ok and type(link) == "string" and link) or ("[" .. (e.achievement or "?") .. "]"))
+  elseif k == "reputation" and e.renown then
+    return string.format("Reached Renown %d with %s!", e.renown, e.reputation or "a faction")
+  elseif k == "reputation" then
+    return string.format("Reached %s with %s!", ns.standingName(e.step or 8), e.reputation or "a faction")
   elseif k == "weekly" then
     local value = (e.sell or 0) > 0 and (", sells for " .. ns.goldText(e.sell)) or ""
     return string.format("Opened my weekly %s: %s%s!", e.bag or "satchel", itemLink(e.itemId, e.item, e.quality, forChat), value)

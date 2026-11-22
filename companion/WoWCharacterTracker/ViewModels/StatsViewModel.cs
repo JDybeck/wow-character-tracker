@@ -82,6 +82,10 @@ sealed class StatsViewModel : Observable
         Rebuild();
     }
 
+    // Your own events and days (every day the app kept), for the weekly recap (WeeklyRecap). Null
+    // until the first Show (the tab's data isn't read yet).
+    public Leaderboards.Source? Yours => sources.FirstOrDefault(s => s.Who.IsYou);
+
     void Rebuild()
     {
         var built = Leaderboards.Build(sources, DateTimeOffset.Now, period.Period);

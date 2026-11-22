@@ -44,6 +44,9 @@ static class Moments
         new("achievement", "Legacy achievements", "A first legacy achievement on your account: raids, dungeons, PvP ranks and reputations, adventures. Not the level or profession ones, those post by their own rows.",
             s => s.PostAchievements, (s, on) => s.PostAchievements = on,
             Shot: "achievement", Announce: "achievement", AnnounceSample: "\"Earned the legacy achievement [Conqueror of the Lair]!\"", Ask: "achievement", Alert: "achievement", Test: "achievement"),
+        new("reputation", "Reputation milestones", "A faction reaching the standing set under Advanced or higher, each standing once per character. On Retail also a renown faction's top renown.",
+            s => s.PostReputations, (s, on) => s.PostReputations = on,
+            Shot: "reputation", Announce: "reputation", AnnounceSample: "\"Reached Exalted with Argent Dawn!\"", Ask: "reputation", Alert: "reputation", Test: "reputation"),
         new("weekly", "Weekly satchel", "Opening the satchel from Booty Bay's weekly In Demand quest: the valuable that came out and what a vendor pays for it",
             s => s.PostWeekly, (s, on) => s.PostWeekly = on,
             Shot: "weekly", Announce: "weekly", AnnounceSample: "\"Opened my weekly Undermine Satchel: [Gold Ring], sells for 100g!\"", Ask: "weekly", Alert: "weekly", Test: "weekly"),
@@ -66,6 +69,7 @@ static class Moments
         "run" => "in place of the run's loot posts",
         "keyrun" => $"+{s.KeyRunMinLevel} and up" + (s.KeyRunTimedOnly ? ", in time" : ""),
         "profession" => string.Join(", ", s.ProfessionSteps),
+        "reputation" => s.ReputationFrom >= Reputations.Exalted ? "Exalted" : $"{Reputations.StandingName(s.ReputationFrom)} and up",
         _ => null,
     };
 }

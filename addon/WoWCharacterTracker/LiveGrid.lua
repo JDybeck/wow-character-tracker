@@ -11,12 +11,12 @@ local SHORT = {
   boss = "b", instance = "I", item = "m", itemId = "M", quality = "q", gold = "G", killer = "K",
   mount = "w", bought = "B", shot = "S", group = "P", groupSize = "Z", money = "N", crests = "R",
   maxLevel = "X", guild = "U", surname = "L", opponent = "O", fled = "F", rating = "T", step = "H", bracket = "D", talentExport = "J", talentCalc = "Q", region = "A", lost = "Y", opponentInfo = "V", keystone = "W", zoneType = "f",
-  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", mat = "mt", askedKind = "ak", midBoss = "mb", run = "rn", bosses = "bs", drops = "dr", cleared = "cl", achievement = "an", achievementId = "ai", quest = "qn", sell = "sv", bag = "sb", extras = "ex", -- single letters are used up, so new keys get two
+  mplusScore = "j", pvpRatings = "pr", faction = "fa", spellId = "sp", keyLevel = "kl", upgrades = "ku", profession = "pf", boe = "be", mat = "mt", askedKind = "ak", midBoss = "mb", run = "rn", bosses = "bs", drops = "dr", cleared = "cl", achievement = "an", achievementId = "ai", reputation = "rp", factionId = "fi", renown = "rr", quest = "qn", sell = "sv", bag = "sb", extras = "ex", -- single letters are used up, so new keys get two
 }
 
 -- Too long for the data grid; these only reach the app through the saved file. (The talent
 -- code also rides along with the check-in after login, so the Wowhead link shows right away.)
-local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true, recipes = true }
+local SAVED_ONLY = { talentPicks = true, talentExport = true, stats = true, xp = true, xpMax = true, recipes = true, reputations = true }
 
 -- Left out: talentExport except on the check-in, and maxLevel unless it's true (a level-up that
 -- reached max); elsewhere it holds the level cap (characterInfo), which the app must not read as that.

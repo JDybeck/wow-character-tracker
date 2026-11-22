@@ -63,6 +63,7 @@ sealed class HighlightRow(string glyph, SolidColorBrush brush, string verb, stri
             "pvp" => ("", 0xF87171),
             "mount" => ("", 0x4ADE80),
             "profession" => ("", 0xFCD34D), // a wrench
+            "reputation" => ("", 0x22C55E), // a thumbs up, in the game's friendly green
             "achievement" => ("", 0xFFD100), // a star, in achievement gold
             "weekly" => ("", 0xFFD100), // the loot bag, in gold
             _ => ("", 0xF87171), // Mak'gora wins, deaths
@@ -71,7 +72,7 @@ sealed class HighlightRow(string glyph, SolidColorBrush brush, string verb, stri
         return new(glyph, brush, verb, subject, Stamp(e.At), e.Kind is "loot" or "mount" or "weekly" ? e.ItemId : 0);
     }
 
-    static string Stamp(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm");
+    static string Stamp(long at) => DateTimeOffset.FromUnixTimeSeconds(at).LocalDateTime.ToString("MMM d, HH:mm", System.Globalization.CultureInfo.InvariantCulture); // English months, like the rest of the app
 
     // WoW's item quality colors (GameColors).
     public static SolidColorBrush? QualityBrush(int quality) => GameColors.Quality(quality) is int c ? ClassColors.Hex(c) : null;

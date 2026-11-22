@@ -1,5 +1,7 @@
 # Friends page, steps 2 and 3 (app) Implementation Plan
 
+Status: built, shipped in 0.33.0.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** The app reads what Battle.net friends shared (`WoWCharacterTrackerDB.friends`), shows it on a new Friends page per game tab, and lets the user change sharing settings, give friends nicknames and hide friends' characters.
@@ -44,7 +46,7 @@
 **Interfaces:**
 - Produces: `record FriendContact(string Tag, long Seen, string Version, int Protocol, bool Refused, List<Snapshot> Characters, List<Inventory> Inventories)`; `record ShareSettings` (see Step 3); `FriendData.ReadFriends(DynValue) -> List<FriendContact>`; `FriendData.ReadShare(DynValue) -> ShareSettings?`; `TrackerData.Friends`, `TrackerData.Share`.
 
-- [ ] **Step 1: Failing tests** (`FriendDataTests.cs`)
+- [x] **Step 1: Failing tests** (`FriendDataTests.cs`)
 
 ```csharp
 using MoonSharp.Interpreter;
@@ -142,11 +144,11 @@ public class FriendDataTests
 }
 ```
 
-- [ ] **Step 2: Run, expect FAIL** (`FriendData` doesn't exist: build error).
+- [x] **Step 2: Run, expect FAIL** (`FriendData` doesn't exist: build error).
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendDataTests"`
 
-- [ ] **Step 3: Models** (`Models/Friends.cs`)
+- [x] **Step 3: Models** (`Models/Friends.cs`)
 
 ```csharp
 namespace WoWCharacterTracker.Models;
@@ -167,13 +169,13 @@ record ShareSettings(bool Enabled, bool NewChars, GeneralCategories Defaults, Di
 
 Ruling allowed: drop `ShareCategories` if unused after Task 3 (it's only there if the view model needs a tri-state set).
 
-- [ ] **Step 4: `Services/FriendData.cs`** reading `friends` and `share` with the caps from Global Constraints. Snapshot fields: `Snapshot(guid, char, realm, level, class, classFile, race, raceFile, Sex: "", Spec: spec, Role: "", ItemLevel: ilvl, Played: 0, Zone: zone, Professions: "", Talents: talents, LastSeen: at, Hardcore: false, Ruleset: "", Money: money, TalentCalc: talentCalc, Faction: faction)`. Inventory: `Inventory.Parse(guid, k => k is "gear" or "enchants" ? value : "", _ => 0)`. Clean strings: drop `|` and control characters (keep `\n` only in enchants), cut to length. Numbers: `CastToNumber()`, finite only, else 0. Keep the 50 newest by `at`. Contacts keyed by a string tag only.
+- [x] **Step 4: `Services/FriendData.cs`** reading `friends` and `share` with the caps from Global Constraints. Snapshot fields: `Snapshot(guid, char, realm, level, class, classFile, race, raceFile, Sex: "", Spec: spec, Role: "", ItemLevel: ilvl, Played: 0, Zone: zone, Professions: "", Talents: talents, LastSeen: at, Hardcore: false, Ruleset: "", Money: money, TalentCalc: talentCalc, Faction: faction)`. Inventory: `Inventory.Parse(guid, k => k is "gear" or "enchants" ? value : "", _ => 0)`. Clean strings: drop `|` and control characters (keep `\n` only in enchants), cut to length. Numbers: `CastToNumber()`, finite only, else 0. Keep the 50 newest by `at`. Contacts keyed by a string tag only.
 
-- [ ] **Step 5: Wire it** in `TrackerData` (`public List<FriendContact> Friends { get; init; } = [];`, `public ShareSettings? Share { get; init; }`) and `SavedVariables.Read` (`Friends = FriendData.ReadFriends(db.Table.Get("friends")), Share = FriendData.ReadShare(db.Table.Get("share"))`).
+- [x] **Step 5: Wire it** in `TrackerData` (`public List<FriendContact> Friends { get; init; } = [];`, `public ShareSettings? Share { get; init; }`) and `SavedVariables.Read` (`Friends = FriendData.ReadFriends(db.Table.Get("friends")), Share = FriendData.ReadShare(db.Table.Get("share"))`).
 
-- [ ] **Step 6: Run all tests, expect PASS.** `dotnet test companion/WoWCharacterTracker.Tests`
+- [x] **Step 6: Run all tests, expect PASS.** `dotnet test companion/WoWCharacterTracker.Tests`
 
-- [ ] **Step 7: Commit** `feat(companion): read what battle.net friends share from the saved file`
+- [x] **Step 7: Commit** `feat(companion): read what battle.net friends share from the saved file`
 
 ---
 
@@ -189,7 +191,7 @@ Ruling allowed: drop `ShareCategories` if unused after Task 3 (it's only there i
 **Interfaces:**
 - Produces: `FlavorSettings.Share` (`ShareSettings?`), `bool FlavorSettings.TakeShare(ShareSettings? game)` (true when taken), `FlavorSettings.EditShare(Func<ShareSettings, ShareSettings> edit)` (sets `At = max(now, old At + 1)`), `Config.FriendNicknames` (`Dictionary<string, string>`, by BattleTag, all games), `Config.HiddenFriendCharacters` (`HashSet<string>`, GUIDs), `AddonInstaller.WriteSettings(..., IReadOnlyDictionary<string, string>? friendNames = null)`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```csharp
     [Fact]
@@ -232,15 +234,15 @@ Ruling allowed: drop `ShareCategories` if unused after Task 3 (it's only there i
 
 And one through the addon itself: load the written Settings.lua plus `Shared.lua`, `FriendData.lua`, `Comms.lua`, `Friends.lua` the way `FriendsLuaTests.Client` does (stubs from there; make `Stubs` internal) and assert `ns.shareSettings().contacts['Zeb#2222'].gold == true` and `ns.allowedFor(...)`.gold. Name: `The_addon_reads_the_share_the_app_wrote`.
 
-- [ ] **Step 2: Run, expect FAIL** (build errors: `TakeShare`, `EditShare`, `friendNames` missing).
+- [x] **Step 2: Run, expect FAIL** (build errors: `TakeShare`, `EditShare`, `friendNames` missing).
 
-- [ ] **Step 3: Implement.** `TakeShare`: `if (game is null || game.At <= (Share?.At ?? 0)) return false; Share = game; return true;`. `EditShare`: `Share = edit(Share ?? Empty) with { At = Math.Max(now, (Share?.At ?? 0) + 1) }` where `Empty` = `new(false, true, new(), [], [], [], 0)`. JSON: records serialize with System.Text.Json as config already does (check `Config.Save` options handle records with constructor parameters; if not, a parameterless shape, ruling). `WriteSettings` appends `share = {...}` only when `s.Share` is set (Lua via `LuaString` for tags/GUIDs, `true`/`false`, a contact's null categories left out) and `friendNames = { [tag] = name, ... }` (sorted, ordinal).
+- [x] **Step 3: Implement.** `TakeShare`: `if (game is null || game.At <= (Share?.At ?? 0)) return false; Share = game; return true;`. `EditShare`: `Share = edit(Share ?? Empty) with { At = Math.Max(now, (Share?.At ?? 0) + 1) }` where `Empty` = `new(false, true, new(), [], [], [], 0)`. JSON: records serialize with System.Text.Json as config already does (check `Config.Save` options handle records with constructor parameters; if not, a parameterless shape, ruling). `WriteSettings` appends `share = {...}` only when `s.Share` is set (Lua via `LuaString` for tags/GUIDs, `true`/`false`, a contact's null categories left out) and `friendNames = { [tag] = name, ... }` (sorted, ordinal).
 
-- [ ] **Step 4: Sync in `FlavorViewModel.ShowData`**, next to `TakeInGameSettings(data.InGame)`: `if (Settings.TakeShare(data.Share)) { main.Config.Save(); WriteAddonSettings(); }`. Pass `main.Config.FriendNicknames` to `WriteSettings` in `WriteAddonSettings`.
+- [x] **Step 4: Sync in `FlavorViewModel.ShowData`**, next to `TakeInGameSettings(data.InGame)`: `if (Settings.TakeShare(data.Share)) { main.Config.Save(); WriteAddonSettings(); }`. Pass `main.Config.FriendNicknames` to `WriteSettings` in `WriteAddonSettings`.
 
-- [ ] **Step 5: Run all tests, expect PASS.**
+- [x] **Step 5: Run all tests, expect PASS.**
 
-- [ ] **Step 6: Commit** `feat(companion): sync sharing settings and friend nicknames with the addon`
+- [x] **Step 6: Commit** `feat(companion): sync sharing settings and friend nicknames with the addon`
 
 ---
 
@@ -257,7 +259,7 @@ And one through the addon itself: load the written Settings.lua plus `Shared.lua
 - Consumes: `TrackerData.Friends`, `FlavorSettings.Share/EditShare`, `Config.FriendNicknames/HiddenFriendCharacters`.
 - Produces: `FriendsViewModel(Flavor flavor, GameLookup lookup, Func<Config> config, Func<FlavorSettings> settings, Action changed)` with `Show(TrackerData data)`, `Reset()`, `ChipFilter Contacts`, `ObservableCollection<CharacterRow> Characters`, `CharacterRow? SelectedCharacter`, `int HiddenCount`, `bool ShowHidden`, `ICommand HideCommand/UnhideCommand` (a row), `ObservableCollection<FriendContactRow> ContactRows` (Tag, Name, Nickname get/set, SeenText, VersionText, NeedsUpdate, Share/Receive, Gear/Talents/Location/Gold as `bool?`), `bool Enabled`, `bool NewChars`, `bool ShareGear/ShareTalents/ShareLocation/ShareGold` (general), `IReadOnlyList<OwnCharacterShare> OwnCharacters` (name, `IsShared`), `IReadOnlyList<string> Blocked` + `UnblockCommand`. `changed` saves config and writes Settings.lua (`FlavorViewModel.AddonSettingsChanged`). `ChipFilter.Fill<T>(items, keyOf, Func<string, string>? labelOf = null)`.
 
-- [ ] **Step 1: Failing tests** (build a `FriendsViewModel` with a real `Config`, a `FlavorSettings`, a `GameLookup` the way existing VM tests do; check `SmallLogicTests` for how `GameLookup` is made in tests and reuse it)
+- [x] **Step 1: Failing tests** (build a `FriendsViewModel` with a real `Config`, a `FlavorSettings`, a `GameLookup` the way existing VM tests do; check `SmallLogicTests` for how `GameLookup` is made in tests and reuse it)
 
 - `Friend_rows_never_reach_the_tabs_own_rows`: `Show` with own `Characters` and two friends; `Characters` holds only friend rows, all `IsFriend`, and `FlavorViewModel`-side lists are untouched (assert `CharacterRow.Build(data, ...)` for own data has no friend GUID).
 - `Chips_show_nicknames_but_keep_the_battletag_as_key`: chip labels "Zebbe (2)", keys "Zeb#2222"; pick the chip, set a nickname, `Show` again, the same chip is still picked.
@@ -266,13 +268,13 @@ And one through the addon itself: load the written Settings.lua plus `Shared.lua
 - `General_categories_default_like_the_addon`: with no `Share`, `ShareGear` true, `ShareGold` false, and toggling one creates a `Share`.
 - `A_friend_with_another_protocol_says_needs_update`: `Protocol = 2` gives `NeedsUpdate` and a version text "needs to update".
 
-- [ ] **Step 2: Run, expect FAIL** (build errors).
+- [x] **Step 2: Run, expect FAIL** (build errors).
 
-- [ ] **Step 3: Implement.** Rows: per contact, `CharacterRow.Build(new TrackerData([], contact.Characters) { Inventories = contact.Inventories }, flavor, lookup)`, then set `IsFriend = true`, `FriendTag`, `FriendName` (nickname or tag). Sort by name within a contact; with All picked, ordered by friend name then character. `LoadPictureAsync(flavor)` like `ShowData` (Forever portraits are by GUID and won't exist for friends: the class/race picture follows).
+- [x] **Step 3: Implement.** Rows: per contact, `CharacterRow.Build(new TrackerData([], contact.Characters) { Inventories = contact.Inventories }, flavor, lookup)`, then set `IsFriend = true`, `FriendTag`, `FriendName` (nickname or tag). Sort by name within a contact; with All picked, ordered by friend name then character. `LoadPictureAsync(flavor)` like `ShowData` (Forever portraits are by GUID and won't exist for friends: the class/race picture follows).
 
-- [ ] **Step 4: Run all tests, expect PASS.**
+- [x] **Step 4: Run all tests, expect PASS.**
 
-- [ ] **Step 5: Commit** `feat(companion): friends view model with chips, nicknames and sharing settings`
+- [x] **Step 5: Commit** `feat(companion): friends view model with chips, nicknames and sharing settings`
 
 ---
 
@@ -293,11 +295,11 @@ And one through the addon itself: load the written Settings.lua plus `Shared.lua
 - Empty state: "No friends yet" and what to do: turn on sharing (in game or below), then `/wct friends ask <BattleTag>`.
 - Sharing panel (a toggle button "Sharing settings" in the header, a `PanelBorder` box): Share with friends on/off; Share new characters; What friends get (four `OptionChip` checkboxes); Contacts table (nickname `TextBox`, Shares with you, You share, Gear/Talents/Location/Gold as three-state checkboxes with tooltip "Filled: same as all friends"); Your characters (shared/hidden chips); Blocked (Unblock). Tooltips through the standard ToolTip style.
 
-- [ ] **Step 1: Move the row header into `CharacterRowView`** and check the Characters page renders the same (screenshot before and after: `CHARACTERTRACKER_SCREENSHOT_VIEW=forever:characters:testchars`).
-- [ ] **Step 2: Build `FriendsPage`, the tab, the slide index** and the read-only Overview.
-- [ ] **Step 3: Fake friend data for the render**: a fake `_forever_` folder with a SavedVariables file that has `friends` (two contacts, five characters, gear on one) and `share`. Render `forever:friends`, `forever:friends::gear`, `forever:friends::sharing`, plus `forever:characters:testchars` to confirm the Characters page is unchanged. Check the PNGs by eye (JDybeck prefers to see them: send them).
-- [ ] **Step 4: Run all tests, expect PASS.**
-- [ ] **Step 5: Commit** `feat(companion): friends page with shared characters and sharing settings`
+- [x] **Step 1: Move the row header into `CharacterRowView`** and check the Characters page renders the same (screenshot before and after: `CHARACTERTRACKER_SCREENSHOT_VIEW=forever:characters:testchars`).
+- [x] **Step 2: Build `FriendsPage`, the tab, the slide index** and the read-only Overview.
+- [x] **Step 3: Fake friend data for the render**: a fake `_forever_` folder with a SavedVariables file that has `friends` (two contacts, five characters, gear on one) and `share`. Render `forever:friends`, `forever:friends::gear`, `forever:friends::sharing`, plus `forever:characters:testchars` to confirm the Characters page is unchanged. Check the PNGs by eye (JDybeck prefers to see them: send them).
+- [x] **Step 4: Run all tests, expect PASS.**
+- [x] **Step 5: Commit** `feat(companion): friends page with shared characters and sharing settings`
 
 ---
 
@@ -305,7 +307,7 @@ And one through the addon itself: load the written Settings.lua plus `Shared.lua
 
 **Files:** `docs/GUIDE.md` (`## The app`: a Friends paragraph; the in-game section's "A Friends page in the app is coming next" becomes a pointer to it), `CHANGELOG.md` (the v0.33.0 Share with Battle.net friends line gains "and see what friends share on the app's new Friends page"), `.claude/notes/friends.md` (steps 2 and 3 built, the app's classes), `.claude/notes/companion.md` and `companion-ui.md` (`FriendData`, `FriendsViewModel`, `FriendsPage`, `CharacterRowView`, slide index 5).
 
-- [ ] **Step 1: Write them.**
-- [ ] **Step 2: `dotnet test companion/WoWCharacterTracker.Tests`, expect PASS** (the changelog test reads the section).
-- [ ] **Step 3: Commit** `docs: describe the friends page`
-- [ ] **Step 4: Rebuild dist and restart JDybeck's copy** (memory: stop by PID, `dotnet publish companion/WoWCharacterTracker -c Release -o dist -nologo`, start it again).
+- [x] **Step 1: Write them.**
+- [x] **Step 2: `dotnet test companion/WoWCharacterTracker.Tests`, expect PASS** (the changelog test reads the section).
+- [x] **Step 3: Commit** `docs: describe the friends page`
+- [x] **Step 4: Rebuild dist and restart JDybeck's copy** (memory: stop by PID, `dotnet publish companion/WoWCharacterTracker -c Release -o dist -nologo`, start it again).

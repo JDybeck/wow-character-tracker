@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -146,7 +145,7 @@ sealed class StreamViewModel : Observable
         ("loot", "Loot", "Rare, epic and legendary items looted"),
         ("mount", "Mounts", "New mounts, bought or looted"), ("duel", "Duels", "Duels won and lost"),
         ("bg", "Battlegrounds", "Battlegrounds won and lost"),
-        ("profession", "Professions", "Profession milestones (the steps set for Discord)"),
+        ("profession", "Professions", "Profession milestones (the steps set for Discord)"), ("reputation", "Reputations", "Reputation milestones (the standing set for Discord)"),
     ];
     internal static readonly (string Kind, string Name, string Tip)[] ForeverKindNames =
     [
@@ -169,7 +168,7 @@ sealed class StreamViewModel : Observable
         ("followed", "Followed items", "ITEM FOUND! when you get an item from your Followed items tab, whatever its quality"),
         ("mount", "Mounts", "NEW MOUNT!"), ("duel", "Duel wins", "VICTORY! with who you beat"),
         ("bg", "Battleground wins", "VICTORY! when your team wins a battleground"),
-        ("profession", "Professions", "MILESTONE! when a profession passes a step"),
+        ("profession", "Professions", "MILESTONE! when a profession passes a step"), ("reputation", "Reputations", "EXALTED! (or the standing reached) with a faction"),
     ];
     internal static readonly (string Kind, string Name, string Tip)[] ForeverAlertNames =
     [

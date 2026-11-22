@@ -1,5 +1,3 @@
-using WoWCharacterTracker.Services;
-
 namespace WoWCharacterTracker.Tests;
 
 // What a recipe needs and makes, from Wowhead's tooltip for its spell (the recipe window's right side).

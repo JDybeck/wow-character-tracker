@@ -1,5 +1,3 @@
-using WoWCharacterTracker.Services;
-
 namespace WoWCharacterTracker.Tests;
 
 // Installing the addon bundled in the exe, into a fake game folder.

@@ -84,7 +84,7 @@ local function setTile(t, value, label)
   t.label:SetText(label)
 end
 
-local function hideTip() if GameTooltip then GameTooltip:Hide() end end
+local hideTip = ns.hideTip
 
 -- The content width the window gives now (Window.lua; it can be resized wider than WIDTH).
 local function contentWidth() return ns.pageWidth and math.max(WIDTH, ns.pageWidth() - 30) or WIDTH end

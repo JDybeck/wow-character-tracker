@@ -27,6 +27,7 @@ One line in party or raid chat, as you, when something happens. You pick which:
 - New mounts
 - Duel, Mak'gora and battleground wins
 - Profession milestones and hardcore deaths
+- Reputation milestones, like reaching Exalted with Argent Dawn
 - Legacy achievements (Forever), like Conqueror of the Lair or Master Spelunker
 - What came out of the weekly In Demand satchel from Booty Bay (Forever), like a Gold Ring that sells for 100g
 

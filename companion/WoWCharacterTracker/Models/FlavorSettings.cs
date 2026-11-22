@@ -19,6 +19,14 @@ class FlavorSettings
     // posted later. Webhooks stay as they are.
     public bool DiscordPaused { get; set; }
 
+    // The weekly recap (WeeklyRecap): the Stats page's week posted to this tab's webhooks once a week,
+    // on RecapDay at RecapHour (local time). Off until turned on. RecapSentAt: the planned time
+    // (unix seconds) of the last one that went out, so each week posts once.
+    public bool PostRecap { get; set; }
+    public DayOfWeek RecapDay { get; set; } = DayOfWeek.Sunday;
+    public int RecapHour { get; set; } = 20;
+    public long RecapSentAt { get; set; }
+
     // Level-ups: up to LevelSplit, post every LevelEveryBefore levels; after that every LevelEveryAfter.
     public bool PostLevels { get; set; } = true;
     public int LevelSplit { get; set; } = 30;
@@ -84,6 +92,25 @@ class FlavorSettings
         if (AnnouncePartyKinds?.Contains("profession") == true && !AnnouncePartyKinds.Contains("achievement")) AnnouncePartyKinds = [.. AnnouncePartyKinds, "achievement"];
         if (AskKinds?.Contains("profession") == true && !AskKinds.Contains("achievement")) AskKinds = [.. AskKinds, "achievement"];
         HasAchievements = true;
+    }
+
+    // Reputation milestones: a faction reaching ReputationFrom (5 Friendly to 8 Exalted) or higher, each
+    // standing once per character and faction, and a Retail renown faction reaching its top renown.
+    // Configs from before get the profession row's choices once (Config.Load, HasReputations), like
+    // legacy achievements, so a Quiet, Normal or Everything config stays that preset.
+    public bool PostReputations { get; set; } = true;
+    public int ReputationFrom { get; set; } = Reputations.Exalted;
+    public bool HasReputations { get; set; }
+
+    public void TakeReputationsFromProfessions()
+    {
+        PostReputations = PostProfessions;
+        if (Shoots("profession")) SetShot("reputation", true);
+        if (PostScreenshot.TryGetValue("profession", out var attach)) PostScreenshot = new(PostScreenshot) { ["reputation"] = attach };
+        if (AnnounceKinds.Contains("profession") && !AnnounceKinds.Contains("reputation")) AnnounceKinds = [.. AnnounceKinds, "reputation"];
+        if (AnnouncePartyKinds?.Contains("profession") == true && !AnnouncePartyKinds.Contains("reputation")) AnnouncePartyKinds = [.. AnnouncePartyKinds, "reputation"];
+        if (AskKinds?.Contains("profession") == true && !AskKinds.Contains("reputation")) AskKinds = [.. AskKinds, "reputation"];
+        HasReputations = true;
     }
 
     // Forever's weekly In Demand satchel: what came out of it and what it sells for. Configs from before it
@@ -178,7 +205,7 @@ class FlavorSettings
     public static bool GuildChatOn => false;
     public List<string> AnnounceKinds { get; set; } = [.. DefaultAnnounceKinds];
     public List<string>? AnnouncePartyKinds { get; set; }
-    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "achievement", "weekly", "mplus", "pvp"];
+    public static readonly string[] DefaultAnnounceKinds = ["level", "maxlevel", "boss", "loot", "mount", "profession", "achievement", "reputation", "weekly", "mplus", "pvp"];
 
     // Highlights no setting posts that the addon offers to post (Ask.lua): boss, rare, epic. Null until
     // chosen; Config.Load fills it from the game's defaults.
@@ -278,6 +305,7 @@ class FlavorSettings
         (PostKeyRuns, KeyRunMinLevel, KeyRunTimedOnly) = (d.PostKeyRuns, d.KeyRunMinLevel, d.KeyRunTimedOnly);
         (PostMaxLevel, PostDuels, PostMakgora, PostBattlegrounds, PostMPlus, PostPvp) = (d.PostMaxLevel, d.PostDuels, d.PostMakgora, d.PostBattlegrounds, d.PostMPlus, d.PostPvp);
         (PostProfessions, ProfessionSteps, PostAchievements, PostWeekly) = (d.PostProfessions, [.. d.ProfessionSteps], d.PostAchievements, d.PostWeekly);
+        (PostReputations, ReputationFrom) = (d.PostReputations, d.ReputationFrom);
         (MPlusSteps, PvpSteps) = ([.. d.MPlusSteps], [.. d.PvpSteps]);
         Screenshot = new(d.Screenshot);
         PostScreenshot = new(d.PostScreenshot);
@@ -352,6 +380,7 @@ class FlavorSettings
         "bg" => PostBattlegrounds && !e.Lost,
         "profession" => PostProfessions,
         "achievement" => PostAchievements,
+        "reputation" => PostReputations,
         "weekly" => PostWeekly,
         "mplus" => PostMPlus,
         "pvp" => PostPvp,

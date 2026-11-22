@@ -3,7 +3,7 @@ namespace WoWCharacterTracker.Models;
 // A ready-made followed list a game offers (Flavor.ReadyMadeLists), switched on by its key in
 // FlavorSettings.ReadyMadeLists. Tag marks its items in the list. Legendary gear stays out of these,
 // it's always posted anyway. Every id was checked against Wowhead's Forever tooltips on
-// 2026-10-31; see the launch todo in backlog.md.
+// 2026-10-31.
 sealed record ReadyMadeList(string Key, string Name, string Tag, string Hint, IReadOnlyList<FollowedItem> Items)
 {
     public static readonly ReadyMadeList RareAndFun = new("rarefun", "Exceedingly rare and fun items", "Rare and fun",

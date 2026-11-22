@@ -1,5 +1,3 @@
-using WoWCharacterTracker.Services;
-
 namespace WoWCharacterTracker.Tests;
 
 // The addon's professions text ("Mining 150/225, Herbalism 75") and everything that reads it.

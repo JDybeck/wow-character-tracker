@@ -74,6 +74,9 @@ record Entry
     public string Profession { get; init; } = ""; // profession: "Mining" (from 0.29.0)
     public string Achievement { get; init; } = "";  // achievement (Forever's legacy ones): its name (from 0.42.1)
     public int AchievementId { get; init; }
+    public string Reputation { get; init; } = "";   // reputation: the faction's name; Step is the standing reached (8 Exalted)
+    public int FactionId { get; init; }
+    public int Renown { get; init; }               // reputation: a Retail renown faction's top renown, reached (Step 0 then)
     // weekly (Forever's In Demand satchel): the valuable is Item/ItemId/Quality; Sell what a
     // vendor pays for it (copper), Quest the week's quest ("In Demand - Plague Records", "" when the
     // addon didn't see the turn-in), Bag the satchel, Extras the rest that came out ("Thorium Ore x3^Black Lotus").
@@ -185,6 +188,9 @@ record Entry
             Profession = s("profession"),
             Achievement = s("achievement"),
             AchievementId = (int)n("achievementId"),
+            Reputation = s("reputation"),
+            FactionId = (int)n("factionId"),
+            Renown = (int)n("renown"),
             Sell = (long)n("sell"),
             Quest = s("quest"),
             Bag = s("bag"),

@@ -67,7 +67,7 @@ public class MomentsTests
     [Fact]
     public void Every_announce_and_ask_kind_has_a_row()
     {
-        string[] announced = ["level", "maxlevel", "boss", "keyrun", "loot", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "weekly", "mplus", "pvp", "death"];
+        string[] announced = ["level", "maxlevel", "boss", "keyrun", "loot", "rare", "followed", "mount", "duel", "makgora", "bg", "profession", "achievement", "reputation", "weekly", "mplus", "pvp", "death"];
         Assert.Equal(announced.Order(), Moments.All.Select(m => m.Announce).OfType<string>().Order());
         // The defaults (boss, rare, epic) are among the moments that can be asked about.
         Assert.Subset(Moments.All.Select(m => m.Ask).OfType<string>().ToHashSet(), FlavorSettings.AllAskKinds.ToHashSet());
@@ -96,6 +96,52 @@ public class MomentsTests
 
         Assert.Equal(preset, SharingPresets.Detect(s, Flavors.Forever));
         Assert.True(s.HasAchievements);
+    }
+
+    // The same for reputation milestones, which take the profession row's choices too.
+    [Theory]
+    [InlineData(SharingPresets.Quiet)]
+    [InlineData(SharingPresets.Normal)]
+    [InlineData(SharingPresets.Everything)]
+    public void Old_configs_keep_their_preset_when_reputation_milestones_come(string preset)
+    {
+        foreach (var flavor in new[] { Flavors.Forever, Flavors.Retail })
+        {
+            var s = new FlavorSettings();
+            SharingPresets.Apply(s, flavor, preset);
+            s.PostReputations = true;
+            s.Screenshot.Remove("reputation");
+            s.PostScreenshot.Remove("reputation");
+            s.AnnounceKinds.Remove("reputation");
+            s.AnnouncePartyKinds?.Remove("reputation");
+            s.AskKinds?.Remove("reputation");
+
+            s.TakeReputationsFromProfessions();
+
+            Assert.Equal(preset, SharingPresets.Detect(s, flavor));
+            Assert.True(s.HasReputations);
+        }
+    }
+
+    // The lowest standing that posts goes to the addon with the post rules, and shows under the row's name.
+    [Fact]
+    public void The_reputation_standing_reaches_the_addon_and_the_table()
+    {
+        var s = new FlavorSettings();
+        var row = Moments.All.Single(m => m.Key == "reputation");
+        Assert.Equal("Exalted", Moments.Rule(row, s));
+        s.ReputationFrom = 6;
+        Assert.Equal("Honored and up", Moments.Rule(row, s));
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-rep-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+        try
+        {
+            AddonInstaller.WriteSettings(dir, s);
+            var lua = File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua"));
+            Assert.Contains("reputation = true, reputationFrom = 6,", lua);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
     }
 
     // The same for the weekly satchel, which takes the legacy achievement row's choices.

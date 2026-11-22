@@ -343,6 +343,17 @@
               <TextBox Grid.Row="2" Grid.Column="1" ToolTip="Ratings that trigger a post, separated by commas" Text="{Binding PvpStepsText, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"
                        Visibility="{Binding IsRetail, Converter={StaticResource Visible}}"/>
             </Grid>
+            <StackPanel x:Name="ReputationFromRow" Orientation="Horizontal" Margin="0,6,0,0">
+              <TextBlock Text="Reputation from" Width="130" Foreground="{StaticResource TextSoft}" FontSize="12" VerticalAlignment="Center"/>
+              <ItemsControl ItemsSource="{Binding ReputationFromChoices}" Focusable="False" ItemsPanel="{StaticResource Row}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <RadioButton Style="{StaticResource DetailTab}" Content="{Binding Label}" IsChecked="{Binding IsOn}" Margin="0,0,6,0"
+                                 GroupName="{Binding Group}" ToolTip="A faction reaching this standing posts, and each one above it too"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
 
             <StackPanel Visibility="{Binding HasSurnames, Converter={StaticResource Visible}}">
               <TextBlock Style="{StaticResource Group}" Text="Name in posts"/>
@@ -352,6 +363,30 @@
                 <CheckBox Style="{StaticResource OptionChip}" Content="Surname (Raket)" ToolTip="Posts and cards use just the surname" IsChecked="{Binding NameLast}"/>
               </StackPanel>
             </StackPanel>
+
+            <TextBlock Style="{StaticResource Group}" Text="Weekly recap"/>
+            <CheckBox IsChecked="{Binding PostRecap}" Margin="0,0,0,8" ToolTip="Once a week, one Discord post with what each of your characters did that week">
+              <TextBlock Style="{StaticResource OptionTitle}" Text="Post a weekly recap to Discord"/>
+            </CheckBox>
+            <StackPanel IsEnabled="{Binding PostRecap}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="On" Foreground="{StaticResource TextSoft}" FontSize="13" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <ItemsControl ItemsSource="{Binding RecapDays}" Focusable="False" ItemsPanel="{StaticResource Row}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <RadioButton Style="{StaticResource DetailTab}" Content="{Binding Label}" IsChecked="{Binding IsOn}" Margin="0,0,6,0"
+                                   GroupName="{Binding Group}" ToolTip="The day the recap is posted"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="at" Foreground="{StaticResource TextSoft}" FontSize="13" VerticalAlignment="Center" Margin="4,0,10,0"/>
+                <TextBox Style="{StaticResource GridNumberBox}" Margin="0,3,2,3" ToolTip="The hour it's posted, 0 to 23, your time" Text="{Binding RecapHour, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text=":00" Foreground="{StaticResource TextSoft}" FontSize="13" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <Button Style="{StaticResource GhostButton}" Content="Post now" ToolTip="Post the last seven days' recap right away"
+                        Command="{Binding PostRecapNowCommand}"/>
+              </StackPanel>
+            </StackPanel>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" TextWrapping="Wrap" Text="{Binding RecapText}"/>
 
             <TextBlock Style="{StaticResource Group}" Text="Screenshots"/>
             <CheckBox IsChecked="{Binding AttachShots}" Margin="0,0,0,10" ToolTip="Off: screenshots are only saved in your Screenshots folder">

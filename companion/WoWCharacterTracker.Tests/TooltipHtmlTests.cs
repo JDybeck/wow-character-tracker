@@ -27,7 +27,7 @@ public class TooltipHtmlTests
     [Fact]
     public void Two_column_rows_have_a_right_side()
     {
-        var row = TooltipHtml.Parse(VerigansFist).Single(l => l.Text.StartsWith("Two-Hand"));
+        var row = TooltipHtml.Parse(VerigansFist).Single(l => l.Text.StartsWith("Two-Hand", StringComparison.Ordinal));
         Assert.Equal("Two-Hand", string.Concat(row.Left.Select(p => p.Text)));
         Assert.Equal("Mace", string.Concat(row.Right.Select(p => p.Text)));
     }
@@ -39,7 +39,7 @@ public class TooltipHtmlTests
         Assert.Equal("q3", lines[0].Left[0].Color);                                  // rare item name
         Assert.Equal("q", lines[1].Left[0].Color);                                   // yellow item level
         Assert.Contains(lines.SelectMany(l => l.Left), p => p.Text == "Paladin" && p.Color == "c2");
-        Assert.Contains(lines.SelectMany(l => l.Left), p => p.Text.StartsWith("Chance on hit") && p.Color == "q2");
+        Assert.Contains(lines.SelectMany(l => l.Left), p => p.Text.StartsWith("Chance on hit", StringComparison.Ordinal) && p.Color == "q2");
         Assert.Contains(lines.SelectMany(l => l.Left), p => p.Text == "74s" && p.Color == "moneysilver");
     }
 

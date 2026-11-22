@@ -129,6 +129,9 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         return await SendWithPortraitAsync(embed, c);
     }
 
+    // The weekly recap (WeeklyRecap.Embed): text only, no character picture.
+    public Task<bool> PostRecapAsync(Dictionary<string, object> embed) => webhook.SendAsync([embed], []);
+
     // Sends a text post with the character's picture as the thumbnail (see AddPortraitAsync).
     async Task<bool> SendWithPortraitAsync(Dictionary<string, object> embed, CharacterRow c)
     {

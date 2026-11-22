@@ -1,5 +1,3 @@
-using WoWCharacterTracker.Services;
-
 namespace WoWCharacterTracker.Tests;
 
 // DayHistory: the days kept for the Stats page's month and all time, after the addon has dropped them.

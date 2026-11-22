@@ -17,22 +17,14 @@ local MAX_REAGENTS = 8
 local MAX_KNOWERS = 12
 
 -- What can be looked up by id: names and icons the game may not have cached yet (nil until it has).
-local function spellName(id)
-  if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(id) end
-  return GetSpellInfo and (GetSpellInfo(id)) or nil
-end
+local spellName = ns.spellName
 
 local function spellIcon(id)
   if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(id) end
   return GetSpellInfo and select(3, GetSpellInfo(id)) or nil
 end
 
-local function itemIcon(id)
-  local f = (C_Item and C_Item.GetItemIconByID) or GetItemIcon
-  if not f then return nil end
-  local ok, icon = pcall(f, id)
-  return ok and icon or nil
-end
+local itemIcon = ns.itemIcon
 
 -- A recipe's reagents ({ id, count }) and the item it makes (nil for one that makes none), from the
 -- game's schematic for it. Empty when the client can't say.
@@ -169,7 +161,7 @@ local function showTip(self)
   GameTooltip:Show()
 end
 
-local function hideTip() if GameTooltip then GameTooltip:Hide() end end
+local hideTip = ns.hideTip
 
 local function newRow(parent)
   local r = CreateFrame("Button", nil, parent)
