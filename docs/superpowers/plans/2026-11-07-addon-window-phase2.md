@@ -1,5 +1,7 @@
 # Addon window, phase 2 (Friends tab) Implementation Plan
 
+Status: built, shipped in 0.35.0.
+
 > Built by two parallel agents in their own worktrees, merged by the main session. Read only your task, the spec, and the files it names.
 
 **Goal:** The window's Friends tab: find your online Battle.net friends, see invisibly who has the addon, and Ask, Share or Invite with one click. Incoming requests are listed there too, and so is what friends shared with you. No BattleTag typing.

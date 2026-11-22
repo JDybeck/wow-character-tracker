@@ -1,5 +1,7 @@
 # UX cleanup Implementation Plan
 
+Status: built, shipped in 0.39.2.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Phase 1 of the UX cleanup: one Sharing page (presets, one moment table, Discord and Stream cards) replacing What gets posted and In game, plus a separate test build JDybeck can try with real data without touching the running app.
@@ -57,7 +59,7 @@
 **Interfaces:**
 - Produces: `bool FlavorSettings.DiscordPaused { get; set; }` (saved, default false).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```csharp
 namespace WoWCharacterTracker.Tests;
@@ -80,12 +82,12 @@ public class DiscordPausedTests
 
 (If `Entry` has required members, build it the way `SampleEvents` does: copy the base `e` it starts from.)
 
-- [ ] **Step 2: Run it to see it fail**
+- [x] **Step 2: Run it to see it fail**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter DiscordPausedTests`
 Expected: build error, `DiscordPaused` not defined.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `FlavorSettings`, after `ActiveWebhookId`:
 
@@ -104,11 +106,11 @@ and change the history-aware `Wants`:
 
 Check `Tracker` calls the two-argument `Wants` for real posts and that Test posts don't go through it (`SendKindTestAsync`); if a real post path calls the one-argument `Wants`, add `!DiscordPaused` there instead, so Test still sends.
 
-- [ ] **Step 4: Run tests, expect PASS**
+- [x] **Step 4: Run tests, expect PASS**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter DiscordPausedTests`
 
-- [ ] **Step 5: Commit** `feat(companion): add a pause switch for discord posts per game`
+- [x] **Step 5: Commit** `feat(companion): add a pause switch for discord posts per game`
 
 ---
 
@@ -136,7 +138,7 @@ static class Moments
 
 `Key` is the `EventKinds`/announce key (`level`, `maxlevel`, `loot` is split into `epic` and `rare`, `followed`, `mount`, `boss`, `keyrun`, `death`, `duel`, `makgora`, `bg`, `profession`, `mplus`, `pvp`). `OfferedIn` already returns true for keys it doesn't know (`maxlevel`, `epic`, `rare`, `followed`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```csharp
 public class MomentsTests
@@ -178,9 +180,9 @@ public class MomentsTests
 }
 ```
 
-- [ ] **Step 2: Run, expect build failure** (`Moments` not defined).
+- [x] **Step 2: Run, expect build failure** (`Moments` not defined).
 
-- [ ] **Step 3: Implement `Models/Moments.cs`**
+- [x] **Step 3: Implement `Models/Moments.cs`**
 
 ```csharp
 namespace WoWCharacterTracker.Models;
@@ -248,9 +250,9 @@ static class Moments
 
 Note: `EventKinds.OfferedIn` knows `boss`, `keyrun`, `death`, `makgora`, `mplus`, `pvp` and treats unknown keys (`epic`, `rare`, `maxlevel`, `followed`) as offered everywhere, which is right.
 
-- [ ] **Step 4: Run, expect PASS.** Adjust the first test's expected set only if `DefaultAnnounceKinds` changed; the announce set must equal the old `AnnounceNames` kinds: level, maxlevel, boss, keyrun, loot, followed, mount, duel, makgora, bg, profession, mplus, pvp, death.
+- [x] **Step 4: Run, expect PASS.** Adjust the first test's expected set only if `DefaultAnnounceKinds` changed; the announce set must equal the old `AnnounceNames` kinds: level, maxlevel, boss, keyrun, loot, followed, mount, duel, makgora, bg, profession, mplus, pvp, death.
 
-- [ ] **Step 5: Commit** `feat(companion): add one catalog of shareable moments`
+- [x] **Step 5: Commit** `feat(companion): add one catalog of shareable moments`
 
 ---
 
@@ -284,7 +286,7 @@ Definitions (only rows `Moments.For(flavor)` offers are touched):
 
 `Detect` applies each preset to a clone and compares the fields listed above; equal = that key.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```csharp
 public class SharingPresetsTests
@@ -350,9 +352,9 @@ public class SharingPresetsTests
 
 (Use `FollowedItem`'s real constructor; check `Models/FollowedItem*.cs`.)
 
-- [ ] **Step 2: Run, expect build failure.**
+- [x] **Step 2: Run, expect build failure.**
 
-- [ ] **Step 3: Implement** with these shapes:
+- [x] **Step 3: Implement** with these shapes:
 
 ```csharp
 namespace WoWCharacterTracker.Models;
@@ -429,9 +431,9 @@ static class SharingPresets
 
 Note on Normal for Forever: `Flavor.Defaults()` has rare on; Normal keeps whatever the defaults say for rows the defaults set, plus followed, profession, makgora. That's fine and keeps "Normal = what new users get today" (plus a little). The Review Focus test `Retail_presets_never_turn_on_forever_kinds` holds because `rows` is `Moments.For(Retail)`.
 
-- [ ] **Step 4: Run, expect PASS.** If `Applied_preset_is_detected` fails for two presets that come out equal on one game, make the definitions differ there (they shouldn't: Quiet has 10/10 levels, Everything 1/1).
+- [x] **Step 4: Run, expect PASS.** If `Applied_preset_is_detected` fails for two presets that come out equal on one game, make the definitions differ there (they shouldn't: Quiet has 10/10 levels, Everything 1/1).
 
-- [ ] **Step 5: Commit** `feat(companion): add quiet, normal and everything sharing presets`
+- [x] **Step 5: Commit** `feat(companion): add quiet, normal and everything sharing presets`
 
 ---
 
@@ -472,7 +474,7 @@ public bool DiscordPaused { get; set; }
 
 Preset setters: `PresetX = true` -> if `IsCustom`, ask with the app's existing confirm pattern (look for how `ConfirmRemove` works on webhooks: an inline "Replace your custom choices? Yes / No" row bound to `ConfirmPreset` string), else `SharingPresets.Apply(Settings, Flavor, key)` then the existing `PostingReplaced()` (which refreshes everything) plus `InGameChanged()` since chat/ask lists changed.
 
-- [ ] **Step 1: Write the failing test** (logic only, no WPF):
+- [x] **Step 1: Write the failing test** (logic only, no WPF):
 
 ```csharp
 public class SharingRowTests
@@ -508,10 +510,10 @@ public class SharingRowTests
 }
 ```
 
-- [ ] **Step 2: Run, expect build failure.**
-- [ ] **Step 3: Implement `SharingRow`** per the interface above (each setter: `Set`-style raise of its own property, then the callback). Implement the `FlavorViewModel` additions; build `SharingRows` lazily like `announceKinds` (`sharingRows ??= [.. Moments.For(Flavor).Select(...)]`) and null it where `announceKinds`/`askKinds` are nulled today (`TakeInGameSettings`, `PostingReplaced`). Remove `AnnounceNames`, `AnnounceTable`, `AnnounceKinds`, `AskNames`, `AskKinds` and delete `AnnounceRow.cs` once Task 5 no longer binds them (do the deletion in Task 5's last step so the build stays green).
-- [ ] **Step 4: Run all tests, expect PASS.** `dotnet test companion/WoWCharacterTracker.Tests`
-- [ ] **Step 5: Commit** `feat(companion): add sharing table rows and presets to the game tab`
+- [x] **Step 2: Run, expect build failure.**
+- [x] **Step 3: Implement `SharingRow`** per the interface above (each setter: `Set`-style raise of its own property, then the callback). Implement the `FlavorViewModel` additions; build `SharingRows` lazily like `announceKinds` (`sharingRows ??= [.. Moments.For(Flavor).Select(...)]`) and null it where `announceKinds`/`askKinds` are nulled today (`TakeInGameSettings`, `PostingReplaced`). Remove `AnnounceNames`, `AnnounceTable`, `AnnounceKinds`, `AskNames`, `AskKinds` and delete `AnnounceRow.cs` once Task 5 no longer binds them (do the deletion in Task 5's last step so the build stays green).
+- [x] **Step 4: Run all tests, expect PASS.** `dotnet test companion/WoWCharacterTracker.Tests`
+- [x] **Step 5: Commit** `feat(companion): add sharing table rows and presets to the game tab`
 
 ---
 
@@ -533,9 +535,9 @@ public class SharingRowTests
 4. "Customize" `Expander` (`IsExpanded` bound one-way to `IsCustom` on first show), containing a header `Grid` (MOMENT, DISCORD, SCREENSHOT, GUILD, GROUP, ASK FIRST, STREAM, and a Test column) and an `ItemsControl` over `SharingRows`. Row template: a `Grid` with the same `SharedSizeGroup` columns; name + tip tooltip + `Rule` hint; `CheckBox` per column with `Visibility` from `Has*` (a "–" `TextBlock` when not); a `ChipButton` "Test" bound to the window's `TestKindCommand` with `CommandParameter="{Binding Moment.Test}"`, `Opacity` 0 and set to 1 by a `DataTrigger` on the row's `IsMouseOver` (a `Style` on the row `Border`, background `Hover` brush on mouse over). No effects.
 5. "Advanced" `Expander`, collapsed: move these blocks over from `PostingPage.xaml` unchanged (same bindings): the level rule form and its preview, profession steps, rating steps and key run options (Retail), first kill only, rare BoE only (`RareBoeOnly`), skip-boss regex and its problem text, name in posts, hide chat / hide UI in screenshots, copy/paste/reset buttons. From `InGamePage.xaml`: the ask box time choices, "Keeping the app up to date" (flight reload, chat reminder), keep all history, data grid corner and label. Group them under small `SectionTitle`s: "Posting", "Screenshots", "In game".
 
-- [ ] **Step 1:** Grep the page keys: `rg -n "\"posting\"|\"ingame\"|ConverterParameter=posting|ConverterParameter=ingame" companion/WoWCharacterTracker` and list every hit to change.
-- [ ] **Step 2:** Create `SharingPage.xaml` + code-behind (`public partial class SharingPage : UserControl { public SharingPage() => InitializeComponent(); }`, matching the other pages' code-behind).
-- [ ] **Step 3:** Replace the two tabs in `MainWindow.xaml` with one:
+- [x] **Step 1:** Grep the page keys: `rg -n "\"posting\"|\"ingame\"|ConverterParameter=posting|ConverterParameter=ingame" companion/WoWCharacterTracker` and list every hit to change.
+- [x] **Step 2:** Create `SharingPage.xaml` + code-behind (`public partial class SharingPage : UserControl { public SharingPage() => InitializeComponent(); }`, matching the other pages' code-behind).
+- [x] **Step 3:** Replace the two tabs in `MainWindow.xaml` with one:
 
 ```xml
           <Button x:Name="SharingTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=sharing}"
@@ -545,11 +547,11 @@ public class SharingRowTests
 ```
 
   replace `<views:PostingPage .../>` and `<views:InGamePage .../>` with `<views:SharingPage Grid.Row="2"/>`, and remove `DiscordView`/`StreamView` from the right column (keep `SetupBar` and `ConsolePanel` until phase 2). Fix every `x:Name` reference in `MainWindow.xaml.cs` (`PostingTab`, `DiscordView`, `StreamView`) found by the build.
-- [ ] **Step 4:** Update `IntroViewModel.Steps` targets and text, `ScreenshotMode` page aliases, and the `FitRightColumn` code if it measures the removed panels.
-- [ ] **Step 5:** Delete `PostingPage`, `InGamePage`, `AnnounceRow` and the `FlavorViewModel` members only they used (`AnnounceKinds`, `AskKinds`, `Shots`, `ShotOption.cs` if nothing else binds it). Build: `dotnet build companion/WoWCharacterTracker -c Debug`. Expected: 0 warnings, 0 errors.
-- [ ] **Step 6:** Run all tests: `dotnet test companion/WoWCharacterTracker.Tests`. Fix `StreamTests` or others that referenced removed members.
-- [ ] **Step 7:** Screenshot mode, with the scratchpad fake folders: views `forever:sharing`, `retail:sharing`, `forever:sharing:testall`, and with `CHARACTERTRACKER_SCREENSHOT_SIZE=1320x2400` to see it all; also at `1100x680`. Look at each: no clipping, columns line up, Retail rows differ, Custom shows for a hand-edited config.
-- [ ] **Step 8: Commit** `feat(companion): merge what gets posted and in game into one sharing page`
+- [x] **Step 4:** Update `IntroViewModel.Steps` targets and text, `ScreenshotMode` page aliases, and the `FitRightColumn` code if it measures the removed panels.
+- [x] **Step 5:** Delete `PostingPage`, `InGamePage`, `AnnounceRow` and the `FlavorViewModel` members only they used (`AnnounceKinds`, `AskKinds`, `Shots`, `ShotOption.cs` if nothing else binds it). Build: `dotnet build companion/WoWCharacterTracker -c Debug`. Expected: 0 warnings, 0 errors.
+- [x] **Step 6:** Run all tests: `dotnet test companion/WoWCharacterTracker.Tests`. Fix `StreamTests` or others that referenced removed members.
+- [x] **Step 7:** Screenshot mode, with the scratchpad fake folders: views `forever:sharing`, `retail:sharing`, `forever:sharing:testall`, and with `CHARACTERTRACKER_SCREENSHOT_SIZE=1320x2400` to see it all; also at `1100x680`. Look at each: no clipping, columns line up, Retail rows differ, Custom shows for a hand-edited config.
+- [x] **Step 8: Commit** `feat(companion): merge what gets posted and in game into one sharing page`
 
 ---
 
@@ -568,7 +570,7 @@ The test app must not touch the running app, the real game folders, or post anyt
 - Those fake game folders get a copy of the real `WTF\Account\*\SavedVariables\WoWCharacterTracker.lua` (and `.lua.bak` not needed) and the installed addon folder, so the test app shows real characters. Nothing new arrives there, so nothing posts by itself (first run marks what's there as handled). Test buttons do post to the real webhook: that's how Sharing gets tried.
 - A `test-build\Run test app.cmd` sets the env var and starts it.
 
-- [ ] **Step 1:** Write `tools/test-build.ps1`:
+- [x] **Step 1:** Write `tools/test-build.ps1`:
 
 ```powershell
 # Builds the app from this checkout into test-build\ and sets it up to run next to the real one:
@@ -622,19 +624,19 @@ Write-Host "Test app ready: $out\Run test app.cmd"
 ```
 
   Check the publish flags against `build.cmd` and use the same ones. Check `ConvertTo-Json` keeps the config readable by the app (it's `System.Text.Json` with default options: property names as written, so PascalCase stays). If the app re-detects real folders because a fake folder has no `WTF`/`Interface`, the script created both, so it won't.
-- [ ] **Step 2:** Add `test-build/` to `.gitignore`.
-- [ ] **Step 3:** Run `powershell -File tools/test-build.ps1`. Start it with the cmd file and the env var, take one screenshot-mode render of `forever:sharing` with `CHARACTERTRACKER_DATA_DIR=test-build\data` to confirm it shows JDybeck's real characters and webhooks. Confirm the real config file's last write time didn't change and no file under the real game folders changed.
-- [ ] **Step 4:** Commit `build: add a script for a side-by-side test build` (script, .gitignore, testing note).
+- [x] **Step 2:** Add `test-build/` to `.gitignore`.
+- [x] **Step 3:** Run `powershell -File tools/test-build.ps1`. Start it with the cmd file and the env var, take one screenshot-mode render of `forever:sharing` with `CHARACTERTRACKER_DATA_DIR=test-build\data` to confirm it shows JDybeck's real characters and webhooks. Confirm the real config file's last write time didn't change and no file under the real game folders changed.
+- [x] **Step 4:** Commit `build: add a script for a side-by-side test build` (script, .gitignore, testing note).
 
 ---
 
 ### Task 7: Verify phase 1
 
-- [ ] `dotnet build companion/WoWCharacterTracker -c Debug` (0 warnings) and `dotnet test companion/WoWCharacterTracker.Tests` (all pass).
-- [ ] Screenshot renders reviewed (Task 5 Step 7).
-- [ ] Settings map check: every control removed from PostingPage/InGamePage has a home on SharingPage (go through the old XAML's bindings list one by one).
-- [ ] CHANGELOG: an `## Unreleased` section line: "Sharing: What gets posted and In game are one page now, with Quiet / Normal / Everything presets and one table for Discord, screenshots, guild and group chat, asking and stream alerts."
-- [ ] Commit.
+- [x] `dotnet build companion/WoWCharacterTracker -c Debug` (0 warnings) and `dotnet test companion/WoWCharacterTracker.Tests` (all pass).
+- [x] Screenshot renders reviewed (Task 5 Step 7).
+- [x] Settings map check: every control removed from PostingPage/InGamePage has a home on SharingPage (go through the old XAML's bindings list one by one).
+- [x] CHANGELOG: an `## Unreleased` section line: "Sharing: What gets posted and In game are one page now, with Quiet / Normal / Everything presets and one table for Discord, screenshots, guild and group chat, asking and stream alerts."
+- [x] Commit.
 
 ---
 

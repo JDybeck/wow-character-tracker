@@ -1,6 +1,6 @@
 # UX cleanup: fewer buttons, easy setup, the fun up front
 
-Date: 2026-11-08. Status: design, waiting for review. Mockup: `docs/ux/poc.png` (source `docs/ux/poc.html`). Where they differ, this spec wins: the mockup's Discord flyout on the rail became a quick toggle, and stream settings moved into Sharing.
+Date: 2026-11-08. Status: built, shipped in 0.39.2. Mockup: `docs/ux/poc.png` (source `docs/ux/poc.html`). Where they differ, this spec wins: the mockup's Discord flyout on the rail became a quick toggle, and stream settings moved into Sharing.
 
 ## Why
 

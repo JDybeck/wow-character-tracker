@@ -1,6 +1,6 @@
 # Addon window: tabs, minimap button, friends without typing BattleTags
 
-Status: design, from JDybeck's feedback on 0.33.0 (2026-11-06). Not built.
+Status: built, shipped in 0.34.0 (Friends tab in 0.35.0). Designed from JDybeck's feedback on 0.33.0 (2026-11-06).
 
 ## Why
 

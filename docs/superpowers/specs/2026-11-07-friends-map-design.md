@@ -1,6 +1,6 @@
 # Friends on the world map
 
-Status: design, 2026-11-07. Builds on the friends sharing layer (`2026-11-06-friends-sharing-design.md`, `.claude/notes/friends.md`).
+Status: built, shipped in 0.38.0. Designed 2026-11-07. Builds on the friends sharing layer (`2026-11-06-friends-sharing-design.md`, `.claude/notes/friends.md`).
 
 ## Goal
 

@@ -296,7 +296,6 @@ Level times: the addon stores your total played at the start of each level, and 
 
 Not built yet, roughly in order:
 
-- **Dual talent specs on Forever**: once they're live, track both builds per character (talents, Wowhead links and posts for each).
 - **Per-character posting rules**, on top of each game's Sharing.
 - **Warband bank** (Retail), maybe through Baganator's saved data.
 

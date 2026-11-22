@@ -1,6 +1,6 @@
 # Friends: sharing character data with Battle.net contacts
 
-Status: design, approved in chat 2026-11-06. Not built.
+Status: built, shipped in 0.33.0. Approved in chat 2026-11-06.
 
 ## Goal
 

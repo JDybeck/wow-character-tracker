@@ -1,5 +1,7 @@
 # Friends sharing, step 1 (addon) Implementation Plan
 
+Status: built, shipped in 0.33.0.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Two players who are Battle.net friends and both run the addon can share their characters with each other in game, with consent per contact, per category and per character, and what a friend shares lands in `WoWCharacterTrackerDB.friends` for the app (steps 2 and 3, separate plans).
@@ -49,11 +51,11 @@
 - Produces: `ns.copy(v)` deep copy of a table (non-tables returned as is). `ns.popup(name, dialog, textArg, data)` shows a Blizzard popup, adding `dialog` to `StaticPopupDialogs[name]` only the first time; `data` reaches `OnAccept(self, data)`, `OnCancel(self, data)`, `OnAlt(self, data)`.
 - Produces (tests): `FriendsLuaTests.Client(me, friendsLua, db, settings, files)` with `Lua(code)`, `Call(name, args)`, `Run(seconds)`, `Sent()`, `Comms`, `Ns`. Lua globals in a client: `ns` (the addon table), `sent`, `shown`, `said`, `friends`, `groupGuids`, `inCombat`, `lockdown`, `sendResult`, `clock`.
 
-- [ ] **Step 1: Make the Lua test helpers reusable**
+- [x] **Step 1: Make the Lua test helpers reusable**
 
 In `AddonLuaTests.cs`, change `static string AddonDir` to `internal static string AddonDir` and `const string FakeTimers` to `internal const string FakeTimers`. Nothing else changes.
 
-- [ ] **Step 2: Write the harness and the failing tests**
+- [x] **Step 2: Write the harness and the failing tests**
 
 Create `companion/WoWCharacterTracker.Tests/FriendsLuaTests.cs`:
 
@@ -159,12 +161,12 @@ public class FriendsLuaTests
 }
 ```
 
-- [ ] **Step 3: Run the tests to see them fail**
+- [x] **Step 3: Run the tests to see them fail**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: both FAIL (`attempt to call a nil value` for `ns.popup` / `ns.copy`).
 
-- [ ] **Step 4: Add `ns.copy` and `ns.popup` to Shared.lua**
+- [x] **Step 4: Add `ns.copy` and `ns.popup` to Shared.lua**
 
 In `Shared.lua`, replace
 
@@ -206,7 +208,7 @@ function ns.popup(name, dialog, textArg, data)
 end
 ```
 
-- [ ] **Step 5: Make `askReload` use it**
+- [x] **Step 5: Make `askReload` use it**
 
 In `Events.lua`, replace the body of the reload prompts block (lines 104-117) with:
 
@@ -218,12 +220,12 @@ local function askReload(name, text, accept, decline, arg)
 end
 ```
 
-- [ ] **Step 6: Run all tests**
+- [x] **Step 6: Run all tests**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests`
 Expected: PASS, including the two new ones and every existing `AddonLuaTests` test.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker/Shared.lua addon/WoWCharacterTracker/Events.lua companion/WoWCharacterTracker.Tests/AddonLuaTests.cs companion/WoWCharacterTracker.Tests/FriendsLuaTests.cs
@@ -243,7 +245,7 @@ git commit -m "refactor(addon): share the popup and copy helpers" -m "Co-Authore
 - Produces: `ns.encodeFriendChar(guid, char, items, allowed) -> text, key`. `char` is a `WoWCharacterTrackerDB.chars[guid]` table, `items` its `items[guid]` (may be nil), `allowed` a table with `gear`, `talents`, `location`, `gold` booleans (a contact table works as is). `text` is one line, `key` is the same without `at` (for change detection).
 - Produces: `ns.decodeFriendChar(text) -> table or nil`. Fields: `guid, char, realm, level, class, classFile, race, raceFile, faction, spec, ilvl, at, talents, talentCalc, gear, enchants, zone, money`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `FriendsLuaTests`:
 
@@ -324,12 +326,12 @@ Add to `FriendsLuaTests`:
     }
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: the new tests FAIL (`FriendData.lua` not found).
 
-- [ ] **Step 3: Write FriendData.lua**
+- [x] **Step 3: Write FriendData.lua**
 
 ```lua
 -- One character as a friend sees it (Friends.lua): built from the saved snapshot, sent as one line
@@ -431,12 +433,12 @@ function ns.decodeFriendChar(text)
 end
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: PASS. (`Addon_file_compiles` in `AddonLuaTests` picks up the new file by itself.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker/FriendData.lua companion/WoWCharacterTracker.Tests/FriendsLuaTests.cs
@@ -456,7 +458,7 @@ git commit -m "feat(addon): turn a character into text for friends and back" -m 
 - Produces: `ns.comms.send(account, kind, body) -> bool` (false when too long), `ns.comms.receive(prefix, text, channel, senderID)` (the `BN_CHAT_MSG_ADDON` handler), `ns.comms.onReceive(account, kind, body)` (set by Friends.lua; called with kind `"VERSION"` and the other side's protocol as body when it differs), `ns.comms.flush()`, `ns.comms.canSend()`, `ns.comms.PREFIX = "WCTF"`, `ns.comms.PROTOCOL = 1`, `ns.comms.CHUNK = 240`, `ns.lastCommsError`.
 - Wire text: `protocol:kind:id:part:total:chunk`, kind upper-case letters.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `FriendsLuaTests`:
 
@@ -582,12 +584,12 @@ Add to `FriendsLuaTests`:
     }
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: the new tests FAIL (`Comms.lua` not found).
 
-- [ ] **Step 3: Write Comms.lua**
+- [x] **Step 3: Write Comms.lua**
 
 ```lua
 -- Addon messages between friends' game clients over Battle.net (C_BattleNet.SendGameData, received
@@ -718,12 +720,12 @@ function comms.receive(prefix, text, _, senderID)
 end
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker/Comms.lua companion/WoWCharacterTracker.Tests/FriendsLuaTests.cs
@@ -743,7 +745,7 @@ git commit -m "feat(addon): send and receive addon messages over battle.net" -m 
 - Produces: `ns.shareSettings() -> s` (always has `enabled`, `newChars`, `contacts`, `chars`, `blocked`), `ns.editShare(fn)`, `ns.isCharShared(s, guid) -> bool`, `ns.friendsOnline() -> { { tag, account, guid } }`, `ns.friendsTick()`, `ns.startFriends()`. File locals Task 5 appends to and uses: `on` (handler table), `heard`, `lastSent`, `saidNo`, `online()`, `tagOf(account)`, `charText(guid, contact)`, `sendCurrent(f, contact, inGroup, force)`, `friendEntry(tag)`.
 - Saved: `WoWCharacterTrackerDB.share`, `WoWCharacterTrackerDB.friends[tag] = { seen, version, protocol, refused, chars = { [guid] = { ...fields, received } } }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `FriendsLuaTests`:
 
@@ -924,12 +926,12 @@ Add to `FriendsLuaTests`:
     }
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: the new tests FAIL (`Friends.lua` not found).
 
-- [ ] **Step 3: Write Friends.lua**
+- [x] **Step 3: Write Friends.lua**
 
 ```lua
 -- Sharing characters with Battle.net friends (contacts) who have the addon too. Off until turned
@@ -1173,12 +1175,12 @@ ns.comms.onReceive = function(account, kind, body)
 end
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker/Friends.lua companion/WoWCharacterTracker.Tests/FriendsLuaTests.cs
@@ -1197,7 +1199,7 @@ git commit -m "feat(addon): share the character being played with battle.net con
 - Consumes: Task 4's file locals (`on`, `heard`, `saidNo`, `online`, `charText`, `sendCurrent`, `friendEntry`), `ns.shareSettings`, `ns.editShare`, `ns.isCharShared`, `ns.friendsTick`, `ns.popup`, `ns.comms.send`, `ns.say`.
 - Produces: `on.REQ(f, contact)`, `ns.offerFriendRequest(f)`, `ns.showNextFriendRequest()` (Task 6 calls it on `PLAYER_REGEN_ENABLED`), `ns.answerFriendRequest(f, choice)` with choice `"allow"`, `"notnow"` or `"never"`, `ns.findFriendTag(typed) -> tag or nil`, `ns.friendsCommand(args)` (Task 6 routes `/wct friends ...` to it, with the player's case kept).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `FriendsLuaTests`:
 
@@ -1352,12 +1354,12 @@ Add to `FriendsLuaTests`:
     }
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: the new tests FAIL (`friendsCommand`, `answerFriendRequest`, `showNextFriendRequest` are nil, no popup shown).
 
-- [ ] **Step 3: Append the requests part to Friends.lua**
+- [x] **Step 3: Append the requests part to Friends.lua**
 
 Append at the end of `Friends.lua`:
 
@@ -1596,12 +1598,12 @@ function ns.friendsCommand(args)
 end
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker/Friends.lua companion/WoWCharacterTracker.Tests/FriendsLuaTests.cs
@@ -1624,7 +1626,7 @@ git commit -m "feat(addon): ask friends for their characters, with a popup to al
 - Consumes: `ns.comms.receive`, `ns.friendsTick`, `ns.startFriends`, `ns.showNextFriendRequest`, `ns.friendsCommand`, `ns.shareSettings`, `ns.editShare`, `ns.isCharShared`.
 - Produces: nothing new for other tasks.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `FriendsLuaTests`:
 
@@ -1655,12 +1657,12 @@ Add to `FriendsLuaTests`:
     }
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests --filter "FullyQualifiedName~FriendsLuaTests"`
 Expected: both FAIL (toc doesn't list the new files; `/wct friends` shows level times instead).
 
-- [ ] **Step 3: Add the files to the .toc**
+- [x] **Step 3: Add the files to the .toc**
 
 In `WoWCharacterTracker.toc`, add `FriendData.lua` right after `Shared.lua`, and `Comms.lua` then `Friends.lua` right after `Ask.lua`:
 
@@ -1684,7 +1686,7 @@ Commands.lua
 WoWCharacterTracker.lua
 ```
 
-- [ ] **Step 4: Register the events**
+- [x] **Step 4: Register the events**
 
 In `Core.lua`, in `EVENTS`, add a line before the "Refresh the character snapshot" comment:
 
@@ -1692,7 +1694,7 @@ In `Core.lua`, in `EVENTS`, add a line before the "Refresh the character snapsho
   "BN_CHAT_MSG_ADDON", "BN_FRIEND_INFO_CHANGED",                                  -- sharing with Battle.net friends
 ```
 
-- [ ] **Step 5: Hook up the dispatcher**
+- [x] **Step 5: Hook up the dispatcher**
 
 In `WoWCharacterTracker.lua`:
 
@@ -1723,7 +1725,7 @@ function on.BN_CHAT_MSG_ADDON(prefix, text, channel, senderID) ns.comms.receive(
 on.BN_FRIEND_INFO_CHANGED = ns.debounce(5, function() ns.friendsTick() end)
 ```
 
-- [ ] **Step 6: Route /wct friends**
+- [x] **Step 6: Route /wct friends**
 
 In `Commands.lua`, replace the first two lines of the slash handler:
 
@@ -1750,7 +1752,7 @@ and in the `help` branch, after the `/wct note` line, add:
     ns.say("/wct friends shares your characters with Battle.net friends who have the addon. /wct friends help for more.")
 ```
 
-- [ ] **Step 7: Add the Options section**
+- [x] **Step 7: Add the Options section**
 
 In `Options.lua`, change `page:SetSize(640, 1330)` to `page:SetSize(640, 1490)`. After the `askLast` block (ends at line 180), add:
 
@@ -1777,12 +1779,12 @@ shareNew:SetPoint("TOPLEFT", shareThis, "BOTTOMLEFT", 0, -2)
 
 and change `local reloadTitle = heading("Keeping the app up to date", askLast)` to `local reloadTitle = heading("Keeping the app up to date", shareNew)`.
 
-- [ ] **Step 8: Run all tests**
+- [x] **Step 8: Run all tests**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests`
 Expected: PASS (all of `FriendsLuaTests`, every `AddonLuaTests` test, `Addon_file_compiles` for all 17 Lua files).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add addon/WoWCharacterTracker companion/WoWCharacterTracker.Tests/FriendsLuaTests.cs
@@ -1802,7 +1804,7 @@ git commit -m "feat(addon): turn on friend sharing in game with /wct friends and
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Write `.claude/notes/friends.md`**
+- [x] **Step 1: Write `.claude/notes/friends.md`**
 
 ```markdown
 # Friends (sharing with Battle.net friends)
@@ -1817,7 +1819,7 @@ Spec: `docs/superpowers/specs/2026-11-06-friends-sharing-design.md`. Step 1 (add
 - Not yet checked in game: everything Battle.net (see the open questions in the spec).
 ```
 
-- [ ] **Step 2: Link it from CLAUDE.md**
+- [x] **Step 2: Link it from CLAUDE.md**
 
 In the notes table in `CLAUDE.md`, add a row after the `streaming.md` row:
 
@@ -1825,11 +1827,11 @@ In the notes table in `CLAUDE.md`, add a row after the `streaming.md` row:
 | `.claude/notes/friends.md` | sharing with Battle.net friends: Comms.lua, Friends.lua, FriendData.lua, the Friends page |
 ```
 
-- [ ] **Step 3: Update the load order in addon.md**
+- [x] **Step 3: Update the load order in addon.md**
 
 In the first bullet of `.claude/notes/addon.md`, the sentence "The `.toc` loads, in order:" lists the files. Insert `` `FriendData.lua` (a character as text for friends, see `friends.md`), `` after the `Shared.lua (...)` entry, and `` `Comms.lua` and `Friends.lua` (sharing with Battle.net friends, see `friends.md`), `` after the `Ask.lua`-related text (before `NoteBox.lua`). Also add `ns.copy` and `ns.popup` to the list of what `Shared.lua` has.
 
-- [ ] **Step 4: Add the GUIDE section**
+- [x] **Step 4: Add the GUIDE section**
 
 In `docs/GUIDE.md`, at the end of the `## In game` section, add:
 
@@ -1848,7 +1850,7 @@ It all goes through Battle.net while you're both online, nothing is shown in cha
 
 And in `## In-game commands`, add a line for `/wct friends` in the same style as the others there (read the section first and match its format).
 
-- [ ] **Step 5: Add the CHANGELOG line**
+- [x] **Step 5: Add the CHANGELOG line**
 
 At the top of `CHANGELOG.md`, under the coming version's section (add `## v0.33.0` with a `### New` heading above `## v0.32.0` if it isn't there yet), add:
 
@@ -1856,19 +1858,19 @@ At the top of `CHANGELOG.md`, under the coming version's section (add `## v0.33.
 - **Share with Battle.net friends** (in game, new): friends with the addon can see the characters you share, with gear and talents, and location and gold if you allow it. Off until you turn it on. `/wct friends help` in game. The app's Friends page comes next.
 ```
 
-- [ ] **Step 6: Run all tests once more**
+- [x] **Step 6: Run all tests once more**
 
 Run: `dotnet test companion/WoWCharacterTracker.Tests`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add .claude/notes/friends.md .claude/notes/addon.md CLAUDE.md docs/GUIDE.md CHANGELOG.md
 git commit -m "docs: describe sharing with battle.net friends" -m "Co-Authored-By: Claude <noreply@anthropic.com>" -m "Claude-Session: 5273ae34-7426-4d14-b965-12f2bb2aaef0"
 ```
 
-- [ ] **Step 8: Hand JDybeck the in-game checklist**
+- [x] **Step 8: Hand JDybeck the in-game checklist**
 
 Not automatable. Report this list to JDybeck (and add the answers to `friends.md` and the spec's open questions once known):
 
