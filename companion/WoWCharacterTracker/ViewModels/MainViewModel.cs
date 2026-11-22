@@ -242,6 +242,7 @@ sealed class MainViewModel : Observable
         // tabs start, since finding the game saves its folder.
         if (Config.WantsIntro && ScreenshotMode.Target is null) Intro.OpenAt(IntroViewModel.Steps[0].Key);
         foreach (var tab in FlavorTabs) tab.Start();
+        StartRecapTimer();
         _ = Task.Run(ExtractedFiles.CleanUp); // what older versions unpacked into %TEMP%
         try { Directory.Delete(Path.Combine(Config.Dir, "logos"), recursive: true); } // before 0.27.2; ImageCache keeps them now
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
@@ -252,6 +253,18 @@ sealed class MainViewModel : Observable
         // Test runs stay off the network for this, unless they fake an old version to test it.
         if (Config.IsTest && Environment.GetEnvironmentVariable("CHARACTERTRACKER_FAKE_VERSION") is null) return;
         await Updates.StartAsync();
+    }
+
+    // The weekly recap (FlavorViewModel.PostRecapIfDueAsync): looked at every five minutes, so it goes
+    // out a few minutes after its hour, or soon after the app opens when that time was missed.
+    void StartRecapTimer()
+    {
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(5) };
+        timer.Tick += async (_, _) =>
+        {
+            foreach (var tab in FlavorTabs) await tab.PostRecapIfDueAsync(DateTimeOffset.Now);
+        };
+        timer.Start();
     }
 
     public void Shutdown()

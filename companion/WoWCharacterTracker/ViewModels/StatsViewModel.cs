@@ -82,6 +82,11 @@ sealed class StatsViewModel : Observable
         Rebuild();
     }
 
+    // The weekly recap's week (WeeklyRecap): the boards for the seven days up to at, whatever period
+    // the page shows. Empty until the first Show (the tab's data isn't read yet).
+    public bool IsShown => sources.Count > 0;
+    public List<Leaderboards.Board> WeekBoards(DateTimeOffset at) => Leaderboards.Build(sources, at, Leaderboards.Period.Week);
+
     void Rebuild()
     {
         var built = Leaderboards.Build(sources, DateTimeOffset.Now, period.Period);

@@ -359,6 +359,120 @@ sealed class FlavorViewModel : Observable
         }
     }
 
+    // --- the weekly recap (Advanced on Sharing; WeeklyRecap) ---
+
+    // Turning it on, or moving its day or hour, starts from the next planned time: a time already
+    // passed this week doesn't post right away (Post now does).
+    public bool PostRecap
+    {
+        get => Settings.PostRecap;
+        set
+        {
+            Settings.PostRecap = value;
+            if (value) SkipToNextRecap();
+            main.Config.Save();
+            Raise(nameof(PostRecap));
+            Raise(nameof(RecapText));
+        }
+    }
+
+    public int RecapHour
+    {
+        get => Settings.RecapHour;
+        set
+        {
+            Settings.RecapHour = Math.Clamp(value, 0, 23);
+            SkipToNextRecap();
+            main.SaveSoon();
+            Raise(nameof(RecapHour));
+            Raise(nameof(RecapText));
+        }
+    }
+
+    IReadOnlyList<DayChoice>? recapDays;
+    // Monday first, like the game's calendar in Europe.
+    public IReadOnlyList<DayChoice> RecapDays => recapDays ??=
+        [.. Enumerable.Range(1, 7).Select(i => (DayOfWeek)(i % 7)).Select(d => new DayChoice(d, $"recapday-{Name}", () => Settings.RecapDay == d, () =>
+        {
+            Settings.RecapDay = d;
+            SkipToNextRecap();
+            main.Config.Save();
+            foreach (var c in RecapDays) c.Refresh();
+            Raise(nameof(RecapText));
+        }))];
+
+    void SkipToNextRecap() =>
+        Settings.RecapSentAt = WeeklyRecap.LastSlot(DateTimeOffset.Now, Settings.RecapDay, Settings.RecapHour).ToUnixTimeSeconds();
+
+    // "Next one: Sunday 23 November at 20:00."
+    public string RecapText
+    {
+        get
+        {
+            if (!Settings.PostRecap) return "Every week, the Stats page's MVP podium and each board's top three, as one post to this game's webhooks.";
+            var next = WeeklyRecap.LastSlot(DateTimeOffset.Now, Settings.RecapDay, Settings.RecapHour).AddDays(7);
+            var c = System.Globalization.CultureInfo.InvariantCulture;
+            return $"Next one: {next.ToString("dddd d MMMM", c)} at {next.ToString("HH:mm", c)}. If the app is closed then, it posts when it opens (up to two days late).";
+        }
+    }
+
+    bool postingRecap;
+
+    // Checked every few minutes (MainViewModel): posts the week's recap when its time has come. Marked
+    // sent once it went out (or the week had nothing), so a failed post tries again on the next check.
+    public async Task PostRecapIfDueAsync(DateTimeOffset now)
+    {
+        if (!Settings.PostRecap || postingRecap || !IsOn || !Stats.IsShown) return;
+        if (WeeklyRecap.Due(now, Settings.RecapDay, Settings.RecapHour, Settings.RecapSentAt) is not { } slot) return;
+        if (await PostRecapAsync(slot) is not false)
+        {
+            Settings.RecapSentAt = slot.ToUnixTimeSeconds();
+            main.Config.Save();
+        }
+    }
+
+    // Post now (the recap's button): the last seven days, right away.
+    public ICommand PostRecapNowCommand => postRecapNow ??= new RelayCommand(_ => PostRecapAsync(DateTimeOffset.Now));
+    ICommand? postRecapNow;
+
+    // True: sent to at least one webhook; null: nothing to send (no webhook, paused, an empty week); false: it failed.
+    async Task<bool?> PostRecapAsync(DateTimeOffset at)
+    {
+        if (Settings.DiscordPaused)
+        {
+            Log.Info($"[{Name}] Discord posts are paused, so the weekly recap wasn't posted.");
+            return null;
+        }
+        var hooks = main.Config.ActiveWebhooks(Flavor);
+        if (hooks.Count == 0)
+        {
+            Log.Warn($"[{Name}] No webhook for the weekly recap. Turn one on under Sharing.");
+            return null;
+        }
+        if (WeeklyRecap.Embed(Stats.WeekBoards(at), RecapName(), Flavor.Name, at) is not { } embed)
+        {
+            Log.Info($"[{Name}] Nothing happened this week, so there's no weekly recap.");
+            return null;
+        }
+        postingRecap = true;
+        try
+        {
+            var sent = false;
+            foreach (var w in hooks)
+                if (await main.PosterFor(this, w).PostRecapAsync(embed))
+                {
+                    sent = true;
+                    Log.Success($"[{Name}] Posted the weekly recap to \"{w.Name}\".");
+                }
+            return sent;
+        }
+        finally { postingRecap = false; }
+    }
+
+    // What the recap calls you: your most played character, by the tab's name style.
+    string RecapName() =>
+        allRows.Where(r => !r.IsTest).MaxBy(r => r.Played) is { } most ? Format.Name(most.Name, most.Surname, Settings.NameStyle) : "You";
+
     // A character's note changed: the addon gets it in Settings.lua for /wct note. No /reload hint
     // for a note that came from the game: it has it already.
     public void NotesChanged(bool hint = true)
