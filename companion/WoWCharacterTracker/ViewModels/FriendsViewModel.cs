@@ -72,6 +72,7 @@ sealed class FriendsViewModel : Observable
                 row.IsFriend = true;
                 row.FriendTag = contact.Tag;
                 row.FriendSynced = contact.Seen;
+                row.FriendSharesText = $"Shares with you: {ShareCategories.Summary(contact.Shares)}";
                 if (row.Region.Length == 0) row.Region = region;
                 var guid = row.Guid;
                 row.SetPortraitChoice(config.StandardPortraits.Contains(guid), standard => { config.SetStandardPortrait(guid, standard); save(); });
@@ -404,6 +405,7 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
     public string VersionText => NeedsUpdate ? "One of you needs to update the addon" : got?.Version is { Length: > 0 } v ? $"Addon {v}" : "";
     public string SeenText => got is { Seen: > 0 } ? $"Heard from {Format.Ago(got.Seen)}" : "Nothing from them yet";
     public int CharacterCount => got?.Characters.Count ?? 0;
+    public string TheirsText => CharacterCount > 0 ? $"They share with you: {ShareCategories.Summary(got!.Shares)}" : "";
 
     ShareContact C => owner.ContactFor(Tag);
     public bool YouShare { get => C.Share; set => owner.EditContact(Tag, c => c with { Share = value }); }

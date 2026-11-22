@@ -161,14 +161,17 @@
               <GroupStyle.HeaderTemplate>
                 <DataTemplate DataType="{x:Type CollectionViewGroup}">
                   <Border Margin="23,12,23,4" Padding="0,0,0,6" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
-                    <TextBlock FontSize="13">
-                      <Run Text="{Binding Items[0].FriendName, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
-                      <Run Text="   "/>
-                      <Run Text="last seen" Foreground="{StaticResource Dim}"/>
-                      <Run Text="{Binding Items[0].LastSeenText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
-                      <Run Text="  ·  " Foreground="{StaticResource Dim}"/>
-                      <Run Text="{Binding Items[0].FriendSyncedText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
-                    </TextBlock>
+                    <StackPanel>
+                      <TextBlock FontSize="13">
+                        <Run Text="{Binding Items[0].FriendName, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                        <Run Text="   "/>
+                        <Run Text="last seen" Foreground="{StaticResource Dim}"/>
+                        <Run Text="{Binding Items[0].LastSeenText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
+                        <Run Text="  ·  " Foreground="{StaticResource Dim}"/>
+                        <Run Text="{Binding Items[0].FriendSyncedText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
+                      </TextBlock>
+                      <TextBlock Text="{Binding Items[0].FriendSharesText, Mode=OneWay}" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
                   </Border>
                 </DataTemplate>
               </GroupStyle.HeaderTemplate>
@@ -277,6 +280,8 @@
                     <StackPanel>
                       <TextBlock Text="{Binding Tag}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
                       <TextBlock Text="{Binding SeenText}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0"/>
+                      <TextBlock Text="{Binding TheirsText}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,1,0,0" TextWrapping="Wrap"
+                                 Visibility="{Binding TheirsText, Converter={StaticResource VisibleIfSet}}"/>
                       <TextBlock Text="{Binding VersionText}" FontSize="11" Margin="0,1,0,0" Visibility="{Binding VersionText, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock.Style>
                           <Style TargetType="TextBlock">

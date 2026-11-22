@@ -473,14 +473,14 @@ function on.CHARS(f, contact, body)
   changed()
 end
 
--- "<label> shared <names> with you." once per ask, for the first characters that come after it.
+-- "<label> shared <name> with you (what)." once per ask, for the first character that comes after it.
 local function noteArrival(tag, char)
   local at = asked[tag]
   if not at or told[tag] == at or time() - at > 300 then return end
   told[tag] = at
   local name = ns.friendNickname(tag)
-  ns.say(string.format("%s shared %s with you. More of their characters follow if they share them.",
-    name ~= "" and name or tag, ns.fullName(char)))
+  ns.say(string.format("%s shared %s with you (%s). More of their characters follow if they share them.",
+    name ~= "" and name or tag, ns.fullName(char), ns.theirShareSummary(friendEntry(tag).chars) or "only the basics"))
 end
 
 -- Friends' moments in your chat --------------------------------------------------------------
@@ -960,6 +960,13 @@ local function picked(allowed)
 end
 -- "gear, talents, professions" from { category = on }, for the request box, its chat line and /wct friends.
 ns.shareSummary = picked
+
+-- What a friend shares with you as a summary ("professions", "only the basics") from the characters
+-- they sent (ns.friendSharedCategories), nil without any.
+function ns.theirShareSummary(chars)
+  if not chars or next(chars) == nil then return nil end
+  return picked(ns.friendSharedCategories(chars))
+end
 
 local function listContacts()
   local s, me = ns.shareSettings(), UnitGUID("player")

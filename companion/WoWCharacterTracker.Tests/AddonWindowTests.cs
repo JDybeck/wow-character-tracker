@@ -829,6 +829,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "charRow('Cidrin Frostmane') ~= nil"));
         Assert.True(Bool(c, "charRow('Cidro') ~= nil")); // the one being played, not shared, first
         Assert.Equal("not shared", c.Lua("return charRow('Cidro').when.text").String);
+        Assert.Equal("They share with you: gear, talents, location, professions.", c.Lua("return section().theirs.text").String);
         c.Lua("openFriend('Cidro')");
         Assert.True(Bool(c, "charRow('Cidrin Frostmane') == nil"));
     }

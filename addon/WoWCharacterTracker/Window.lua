@@ -1497,7 +1497,7 @@ end
 -- the app through ns.setFriendOrder), each showing the character they play or played last. A click
 -- opens the friend's section under their row: nickname, state and buttons, and their characters.
 local GRID_MIN_CARD, GRID_GAP, GRID_CARD = 210, 8, 64
-local SECTION_TOP = 74 -- the friend section's header, above their characters
+local SECTION_TOP = 90 -- the friend section's header, above their characters
 
 local function buildFriends(p)
   -- The room the window gives now (it can be resized): the grid's columns and card width follow it.
@@ -1703,6 +1703,8 @@ local function buildFriends(p)
   section.nickname:SetPoint("LEFT", nickLabel, "LEFT", 66, 0)
   local nickHint = ui.text(section, "GameFontDisableSmall", "Enter saves, here and in the app. Empty clears it.")
   nickHint:SetPoint("LEFT", section.nickname, "RIGHT", 10, 0)
+  section.theirs = ui.text(section, "GameFontHighlightSmall")
+  section.theirs:SetPoint("TOPLEFT", section, "TOPLEFT", 12, -66)
 
   local function newCharCard() return newCharRow(p, width - 24) end
   local expansion -- the open row's info (newExpansion), built on the first click
@@ -1854,6 +1856,8 @@ local function buildFriends(p)
       if what then setButton(b, what[1], what[2] and act(what[2], person.tag), what[3]) else b:Hide() end
     end
     ui.showInput(section.nickname, person.tag, ns.friendNickname and ns.friendNickname(person.tag) or "")
+    local theirs = ns.theirShareSummary and ns.theirShareSummary(person.chars)
+    section.theirs:SetText(theirs and ("They share with you: " .. theirs .. ".") or "They don't share with you yet.")
     place(section, p, 16, y)
     local h = drawCharRows(person, label, y + SECTION_TOP) - y + 6
     section:SetHeight(h)

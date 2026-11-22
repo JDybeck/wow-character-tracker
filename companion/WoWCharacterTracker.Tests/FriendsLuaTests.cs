@@ -1131,7 +1131,8 @@ public class FriendsLuaTests
         Assert.Equal("Zeb", Str(a, "WoWCharacterTrackerDB.friends['Zeb#2222'].chars['Player-1-0000000B'].char"));
         Talk(a, b);
         Assert.Equal("Deadbeck", Str(b, GotDeadbeck + ".char"));
-        Assert.Contains(b.Said(), s => s.StartsWith("JDybeck#1111 shared Deadbeck with you.", StringComparison.Ordinal));
+        Assert.Equal("JDybeck#1111 shared Deadbeck with you (gear, talents, location). More of their characters follow if they share them.",
+            b.Said().Single(s => s.StartsWith("JDybeck#1111 shared", StringComparison.Ordinal)));
     }
 
     [Fact]
