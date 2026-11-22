@@ -67,7 +67,7 @@ local ANNOUNCE_KINDS = { { "level", "Level-ups" }, { "maxlevel", "Max level" }, 
   { "mount", "Mounts" }, { "duel", "Duel wins" }, { "bg", "Battleground wins" }, { "profession", "Professions" }, { "reputation", "Reputations" } }
 for _, kind in ipairs(ns.IS_RETAIL
   and { { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
-  or { { "boss", "Boss kills" }, { "makgora", "Mak'gora wins" }, { "death", "Deaths" }, { "achievement", "Legacy achievements" } }) do
+  or { { "boss", "Boss kills" }, { "makgora", "Mak'gora wins" }, { "death", "Deaths" }, { "achievement", "Legacy achievements" }, { "weekly", "Weekly satchel" } }) do
   ANNOUNCE_KINDS[#ANNOUNCE_KINDS + 1] = kind
 end
 
@@ -2186,7 +2186,7 @@ end
 -- App -------------------------------------------------------------------------------------------
 local KINDS = { { "level", "level-ups" }, { "maxLevel", "max level" }, { "rare", "rare loot" }, { "epic", "epic loot" },
   { "mount", "mounts" }, { "boss", "boss kills" }, { "death", "deaths" }, { "duel", "duels" }, { "makgora", "Mak'gora" },
-  { "bg", "battlegrounds" }, { "profession", "profession milestones" }, { "achievement", "legacy achievements" }, { "reputation", "reputation milestones" }, { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
+  { "bg", "battlegrounds" }, { "profession", "profession milestones" }, { "achievement", "legacy achievements" }, { "reputation", "reputation milestones" }, { "weekly", "weekly satchels" }, { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
 
 local function picked(t, names)
   local out = {}

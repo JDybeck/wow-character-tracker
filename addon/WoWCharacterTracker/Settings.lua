@@ -4,8 +4,8 @@
 WoWCharacterTrackerSettings = {
   screenshot = { level = false, loot = false, mount = false, boss = false, death = false },
   announce = { guild = false, party = false,
-    kinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, achievement = true, reputation = true, mplus = true, pvp = true },
-    partyKinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, achievement = true, reputation = true, mplus = true, pvp = true } },
+    kinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, achievement = true, reputation = true, weekly = true, mplus = true, pvp = true },
+    partyKinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, achievement = true, reputation = true, weekly = true, mplus = true, pvp = true } },
   ask = {},
   flightReload = false, -- these two only help the app
   chatReminder = false,

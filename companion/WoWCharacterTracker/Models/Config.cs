@@ -283,6 +283,12 @@ class Config
                 s.TakeReputationsFromProfessions();
                 changed = true;
             }
+            // The weekly satchel is newer: it starts like the legacy achievement row.
+            if (!s.HasWeekly)
+            {
+                s.TakeWeeklyFromAchievements();
+                changed = true;
+            }
         }
 
         var stream = config.StreamOptions;
@@ -319,6 +325,13 @@ class Config
             if (!stream.HighlightKinds.Contains("reputation")) stream.HighlightKinds.Add("reputation");
             if (!stream.AlertKinds.Contains("reputation")) stream.AlertKinds.Add("reputation");
             stream.HasReputations = true;
+            changed = true;
+        }
+        if (!stream.HasWeekly)
+        {
+            if (!stream.HighlightKinds.Contains("weekly")) stream.HighlightKinds.Add("weekly");
+            if (!stream.AlertKinds.Contains("weekly")) stream.AlertKinds.Add("weekly");
+            stream.HasWeekly = true;
             changed = true;
         }
         if (!stream.HasDungeonAlerts)

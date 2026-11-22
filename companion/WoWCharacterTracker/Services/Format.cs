@@ -131,6 +131,17 @@ static partial class Format
         return $"{c}c";
     }
 
+    // A price as the game's vendor shows it, zero parts left out: "100g", "12g 50s", "75s".
+    public static string Price(long copper)
+    {
+        var (g, s, c) = Coins(copper);
+        var parts = new List<string>();
+        if (g > 0) parts.Add($"{Thousands(g)}g");
+        if (s > 0) parts.Add($"{s}s");
+        if (c > 0 && g == 0) parts.Add($"{c}c");
+        return parts.Count > 0 ? string.Join(" ", parts) : "0c";
+    }
+
     // Copper as whole gold: "12,345g".
     public static string Gold(long copper) => $"{Thousands(Coins(copper).Gold)}g";
 

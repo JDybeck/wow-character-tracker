@@ -183,7 +183,10 @@ function on.SCREENSHOT_SUCCEEDED() ns.onScreenshotEvent(true) end
 function on.SCREENSHOT_FAILED() ns.onScreenshotEvent(false) end
 
 -- Gear, bags and the bank (while it's open).
-on.BAG_UPDATE_DELAYED = ns.scanInventorySoon
+function on.BAG_UPDATE_DELAYED()
+  ns.scanInventorySoon()
+  ns.checkWeeklySatchel() -- one satchel fewer: it was opened (Weekly.lua)
+end
 on.PLAYERBANKSLOTS_CHANGED = ns.scanInventorySoon
 function on.EQUIPMENT_SETS_CHANGED()
   ns.equipSetsChanged()
@@ -227,9 +230,19 @@ on.PLAYER_MONEY = moneyChanged
 on.CURRENCY_DISPLAY_UPDATE = moneyChanged
 
 -- Today's quests and gathering (Today.lua).
-function on.QUEST_TURNED_IN(questID) ns.onQuestTurnedIn(questID) end
+function on.QUEST_TURNED_IN(questID)
+  ns.onQuestTurnedIn(questID)
+  ns.onWeeklyTurnedIn(questID) -- Forever's In Demand weekly (Weekly.lua)
+end
 function on.UNIT_SPELLCAST_SUCCEEDED(unit, castGUID, spellID) ns.onSpellcast(unit, castGUID, spellID) end
-function on.LOOT_OPENED() ns.onLootOpened() end
+function on.LOOT_OPENED()
+  ns.onLootOpened()
+  ns.onWeeklyLootOpened()
+end
+
+-- The weekly satchel (Weekly.lua): the reward panel, and the loot window closing.
+function on.QUEST_COMPLETE() ns.onQuestComplete() end
+function on.LOOT_CLOSED() C_Timer.After(1, ns.checkWeeklySatchel) end
 
 -- Which layer we're on, from the creatures around us (Layer.lua).
 function on.NAME_PLATE_UNIT_ADDED(unit) ns.observeLayer(unit) end

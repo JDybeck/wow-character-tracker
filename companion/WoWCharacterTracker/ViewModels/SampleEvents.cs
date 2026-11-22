@@ -49,6 +49,7 @@ static class SampleEvents
             "bg" => e with { Kind = "bg", Instance = "Warsong Gulch" },
             "profession" => e with { Kind = "profession", Profession = "Mining", Step = 150, Rating = 151 },
             "reputation" => e with { Kind = "reputation", Reputation = "Argent Dawn", FactionId = 529, Step = 8 },
+            "weekly" => e with { Kind = "weekly", Item = "Gold Ring", ItemId = 272001, Quality = 2, Sell = 1_000_000, Quest = "In Demand - Blackrock Legal Records", Bag = "Undermine Satchel", Extras = "Thorium Ore x4" },
             "achievement" => e with { Kind = "achievement", Achievement = "Conqueror of the Lair", AchievementId = 684 },
             "mplus" => e with { Kind = "mplus", Step = 2000, Rating = 2034 },
             "pvp" => e with { Kind = "pvp", Step = 1800, Rating = 1812, Bracket = "3v3" },

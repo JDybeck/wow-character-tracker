@@ -68,6 +68,9 @@ local function message(e, forChat)
     return string.format("Reached Renown %d with %s!", e.renown, e.reputation or "a faction")
   elseif k == "reputation" then
     return string.format("Reached %s with %s!", ns.standingName(e.step or 8), e.reputation or "a faction")
+  elseif k == "weekly" then
+    local value = (e.sell or 0) > 0 and (", sells for " .. ns.goldText(e.sell)) or ""
+    return string.format("Opened my weekly %s: %s%s!", e.bag or "satchel", itemLink(e.itemId, e.item, e.quality, forChat), value)
   elseif k == "death" then
     local killer = (e.killer and e.killer ~= "") and (" to " .. e.killer) or ""
     return string.format("Fell at level %d%s. Rest in peace.", e.level or 0, killer)

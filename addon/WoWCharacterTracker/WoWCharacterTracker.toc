@@ -20,6 +20,7 @@ Inventory.lua
 LiveGrid.lua
 Events.lua
 Today.lua
+Weekly.lua
 Runs.lua
 PvP.lua
 Reputation.lua
