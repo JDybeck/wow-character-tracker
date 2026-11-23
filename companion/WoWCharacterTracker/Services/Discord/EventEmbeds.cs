@@ -344,6 +344,7 @@ sealed class EventEmbeds(Flavor flavor)
             lines.Add((itemPicture ? $"Out came **{e.Item}**" : $"Out came **{item}**") + (e.Sell > 0 ? $", it sells for **{Format.Price(e.Sell)}**." : "."));
         lines.Add(e.Quest.Length > 0 ? $"The reward for **{e.Quest}** in Booty Bay." : "The reward for this week's In Demand quest in Booty Bay.");
         if (e.ExtraList.Count > 0) lines.Add($"Also inside: {string.Join(", ", e.ExtraList)}.");
+        if (e.Total > e.Sell) lines.Add($"All of it sells for **{Format.Price(e.Total)}**.");
         var value = e.Sell > 0 ? $" ({Format.Price(e.Sell)})" : "";
         return ($"💰 {e.Char} opened the {bag}: {e.Item}{value}!", lines);
     }
