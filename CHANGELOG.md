@@ -6,6 +6,10 @@ The app shows the notes for a new version when it finds an update, and the newes
 
 Update the addon with the app (it does this by itself) and /reload in game.
 
+### New
+
+- **Recipes on the character.** An open character, yours or a friend's, has a **Recipes** tab: a chip per profession with how many recipes it knows, and its recipes in the same window as on the Professions page. The profession chips on the Overview open it too.
+
 ### Fixes and tweaks
 
 - **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
