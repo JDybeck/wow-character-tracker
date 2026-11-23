@@ -1295,12 +1295,11 @@ function ns.sharedWithYou()
   return out
 end
 
--- Gold and played added up over what friends share: per friend and for all of them, with each
--- friend's share of the whole. Gold comes with the gold category and played with level times, so a
--- friend who shares neither has none and is left out of that share instead of counting as 0%. (The
--- app's FriendTotals does the same.) persons: { { tag, chars } } as ns.sharedWithYou gives them;
--- skip(c) true leaves a character out (hidden in the window). Returns { byTag = { [tag] = { money,
--- played, chars, goldPct, playedPct } }, money, played, friends, withGold, withPlayed }.
+-- Gold and played added up over what friends share: per friend and for all of them. Gold comes with
+-- the gold category and played with level times, so a friend who shares neither has none and isn't
+-- counted as sharing it. (The app's FriendTotals does the same.) persons: { { tag, chars } } as
+-- ns.sharedWithYou gives them; skip(c) true leaves a character out (hidden in the window). Returns
+-- { byTag = { [tag] = { money, played, chars } }, money, played, friends, withGold, withPlayed }.
 function ns.friendTotals(persons, skip)
   local t = { byTag = {}, money = 0, played = 0, friends = 0, withGold = 0, withPlayed = 0 }
   for _, person in ipairs(persons or {}) do
@@ -1320,25 +1319,16 @@ function ns.friendTotals(persons, skip)
       if f.played > 0 then t.withPlayed = t.withPlayed + 1 end
     end
   end
-  local function pct(part, whole) return whole > 0 and math.floor(100 * part / whole + 0.5) or 0 end
-  for _, f in pairs(t.byTag) do
-    f.goldPct, f.playedPct = pct(f.money, t.money), pct(f.played, t.played)
-  end
   return t
 end
 
--- One friend's line: "12,345g (40%)  ·  6d 4h 12m played (25%)", the percent only when more than one
--- friend shares that. Empty when they share neither.
+-- One friend's line: "12,345g  ·  6d 4h 12m played". Empty when they share neither.
 function ns.friendTotalsLine(t, tag)
   local f = t and t.byTag[tag]
   if not f then return "" end
   local parts = {}
-  if f.money > 0 then
-    parts[#parts + 1] = ns.formatGold(f.money) .. (t.withGold > 1 and string.format(" (%d%%)", f.goldPct) or "")
-  end
-  if f.played > 0 then
-    parts[#parts + 1] = ns.formatPlayed(f.played) .. " played" .. (t.withPlayed > 1 and string.format(" (%d%%)", f.playedPct) or "")
-  end
+  if f.money > 0 then parts[#parts + 1] = ns.formatGold(f.money) end
+  if f.played > 0 then parts[#parts + 1] = ns.formatPlayed(f.played) .. " played" end
   return table.concat(parts, "  ·  ")
 end
 
