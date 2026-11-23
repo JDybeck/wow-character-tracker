@@ -21,6 +21,7 @@ local FRIEND_ROW = 34 -- a friend's row (a small card) and the gap under it
 local BANNER = 124   -- the playing-now banner's height
 local STRIP = 52     -- the numbers under it
 local PORTRAIT = 84
+local ONLINE_ROWS = 4 -- friends in the banner's right side
 local CIRCLE = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local GOLD = { 1, 0.82, 0, 1 }
 local TODAY_MAX = 12 -- room for every stat Today.lua has
@@ -340,12 +341,38 @@ function ns.buildHomeTab(p)
   estimate:SetJustifyH("RIGHT")
   estimate:SetPoint("TOPRIGHT", xpBar, "BOTTOMRIGHT", 0, -4)
 
+  local online = CreateFrame("Frame", nil, banner)
+  online:SetPoint("TOPRIGHT", banner, "TOPRIGHT", -14, -14)
+  online:SetSize(240, BANNER - 28)
+  online.title = ui.text(online, "GameFontDisableSmall", "FRIENDS ONLINE")
+  online.title:SetPoint("TOPLEFT", online, "TOPLEFT", 0, 0)
+  online.rows = {}
+  for i = 1, ONLINE_ROWS do
+    local row = CreateFrame("Button", nil, online)
+    row:SetHeight(20)
+    row:SetPoint("TOPLEFT", online, "TOPLEFT", 0, -14 - (i - 1) * 22)
+    local hover = row:CreateTexture(nil, "HIGHLIGHT")
+    ui.fill(hover, C.hover)
+    hover:SetAllPoints()
+    row.portrait = ui.portrait(row, 18)
+    row.portrait:SetPoint("LEFT", row, "LEFT", 0, 0)
+    row.who = ui.text(row, "GameFontHighlightSmall")
+    row.who:SetPoint("LEFT", row, "LEFT", 24, 0)
+    row.who:SetWidth(100)
+    row.who:SetWordWrap(false)
+    row.what = ui.text(row, "GameFontDisableSmall")
+    row.what:SetPoint("LEFT", row, "LEFT", 128, 0)
+    row.what:SetWordWrap(false)
+    row:SetScript("OnClick", function() ns.openWindow("friends") end)
+    online.rows[i] = row
+  end
+
   local strip = CreateFrame("Frame", nil, p)
   strip:SetSize(WIDTH, STRIP)
   strip:SetPoint("TOPLEFT", banner, "BOTTOMLEFT", 0, 1)
   ui.box(strip, C.bar, C.border)
   local tiles, dividers = {}, {}
-  for i = 1, 4 do
+  for i = 1, 3 do
     local t = CreateFrame("Frame", nil, strip)
     t:SetHeight(STRIP)
     t.value = ui.text(t, "GameFontHighlightLarge")
@@ -362,7 +389,7 @@ function ns.buildHomeTab(p)
   end
   ui.tint(tiles[2].value, GOLD)
   local function placeStrip(w)
-    local cell = math.floor(w / 4)
+    local cell = math.floor(w / 3)
     for i, t in ipairs(tiles) do
       t:ClearAllPoints()
       t:SetPoint("TOPLEFT", strip, "TOPLEFT", (i - 1) * cell, 0)
@@ -374,7 +401,16 @@ function ns.buildHomeTab(p)
         d:SetPoint("BOTTOMLEFT", strip, "BOTTOMLEFT", (i - 1) * cell, 1)
       end
     end
-    xpBar:SetWidth(math.max(160, math.min(360, w - TEXT_X - 150)))
+    local xpWidth = math.max(160, math.min(300, w - TEXT_X - 150))
+    xpBar:SetWidth(xpWidth)
+    -- Friends online (or seen last) in the banner's right side, when there's room for them.
+    local room = w - TEXT_X - xpWidth - 40
+    online.fits = room >= 200
+    online:SetWidth(math.min(300, math.max(200, room)))
+    for _, row in ipairs(online.rows) do
+      row:SetWidth(online:GetWidth() or 200)
+      row.what:SetWidth((online:GetWidth() or 200) - 26 - 104)
+    end
   end
   placeStrip(WIDTH)
 
@@ -701,7 +737,9 @@ function ns.buildHomeTab(p)
     if hasXp then
       xpBar:SetMinMaxValues(0, me.xpMax)
       xpBar:SetValue(me.xp or 0)
-      xpText:SetText(string.format("%d%% to %d", math.floor(100 * (me.xp or 0) / me.xpMax), me.level + 1))
+      local line = string.format("%d%% to %d", math.floor(100 * (me.xp or 0) / me.xpMax), me.level + 1)
+      if me.levelTime then line = line .. "  ·  " .. ns.formatDuration(me.levelTime) .. " on this level" end
+      xpText:SetText(line)
     else
       xpText:SetText(atMax and "Max level" or "")
     end
@@ -709,8 +747,6 @@ function ns.buildHomeTab(p)
     setTile(tiles[1], me.ilvl and tostring(math.floor(me.ilvl)) or "?", "Item level")
     setTile(tiles[2], me.money and ui.gold(me.money) or "?", "Gold")
     setTile(tiles[3], me.played and ns.formatPlayed(me.played) or "?", "Played")
-    if atMax then setTile(tiles[4], "Max", "Level " .. me.level)
-    else setTile(tiles[4], me.levelTime and ns.formatDuration(me.levelTime) or "?", "This level") end
 
     -- The chart, with the level being played as a paler last bar.
     chart.draw(levels, not atMax and me.levelTime and me.level and { level = me.level + 1, seconds = me.levelTime } or nil)
@@ -778,6 +814,36 @@ function ns.buildHomeTab(p)
       end
     end
     noFriends:SetShown(#latest == 0)
+
+    -- The banner's friends: who's online now, else the ones seen last.
+    local shown, title = {}, "FRIENDS ONLINE"
+    for _, f in ipairs(ns.onlineFriends and ns.onlineFriends() or {}) do
+      if f.character and f.character ~= "" then
+        shown[#shown + 1] = { name = f.character, classFile = f.classFile, guid = f.guid, level = f.level, where = f.zone }
+      end
+    end
+    if #shown == 0 then
+      title = "SEEN LAST"
+      for _, f in ipairs(latest) do
+        shown[#shown + 1] = { name = ns.fullName(f.c), classFile = f.c.classFile, guid = f.c.guid, level = f.c.level, where = ns.ago(f.at) }
+      end
+    end
+    online.title:SetText(title)
+    online:SetShown(online.fits and #shown > 0)
+    watermark:SetShown(not online:IsShown())
+    for i, row in ipairs(online.rows) do
+      local f = shown[i]
+      row:SetShown(f ~= nil)
+      if f then
+        ui.setPortrait(row.portrait, f)
+        row.who:SetText(f.name or "?")
+        row.who:SetTextColor(ui.classRgb(f.classFile))
+        local bits = {}
+        if f.level then bits[#bits + 1] = tostring(f.level) end
+        if f.where and f.where ~= "" then bits[#bits + 1] = f.where end
+        row.what:SetText(table.concat(bits, "  ·  "))
+      end
+    end
   end
   -- all: everything (opening the tab, and every SLOW_EVERY redraws for the "ago" times and friends).
   local function draw(all)

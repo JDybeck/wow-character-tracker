@@ -13,6 +13,8 @@ Update the addon with the app (it does this by itself), then exit the game fully
 
 ### Fixes and tweaks
 
+- **Flight path reload box off by default.** The box offering a /reload on flight paths is now off unless you turn it on, with its own checkbox in the addon's Settings (and in the app's Settings, In game). The Reload reminders choice covers the chat line and the ding popup.
+- **Screenshots stay attached.** Picking Quiet on the Sharing page no longer turned off attaching screenshots to Discord posts for shots you turned on later.
 - **The resize corner no longer jumps.** A click on the addon window's bottom right corner could blow the window up to nearly the whole screen. Now it only resizes while you drag it, and a click does nothing.
 - **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
 

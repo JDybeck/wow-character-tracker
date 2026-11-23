@@ -869,7 +869,7 @@ public class AddonLuaTests
             function UnitOnTaxi() return true end
             function InCombatLockdown() return false end
             WoWCharacterTrackerDB = {}
-            WoWCharacterTrackerSettings = {}
+            WoWCharacterTrackerSettings = { flightReload = true } -- the box is off unless turned on
             StaticPopupDialogs = {}
             shown = 0
             function StaticPopup_Show() shown = shown + 1 return {} end

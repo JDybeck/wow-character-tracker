@@ -188,7 +188,7 @@ class FlavorSettings
     public Dictionary<string, bool> PostScreenshot { get; set; } = [];
     public bool HideChatInShots { get; set; } = true; // chat made see-through while a screenshot is taken
     public bool HideUiInShots { get; set; } // the whole interface hidden for the shot, like Alt+Z
-    public bool FlightReloadPrompt { get; set; } = true; // the addon offers a /reload on flight paths when bags changed
+    public bool FlightReloadPrompt { get; set; } // the addon offers a /reload on flight paths when bags changed (off unless turned on)
     public bool ChatReloadReminder { get; set; } = true; // and reminds in chat (good moments, every 30 minutes)
     // The addon's saved history: off keeps only the newest 300 loot, duels and battlegrounds per
     // character (Shared.lua trimEvents); on keeps everything.

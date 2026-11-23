@@ -139,7 +139,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Zeb') ~= nil"));
         Assert.True(Bool(c, "shownText('Night Elf Warrior') ~= nil"));
         Assert.True(Bool(c, "shownText(45) ~= nil")); // the level, on the portrait's badge
-        Assert.True(Bool(c, "shownText('25% to 46') ~= nil")); // under the XP bar
+        Assert.True(Bool(c, "shownText('25% to 46  ·  20m 0s on this level') ~= nil")); // under the XP bar
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m  ·  average 1h 57m') ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
         // The level history is folded until opened, and stays as you left it.
@@ -576,16 +576,22 @@ public class AddonWindowTests
     // Reload reminders: one choice over the ding popup, the flight box and the chat line. The
     // defaults (no popup, flight box and chat line on) are Gentle.
     [Fact]
-    public void Reload_reminders_are_one_choice_over_three_settings()
+    public void Reload_reminders_are_one_choice_over_two_settings_and_the_flight_box_its_own()
     {
         var c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
         Assert.Equal("gentle", c.Lua("return ns.reloadChoice()").String);
         c.Lua("click('Every chance')");
-        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == true and ns.setting('flightReload') and ns.setting('chatReminder')"));
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == true and ns.setting('chatReminder')"));
         c.Lua("click('Off')");
-        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == false and ns.setting('flightReload') == false and ns.setting('chatReminder') == false"));
-        c.Lua("WoWCharacterTrackerDB.popup = true");
+        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == false and ns.setting('chatReminder') == false"));
+        // The flight path box is its own checkbox, off until turned on, and the choice leaves it alone.
+        Assert.False(Bool(c, "find('Offer a reload on flight paths').checked == true"));
+        c.Lua("click('Offer a reload on flight paths')");
+        Assert.True(Bool(c, "ns.setting('flightReload') == true"));
+        c.Lua("click('Gentle')");
+        Assert.True(Bool(c, "ns.setting('flightReload') == true"));
+        c.Lua("WoWCharacterTrackerDB.popup = true; ns.editSettings(function(s) s.chatReminder = false end)");
         Assert.Equal("custom", c.Lua("return ns.reloadChoice()").String);
     }
 

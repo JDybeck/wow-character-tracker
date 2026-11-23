@@ -39,17 +39,18 @@ local function currentCorner()
   return CORNER_NAMES[c] and c or "TOPLEFT"
 end
 
--- Reload reminders: one choice over the three settings that ask for a /reload (the ding popup, the
--- flight path box and the chat line). Gentle is how they start; any other mix is "custom".
+-- Reload reminders: one choice over the two settings that ask for a /reload (the ding popup and the
+-- chat line). Gentle is how they start; any other mix is "custom". The flight path box has its own
+-- checkbox, off unless turned on.
 local RELOAD_CHOICES = { { "off", "Off" }, { "gentle", "Gentle" }, { "all", "Every chance" } }
 -- Auto: yards in the Americas region, meters elsewhere (ns.distanceUnit).
 local DISTANCE_CHOICES = { { "auto", "Auto" }, { "meters", "Meters" }, { "yards", "Yards" } }
-local RELOAD_SETS ={ off = { false, false, false }, gentle = { false, true, true }, all = { true, true, true } }
+local RELOAD_SETS ={ off = { false, false }, gentle = { false, true }, all = { true, true } }
 
 local function reloadChoice()
-  local now = { WoWCharacterTrackerDB.popup == true, isOn("flightReload"), isOn("chatReminder") }
+  local now = { WoWCharacterTrackerDB.popup == true, isOn("chatReminder") }
   for key, set in pairs(RELOAD_SETS) do
-    if set[1] == now[1] and set[2] == now[2] and set[3] == now[3] then return key end
+    if set[1] == now[1] and set[2] == now[2] then return key end
   end
   return "custom"
 end
@@ -59,7 +60,7 @@ local function setReloadChoice(key)
   local set = RELOAD_SETS[key]
   if not set then return end
   WoWCharacterTrackerDB.popup = set[1]
-  ns.editSettings(function(s) s.flightReload, s.chatReminder = set[2], set[3] end)
+  ns.editSettings(function(s) s.chatReminder = set[2] end)
 end
 
 -- Chat ------------------------------------------------------------------------------------------
@@ -2225,9 +2226,13 @@ local function buildSettings(p)
     local custom = ui.text(p, "GameFontDisableSmall", "Custom mix")
     custom:SetPoint("LEFT", reload, "RIGHT", 6, 0)
     ui.onRefresh(p, function() custom:SetShown(reloadChoice() == "custom") end)
-    local reloadHint = ui.hint(p, "Gear, bags and bank reach the app on /reload. Gentle: a chat line and a box on flight paths when they changed. Every chance: also a popup after each ding.", reloadLabel)
+    local reloadHint = ui.hint(p, "Gear, bags and bank reach the app on /reload. Gentle: a chat line when they changed. Every chance: also a popup after each ding.", reloadLabel)
     reloadHint:SetPoint("TOPLEFT", reloadLabel, "BOTTOMLEFT", 0, -12)
-    last, lastGap = reloadHint, nil
+    local flight = ui.checkbox(p, "Offer a reload on flight paths", "A box on a flight path when your gear or bags changed, to /reload during the flight.",
+      function() return ns.setting("flightReload") == true end,
+      function(on) ns.editSettings(function(s) s.flightReload = on end) end)
+    flight:SetPoint("TOPLEFT", reloadHint, "BOTTOMLEFT", -6, -10)
+    last, lastGap = flight, ui.gapAfter(flight)
   end
 
   -- The window's colors (the app's Forever looks, right away) and how far away friends on the map

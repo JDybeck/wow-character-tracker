@@ -126,13 +126,13 @@ end
 
 -- On a flight path, with gear or bags changed since the last save: so the app gets the new items
 -- (the flight goes on through the loading screen). Once per flight, never in combat, and only when
--- the app's "Offer a reload on flight paths" is on (Settings.lua flightReload). "Not for 30 min"
+-- "Offer a reload on flight paths" is on (Settings.lua flightReload, off unless turned on). "Not for 30 min"
 -- keeps it quiet on every flight until then; kept in the saved file so a /reload doesn't undo it.
 local askedThisFlight = false
 local FLIGHT_SNOOZE = 1800
 
 function ns.onFlightStart()
-  if askedThisFlight or ns.setting("flightReload") == false or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
+  if askedThisFlight or ns.setting("flightReload") ~= true or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
   if time() < (WoWCharacterTrackerDB.flightSnoozeUntil or 0) then return end
   if InCombatLockdown() or not ns.itemsChanged() then return end
   askedThisFlight = true
