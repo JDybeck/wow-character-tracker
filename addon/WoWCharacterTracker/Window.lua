@@ -1500,6 +1500,13 @@ local function newCharRow(p, width)
   row.level:SetPoint("LEFT", row, "RIGHT", -200, 0)
   row.ilvl = newPill(row, 36)
   row.ilvl:SetPoint("LEFT", row, "RIGHT", -158, 0)
+  -- A pin right of the item level on your pinned characters (Pin.tga, white, tinted).
+  row.pin = row:CreateTexture(nil, "OVERLAY")
+  row.pin:SetSize(14, 14)
+  row.pin:SetPoint("LEFT", row, "RIGHT", -114, 0)
+  row.pin:SetTexture("Interface\\AddOns\\WoWCharacterTracker\\Pin")
+  row.pin:SetVertexColor(0.8, 0.84, 0.9)
+  row.pin:Hide()
   row.when = ui.text(row, "GameFontDisableSmall")
   row.when:SetPoint("RIGHT", row, "RIGHT", -12, 0)
   row.when:SetJustifyH("RIGHT")
@@ -1508,7 +1515,8 @@ end
 
 -- main: c is the main (yours, or the friend's own pick); pinned: one of yours pinned to the top.
 local function setCharRow(row, c, main, pinned)
-  setCard(row, fullName(c) .. (main and "  |cffFACC15MAIN|r" or pinned and "  |cff94A3B8PINNED|r" or ""), c.classFile, charInfo(c))
+  setCard(row, fullName(c) .. (main and "  |cffFACC15MAIN|r" or ""), c.classFile, charInfo(c))
+  row.pin:SetShown(pinned == true)
   ui.setPortrait(row.portrait, c)
   local class = c.class or ""
   row.classText:SetText(c.spec and (c.spec .. " " .. class) or class)
