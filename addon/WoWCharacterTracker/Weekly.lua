@@ -1,7 +1,8 @@
 -- Forever's weekly "In Demand - <what>" quests, from Pix Xizzix in Booty Bay, pay out an Undermine
 -- Satchel. It holds one valuable (Gold Nugget 10g, Huge Quartz Gem 20g, Silver Necklace 40g, Gold Ring
 -- 100g, by the fan sites) and maybe some materials. Opening it records a "weekly" moment: the most
--- valuable thing that came out, what it sells for, and which week's quest it was from.
+-- valuable thing that came out, what it sells for, everything else that came out, what it all sells
+-- for together, and which week's quest it was from.
 -- The ids are Wowhead's (Forever), as fan sites quoted them in November 2026: not checked in game. A
 -- quest whose title starts "In Demand" counts too, and its reward item becomes a satchel, so a new
 -- week, or a wrong id here, still works.
@@ -12,8 +13,9 @@ local SATCHEL = 271994 -- Undermine Satchel
 local IN_DEMAND_QUESTS = { [96075] = true, [96076] = true, [96087] = true, [96088] = true }
 local IN_DEMAND_PREFIX = "^In Demand"
 -- What the valuables sell for, in copper, for when the game doesn't have the item yet (Gold Nugget,
--- Gold Ring; the gem and necklace ids aren't known).
-local SELL_PRICES = { [272016] = 100000, [272001] = 1000000 }
+-- Huge Quartz Gem, Gold Ring; the necklace id isn't known). A satchel's known valuable is always the
+-- one named first, even when the game hasn't priced it yet and a material seems to sell for more.
+local SELL_PRICES = { [272016] = 100000, [272015] = 200000, [272001] = 1000000 }
 local KEEP_QUEST = 8 * 86400 -- a quest turned in longer ago than a week (and a bit) isn't this satchel's
 
 local function plain(v) return ns.plain and ns.plain(v) or v end
@@ -117,6 +119,8 @@ function ns.onWeeklyLootOpened()
     if idOf(link) and not ids[idOf(link)] then
       local _, _, quantity = GetLootSlotInfo(slot)
       items[#items + 1] = { link = link, count = tonumber(plain(quantity)) or 1 }
+      -- Ask for the item now, so its price is known when the satchel is found gone.
+      if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, idOf(link)) end
     end
   end
   if #items > 0 then pending = { items = items, counts = counts, ids = ids, at = time() } end
@@ -132,24 +136,31 @@ local function quality(link)
   return (ns.itemQuality and ns.itemQuality(link)) or 1
 end
 
--- The valuable is what sells for the most (by quality when prices are unknown); the rest is listed.
+-- The valuable is a known one (Gold Ring, Huge Quartz Gem...), else what sells for the most (by
+-- quality when prices are unknown); everything else that came out is listed too.
 function ns.weeklyReward(items)
-  local best, bestValue, bestQuality
+  local best, bestKnown, bestValue, bestQuality
   for _, it in ipairs(items) do
     it.value = sellPrice(it.link) * it.count
+    local known = SELL_PRICES[idOf(it.link)] ~= nil
     local q = quality(it.link)
-    if not best or it.value > bestValue or (it.value == bestValue and q > bestQuality) then
-      best, bestValue, bestQuality = it, it.value, q
+    local better = not best
+      or (known and not bestKnown)
+      or (known == bestKnown and (it.value > bestValue or (it.value == bestValue and q > bestQuality)))
+    if better then
+      best, bestKnown, bestValue, bestQuality = it, known, it.value, q
     end
   end
-  local extras = {}
+  local extras, links, total = {}, {}, 0
   for _, it in ipairs(items) do
+    total = total + it.value
     if it ~= best then
       local name = it.link:match("%[(.-)%]") or "?"
       extras[#extras + 1] = it.count > 1 and string.format("%s x%d", name, it.count) or name
+      links[#links + 1] = it.count > 1 and string.format("%sx%d", it.link, it.count) or it.link
     end
   end
-  return best, bestQuality, extras
+  return best, bestQuality, extras, links, total
 end
 
 -- After the loot window closes or the bags change: one satchel fewer means it was opened.
@@ -164,7 +175,7 @@ function ns.checkWeeklySatchel()
   end
   if not opened then return end
   pending = nil
-  local best, q, extras = ns.weeklyReward(p.items)
+  local best, q, extras, links, total = ns.weeklyReward(p.items)
   local name = best.link:match("%[(.-)%]")
   if not name then return end
   local list, w = saved(UnitGUID("player"))
@@ -174,11 +185,13 @@ function ns.checkWeeklySatchel()
   local e = ns.record("weekly", {
     item = name, itemId = idOf(best.link), quality = q, sell = best.value > 0 and best.value or nil,
     quest = w and w.quest or nil, bag = (ns.itemInfo(opened)) or (opened == SATCHEL and "Undermine Satchel") or nil,
-    extras = #extras > 0 and table.concat(extras, "^") or nil, at = now,
+    extras = #extras > 0 and table.concat(extras, "^") or nil, total = total > 0 and total or nil, at = now,
   }, string.format("weekly:%d:%d", idOf(best.link), now))
   if e and ns.say then
-    ns.say(string.format("Weekly satchel: %s%s.", best.link,
-      best.value > 0 and (", sells for " .. ns.goldText(best.value)) or ""))
+    -- Everything that came out, the valuable first, and what it all sells for.
+    table.insert(links, 1, best.count > 1 and string.format("%sx%d", best.link, best.count) or best.link)
+    ns.say(string.format("Weekly satchel: %s.%s", table.concat(links, ", "),
+      total > 0 and (" Sells for " .. ns.goldText(total) .. " in all.") or ""))
   end
 end
 
