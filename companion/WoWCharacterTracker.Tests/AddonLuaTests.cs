@@ -1515,9 +1515,9 @@ public class AddonLuaTests
             var before = (int)script.DoString("return #frames").Number;
             script.Call(ns.Get("openWindow"), "chat"); // now the Sharing tab
             // Group chat is on in Settings.lua, and so are the two filters (Bind on Equip only, first kill
-            // only); then what friends get, at its defaults: sharing, this character, new characters and six
-            // categories (gear, talents, location, professions, highlights, level times).
-            Assert.Equal(3 + 9,script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
+            // only); then what friends get, at its defaults: sharing, this character, new characters and seven
+            // categories (gear, talents, location, professions, reputations, highlights, level times).
+            Assert.Equal(3 + 10,script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
