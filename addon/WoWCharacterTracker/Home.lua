@@ -154,6 +154,21 @@ local function hexColor(classFile)
   return string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
 end
 
+-- A friend row's hover: how long the last level took while they level; at max level that's old
+-- news, so their latest moment instead, or no hover at all.
+local function friendTip(c)
+  local level, max = tonumber(c.level), tonumber(c.maxLevel)
+  if not (level and max and level >= max) then
+    local fl = ns.friendLevels(c)
+    return #fl > 0 and (ns.fullName(c) .. ": " .. ns.levelText(fl[#fl])) or nil
+  end
+  for _, e in ipairs(ns.friendHighlights(c)) do
+    local what = e.kind ~= "level" and ns.momentLine(e)
+    if what then return string.format("%s: %s  (%s)", ns.fullName(c), what, ns.ago(e.at)) end
+  end
+  return nil
+end
+
 -- open: what a click does (nil: nothing, no hover). itemId: the item the moment is about, for its
 -- tooltip. label: whose friend it is, beside the time.
 local function setMomentRow(row, who, classFile, what, at, open, itemId, label)
@@ -538,7 +553,7 @@ function ns.buildHomeTab(p)
   -- What only changes with new events is worked out again only then (the redraw runs every few
   -- seconds, and the list holds thousands): level times, today's counts and the feed.
   local seenList, seenCount, seenGuid
-  local levels, summary = {}, nil
+  local levels, summary, paceLine = {}, nil, ""
   local shownFriends = 0
 
   -- Places what's shown from the top down, and sizes the cards and the page.
@@ -568,8 +583,10 @@ function ns.buildHomeTab(p)
       estimate:SetPoint("TOPRIGHT", card, "TOPRIGHT", -PAD, -y)
       y = y + ((xpText:GetText() or "") ~= "" and 16 or 0)
     end
-    at(pace, card, y + 4, -2)
-    y = y + 4 + 18
+    if pace:IsShown() then
+      at(pace, card, y + 4, -2)
+      y = y + 4 + 18
+    end
     local tileWidth = math.floor((left - 2 * PAD - 12) / 3)
     for i, t in ipairs(tiles) do at(t, card, y, -2 + (i - 1) * (tileWidth + 6)) end
     y = y + 40 + 10
@@ -614,6 +631,10 @@ function ns.buildHomeTab(p)
     end
     for i = shownRows + 1, HISTORY_ROWS do history[i]:Hide() end
 
+    -- A quiet day shows no TODAY at all: a row of zeros says nothing.
+    local hasToday = #todayStats > 0
+    line:SetShown(hasToday)
+    todayLabel:SetShown(hasToday)
     line:ClearAllPoints()
     line:SetPoint("TOPLEFT", card, "TOPLEFT", PAD, -(y + 4))
     line:SetPoint("TOPRIGHT", card, "TOPRIGHT", -PAD, -(y + 4))
@@ -636,7 +657,7 @@ function ns.buildHomeTab(p)
         at(fs, card, y + 30 + row * 20, -2 + col * colWidth)
       end
     end
-    local cardHeight = y + 30 + math.ceil(math.max(count, 1) / cols) * 20 + 8
+    local cardHeight = hasToday and (y + 30 + math.ceil(count / cols) * 20 + 8) or (y + 8)
     card:SetHeight(cardHeight)
 
     -- The friends card under it.
@@ -696,6 +717,9 @@ function ns.buildHomeTab(p)
     setTile(tiles[3], me.played and ns.formatPlayed(me.played) or "?", "Played")
 
     -- The chart, with the level being played as a paler last bar.
+    -- At max level the last ding is old news: no pace line (the level history still has it).
+    pace:SetText(atMax and "" or paceLine)
+    pace:SetShown(not atMax)
     chart.draw(levels, not atMax and me.levelTime and me.level and { level = me.level + 1, seconds = me.levelTime } or nil)
     local left = not atMax and not ns.IS_RETAIL and ns.timeToMax(levels, db().xpTable, me.level, me.xp, me.xpMax, me.maxLevel)
     estimate:SetText(left and string.format("~%s to %d", ns.formatPlayed(left), me.maxLevel) or "")
@@ -708,7 +732,7 @@ function ns.buildHomeTab(p)
     local paceParts = {}
     if #levels > 0 then paceParts[#paceParts + 1] = ns.levelText(levels[#levels]) end
     if summary then paceParts[#paceParts + 1] = "average " .. ns.formatDuration(summary.average) end
-    pace:SetText(#paceParts > 0 and table.concat(paceParts, "  ·  ") or "No level times yet. The next ding starts the clock.")
+    paceLine = #paceParts > 0 and table.concat(paceParts, "  ·  ") or "No level times yet. The next ding starts the clock."
 
     factLines[1]:SetText(summary and string.format("%d timed level%s, average %s", summary.count, summary.count == 1 and "" or "s",
       ns.formatDuration(summary.average)) or "")
@@ -757,8 +781,7 @@ function ns.buildHomeTab(p)
         row.label:SetText(f.label or "")
         row.when:SetText(ns.ago(f.at))
         ui.setPortrait(row.portrait, c)
-        local fl = ns.friendLevels(c)
-        row.full = ns.fullName(c) .. (#fl > 0 and (": " .. ns.levelText(fl[#fl])) or "")
+        row.full = friendTip(c)
         row.open = function() ns.toggleFriendDetails(c, f.label) end
         row:Show()
       else

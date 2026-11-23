@@ -218,7 +218,8 @@
           </Button>
 
           <!-- Today for this character, then each other character that did something today. -->
-          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,14,0,0">
+          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,14,0,0"
+                  Visibility="{Binding DataContext.HasAnyToday, ElementName=Root, Converter={StaticResource Visible}}">
             <Border.Resources>
               <!-- The four that matter most, the rest behind "+N more". -->
               <DataTemplate x:Key="TodayTemplate" DataType="{x:Type vm:TodaySection}">
@@ -247,7 +248,8 @@
               </DataTemplate>
             </Border.Resources>
             <StackPanel>
-              <ContentControl Content="{Binding DataContext.Today, ElementName=Root}" ContentTemplate="{StaticResource TodayTemplate}" Focusable="False"/>
+              <ContentControl Content="{Binding DataContext.Today, ElementName=Root}" ContentTemplate="{StaticResource TodayTemplate}" Focusable="False"
+                              Visibility="{Binding DataContext.Today.HasItems, ElementName=Root, Converter={StaticResource Visible}}"/>
               <!-- Each other character that did something today: its name, then what. -->
               <StackPanel Margin="0,10,0,0" Visibility="{Binding DataContext.HasOtherToday, ElementName=Root, Converter={StaticResource Visible}}">
                 <TextBlock Style="{StaticResource FactLabel}" Text="OTHER CHARACTERS TODAY" Margin="0,0,0,6"/>

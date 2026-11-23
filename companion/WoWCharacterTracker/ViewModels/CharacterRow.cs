@@ -9,6 +9,7 @@ sealed class CharacterRow : Observable
     public required string Name { get; init; }
     public required string Realm { get; init; }
     public required int Level { get; init; }
+    public bool AtMaxLevel { get; init; } // at the game's level cap: level times are old news
     public required string ClassName { get; init; }
     public required string ClassFile { get; init; }
     public required string Race { get; init; }
@@ -476,7 +477,8 @@ sealed class CharacterRow : Observable
             var ding = levels.Where(e => e.Level == level && e.Played > 0).MaxBy(e => e.At);
             var thisLevel = ding is not null && played > ding.Played ? played - ding.Played : s is { LevelTime: > 0 } && s.Level == level ? s.LevelTime : 0;
             var cap = Math.Max(xpSnaps.GetValueOrDefault(guid)?.MaxLevel ?? 0, s?.MaxLevel ?? 0);
-            if (cap > 0 && level >= cap || all.Any(e => e.MaxLevel)) thisLevel = 0;
+            var atMax = cap > 0 && level >= cap || all.Any(e => e.MaxLevel);
+            if (atMax) thisLevel = 0;
 
             var row = new CharacterRow
             {
@@ -484,6 +486,7 @@ sealed class CharacterRow : Observable
                 Name = s?.Char is { Length: > 0 } n ? n : last?.Char ?? "?",
                 Realm = s?.Realm ?? last!.Realm,
                 Level = level,
+                AtMaxLevel = atMax,
                 ClassName = Pick(s?.Class, last?.Class),
                 ClassFile = Pick(s?.ClassFile, last?.ClassFile),
                 Race = Pick(s?.Race, last?.Race),

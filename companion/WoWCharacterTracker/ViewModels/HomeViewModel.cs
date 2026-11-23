@@ -30,6 +30,7 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     public TodaySection Today { get; } = new("TODAY");
     public ObservableCollection<OtherToday> OtherToday { get; } = [];
     public bool HasOtherToday => OtherToday.Count > 0;
+    public bool HasAnyToday => Today.HasItems || HasOtherToday;
 
     public ObservableCollection<MomentRow> Feed { get; } = [];
     public bool HasFeed => Feed.Count > 0;
@@ -80,6 +81,7 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         OtherToday.Clear();
         foreach (var other in Others(rows, TodayStats.ByCharacter(events, days, sent, keys, now), hero)) OtherToday.Add(other);
         Raise(nameof(HasOtherToday));
+        Raise(nameof(HasAnyToday));
     }
 
     // The characters other than the hero that did something today, the one played last first.
@@ -122,8 +124,10 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         foreach (var m in Feed.Where(m => m.Row.Source?.Id == id)) m.Posted = true;
     }
 
+    // How the leveling goes; at max level the last ding is old news, so nothing.
     static string Pace(CharacterRow c)
     {
+        if (c.AtMaxLevel) return "";
         var last = c.Events.LastOrDefault(e => e.Kind == "level" && e.Seconds > 0);
         var parts = new List<string>();
         if (last is not null) parts.Add($"{last.Level - 1} to {last.Level} took {Format.Duration(last.Seconds)}");

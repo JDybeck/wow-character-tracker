@@ -149,8 +149,7 @@ end
 
 -- What Home's TODAY row shows, most important first: { key, name, value } where value is a count,
 -- or copper (gold) or item levels (ilvl). events: the account's events; today: db.today; since:
--- midnight. Only stats above 0, padded to four with the main ones at 0.
-local MAIN = { "levels", "bosses", "epics", "mounts" }
+-- midnight. Only stats above 0: a 0 says nothing, and a quiet day shows no TODAY at all.
 local ORDER = { "levels", "bosses", "epics", "mounts", "ilvl", "quests", "gold", "herbs", "ore", "skins", "fish" }
 local NAMES = { levels = "levels", bosses = "bosses", epics = "epics", mounts = "mounts", ilvl = "item level",
   quests = "quests", gold = "gold", herbs = "herbs", ore = "veins", skins = "skins", fish = "fish" }
@@ -182,10 +181,6 @@ function ns.todayStats(events, today, day, since, isRetail)
   local out = {}
   local function add(key) out[#out + 1] = { key = key, name = ns.todayName(key, v[key], isRetail), value = v[key] } end
   for _, key in ipairs(ORDER) do if v[key] > 0 then add(key) end end
-  for _, key in ipairs(MAIN) do
-    if #out >= ns.TODAY_SHOWN then break end
-    if v[key] == 0 then add(key) end
-  end
   return out
 end
 

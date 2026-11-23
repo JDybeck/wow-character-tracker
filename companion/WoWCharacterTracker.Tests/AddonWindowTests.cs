@@ -1254,6 +1254,7 @@ public class AddonWindowTests
         c.Lua(FriendStubs);
         c.Lua("""
             shared[1].chars[1].highlights = 'boss~99000~60~Ragnaros~Molten Core~40'
+            shared[1].chars[1].levels, shared[1].chars[1].maxLevel = '60~9960~98000', 60
             function UnitLevel() return 10 end
             function UnitClass() return 'Mage', 'MAGE' end
             function date() return { year = 2026, month = 11, day = 9 } end
@@ -1264,6 +1265,10 @@ public class AddonWindowTests
         c.Call("openWindow", "home");
         Assert.True(Bool(c, "shownText(\"Friends' moments\") ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
+        // At max level the hover is their latest moment, not how long 59 to 60 took.
+        var tip = c.Lua("return shownText('Cidrin Frostmane').owner.full").String;
+        Assert.StartsWith("Cidrin Frostmane: Killed Ragnaros in Molten Core!", tip);
+        Assert.DoesNotContain("took", tip);
         c.Lua("local r = shownText('Killed Ragnaros in Molten Core!').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
