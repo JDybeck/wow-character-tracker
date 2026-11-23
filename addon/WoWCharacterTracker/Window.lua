@@ -7,14 +7,15 @@ local ADDON, ns = ...
 local ui = ns.ui
 
 local NAME = "WoWCharacterTrackerWindow"
-local WIDTH, HEIGHT = 760, 590
-local TITLE_BAR, TAB_BAR = 44, 40
+-- The tabs are a bar of icons down the left (Shell.lua, ns.RAIL_WIDTH wide); a header names the page.
+local WIDTH, HEIGHT = 760 + ns.RAIL_WIDTH, 590
+local TITLE_BAR, TAB_BAR = 40, 0
 local AREA_HEIGHT = HEIGHT - TITLE_BAR - TAB_BAR - 8 -- below the title and the tab row
 
 local window, area, version
 
 -- The width tab pages have now: the window can be made wider than WIDTH (the grip, bottom right).
-local function pageWidth() return ((window and window:GetWidth()) or WIDTH) - 50 end
+local function pageWidth() return ((window and window:GetWidth()) or WIDTH) - 50 - ns.RAIL_WIDTH end
 ns.pageWidth = pageWidth -- Home.lua's
 -- The height a page is shown in now (the window can be made taller): Home fills it with moments.
 function ns.pageHeight() return ((window and window:GetHeight()) or HEIGHT) - TITLE_BAR - TAB_BAR - 8 end
@@ -2340,12 +2341,11 @@ selectTab = function(key)
     if t.key == key then
       if not state.page then buildTab(t) end
       state.holder:Show()
-      ui.styleButton(state.button, "selected")
-    else
-      if state.holder then state.holder:Hide() end
-      ui.styleButton(state.button)
+    elseif state.holder then
+      state.holder:Hide()
     end
   end
+  ns.railSelect(key) -- Shell.lua
   ui.refresh(tabs[key].page)
   local page = tabs[key].page
   if BY_KEY[key].fit and page ~= tabs[key].holder and C_Timer then
@@ -2506,39 +2506,18 @@ local function build()
 
   ui.box(window, ui.COLOR.window, ui.COLOR.border)
 
-  -- The tab strip, a shade darker, between two lines.
-  local strip = CreateFrame("Frame", nil, window)
-  strip:SetPoint("TOPLEFT", 1, -TITLE_BAR)
-  strip:SetPoint("TOPRIGHT", -1, -TITLE_BAR)
-  strip:SetHeight(TAB_BAR)
-  ui.box(strip, ui.COLOR.bar, ui.COLOR.border)
-
-  local logo = window:CreateTexture(nil, "ARTWORK")
-  logo:SetSize(24, 24)
-  logo:SetPoint("TOPLEFT", 14, -10)
-  logo:SetTexture(ns.ICON) -- Minimap.lua's
-  local title = ui.text(window, "GameFontHighlightLarge", "WoW Character Tracker")
-  title:SetPoint("LEFT", logo, "RIGHT", 8, 0)
+  -- The tabs down the left and the page's name over it (Shell.lua), the version beside the name.
+  for _, t in ipairs(TABS) do tabs[t.key] = {} end
+  local title = ns.buildRail(window, TABS, function(key) selectTab(key) end, TITLE_BAR)
   version = buildVersion()
-  version:SetPoint("LEFT", title, "RIGHT", 6, -1)
+  version:SetPoint("LEFT", title, "RIGHT", 8, -1)
 
   local close = closeButton(window, function() window:Hide() end)
   local author = ui.text(window, "GameFontDisableSmall", ui.author())
   author:SetPoint("RIGHT", close, "LEFT", -4, 0)
 
-  local last
-  for _, t in ipairs(TABS) do
-    local key = t.key
-    local b = ui.button(strip, t.label, 88, function() selectTab(key) end)
-    b:SetHeight(24)
-    if last then b:SetPoint("LEFT", last, "RIGHT", 6, 0)
-    else b:SetPoint("LEFT", strip, "LEFT", 12, 0) end
-    tabs[key] = { button = b }
-    last = b
-  end
-
   area = CreateFrame("Frame", nil, window)
-  area:SetPoint("TOPLEFT", 8, -(TITLE_BAR + TAB_BAR + 4))
+  area:SetPoint("TOPLEFT", ns.RAIL_WIDTH + 8, -(TITLE_BAR + TAB_BAR + 4))
   area:SetPoint("BOTTOMRIGHT", -8, 8)
   resizeGrip():SetFrameLevel((area:GetFrameLevel() or 1) + 10)
 end

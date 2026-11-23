@@ -1,5 +1,6 @@
--- The window's Home tab (/wct), like the app's Home page: the character you're playing with its
--- level times (Leveling.lua) as a small chart and a level history that folds open, today's moments,
+-- The window's Home tab (/wct), like the app's Home page: the character you're playing on a banner
+-- in its class's color (portrait, level, XP) with its numbers in a strip under it, its level times
+-- (Leveling.lua) as a small chart and a level history that folds open, today's moments,
 -- the newest moments of all your characters and the friends who share with you. Redrawn every few
 -- seconds while it's shown, so played time ticks.
 local ADDON, ns = ...
@@ -16,6 +17,12 @@ local ROW = 16
 local FEED_SIZE = 6  -- rows shown per moment column
 local FEED_MAX = 50  -- kept per column, the mouse wheel scrolls through them
 local FRIENDS_SHOWN = 4
+local FRIEND_ROW = 34 -- a friend's row (a small card) and the gap under it
+local BANNER = 124   -- the playing-now banner's height
+local STRIP = 52     -- the numbers under it
+local PORTRAIT = 84
+local CIRCLE = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+local GOLD = { 1, 0.82, 0, 1 }
 local TODAY_MAX = 12 -- room for every stat Today.lua has
 local REDRAW_EVERY = 2 -- seconds
 local SLOW_EVERY = 15  -- redraws
@@ -67,18 +74,6 @@ local function midnight()
   return time({ year = t.year, month = t.month, day = t.day, hour = 0 })
 end
 
--- A tile: a small box with a big value over a label.
-local function newTile(p, width)
-  local t = CreateFrame("Frame", nil, p)
-  t:SetSize(width, 46)
-  ui.box(t, C.bar, C.border)
-  t.value = ui.text(t, "GameFontHighlightLarge")
-  t.value:SetPoint("TOPLEFT", t, "TOPLEFT", 10, -8)
-  t.label = ui.text(t, "GameFontDisableSmall")
-  t.label:SetPoint("TOPLEFT", t.value, "BOTTOMLEFT", 0, -3)
-  return t
-end
-
 local function setTile(t, value, label)
   t.value:SetText(value)
   t.label:SetText(label)
@@ -124,6 +119,7 @@ end
 local function rowClick(self) if self.open then self.open() end end
 
 local WHO = 120 -- room for a full name in a moment line
+local ICON = 22 -- the moment's icon and its gap, before the name
 
 -- A moment line: who, what (cut to the column) and when. A friend's opens their details.
 local function newMomentRow(parent)
@@ -134,12 +130,15 @@ local function newMomentRow(parent)
   ui.fill(row.hover, C.hover)
   row.hover:SetAllPoints()
   row.hover:Hide()
+  row.icon = row:CreateTexture(nil, "ARTWORK")
+  row.icon:SetSize(16, 16)
+  row.icon:SetPoint("LEFT", row, "LEFT", 0, 0)
   row.who = ui.text(row, "GameFontNormalSmall")
-  row.who:SetPoint("LEFT", row, "LEFT", 0, 0)
+  row.who:SetPoint("LEFT", row, "LEFT", ICON, 0)
   row.who:SetWidth(WHO)
   row.who:SetWordWrap(false)
   row.what = ui.text(row, "GameFontHighlightSmall")
-  row.what:SetPoint("LEFT", row, "LEFT", WHO + 4, 0)
+  row.what:SetPoint("LEFT", row, "LEFT", ICON + WHO + 4, 0)
   row.what:SetWordWrap(false)
   row.when = ui.text(row, "GameFontDisableSmall")
   row.when:SetPoint("RIGHT", row, "RIGHT", 0, 0)
@@ -149,8 +148,22 @@ local function newMomentRow(parent)
   return row
 end
 
+-- The row's icon: the item's for loot and mounts, else the class's (a friend's row has a portrait instead).
+local function setRowIcon(row, classFile, itemId)
+  if row.portrait then return row.icon:Hide() end
+  local icon = itemId and ns.itemIcon(itemId)
+  if icon then
+    row.icon:SetTexture(icon)
+    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.icon:Show()
+  else
+    row.icon:SetShown(ui.classIcon(row.icon, classFile))
+  end
+end
+
 -- open: what a click does (nil: nothing, no hover). itemId: the item the moment is about, for its tooltip.
 local function setMomentRow(row, who, classFile, what, at, open, itemId)
+  setRowIcon(row, classFile, itemId)
   row.who:SetText(who)
   row.who:SetTextColor(ui.classRgb(classFile))
   row.what:SetText(what)
@@ -198,7 +211,7 @@ end
 
 local function sizeMomentRow(row, width)
   row:SetWidth(width)
-  row.what:SetWidth(math.max(40, width - WHO - 4 - 56))
+  row.what:SetWidth(math.max(40, width - ICON - WHO - 4 - 56))
 end
 
 -- events[i] as the feed shows it, or nil when it doesn't go to Discord: what LiveGrid's wanted()
@@ -269,50 +282,119 @@ end
 function ns.buildHomeTab(p)
   local hint = buildAppHint(p)
   local hintHeight = 0
-  -- Playing now ---------------------------------------------------------------------------------
+  -- Playing now: a banner in the class's color, its numbers in a strip under it ------------------
+  local banner = CreateFrame("Frame", nil, p)
+  banner:SetSize(WIDTH, BANNER)
+  ui.box(banner, C.card, C.border)
+  local tint = banner:CreateTexture(nil, "BORDER")
+  tint:SetPoint("TOPLEFT", 1, -1)
+  tint:SetPoint("BOTTOMRIGHT", -1, 1)
+  -- The class's name, big and faint, in the banner's corner.
+  local watermark = banner:CreateFontString(nil, "BORDER")
+  watermark:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 46, "")
+  watermark:SetTextColor(1, 1, 1, 0.05)
+  watermark:SetPoint("BOTTOMRIGHT", banner, "BOTTOMRIGHT", -12, 6)
+
+  local ring = banner:CreateTexture(nil, "ARTWORK")
+  ring:SetTexture(CIRCLE)
+  ring:SetSize(PORTRAIT + 6, PORTRAIT + 6)
+  ring:SetPoint("LEFT", banner, "LEFT", 18, 0)
+  local portrait = ui.portrait(banner, PORTRAIT)
+  portrait:SetPoint("CENTER", ring, "CENTER")
+  local classColor = { 1, 1, 1, 1 } -- the level badge's edge, the class's color
+  local levelBadge = CreateFrame("Frame", nil, banner)
+  levelBadge:SetSize(30, 17)
+  levelBadge:SetPoint("BOTTOMRIGHT", ring, "BOTTOMRIGHT", 2, 2)
+  levelBadge:SetFrameLevel((portrait:GetFrameLevel() or 1) + 2)
+  ui.box(levelBadge, C.bar, classColor)
+  local levelText = ui.text(levelBadge, "GameFontHighlightSmall")
+  levelText:SetJustifyH("CENTER")
+  levelText:SetPoint("CENTER", 0, 0)
+
+  local TEXT_X = 18 + PORTRAIT + 6 + 18
+  local dot = banner:CreateTexture(nil, "ARTWORK")
+  dot:SetSize(6, 6)
+  dot:SetColorTexture(0.3, 0.85, 0.4)
+  dot:SetPoint("TOPLEFT", banner, "TOPLEFT", TEXT_X, -16)
+  local nowLabel = ui.text(banner, "GameFontDisableSmall", "PLAYING NOW")
+  nowLabel:SetPoint("LEFT", dot, "RIGHT", 6, 0)
+  local name = ui.text(banner, "GameFontNormalHuge")
+  name:SetPoint("TOPLEFT", banner, "TOPLEFT", TEXT_X, -28)
+  local sub = ui.text(banner, "GameFontHighlight")
+  sub:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
+  local zone = ui.text(banner, "GameFontDisableSmall")
+  zone:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -3)
+
+  -- XP to the next level, with how long to the top at your pace beside it.
+  local xpBar = CreateFrame("StatusBar", nil, banner)
+  xpBar:SetSize(320, 8)
+  xpBar:SetPoint("TOPLEFT", zone, "BOTTOMLEFT", 0, -9)
+  xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+  xpBar:SetStatusBarColor(0.58, 0.38, 0.96)
+  local track = xpBar:CreateTexture(nil, "BACKGROUND")
+  track:SetAllPoints()
+  track:SetColorTexture(1, 1, 1, 0.08)
+  local xpText = ui.text(banner, "GameFontDisableSmall")
+  xpText:SetPoint("TOPLEFT", xpBar, "BOTTOMLEFT", 0, -4)
+  local estimate = ui.text(banner, "GameFontDisableSmall")
+  estimate:SetJustifyH("RIGHT")
+  estimate:SetPoint("TOPRIGHT", xpBar, "BOTTOMRIGHT", 0, -4)
+
+  local strip = CreateFrame("Frame", nil, p)
+  strip:SetSize(WIDTH, STRIP)
+  strip:SetPoint("TOPLEFT", banner, "BOTTOMLEFT", 0, 1)
+  ui.box(strip, C.bar, C.border)
+  local tiles, dividers = {}, {}
+  for i = 1, 4 do
+    local t = CreateFrame("Frame", nil, strip)
+    t:SetHeight(STRIP)
+    t.value = ui.text(t, "GameFontHighlightLarge")
+    t.value:SetPoint("TOPLEFT", t, "TOPLEFT", 18, -10)
+    t.label = ui.text(t, "GameFontDisableSmall")
+    t.label:SetPoint("TOPLEFT", t.value, "BOTTOMLEFT", 0, -3)
+    tiles[i] = t
+    if i > 1 then
+      local d = strip:CreateTexture(nil, "BORDER")
+      ui.fill(d, C.border)
+      d:SetWidth(1)
+      dividers[i] = d
+    end
+  end
+  ui.tint(tiles[2].value, GOLD)
+  local function placeStrip(w)
+    local cell = math.floor(w / 4)
+    for i, t in ipairs(tiles) do
+      t:ClearAllPoints()
+      t:SetPoint("TOPLEFT", strip, "TOPLEFT", (i - 1) * cell, 0)
+      t:SetWidth(cell)
+      local d = dividers[i]
+      if d then
+        d:ClearAllPoints()
+        d:SetPoint("TOPLEFT", strip, "TOPLEFT", (i - 1) * cell, -1)
+        d:SetPoint("BOTTOMLEFT", strip, "BOTTOMLEFT", (i - 1) * cell, 1)
+      end
+    end
+    xpBar:SetWidth(math.max(160, math.min(360, w - TEXT_X - 150)))
+  end
+  placeStrip(WIDTH)
+
+  -- Under them, the card with the level times and today.
   local card = CreateFrame("Frame", nil, p)
   local function placeCard()
     local shown = appHintShown()
     hint:SetShown(shown)
     hintHeight = shown and APP_HINT or 0
-    card:ClearAllPoints()
-    card:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -12 - hintHeight)
+    banner:ClearAllPoints()
+    banner:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -12 - hintHeight)
   end
+  card:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", 0, -10)
   placeCard()
   card:SetSize(WIDTH, 300)
   ui.box(card, C.card, C.border)
 
-  local dot = card:CreateTexture(nil, "ARTWORK")
-  dot:SetSize(6, 6)
-  dot:SetColorTexture(0.3, 0.85, 0.4)
-  dot:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -16)
-  local nowLabel = ui.text(card, "GameFontDisableSmall", "PLAYING NOW")
-  nowLabel:SetPoint("LEFT", dot, "RIGHT", 6, 0)
-
-  local portrait = card:CreateTexture(nil, "ARTWORK")
-  portrait:SetSize(64, 64)
-  portrait:SetPoint("TOPLEFT", card, "TOPLEFT", 14, -32)
-  local name = ui.text(card, "GameFontNormalHuge")
-  name:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 14, -4)
-  local sub = ui.text(card, "GameFontHighlight")
-  sub:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
-  local zone = ui.text(card, "GameFontDisableSmall")
-  zone:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -3)
-
   local pace = ui.text(card, "GameFontHighlightSmall")
-  at(pace, card, 108)
+  at(pace, card, 14)
   pace:SetWidth(INNER)
-
-  local tileWidth = math.floor((INNER - 3 * 8) / 4)
-  local tiles = {}
-  for i = 1, 4 do
-    tiles[i] = newTile(card, tileWidth)
-    at(tiles[i], card, 128, (i - 1) * (tileWidth + 8))
-  end
-  local TILES_END = 128 + 46
-
-  local estimate = ui.text(card, "GameFontDisableSmall")
-  estimate:SetWidth(INNER)
 
   -- The mini chart (Ui.lua): a bar per level, the last CHART_BARS.
   local chart = ui.levelChart(card, CHART_BARS, CHART_HEIGHT, BAR_STEP)
@@ -464,17 +546,31 @@ function ns.buildHomeTab(p)
   local friendRows = {}
   for i = 1, FRIENDS_SHOWN do
     -- A moment row with room for the name; a click opens the character like on the Friends tab.
+    -- A small card: the class's color down its left edge, then the portrait.
     local row = newMomentRow(p)
-    row:SetPoint("TOPLEFT", friendsTitle, "BOTTOMLEFT", 0, -6 - (i - 1) * 20)
-    row.who:SetWidth(190)
+    row:SetHeight(FRIEND_ROW - 4)
+    row:SetPoint("TOPLEFT", friendsTitle, "BOTTOMLEFT", 0, -8 - (i - 1) * FRIEND_ROW)
+    ui.box(row, C.card)
+    row.hover:SetDrawLayer("BACKGROUND", 1)
+    row.stripe = row:CreateTexture(nil, "ARTWORK")
+    row.stripe:SetWidth(3)
+    row.stripe:SetPoint("TOPLEFT")
+    row.stripe:SetPoint("BOTTOMLEFT")
+    row.portrait = ui.portrait(row, 24)
+    row.portrait:SetPoint("LEFT", row, "LEFT", 12, 0)
+    row.who:ClearAllPoints()
+    row.who:SetPoint("LEFT", row, "LEFT", 44, 0)
+    row.who:SetWidth(170)
     row.what:ClearAllPoints()
-    row.what:SetPoint("LEFT", row, "LEFT", 196, 0)
+    row.what:SetPoint("LEFT", row, "LEFT", 220, 0)
     row.what:SetFontObject("GameFontDisableSmall")
+    row.when:ClearAllPoints()
+    row.when:SetPoint("RIGHT", row, "RIGHT", -10, 0)
     row:SetWidth(WIDTH)
-    row.what:SetWidth(WIDTH - 196 - 70)
+    row.what:SetWidth(WIDTH - 220 - 80)
     friendRows[i] = row
   end
-  local BELOW_CARD = 18 + 26 + 16 + 26 + FRIENDS_SHOWN * 20 + 20 -- the moments' title and the friends under the card, without the moment rows
+  local BELOW_CARD = 18 + 26 + 16 + 26 + FRIENDS_SHOWN * FRIEND_ROW + 20 -- the moments' title and the friends under the card, without the moment rows
 
   -- Everything sized for the window's width, again when it changed (the window can be resized).
   local function fit()
@@ -484,13 +580,11 @@ function ns.buildHomeTab(p)
     local inner = w - 28
     hint:SetWidth(w)
     hint.text:SetWidth(w - 24)
+    banner:SetWidth(w)
+    strip:SetWidth(w)
+    placeStrip(w)
     card:SetWidth(w)
-    for _, fs in ipairs({ pace, estimate, factLines[1], factLines[2] }) do fs:SetWidth(inner) end
-    local tileWidth = math.floor((inner - 3 * 8) / 4)
-    for i, tile in ipairs(tiles) do
-      tile:SetWidth(tileWidth)
-      at(tile, card, 128, (i - 1) * (tileWidth + 8))
-    end
+    for _, fs in ipairs({ pace, factLines[1], factLines[2] }) do fs:SetWidth(inner) end
     for _, row in ipairs(history) do
       row:SetWidth(inner)
       row.zone:SetWidth(inner - 170 - 80)
@@ -503,7 +597,7 @@ function ns.buildHomeTab(p)
     noFriends:SetWidth(w)
     for _, row in ipairs(friendRows) do
       row:SetWidth(w)
-      row.what:SetWidth(w - 196 - 70)
+      row.what:SetWidth(w - 220 - 80)
     end
   end
 
@@ -516,13 +610,7 @@ function ns.buildHomeTab(p)
   layout = function()
     fit()
     placeCard()
-    local y = TILES_END + 12
-    local hasEstimate = (estimate:GetText() or "") ~= ""
-    estimate:SetShown(hasEstimate)
-    if hasEstimate then
-      at(estimate, card, y)
-      y = y + 18
-    end
+    local y = 34
     local open = historyOpen()
     chart:SetShown(summary ~= nil)
     toggle:SetShown(summary ~= nil)
@@ -585,7 +673,7 @@ function ns.buildHomeTab(p)
     local bottom = y + 56 + (math.ceil(math.max(shown, 1) / ns.TODAY_SHOWN) - 1) * 22
     card:SetHeight(bottom)
     -- What the window shows below the rest goes to more moment rows, so a tall window has no empty bottom.
-    local rest = 12 + hintHeight + bottom + BELOW_CARD
+    local rest = 12 + hintHeight + BANNER + STRIP + 9 + bottom + BELOW_CARD
     local room = (ns.pageHeight and ns.pageHeight() or 0) - rest - FEED_SIZE * 20
     setFeedRows(math.max(FEED_SIZE, math.min(FEED_MAX, FEED_SIZE + math.floor(room / 20))))
     p:SetHeight(rest + feedRows * 20)
@@ -594,12 +682,29 @@ function ns.buildHomeTab(p)
 
   -- The parts that change while you play: name, tiles and the estimate.
   local function drawLive(me)
-    if SetPortraitTexture then SetPortraitTexture(portrait, "player") end
+    local r, g, b = ui.classRgb(me.classFile)
+    ui.gradient(tint, r, g, b, 0.30, 0.02)
+    ring:SetVertexColor(r, g, b)
+    classColor[1], classColor[2], classColor[3] = r, g, b
+    ui.box(levelBadge, C.bar, classColor)
+    ui.setPortrait(portrait, { guid = me.guid, classFile = me.classFile })
+    levelText:SetText(me.level or "?")
+    watermark:SetText(me.class and string.upper(me.class) or "")
     name:SetText(me.name or "?")
-    name:SetTextColor(ui.classRgb(me.classFile))
-    sub:SetText(string.format("Level %d %s %s", me.level or 0, me.race or "", me.class or ""))
+    name:SetTextColor(r, g, b)
+    sub:SetText(string.format("%s %s", me.race or "", me.class or ""))
     zone:SetText(me.zone or "")
     local atMax = me.maxLevel and me.level and me.level >= me.maxLevel
+
+    local hasXp = not atMax and me.level ~= nil and (me.xpMax or 0) > 0
+    xpBar:SetShown(hasXp)
+    if hasXp then
+      xpBar:SetMinMaxValues(0, me.xpMax)
+      xpBar:SetValue(me.xp or 0)
+      xpText:SetText(string.format("%d%% to %d", math.floor(100 * (me.xp or 0) / me.xpMax), me.level + 1))
+    else
+      xpText:SetText(atMax and "Max level" or "")
+    end
 
     setTile(tiles[1], me.ilvl and tostring(math.floor(me.ilvl)) or "?", "Item level")
     setTile(tiles[2], me.money and ui.gold(me.money) or "?", "Gold")
@@ -610,7 +715,7 @@ function ns.buildHomeTab(p)
     -- The chart, with the level being played as a paler last bar.
     chart.draw(levels, not atMax and me.levelTime and me.level and { level = me.level + 1, seconds = me.levelTime } or nil)
     local left = not atMax and not ns.IS_RETAIL and ns.timeToMax(levels, db().xpTable, me.level, me.xp, me.xpMax, me.maxLevel)
-    estimate:SetText(left and string.format("About %s played to level %d, at your recent pace", ns.formatPlayed(left), me.maxLevel) or "")
+    estimate:SetText(left and string.format("About %s played to %d at your pace", ns.formatPlayed(left), me.maxLevel) or "")
   end
 
   -- The parts that come from the events: level times, today's counts, the chart and the feed.
@@ -666,6 +771,8 @@ function ns.buildHomeTab(p)
         if c.zone then bits[#bits + 1] = c.zone end
         bits[#bits + 1] = f.label
         setMomentRow(row, ns.fullName(c), c.classFile, table.concat(bits, "  ·  "), f.at, function() ns.toggleFriendDetails(c, f.label) end)
+        row.stripe:SetColorTexture(ui.classRgb(c.classFile))
+        ui.setPortrait(row.portrait, c)
       else
         row:Hide()
       end

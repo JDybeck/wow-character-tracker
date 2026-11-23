@@ -102,7 +102,7 @@ public class AddonWindowTests
     {
         var c = new FriendsLuaTests.Client(Me, "{}", db, settings);
         c.Lua(Widgets);
-        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "RecipeWindow.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
+        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "RecipeWindow.lua", "Shell.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
             c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file)), codeFriendlyName: file), "WoWCharacterTracker", c.Ns);
         return c;
     }
@@ -137,7 +137,9 @@ public class AddonWindowTests
         c.Lua("SlashCmdList.CHARACTERTRACKER('')");
         Assert.True(Bool(c, "shownText('PLAYING NOW') ~= nil"));
         Assert.True(Bool(c, "shownText('Zeb') ~= nil"));
-        Assert.True(Bool(c, "shownText('Level 45 Night Elf Warrior') ~= nil"));
+        Assert.True(Bool(c, "shownText('Night Elf Warrior') ~= nil"));
+        Assert.True(Bool(c, "shownText(45) ~= nil")); // the level, on the portrait's badge
+        Assert.True(Bool(c, "shownText('25% to 46') ~= nil")); // under the XP bar
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m  ·  average 1h 57m') ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
         // The level history is folded until opened, and stays as you left it.
@@ -316,6 +318,22 @@ public class AddonWindowTests
         Assert.Contains("WoWCharacterTrackerWindow", c.Lua("return table.concat(UISpecialFrames, ',')").String);
         c.Call("toggleWindow");
         Assert.False(Bool(c, "ns.windowShown()"));
+    }
+
+    // The tabs are a bar of icons down the left: the open one lit, its name over the page, and a
+    // count on Friends while friend requests wait.
+    [Fact]
+    public void The_tab_bar_lights_the_open_tab_and_counts_friend_requests()
+    {
+        var c = Load();
+        c.Lua("ns.pendingRequests = function() return { {}, {} } end");
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "find('Sharing').bg.shown and not find('Home').bg.shown"));
+        Assert.Contains("INV_Misc_Gear_01", c.Lua("return find('Settings').icon.texture").String);
+        c.Lua("rail = find('Home').parent; rail.scripts.OnUpdate(rail, 2)");
+        Assert.True(Bool(c, "shownText('2') ~= nil")); // the badge on Friends
+        c.Lua("find('Settings').scripts.OnClick(find('Settings'))");
+        Assert.True(Bool(c, "find('Settings').bg.shown and not find('Sharing').bg.shown"));
     }
 
     [Fact]
@@ -664,8 +682,8 @@ public class AddonWindowTests
             end
             grip.scripts.OnMouseUp(grip)
             """);
-        Assert.Equal(1020, Num(c, "cardOf().width")); // 1100 less the window's edges and the scroll bar
-        Assert.Equal(1020, Num(c, "find('Friends tab').point[4]")); // at the right edge of the wider page
+        Assert.Equal(952, Num(c, "cardOf().width")); // 1100 less the tab bar on the left, the window's edges and the scroll bar
+        Assert.Equal(952, Num(c, "find('Friends tab').point[4]")); // at the right edge of the wider page
     }
 
     // Without the app, Home says what it adds and where to get it, until Got it; with it, nothing.

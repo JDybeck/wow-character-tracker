@@ -625,3 +625,28 @@ function ui.setPortrait(f, c)
     f.face:Hide()
   end
 end
+
+-- A class's round icon on texture (the same circles the portraits sit on), or false when unknown.
+function ui.classIcon(texture, classFile)
+  local coords = classFile and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[classFile]
+  if not coords then return false end
+  texture:SetTexture(CLASS_CIRCLES)
+  texture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+  return true
+end
+
+-- A left-to-right fade of one color on texture, from alpha `from` to alpha `to`. Retail and the
+-- newer classic clients take color objects, older ones SetGradientAlpha; whichever works.
+function ui.gradient(texture, r, g, b, from, to)
+  texture:SetTexture("Interface\\Buttons\\WHITE8X8")
+  texture:SetVertexColor(1, 1, 1, 1)
+  if CreateColor and texture.SetGradient
+    and pcall(texture.SetGradient, texture, "HORIZONTAL", CreateColor(r, g, b, from), CreateColor(r, g, b, to)) then
+    return
+  end
+  if texture.SetGradientAlpha then
+    texture:SetGradientAlpha("HORIZONTAL", r, g, b, from, r, g, b, to)
+  else
+    texture:SetColorTexture(r, g, b, (from + to) / 2)
+  end
+end
