@@ -353,7 +353,7 @@ local REQUEST = 34  -- a request banner
 local drawFriends
 local openSharing -- opens what you share with one contact beside the window (set further down)
 local buildShareDefaults -- what all friends get, under the Friends tab's lists (set further down)
-local SHARE_DEFAULTS_HEIGHT = 400
+local SHARE_DEFAULTS_HEIGHT = 426
 local searched = false -- Find online friends was clicked this session
 local friendsSaid = "" -- what the last button said, shown under the hint
 local openFriendTag    -- the friend whose characters are unfolded (one at a time, this session)
@@ -968,9 +968,9 @@ end
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
 -- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
 local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
-local SHARING_HEIGHT = 660
-local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", highlights = "Highlights", leveling = "Level times",
-  gold = "Gold", map = "Map position", otherFaction = "Map for the other faction" }
+local SHARING_HEIGHT = 712
+local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", reputations = "Reputations", highlights = "Highlights",
+  leveling = "Level times", gold = "Gold", map = "Map position", otherFaction = "Map for the other faction" }
 local sharingTag, sharingTitle, sharingSummary, theirsText, askSaid, nickname
 local categoryButtons, askButtons = {}, {}
 local askWants = {} -- [category] = true: picked to ask them for
@@ -1133,11 +1133,11 @@ end
 -- Friends.lua queues the requests and shows one at a time, never in combat. Closing it is Not now.
 local REQUEST_BOX = "WoWCharacterTrackerRequestBox"
 local REQUEST_WIDTH = 440
-local REQUEST_SHORT, REQUEST_TALL = 150, 288
+local REQUEST_SHORT, REQUEST_TALL = 150, 314
 local PRESETS = {
   { "Like all friends" },
-  { "Everything", { gear = true, talents = true, location = true, professions = true, highlights = true, leveling = true, gold = true, map = true } },
-  { "Basics only", { gear = false, talents = false, location = false, professions = false, highlights = false, leveling = false, gold = false, map = false } },
+  { "Everything", { gear = true, talents = true, location = true, professions = true, reputations = true, highlights = true, leveling = true, gold = true, map = true } },
+  { "Basics only", { gear = false, talents = false, location = false, professions = false, reputations = false, highlights = false, leveling = false, gold = false, map = false } },
 }
 local requestBox
 
@@ -1193,7 +1193,7 @@ local function buildRequestBox()
   -- The unfolded part: the shortcuts, then a checkbox per category in two columns.
   local choices = CreateFrame("Frame", nil, box)
   choices:SetPoint("TOPLEFT", box.toggle, "BOTTOMLEFT", 0, -8)
-  choices:SetSize(REQUEST_WIDTH - 32, 136)
+  choices:SetSize(REQUEST_WIDTH - 32, 162)
   box.choicesFrame = choices
   local last
   for i, preset in ipairs(PRESETS) do
@@ -1308,7 +1308,7 @@ local function buildAskBox()
     if box.onSaid then box.onSaid(said) end
   end, "primary")
   go:SetPoint("RIGHT", cancel, "LEFT", -6, 0)
-  box:SetHeight(440)
+  box:SetHeight(466)
   askBox = box
 end
 
@@ -2164,7 +2164,8 @@ buildShareDefaults = function(p)
   local whatTitle = ui.text(p, "GameFontNormalSmall", "What friends get (name, level, class and item level always)")
   whatTitle:SetPoint("TOPLEFT", shareNew, "BOTTOMLEFT", 4, -24)
   local gridLast = ui.checkGrid(p, { { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "professions", "Professions" },
-    { "highlights", "Highlights" }, { "leveling", "Level times" }, { "gold", "Gold" }, { "map", "Map position" } }, whatTitle,
+    { "reputations", "Reputations" }, { "highlights", "Highlights" }, { "leveling", "Level times" }, { "gold", "Gold" },
+    { "map", "Map position" } }, whatTitle,
     function(key) return ns.shareSettings().defaults[key] == true end,
     function(key, on) ns.editShare(function(s) s.defaults[key] = on end) end)
   local otherFaction = ui.checkbox(p, "Show my map position to the other faction",

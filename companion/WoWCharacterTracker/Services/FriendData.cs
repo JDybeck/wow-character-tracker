@@ -16,13 +16,13 @@ static partial class FriendData
     {
         ["char"] = 24, ["surname"] = 24, ["realm"] = 40, ["ruleset"] = 24, ["class"] = 24, ["classFile"] = 16, ["race"] = 24, ["raceFile"] = 16, ["sex"] = 6,
         ["faction"] = 10, ["spec"] = 32, ["talents"] = 1024, ["talentCalc"] = 256, ["gear"] = 512, ["enchants"] = 2048, ["zone"] = 64, ["professions"] = 256,
-        ["highlights"] = 1024, ["levels"] = 1600, ["recipes"] = 3000, ["days"] = 900,
+        ["highlights"] = 1024, ["levels"] = 1600, ["recipes"] = 3000, ["days"] = 900, ["reputations"] = 1200,
     };
     // The category of each field that has one (the addon's FIELDS); the rest always go.
     static readonly Dictionary<string, string> FieldCategory = new()
     {
         ["talents"] = "talents", ["talentCalc"] = "talents", ["gear"] = "gear", ["enchants"] = "gear", ["zone"] = "location",
-        ["professions"] = "professions", ["recipes"] = "professions", ["money"] = "gold", ["highlights"] = "highlights",
+        ["professions"] = "professions", ["recipes"] = "professions", ["reputations"] = "reputations", ["money"] = "gold", ["highlights"] = "highlights",
         ["levels"] = "leveling", ["played"] = "leveling", ["levelTime"] = "leveling", ["xp"] = "leveling", ["xpMax"] = "leveling",
         ["maxLevel"] = "leveling", ["days"] = "leveling",
     };
@@ -99,7 +99,7 @@ static partial class FriendData
         {
             if (p.Value.Type != DataType.Table) continue;
             var t = p.Value.Table;
-            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights" or "levels" or "recipes" or "days");
+            string S(string key) => Text(t.Get(key), Max[key], lines: key is "enchants" or "highlights" or "levels" or "recipes" or "days" or "reputations");
             double N(string key) => Number(t.Get(key));
             var guid = t.Get("guid").Type == DataType.String ? t.Get("guid").String : "";
             var name = S("char");
@@ -107,7 +107,7 @@ static partial class FriendData
             var snapshot = new Snapshot(guid, name, S("realm"), (int)N("level"), S("class"), S("classFile"), S("race"), S("raceFile"),
                 Sex: S("sex") == "female" ? "female" : "male", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: Whole(N("played")), Zone: S("zone"), Professions: S("professions"), Talents: S("talents"),
                 LastSeen: (long)N("at"), Hardcore: false, Ruleset: S("ruleset"), Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction"),
-                Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200), LevelTime: Whole(N("levelTime")), Recipes: S("recipes")) { Surname = S("surname") };
+                Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200), LevelTime: Whole(N("levelTime")), Recipes: S("recipes"), Reputations: S("reputations")) { Surname = S("surname") };
             // No gear shared: no inventory, so the gear tab says it isn't shared.
             var inventory = S("gear").Length > 0 ? Inventory.Parse(guid, k => k is "gear" or "enchants" ? S(k) : "", _ => 0) : null;
             list.Add((snapshot, inventory, [.. ReadHighlights(snapshot, S("highlights")), .. ReadLevels(snapshot, S("levels"))], [.. ReadDays(guid, S("days"))], CategoriesOf(t)));
@@ -192,7 +192,8 @@ static partial class FriendData
         if (d is not null)
             general = new(Flag(d, "gear") ?? general.Gear, Flag(d, "talents") ?? general.Talents,
                 Flag(d, "location") ?? general.Location, Flag(d, "gold") ?? general.Gold, Flag(d, "professions") ?? general.Professions,
-                Flag(d, "map") ?? general.Map, Flag(d, "otherFaction") ?? general.OtherFaction, Flag(d, "highlights") ?? general.Highlights, Flag(d, "leveling") ?? general.Leveling);
+                Flag(d, "map") ?? general.Map, Flag(d, "otherFaction") ?? general.OtherFaction, Flag(d, "highlights") ?? general.Highlights, Flag(d, "leveling") ?? general.Leveling,
+                Flag(d, "reputations") ?? general.Reputations);
         var chars = new Dictionary<string, bool>();
         foreach (var p in Pairs(t.Get("chars")))
             if (p.Value.Type == DataType.Boolean) chars[p.Key.String] = p.Value.Boolean;
@@ -203,7 +204,7 @@ static partial class FriendData
                 var c = p.Value.Table;
                 contacts[p.Key.String] = new(Flag(c, "share") == true, Flag(c, "receive") == true,
                     Flag(c, "gear"), Flag(c, "talents"), Flag(c, "location"), Flag(c, "gold"), Flag(c, "professions"),
-                    Flag(c, "map"), Flag(c, "otherFaction"), Flag(c, "highlights"), Flag(c, "leveling"));
+                    Flag(c, "map"), Flag(c, "otherFaction"), Flag(c, "highlights"), Flag(c, "leveling"), Flag(c, "reputations"));
             }
         var blocked = Pairs(t.Get("blocked")).Where(p => p.Value.CastToBool()).Select(p => p.Key.String).ToHashSet();
         var rate = (int)Number(t.Get("mapRate"));

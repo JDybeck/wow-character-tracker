@@ -4,9 +4,16 @@ The app shows the notes for a new version when it finds an update, and the newes
 
 ## v0.42.5
 
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Share your reputations with friends.** Reputations are a new category in what friends get, on by default like professions: the app's sharing settings, the addon's Friends tab, the request box and `/wct friends set all reputations off`. A friend's character then lists them on its Overview, the ones it has worked on most first. Friends see them once both of you have this version.
+
 ### Fixes and tweaks
 
 - **A tidier character overview.** The overview no longer runs long on the left while the right sits empty. The left now has who the character is (played, gold and last zone side by side, then portrait, professions and stats) and, under a divider, tags and posting. The right has highlights, talents and reputations.
+- **Smaller friend cards.** The cards at the top of the Friends page are about half as tall: the friend and the character they played last. Hover one for when it was seen and their gold and played time.
 
 ## v0.42.4
 

@@ -92,13 +92,22 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:FriendCard}">
-                  <Button Width="252" Margin="0,0,8,8" Cursor="Hand" AllowDrop="True"
-                          ToolTip="Click to list only their characters, again for everyone. Drag to move them."
+                  <!-- Compact: name and the character played last; when it was seen and their totals are in the tooltip. -->
+                  <Button Width="200" Margin="0,0,6,6" Cursor="Hand" AllowDrop="True"
                           Command="{Binding DataContext.SelectFriendCommand, ElementName=FriendGrid}" CommandParameter="{Binding}"
                           PreviewMouseLeftButtonDown="Card_MouseDown" PreviewMouseLeftButtonUp="Card_MouseUp" PreviewMouseMove="Card_MouseMove" DragOver="Card_DragOver" Drop="Card_Drop">
+                    <Button.ToolTip>
+                      <StackPanel MaxWidth="320">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding CountText}"/>
+                        <TextBlock Text="{Binding SeenText}"/>
+                        <TextBlock Text="{Binding TotalsText}" Visibility="{Binding TotalsText, Converter={StaticResource VisibleIfSet}}"/>
+                        <TextBlock Text="Click to list only their characters, again for everyone. Drag to move them." Margin="0,6,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+                      </StackPanel>
+                    </Button.ToolTip>
                     <Button.Template>
                       <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" CornerRadius="10" Padding="10,8" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+                        <Border x:Name="Bd" CornerRadius="8" Padding="8,5" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
                           <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -112,37 +121,29 @@
                       </ControlTemplate>
                     </Button.Template>
                     <DockPanel>
-                      <Grid DockPanel.Dock="Left" Width="38" Height="38" Margin="0,0,10,0" VerticalAlignment="Top">
+                      <Grid DockPanel.Dock="Left" Width="28" Height="28" Margin="0,0,8,0" VerticalAlignment="Center">
                         <Ellipse Fill="{Binding Current.ClassSoftBrush}" Stroke="#1AFFFFFF"/>
-                        <TextBlock Text="{Binding Current.Initial}" Foreground="{Binding Current.ClassBrush}" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Current.Initial}" Foreground="{Binding Current.ClassBrush}" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <Image Source="{Binding Current.PictureUrl, Converter={StaticResource WebImage}}" Stretch="UniformToFill">
                           <Image.Clip>
-                            <EllipseGeometry Center="19,19" RadiusX="19" RadiusY="19"/>
+                            <EllipseGeometry Center="14,14" RadiusX="14" RadiusY="14"/>
                           </Image.Clip>
                         </Image>
                         <Ellipse Stroke="{Binding Current.ClassBrush}" StrokeThickness="1.5"/>
                       </Grid>
-                      <StackPanel>
-                        <DockPanel>
-                          <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}" FontSize="11" Foreground="{StaticResource Dim}" Margin="6,1,0,0"/>
-                          <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                        </DockPanel>
-                        <TextBlock FontSize="12" TextTrimming="CharacterEllipsis">
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock FontSize="11" TextTrimming="CharacterEllipsis">
                           <Run Text="{Binding Current.FullName, Mode=OneWay}" Foreground="{Binding Current.ClassBrush, Mode=OneWay}"/>
                           <Run Text="{Binding Current.Level, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
                         </TextBlock>
-                        <TextBlock Text="{Binding SeenText}" FontSize="11" Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis"/>
-                        <!-- Their gold and played added up, with their share of all friends'. -->
-                        <TextBlock Text="{Binding TotalsText}" FontSize="11" Foreground="{StaticResource TextSoft}" TextTrimming="CharacterEllipsis"
-                                   ToolTip="Their gold and played time, added up over the characters they share, and their share of all your friends'. Only friends who share gold or level times count."
-                                   Visibility="{Binding TotalsText, Converter={StaticResource VisibleIfSet}}"/>
                       </StackPanel>
                     </DockPanel>
                   </Button>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <TextBlock Margin="0,2,0,0" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+            <TextBlock Margin="0,0,0,0" FontSize="11" Foreground="{StaticResource Dim}" TextWrapping="Wrap"
                        Text="What friends share reaches the app on your next /reload or logout. To get it fresh, type /wct friends ask &lt;BattleTag&gt; in game."/>
           </StackPanel>
         </DockPanel>
@@ -261,6 +262,8 @@
             <CheckBox Style="{StaticResource OptionChip}" Content="Talents" IsChecked="{Binding ShareTalents}" Margin="0,0,6,6"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Location" IsChecked="{Binding ShareLocation}" Margin="0,0,6,6" ToolTip="The zone you're in"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Professions" IsChecked="{Binding ShareProfessions}" Margin="0,0,6,6" ToolTip="Each profession with its skill"/>
+            <CheckBox Style="{StaticResource OptionChip}" Content="Reputations" IsChecked="{Binding ShareReputations}" Margin="0,0,6,6"
+                      ToolTip="Each character's factions and standings, the highest first"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Highlights" IsChecked="{Binding ShareHighlights}" Margin="0,0,6,6"
                       ToolTip="Each character's newest 10 boss kills, rare loot, mounts, duels, milestones and deaths. Who was in your group stays with you"/>
             <CheckBox Style="{StaticResource OptionChip}" Content="Level times" IsChecked="{Binding ShareLeveling}" Margin="0,0,6,6"
