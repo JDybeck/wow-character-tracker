@@ -437,7 +437,7 @@ function ns.sendLive(e)
   if #batch == 0 then batchStarted = time() end
   batchBytes = batchBytes + (#batch > 0 and 1 or 0) + #line
   batch[#batch + 1] = line
-  if e.kind == "snapshot" then batchPortrait = true end
+  if e.kind == "snapshot" or e.kind == "portrait" then batchPortrait = true end
   scheduleBatch()
 end
 
@@ -515,6 +515,38 @@ function ns.checkIn()
   local e = ns.liveEvent("snapshot")
   e.played = ns.playedNow()
   ns.sendLive(e)
+  ns.refreshPortrait(false) -- remembers the look the check-in shows
+end
+
+-- The check-in's portrait is the app's picture of the character until the next login, so a new
+-- look mid-session (the barbershop, a sex or race change) sends it again: a "portrait" event, which
+-- the app only uses for the picture and the character's details (no "logged in", no post).
+-- appearanceApplied: the barbershop applied something; otherwise only a changed sex or race counts
+-- (UNIT_PORTRAIT_UPDATE also comes for zoning, shapeshifts and more). Before the check-in there's
+-- nothing to do: it's still to come and takes the portrait as it is then.
+local shownLook
+local function currentLook()
+  local _, raceFile = UnitRace("player")
+  return tostring(UnitSex("player")) .. ":" .. tostring(raceFile)
+end
+local portraitTimer = 0
+function ns.refreshPortrait(appearanceApplied)
+  local ok, look = pcall(currentLook)
+  if not ok then return end
+  if not checkedIn then return end
+  if shownLook == nil then shownLook = look return end -- the check-in's
+  if not appearanceApplied and look == shownLook then return end
+  shownLook = look
+  -- One event for a few changes in a row (the barbershop applies them together, the portrait
+  -- updates more than once).
+  portraitTimer = portraitTimer + 1
+  local mine = portraitTimer
+  C_Timer.After(1, function()
+    if mine ~= portraitTimer or ns.loggingOut then return end
+    local e = ns.liveEvent("portrait")
+    e.played = ns.playedNow()
+    ns.sendLive(e)
+  end)
 end
 
 -- An event that only goes live, never into the saved file (the check-in, /wct test), with

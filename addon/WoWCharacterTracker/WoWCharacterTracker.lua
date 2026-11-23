@@ -235,6 +235,9 @@ function on.QUEST_TURNED_IN(questID)
   ns.onWeeklyTurnedIn(questID) -- Forever's In Demand weekly (Weekly.lua)
 end
 function on.UNIT_SPELLCAST_SUCCEEDED(unit, castGUID, spellID) ns.onSpellcast(unit, castGUID, spellID) end
+-- A new look: the app gets the new portrait (LiveGrid.lua). The barber's changes take a moment to show.
+function on.BARBER_SHOP_APPEARANCE_APPLIED() C_Timer.After(2, function() ns.refreshPortrait(true) end) end
+function on.UNIT_PORTRAIT_UPDATE(unit) if unit == "player" then ns.refreshPortrait(false) end end
 function on.LOOT_OPENED()
   ns.onLootOpened()
   ns.onWeeklyLootOpened()

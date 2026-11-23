@@ -19,7 +19,7 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
     // A picture the game may still be writing isn't given up on until it's this old.
     static readonly TimeSpan Settle = TimeSpan.FromSeconds(2);
 
-    // With when the game took the picture, and the character's portrait from a check-in shot (or null).
+    // With when the game took the picture, and the character's portrait from a check-in or new-look shot (or null).
     public event Action<Entry, DateTime, byte[]?>? EntryReceived;
     public event Action<string>? Unreadable; // looked like a data grid but didn't check out
 
@@ -99,7 +99,7 @@ sealed class ScreenshotChannel(string flavorDir, Func<string> corner) : IDisposa
                         var shotAt = File.GetCreationTime(file);
                         Files.TryDelete(file);
                         foreach (var entry in Payload.ParseAll(payload!))
-                            EntryReceived?.Invoke(entry, shotAt, entry.Kind == "snapshot" ? GridDecoder.CropPortrait(frame!, cellSize, where) : null);
+                            EntryReceived?.Invoke(entry, shotAt, entry.Kind is "snapshot" or "portrait" ? GridDecoder.CropPortrait(frame!, cellSize, where) : null);
                         break;
                     case GridResult.Damaged when age < Settle:
                         waiting = true; // maybe read half-written: once more in a moment
