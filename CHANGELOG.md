@@ -2,6 +2,18 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.42.5
+
+Update the addon with the app (it does this by itself), then exit the game fully and start it again once.
+
+### New
+
+- **Portraits in the addon window.** Your characters on the Characters tab, and your friends' cards and character rows on the Friends tab, now show a small round portrait: the same picture as in the app (your in-game portrait on Forever, the armory picture for friends). The app saves them into the addon folder, so new and changed faces show after a /reload; the first time needs a full game restart. Without the app, or before a portrait is there, the class icon shows, and the character you're on shows its live portrait.
+
+### Fixes and tweaks
+
+- **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
+
 ## v0.42.4
 
 Update the addon with the app (it does this by itself) and /reload in game.

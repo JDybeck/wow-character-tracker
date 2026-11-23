@@ -578,3 +578,50 @@ function ui.fitHeight(page)
   for _, r in ipairs({ page:GetChildren() }) do lower(r) end
   if lowest < top then page:SetHeight(math.floor(top - lowest + 20)) end
 end
+
+-- A character's picture, round: the app's portrait of it (Portraits.lua, a slot file in the
+-- Portraits folder), over its class icon. The class icon shows while there's no portrait, and also
+-- when a slot file came after the game started (the game only reads it after a restart, and until
+-- then it draws nothing). Your current character without one gets its live portrait.
+local PORTRAITS = "Interface\\AddOns\\WoWCharacterTracker\\Portraits\\"
+local CLASS_CIRCLES = "Interface\\TargetingFrame\\UI-Classes-Circles"
+
+function ns.portraitSlot(guid)
+  local index = WoWCharacterTrackerPortraits
+  local slot = type(index) == "table" and guid and index[guid]
+  return type(slot) == "number" and slot or nil
+end
+
+-- The room a portrait and its gap take before the text: on a character row, on a friend's card.
+ui.ROW_PORTRAIT, ui.CARD_PORTRAIT = 36, 48
+
+function ui.portrait(parent, size)
+  local f = CreateFrame("Frame", nil, parent)
+  f:SetSize(size, size)
+  f.class = f:CreateTexture(nil, "ARTWORK", nil, 1)
+  f.class:SetAllPoints()
+  f.face = f:CreateTexture(nil, "ARTWORK", nil, 2)
+  f.face:SetAllPoints()
+  return f
+end
+
+function ui.setPortrait(f, c)
+  local coords = c and c.classFile and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[c.classFile]
+  if coords then
+    f.class:SetTexture(CLASS_CIRCLES)
+    f.class:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+    f.class:Show()
+  else
+    f.class:Hide()
+  end
+  local slot = c and ns.portraitSlot(c.guid)
+  f.face:SetTexCoord(0, 1, 0, 1)
+  if slot then
+    f.face:SetTexture(PORTRAITS .. slot)
+    f.face:Show()
+  elseif c and c.guid and UnitGUID and c.guid == UnitGUID("player") and SetPortraitTexture and pcall(SetPortraitTexture, f.face, "player") then
+    f.face:Show()
+  else
+    f.face:Hide()
+  end
+end

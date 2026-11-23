@@ -1469,11 +1469,15 @@ local function newPill(parent, width)
   return pill
 end
 
--- A shared character's row, like the app's: name and race/zone, then class and spec, level and
--- item level in pills, and when it was last seen. Clicking it opens the details.
+-- A shared character's row, like the app's: its portrait, name and race/zone, then class and spec,
+-- level and item level in pills, and when it was last seen. Clicking it opens the details.
 local function newCharRow(p, width)
   local row = newCard(p, width)
-  row.infoText:SetWidth(width - 380)
+  row.portrait = ui.portrait(row, 28)
+  row.portrait:SetPoint("LEFT", row, "LEFT", 16, 0)
+  row.nameText:SetPoint("TOPLEFT", row, "TOPLEFT", 18 + ui.ROW_PORTRAIT, -6)
+  row.infoText:SetPoint("TOPLEFT", row, "TOPLEFT", 18 + ui.ROW_PORTRAIT, -23)
+  row.infoText:SetWidth(width - 380 - ui.ROW_PORTRAIT)
   row.classText = ui.text(row, "GameFontHighlightSmall")
   row.classText:SetPoint("LEFT", row, "RIGHT", -360, 0)
   row.classText:SetWidth(150)
@@ -1490,6 +1494,7 @@ end
 
 local function setCharRow(row, c)
   setCard(row, fullName(c), c.classFile, charInfo(c))
+  ui.setPortrait(row.portrait, c)
   local class = c.class or ""
   row.classText:SetText(c.spec and (c.spec .. " " .. class) or class)
   classColor(row.classText, c.classFile)
@@ -1645,18 +1650,21 @@ local function buildFriends(p)
     card.dot = card:CreateTexture(nil, "ARTWORK")
     card.dot:SetSize(7, 7)
     card.dot:SetPoint("TOPRIGHT", card, "TOPRIGHT", -9, -10)
-    -- Who first (nickname and BattleTag, beside the online dot), then the character they play.
+    -- The portrait of the character they play, then who (nickname and BattleTag, beside the online
+    -- dot) and that character.
+    card.portrait = ui.portrait(card, 40)
+    card.portrait:SetPoint("LEFT", card, "LEFT", 16, 0)
     card.whoText = ui.text(card, "GameFontNormalSmall")
-    card.whoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -9)
-    card.whoText:SetWidth(cardWidth - 40)
+    card.whoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16 + ui.CARD_PORTRAIT, -9)
+    card.whoText:SetWidth(cardWidth - 40 - ui.CARD_PORTRAIT)
     card.whoText:SetWordWrap(false)
     card.nameText = ui.text(card, "GameFontHighlight")
-    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -24)
-    card.nameText:SetWidth(cardWidth - 24)
+    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 16 + ui.CARD_PORTRAIT, -24)
+    card.nameText:SetWidth(cardWidth - 24 - ui.CARD_PORTRAIT)
     card.nameText:SetWordWrap(false)
     card.infoText = ui.text(card, "GameFontDisableSmall")
-    card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -43)
-    card.infoText:SetWidth(cardWidth - 24)
+    card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16 + ui.CARD_PORTRAIT, -43)
+    card.infoText:SetWidth(cardWidth - 24 - ui.CARD_PORTRAIT)
     card.infoText:SetWordWrap(false)
     card:SetScript("OnEnter", showHover)
     card:SetScript("OnLeave", hideHover)
@@ -1894,8 +1902,9 @@ local function buildFriends(p)
       local c, label = person.current, who(person.label, person.tag)
       card.tag, card.order = person.tag, order
       card:SetWidth(cardWidth)
-      for _, fs in ipairs({ card.nameText, card.infoText }) do fs:SetWidth(cardWidth - 24) end
-      card.whoText:SetWidth(cardWidth - 40)
+      for _, fs in ipairs({ card.nameText, card.infoText }) do fs:SetWidth(cardWidth - 24 - ui.CARD_PORTRAIT) end
+      card.whoText:SetWidth(cardWidth - 40 - ui.CARD_PORTRAIT)
+      ui.setPortrait(card.portrait, c)
       cardByTag[person.tag] = card
       card.whoText:SetText(label)
       card.nameText:SetText(c and fullName(c) or "")
@@ -2293,8 +2302,8 @@ end
 local TABS = {
   { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
   { key = "characters", label = "Characters", height = 1000, build = buildCharacters }, -- grows with the list
-  { key = "sharing", label = "Sharing", height = 1600, build = buildSharingTab, fit = true }, -- a row per moment, then friends
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
+  { key = "sharing", label = "Sharing", height = 1600, build = buildSharingTab, fit = true }, -- a row per moment, then friends
   { key = "settings", label = "Settings", height = 1200, build = buildSettings, fit = true },
 }
 local BY_KEY = {}

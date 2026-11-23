@@ -9,6 +9,7 @@
 ## SavedVariables: WoWCharacterTrackerDB
 
 Settings.lua
+Portraits.lua
 Shared.lua
 Leveling.lua
 FriendData.lua

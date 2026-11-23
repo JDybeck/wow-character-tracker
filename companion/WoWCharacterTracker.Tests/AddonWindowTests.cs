@@ -300,7 +300,7 @@ public class AddonWindowTests
     {
         var c = Load();
         c.Call("openWindow", "general");
-        foreach (var tab in new[] { "Home", "Characters", "Sharing", "Friends", "Settings" })
+        foreach (var tab in new[] { "Home", "Characters", "Friends", "Sharing", "Settings" })
             Assert.True(Bool(c, $"find('{tab}') ~= nil"), tab);
         Assert.True(Bool(c, "find('Note') == nil")); // the note box's options are a section of Settings
         Assert.True(Bool(c, "ns.windowShown()"));
@@ -1153,6 +1153,35 @@ public class AddonWindowTests
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m') ~= nil")); // its level times
         Assert.True(Bool(c, "shownText('7g 0s 0c') ~= nil"));
+    }
+
+    // A row's portrait: the app's picture (Portraits.lua's slot) over the class icon; without one the
+    // class icon, and the character being played gets its live portrait.
+    [Fact]
+    public void Character_rows_show_the_apps_portrait_or_the_class_icon()
+    {
+        var c = Load("""
+            { chars = {
+                ['Player-1-0000000A'] = { char = 'Zeb', level = 45, class = 'Warrior', classFile = 'WARRIOR', lastSeen = 300 },
+                ['Player-1-0000000B'] = { char = 'Bea', level = 30, class = 'Priest', classFile = 'PRIEST', lastSeen = 200 },
+                ['Player-1-0000000C'] = { char = 'Alt', level = 12, class = 'Mage', classFile = 'MAGE', lastSeen = 100 } },
+              items = {}, events = {} }
+            """);
+        c.Lua("""
+            WoWCharacterTrackerPortraits = { ['Player-1-0000000B'] = 7 }
+            CLASS_ICON_TCOORDS = { WARRIOR = { 0, 0.25, 0, 0.25 }, PRIEST = { 0.5, 0.75, 0.25, 0.5 }, MAGE = { 0.25, 0.5, 0, 0.25 } }
+            live = {}
+            function SetPortraitTexture(t, unit) live[#live + 1] = unit; t.texture = 'live:' .. unit end
+            function face(name) return shownText(name).owner.portrait.face end
+            function class(name) return shownText(name).owner.portrait.class end
+            """);
+        c.Call("openWindow", "characters");
+        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\7", c.Lua("return face('Bea').texture").String);
+        Assert.True(Bool(c, "face('Bea').shown"));
+        Assert.Equal(@"Interface\TargetingFrame\UI-Classes-Circles", c.Lua("return class('Bea').texture").String); // under it
+        Assert.True(Bool(c, "face('Alt').shown == false")); // no portrait: the class icon
+        Assert.True(Bool(c, "class('Alt').shown"));
+        Assert.Equal("live:player", c.Lua("return face('Zeb').texture").String); // the one being played
     }
 
     // Home: friends' moments beside yours, and a friend's row opens their details like the Friends tab.

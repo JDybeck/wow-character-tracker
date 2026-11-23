@@ -57,6 +57,8 @@ static partial class AddonInstaller
                 Files.WriteAtomic(Path.Combine(target, fileName), ReadBundledBytes(fileName)); // pictures, as they are
                 continue;
             }
+            // The app's index of portraits (AddonPortraits) stays: the files it points to stay too.
+            if (fileName.Equals(AddonPortraits.IndexFile, StringComparison.OrdinalIgnoreCase) && File.Exists(Path.Combine(target, fileName))) continue;
             var content = ReadBundled(fileName);
             if (fileName.EndsWith(".toc", StringComparison.Ordinal) && interfaceVersion is int v)
                 content = InterfaceLine().Replace(content, $"## Interface: {v}", 1);
@@ -71,7 +73,7 @@ static partial class AddonInstaller
     }
 
     // Whether the installed addon is exactly this app's: every bundled file there with the same content
-    // (the .toc's interface number and Settings.lua, which the app writes itself, aside). An app update
+    // (the .toc's interface number, Settings.lua and Portraits.lua, which the app writes itself, aside). An app update
     // can change the addon without raising its version, so the version alone can't tell.
     public static bool MatchesBundled(string flavorDir)
     {
@@ -79,7 +81,7 @@ static partial class AddonInstaller
         var asm = Assembly.GetExecutingAssembly();
         foreach (var fileName in asm.GetManifestResourceNames().Where(n => n.StartsWith(Prefix, StringComparison.Ordinal)).Select(n => n[Prefix.Length..]))
         {
-            if (fileName.Equals("Settings.lua", StringComparison.OrdinalIgnoreCase)) continue;
+            if (fileName.Equals("Settings.lua", StringComparison.OrdinalIgnoreCase) || fileName.Equals(AddonPortraits.IndexFile, StringComparison.OrdinalIgnoreCase)) continue;
             var path = Path.Combine(target, fileName);
             if (!File.Exists(path)) return false;
             if (!IsText(fileName))
