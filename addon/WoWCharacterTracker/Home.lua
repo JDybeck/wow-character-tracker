@@ -271,6 +271,21 @@ local function buildAppHint(p)
 end
 
 
+-- "12,345g account": the gold of all your characters in this game (this one's live), under the
+-- character's own gold. Just "Gold" with only this one.
+local function accountGold(me)
+  local total, others = me.money or 0, 0
+  for guid, c in pairs(db().chars or {}) do
+    if guid ~= me.guid and tonumber(c.money) then
+      total, others = total + c.money, others + 1
+    end
+  end
+  if others == 0 then return "Gold" end
+  local g = tostring(math.floor(total / 10000))
+  local grouped = g:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+  return grouped .. "g account"
+end
+
 -- A card: the theme's card color with a thin edge.
 local function newCard(p)
   local card = CreateFrame("Frame", nil, p)
@@ -677,7 +692,7 @@ function ns.buildHomeTab(p)
     end
 
     setTile(tiles[1], me.ilvl and tostring(math.floor(me.ilvl)) or "?", "Item level")
-    setTile(tiles[2], me.money and ui.gold(me.money) or "?", "Gold")
+    setTile(tiles[2], me.money and ui.gold(me.money) or "?", accountGold(me))
     setTile(tiles[3], me.played and ns.formatPlayed(me.played) or "?", "Played")
 
     -- The chart, with the level being played as a paler last bar.

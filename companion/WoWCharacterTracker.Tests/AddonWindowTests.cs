@@ -116,7 +116,7 @@ public class AddonWindowTests
     public void Home_shows_the_character_with_its_level_times()
     {
         var c = Load("""
-            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', ilvl = 35, played = 90000 } }, items = {}, events = {
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', ilvl = 35, played = 90000 }, ['Player-1-0000000B'] = { char = 'Alt', money = 12000000 } }, items = {}, events = {
               { kind = 'level', guid = 'Player-1-0000000A', char = 'Zeb', level = 44, seconds = 3600, at = 10 },
               { kind = 'level', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, seconds = 10440, at = 20 },
               { kind = 'boss', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, boss = 'Archaedas', instance = 'Uldaman', at = 30 } } }
@@ -127,6 +127,7 @@ public class AddonWindowTests
             function UnitClass() return 'Warrior', 'WARRIOR' end
             function UnitRace() return 'Night Elf' end
             function UnitXP() return 1000 end
+            function GetMoney() return 3400000 end
             function UnitXPMax() return 4000 end
             function GetMaxPlayerLevel() return 60 end
             function date() return { year = 2026, month = 11, day = 9 } end
@@ -140,6 +141,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Night Elf Warrior') ~= nil"));
         Assert.True(Bool(c, "shownText(45) ~= nil")); // the level, on the portrait's badge
         Assert.True(Bool(c, "shownText('25% to 46  ·  20m 0s on this level') ~= nil")); // under the XP bar
+        Assert.True(Bool(c, "shownText('1,540g account') ~= nil")); // 340g here and 1,200g on the alt
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m  ·  average 1h 57m') ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
         // The level history is folded until opened, and stays as you left it.
