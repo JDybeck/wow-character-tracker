@@ -14,6 +14,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 ### Fixes and tweaks
 
+- **A tidier addon window.** Five tabs instead of six: the note box's options are a section of **Settings**, which now reads in order (General, Look, Note box, This character, Advanced, the app). **Incognito** is at the top of **Sharing**, and what all friends get moved there from under the Friends list (**What you share** on the Friends tab jumps to it). Map updates and the pattern corner are a row of choices instead of a button you click through, the Settings tab no longer repeats the Sharing table as text, hints are shorter and wrap to the window's width, and the Sharing and Settings tabs end where their content does.
 - **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
 - **A tidier character overview.** The overview no longer runs long on the left while the right sits empty. The left now has who the character is (played, gold and last zone side by side, then portrait, professions and stats) and, under a divider, tags and posting. The right has highlights, talents and reputations.
 - **Smaller friend cards.** The cards at the top of the Friends page are about half as tall: the friend, when they last played, and the character they played last. Hover one for when it was seen and their gold and played time. A hidden character no longer leads a friend's card.

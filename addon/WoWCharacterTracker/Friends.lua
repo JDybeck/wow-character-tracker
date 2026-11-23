@@ -341,7 +341,7 @@ function ns.maybeShareTip()
     ns.say("You're not sharing with any friends yet. Battle.net friends with the addon can see each other's characters, "
       .. "level times, gear and talents: /wct, Friends tab, or /wct friends share <BattleTag>.")
   elseif not ns.isCharShared(s, UnitGUID("player")) and not ns.isIgnored(UnitGUID("player")) then
-    ns.say("This character isn't shared with your friends. /wct, Friends tab, Share this character.")
+    ns.say("This character isn't shared with your friends. /wct, Sharing tab, Share this character.")
   end
 end
 
