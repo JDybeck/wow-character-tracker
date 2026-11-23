@@ -681,9 +681,11 @@ function ns.buildHomeTab(p)
       drawEvents(events, me.guid)
       -- Today: with new events, and every slow redraw for quests, gold and gathering.
       todayStats = ns.todayStats(events, db().today, date("%Y-%m-%d"), midnight(), ns.IS_RETAIL)
+      -- A quiet day: one line that says so, not a row of zeros.
+      if #todayStats == 0 then todayStats = { { empty = true } } end
       for i, fs in ipairs(today) do
         local s = todayStats[i]
-        fs:SetText(s and string.format("%s |cff9a9a9a%s|r", ns.todayValue(s), s.name) or "")
+        fs:SetText(s and (s.empty and "|cff9a9a9aNothing yet today.|r" or string.format("%s |cff9a9a9a%s|r", ns.todayValue(s), s.name)) or "")
       end
     end
     if all then drawFriends() end

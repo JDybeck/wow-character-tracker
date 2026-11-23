@@ -1,4 +1,4 @@
-namespace WoWCharacterTracker.Tests;
+﻿namespace WoWCharacterTracker.Tests;
 
 // Window.lua and Ui.lua: the addon window with its tabs, built from stubbed frames. Every option
 // moved in from the old Options page writes the same settings as before.
@@ -291,8 +291,25 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('3 |cff9a9a9aveins|r') ~= nil"));
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') == nil"));
         c.Lua("click('+2 more  v')");
-        Assert.True(Bool(c, "shownText('1 |cff9a9a9askins|r') ~= nil"));
+        Assert.True(Bool(c, "shownText('1 |cff9a9a9askin|r') ~= nil")); // one of a count is singular
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') ~= nil"));
+    }
+
+    // A quiet day: one line that says so, no row of zeros.
+    [Fact]
+    public void Home_says_nothing_yet_today_instead_of_zeros()
+    {
+        var c = Load();
+        c.Lua("""
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitLevel() return 45 end
+            function date(f) if f == '*t' then return { year = 2026, month = 11, day = 9 } end return '2026-11-09' end
+            ns.playedNow = function() return 100 end
+            ns.levelTimeNow = function() return 10 end
+            """);
+        c.Lua("SlashCmdList.CHARACTERTRACKER('')");
+        Assert.True(Bool(c, "shownText('|cff9a9a9aNothing yet today.|r') ~= nil"));
+        Assert.True(Bool(c, "shownText('0 |cff9a9a9alevels|r') == nil"));
     }
 
     [Fact]

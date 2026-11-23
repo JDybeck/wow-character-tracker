@@ -2,6 +2,16 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.42.5
+
+Update the addon with the app (it does this by itself), then exit the game fully and start it again once.
+
+### Fixes and tweaks
+
+- **Today shows only what happened.** Home's TODAY row, in the app and the addon, no longer fills up with "0 levels 0 bosses 0 epics". It lists what you did today, and says "Nothing yet today." before you've done anything. One of something now reads "1 boss" and "1 skin" instead of "1 bosses" and "1 skins".
+- **No "This level" at max level.** The app's Home no longer shows a time for "This level" on a max level character, or a "-" right after a ding. The other tiles share the row instead.
+- **Easier to read grey text in the app.** Hints, search boxes and other grey text were too faint on the dark background. They're lighter now, readable on every color theme.
+
 ## v0.42.4
 
 Update the addon with the app (it does this by itself) and /reload in game.

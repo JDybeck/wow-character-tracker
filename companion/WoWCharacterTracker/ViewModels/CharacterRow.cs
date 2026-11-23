@@ -1,4 +1,4 @@
-using System.Windows.Media;
+﻿using System.Windows.Media;
 
 namespace WoWCharacterTracker.ViewModels;
 
@@ -319,6 +319,8 @@ sealed class CharacterRow : Observable
     // The XP bar in whole percent (under the level), from the newest snapshot that has it, and when that was.
     public int? LevelPercent { get; init; }
     public long LevelPercentAt { get; init; }
+    // At the game's level cap: no time on this level, no XP to show.
+    public bool AtMaxLevel { get; init; }
     public string LevelPercentText => LevelPercent is { } p ? $"{p}%" : "";
     public string? LevelPercentTip => LevelPercent is { } p ? $"{p}% into level {Level}, updated {Format.Ago(LevelPercentAt)}" : null;
     public string PlayedText => Played > 0 ? Format.Played(Played) : "-";
@@ -476,7 +478,8 @@ sealed class CharacterRow : Observable
             var ding = levels.Where(e => e.Level == level && e.Played > 0).MaxBy(e => e.At);
             var thisLevel = ding is not null && played > ding.Played ? played - ding.Played : s is { LevelTime: > 0 } && s.Level == level ? s.LevelTime : 0;
             var cap = Math.Max(xpSnaps.GetValueOrDefault(guid)?.MaxLevel ?? 0, s?.MaxLevel ?? 0);
-            if (cap > 0 && level >= cap || all.Any(e => e.MaxLevel)) thisLevel = 0;
+            var atMax = cap > 0 && level >= cap || all.Any(e => e.MaxLevel);
+            if (atMax) thisLevel = 0;
 
             var row = new CharacterRow
             {
@@ -534,6 +537,7 @@ sealed class CharacterRow : Observable
                 Leveling = CharacterLeveling.From(all, level, xpSnaps.GetValueOrDefault(guid), data.XpTable, estimate: flavor.EstimatesXp, thisLevel),
                 LevelPercent = LevelStats.Percent(xpSnaps.GetValueOrDefault(guid), level),
                 LevelPercentAt = xpSnaps.GetValueOrDefault(guid)?.LastSeen ?? 0,
+                AtMaxLevel = atMax,
             };
             // The saved file has the other spec, a check-in may already have swapped to it: then it's the active one.
             if (snapsOf[guid].Where(c => c.OtherSpec is not null).MaxBy(c => c.LastSeen)?.OtherSpec is { } other
