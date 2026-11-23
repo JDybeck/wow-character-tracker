@@ -1,4 +1,6 @@
-<!-- The Overview tab of the character details: who the character is, tags, posting, highlights. -->
+<!-- The Overview tab of the character details. Left: who the character is (facts, professions, stats),
+     then tags and posting. Right: what it has been doing and how it is built (highlights, talents,
+     reputations), so neither column runs long while the other sits empty. -->
 <UserControl x:Class="WoWCharacterTracker.Views.CharacterOverview"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -11,6 +13,7 @@
       <ColumnDefinition Width="1.3*"/>
     </Grid.ColumnDefinitions>
 
+    <!-- Who the character is, then what is yours to do with it. -->
     <StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="CHARACTER"/>
       <TextBlock Style="{StaticResource FactValue}" Text="{Binding Description}"/>
@@ -27,6 +30,33 @@
         <TextBlock Style="{StaticResource FactLabel}" Text="SHARED BY"/>
         <TextBlock Style="{StaticResource FactValue}" Text="{Binding FriendName}"/>
       </StackPanel>
+      <StackPanel Visibility="{Binding HasGuild, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="GUILD"/>
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Guild, StringFormat='&lt;{0}&gt;'}"/>
+      </StackPanel>
+      <!-- The short facts side by side instead of one per line. -->
+      <WrapPanel>
+        <StackPanel Margin="0,0,32,0" MinWidth="110" Visibility="{Binding IsOwn, Converter={StaticResource Visible}}">
+          <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL PLAYED"/>
+          <TextBlock Style="{StaticResource FactValue}" Text="{Binding PlayedText}"/>
+        </StackPanel>
+        <StackPanel Margin="0,0,32,0" MinWidth="110" Visibility="{Binding ShowsGold, Converter={StaticResource Visible}}">
+          <TextBlock Style="{StaticResource FactLabel}" Text="GOLD"/>
+          <ItemsControl ItemsSource="{Binding MoneyCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Wrap}"/>
+        </StackPanel>
+        <StackPanel Margin="0,0,32,0" MinWidth="110" MaxWidth="260">
+          <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
+          <DockPanel>
+            <Image Source="{Binding ZoneIconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Top"
+                   ToolTip="{Binding ZoneKindName}" Visibility="{Binding ZoneIconUrl, Converter={StaticResource VisibleIfSet}}"/>
+            <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
+          </DockPanel>
+        </StackPanel>
+        <StackPanel Margin="0,0,32,0" MinWidth="110" Visibility="{Binding HasKeystone, Converter={StaticResource Visible}}">
+          <TextBlock Style="{StaticResource FactLabel}" Text="KEYSTONE"/>
+          <TextBlock Style="{StaticResource FactValue}" Text="{Binding KeystoneText}" ToolTip="The Mythic Keystone in your bags, as of the last save or check-in"/>
+        </StackPanel>
+      </WrapPanel>
       <!-- Forever: the in-game portrait from the login check-in (a friend's: the armory picture), or the standard one. -->
       <StackPanel Visibility="{Binding HasGamePortrait, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="PORTRAIT"/>
@@ -43,133 +73,25 @@
                     ToolTip="The standard portrait for the race"/>
         </WrapPanel>
       </StackPanel>
-      <StackPanel Visibility="{Binding HasGuild, Converter={StaticResource Visible}}">
-        <TextBlock Style="{StaticResource FactLabel}" Text="GUILD"/>
-        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Guild, StringFormat='&lt;{0}&gt;'}"/>
-      </StackPanel>
-      <StackPanel Visibility="{Binding IsOwn, Converter={StaticResource Visible}}">
-        <TextBlock Style="{StaticResource FactLabel}" Text="TOTAL PLAYED"/>
-        <TextBlock Style="{StaticResource FactValue}" Text="{Binding PlayedText}"/>
-      </StackPanel>
-      <StackPanel Visibility="{Binding ShowsGold, Converter={StaticResource Visible}}">
-        <TextBlock Style="{StaticResource FactLabel}" Text="GOLD"/>
-        <ItemsControl ItemsSource="{Binding MoneyCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Wrap}"/>
-      </StackPanel>
-      <StackPanel Visibility="{Binding HasCrests, Converter={StaticResource Visible}}">
-        <TextBlock Style="{StaticResource FactLabel}" Text="CRESTS"/>
-        <ItemsControl ItemsSource="{Binding CrestList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
-      </StackPanel>
-      <StackPanel Visibility="{Binding HasKeystone, Converter={StaticResource Visible}}">
-        <TextBlock Style="{StaticResource FactLabel}" Text="KEYSTONE"/>
-        <TextBlock Style="{StaticResource FactValue}" Text="{Binding KeystoneText}" ToolTip="The Mythic Keystone in your bags, as of the last save or check-in"/>
-      </StackPanel>
-      <StackPanel Visibility="{Binding HasRatings, Converter={StaticResource Visible}}">
-        <TextBlock Style="{StaticResource FactLabel}" Text="RATINGS"/>
-        <ItemsControl ItemsSource="{Binding RatingChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
-      </StackPanel>
       <StackPanel Visibility="{Binding ShowsProfessions, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
         <ItemsControl ItemsSource="{Binding ProfessionList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
                       Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>
         <TextBlock Style="{StaticResource FactValue}" Text="None yet" Visibility="{Binding HasProfessions, Converter={StaticResource Hidden}}"/>
       </StackPanel>
-      <!-- Factions and standings, renown first, then the highest (the addon's Reputation.lua). -->
-      <StackPanel Visibility="{Binding HasReputations, Converter={StaticResource Visible}}">
-        <TextBlock Style="{StaticResource FactLabel}" Text="REPUTATIONS"/>
-        <ItemsControl ItemsSource="{Binding ReputationsShown}" Focusable="False" MaxWidth="420" HorizontalAlignment="Left">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="{x:Type vm:ReputationRow}">
-              <Grid Margin="0,0,0,4" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="150">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="110"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextSoft}" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1">
-                  <TextBlock Text="{Binding StandingText}" FontSize="11" Foreground="{Binding Brush}"/>
-                  <ProgressBar Height="3" Minimum="0" Maximum="1" Value="{Binding Fraction, Mode=OneWay}" Foreground="{Binding Brush}"
-                               Background="#26FFFFFF" BorderThickness="0" Margin="0,2,0,0"/>
-                </StackPanel>
-              </Grid>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <Button Style="{StaticResource GhostButton}" Padding="12,4" Margin="-12,0,0,0" HorizontalAlignment="Left"
-                Visibility="{Binding HasMoreReputations, Converter={StaticResource Visible}}" Command="{Binding ShowAllReputationsCommand}">
-          <TextBlock Text="{Binding MoreReputationsText}" FontSize="12" Foreground="{DynamicResource BlueText}"/>
-        </Button>
+      <StackPanel Visibility="{Binding HasCrests, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="CRESTS"/>
+        <ItemsControl ItemsSource="{Binding CrestList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
       </StackPanel>
-      <!-- Forever dual spec: the switch shows the other build in place of the active one. -->
-      <StackPanel Orientation="Horizontal">
-        <TextBlock Style="{StaticResource FactLabel}" Text="{Binding TalentsLabel}"/>
-        <Button Style="{StaticResource GhostButton}" Padding="8,0" Margin="8,0,0,0" VerticalAlignment="Bottom"
-                ToolTip="Switch between your two dual spec builds"
-                Visibility="{Binding HasOtherSpec, Converter={StaticResource Visible}}" Command="{Binding SwitchSpecCommand}">
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Style="{StaticResource Icon}" Text="&#xE8AB;" FontSize="11" Foreground="{DynamicResource BlueText}" Margin="0,0,5,0"/>
-            <TextBlock Text="{Binding SwitchSpecText}" FontSize="11" Foreground="{DynamicResource BlueText}"/>
-          </StackPanel>
-        </Button>
-      </StackPanel>
-      <StackPanel Visibility="{Binding ShowsActiveTalents, Converter={StaticResource Visible}}">
-      <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
-      <ItemsControl ItemsSource="{Binding TalentPickList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
-                    Margin="0,6,0,0" Visibility="{Binding HasTalentPicks, Converter={StaticResource Visible}}"/>
-      <WrapPanel Margin="-12,2,0,0">
-        <Button Style="{StaticResource GhostButton}" Padding="12,4"
-                ToolTip="Open this build in Wowhead's talent calculator"
-                Visibility="{Binding HasTalentLink, Converter={StaticResource Visible}}"
-                Command="{Binding DataContext.OpenTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Style="{StaticResource Icon}" Text="&#xE8A7;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
-            <TextBlock Text="Open in Wowhead talent calculator" FontSize="12" Foreground="{DynamicResource BlueText}"/>
-          </StackPanel>
-        </Button>
-        <Button Style="{StaticResource GhostButton}" Padding="12,4" Visibility="{Binding IsOwn, Converter={StaticResource Visible}}"
-                ToolTip="Post this character's talents to Discord: level, race and class, the points per tree, the talents picked and the Wowhead calculator link"
-                Command="{Binding DataContext.PostTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
-            <TextBlock Text="Post talents to Discord" FontSize="12" Foreground="{DynamicResource BlueText}"/>
-          </StackPanel>
-        </Button>
-      </WrapPanel>
-      </StackPanel>
-      <!-- The build that isn't active, as read from the saved file. -->
-      <StackPanel DataContext="{Binding OtherSpec}" Visibility="{Binding DataContext.ShowOtherSpec, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visible}}">
-        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Talents}"/>
-        <ItemsControl ItemsSource="{Binding TalentPickList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
-                      Margin="0,6,0,0" Visibility="{Binding HasTalentPicks, Converter={StaticResource Visible}}"/>
-        <WrapPanel Margin="-12,2,0,0">
-          <Button Style="{StaticResource GhostButton}" Padding="12,4"
-                  ToolTip="Open this build in Wowhead's talent calculator"
-                  Visibility="{Binding HasTalentLink, Converter={StaticResource Visible}}"
-                  Command="{Binding DataContext.OpenTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
-            <StackPanel Orientation="Horizontal">
-              <TextBlock Style="{StaticResource Icon}" Text="&#xE8A7;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
-              <TextBlock Text="Open in Wowhead talent calculator" FontSize="12" Foreground="{DynamicResource BlueText}"/>
-            </StackPanel>
-          </Button>
-          <Button Style="{StaticResource GhostButton}" Padding="12,4" Visibility="{Binding Owner.IsOwn, Converter={StaticResource Visible}}"
-                  ToolTip="Post this build to Discord: level, race and class, the points per tree, the talents picked and the Wowhead calculator link"
-                  Command="{Binding DataContext.PostTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
-            <StackPanel Orientation="Horizontal">
-              <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
-              <TextBlock Text="Post talents to Discord" FontSize="12" Foreground="{DynamicResource BlueText}"/>
-            </StackPanel>
-          </Button>
-        </WrapPanel>
+      <StackPanel Visibility="{Binding HasRatings, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="RATINGS"/>
+        <ItemsControl ItemsSource="{Binding RatingChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
       </StackPanel>
       <StackPanel Visibility="{Binding HasStats, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="STATS"/>
         <ItemsControl ItemsSource="{Binding StatChips}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"/>
       </StackPanel>
-      <TextBlock Style="{StaticResource FactLabel}" Text="LAST ZONE"/>
-      <DockPanel>
-        <Image Source="{Binding ZoneIconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Top"
-               ToolTip="{Binding ZoneKindName}" Visibility="{Binding ZoneIconUrl, Converter={StaticResource VisibleIfSet}}"/>
-        <TextBlock Style="{StaticResource FactValue}" Text="{Binding ZoneText}"/>
-      </DockPanel>
+      <Border Height="1" Background="{DynamicResource Line}" Margin="0,18,0,4"/>
       <!-- Yours only: tags, posting, removing and exporting. -->
       <StackPanel Visibility="{Binding IsOwn, Converter={StaticResource Visible}}">
       <TextBlock Style="{StaticResource FactLabel}" Text="TAGS"/>
@@ -299,8 +221,9 @@
       </WrapPanel>
     </StackPanel>
 
+    <!-- What the character has been doing and how it is built. -->
     <StackPanel Grid.Column="2">
-      <StackPanel Visibility="{Binding HasHighlights, Converter={StaticResource Visible}}">
+      <StackPanel Margin="0,0,0,10" Visibility="{Binding HasHighlights, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="HIGHLIGHTS"/>
         <ItemsControl ItemsSource="{Binding RecentHighlights}" ItemTemplate="{StaticResource HighlightRowTemplate}"/>
         <!-- The rest are on the Highlights tab. -->
@@ -311,6 +234,93 @@
             <TextBlock Text="{Binding AllHighlightsText}" FontSize="12" Foreground="{DynamicResource BlueText}"/>
             <TextBlock Style="{StaticResource Icon}" Text="&#xE76C;" FontSize="10" Foreground="{DynamicResource BlueText}" Margin="6,1,0,0" VerticalAlignment="Center"/>
           </StackPanel>
+        </Button>
+      </StackPanel>
+      <!-- Forever dual spec: the switch shows the other build in place of the active one. -->
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Style="{StaticResource FactLabel}" Text="{Binding TalentsLabel}"/>
+        <Button Style="{StaticResource GhostButton}" Padding="8,0" Margin="8,0,0,0" VerticalAlignment="Bottom"
+                ToolTip="Switch between your two dual spec builds"
+                Visibility="{Binding HasOtherSpec, Converter={StaticResource Visible}}" Command="{Binding SwitchSpecCommand}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE8AB;" FontSize="11" Foreground="{DynamicResource BlueText}" Margin="0,0,5,0"/>
+            <TextBlock Text="{Binding SwitchSpecText}" FontSize="11" Foreground="{DynamicResource BlueText}"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
+      <StackPanel Visibility="{Binding ShowsActiveTalents, Converter={StaticResource Visible}}">
+      <TextBlock Style="{StaticResource FactValue}" Text="{Binding TalentsText}"/>
+      <ItemsControl ItemsSource="{Binding TalentPickList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
+                    Margin="0,6,0,0" Visibility="{Binding HasTalentPicks, Converter={StaticResource Visible}}"/>
+      <WrapPanel Margin="-12,2,0,0">
+        <Button Style="{StaticResource GhostButton}" Padding="12,4"
+                ToolTip="Open this build in Wowhead's talent calculator"
+                Visibility="{Binding HasTalentLink, Converter={StaticResource Visible}}"
+                Command="{Binding DataContext.OpenTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE8A7;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+            <TextBlock Text="Open in Wowhead talent calculator" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource GhostButton}" Padding="12,4" Visibility="{Binding IsOwn, Converter={StaticResource Visible}}"
+                ToolTip="Post this character's talents to Discord: level, race and class, the points per tree, the talents picked and the Wowhead calculator link"
+                Command="{Binding DataContext.PostTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+            <TextBlock Text="Post talents to Discord" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+          </StackPanel>
+        </Button>
+      </WrapPanel>
+      </StackPanel>
+      <!-- The build that isn't active, as read from the saved file. -->
+      <StackPanel DataContext="{Binding OtherSpec}" Visibility="{Binding DataContext.ShowOtherSpec, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactValue}" Text="{Binding Talents}"/>
+        <ItemsControl ItemsSource="{Binding TalentPickList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
+                      Margin="0,6,0,0" Visibility="{Binding HasTalentPicks, Converter={StaticResource Visible}}"/>
+        <WrapPanel Margin="-12,2,0,0">
+          <Button Style="{StaticResource GhostButton}" Padding="12,4"
+                  ToolTip="Open this build in Wowhead's talent calculator"
+                  Visibility="{Binding HasTalentLink, Converter={StaticResource Visible}}"
+                  Command="{Binding DataContext.OpenTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE8A7;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+              <TextBlock Text="Open in Wowhead talent calculator" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+            </StackPanel>
+          </Button>
+          <Button Style="{StaticResource GhostButton}" Padding="12,4" Visibility="{Binding Owner.IsOwn, Converter={StaticResource Visible}}"
+                  ToolTip="Post this build to Discord: level, race and class, the points per tree, the talents picked and the Wowhead calculator link"
+                  Command="{Binding DataContext.PostTalentsCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,6,0"/>
+              <TextBlock Text="Post talents to Discord" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+            </StackPanel>
+          </Button>
+        </WrapPanel>
+      </StackPanel>
+      <!-- Factions and standings, renown first, then the highest (the addon's Reputation.lua). -->
+      <StackPanel Margin="0,10,0,0" Visibility="{Binding HasReputations, Converter={StaticResource Visible}}">
+        <TextBlock Style="{StaticResource FactLabel}" Text="REPUTATIONS"/>
+        <ItemsControl ItemsSource="{Binding ReputationsShown}" Focusable="False" MaxWidth="420" HorizontalAlignment="Left">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:ReputationRow}">
+              <Grid Margin="0,0,0,4" ToolTip="{Binding Tooltip}" ToolTipService.InitialShowDelay="150">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="110"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextSoft}" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="{Binding StandingText}" FontSize="11" Foreground="{Binding Brush}"/>
+                  <ProgressBar Height="3" Minimum="0" Maximum="1" Value="{Binding Fraction, Mode=OneWay}" Foreground="{Binding Brush}"
+                               Background="#26FFFFFF" BorderThickness="0" Margin="0,2,0,0"/>
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Style="{StaticResource GhostButton}" Padding="12,4" Margin="-12,0,0,0" HorizontalAlignment="Left"
+                Visibility="{Binding HasMoreReputations, Converter={StaticResource Visible}}" Command="{Binding ShowAllReputationsCommand}">
+          <TextBlock Text="{Binding MoreReputationsText}" FontSize="12" Foreground="{DynamicResource BlueText}"/>
         </Button>
       </StackPanel>
     </StackPanel>
