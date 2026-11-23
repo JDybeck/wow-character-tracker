@@ -671,7 +671,7 @@ public class AddonWindowTests
         return home;
     }
 
-    // Resized wider, Home's card and the moments under it take the room (the split keeps its share).
+    // Resized wider, Home's two columns take the room.
     [Fact]
     public void Home_follows_the_windows_width()
     {
@@ -688,8 +688,10 @@ public class AddonWindowTests
             end
             grip.scripts.OnMouseUp(grip)
             """);
-        Assert.Equal(952, Num(c, "cardOf().width")); // 1100 less the tab bar on the left, the window's edges and the scroll bar
-        Assert.Equal(952, Num(c, "find('Friends tab').point[4]")); // at the right edge of the wider page
+        // 952 wide (1100 less the tab bar on the left, the window's edges and the scroll bar): the
+        // character's column takes a bit under half, the moments the rest, 10 between them.
+        Assert.Equal(452, Num(c, "cardOf().width"));
+        Assert.Equal(490, Num(c, "shownText('Latest moments').owner.parent.width"));
     }
 
     // Without the app, Home says what it adds and where to get it, until Got it; with it, nothing.
