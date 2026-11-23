@@ -109,7 +109,7 @@ local function build()
   win.sub = ui.text(win, "GameFontDisableSmall")
   win.sub:SetPoint("TOPLEFT", win.title, "BOTTOMLEFT", 0, -4)
   win.sub:SetWidth(WIDTH - 28)
-  win.scroll = CreateFrame("ScrollFrame", nil, win, "UIPanelScrollFrameTemplate")
+  win.scroll = ns.ui.scrollFrame(win)
   win.scroll:SetPoint("TOPLEFT", 14, -60)
   win.scroll:SetPoint("BOTTOMRIGHT", -30, 12)
   win.list = CreateFrame("Frame", nil, win.scroll)
@@ -144,7 +144,7 @@ function ns.openReputations(c)
   end
   for i = #list + 1, #rows do rows[i]:Hide() end
   win.list:SetHeight(math.max(1, #list * ROW))
-  if win.scroll.SetVerticalScroll then win.scroll:SetVerticalScroll(0) end
+  ns.ui.scrollTo(win.scroll, 0)
   win:Show()
   win:Raise()
 end

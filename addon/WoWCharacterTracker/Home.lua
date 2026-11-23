@@ -449,10 +449,7 @@ function ns.buildHomeTab(p)
     local x = GetCursorPosition() / (moments:GetEffectiveScale() or 1) - (moments:GetLeft() or 0)
     if scrollColumn(x < split(width) and mine or theirs, delta) then return end
     local page = p:GetParent()
-    if page and page.GetVerticalScroll and page.GetVerticalScrollRange then
-      local y = (page:GetVerticalScroll() or 0) - delta * 40
-      page:SetVerticalScroll(math.max(0, math.min(y, page:GetVerticalScrollRange() or 0)))
-    end
+    if page and page.GetVerticalScrollRange then ui.scrollBy(page, delta) end
   end)
 
   -- Friends who share with you, the one seen last first -----------------------------------------

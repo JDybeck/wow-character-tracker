@@ -9,6 +9,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 ### Fixes and tweaks
 
 - **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
+- **Smoother scrolling in the addon window.** The mouse wheel now glides a short, even distance per notch on every tab and in the highlights, reputations and recipes windows, instead of jumping half a page. Spinning the wheel faster goes further.
 
 ## v0.42.3
 

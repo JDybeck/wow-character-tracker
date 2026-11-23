@@ -778,7 +778,7 @@ local function drawHighlights(c, friend)
   end
   hideFrom(HL.rows, #list + 1)
   HL.list:SetHeight(math.max(1, #list * HL.ROW))
-  if HL.scroll.SetVerticalScroll then HL.scroll:SetVerticalScroll(0) end
+  ui.scrollTo(HL.scroll, 0)
   highlights:SetHeight(math.min(HL.MAX, 60 + math.max(1, #list) * HL.ROW + 16))
   placeBeside(highlights)
   if details then details:Hide() end -- one side panel at a time
@@ -798,7 +798,7 @@ local function toggleHighlights(c, friend)
     HL.sub = ui.text(highlights, "GameFontDisableSmall")
     HL.sub:SetPoint("TOPLEFT", HL.title, "BOTTOMLEFT", 0, -4)
     HL.sub:SetWidth(HL.WIDTH - 28)
-    HL.scroll = CreateFrame("ScrollFrame", nil, highlights, "UIPanelScrollFrameTemplate")
+    HL.scroll = ui.scrollFrame(highlights)
     HL.scroll:SetPoint("TOPLEFT", 14, -60)
     HL.scroll:SetPoint("BOTTOMRIGHT", -30, 12)
     HL.list = CreateFrame("Frame", nil, HL.scroll)
@@ -2338,7 +2338,7 @@ local OLD_TABS = { general = "settings", app = "settings", chat = "sharing", hig
 local function buildTab(tab)
   local holder, page
   if tab.height > AREA_HEIGHT then
-    holder = CreateFrame("ScrollFrame", nil, area, "UIPanelScrollFrameTemplate")
+    holder = ui.scrollFrame(area)
     holder:SetPoint("TOPLEFT", 0, 0)
     holder:SetPoint("BOTTOMRIGHT", -26, 0)
     page = CreateFrame("Frame", nil, holder)
