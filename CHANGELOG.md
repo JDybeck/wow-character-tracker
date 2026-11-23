@@ -2,27 +2,20 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
-## v0.42.5
+## v0.42.4
 
 Update the addon with the app (it does this by itself) and /reload in game.
 
 ### New
 
-- **Share your reputations with friends.** Reputations are a new category in what friends get, on by default like professions: the app's sharing settings, the addon's Friends tab, the request box and `/wct friends set all reputations off`. A friend's character then lists them on its Overview, the ones it has worked on most first. Friends see them once both of you have this version.
+- **Share your reputations with friends.** Reputations are a new category in what friends get, on by default like professions: the app's sharing settings, the addon's Friends tab, the request box and `/wct friends set all reputations off`. A friend's character then lists them on its Overview, the ones it has worked on most first. Friends see them once both of you have 0.42.4.
 - **A main for each friend.** Open one of a friend's characters and click **Set as their main**: it leads their card at the top of the Friends page and their list, with a MAIN tag. Only for you, nothing is sent. Without one, the card shows the character they played last, as before.
 
 ### Fixes and tweaks
 
+- **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
 - **A tidier character overview.** The overview no longer runs long on the left while the right sits empty. The left now has who the character is (played, gold and last zone side by side, then portrait, professions and stats) and, under a divider, tags and posting. The right has highlights, talents and reputations.
 - **Smaller friend cards.** The cards at the top of the Friends page are about half as tall: the friend, when they last played, and the character they played last. Hover one for when it was seen and their gold and played time. A hidden character no longer leads a friend's card.
-
-## v0.42.4
-
-Update the addon with the app (it does this by itself) and /reload in game.
-
-### Fixes and tweaks
-
-- **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
 
 ## v0.42.3
 
