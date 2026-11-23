@@ -128,6 +128,7 @@ sealed class Tracker : IDisposable
             Log.Info($"{Tag}{e.Char} logged in.");
             CheckedIn?.Invoke(e);
         }
+        else if (e.Kind == "portrait") { } // a new look mid-session (the barbershop): only the picture and details above
         else
         {
             live[e.Id] = e;

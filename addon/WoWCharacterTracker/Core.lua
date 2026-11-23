@@ -53,11 +53,14 @@ local EVENTS = {
   -- Refresh the character snapshot when these change, while the game has the data.
   "PLAYER_EQUIPMENT_CHANGED", "PLAYER_MONEY", "CURRENCY_DISPLAY_UPDATE", "PLAYER_SPECIALIZATION_CHANGED",
   "TRAIT_CONFIG_UPDATED", "CHARACTER_POINTS_CHANGED", "PLAYER_GUILD_UPDATE",
+  "BARBER_SHOP_APPEARANCE_APPLIED",                                     -- a new look: the app's portrait (LiveGrid.lua)
 }
 ns.frame = CreateFrame("Frame")
 for _, event in ipairs(EVENTS) do pcall(ns.frame.RegisterEvent, ns.frame, event) end
 -- Gathering casts (Today.lua): only our own, not every unit's.
 if ns.frame.RegisterUnitEvent then pcall(ns.frame.RegisterUnitEvent, ns.frame, "UNIT_SPELLCAST_SUCCEEDED", "player") end
+-- A sex or race change without the barbershop (LiveGrid.lua refreshPortrait compares the look).
+if ns.frame.RegisterUnitEvent then pcall(ns.frame.RegisterUnitEvent, ns.frame, "UNIT_PORTRAIT_UPDATE", "player") end
 
 -- What the addon did last, saved with any "blocked from an action" report.
 local lastDoing = "nothing yet"
