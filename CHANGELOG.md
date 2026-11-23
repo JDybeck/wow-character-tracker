@@ -9,6 +9,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 ### Fixes and tweaks
 
 - **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
+- **Profession milestones post only the steps you set.** With Steps > Profession skill at "150, 225, 300", a game that hadn't been /reloaded since the change (or an addon still on its 75, 150, 225, 300 defaults) could still post "reached 75 Skinning". The app now checks each milestone against the steps on the Sharing page before posting, for Mythic+ and PvP rating steps too. The milestone still shows in the character's history.
 
 ## v0.42.3
 

@@ -15,6 +15,38 @@ public class DiscordPausedTests
     }
 }
 
+// A milestone posts only on a step set on the Sharing page, whatever step the addon recorded: a game
+// still running on Settings.lua from before the change (or the addon's defaults) records 75 Skinning.
+public class MilestoneStepTests
+{
+    static Entry Profession(int step) => new() { Kind = "profession", Guid = "g1", Profession = "Skinning", Step = step, Rating = step, At = 1 };
+
+    [Fact]
+    public void Profession_steps_not_set_are_not_posted()
+    {
+        var s = Flavors.Forever.Defaults();
+        s.ProfessionSteps = [150, 225, 300];
+        Assert.False(s.Wants(Profession(75), []));
+        Assert.True(s.Wants(Profession(150), []));
+        Assert.True(s.Wants(Profession(0), [])); // no step from an older addon: posts as before
+        s.PostProfessions = false;
+        Assert.False(s.Wants(Profession(150), []));
+    }
+
+    [Fact]
+    public void Rating_steps_not_set_are_not_posted()
+    {
+        var s = Flavors.Forever.Defaults();
+        s.PostMPlus = s.PostPvp = true;
+        s.MPlusSteps = [2500];
+        s.PvpSteps = [1800];
+        Assert.False(s.Wants(new Entry { Kind = "mplus", Guid = "g1", Step = 2000, Rating = 2010, At = 1 }, []));
+        Assert.True(s.Wants(new Entry { Kind = "mplus", Guid = "g1", Step = 2500, Rating = 2510, At = 1 }, []));
+        Assert.False(s.Wants(new Entry { Kind = "pvp", Guid = "g1", Step = 1600, Rating = 1610, At = 1 }, []));
+        Assert.True(s.Wants(new Entry { Kind = "pvp", Guid = "g1", Step = 1800, Rating = 1805, At = 1 }, []));
+    }
+}
+
 public class HomeFeedTests
 {
     [Fact]
