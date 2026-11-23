@@ -2114,6 +2114,10 @@ local function buildCharacters(p)
     if #list == 0 then place(none, p, 16, y) end
     local open, unfolded
     local shownCount, hiddenCount = 0, 0
+    -- Roomy rows (bigger portraits and pills, a line more) while they all fit on the page.
+    local fits = 0
+    for _, c in ipairs(list) do if showHidden or not isHidden(c) then fits = fits + 1 end end
+    local roomy = fits > 0 and y + fits * (ui.CHAR_ROW_ROOMY + 4) + 40 <= ns.pageHeight()
     for _, c in ipairs(list) do
       local hidden = isHidden(c)
       if hidden then hiddenCount = hiddenCount + 1 end
@@ -2126,7 +2130,7 @@ local function buildCharacters(p)
         setCharRow(row, c)
         row:SetAlpha(hidden and 0.5 or 1)
         place(row, p, 16, y)
-        y = y + CARD + 4
+        y = y + ui.sizeCharRow(row, roomy, c) + 4
         if expandedKey == charKey(c) then
           unfolded = true
           expansion = expansion or newExpansion(p, width - 12)

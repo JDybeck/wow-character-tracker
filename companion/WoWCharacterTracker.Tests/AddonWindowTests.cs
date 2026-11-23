@@ -1217,6 +1217,28 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('7g 0s 0c') ~= nil"));
     }
 
+    // With room to spare the rows grow (a bigger portrait, a line more with guild, gold and played);
+    // a list that fills the page stays compact.
+    [Fact]
+    public void Character_rows_grow_while_they_fit_and_stay_compact_when_they_dont()
+    {
+        string Db(int count)
+        {
+            var chars = string.Join(",\n", Enumerable.Range(1, count).Select(i =>
+                $"['Player-1-{i:D8}'] = {{ char = 'Char{i}', level = 60, classFile = 'MAGE', lastSeen = {i}, money = 12345678, played = 360000, guild = 'Zebs' }}"));
+            return $"{{ chars = {{ {chars} }}, items = {{}}, events = {{}} }}";
+        }
+        var few = Load(Db(3));
+        few.Call("openWindow", "characters");
+        Assert.True(Bool(few, "shownText('Char1').owner.portrait.width == 48"));
+        Assert.True(Bool(few, "shownText('<Zebs>  ·  1,234g  ·  4d 4h 0m played') ~= nil"));
+
+        var many = Load(Db(10));
+        many.Call("openWindow", "characters");
+        Assert.True(Bool(many, "shownText('Char1').owner.portrait.width == 28"));
+        Assert.True(Bool(many, "shownText('<Zebs>  ·  1,234g  ·  4d 4h 0m played') == nil"));
+    }
+
     // A row's portrait: the app's picture (Portraits.lua's slot) over the class icon; without one the
     // class icon, and the character being played gets its live portrait.
     [Fact]

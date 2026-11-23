@@ -650,3 +650,39 @@ function ui.gradient(texture, r, g, b, from, to)
     texture:SetColorTexture(r, g, b, (from + to) / 2)
   end
 end
+
+-- Your characters' rows on the Characters tab: compact (40 high, as built) when the list fills the
+-- page, roomy when there's space to spare: a bigger portrait and pills, and a third line with what
+-- else we know (guild, gold, played). Only what has a value shows. Returns the row's height.
+ui.CHAR_ROW, ui.CHAR_ROW_ROOMY = 40, 62
+function ui.sizeCharRow(row, roomy, c)
+  local h = roomy and ui.CHAR_ROW_ROOMY or ui.CHAR_ROW
+  local face = roomy and 48 or 28
+  local textX = 16 + face + (roomy and 12 or 10)
+  row:SetHeight(h)
+  if row.stripe then row.stripe:SetHeight(h - 14) end
+  row.portrait:SetWidth(face)
+  row.portrait:SetHeight(face)
+  row.nameText:SetPoint("TOPLEFT", row, "TOPLEFT", textX, roomy and -9 or -6)
+  row.infoText:SetPoint("TOPLEFT", row, "TOPLEFT", textX, roomy and -27 or -23)
+  local pill = roomy and 42 or 36
+  row.level:SetSize(pill, roomy and 24 or 20)
+  row.ilvl:SetSize(pill, roomy and 24 or 20)
+  row.level:SetPoint("LEFT", row, "RIGHT", roomy and -212 or -200, 0)
+  row.ilvl:SetPoint("LEFT", row, "RIGHT", roomy and -164 or -158, 0)
+  if not row.extra then
+    row.extra = ui.text(row, "GameFontDisableSmall")
+    row.extra:SetWordWrap(false)
+  end
+  row.extra:SetPoint("TOPLEFT", row, "TOPLEFT", textX, -44)
+  row.extra:SetWidth(math.max(50, (row:GetWidth() or 600) - 380 - face))
+  local parts = {}
+  if roomy and c then
+    if type(c.guild) == "string" and c.guild ~= "" then parts[#parts + 1] = "<" .. c.guild .. ">" end
+    if (tonumber(c.money) or 0) >= 10000 then parts[#parts + 1] = ns.formatGold(c.money) end
+    if (tonumber(c.played) or 0) > 0 and ns.formatPlayed then parts[#parts + 1] = ns.formatPlayed(c.played) .. " played" end
+  end
+  row.extra:SetText(table.concat(parts, "  ·  "))
+  row.extra:SetShown(#parts > 0)
+  return h
+end
