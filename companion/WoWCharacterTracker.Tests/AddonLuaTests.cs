@@ -1469,11 +1469,13 @@ public class AddonLuaTests
             Assert.Equal(2, script.DoString("return #frames").Number); // the panel and its button, the window not built yet
 
             script.Call(ns.Get("openWindow"), "app");
-            Assert.Contains("boss kills", script.DoString("return texts[#texts]").String);
+            Assert.Contains("Sharing tab", script.DoString("return texts[#texts]").String);
             var before = (int)script.DoString("return #frames").Number;
             script.Call(ns.Get("openWindow"), "chat"); // now the Sharing tab
-            // Group chat is on in Settings.lua, and so are the two filters (Bind on Equip only, first kill only).
-            Assert.Equal(3,script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
+            // Group chat is on in Settings.lua, and so are the two filters (Bind on Equip only, first kill
+            // only); then what friends get, at its defaults: sharing, this character, new characters and six
+            // categories (gear, talents, location, professions, highlights, level times).
+            Assert.Equal(3 + 9,script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

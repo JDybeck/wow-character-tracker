@@ -296,12 +296,13 @@ public class AddonWindowTests
     }
 
     [Fact]
-    public void The_window_has_four_tabs_and_builds_each_tab_once()
+    public void The_window_has_five_tabs_and_builds_each_tab_once()
     {
         var c = Load();
         c.Call("openWindow", "general");
-        foreach (var tab in new[] { "Sharing", "Friends", "Note", "Settings" })
+        foreach (var tab in new[] { "Home", "Characters", "Sharing", "Friends", "Settings" })
             Assert.True(Bool(c, $"find('{tab}') ~= nil"), tab);
+        Assert.True(Bool(c, "find('Note') == nil")); // the note box's options are a section of Settings
         Assert.True(Bool(c, "ns.windowShown()"));
         Assert.True(Bool(c, "find('Party / raid chat') == nil")); // not built until opened
 
@@ -337,7 +338,7 @@ public class AddonWindowTests
         c.Lua("local s = find('Background opacity'); s.scripts.OnValueChanged(s, 30)");
         Assert.Equal(0.3, Num(c, "gotAlpha"), 3);
 
-        c.Call("openWindow", "friends"); // what all friends get sits under the Friends tab's lists
+        c.Call("openWindow", "sharing"); // what all friends get is a section of the Sharing tab
         Assert.False(Bool(c, "find('Gold').checked"));
         c.Lua("click('Gold')");
         Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.gold"));
@@ -350,16 +351,18 @@ public class AddonWindowTests
     public void What_you_share_sets_map_position_the_other_faction_and_the_map_rate()
     {
         var c = Load();
-        c.Call("openWindow", "friends");
+        c.Call("openWindow", "sharing");
         Assert.False(Bool(c, "find('Map position').checked"));
         c.Lua("click('Map position')");
         Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.map"));
         Assert.False(Bool(c, "find('Show my map position to the other faction').checked"));
         c.Lua("click('Show my map position to the other faction')");
         Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.otherFaction"));
-        c.Lua("local b = find('Map updates: live'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Map updates') ~= nil"));
+        c.Lua("local b = find('Every minute'); b.scripts.OnClick(b)");
         Assert.Equal(60, Num(c, "WoWCharacterTrackerDB.share.mapRate"));
-        Assert.True(Bool(c, "find('Map updates: every minute') ~= nil"));
+        c.Lua("local b = find('Every 5 min'); b.scripts.OnClick(b)");
+        Assert.Equal(300, Num(c, "WoWCharacterTrackerDB.share.mapRate"));
     }
 
     // The App tab's Ignore this character is the same In game setting the app's Ignore tracking writes.
@@ -398,8 +401,8 @@ public class AddonWindowTests
     public void The_window_saves_its_position_and_last_tab()
     {
         var c = Load();
-        c.Call("openWindow", "note");
-        Assert.Equal("note", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
+        c.Call("openWindow", "note"); // the Note tab's options moved to Settings
+        Assert.Equal("settings", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
         c.Lua("""
             local w
             for _, f in ipairs(frames) do if f.name == 'WoWCharacterTrackerWindow' then w = f end end
@@ -409,20 +412,20 @@ public class AddonWindowTests
         Assert.Equal("TOPLEFT", c.Lua("return WoWCharacterTrackerDB.window.point").String);
         Assert.Equal("BOTTOMLEFT", c.Lua("return WoWCharacterTrackerDB.window.relative").String);
         Assert.Equal(200, Num(c, "WoWCharacterTrackerDB.window.y"));
-        Assert.Equal("note", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
+        Assert.Equal("settings", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
 
         c.Call("toggleWindow");
         c.Call("openWindow");
-        Assert.True(Bool(c, "find('Note box (/wct note)') ~= nil"));
-        Assert.Equal("note", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
+        Assert.True(Bool(c, "shownText('Note box') ~= nil"));
+        Assert.Equal("settings", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
     }
 
     [Fact]
-    public void The_app_tab_lists_what_the_app_set()
+    public void The_app_section_says_where_the_apps_settings_are()
     {
         var c = Load(settings: "{ post = { boss = true }, screenshot = {} }");
         c.Call("openWindow", "app");
-        Assert.Contains("Posted to Discord: boss kills", c.Lua("return texts[#texts]").String);
+        Assert.Contains("What gets posted to Discord is on the Sharing tab", c.Lua("return texts[#texts]").String);
     }
 
     [Fact]
@@ -703,11 +706,11 @@ public class AddonWindowTests
         foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern" })
             Assert.True(Bool(c, $"shownText('{label}') == nil"), label);
         Assert.True(Bool(c, "shownText('Keep all history') ~= nil and shownText('Show the minimap button') ~= nil"));
-        Assert.True(Bool(c, "shownText('The Character Tracker app') ~= nil"));
+        Assert.True(Bool(c, "shownText('Character Tracker app') ~= nil"));
 
         c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
-        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern", "Set in the Character Tracker app" })
+        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern", "Pattern corner", "Character Tracker app" })
             Assert.True(Bool(c, $"shownText('{label}') ~= nil"), label);
     }
 
@@ -1092,6 +1095,27 @@ public class AddonWindowTests
         Assert.True(Bool(c, $"shownText('Ruleset') ~= nil and shownText('{shown}') ~= nil"));
         Assert.True(Bool(c, "shownText('Realm') == nil and shownText('Layer') == nil"));
         Assert.True(Bool(c, "shownText('realm 6') == nil and shownText('PvP, realm 6') == nil"));
+    }
+
+    // A fit page (Sharing, Settings) takes the height of what's shown on it, so it doesn't scroll
+    // into empty space; hidden things and a page not laid out yet leave it as it is.
+    [Fact]
+    public void A_fit_page_takes_the_height_of_whats_shown_on_it()
+    {
+        var c = Load();
+        c.Lua("""
+            local function at(bottom, shown)
+              return { GetBottom = function() return bottom end, IsShown = function() return shown end }
+            end
+            page = { GetTop = function() return 900 end,
+              GetRegions = function() return at(700, true), at(100, false) end,
+              GetChildren = function() return at(450, true) end,
+              SetHeight = function(_, h) height = h end }
+            ns.ui.fitHeight(page)
+            """);
+        Assert.Equal(470, Num(c, "height"));
+        c.Lua("height = nil; page.GetTop = function() return nil end; ns.ui.fitHeight(page)");
+        Assert.True(Bool(c, "height == nil"));
     }
 
     // Settings, Look: picking a look repaints what's built and is kept; Classic gold until then.
@@ -1864,6 +1888,17 @@ public class AddonWindowTests
         c.Lua("online, shared, requests = {}, {}, {}");
         c.Lua("local b = findFriendsButton(); b.scripts.OnClick(b)");
         Assert.True(Bool(c, "shownText('No friends here yet. Battle.net friends online in this game show up here, and so does everyone you share with.') ~= nil"));
+    }
+
+    // The Friends tab's What you share opens the Sharing tab, where what all friends get is.
+    [Fact]
+    public void What_you_share_on_the_friends_tab_opens_the_sharing_tab()
+    {
+        var c = FriendsTab();
+        Assert.True(Bool(c, "shownText('What you share with friends') == nil"));
+        c.Lua("local b = find('What you share'); b.scripts.OnClick(b)");
+        Assert.Equal("sharing", c.Lua("return WoWCharacterTrackerDB.window.tab").String);
+        Assert.True(Bool(c, "shownText('What you share with friends') ~= nil"));
     }
 
     // Without Friends.lua's new functions (an older Friends.lua), the tab still opens.

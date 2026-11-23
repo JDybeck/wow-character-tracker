@@ -5,8 +5,23 @@ local ADDON, ns = ...
 local ui = {}
 ns.ui = ui
 
--- How wide long lines get before they wrap (the window's content area, with room to spare).
+-- How wide long lines get before they wrap (the window's content area, with room to spare). Hints
+-- follow the window when it's resized (ui.rewrap).
 ui.WRAP = 640
+-- The space above a section's heading: one gap everywhere, so the pages read alike.
+ui.SECTION_GAP = 30
+local wrapped = setmetatable({}, { __mode = "k" }) -- [font string] = how much narrower than the page
+
+-- Text that wraps at the page's width less inset (and keeps doing so as the window is resized).
+function ui.wrap(fs, inset)
+  wrapped[fs] = inset or 0
+  fs:SetWidth(math.max(200, (ns.pageWidth and ns.pageWidth() or ui.WRAP + 70) - 70 - (inset or 0)))
+end
+
+-- The window was resized: wrapping text takes the new width.
+function ui.rewrap()
+  for fs, inset in pairs(wrapped) do ui.wrap(fs, inset) end
+end
 
 -- The app's look: warm dark panels, thin borders, an amber accent. { r, g, b, a }
 local COLOR = {
@@ -192,7 +207,8 @@ function ui.checkbox(parent, label, tip, get, set)
   if tip then
     local t = ui.text(cb, "GameFontDisableSmall", tip)
     t:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -2)
-    t:SetWidth(ui.WRAP - 40)
+    ui.wrap(t, 40)
+    cb.tip = t
   end
   cb:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
   ui.onRefresh(parent, function() cb:SetChecked(get()) end)
@@ -402,7 +418,7 @@ end
 function ui.heading(parent, s, anchor, gap)
   local h = ui.text(parent, "GameFontNormal", s)
   ui.tint(h, COLOR.accent)
-  if anchor then h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 2, gap or -26)
+  if anchor then h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 2, gap or -ui.SECTION_GAP)
   else h:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -14) end
   return h
 end
@@ -410,7 +426,7 @@ end
 function ui.hint(parent, s, anchor)
   local h = ui.text(parent, "GameFontDisableSmall", s)
   h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -4)
-  h:SetWidth(ui.WRAP)
+  ui.wrap(h)
   return h
 end
 
@@ -461,4 +477,32 @@ function ui.checkTable(parent, items, columns, anchor, get, set, opts)
     last = name
   end
   return last
+end
+
+-- A label with a row of choices beside it, under anchor (x: how far in from anchor's left).
+function ui.labeledChoice(p, anchor, x, gap, label, items, get, set, width)
+  local text = ui.text(p, "GameFontHighlight", label)
+  text:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x, gap)
+  local row = ui.choice(p, items, get, set, width)
+  row:SetPoint("LEFT", text, "LEFT", 130, 0)
+  return text, row
+end
+
+-- The gap above a heading under a checkbox: its tip line takes room below the box.
+function ui.gapAfter(cb) return cb.tip and -(ui.SECTION_GAP + 14) or nil end
+
+-- How tall a fit page's content is: from its top to the lowest thing shown on it, plus a margin.
+function ui.fitHeight(page)
+  local top = page:GetTop()
+  if not top then return end -- not laid out yet
+  local lowest = top
+  local function lower(r)
+    if r:IsShown() then
+      local bottom = r:GetBottom()
+      if bottom and bottom < lowest then lowest = bottom end
+    end
+  end
+  for _, r in ipairs({ page:GetRegions() }) do lower(r) end
+  for _, r in ipairs({ page:GetChildren() }) do lower(r) end
+  if lowest < top then page:SetHeight(math.floor(top - lowest + 20)) end
 end

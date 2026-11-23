@@ -10,7 +10,6 @@ local NAME = "WoWCharacterTrackerWindow"
 local WIDTH, HEIGHT = 760, 590
 local TITLE_BAR, TAB_BAR = 44, 40
 local AREA_HEIGHT = HEIGHT - TITLE_BAR - TAB_BAR - 8 -- below the title and the tab row
-local PAGE_WIDTH = WIDTH - 50
 
 local window, area, version
 
@@ -23,6 +22,7 @@ local tabs = {}  -- [key] = { button, holder, page }
 local current
 
 local function isOn(key) return ns.setting(key) ~= false end
+local buildShareDefaults -- what all friends get, a section of the Sharing tab (set further down)
 
 local function saved()
   WoWCharacterTrackerDB.window = WoWCharacterTrackerDB.window or {}
@@ -85,23 +85,24 @@ local ASK_KINDS = { "boss", "rare", "epic" }
 local ASK_SECONDS = { { 5, "5 sec" }, { 10, "10 sec" }, { 15, "15 sec" }, { 30, "30 sec" }, { 60, "60 sec" } }
 
 -- Incognito (Shared.lua, Commands.lua): a while without posts or chat lines, never caught up later.
+-- First on the Sharing tab: it's the one thing there you do now rather than set up once.
 local INCOGNITO_CHOICES = { { "30m", "30 minutes" }, { "1h", "1 hour" }, { "2h", "2 hours" }, { "4h", "4 hours" } }
 
 local function buildIncognito(p, anchor)
-  local title = ui.heading(p, "Incognito", anchor, anchor and -30 or nil)
-  local hint = ui.hint(p, ns.hasApp() and "For a while nothing is posted to Discord or said in chat, and none of it is posted later. Your own history keeps it."
-    or "For a while nothing is said in chat. Your own history keeps it.", title)
+  local title = ui.heading(p, "Incognito", anchor)
+  local hint = ui.hint(p, ns.hasApp() and "Nothing is posted or said in chat for a while, and none of it is posted later."
+    or "Nothing is said in chat for a while. Your own history keeps it.", title)
   local friendsToo = false
   local last
-  for i, choice in ipairs(INCOGNITO_CHOICES) do
-    local b = ui.button(p, choice[2], 100, function()
+  for _, choice in ipairs(INCOGNITO_CHOICES) do
+    local b = ui.button(p, choice[2], 90, function()
       ns.goIncognito(ns.INCOGNITO_TIMES[choice[1]], friendsToo)
       ui.refresh(p)
     end)
-    if last then b:SetPoint("LEFT", last, "RIGHT", 6, 0) else b:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -10) end
+    if last then b:SetPoint("LEFT", last, "RIGHT", 6, 0) else b:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8) end
     last = b
   end
-  local off = ui.button(p, "End now", 100, function()
+  local off = ui.button(p, "End now", 90, function()
     ns.goIncognito(nil)
     ui.refresh(p)
   end, "primary")
@@ -119,11 +120,11 @@ local function buildIncognito(p, anchor)
       local w = ns.incognitoActive()
       if w then w.friends = on end
     end)
-  friends:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -2, -40)
+  friends:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -2, -36)
   ui.onRefresh(p, function()
     local w = ns.incognitoActive()
     off:SetShown(w ~= nil)
-    status:SetText(w and ("Until " .. date("%H:%M", w["until"])) or "")
+    status:SetText(w and ("Incognito until " .. date("%H:%M", w["until"])) or "")
   end)
   return friends
 end
@@ -145,13 +146,12 @@ end
 local LEVEL_BOXES = { { "split", "Up to level" }, { "before", "post every" }, { "after", "levels, then every" } }
 
 local function buildFilters(p, anchor)
-  local title = ui.heading(p, "Level steps and filters", anchor, -24)
-  local hint = ui.hint(p, "The same as the app's Sharing page, Advanced. The app picks changes up on your next /reload.", title)
+  local title = ui.heading(p, "Level steps and filters", anchor)
   local last
   for i, box in ipairs(LEVEL_BOXES) do
     local key = box[1]
     local label = ui.text(p, "GameFontHighlight", box[2])
-    if last then label:SetPoint("LEFT", last, "RIGHT", 8, 0) else label:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -14) end
+    if last then label:SetPoint("LEFT", last, "RIGHT", 8, 0) else label:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -12) end
     local input = ui.inputBox(p, 40, 3, function(text)
       local n = tonumber(text)
       if n then ns.editSettings(function(s) s.filters[key] = math.max(1, math.min(100, math.floor(n))) end) end
@@ -166,7 +166,7 @@ local function buildFilters(p, anchor)
     end
   end
   local preview = ui.text(p, "GameFontDisableSmall")
-  preview:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -42)
+  preview:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -40)
   ui.onRefresh(p, function() preview:SetText(levelPreview()) end)
 
   local rareBoe = ui.checkbox(p, "Rares: Bind on Equip only", nil,
@@ -252,52 +252,58 @@ end
 -- How much gets shared: the preset. With the app's presets it goes in right away and follows the
 -- table; from an older app the app applies it on sync.
 local function buildPresets(p, anchor)
-  local title = ui.heading(p, "How much gets shared", anchor, anchor and -30 or nil)
-  local hint = ui.hint(p, "Pick one, or choose per moment below. Changes reach the app on your next /reload.", title)
+  local title = ui.heading(p, "How much gets shared", anchor)
+  local hint = ui.hint(p, "Pick one, or choose per moment below.", title)
   local presets = ui.choice(p, PRESETS_SHOWN, ns.currentPreset, function(key)
     ns.applyPreset(key)
     ui.refresh(p) -- the table's boxes and the filters
   end)
   presets:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -10)
-  local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own picks.")
+  local custom = ui.text(p, "GameFontDisableSmall", "Custom")
   custom:SetPoint("LEFT", presets, "RIGHT", 6, 0)
   ui.onRefresh(p, function() custom:SetShown(ns.currentPreset() == "custom") end)
   return presets
 end
 
+-- Said once, at the bottom of the Sharing tab, instead of under every heading.
+local function syncNote(p, anchor, x)
+  local note = ui.text(p, "GameFontDisableSmall", "Changes here reach the app on your next /reload or logout, and the app's reach the game the same way. The newest change wins.")
+  note:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x or 0, -ui.SECTION_GAP)
+  ui.wrap(note)
+end
+
 local function buildSharingTab(p)
   local withApp = ns.hasApp()
   local rows = withApp and ns.momentRows()
+  local top = buildIncognito(p)
   if rows then
-    local presets = buildPresets(p)
+    local presets = buildPresets(p, top)
     local chat = buildChatPlaces(p, presets)
     local last = buildMomentTable(p, chat, rows)
-    local always = ui.hint(p, "Legendary gear is always posted. Stream alerts and test posts are on the app's Sharing page.", last)
+    local always = ui.hint(p, "Legendary gear is always posted. Stream alerts and test posts are in the app.", last)
     always:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -14)
-    local seconds = buildAskSeconds(p, buildFilters(p, always))
-    buildIncognito(p, seconds)
+    syncNote(p, buildShareDefaults(p, buildAskSeconds(p, buildFilters(p, always))), -4)
     return
   end
 
-  local top = buildIncognito(p)
   if withApp then -- an older app: the preset, the filters, the chat places and the ask box
     top = buildFilters(p, buildPresets(p, top))
   end
 
-  local chatTitle = ui.heading(p, "Tell in chat", top, top and -24 or nil)
-  local chatHint = ui.hint(p, "One line in chat as you when something happens. Lines wait until you're out of combat.", chatTitle)
+  local chatTitle = ui.heading(p, "Tell in chat", top)
+  local chatHint = ui.hint(p, "A line in chat as you when something happens, once you're out of combat.", chatTitle)
   local columns = { { "party", "Group chat" } }
   if ns.GUILD_CHAT_ON then table.insert(columns, 1, { "guild", "Guild chat" }) end
   local whereLast = buildChatPlaces(p, chatHint)
   local last = whereLast
   if not withApp then
-    last = ui.checkTable(p, ANNOUNCE_KINDS, columns, whereLast, chatOn, setChat)
+    buildShareDefaults(p, ui.checkTable(p, ANNOUNCE_KINDS, columns, whereLast, chatOn, setChat))
+    return
   end
 
-  if not withApp then return end
   local askTitle = ui.heading(p, "Ask before skipping", last)
   -- Boss kills and gear only: the other moments picked in the app's Sharing table stay as they are.
-  local ask = ui.checkbox(p, "Offer to post what Discord skips", "Boss kills and gear the app doesn't post by itself: a small Post or Skip box, out of combat. More moments in the app's Sharing table.",
+  local ask = ui.checkbox(p, "Offer to post what Discord skips", "A small Post or Skip box for boss kills and gear the app doesn't post, out of combat.",
     function()
       local kinds = ns.setting("ask") or {}
       for _, k in ipairs(ASK_KINDS) do if kinds[k] then return true end end
@@ -309,37 +315,39 @@ local function buildSharingTab(p)
       end)
     end)
   ask:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", -2, -6)
-  buildAskSeconds(p, ask, 34)
+  syncNote(p, buildShareDefaults(p, buildAskSeconds(p, ask, 34), -32), -4)
 end
 
--- Note ------------------------------------------------------------------------------------------
-local function buildNote(p)
-  local noteTitle = ui.heading(p, "Note box (/wct note)")
-  local noteHint = ui.hint(p, ns.hasApp() and "Edit it right in the box, or on the character's Notes tab in the app. The newest edit wins; each side gets the other's on /reload."
-    or "Edit it right in the box.", noteTitle)
+-- Note box ---------------------------------------------------------------------------------------
+-- A section of the Settings tab (it had a tab of its own before): the on-screen note box.
+local function buildNote(p, anchor, gap)
+  local title = ui.heading(p, "Note box", anchor, gap)
+  local hint = ui.hint(p, ns.hasApp() and "The character's note on screen. Edit it in the box, or on the character's Notes tab in the app."
+    or "The character's note on screen. Edit it right in the box.", title)
 
-  local showNote = ui.checkbox(p, "Show the note box", "The character's note in a box on screen.",
+  local showNote = ui.checkbox(p, "Show the note box", nil,
     function() return ns.noteBoxShown() end,
     function(on) ns.toggleNoteBox(on) end)
-  showNote:SetPoint("TOPLEFT", noteHint, "BOTTOMLEFT", -2, -8)
+  showNote:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -2, -6)
 
-  local lockNote = ui.checkbox(p, "Lock it in place", "Can't be dragged, and clicks go through it to the game.",
+  local lockNote = ui.checkbox(p, "Lock it in place", "Clicks go through it to the game.",
     function() return ns.noteBoxLocked() end,
     function(on) ns.lockNoteBox(on, true) end)
-  lockNote:SetPoint("TOPLEFT", showNote, "BOTTOMLEFT", 0, -18)
+  lockNote:SetPoint("TOPLEFT", showNote, "BOTTOMLEFT", 0, -2)
 
-  local hoverNote = ui.checkbox(p, "Buttons only on mouseover", "Edit, Lock and the X show while your mouse is over the box.",
+  local hoverNote = ui.checkbox(p, "Buttons only on mouseover", nil,
     function() return ns.noteButtonsOnHover() end,
     function(on) ns.setNoteButtonsOnHover(on) end)
   hoverNote:SetPoint("TOPLEFT", lockNote, "BOTTOMLEFT", 0, -18)
 
-  local reset = ui.button(p, "Reset position", 150, function() ns.resetNoteBox() end)
-  reset:SetPoint("TOPLEFT", hoverNote, "BOTTOMLEFT", 4, -20)
-
   local opacity = ui.slider(p, "Background opacity",
     function() return math.floor(ns.noteAlpha() * 100 + 0.5) end,
     function(v) ns.setNoteAlpha(v / 100) end)
-  opacity:SetPoint("TOPLEFT", reset, "BOTTOMLEFT", 0, -30)
+  opacity:SetPoint("TOPLEFT", hoverNote, "BOTTOMLEFT", 6, -30)
+
+  local reset = ui.button(p, "Reset position", 120, function() ns.resetNoteBox() end)
+  reset:SetPoint("LEFT", opacity, "RIGHT", 60, 0)
+  return opacity
 end
 
 -- Friends ---------------------------------------------------------------------------------------
@@ -352,8 +360,6 @@ local CARD = 40     -- a friend or character card
 local REQUEST = 34  -- a request banner
 local drawFriends
 local openSharing -- opens what you share with one contact beside the window (set further down)
-local buildShareDefaults -- what all friends get, under the Friends tab's lists (set further down)
-local SHARE_DEFAULTS_HEIGHT = 400
 local searched = false -- Find online friends was clicked this session
 local friendsSaid = "" -- what the last button said, shown under the hint
 local openFriendTag    -- the friend whose characters are unfolded (one at a time, this session)
@@ -1146,7 +1152,7 @@ local requestBox
 local function requestText(box)
   local gifts = (box.gifts or 0) > 0
     and string.format(" They sent %d of theirs, kept when you allow.", box.gifts) or ""
-  if box.chars == 0 then return "You don't share any characters right now, so Allow gives them nothing until you do (Friends tab, What you share)." .. gifts end
+  if box.chars == 0 then return "You don't share any characters right now, so Allow gives them nothing until you do (Sharing tab, What you share with friends)." .. gifts end
   local what = ns.shareSummary and ns.shareSummary(box.choices) or ""
   return string.format("Allow gives them %s: name, level, class and item level%s.",
     box.chars == 1 and "1 of your characters" or (box.chars .. " of your characters"),
@@ -1514,8 +1520,10 @@ local function buildFriends(p)
     friendsSaid = ""
     drawFriends()
   end, "primary")
-  local hint = ui.text(p, "GameFontDisableSmall", "Click a friend for their characters and nickname, drag one to move it (the app shows the same order). Find online friends lists everyone else online in this game.")
-  hint:SetWidth(width - 170)
+  -- What all friends get is on the Sharing tab; this opens it there.
+  local yours = ui.button(p, "What you share", 120, function() ns.showShareDefaults() end)
+  local hint = ui.text(p, "GameFontDisableSmall", "Click a friend for their characters and nickname, drag one to reorder.")
+  hint:SetWidth(width - 300)
   local status = ui.text(p, "GameFontHighlightSmall")
   status:SetWidth(ui.WRAP)
 
@@ -1525,11 +1533,6 @@ local function buildFriends(p)
     return fs
   end
   local requestsTitle = ui.heading(p, "Requests")
-  -- What all friends get, after the list (it moves down as it grows).
-  local yours = CreateFrame("Frame", nil, p)
-  yours:SetSize(width + 16, SHARE_DEFAULTS_HEIGHT)
-  buildShareDefaults(yours)
-  ui.onRefresh(p, function() ui.refresh(yours) end)
   local none = note("No friends here yet. Battle.net friends online in this game show up here, and so does everyone you share with.")
   local nothingShared = note("Nothing shared with you yet.")
   -- Online or Offline friends in the grid, remembered with the window.
@@ -1709,8 +1712,6 @@ local function buildFriends(p)
     if tag and ns.setFriendNickname then ns.setFriendNickname(tag, text) end -- redraws the tab
   end)
   section.nickname:SetPoint("LEFT", nickLabel, "LEFT", 66, 0)
-  local nickHint = ui.text(section, "GameFontDisableSmall", "Enter saves, here and in the app. Empty clears it.")
-  nickHint:SetPoint("LEFT", section.nickname, "RIGHT", 10, 0)
   section.theirs = ui.text(section, "GameFontHighlightSmall")
   section.theirs:SetPoint("TOPLEFT", section, "TOPLEFT", 12, -66)
 
@@ -1759,7 +1760,8 @@ local function buildFriends(p)
   local function drawHeader(y, empty)
     place(friendsTitle, p, 16, y)
     place(find, p, 16 + width - 150, y - 4)
-    hint:SetWidth(width - 170)
+    place(yours, p, 16 + width - 150 - 6 - 120, y - 4)
+    hint:SetWidth(width - 300)
     y = y + 20
     place(hint, p, 16, y)
     y = y + textHeight(hint, 24) + 6
@@ -1980,7 +1982,7 @@ local function buildFriends(p)
     return y
   end
 
-  -- What's under the grid from y: the hidden link and What you share. Also tidies what this draw didn't use.
+  -- What's under the grid from y: the hidden link. Also tidies what this draw didn't use.
   local function drawBelow(y)
     hideFrom(charCards, st.cards + 1)
     if not st.unfolded and expansion then expansion:Hide() end
@@ -1993,8 +1995,7 @@ local function buildFriends(p)
       place(link, p, 16, y)
       y = y + 30
     end
-    place(yours, p, 0, y + 8)
-    p:SetHeight(y + 8 + SHARE_DEFAULTS_HEIGHT + 10)
+    p:SetHeight(y + 10)
   end
 
   -- A draw can set off another (a nickname box saving as it moves to another friend): that one runs
@@ -2143,9 +2144,11 @@ function ns.friendsChanged()
 end
 
 -- What you share (under the Friends tab's lists) ---------------------------------------------
-buildShareDefaults = function(p)
-  local friendsTitle = ui.heading(p, "What you share with friends")
-  local friendsHint = ui.hint(p, "Friends who have the addon can ask to see your characters; nothing is shared until you allow it. Contacts: /wct friends.", friendsTitle)
+buildShareDefaults = function(p, anchor, x)
+  local friendsTitle = ui.heading(p, "What you share with friends", anchor)
+  if x then friendsTitle:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x, -ui.SECTION_GAP) end
+  p.shareTitle = friendsTitle -- the Friends tab's What you share scrolls to it
+  local friendsHint = ui.hint(p, "Friends with the addon can ask to see your characters. Nothing is shared until you allow it.", friendsTitle)
   local shareOn = ui.checkbox(p, "Share with friends", "Off: nothing is sent, and nothing friends send is kept.",
     function() return ns.shareSettings().enabled == true end,
     function(on) ns.editShare(function(s) s.enabled = on end) end)
@@ -2161,7 +2164,7 @@ buildShareDefaults = function(p)
     function() return ns.shareSettings().newChars ~= false end,
     function(on) ns.editShare(function(s) s.newChars = on end) end)
   shareNew:SetPoint("TOPLEFT", shareThis, "BOTTOMLEFT", 0, -2)
-  local whatTitle = ui.text(p, "GameFontNormalSmall", "What friends get (name, level, class and item level always)")
+  local whatTitle = ui.text(p, "GameFontNormalSmall", "What friends get, besides name, level, class and item level")
   whatTitle:SetPoint("TOPLEFT", shareNew, "BOTTOMLEFT", 4, -24)
   local gridLast = ui.checkGrid(p, { { "gear", "Gear" }, { "talents", "Talents" }, { "location", "Location" }, { "professions", "Professions" },
     { "highlights", "Highlights" }, { "leveling", "Level times" }, { "gold", "Gold" }, { "map", "Map position" } }, whatTitle,
@@ -2172,125 +2175,71 @@ buildShareDefaults = function(p)
     function() return ns.shareSettings().defaults.otherFaction == true end,
     function(on) ns.editShare(function(s) s.defaults.otherFaction = on end) end)
   otherFaction:SetPoint("TOPLEFT", gridLast, "BOTTOMLEFT", 0, -10)
-  -- One rate for all friends: click to go from live to every minute to every 5 minutes.
-  local RATE_TEXT = { [5] = "Map updates: live", [60] = "Map updates: every minute", [300] = "Map updates: every 5 minutes" }
-  local NEXT_RATE = { [5] = 60, [60] = 300, [300] = 5 }
-  local rate = ui.button(p, RATE_TEXT[5], 240, function(self)
-    ns.editShare(function(s) s.mapRate = NEXT_RATE[s.mapRate] or 5 end)
-    self:SetText(RATE_TEXT[ns.shareSettings().mapRate])
-  end)
-  rate:SetPoint("TOPLEFT", otherFaction, "BOTTOMLEFT", 4, -24)
-  ui.onRefresh(p, function() rate:SetText(RATE_TEXT[ns.shareSettings().mapRate]) end)
+  -- One rate for all friends.
+  local rateLabel = ui.text(p, "GameFontHighlight", "Map updates")
+  rateLabel:SetPoint("TOPLEFT", otherFaction, "BOTTOMLEFT", 4, -26)
+  local rate = ui.choice(p, { { 5, "Live" }, { 60, "Every minute" }, { 300, "Every 5 min" } }, function() return ns.shareSettings().mapRate or 5 end,
+    function(n) ns.editShare(function(s) s.mapRate = n end) end, 100)
+  rate:SetPoint("LEFT", rateLabel, "LEFT", 110, 0)
+  return rateLabel
 end
 
 -- App -------------------------------------------------------------------------------------------
-local KINDS = { { "level", "level-ups" }, { "maxLevel", "max level" }, { "rare", "rare loot" }, { "epic", "epic loot" },
-  { "mount", "mounts" }, { "boss", "boss kills" }, { "death", "deaths" }, { "duel", "duels" }, { "makgora", "Mak'gora" },
-  { "bg", "battlegrounds" }, { "profession", "profession milestones" }, { "achievement", "legacy achievements" }, { "reputation", "reputation milestones" }, { "weekly", "weekly satchels" }, { "keyrun", "Mythic+ runs" }, { "mplus", "Mythic+ rating" }, { "pvp", "PvP rating" } }
-
-local function picked(t, names)
-  local out = {}
-  for _, n in ipairs(names) do if t and t[n[1]] then out[#out + 1] = n[2] end end
-  return #out > 0 and table.concat(out, ", ") or "none"
-end
-
+-- One line on the app: what it adds without it, where its settings live with it. What it posts is
+-- the Sharing tab's table, so it isn't listed again here.
 local function appSummary()
   if not ns.hasApp() then
-    return "No app found. Discord posts, screenshots, the stream overlay and characters from other WoW accounts need the free Character Tracker app, from the link below (click it, then Ctrl+C). Group lines, this window, friends and notes work without it."
+    return "Discord posts, screenshots, the stream overlay and characters from your other WoW accounts need the free Character Tracker app. Get it from the link below (click it, then Ctrl+C)."
   end
-  local post = ns.postRules() or {}
-  local postKinds = {}
-  for k, v in pairs(post) do postKinds[k] = (type(v) == "table" and v.on) or v == true end
-  return table.concat({
-    "Posted to Discord: " .. picked(postKinds, KINDS),
-    "Screenshots: " .. picked(ns.setting("screenshot"), KINDS),
-    " ",
-    "Change these on the app's Sharing page. They reach the game on your next /reload.",
-    "What you change in this window reaches the app on your next /reload or logout. The newest change wins.",
-    " ",
-    "The app's page, with the guide and updates (click the link, then Ctrl+C):",
-  }, "\n")
+  return "Connected. What gets posted to Discord is on the Sharing tab. Changes reach the app on your next /reload or logout, and the newest change wins. The guide and updates are at the link below (click it, then Ctrl+C)."
 end
 
--- The Settings tab: how the addon runs, then the rarely touched options, this character and what
--- the app set. Instant posting, reload reminders and the pattern only do something with the app.
+-- The Settings tab, in sections: General, Look, Note box, This character, Advanced and the app.
+-- Instant posting, reload reminders and the pattern only do something with the app.
 local function buildSettings(p)
   local withApp = ns.hasApp()
-  local top
-  if withApp then
-    local live = ui.checkbox(p, "Instant posting", "Tell the app about events right away (a one-frame pattern and screenshot). Off: they arrive on /reload or logout.",
-      function() return WoWCharacterTrackerDB.live ~= false end,
-      function(on) WoWCharacterTrackerDB.live = on end)
-    live:SetPoint("TOPLEFT", 14, -12)
-
-    local reloadTitle = ui.heading(p, "Reload reminders", live, -40)
-    local reloadHint = ui.hint(p, "Gear, bags and bank reach the app on /reload or logout. Gentle: a chat line and a box on flight paths when they changed. Every chance: also a popup after each ding.", reloadTitle)
-    local reload = ui.choice(p, RELOAD_CHOICES, reloadChoice, setReloadChoice)
-    reload:SetPoint("TOPLEFT", reloadHint, "BOTTOMLEFT", 0, -10)
-    local custom = ui.text(p, "GameFontDisableSmall", "Custom: your own mix (/wct popup turns the ding popup on or off).")
-    custom:SetPoint("LEFT", reload, "RIGHT", 6, 0)
-    custom:SetWidth(200)
-    ui.onRefresh(p, function() custom:SetShown(reloadChoice() == "custom") end)
-    top = reload
-  end
-
+  local generalTitle = ui.heading(p, "General")
   -- Minimap.lua's, loaded after this file.
   local minimap = ui.checkbox(p, "Show the minimap button", "Hidden, /wct still opens this window.",
     function() return not ns.minimapButtonShown or ns.minimapButtonShown() end,
     function(on) if ns.setMinimapButtonShown then ns.setMinimapButtonShown(on) end end)
-  if top then minimap:SetPoint("TOPLEFT", top, "BOTTOMLEFT", -2, -22) else minimap:SetPoint("TOPLEFT", 14, -12) end
+  minimap:SetPoint("TOPLEFT", generalTitle, "BOTTOMLEFT", -2, -6)
+  local last, lastGap = minimap, ui.gapAfter(minimap)
+  if withApp then
+    local live = ui.checkbox(p, "Instant posting", "Tell the app about events right away. Off: they arrive on /reload or logout.",
+      function() return WoWCharacterTrackerDB.live ~= false end,
+      function(on) WoWCharacterTrackerDB.live = on end)
+    live:SetPoint("TOPLEFT", minimap, "BOTTOMLEFT", 0, -18)
+    local reloadLabel, reload = ui.labeledChoice(p, live, 4, -28, "Reload reminders", RELOAD_CHOICES, reloadChoice, setReloadChoice)
+    local custom = ui.text(p, "GameFontDisableSmall", "Custom mix")
+    custom:SetPoint("LEFT", reload, "RIGHT", 6, 0)
+    ui.onRefresh(p, function() custom:SetShown(reloadChoice() == "custom") end)
+    local reloadHint = ui.hint(p, "Gear, bags and bank reach the app on /reload. Gentle: a chat line and a box on flight paths when they changed. Every chance: also a popup after each ding.", reloadLabel)
+    reloadHint:SetPoint("TOPLEFT", reloadLabel, "BOTTOMLEFT", 0, -12)
+    last, lastGap = reloadHint, nil
+  end
 
-  -- The window's colors, the app's Forever looks. Changes right away.
-  local lookTitle = ui.heading(p, "Look", minimap, -40)
+  -- The window's colors (the app's Forever looks, right away) and how far away friends on the map
+  -- are (MapPins.lua, an In game setting).
+  local lookTitle = ui.heading(p, "Look", last, lastGap)
   local look = ui.choice(p, ui.THEMES, ui.theme, function(key)
     ui.applyTheme(key)
     ui.refresh(tabs[current].page) -- what each page colors as it draws (charts, tabs)
   end, 120)
   look:SetPoint("TOPLEFT", lookTitle, "BOTTOMLEFT", 0, -10)
-
-  -- How far away friends on the map are (MapPins.lua), an In game setting.
-  local distanceTitle = ui.heading(p, "Distances on the map", look, -30)
-  local distance = ui.choice(p, DISTANCE_CHOICES,
+  local distanceLabel = ui.labeledChoice(p, look, 0, -16, "Map distances", DISTANCE_CHOICES,
     function()
       local unit = ns.setting("distanceUnit")
       return (unit == "meters" or unit == "yards") and unit or "auto"
     end,
     function(key) ns.editSettings(function(s) s.distanceUnit = key end) end)
-  distance:SetPoint("TOPLEFT", distanceTitle, "BOTTOMLEFT", 0, -10)
 
-  local advancedTitle = ui.heading(p, "Advanced", distance, -30)
-  local keepAll = ui.checkbox(p, "Keep all history", "On: every loot, duel and battleground stays in the saved file, which keeps growing. Applies on your next /reload.",
-    function() return ns.setting("keepAllHistory") == true end,
-    function(on) ns.editSettings(function(s) s.keepAllHistory = on end) end)
-  if withApp then
-    local cornerButton
-    local function showCorner() cornerButton:SetText("Pattern corner: " .. CORNER_NAMES[currentCorner()]) end
-    cornerButton = ui.button(p, "", 200, function()
-      local now = currentCorner()
-      for i, c in ipairs(CORNERS) do
-        if c == now then
-          local nextCorner = CORNERS[i % #CORNERS + 1]
-          ns.editSettings(function(s) s.gridCorner = nextCorner end)
-          break
-        end
-      end
-      showCorner()
-    end)
-    cornerButton:SetPoint("TOPLEFT", advancedTitle, "BOTTOMLEFT", 2, -8)
-    ui.onRefresh(p, showCorner)
-    local gridLabel = ui.checkbox(p, "Show a small label next to the pattern", nil,
-      function() return isOn("gridLabel") end,
-      function(on) ns.editSettings(function(s) s.gridLabel = on end) end)
-    gridLabel:SetPoint("TOPLEFT", cornerButton, "BOTTOMLEFT", -4, -6)
-    keepAll:SetPoint("TOPLEFT", gridLabel, "BOTTOMLEFT", 0, -2)
-  else
-    keepAll:SetPoint("TOPLEFT", advancedTitle, "BOTTOMLEFT", -2, -6)
-  end
+  local note = buildNote(p, distanceLabel, -(ui.SECTION_GAP + 6))
 
-  local thisTitle = ui.heading(p, "This character", keepAll, -40)
+  local thisTitle = ui.heading(p, "This character", note, -(ui.SECTION_GAP + 4))
   local ignore = ui.checkbox(p, "Ignore this character",
-    withApp and "Not tracked: nothing is recorded, posted, announced or shared with friends for it. In the app it moves to Ignored, under the character list."
-      or "Not tracked: nothing is recorded, said in chat or shared with friends for it.",
+    withApp and "Nothing is recorded, posted, said in chat or shared with friends for it. The app lists it under Ignored."
+      or "Nothing is recorded, said in chat or shared with friends for it.",
     function() return ns.isIgnored(UnitGUID("player")) end,
     function(on)
       local me = UnitGUID("player")
@@ -2301,39 +2250,57 @@ local function buildSettings(p)
       end)
     end)
   ignore:SetPoint("TOPLEFT", thisTitle, "BOTTOMLEFT", -2, -6)
-  local appTitle = ui.heading(p, withApp and "Set in the Character Tracker app" or "The Character Tracker app", ignore, -40)
+
+  local advancedTitle = ui.heading(p, "Advanced", ignore, ui.gapAfter(ignore))
+  local keepAll = ui.checkbox(p, "Keep all history", "Every loot, duel and battleground stays in the saved file, which keeps growing. Applies on your next /reload.",
+    function() return ns.setting("keepAllHistory") == true end,
+    function(on) ns.editSettings(function(s) s.keepAllHistory = on end) end)
+  keepAll:SetPoint("TOPLEFT", advancedTitle, "BOTTOMLEFT", -2, -6)
+  last = keepAll
+  if withApp then
+    local corners = {}
+    for i, c in ipairs(CORNERS) do corners[i] = { c, CORNER_NAMES[c] } end
+    local cornerLabel = ui.labeledChoice(p, keepAll, 4, -30, "Pattern corner", corners, currentCorner,
+      function(key) ns.editSettings(function(s) s.gridCorner = key end) end, 96)
+    local gridLabel = ui.checkbox(p, "Show a small label next to the pattern", nil,
+      function() return isOn("gridLabel") end,
+      function(on) ns.editSettings(function(s) s.gridLabel = on end) end)
+    gridLabel:SetPoint("TOPLEFT", cornerLabel, "BOTTOMLEFT", -6, -10)
+    last = gridLabel
+  end
+
+  local appTitle = ui.heading(p, "Character Tracker app", last, ui.gapAfter(last))
   local appText = ui.text(p, "GameFontHighlightSmall")
   appText:SetPoint("TOPLEFT", appTitle, "BOTTOMLEFT", 0, -6)
-  appText:SetWidth(PAGE_WIDTH - 40)
+  ui.wrap(appText)
   appText:SetJustifyV("TOP")
   -- The app's page: where to get it, or its guide and updates.
   local appLink = ui.copyBox(p, ns.APP_URL, 380)
   appLink:SetPoint("TOPLEFT", appText, "BOTTOMLEFT", 0, -8)
   ui.onRefresh(p, function() appText:SetText(appSummary()) end)
   -- Tips, never needed: the same Ko-fi link as the app's corner.
-  local tipText = ui.text(p, "GameFontDisableSmall",
-    "Like it? Tips are welcome on Ko-fi (click the link, then Ctrl+C). Never needed, always appreciated.")
+  local tipText = ui.text(p, "GameFontDisableSmall", "Like it? Tips are welcome on Ko-fi. Never needed, always appreciated.")
   tipText:SetPoint("TOPLEFT", appLink, "BOTTOMLEFT", 0, -16)
-  tipText:SetWidth(PAGE_WIDTH - 40)
-  tipText:SetJustifyH("LEFT")
+  ui.wrap(tipText)
   local tipLink = ui.copyBox(p, ns.TIP_URL, 380)
   tipLink:SetPoint("TOPLEFT", tipText, "BOTTOMLEFT", 0, -6)
 end
 
 -- The window ------------------------------------------------------------------------------------
--- height: how tall the tab's content is; taller than the window gets a scroll frame.
+-- height: how tall the tab's content is; taller than the window gets a scroll frame. fit: the page
+-- then takes the height of what's on it once it's laid out (no scrolling into empty space).
 local TABS = {
   { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
   { key = "characters", label = "Characters", height = 1000, build = buildCharacters }, -- grows with the list
-  { key = "sharing", label = "Sharing", height = 1180, build = buildSharingTab }, -- a row per moment
+  { key = "sharing", label = "Sharing", height = 1600, build = buildSharingTab, fit = true }, -- a row per moment, then friends
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
-  { key = "note", label = "Note", height = 330, build = buildNote },
-  { key = "settings", label = "Settings", height = 840, build = buildSettings },
+  { key = "settings", label = "Settings", height = 1200, build = buildSettings, fit = true },
 }
 local BY_KEY = {}
 for _, t in ipairs(TABS) do BY_KEY[t.key] = t end
 -- Tabs from before 0.39 (a saved last tab, a /wct command) open where their options went.
-local OLD_TABS = { general = "settings", app = "settings", chat = "sharing", highlights = "sharing" }
+-- The Note tab's options are a section of Settings since 0.42.4.
+local OLD_TABS = { general = "settings", app = "settings", chat = "sharing", highlights = "sharing", note = "settings" }
 
 local function buildTab(tab)
   local holder, page
@@ -2370,6 +2337,26 @@ selectTab = function(key)
     end
   end
   ui.refresh(tabs[key].page)
+  local page = tabs[key].page
+  if BY_KEY[key].fit and page ~= tabs[key].holder and C_Timer then
+    C_Timer.After(0, function() ui.fitHeight(page) end) -- the next frame, once the anchors are resolved
+  end
+end
+
+-- The Friends tab's What you share: the Sharing tab, scrolled to what all friends get.
+function ns.showShareDefaults()
+  selectTab("sharing")
+  local state = tabs.sharing
+  local title = state.page and state.page.shareTitle
+  if not (title and C_Timer and state.holder ~= state.page) then return end
+  C_Timer.After(0, function()
+    local top, at = state.page:GetTop(), title:GetTop()
+    if not (top and at) then return end
+    local y = math.max(0, top - at - 12)
+    local range = state.holder.GetVerticalScrollRange and state.holder:GetVerticalScrollRange()
+    if range then y = math.min(y, range) end
+    state.holder:SetVerticalScroll(y)
+  end)
 end
 
 -- While the window is dragged, the side panels switch sides as they run out of room.
@@ -2395,6 +2382,7 @@ local function fitPages()
   for _, state in pairs(tabs) do
     if state.page and state.holder ~= state.page then state.page:SetWidth(pageWidth()) end
   end
+  ui.rewrap()
 end
 
 local function setSizeBounds(maxWidth, maxHeight)
