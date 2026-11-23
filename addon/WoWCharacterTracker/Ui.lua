@@ -5,8 +5,23 @@ local ADDON, ns = ...
 local ui = {}
 ns.ui = ui
 
--- How wide long lines get before they wrap (the window's content area, with room to spare).
+-- How wide long lines get before they wrap (the window's content area, with room to spare). Hints
+-- follow the window when it's resized (ui.rewrap).
 ui.WRAP = 640
+-- The space above a section's heading: one gap everywhere, so the pages read alike.
+ui.SECTION_GAP = 30
+local wrapped = setmetatable({}, { __mode = "k" }) -- [font string] = how much narrower than the page
+
+-- Text that wraps at the page's width less inset (and keeps doing so as the window is resized).
+function ui.wrap(fs, inset)
+  wrapped[fs] = inset or 0
+  fs:SetWidth(math.max(200, (ns.pageWidth and ns.pageWidth() or ui.WRAP + 70) - 70 - (inset or 0)))
+end
+
+-- The window was resized: wrapping text takes the new width.
+function ui.rewrap()
+  for fs, inset in pairs(wrapped) do ui.wrap(fs, inset) end
+end
 
 -- The app's look: warm dark panels, thin borders, an amber accent. { r, g, b, a }
 local COLOR = {
@@ -135,6 +150,78 @@ function ui.refresh(parent)
   for _, fn in ipairs(refreshers[parent] or {}) do fn() end
 end
 
+-- Smooth scrolling: every scroll frame in the addon moves the same distance per wheel notch and
+-- glides there instead of jumping (Blizzard's template jumps half the frame's height per notch).
+-- Notches given while it glides add up, so a fast spin goes further. Anything else that moves the
+-- frame (the scroll bar, its arrows, code) stops the glide where it is.
+ui.SCROLL_STEP = 48 -- pixels per wheel notch
+local GLIDE = 16 -- how fast it catches up, per second (about a sixth of a second to settle)
+
+local function scrollRange(frame)
+  return math.max(0, frame:GetVerticalScrollRange() or 0)
+end
+
+-- Frames gliding now, moved each frame by one driver (the template's own scripts stay untouched).
+local gliding = {}
+local driver
+
+-- One step of frame's glide; true once it has arrived (or something else moved it).
+local function glide(frame, elapsed)
+  local target = math.max(0, math.min(frame.wctTarget or 0, scrollRange(frame)))
+  local now = frame:GetVerticalScroll() or 0
+  if math.abs(now - (frame.wctSet or now)) > 1 then return true end -- moved by something else
+  -- At least a pixel a frame: the scroll bar can round the offset, which would stall a smaller step.
+  local diff = target - now
+  local step = math.max(1, math.abs(diff) * math.min(1, elapsed * GLIDE))
+  local y = math.abs(diff) <= step and target or now + (diff > 0 and step or -step)
+  frame.wctSet = y
+  frame:SetVerticalScroll(y)
+  return y == target
+end
+
+local function stopGlide(frame)
+  gliding[frame], frame.wctTarget, frame.wctSet = nil, nil, nil
+end
+
+local function onDriverUpdate(self, elapsed)
+  for frame in pairs(gliding) do
+    if not frame:IsVisible() or glide(frame, elapsed or 0) then stopGlide(frame) end
+  end
+  if not next(gliding) then self:Hide() end
+end
+
+-- Scrolls frame by delta wheel notches (1 up, -1 down), gliding. False when it can't move that
+-- way (at its end, or nothing to scroll), so a nested list can hand the wheel on.
+function ui.scrollBy(frame, delta)
+  local now = frame:GetVerticalScroll() or 0
+  local from = gliding[frame] and frame.wctTarget or now
+  local target = math.max(0, math.min(from - delta * ui.SCROLL_STEP, scrollRange(frame)))
+  if math.abs(target - from) < 0.5 then return gliding[frame] ~= nil end
+  if not gliding[frame] then frame.wctSet = now end
+  frame.wctTarget = target
+  gliding[frame] = true
+  if not driver then
+    driver = CreateFrame("Frame")
+    driver:SetScript("OnUpdate", onDriverUpdate)
+  end
+  driver:Show()
+  return true
+end
+
+-- Jumps frame to y (0: the top) at once, stopping any glide.
+function ui.scrollTo(frame, y)
+  stopGlide(frame)
+  if frame.SetVerticalScroll then frame:SetVerticalScroll(math.max(0, math.min(y or 0, scrollRange(frame)))) end
+end
+
+-- A UIPanelScrollFrameTemplate scroll frame that scrolls smoothly (see above).
+function ui.scrollFrame(parent)
+  local frame = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
+  frame:EnableMouseWheel(true)
+  frame:SetScript("OnMouseWheel", function(self, delta) ui.scrollBy(self, delta) end)
+  return frame
+end
+
 -- A field from the .toc (## Version, ## Author), or "" when the client can't say.
 local function tocField(field)
   local metadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
@@ -192,7 +279,8 @@ function ui.checkbox(parent, label, tip, get, set)
   if tip then
     local t = ui.text(cb, "GameFontDisableSmall", tip)
     t:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -2)
-    t:SetWidth(ui.WRAP - 40)
+    ui.wrap(t, 40)
+    cb.tip = t
   end
   cb:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
   ui.onRefresh(parent, function() cb:SetChecked(get()) end)
@@ -402,7 +490,7 @@ end
 function ui.heading(parent, s, anchor, gap)
   local h = ui.text(parent, "GameFontNormal", s)
   ui.tint(h, COLOR.accent)
-  if anchor then h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 2, gap or -26)
+  if anchor then h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 2, gap or -ui.SECTION_GAP)
   else h:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -14) end
   return h
 end
@@ -410,7 +498,7 @@ end
 function ui.hint(parent, s, anchor)
   local h = ui.text(parent, "GameFontDisableSmall", s)
   h:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -4)
-  h:SetWidth(ui.WRAP)
+  ui.wrap(h)
   return h
 end
 
@@ -461,4 +549,32 @@ function ui.checkTable(parent, items, columns, anchor, get, set, opts)
     last = name
   end
   return last
+end
+
+-- A label with a row of choices beside it, under anchor (x: how far in from anchor's left).
+function ui.labeledChoice(p, anchor, x, gap, label, items, get, set, width)
+  local text = ui.text(p, "GameFontHighlight", label)
+  text:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x, gap)
+  local row = ui.choice(p, items, get, set, width)
+  row:SetPoint("LEFT", text, "LEFT", 130, 0)
+  return text, row
+end
+
+-- The gap above a heading under a checkbox: its tip line takes room below the box.
+function ui.gapAfter(cb) return cb.tip and -(ui.SECTION_GAP + 14) or nil end
+
+-- How tall a fit page's content is: from its top to the lowest thing shown on it, plus a margin.
+function ui.fitHeight(page)
+  local top = page:GetTop()
+  if not top then return end -- not laid out yet
+  local lowest = top
+  local function lower(r)
+    if r:IsShown() then
+      local bottom = r:GetBottom()
+      if bottom and bottom < lowest then lowest = bottom end
+    end
+  end
+  for _, r in ipairs({ page:GetRegions() }) do lower(r) end
+  for _, r in ipairs({ page:GetChildren() }) do lower(r) end
+  if lowest < top then page:SetHeight(math.floor(top - lowest + 20)) end
 end

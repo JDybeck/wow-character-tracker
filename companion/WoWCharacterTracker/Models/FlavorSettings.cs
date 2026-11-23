@@ -378,13 +378,19 @@ class FlavorSettings
         "duel" => PostDuels && !e.Lost, // only wins are posted
         "makgora" => PostMakgora && !e.Lost,
         "bg" => PostBattlegrounds && !e.Lost,
-        "profession" => PostProfessions,
+        "profession" => PostProfessions && OnStep(e.Step, ProfessionSteps),
         "achievement" => PostAchievements,
         "reputation" => PostReputations,
         "weekly" => PostWeekly,
-        "mplus" => PostMPlus,
-        "pvp" => PostPvp,
+        "mplus" => PostMPlus && OnStep(e.Step, MPlusSteps),
+        "pvp" => PostPvp && OnStep(e.Step, PvpSteps),
         _ => false,
     };
+
+    // A milestone's step is one of the Steps set here. The addon picks the step from the Settings.lua
+    // it read at login or /reload, so a game still running on older steps (or the addon's defaults)
+    // records steps the Sharing page no longer has, like 75 Skinning with "150, 225, 300". The event
+    // stays in history; it just isn't posted. No step (an older addon) or no steps set: as before.
+    static bool OnStep(int step, List<int> steps) => step <= 0 || steps.Count == 0 || steps.Contains(step);
 
 }

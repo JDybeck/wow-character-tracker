@@ -21,6 +21,8 @@
               <RadioButton Style="{StaticResource DetailTab}" Content="Gear and bags" ToolTip="Equipped gear, bags and bank" IsChecked="{Binding IsGearTab}" GroupName="{Binding Guid}"/>
               <RadioButton Style="{StaticResource DetailTab}" Content="Leveling" ToolTip="Level times, the chart and the level history" IsChecked="{Binding IsLevelingTab}" GroupName="{Binding Guid}"/>
               <RadioButton Style="{StaticResource DetailTab}" Content="Highlights" ToolTip="Every boss kill, loot, mount, duel and more, newest first" IsChecked="{Binding IsHighlightsTab}" GroupName="{Binding Guid}"/>
+              <RadioButton Style="{StaticResource DetailTab}" Content="Recipes" ToolTip="Recipes per profession, like the profession window in game" IsChecked="{Binding IsRecipesTab}" GroupName="{Binding Guid}"
+                           Visibility="{Binding ShowsProfessions, Converter={StaticResource Visible}}"/>
               <RadioButton Style="{StaticResource DetailTab}" Content="Notes" ToolTip="Your own notes for this character" IsChecked="{Binding IsNotesTab}" GroupName="{Binding Guid}"/>
             </StackPanel>
           </Border>
@@ -51,6 +53,13 @@
                     <Setter Property="ContentTemplate">
                       <Setter.Value>
                         <DataTemplate><views:CharacterLeveling ui:Motion.FadeIn="True"/></DataTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding DetailTab}" Value="recipes">
+                    <Setter Property="ContentTemplate">
+                      <Setter.Value>
+                        <DataTemplate><views:CharacterRecipes ui:Motion.FadeIn="True"/></DataTemplate>
                       </Setter.Value>
                     </Setter>
                   </DataTrigger>

@@ -26,6 +26,8 @@ sealed class FriendsViewModel : Observable
         Contacts = new ChipFilter("Friend", ShowRows);
         HideCommand = new RelayCommand(p => SetHidden(p, true));
         UnhideCommand = new RelayCommand(p => SetHidden(p, false));
+        MainCommand = new RelayCommand(p => SetMain(p, true));
+        NotMainCommand = new RelayCommand(p => SetMain(p, false));
         UnblockCommand = new RelayCommand(p => { if (p is string tag) Edit(s => s with { Blocked = [.. s.Blocked.Where(t => t != tag)] }); });
     }
 
@@ -50,6 +52,8 @@ sealed class FriendsViewModel : Observable
     ICommand? toggleHidden;
     public ICommand HideCommand { get; }
     public ICommand UnhideCommand { get; }
+    public ICommand MainCommand { get; }
+    public ICommand NotMainCommand { get; }
 
     string NameOf(string tag) => config.FriendNicknames.TryGetValue(tag, out var n) && n.Length > 0 ? n : tag;
 
@@ -61,7 +65,7 @@ sealed class FriendsViewModel : Observable
     {
         this.data = data;
         var keep = SelectedCharacter?.Guid;
-        var keepTab = SelectedCharacter?.DetailTab; // the list refreshes on every sync
+        var keepOpen = SelectedCharacter; // the list refreshes on every sync
         var rows = new List<CharacterRow>();
         // Friends don't share their region, and Battle.net friends who share play in yours.
         var region = data.Characters.Where(c => c.Region.Length > 0).MaxBy(c => c.LastSeen)?.Region ?? "";
@@ -83,7 +87,7 @@ sealed class FriendsViewModel : Observable
         allRows = rows;
         ShowRows();
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
-        if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab;
+        SelectedCharacter?.KeepTabFrom(keepOpen);
         BuildContactRows();
         BuildOwnCharacters();
         RaiseSharing();
@@ -116,6 +120,7 @@ sealed class FriendsViewModel : Observable
         {
             r.FriendName = NameOf(r.FriendTag);
             r.IsHiddenFriend = config.HiddenFriendCharacters.Contains(r.Guid);
+            r.IsFriendMain = config.FriendMains.TryGetValue(r.FriendTag, out var main) && main == r.Guid;
         }
         Contacts.Fill(allRows, r => r.FriendTag, NameOf);
         BuildCards();
@@ -136,12 +141,13 @@ sealed class FriendsViewModel : Observable
     }
 
     // Grouped by friend on the page (FriendsPage groups by FriendTag): friends in the dragged order
-    // (rank), the rest by name, each friend's characters the one played last first, so the one
-    // they're on leads.
+    // (rank), the rest by name, each friend's main first (when you picked one), then the one played
+    // last, so the one they're on leads.
     internal static IEnumerable<CharacterRow> Ordered(IEnumerable<CharacterRow> rows, Func<string, int> rank) =>
         rows.OrderBy(r => rank(r.FriendTag))
             .ThenBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(r => r.FriendTag, StringComparer.Ordinal) // two friends with one nickname stay apart
+            .ThenByDescending(r => r.IsFriendMain)
             .ThenByDescending(r => r.LastSeen)
             .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase);
 
@@ -195,10 +201,13 @@ sealed class FriendsViewModel : Observable
         var totals = FriendTotals.Of(allRows.Where(r => !config.HiddenFriendCharacters.Contains(r.Guid)));
         foreach (var g in allRows.GroupBy(r => r.FriendTag).OrderBy(g => RankOf(g.Key)).ThenBy(g => NameOf(g.Key), StringComparer.CurrentCultureIgnoreCase))
         {
-            var current = g.MaxBy(r => r.LastSeen)!;
+            // Their main when you picked one, else the one played last; hidden ones only when all are.
+            var shown = g.Where(r => !config.HiddenFriendCharacters.Contains(r.Guid)).ToList();
+            var current = g.FirstOrDefault(r => r.IsFriendMain) ?? (shown.Count > 0 ? shown : [.. g]).MaxBy(r => r.LastSeen)!;
             Cards.Add(new FriendCard(g.Key, NameOf(g.Key), current, g.Count(), g.Key == Contacts.Key)
             {
                 TotalsText = totals.Text(g.Key),
+                LastSeen = g.Max(r => r.LastSeen),
             });
             _ = current.LoadPictureAsync(flavor);
         }
@@ -230,6 +239,16 @@ sealed class FriendsViewModel : Observable
         var now = CardOrder;
         if (!dropped) BuildCards();
         else if (!now.SequenceEqual(before)) OrderChanged?.Invoke(now);
+    }
+
+    // One main per friend: picking another replaces it.
+    void SetMain(object? p, bool main)
+    {
+        if (p is not CharacterRow row || row.FriendTag.Length == 0) return;
+        if (main) config.FriendMains[row.FriendTag] = row.Guid;
+        else if (config.FriendMains.TryGetValue(row.FriendTag, out var guid) && guid == row.Guid) config.FriendMains.Remove(row.FriendTag);
+        save();
+        ShowRows();
     }
 
     void SetHidden(object? p, bool hidden)
@@ -326,7 +345,7 @@ sealed class FriendsViewModel : Observable
 
     void RaiseSharing()
     {
-        foreach (var name in new[] { nameof(Enabled), nameof(NewChars), nameof(ShareGear), nameof(ShareTalents), nameof(ShareLocation), nameof(ShareProfessions), nameof(ShareHighlights), nameof(ShareLeveling), nameof(ShareGold), nameof(ShareMap), nameof(ShareOtherFaction),
+        foreach (var name in new[] { nameof(Enabled), nameof(NewChars), nameof(ShareGear), nameof(ShareTalents), nameof(ShareLocation), nameof(ShareProfessions), nameof(ShareReputations), nameof(ShareHighlights), nameof(ShareLeveling), nameof(ShareGold), nameof(ShareMap), nameof(ShareOtherFaction),
             nameof(IsMapLive), nameof(IsMapMinute), nameof(IsMapFiveMinutes), nameof(Blocked), nameof(HasBlocked) })
             Raise(name);
     }
@@ -337,6 +356,7 @@ sealed class FriendsViewModel : Observable
     public bool ShareTalents { get => Share.Defaults.Talents; set => Edit(s => s with { Defaults = s.Defaults with { Talents = value } }); }
     public bool ShareLocation { get => Share.Defaults.Location; set => Edit(s => s with { Defaults = s.Defaults with { Location = value } }); }
     public bool ShareProfessions { get => Share.Defaults.Professions; set => Edit(s => s with { Defaults = s.Defaults with { Professions = value } }); }
+    public bool ShareReputations { get => Share.Defaults.Reputations; set => Edit(s => s with { Defaults = s.Defaults with { Reputations = value } }); }
     public bool ShareHighlights { get => Share.Defaults.Highlights; set => Edit(s => s with { Defaults = s.Defaults with { Highlights = value } }); }
     public bool ShareLeveling { get => Share.Defaults.Leveling; set => Edit(s => s with { Defaults = s.Defaults with { Leveling = value } }); }
     public bool ShareGold { get => Share.Defaults.Gold; set => Edit(s => s with { Defaults = s.Defaults with { Gold = value } }); }
@@ -381,6 +401,7 @@ sealed class FriendsViewModel : Observable
         "talents" => Share.Defaults.Talents,
         "location" => Share.Defaults.Location,
         "professions" => Share.Defaults.Professions,
+        "reputations" => Share.Defaults.Reputations,
         "highlights" => Share.Defaults.Highlights,
         "leveling" => Share.Defaults.Leveling,
         "map" => Share.Defaults.Map,
@@ -456,6 +477,7 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
     public bool? Talents { get => C.Talents; set => owner.EditContact(Tag, c => c with { Talents = value }); }
     public bool? Location { get => C.Location; set => owner.EditContact(Tag, c => c with { Location = value }); }
     public bool? Professions { get => C.Professions; set => owner.EditContact(Tag, c => c with { Professions = value }); }
+    public bool? Reputations { get => C.Reputations; set => owner.EditContact(Tag, c => c with { Reputations = value }); }
     public bool? Highlights { get => C.Highlights; set => owner.EditContact(Tag, c => c with { Highlights = value }); }
     public bool? Leveling { get => C.Leveling; set => owner.EditContact(Tag, c => c with { Leveling = value }); }
     public bool? Gold { get => C.Gold; set => owner.EditContact(Tag, c => c with { Gold = value }); }
@@ -464,10 +486,10 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
 
     // A chip per category that cycles: like all friends, on, off (a checkbox's third state looks unticked).
     static readonly (string Key, string Name)[] Names = [("gear", "Gear"), ("talents", "Talents"), ("location", "Location"), ("professions", "Professions"),
-        ("highlights", "Highlights"), ("leveling", "Level times"), ("gold", "Gold"), ("map", "Map position"), ("otherFaction", "Map for the other faction")];
+        ("reputations", "Reputations"), ("highlights", "Highlights"), ("leveling", "Level times"), ("gold", "Gold"), ("map", "Map position"), ("otherFaction", "Map for the other faction")];
     bool? Own(string key) => key switch
     {
-        "gear" => Gear, "talents" => Talents, "location" => Location, "professions" => Professions, "highlights" => Highlights, "leveling" => Leveling,
+        "gear" => Gear, "talents" => Talents, "location" => Location, "professions" => Professions, "reputations" => Reputations, "highlights" => Highlights, "leveling" => Leveling,
         "map" => Map, "otherFaction" => OtherFaction, _ => Gold,
     };
     public IReadOnlyList<CategoryChip> Categories => [.. Names.Select(n => Own(n.Key) switch
@@ -486,6 +508,7 @@ sealed class FriendContactRow(string tag, FriendContact? got, FriendsViewModel o
             case "talents": Talents = next; break;
             case "location": Location = next; break;
             case "professions": Professions = next; break;
+            case "reputations": Reputations = next; break;
             case "highlights": Highlights = next; break;
             case "leveling": Leveling = next; break;
             case "map": Map = next; break;
@@ -502,6 +525,9 @@ sealed record FriendCard(string Tag, string Name, CharacterRow Current, int Coun
 {
     public string CountText => Format.Count(Count, "character");
     public string SeenText => $"seen {Current.LastSeenText} · {Current.FriendSyncedText}";
+    // When they last played any of their characters (the main can be an older one): "seen 18h ago" on the card.
+    public long LastSeen { get; init; }
+    public string LastSeenText => Format.Ago(LastSeen) is { Length: > 0 } s ? $"seen {s}" : "";
     // Their gold and played added up, with their share of all friends': "12,345g (40%) · 6d 4h 12m played (25%)". Empty when they share neither.
     public string TotalsText { get; init; } = "";
 }

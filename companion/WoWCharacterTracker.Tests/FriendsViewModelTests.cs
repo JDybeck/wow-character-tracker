@@ -88,6 +88,8 @@ public class FriendsViewModelTests
         Assert.Equal(["Kalle#3333", "Zeb#2222"], f.Vm.Cards.Select(c => c.Tag)); // by name
         Assert.Equal("Zeb", f.Vm.Cards[1].Current.Name); // the one played last
         Assert.Equal("2 characters", f.Vm.Cards[1].CountText);
+        Assert.StartsWith("seen ", f.Vm.Cards[1].LastSeenText); // when they last played any of theirs
+        Assert.Equal(f.Vm.Characters.Where(c => c.FriendTag == "Zeb#2222").Max(c => c.LastSeen), f.Vm.Cards[1].LastSeen);
 
         f.Config.FriendOrder = ["Zeb#2222"];
         f.Vm.Show(f.Data);
@@ -113,6 +115,31 @@ public class FriendsViewModelTests
         Assert.True(f.Vm.Cards.Single(c => c.Tag == "Zeb#2222").IsSelected);
         f.Vm.SelectFriendCommand.Execute(f.Vm.Cards.Single(c => c.Tag == "Zeb#2222")); // again: everyone
         Assert.Equal(3, f.Vm.Characters.Count);
+    }
+
+    // A friend's main leads their card and their list, picked on its Overview; one per friend, and
+    // unsetting it goes back to the one played last. A hidden character doesn't lead their card.
+    [Fact]
+    public void A_friends_main_leads_their_card_and_list()
+    {
+        var f = new Fixture();
+        var zebalt = f.Vm.Characters.Single(c => c.Name == "Zebalt");
+        f.Vm.MainCommand.Execute(zebalt);
+        Assert.Equal("Player-1-0000000C", f.Config.FriendMains["Zeb#2222"]);
+        var card = f.Vm.Cards.Single(c => c.Tag == "Zeb#2222");
+        Assert.Equal("Zebalt", card.Current.Name);
+        Assert.Equal(["Zebalt", "Zeb"], f.Vm.Characters.Where(c => c.FriendTag == "Zeb#2222").Select(c => c.Name));
+        Assert.True(f.Vm.Characters.Single(c => c.Name == "Zebalt").IsFriendMain);
+        Assert.False(f.Vm.Characters.Single(c => c.Name == "Zeb").IsFriendMain);
+
+        f.Vm.NotMainCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zeb")); // not their main: nothing changes
+        Assert.Equal("Zebalt", f.Vm.Cards.Single(c => c.Tag == "Zeb#2222").Current.Name);
+        f.Vm.NotMainCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zebalt"));
+        Assert.False(f.Config.FriendMains.ContainsKey("Zeb#2222"));
+        Assert.Equal("Zeb", f.Vm.Cards.Single(c => c.Tag == "Zeb#2222").Current.Name); // the one played last again
+
+        f.Vm.HideCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zeb"));
+        Assert.Equal("Zebalt", f.Vm.Cards.Single(c => c.Tag == "Zeb#2222").Current.Name); // the hidden one doesn't lead
     }
 
     [Fact]

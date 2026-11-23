@@ -29,6 +29,9 @@ local FIELDS = {
   professions = { kind = "string", max = 256, category = "professions" },
   -- Known recipes: "Profession~id,id" lines (Recipes.lua), cut at whole ids (encodeRecipes).
   recipes = { kind = "string", max = 3000, category = "professions", lines = true },
+  -- Reputations: the saved "id~standing~cur~max~extra~name" lines (Reputation.lua), the ones the
+  -- character has worked on most first, whole lines only (encodeReputations).
+  reputations = { kind = "string", max = 1200, category = "reputations", lines = true },
   money = { kind = "number", category = "gold" },
   highlights = { kind = "string", max = 1024, category = "highlights", lines = true },
   -- Leveling: level times as "level~seconds~at" lines, played, time on this level, the XP bar.
@@ -247,6 +250,33 @@ function ns.recipeGroups(text)
   return groups
 end
 
+-- The reputation lines that fit in FIELDS.reputations.max: renown first, then the highest standing
+-- (like the app's list), whole lines only. Nil without any.
+local function encodeReputations(text)
+  if type(text) ~= "string" then return nil end
+  local list = {}
+  for line in string.gmatch(text, "[^\n]+") do
+    local standing, extra = line:match("^%d+~(%d*)~%-?%d*~%-?%d*~([^~]*)~.+$")
+    if standing then
+      local renown = tonumber(extra:match("^R(%d+)"))
+      list[#list + 1] = { line = line:gsub("|", ""), renown = renown, standing = tonumber(standing) or 4, at = #list }
+    end
+  end
+  table.sort(list, function(a, b)
+    if (a.renown ~= nil) ~= (b.renown ~= nil) then return a.renown ~= nil end
+    if (a.renown or 0) ~= (b.renown or 0) then return (a.renown or 0) > (b.renown or 0) end
+    if a.standing ~= b.standing then return a.standing > b.standing end
+    return a.at < b.at
+  end)
+  local lines, size, max = {}, 0, FIELDS.reputations.max
+  for _, r in ipairs(list) do
+    if size + #r.line + 1 > max then break end
+    lines[#lines + 1] = r.line
+    size = size + #r.line + 1
+  end
+  return #lines > 0 and table.concat(lines, "\n") or nil
+end
+
 -- The recipe lines that fit in FIELDS.recipes.max, in their order: whole ids only, and nothing after
 -- the first one that doesn't fit. Nil without any.
 local function encodeRecipes(text)
@@ -357,11 +387,15 @@ function ns.encodeFriendChar(guid, char, items, allowed, events, levels, days, c
   values.levels = allowed.leveling and encodeLevels(levels) or nil
   values.days = allowed.leveling and encodeDays(days, counts, allowed) or nil
   values.recipes = encodeRecipes(char.recipes)
+  values.reputations = encodeReputations(char.reputations)
   local text, key = joinFields(values, allowed)
-  -- Addons before recipes take at most OLD_MAX_TEXT and drop the whole character above it.
-  if #text > OLD_MAX_TEXT and values.recipes then
-    values.recipes = nil
-    text, key = joinFields(values, allowed)
+  -- Addons before recipes take at most OLD_MAX_TEXT and drop the whole character above it, so
+  -- reputations and then recipes stay home when it would be longer.
+  for _, extra in ipairs({ "reputations", "recipes" }) do
+    if #text > OLD_MAX_TEXT and values[extra] then
+      values[extra] = nil
+      text, key = joinFields(values, allowed)
+    end
   end
   -- XP ticks with every kill, so it's volatile, but a whole percent more on the bar is a change.
   local percent = allowed.leveling and ns.levelPercent(values)

@@ -14,11 +14,11 @@ local MAX_CHARS = 50     -- characters kept per contact
 local TICK = 30
 
 -- What friends get, unless set for one of them. Gold and map position stay off until turned on.
-local CATEGORIES = { "gear", "talents", "location", "professions", "highlights", "leveling", "gold", "map" }
+local CATEGORIES = { "gear", "talents", "location", "professions", "reputations", "highlights", "leveling", "gold", "map" }
 -- Set like a category, but not data: otherFaction off means a friend playing the other faction
 -- gets no map position.
 local RULES = { "otherFaction" }
-local DEFAULTS = { gear = true, talents = true, location = true, professions = true, highlights = true, leveling = true, gold = false, map = false,
+local DEFAULTS = { gear = true, talents = true, location = true, professions = true, reputations = true, highlights = true, leveling = true, gold = false, map = false,
   otherFaction = false }
 local MAP_RATES = { [5] = true, [60] = true, [300] = true } -- seconds between two map position readings
 ns.SHARE_CATEGORIES = CATEGORIES
@@ -341,7 +341,7 @@ function ns.maybeShareTip()
     ns.say("You're not sharing with any friends yet. Battle.net friends with the addon can see each other's characters, "
       .. "level times, gear and talents: /wct, Friends tab, or /wct friends share <BattleTag>.")
   elseif not ns.isCharShared(s, UnitGUID("player")) and not ns.isIgnored(UnitGUID("player")) then
-    ns.say("This character isn't shared with your friends. /wct, Friends tab, Share this character.")
+    ns.say("This character isn't shared with your friends. /wct, Sharing tab, Share this character.")
   end
 end
 
@@ -931,8 +931,8 @@ local HELP = {
   "/wct friends on or off turns sharing with Battle.net friends on or off.",
   "/wct friends ask <BattleTag> [map gold ...] asks a friend for their characters, or for more of them, like their map position.",
   "/wct friends share <BattleTag> shares your characters with them.",
-  "/wct friends set all gear/talents/location/professions/highlights/leveling/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
-  "/wct friends set <BattleTag> gear/talents/location/professions/highlights/leveling/gold/map on/off/default changes it for one friend.",
+  "/wct friends set all gear/talents/location/professions/reputations/highlights/leveling/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
+  "/wct friends set <BattleTag> gear/talents/location/professions/reputations/highlights/leveling/gold/map on/off/default changes it for one friend.",
   "/wct friends set all/<BattleTag> otherfaction on/off/default: on lets friends playing the other faction see you on the map too.",
   "/wct friends maprate live/1m/5m sets how often friends' maps get your position.",
   "/wct friends stop <BattleTag> stops sharing with them, remove <BattleTag> forgets them and what they sent.",

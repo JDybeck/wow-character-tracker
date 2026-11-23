@@ -151,7 +151,7 @@ sealed record ProfessionGroup(string Name, string? IconUrl, IReadOnlyList<Profes
 // One character's line in a profession: name in its class color, "150/225", a bar to the max, and how
 // many recipes it knows (once its profession window has been opened in game). Owner: the friend's
 // name on the Friends page, "" for your own.
-sealed class ProfessionCharacter
+sealed class ProfessionCharacter : Observable
 {
     ProfessionCharacter(CharacterRow row, ProfessionSkill skill, string owner)
     {
@@ -162,6 +162,8 @@ sealed class ProfessionCharacter
         SkillText = skill.Skill is { } s ? (skill.Max is { } m ? $"{s}/{m}" : s.ToString()) : "?";
         HasMax = skill.Max is > 0;
         Fraction = skill.Fraction;
+        Text = skill.Text;
+        FullText = skill.FullText;
         Groups = row.RecipesOf(skill.Name);
         RecipeIds = [.. Groups.SelectMany(g => g.Ids)];
     }
@@ -185,6 +187,16 @@ sealed class ProfessionCharacter
     public int RecipeCount => RecipeIds.Count;
     public bool HasRecipes => RecipeIds.Count > 0;
     public string RecipeCountText => RecipeIds.Count == 1 ? "1 recipe" : $"{RecipeIds.Count} recipes";
+
+    // The character's own chips (overview, Recipes tab): "Mining 150", the max on hover, and what a click does.
+    public string Text { get; }
+    public string FullText { get; }
+    // The one whose recipes the character's Recipes tab shows.
+    bool isOpen;
+    public bool IsOpen { get => isOpen; set => Set(ref isOpen, value); }
+    public string ChipTooltip => HasRecipes ? $"{FullText}. Click to see its {RecipeCountText}."
+        : Row.IsFriend ? $"{FullText}. No recipes shared yet: they show up once {Owner} opens {Profession} in game with the addon."
+        : $"{FullText}. Open {Profession} once in game and its recipes show up here.";
 }
 
 // A search hit: a recipe and the characters who know it.

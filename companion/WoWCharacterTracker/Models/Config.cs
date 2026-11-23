@@ -89,6 +89,8 @@ class Config
     public Dictionary<string, string> FriendNicknames { get; set; } = [];
     public Dictionary<string, long> FriendNicknamesAt { get; set; } = [];
     public HashSet<string> HiddenFriendCharacters { get; set; } = [];
+    // Each friend's main character (BattleTag -> GUID, only here): it leads their card and their list.
+    public Dictionary<string, string> FriendMains { get; set; } = [];
 
     public void SetNickname(string tag, string name, long at)
     {

@@ -606,7 +606,7 @@ public class FriendsLuaTests
         a.Call("friendsCommand", "set all map on");
         Assert.True(a.Lua("return ns.shareSettings().defaults.map").Boolean);
         Assert.Contains("Friends now get map: on.", a.Said());
-        Assert.Equal("gear, talents, location, professions, highlights, level times, map position", Str(a, "ns.shareSummary(ns.allowedFor(ns.shareSettings(), nil))"));
+        Assert.Equal("gear, talents, location, professions, reputations, highlights, level times, map position", Str(a, "ns.shareSummary(ns.allowedFor(ns.shareSettings(), nil))"));
     }
 
     [Fact]
@@ -614,11 +614,11 @@ public class FriendsLuaTests
     {
         var a = new Client(A, AFriends, ADb(AShares));
         a.Lua("o = ns.contactSharing('Zeb#2222')");
-        Assert.Equal(9, a.Lua("return #o.categories").Number);
-        Assert.Equal("map", Str(a, "o.categories[8].key"));
-        Assert.Equal("otherFaction", Str(a, "o.categories[9].key"));
-        Assert.True(a.Lua("return o.categories[9].rule").Boolean);
-        Assert.True(a.Lua("return o.categories[8].rule").IsNil());
+        Assert.Equal(10, a.Lua("return #o.categories").Number);
+        Assert.Equal("map", Str(a, "o.categories[9].key"));
+        Assert.Equal("otherFaction", Str(a, "o.categories[10].key"));
+        Assert.True(a.Lua("return o.categories[10].rule").Boolean);
+        Assert.True(a.Lua("return o.categories[9].rule").IsNil());
         a.Call("cycleContactCategory", "Zeb#2222", "otherFaction");
         Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].otherFaction").Boolean);
     }
@@ -712,7 +712,7 @@ public class FriendsLuaTests
         a.Call("friendsCommand", "set all nonsense on");
         Assert.NotEmpty(a.Said());
         Assert.All(a.Said(), s => Assert.DoesNotContain("|", s));
-        Assert.Contains(a.Said(), s => s.Contains("gear/talents/location/professions/highlights/leveling/gold", StringComparison.Ordinal));
+        Assert.Contains(a.Said(), s => s.Contains("gear/talents/location/professions/reputations/highlights/leveling/gold", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1119,7 +1119,7 @@ public class FriendsLuaTests
         var a = new Client(A, AFriends, ADb("{ enabled = true, at = 100 }"));
         var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }").Replace("chars = {}", "chars = { ['Player-1-0000000B'] = { char = 'Zeb', level = 30, lastSeen = 1 } }"));
         b.Call("askFriend", "JDybeck#1111", b.Lua("return { 'map' }"), b.Lua("""
-            return { gear = true, talents = true, location = false, professions = false, highlights = false, leveling = false, gold = false, map = true }
+            return { gear = true, talents = true, location = false, professions = false, reputations = false, highlights = false, leveling = false, gold = false, map = true }
             """));
         Assert.Contains(b.Said(), s => s.StartsWith("Asked JDybeck#1111 for map position, and sent them yours (gear, talents, map position)", StringComparison.Ordinal));
         Assert.True(b.Lua("return ns.shareSettings().contacts['JDybeck#1111'].share").Boolean);

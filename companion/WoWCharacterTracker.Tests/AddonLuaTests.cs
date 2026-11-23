@@ -1032,6 +1032,48 @@ public class AddonLuaTests
     static void SendLive(Script script, Table ns, string kind) =>
         script.Call(ns.Get("sendLive"), script.DoString($"return {{ kind = '{kind}', id = 'x{kind}', level = 12 }}"));
 
+    // The check-in's portrait is the app's picture until the next login, so a new look mid-session
+    // sends it again: a changed sex or race, or anything the barbershop applied. Zoning and the like
+    // (the same look) don't, and before the check-in there's nothing to send.
+    [Fact]
+    public void A_new_look_sends_the_portrait_again()
+    {
+        var (script, ns) = LiveScript();
+        script.DoString("""
+            sex = 3
+            function UnitSex() return sex end
+            function UnitRace() return 'Blood Elf', 'BloodElf' end
+            function UnitGUID() return 'Player-1-ABC' end
+            sent = {}
+            """);
+        ns["characterInfo"] = script.DoString("return function() return { guid = 'Player-1-ABC', sex = sex == 2 and 'male' or 'female' } end");
+        ns["playedNow"] = script.DoString("return function() return 5000 end");
+        ns["sendLive"] = script.DoString("return function(e) table.insert(sent, e.kind) end");
+        int Sent() => (int)script.DoString("return #sent").Number;
+        DynValue Refresh(bool applied) => script.Call(ns.Get("refreshPortrait"), applied);
+
+        script.DoString("sex = 2");
+        Refresh(false);
+        script.DoString("wait(2)");
+        Assert.Equal(0, Sent()); // the check-in still to come takes it
+
+        script.Call(ns.Get("checkIn"));
+        Assert.Equal(1, Sent());
+        Refresh(false);
+        script.DoString("wait(2)");
+        Assert.Equal(1, Sent()); // same look: zoning, a shapeshift
+
+        script.DoString("sex = 3");
+        Refresh(false); Refresh(false); // the portrait updates more than once
+        script.DoString("wait(2)");
+        Assert.Equal(2, Sent());
+        Assert.Equal("portrait", script.DoString("return sent[2]").String);
+
+        Refresh(true); // the barbershop: a new face, the same sex
+        script.DoString("wait(2)");
+        Assert.Equal(3, Sent());
+    }
+
     // Each grid is a screenshot, which holds the game for a moment, so events a few seconds apart
     // (a boss, then its loot) go out as one grid a moment after the last.
     [Fact]
@@ -1469,11 +1511,13 @@ public class AddonLuaTests
             Assert.Equal(2, script.DoString("return #frames").Number); // the panel and its button, the window not built yet
 
             script.Call(ns.Get("openWindow"), "app");
-            Assert.Contains("boss kills", script.DoString("return texts[#texts]").String);
+            Assert.Contains("Sharing tab", script.DoString("return texts[#texts]").String);
             var before = (int)script.DoString("return #frames").Number;
             script.Call(ns.Get("openWindow"), "chat"); // now the Sharing tab
-            // Group chat is on in Settings.lua, and so are the two filters (Bind on Equip only, first kill only).
-            Assert.Equal(3,script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
+            // Group chat is on in Settings.lua, and so are the two filters (Bind on Equip only, first kill
+            // only); then what friends get, at its defaults: sharing, this character, new characters and seven
+            // categories (gear, talents, location, professions, reputations, highlights, level times).
+            Assert.Equal(3 + 10,script.DoString($"local n = 0; for i = {before + 1}, #frames do if frames[i].checked then n = n + 1 end end; return n").Number);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

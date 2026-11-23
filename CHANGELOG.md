@@ -6,9 +6,21 @@ The app shows the notes for a new version when it finds an update, and the newes
 
 Update the addon with the app (it does this by itself) and /reload in game.
 
+### New
+
+- **Share your reputations with friends.** Reputations are a new category in what friends get, on by default like professions: the app's sharing settings, the addon's Friends tab, the request box and `/wct friends set all reputations off`. A friend's character then lists them on its Overview, the ones it has worked on most first. Friends see them once both of you have 0.42.4.
+- **A main for each friend.** Open one of a friend's characters and click **Set as their main**: it leads their card at the top of the Friends page and their list, with a MAIN tag. Only for you, nothing is sent. Without one, the card shows the character they played last, as before.
+- **Recipes on the character.** An open character, yours or a friend's, has a **Recipes** tab: a chip per profession with how many recipes it knows, and its recipes in the same window as on the Professions page. The profession chips on the Overview open it too.
+
 ### Fixes and tweaks
 
+- **A tidier addon window.** Five tabs instead of six: the note box's options are a section of **Settings**, which now reads in order (General, Look, Note box, This character, Advanced, the app). **Incognito** is at the top of **Sharing**, and what all friends get moved there from under the Friends list (**What you share** on the Friends tab jumps to it). Map updates and the pattern corner are a row of choices instead of a button you click through, the Settings tab no longer repeats the Sharing table as text, hints are shorter and wrap to the window's width, and the Sharing and Settings tabs end where their content does.
+- **A new look updates your portrait.** On Forever the app's picture of your character comes from the shot the addon takes after you log in, so a change at the barbershop (or a new sex or race) kept the old face until your next login. Now the addon sends the new portrait a moment after the change, and the app shows a new portrait as soon as it arrives (before, it kept showing the old one until you restarted the app, even after a relog).
 - **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
+- **A tidier character overview.** The overview no longer runs long on the left while the right sits empty. The left now has who the character is (played, gold and last zone side by side, then portrait, professions and stats) and, under a divider, tags and posting. The right has highlights, talents and reputations.
+- **Smaller friend cards.** The cards at the top of the Friends page are about half as tall: the friend, when they last played, and the character they played last. Hover one for when it was seen and their gold and played time. A hidden character no longer leads a friend's card.
+- **Smoother scrolling in the addon window.** The mouse wheel now glides a short, even distance per notch on every tab and in the highlights, reputations and recipes windows, instead of jumping half a page. Spinning the wheel faster goes further.
+- **Profession milestones post only the steps you set.** With Steps > Profession skill at "150, 225, 300", a game that hadn't been /reloaded since the change (or an addon still on its 75, 150, 225, 300 defaults) could still post "reached 75 Skinning". The app now checks each milestone against the steps on the Sharing page before posting, for Mythic+ and PvP rating steps too. The milestone still shows in the character's history.
 
 ## v0.42.3
 

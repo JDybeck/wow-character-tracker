@@ -66,6 +66,34 @@ public class FriendDataTests
         Assert.Equal(40, events[0].GroupSize);
     }
 
+    // Reputations go to friends who get them, the ones worked on most first and whole lines only,
+    // and reach the app as the friend character's reputations (its Overview list).
+    [Fact]
+    public void Reputations_reach_friends_who_get_them()
+    {
+        var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", files: ["Shared.lua", "Leveling.lua", "FriendData.lua"]);
+        c.Lua("""
+            local lines = { '72~5~100~3000~~Stormwind', '69~7~500~21000~~Darnassus', '2600~4~0~2500~R12/25~Council of Dornogal' }
+            for i = 1, 80 do lines[#lines + 1] = (1000 + i) .. '~4~10~3000~~Some faction number ' .. i end
+            local char = { char = 'Zeb', lastSeen = 20, level = 30, reputations = table.concat(lines, '\n') }
+            with = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000B', char, nil, { reputations = true }))
+            without = ns.decodeFriendChar(ns.encodeFriendChar('Player-1-0000000C', char, nil, { talents = true }))
+            """);
+        Assert.True(c.Lua("return without.reputations == nil").Boolean);
+        var text = c.Lua("return with.reputations").String;
+        Assert.True(text.Length <= 1200);
+        var lines = text.Split('\n');
+        Assert.Equal(["2600~4~0~2500~R12/25~Council of Dornogal", "69~7~500~21000~~Darnassus", "72~5~100~3000~~Stormwind"], lines.Take(3));
+        Assert.All(lines, l => Assert.Matches(@"^\d+~\d*~-?\d*~-?\d*~[^~]*~.+$", l)); // whole lines only
+        Assert.Contains("reputations", c.Lua("return ns.friendSharedCategories({ with = with })").Table.Keys.Select(k => k.String));
+
+        c.Lua("friends = { ['Zeb#2222'] = { chars = { ['Player-1-0000000B'] = with } } }");
+        var zeb = Assert.Single(FriendData.ReadFriends(c.Lua("return friends")));
+        Assert.Equal(text, Assert.Single(zeb.Characters).Reputations);
+        Assert.Equal(["reputations"], FriendData.SharedCategories(c.Lua("return { with = with }")));
+        Assert.Equal("Council of Dornogal", WoWCharacterTracker.Services.Reputations.Sorted(WoWCharacterTracker.Services.Reputations.Parse(zeb.Characters[0].Reputations))[0].Name);
+    }
+
     // What a friend shares shows in what their newest characters came with; an older one can still
     // carry gear they've stopped sharing since.
     [Fact]
