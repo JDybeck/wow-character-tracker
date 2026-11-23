@@ -17,6 +17,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 - **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
 - **A tidier character overview.** The overview no longer runs long on the left while the right sits empty. The left now has who the character is (played, gold and last zone side by side, then portrait, professions and stats) and, under a divider, tags and posting. The right has highlights, talents and reputations.
 - **Smaller friend cards.** The cards at the top of the Friends page are about half as tall: the friend, when they last played, and the character they played last. Hover one for when it was seen and their gold and played time. A hidden character no longer leads a friend's card.
+- **Smoother scrolling in the addon window.** The mouse wheel now glides a short, even distance per notch on every tab and in the highlights, reputations and recipes windows, instead of jumping half a page. Spinning the wheel faster goes further.
 
 ## v0.42.3
 

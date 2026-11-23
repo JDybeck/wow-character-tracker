@@ -449,7 +449,7 @@ local function build()
   end)
   win.everyone:SetPoint("LEFT", win.search, "RIGHT", 8, 0)
 
-  local list = CreateFrame("ScrollFrame", nil, win, "UIPanelScrollFrameTemplate")
+  local list = ui.scrollFrame(win)
   list:SetPoint("TOPLEFT", 16, -74)
   list:SetSize(LIST_WIDTH - 26, HEIGHT - 90)
   win.listChild = CreateFrame("Frame", nil, list)
