@@ -53,10 +53,14 @@
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
                       </Border>
-                      <!-- A friend's main (picked on its Overview). -->
+                      <!-- Your main, or a friend's (picked on its Overview, by you or by them), and your pinned ones. -->
                       <Border Padding="6,1" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,8,0" Background="#33FACC15"
-                              ToolTip="Their main: it leads their card and their list" Visibility="{Binding IsFriendMain, Converter={StaticResource Visible}}">
+                              ToolTip="{Binding MainTagTip}" Visibility="{Binding ShowsMainTag, Converter={StaticResource Visible}}">
                         <TextBlock Text="MAIN" FontSize="9" FontWeight="Bold" Foreground="#FACC15"/>
+                      </Border>
+                      <Border Padding="5,1" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,8,0" Background="#2294A3B8"
+                              ToolTip="Pinned: it stays at the top of your list" Visibility="{Binding ShowsPinTag, Converter={StaticResource Visible}}">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE718;" FontSize="9" Foreground="{StaticResource Dim}"/>
                       </Border>
                       <!-- A friend's character (Friends page): whose it is. -->
                       <DockPanel Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">

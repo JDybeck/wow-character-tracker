@@ -947,6 +947,18 @@ local function drawExpansion(ex, c, friend)
   if count > 0 then
     actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end }
   end
+  -- Your own: your main (friends you share with see it first) and pinned to the top (ns.ownPicks).
+  if friend == nil and c.guid and ns.setOwnMain then
+    local isMain, pinned = ns.ownMain() == c.guid, ns.isPinned(c.guid)
+    actions[#actions + 1] = { isMain and "Unset as main" or "Set as my main", function()
+      ns.setOwnMain(not isMain and c.guid or false)
+      redrawTab()
+    end }
+    actions[#actions + 1] = { pinned and "Unpin" or "Pin to top", function()
+      ns.setPinned(c.guid, not pinned)
+      redrawTab()
+    end }
+  end
   local reputations = friend == nil and ns.reputationCount and ns.reputationCount(c) or 0 -- your own only
   if reputations > 0 then
     actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end }
@@ -1382,7 +1394,7 @@ local function friendRows(online, shared)
   end
   for _, friend in ipairs(shared) do
     local p = row(friend.tag, friend.label)
-    p.chars = friend.chars or {}
+    p.chars, p.main = friend.chars or {}, friend.main
     p.sharesWithYou = p.sharesWithYou or #p.chars > 0
   end
   for tag in pairs(s.contacts) do
@@ -1494,8 +1506,9 @@ local function newCharRow(p, width)
   return row
 end
 
-local function setCharRow(row, c)
-  setCard(row, fullName(c), c.classFile, charInfo(c))
+-- main: c is the main (yours, or the friend's own pick); pinned: one of yours pinned to the top.
+local function setCharRow(row, c, main, pinned)
+  setCard(row, fullName(c) .. (main and "  |cffFACC15MAIN|r" or pinned and "  |cff94A3B8PINNED|r" or ""), c.classFile, charInfo(c))
   ui.setPortrait(row.portrait, c)
   local class = c.class or ""
   row.classText:SetText(c.spec and (c.spec .. " " .. class) or class)
@@ -1859,7 +1872,7 @@ local function buildFriends(p)
         row.char, row.friend = ch, label
         if charKey(ch) == detailsKey then st.open, st.openFriend = ch, label end
         row:SetWidth(width - 24)
-        setCharRow(row, ch)
+        setCharRow(row, ch, person.main ~= nil and ch.guid == person.main)
         if ch.notShared then row.when:SetText("not shared") end
         row:SetAlpha(hidden and 0.5 or 1)
         row:SetFrameLevel((section:GetFrameLevel() or 1) + 2)
@@ -2093,14 +2106,21 @@ local function ownChars()
       out[#out + 1] = c
     end
   end
-  table.sort(out, function(a, b) return (a.at or 0) > (b.at or 0) end)
+  -- Your main first, then the pinned ones (ns.ownPicks, set here or in the app), then newest first.
+  local main = ns.ownMain()
+  for _, c in ipairs(out) do c.isMain, c.isPinned = c.guid == main, ns.isPinned(c.guid) end
+  table.sort(out, function(a, b)
+    if a.isMain ~= b.isMain then return a.isMain end
+    if a.isPinned ~= b.isPinned then return a.isPinned end
+    return (a.at or 0) > (b.at or 0)
+  end)
   return out
 end
 
 local function buildCharacters(p)
   local width = pageWidth() - 30
   local title = ui.heading(p, "Your characters")
-  local hint = ui.hint(p, "The characters you've played on this WoW account, newest first. Click one for its details, gear and level times. The app shows all your accounts.", title)
+  local hint = ui.hint(p, "The characters you've played on this WoW account, your main and pinned ones first, then newest first. Click one for its details, gear and level times, and to make it your main. The app shows all your accounts.", title)
   hint:SetWidth(width)
   local none = ui.text(p, "GameFontDisableSmall", "None saved yet. Characters show up here once you've played them with the addon.")
   local rows = {}
@@ -2123,7 +2143,7 @@ local function buildCharacters(p)
         row:SetWidth(width)
         row.char, row.friend = c, nil
         if charKey(c) == detailsKey then open = c end
-        setCharRow(row, c)
+        setCharRow(row, c, c.isMain, c.isPinned)
         row:SetAlpha(hidden and 0.5 or 1)
         place(row, p, 16, y)
         y = y + CARD + 4

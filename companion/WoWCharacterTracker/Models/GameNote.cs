@@ -13,3 +13,8 @@ record GameNickname(string Tag, string Name, long At);
 // The Friends page's order (BattleTags, first is top left), dragged in the app or in game; the
 // newer one wins on both sides.
 record GameFriendOrder(List<string> Tags, long At);
+
+// Your own main and pinned characters on one game (by GUID), picked in the app or in game; the
+// newer pick wins on both sides. The main leads your lists and goes to friends with every character
+// you share (FriendData.lua `main`), pinned ones come right after it in your own lists. Main "" is none.
+record GameOwnPicks(string Main, List<string> Pinned, long At);

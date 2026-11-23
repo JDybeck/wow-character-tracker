@@ -285,6 +285,31 @@ class FlavorSettings
         Share = edit(old) with { At = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), old.At + 1) };
     }
 
+    // Your main and pinned characters on this game (GameOwnPicks), and when they were last picked here
+    // or in game: the newer pick wins. Settings.lua ownMain, ownPinned and ownPicksAt.
+    public string OwnMain { get; set; } = "";
+    public List<string> OwnPinned { get; set; } = [];
+    public long OwnPicksAt { get; set; }
+
+    // Picked in the app: main "" is none; pin adds or removes one pinned character.
+    public void SetOwnMain(string guid) => SetOwnPicks(guid, OwnPinned);
+    public void SetOwnPinned(string guid, bool pinned) =>
+        SetOwnPicks(OwnMain, pinned ? [.. OwnPinned.Where(g => g != guid), guid] : [.. OwnPinned.Where(g => g != guid)]);
+
+    void SetOwnPicks(string main, List<string> pinned)
+    {
+        (OwnMain, OwnPinned) = (main, pinned);
+        OwnPicksAt = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), OwnPicksAt + 1);
+    }
+
+    // Picked in game, when that's newer than the app's last pick.
+    public bool TakeOwnPicks(GameOwnPicks? game)
+    {
+        if (game is null || game.At <= OwnPicksAt) return false;
+        (OwnMain, OwnPinned, OwnPicksAt) = (game.Main, [.. game.Pinned], game.At);
+        return true;
+    }
+
     // Characters removed in the app: guid -> when. A character played after that shows up again.
     public Dictionary<string, long> Removed { get; set; } = [];
 
