@@ -200,8 +200,24 @@
         </StackPanel>
       </Border>
       </StackPanel>
-      <!-- A friend's character: hide it from the Friends page (only here, nothing is sent). -->
+      <!-- A friend's character: their main (leads their card and list) or hidden from the Friends page. Only here, nothing is sent. -->
       <WrapPanel Margin="-12,12,0,0" Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">
+        <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Show this character on their card at the top and first in their list. Only for you, nothing is sent."
+                Visibility="{Binding IsFriendMain, Converter={StaticResource Hidden}}"
+                Command="{Binding DataContext.SelectedFlavor.Friends.MainCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE734;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,7,0"/>
+            <TextBlock Text="Set as their main" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Their card and list go back to the character they played last"
+                Visibility="{Binding IsFriendMain, Converter={StaticResource Visible}}"
+                Command="{Binding DataContext.SelectedFlavor.Friends.NotMainCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Foreground="#FACC15" Margin="0,0,7,0"/>
+            <TextBlock Text="Their main, click to unset" FontSize="12" Foreground="{StaticResource Dim}"/>
+          </StackPanel>
+        </Button>
         <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Hide this character on the Friends page. Nothing is sent to your friend."
                 Visibility="{Binding IsHiddenFriend, Converter={StaticResource Hidden}}"
                 Command="{Binding DataContext.SelectedFlavor.Friends.HideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">

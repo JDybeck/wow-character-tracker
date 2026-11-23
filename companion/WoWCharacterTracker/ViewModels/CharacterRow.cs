@@ -39,6 +39,8 @@ sealed class CharacterRow : Observable
     public string FriendSyncedText => FriendSynced > 0 ? $"updated {Format.Ago(FriendSynced)}" : "not updated yet";
     bool isHiddenFriend;
     public bool IsHiddenFriend { get => isHiddenFriend; set => Set(ref isHiddenFriend, value); } // hidden on the Friends page, shown anyway
+    bool isFriendMain;
+    public bool IsFriendMain { get => isFriendMain; set => Set(ref isFriendMain, value); } // the main you picked for that friend (Config.FriendMains)
     // A friend's character raced against one of yours (FriendsViewModel), null when none share a level.
     public LevelRaceRow? Rival { get; set; }
     public bool HasRival => Rival is not null;

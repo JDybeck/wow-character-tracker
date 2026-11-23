@@ -26,6 +26,8 @@ sealed class FriendsViewModel : Observable
         Contacts = new ChipFilter("Friend", ShowRows);
         HideCommand = new RelayCommand(p => SetHidden(p, true));
         UnhideCommand = new RelayCommand(p => SetHidden(p, false));
+        MainCommand = new RelayCommand(p => SetMain(p, true));
+        NotMainCommand = new RelayCommand(p => SetMain(p, false));
         UnblockCommand = new RelayCommand(p => { if (p is string tag) Edit(s => s with { Blocked = [.. s.Blocked.Where(t => t != tag)] }); });
     }
 
@@ -50,6 +52,8 @@ sealed class FriendsViewModel : Observable
     ICommand? toggleHidden;
     public ICommand HideCommand { get; }
     public ICommand UnhideCommand { get; }
+    public ICommand MainCommand { get; }
+    public ICommand NotMainCommand { get; }
 
     string NameOf(string tag) => config.FriendNicknames.TryGetValue(tag, out var n) && n.Length > 0 ? n : tag;
 
@@ -116,6 +120,7 @@ sealed class FriendsViewModel : Observable
         {
             r.FriendName = NameOf(r.FriendTag);
             r.IsHiddenFriend = config.HiddenFriendCharacters.Contains(r.Guid);
+            r.IsFriendMain = config.FriendMains.TryGetValue(r.FriendTag, out var main) && main == r.Guid;
         }
         Contacts.Fill(allRows, r => r.FriendTag, NameOf);
         BuildCards();
@@ -136,12 +141,13 @@ sealed class FriendsViewModel : Observable
     }
 
     // Grouped by friend on the page (FriendsPage groups by FriendTag): friends in the dragged order
-    // (rank), the rest by name, each friend's characters the one played last first, so the one
-    // they're on leads.
+    // (rank), the rest by name, each friend's main first (when you picked one), then the one played
+    // last, so the one they're on leads.
     internal static IEnumerable<CharacterRow> Ordered(IEnumerable<CharacterRow> rows, Func<string, int> rank) =>
         rows.OrderBy(r => rank(r.FriendTag))
             .ThenBy(r => r.FriendName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(r => r.FriendTag, StringComparer.Ordinal) // two friends with one nickname stay apart
+            .ThenByDescending(r => r.IsFriendMain)
             .ThenByDescending(r => r.LastSeen)
             .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase);
 
@@ -195,7 +201,9 @@ sealed class FriendsViewModel : Observable
         var totals = FriendTotals.Of(allRows.Where(r => !config.HiddenFriendCharacters.Contains(r.Guid)));
         foreach (var g in allRows.GroupBy(r => r.FriendTag).OrderBy(g => RankOf(g.Key)).ThenBy(g => NameOf(g.Key), StringComparer.CurrentCultureIgnoreCase))
         {
-            var current = g.MaxBy(r => r.LastSeen)!;
+            // Their main when you picked one, else the one played last; hidden ones only when all are.
+            var shown = g.Where(r => !config.HiddenFriendCharacters.Contains(r.Guid)).ToList();
+            var current = g.FirstOrDefault(r => r.IsFriendMain) ?? (shown.Count > 0 ? shown : [.. g]).MaxBy(r => r.LastSeen)!;
             Cards.Add(new FriendCard(g.Key, NameOf(g.Key), current, g.Count(), g.Key == Contacts.Key)
             {
                 TotalsText = totals.Text(g.Key),
@@ -230,6 +238,16 @@ sealed class FriendsViewModel : Observable
         var now = CardOrder;
         if (!dropped) BuildCards();
         else if (!now.SequenceEqual(before)) OrderChanged?.Invoke(now);
+    }
+
+    // One main per friend: picking another replaces it.
+    void SetMain(object? p, bool main)
+    {
+        if (p is not CharacterRow row || row.FriendTag.Length == 0) return;
+        if (main) config.FriendMains[row.FriendTag] = row.Guid;
+        else if (config.FriendMains.TryGetValue(row.FriendTag, out var guid) && guid == row.Guid) config.FriendMains.Remove(row.FriendTag);
+        save();
+        ShowRows();
     }
 
     void SetHidden(object? p, bool hidden)
