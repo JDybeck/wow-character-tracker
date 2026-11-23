@@ -61,7 +61,7 @@ sealed class FriendsViewModel : Observable
     {
         this.data = data;
         var keep = SelectedCharacter?.Guid;
-        var keepTab = SelectedCharacter?.DetailTab; // the list refreshes on every sync
+        var keepOpen = SelectedCharacter; // the list refreshes on every sync
         var rows = new List<CharacterRow>();
         // Friends don't share their region, and Battle.net friends who share play in yours.
         var region = data.Characters.Where(c => c.Region.Length > 0).MaxBy(c => c.LastSeen)?.Region ?? "";
@@ -83,7 +83,7 @@ sealed class FriendsViewModel : Observable
         allRows = rows;
         ShowRows();
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
-        if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab;
+        SelectedCharacter?.KeepTabFrom(keepOpen);
         BuildContactRows();
         BuildOwnCharacters();
         RaiseSharing();

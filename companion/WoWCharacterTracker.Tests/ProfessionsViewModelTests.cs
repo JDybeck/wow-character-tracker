@@ -97,4 +97,69 @@ public class ProfessionsViewModelTests
         vm.Show(Rows(Char("Zeb", "Firemaw", "Orc", "WARRIOR", "")));
         Assert.True(vm.IsEmpty);
     }
+
+    // The character details' Recipes tab and the overview's profession chips.
+    static CharacterRow WithRecipes(string professions, string recipes) => Rows(
+        Char("Zeb", "Firemaw", "Orc", "WARRIOR", professions) with { Recipes = recipes }).Single();
+
+    [Fact]
+    public void A_profession_chip_says_how_many_recipes_and_opens_them_on_the_recipes_tab()
+    {
+        var row = WithRecipes("Blacksmithing 140/225, Mining 150/225", "Blacksmithing~Weapon Stones=2660,3115/Armor=3328");
+        var smithing = row.RecipeProfessions.Single(p => p.Profession == "Blacksmithing");
+        var mining = row.RecipeProfessions.Single(p => p.Profession == "Mining");
+        Assert.Equal("Blacksmithing 140", smithing.Text);
+        Assert.Equal("3 recipes", smithing.RecipeCountText);
+        Assert.Contains("Click to see its 3 recipes", smithing.ChipTooltip);
+        Assert.False(mining.HasRecipes);
+        Assert.Contains("Open Mining once in game", mining.ChipTooltip);
+        Assert.True(row.HasRecipes);
+
+        row.OpenRecipesCommand.Execute(smithing);
+        Assert.Equal("recipes", row.DetailTab);
+        Assert.True(row.IsRecipesTab);
+        Assert.Equal("Blacksmithing", row.RecipeBook!.Line.Profession);
+        Assert.True(smithing.IsOpen);
+
+        // A profession without recipes doesn't open (its chip can't be clicked anyway).
+        row.DetailTab = "overview";
+        row.OpenRecipesCommand.Execute(mining);
+        Assert.Equal("overview", row.DetailTab);
+        Assert.Equal("Blacksmithing", row.OpenRecipeProfession);
+    }
+
+    [Fact]
+    public void The_recipes_tab_opens_on_the_first_profession_with_recipes_and_keeps_it_over_a_sync()
+    {
+        const string professions = "Alchemy 100/150, Herbalism 120/150, Mining 90/150";
+        const string recipes = "Alchemy~Potions=2330/Elixirs=2329\nMining~Smelting=2657";
+        var row = WithRecipes(professions, recipes);
+        row.IsRecipesTab = true;
+        Assert.Equal("Alchemy", row.OpenRecipeProfession);
+        row.OpenRecipes("Mining");
+        Assert.Equal("Mining", row.OpenRecipeProfession);
+
+        var synced = WithRecipes(professions, recipes);
+        synced.KeepTabFrom(row);
+        Assert.Equal("recipes", synced.DetailTab);
+        Assert.Equal("Mining", synced.OpenRecipeProfession);
+        Assert.True(synced.RecipeProfessions.Single(p => p.Profession == "Mining").IsOpen);
+        Assert.False(synced.RecipeProfessions.Single(p => p.Profession == "Alchemy").IsOpen);
+    }
+
+    [Fact]
+    public void Without_recipes_the_tab_says_how_to_get_them()
+    {
+        var own = WithRecipes("Mining 90/150", "");
+        own.IsRecipesTab = true;
+        Assert.Null(own.RecipeBook);
+        Assert.False(own.HasRecipes);
+        Assert.Contains("Open a profession once in game", own.NoRecipesText);
+
+        var friend = WithRecipes("Mining 90/150", "");
+        friend.IsFriend = true;
+        friend.FriendName = "Rasmus";
+        Assert.Contains("once Rasmus opens a profession", friend.NoRecipesText);
+        Assert.Contains("once Rasmus opens Mining", friend.RecipeProfessions.Single().ChipTooltip);
+    }
 }

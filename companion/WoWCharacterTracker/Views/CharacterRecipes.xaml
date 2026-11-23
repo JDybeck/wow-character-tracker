@@ -1,0 +1,17 @@
+<!-- The Recipes tab of the character details (yours and friends'): a chip per profession with how
+     many recipes it knows, and the picked one's recipes in a window like the game's (RecipeBookView),
+     as the addon's button per profession does in game. DataContext: CharacterRow. -->
+<UserControl x:Class="WoWCharacterTracker.Views.CharacterRecipes"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:WoWCharacterTracker.Views">
+  <StackPanel Margin="0,12,0,0">
+    <ItemsControl ItemsSource="{Binding RecipeProfessions}" ItemTemplate="{StaticResource ProfessionChipTemplate}" ItemsPanel="{StaticResource Wrap}" Focusable="False"/>
+    <!-- A fixed height: the window's two lists scroll on their own inside the page. -->
+    <Border Height="480" Margin="0,6,0,0" Visibility="{Binding HasRecipes, Converter={StaticResource Visible}}">
+      <views:RecipeBookView DataContext="{Binding RecipeBook}"/>
+    </Border>
+    <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" TextWrapping="Wrap" Visibility="{Binding HasRecipes, Converter={StaticResource Hidden}}"
+               Text="{Binding NoRecipesText}"/>
+  </StackPanel>
+</UserControl>
