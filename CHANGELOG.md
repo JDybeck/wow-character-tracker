@@ -8,7 +8,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 ### Fixes and tweaks
 
-- **A new look updates your portrait.** On Forever the app's picture of your character comes from the shot the addon takes after you log in, so a change at the barbershop (or a new sex or race) kept the old face until your next login. Now the addon sends the new portrait a moment after the change.
+- **A new look updates your portrait.** On Forever the app's picture of your character comes from the shot the addon takes after you log in, so a change at the barbershop (or a new sex or race) kept the old face until your next login. Now the addon sends the new portrait a moment after the change, and the app shows a new portrait as soon as it arrives (before, it kept showing the old one until you restarted the app, even after a relog).
 - **No more percentages on friends' gold and played.** A friend's totals now read just "12,345g · 6d 4h played", without their share of everyone's. The all-friends totals stay as they were.
 
 ## v0.42.3

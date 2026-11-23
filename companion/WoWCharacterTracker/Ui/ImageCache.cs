@@ -37,6 +37,10 @@ static class ImageCache
         if (isFile) foreach (var old in Shown.Keys.Where(k => k.StartsWith(source + "|", StringComparison.OrdinalIgnoreCase)).ToList()) Shown.Remove(old);
         try
         {
+            // A file is read and decoded here, never through UriSource: WPF keeps its own cache of
+            // pictures by address, so a rewritten portrait would keep showing the old face until restart.
+            if (isFile) return Shown[key] = Decode(File.ReadAllBytes(source));
+
             // Usually already loaded off the UI thread by LoadAsync (ItemInfo does that before it hands
             // out its icon); this is for the few pictures bound straight from a URL.
             var kept = isFile ? null : KeptFile(source);

@@ -105,6 +105,41 @@ public class FilesAndProcessesTests
         finally { dir.Delete(recursive: true); }
     }
 
+    // A portrait file rewritten at a check-in shows the new picture, not the one WPF saw at that
+    // address before (it caches pictures by address).
+    [Fact]
+    public void ImageCache_shows_a_rewritten_portrait()
+    {
+        var dir = Directory.CreateTempSubdirectory("wct-portrait-");
+        try
+        {
+            static byte[] Png(byte gray)
+            {
+                var png = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                png.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(
+                    System.Windows.Media.Imaging.BitmapSource.Create(8, 8, 96, 96, System.Windows.Media.PixelFormats.Gray8, null, Enumerable.Repeat(gray, 64).ToArray(), 8)));
+                using var ms = new MemoryStream();
+                png.Save(ms);
+                return ms.ToArray();
+            }
+            static byte Shade(System.Windows.Media.ImageSource? img)
+            {
+                var px = new byte[4];
+                new System.Windows.Media.Imaging.FormatConvertedBitmap((System.Windows.Media.Imaging.BitmapSource)img!, System.Windows.Media.PixelFormats.Bgra32, null, 0)
+                    .CopyPixels(new System.Windows.Int32Rect(0, 0, 1, 1), px, 4, 0);
+                return px[0];
+            }
+            var file = Path.Combine(dir.FullName, "Player-1-ABC.png");
+            Files.WriteAtomic(file, Png(0));
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddMinutes(-5));
+            Assert.Equal(0, Shade(WoWCharacterTracker.Ui.ImageCache.Get(file)));
+
+            Files.WriteAtomic(file, Png(255));
+            Assert.Equal(255, Shade(WoWCharacterTracker.Ui.ImageCache.Get(file)));
+        }
+        finally { dir.Delete(recursive: true); }
+    }
+
     [Fact]
     public void GameProcesses_sees_running_processes_by_name()
     {
