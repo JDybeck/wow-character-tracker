@@ -2,14 +2,14 @@ using MoonSharp.Interpreter;
 
 namespace WoWCharacterTracker.Tests;
 
-// Friends' gold and played time added up, per friend and for all of them, with each friend's share:
+// Friends' gold and played time added up, per friend and for all of them:
 // the app's FriendTotals (Friends page cards and footer) and the addon's ns.friendTotals (Friends tab).
 public class FriendTotalsTests
 {
     const long Gold = 10000; // copper
 
     [Fact]
-    public void Each_friend_gets_their_sum_and_share_of_all_friends()
+    public void Each_friend_gets_their_sum_and_all_friends_add_up()
     {
         var t = FriendTotals.FromChars([("Zeb#2222", 300 * Gold, 3600), ("Zeb#2222", 100 * Gold, 3600), ("Kalle#3333", 600 * Gold, 0)]);
         Assert.Equal(1000 * Gold, t.Money);
@@ -17,11 +17,11 @@ public class FriendTotalsTests
         Assert.Equal(3, t.Characters);
         Assert.Equal(2, t.Friends);
         var zeb = t.For("Zeb#2222")!;
-        Assert.Equal((400 * Gold, 7200L, 2, 40, 100), (zeb.Money, zeb.Played, zeb.Characters, zeb.GoldPercent, zeb.PlayedPercent));
+        Assert.Equal((400 * Gold, 7200L, 2), (zeb.Money, zeb.Played, zeb.Characters));
         var kalle = t.For("Kalle#3333")!;
-        Assert.Equal((60, 0), (kalle.GoldPercent, kalle.PlayedPercent));
-        Assert.Equal("400g (40%) · 2h 0m played", t.Text("Zeb#2222")); // the only one with played: no percent
-        Assert.Equal("600g (60%)", t.Text("Kalle#3333")); // no played time shared: left out
+        Assert.Equal((600 * Gold, 0L), (kalle.Money, kalle.Played));
+        Assert.Equal("400g · 2h 0m played", t.Text("Zeb#2222"));
+        Assert.Equal("600g", t.Text("Kalle#3333")); // no played time shared: left out
     }
 
     // Gold is its own category (off until turned on) and played comes with Level times: a friend who
@@ -35,7 +35,7 @@ public class FriendTotalsTests
         Assert.Equal(0, t.WithPlayed);
         Assert.Equal("", t.Text("Zeb#2222"));
         Assert.Equal("", t.Text("Nobody#1"));
-        Assert.Equal(100, t.For("Kalle#3333")!.GoldPercent);
+        Assert.Equal(5 * Gold, t.For("Kalle#3333")!.Money);
         Assert.Equal(0, FriendTotals.FromChars([]).Money);
         Assert.Null(FriendTotals.FromChars([]).For("Zeb#2222"));
     }
@@ -70,8 +70,8 @@ public class FriendTotalsTests
     public void The_friends_page_shows_each_friends_totals_on_their_card_and_all_of_them_under_the_list()
     {
         var (vm, config, _) = Page();
-        Assert.Equal("400g · 1d 2h 0m played (13%)", vm.Cards.Single(c => c.Tag == "Zeb#2222").TotalsText);
-        Assert.Equal("6d 22h 40m played (87%)", vm.Cards.Single(c => c.Tag == "Kalle#3333").TotalsText);
+        Assert.Equal("400g · 1d 2h 0m played", vm.Cards.Single(c => c.Tag == "Zeb#2222").TotalsText);
+        Assert.Equal("6d 22h 40m played", vm.Cards.Single(c => c.Tag == "Kalle#3333").TotalsText);
         Assert.True(vm.ShowsTotals);
         Assert.Equal("Total gold of 1 friend (2 characters):", vm.TotalGoldText);
         Assert.Equal(400 * Gold, vm.Listed.Money);
@@ -95,7 +95,7 @@ public class FriendTotalsTests
     }
 
     [Fact]
-    public void The_addon_adds_up_what_friends_share_with_each_ones_share()
+    public void The_addon_adds_up_what_friends_share()
     {
         var c = new FriendsLuaTests.Client("Player-1-0000000A", "{}", $"{{ chars = {{}}, items = {{}}, friends = {FriendsLua}, share = {KeepBoth} }}");
         c.Lua("""
@@ -109,8 +109,8 @@ public class FriendTotalsTests
         Assert.Equal(693600, c.Lua("return t.played").Number);
         Assert.Equal(2, c.Lua("return t.friends").Number);
         Assert.Equal(1, c.Lua("return t.withGold").Number);
-        Assert.Equal("400g  ·  1d 2h 0m played (13%)", c.Lua("return zeb").String); // the only one with gold: no percent
-        Assert.Equal("6d 22h 40m played (87%)", c.Lua("return kalle").String);
+        Assert.Equal("400g  ·  1d 2h 0m played", c.Lua("return zeb").String);
+        Assert.Equal("6d 22h 40m played", c.Lua("return kalle").String);
         Assert.Equal("All friends: 400g, 8d 0h 40m played (1 of 2 share gold)", c.Lua("return all").String);
         Assert.Equal(3000000, c.Lua("return hidden.byTag['Zeb#2222'].money").Number);
         Assert.Equal("", c.Lua("return ns.friendTotalsLine(t, 'Nobody#1')").String);

@@ -1695,7 +1695,7 @@ local function buildFriends(p)
   section.pill:SetPoint("LEFT", section.title, "RIGHT", 8, 0)
   section.stateText = ui.text(section.pill, "GameFontHighlightSmall")
   section.stateText:SetPoint("CENTER", section.pill, "CENTER", 0, 0)
-  -- Their gold and played added up, with their share of all friends' (ns.friendTotalsLine).
+  -- Their gold and played added up (ns.friendTotalsLine).
   section.totals = ui.text(section, "GameFontHighlightSmall")
   section.totals:SetPoint("LEFT", section.pill, "RIGHT", 10, 0)
   section.totals:SetWordWrap(false)
