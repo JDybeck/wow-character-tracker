@@ -13,6 +13,7 @@ Update the addon with the app (it does this by itself), then exit the game fully
 
 ### Fixes and tweaks
 
+- **The resize corner no longer jumps.** A click on the addon window's bottom right corner could blow the window up to nearly the whole screen. Now it only resizes while you drag it, and a click does nothing.
 - **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
 
 ## v0.42.4

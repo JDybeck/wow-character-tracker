@@ -2403,18 +2403,11 @@ local function setSizeBounds(maxWidth, maxHeight)
   end
 end
 
--- Clamped to the screen, a window sized past the screen's edge is pushed back instead, title bar
--- and all off the top. So it grows from its top left and only as far as the screen has room.
-local function startSizing()
-  local left, top, screen = window:GetLeft(), window:GetTop(), UIParent:GetRight()
-  if left and top and screen then
-    window:ClearAllPoints()
-    window:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-    setSizeBounds(math.max(WIDTH, math.min(MAX_WIDTH, screen - left)), math.max(HEIGHT, math.min(MAX_HEIGHT, top)))
-  end
-  window:StartSizing("BOTTOMRIGHT")
-end
-
+-- Sizing by hand rather than StartSizing: the game's sizing could jump the window to its largest
+-- size on a plain click of the grip. Now the window follows the cursor only once it has moved a few
+-- pixels, so a click changes nothing. Clamped to the screen, a window sized past the screen's edge
+-- is pushed back instead, title bar and all off the top, so it grows from its top left and only as
+-- far as the screen has room.
 local function resizeGrip()
   local grip = CreateFrame("Button", nil, window)
   grip:SetSize(16, 16)
@@ -2422,14 +2415,38 @@ local function resizeGrip()
   grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
   grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
   grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-  grip:SetScript("OnMouseDown", startSizing)
-  grip:SetScript("OnMouseUp", function()
+  local function finish()
+    window:SetScript("OnUpdate", nil)
     savePosition(window) -- the sizing anchored it at its top left
     local s = saved()
     s.width, s.height = math.floor(window:GetWidth() + 0.5), math.floor(window:GetHeight() + 0.5)
     fitPages()
     if current and tabs[current] and tabs[current].page then ui.refresh(tabs[current].page) end
+  end
+  grip:SetScript("OnMouseDown", function()
+    local left, top, screen = window:GetLeft(), window:GetTop(), UIParent:GetRight()
+    if not (left and top and screen) then return end
+    window:ClearAllPoints()
+    window:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    local maxW = math.max(WIDTH, math.min(MAX_WIDTH, screen - left))
+    local maxH = math.max(HEIGHT, math.min(MAX_HEIGHT, top))
+    setSizeBounds(maxW, maxH)
+    local scale = window:GetEffectiveScale() or 1
+    local x0, y0 = 0, 0
+    if GetCursorPosition then x0, y0 = GetCursorPosition() end
+    local w0, h0 = window:GetWidth(), window:GetHeight()
+    local sizing = { moved = false }
+    window:SetScript("OnUpdate", function(self)
+      if IsMouseButtonDown and not IsMouseButtonDown("LeftButton") then return finish() end -- let go off the grip
+      if not GetCursorPosition then return end
+      local x, y = GetCursorPosition()
+      local dx, dy = (x - x0) / scale, (y0 - y) / scale
+      if not sizing.moved and math.abs(dx) < 4 and math.abs(dy) < 4 then return end
+      sizing.moved = true
+      self:SetSize(math.max(WIDTH, math.min(maxW, w0 + dx)), math.max(HEIGHT, math.min(maxH, h0 + dy)))
+    end)
   end)
+  grip:SetScript("OnMouseUp", finish)
   return grip
 end
 

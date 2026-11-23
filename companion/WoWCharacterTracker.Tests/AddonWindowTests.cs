@@ -915,6 +915,40 @@ public class AddonWindowTests
         Assert.True(Bool(c, "friendCard('Danno').point[5] == friendCard('Annie').point[5]")); // 5 columns: all on row 1
     }
 
+    // A plain click on the grip leaves the size alone; dragging it sizes the window with the cursor.
+    [Fact]
+    public void Clicking_the_resize_grip_does_not_resize_and_dragging_does()
+    {
+        var c = FriendsTab();
+        c.Lua("""
+            win = named('WoWCharacterTrackerWindow')
+            win.GetLeft = function() return 100 end
+            win.GetTop = function() return 900 end
+            UIParent.GetRight = function() return 1900 end
+            win.GetWidth = function() return 828 end
+            win.GetHeight = function() return 590 end
+            win.SetSize = function(s, w, h) s.sized = { w, h } end
+            cursor = { 500, 300 }
+            function GetCursorPosition() return cursor[1], cursor[2] end
+            function IsMouseButtonDown() return true end
+            for _, f in ipairs(frames) do
+              if f.parent == win and f.kind == 'Button' and f.scripts.OnMouseDown then grip = f end
+            end
+            grip.scripts.OnMouseDown(grip)
+            cursor = { 502, 299 } -- a hand's wobble during a click
+            win.scripts.OnUpdate(win, 0.02)
+            """);
+        Assert.True(Bool(c, "win.sized == nil"));
+        c.Lua("""
+            cursor = { 700, 200 }
+            win.scripts.OnUpdate(win, 0.02)
+            grip.scripts.OnMouseUp(grip)
+            """);
+        Assert.Equal(1028, Num(c, "win.sized[1]")); // 200 wider
+        Assert.Equal(690, Num(c, "win.sized[2]"));  // 100 taller
+        Assert.True(Bool(c, "win.scripts.OnUpdate == nil")); // stopped on letting go
+    }
+
     // Sizing starts from the top left and stops at the screen's edge, so the clamp never pushes the
     // title bar off the top. The new anchor is saved.
     [Fact]
