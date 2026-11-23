@@ -207,6 +207,7 @@ sealed class FriendsViewModel : Observable
             Cards.Add(new FriendCard(g.Key, NameOf(g.Key), current, g.Count(), g.Key == Contacts.Key)
             {
                 TotalsText = totals.Text(g.Key),
+                LastSeen = g.Max(r => r.LastSeen),
             });
             _ = current.LoadPictureAsync(flavor);
         }
@@ -524,6 +525,9 @@ sealed record FriendCard(string Tag, string Name, CharacterRow Current, int Coun
 {
     public string CountText => Format.Count(Count, "character");
     public string SeenText => $"seen {Current.LastSeenText} · {Current.FriendSyncedText}";
+    // When they last played any of their characters (the main can be an older one): "seen 18h ago" on the card.
+    public long LastSeen { get; init; }
+    public string LastSeenText => Format.Ago(LastSeen) is { Length: > 0 } s ? $"seen {s}" : "";
     // Their gold and played added up, with their share of all friends': "12,345g (40%) · 6d 4h 12m played (25%)". Empty when they share neither.
     public string TotalsText { get; init; } = "";
 }

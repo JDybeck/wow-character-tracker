@@ -88,6 +88,8 @@ public class FriendsViewModelTests
         Assert.Equal(["Kalle#3333", "Zeb#2222"], f.Vm.Cards.Select(c => c.Tag)); // by name
         Assert.Equal("Zeb", f.Vm.Cards[1].Current.Name); // the one played last
         Assert.Equal("2 characters", f.Vm.Cards[1].CountText);
+        Assert.StartsWith("seen ", f.Vm.Cards[1].LastSeenText); // when they last played any of theirs
+        Assert.Equal(f.Vm.Characters.Where(c => c.FriendTag == "Zeb#2222").Max(c => c.LastSeen), f.Vm.Cards[1].LastSeen);
 
         f.Config.FriendOrder = ["Zeb#2222"];
         f.Vm.Show(f.Data);

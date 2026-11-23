@@ -14,7 +14,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 ### Fixes and tweaks
 
 - **A tidier character overview.** The overview no longer runs long on the left while the right sits empty. The left now has who the character is (played, gold and last zone side by side, then portrait, professions and stats) and, under a divider, tags and posting. The right has highlights, talents and reputations.
-- **Smaller friend cards.** The cards at the top of the Friends page are about half as tall: the friend and the character they played last. Hover one for when it was seen and their gold and played time. A hidden character no longer leads a friend's card.
+- **Smaller friend cards.** The cards at the top of the Friends page are about half as tall: the friend, when they last played, and the character they played last. Hover one for when it was seen and their gold and played time. A hidden character no longer leads a friend's card.
 
 ## v0.42.4
 

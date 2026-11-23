@@ -92,7 +92,7 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:FriendCard}">
-                  <!-- Compact: name and the character played last; when it was seen and their totals are in the tooltip. -->
+                  <!-- Compact: name and when they last played, then their main or the character played last; the rest is in the tooltip. -->
                   <Button Width="200" Margin="0,0,6,6" Cursor="Hand" AllowDrop="True"
                           Command="{Binding DataContext.SelectFriendCommand, ElementName=FriendGrid}" CommandParameter="{Binding}"
                           PreviewMouseLeftButtonDown="Card_MouseDown" PreviewMouseLeftButtonUp="Card_MouseUp" PreviewMouseMove="Card_MouseMove" DragOver="Card_DragOver" Drop="Card_Drop">
@@ -132,7 +132,11 @@
                         <Ellipse Stroke="{Binding Current.ClassBrush}" StrokeThickness="1.5"/>
                       </Grid>
                       <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                        <DockPanel>
+                          <TextBlock DockPanel.Dock="Right" Text="{Binding LastSeenText}" FontSize="10" Foreground="{StaticResource Dim}" Margin="6,1,0,0"
+                                     VerticalAlignment="Center" ToolTip="When they last played"/>
+                          <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
                         <TextBlock FontSize="11" TextTrimming="CharacterEllipsis">
                           <Run Text="{Binding Current.FullName, Mode=OneWay}" Foreground="{Binding Current.ClassBrush, Mode=OneWay}"/>
                           <Run Text="{Binding Current.Level, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
