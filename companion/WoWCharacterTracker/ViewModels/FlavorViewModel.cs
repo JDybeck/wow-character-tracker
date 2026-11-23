@@ -1007,7 +1007,7 @@ sealed class FlavorViewModel : Observable
             WriteAddonSettings();
         }
         Lookup.SetItemClasses(data.ItemClasses);
-        var keepTab = SelectedCharacter?.DetailTab;
+        var keepOpen = SelectedCharacter; // the list refreshes on every sync
         Motion.Quiet(); // the rows are rebuilt: what's open stays still
         var built = CharacterRow.Build(data, Flavor, Lookup)
             .Where(r => !(removed.TryGetValue(r.Guid, out var at) && r.LastSeen <= at))
@@ -1036,7 +1036,7 @@ sealed class FlavorViewModel : Observable
             _ = r.LoadPictureAsync(Flavor);
         }
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
-        if (SelectedCharacter is not null && keepTab is not null) SelectedCharacter.DetailTab = keepTab; // the list refreshes on every sync
+        SelectedCharacter?.KeepTabFrom(keepOpen);
         Items.Show(rows);
         Professions.Show(rows);
         Friends.Show(ShownData); // friends' rows stay on their own page (not the test characters either)

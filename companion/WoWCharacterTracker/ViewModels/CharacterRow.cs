@@ -91,6 +91,56 @@ sealed class CharacterRow : Observable
     IReadOnlyDictionary<string, IReadOnlyList<RecipeGroup>>? recipeLists;
     public IReadOnlyList<RecipeGroup> RecipesOf(string profession) =>
         (recipeLists ??= ProfessionSkills.Recipes(Recipes)).GetValueOrDefault(profession) ?? [];
+
+    // The Recipes tab: each profession with what the character knows of it (like the addon's button
+    // per profession), and the open one's recipes in a window like the game's (RecipeBook). The
+    // overview's profession chips open it too. Only professions with recipes open; the others say why.
+    IReadOnlyList<ProfessionCharacter>? recipeProfessions;
+    public IReadOnlyList<ProfessionCharacter> RecipeProfessions => recipeProfessions ??=
+        [.. ProfessionSkills.Parse(Professions).Select(s => ProfessionCharacter.Of(this, s, IsFriend ? FriendName : ""))];
+    public bool HasRecipes => RecipeProfessions.Any(p => p.HasRecipes);
+    public string NoRecipesText => (IsFriend, RecipeProfessions.Count > 0) switch
+    {
+        (false, true) => "No recipes yet. Open a profession once in game and its recipes show up here.",
+        (false, false) => "No professions yet.",
+        (true, true) => $"No recipes shared yet. They show up once {FriendName} opens a profession in game with the addon.",
+        (true, false) => "No professions shared.",
+    };
+    RecipeBook? recipeBook;
+    public RecipeBook? RecipeBook
+    {
+        get => recipeBook;
+        private set
+        {
+            if (!Set(ref recipeBook, value)) return;
+            foreach (var p in RecipeProfessions) p.IsOpen = p == value?.Line;
+            Raise(nameof(OpenRecipeProfession));
+        }
+    }
+    public string OpenRecipeProfession => RecipeBook?.Line.Profession ?? "";
+    RelayCommand? openRecipes;
+    // From the Recipes tab's switch or an overview chip: a ProfessionCharacter, or a profession's name.
+    public RelayCommand OpenRecipesCommand => openRecipes ??= new RelayCommand(p => OpenRecipes(p switch
+    {
+        ProfessionCharacter line => line.Profession,
+        string name => name,
+        _ => null,
+    }));
+    // After a sync rebuilt the rows: the same tab open as before, on the same profession's recipes.
+    public void KeepTabFrom(CharacterRow? old)
+    {
+        if (old is null) return;
+        if (old.DetailTab == "recipes" && old.OpenRecipeProfession.Length > 0) OpenRecipes(old.OpenRecipeProfession);
+        DetailTab = old.DetailTab;
+    }
+
+    public void OpenRecipes(string? profession = null)
+    {
+        var line = RecipeProfessions.FirstOrDefault(p => p.HasRecipes && (profession is null || p.Profession == profession));
+        if (line is null) return;
+        if (RecipeBook?.Line.Profession != line.Profession) RecipeBook = new RecipeBook(line);
+        DetailTab = "recipes";
+    }
     // Factions and standings (Reputations.Parse), saved file only: renown first, then the highest.
     // The overview shows the first few until "Show all" is clicked.
     public string Reputations { get; init; } = "";
@@ -167,7 +217,7 @@ sealed class CharacterRow : Observable
     }
     public CharacterLeveling Leveling { get; init; } = new();
 
-    // The details are split into tabs: "overview", "gear" (gear and bags), "leveling", "highlights" and "notes".
+    // The details are split into tabs: "overview", "gear" (gear and bags), "leveling", "highlights", "recipes" and "notes".
     string detailTab = "overview";
     public string DetailTab
     {
@@ -176,8 +226,11 @@ sealed class CharacterRow : Observable
         {
             if (!Set(ref detailTab, value)) return;
             Raise(nameof(IsOverviewTab)); Raise(nameof(IsGearTab)); Raise(nameof(IsLevelingTab)); Raise(nameof(IsNotesTab)); Raise(nameof(IsHighlightsTab));
+            Raise(nameof(IsRecipesTab));
+            if (value == "recipes" && RecipeBook is null) OpenRecipes();
         }
     }
+    public bool IsRecipesTab { get => DetailTab == "recipes"; set { if (value) DetailTab = "recipes"; } }
     public bool IsHighlightsTab { get => DetailTab == "highlights"; set { if (value) DetailTab = "highlights"; } }
 
     // The Overview shows the newest few; the Highlights tab has them all.

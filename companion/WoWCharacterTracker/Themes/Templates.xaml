@@ -152,6 +152,37 @@
       </StackPanel>
     </Border>
   </DataTemplate>
+  <!-- A character's profession (vm:ProfessionCharacter) on its overview and Recipes tab: "Mining 150"
+       with the icon and how many recipes it knows; a click opens them on the Recipes tab, like the
+       addon's button per profession. Without recipes it can't be clicked, and the tooltip says why. -->
+  <DataTemplate x:Key="ProfessionChipTemplate" DataType="{x:Type vm:ProfessionCharacter}">
+    <Button Command="{Binding Row.OpenRecipesCommand}" CommandParameter="{Binding}" IsEnabled="{Binding HasRecipes}" Margin="0,0,6,6"
+            ToolTip="{Binding ChipTooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowOnDisabled="True" Focusable="False">
+      <Button.Template>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Bd" Background="#4D1E293B" BorderBrush="#80334155" BorderThickness="1" CornerRadius="5" Padding="3,2,8,2">
+            <StackPanel Orientation="Horizontal">
+              <Image Source="{Binding ProfessionIconUrl, Converter={StaticResource WebImage}}" Width="18" Height="18" Margin="0,0,6,0"
+                     Visibility="{Binding ProfessionIconUrl, Converter={StaticResource VisibleIfSet}}"/>
+              <TextBlock Text="{Binding Text}" FontSize="12" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"/>
+              <TextBlock x:Name="Count" Text="{Binding RecipeCountText, StringFormat='· {0}'}" FontSize="11.5" Foreground="{DynamicResource BlueText}"
+                         VerticalAlignment="Center" Margin="6,0,0,0" Visibility="{Binding HasRecipes, Converter={StaticResource Visible}}"/>
+            </StackPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Cursor" Value="Hand"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLineSoft}"/>
+            </Trigger>
+            <DataTrigger Binding="{Binding IsOpen}" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLine}"/>
+            </DataTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Button.Template>
+    </Button>
+  </DataTemplate>
   <!-- An item slot (bags, bank, gear): the icon in a border of its quality color, the stack size in
        the corner, Wowhead's tooltip on hover and its page on click (ui:ItemTip). Empty slots are a dim square. -->
   <DataTemplate x:Key="ItemCellTemplate" DataType="{x:Type vm:ItemCell}">

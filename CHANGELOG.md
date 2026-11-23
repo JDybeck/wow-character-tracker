@@ -10,6 +10,7 @@ Update the addon with the app (it does this by itself) and /reload in game.
 
 - **Share your reputations with friends.** Reputations are a new category in what friends get, on by default like professions: the app's sharing settings, the addon's Friends tab, the request box and `/wct friends set all reputations off`. A friend's character then lists them on its Overview, the ones it has worked on most first. Friends see them once both of you have 0.42.4.
 - **A main for each friend.** Open one of a friend's characters and click **Set as their main**: it leads their card at the top of the Friends page and their list, with a MAIN tag. Only for you, nothing is sent. Without one, the card shows the character they played last, as before.
+- **Recipes on the character.** An open character, yours or a friend's, has a **Recipes** tab: a chip per profession with how many recipes it knows, and its recipes in the same window as on the Professions page. The profession chips on the Overview open it too.
 
 ### Fixes and tweaks
 

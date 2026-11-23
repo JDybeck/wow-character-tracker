@@ -75,7 +75,7 @@
       </StackPanel>
       <StackPanel Visibility="{Binding ShowsProfessions, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
-        <ItemsControl ItemsSource="{Binding ProfessionList}" ItemTemplate="{StaticResource IconChipTemplate}" ItemsPanel="{StaticResource Wrap}"
+        <ItemsControl ItemsSource="{Binding RecipeProfessions}" ItemTemplate="{StaticResource ProfessionChipTemplate}" ItemsPanel="{StaticResource Wrap}" Focusable="False"
                       Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>
         <TextBlock Style="{StaticResource FactValue}" Text="None yet" Visibility="{Binding HasProfessions, Converter={StaticResource Hidden}}"/>
       </StackPanel>
