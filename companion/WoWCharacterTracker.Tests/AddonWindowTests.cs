@@ -1348,6 +1348,12 @@ public class AddonWindowTests
         var tip = c.Lua("return shownText('Cidrin Frostmane').owner.full").String;
         Assert.StartsWith("Cidrin Frostmane: Killed Ragnaros in Molten Core!", tip);
         Assert.DoesNotContain("took", tip);
+        Assert.True(Bool(c, "shownText('Cid#3') ~= nil")); // no nickname: the battletag
+        // With a nickname, only the nickname: no battletag beside it.
+        c.Lua("ns.friendNickname = function(tag) return tag == 'Cid#3' and 'Cidi' or '' end");
+        c.Call("openWindow", "home");
+        Assert.True(Bool(c, "shownText('Cidi') ~= nil"));
+        Assert.True(Bool(c, "shownText('Cidi (Cid#3)') == nil"));
         c.Lua("local r = shownText('Killed Ragnaros in Molten Core!').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
