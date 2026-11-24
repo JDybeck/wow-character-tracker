@@ -14,7 +14,7 @@ Update the addon with the app (it does this by itself), then exit the game fully
 
 ### Fixes and tweaks
 
-- **Flight path reload box off by default.** The box offering a /reload on flight paths is now off unless you turn it on, with its own checkbox in the addon's Settings (and in the app's Settings, In game). The Reload reminders choice covers the chat line and the ding popup.
+- **No more reload box on flight paths.** The box offering a /reload during a flight is gone, with its setting. Instead, when your gear or bags changed, a line in chat says you can /reload while you fly if you want the app to show them now, and that it's only for the app: nothing in game needs it, and the app catches up when you log out anyway. At most once per flight and every 30 minutes.
 - **Screenshots stay attached.** Picking Quiet on the Sharing page no longer turned off attaching screenshots to Discord posts for shots you turned on later.
 - **The resize corner no longer jumps.** A click on the addon window's bottom right corner could blow the window up to nearly the whole screen. Now it only resizes while you drag it, and a click does nothing.
 - **Roomier character rows.** When your characters all fit on the addon's Characters tab, their rows grow: a bigger portrait and level boxes, and a third line with guild, gold and played time. A list that fills the page keeps the compact rows.

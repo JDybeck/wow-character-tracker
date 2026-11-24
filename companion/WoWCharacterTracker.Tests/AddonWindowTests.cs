@@ -594,10 +594,10 @@ public class AddonWindowTests
         Assert.True(Bool(c, "ns.setting('ask').boss and ns.setting('ask').rare and ns.setting('ask').epic and ns.setting('ask').level"));
     }
 
-    // Reload reminders: one choice over the ding popup, the flight box and the chat line. The
-    // defaults (no popup, flight box and chat line on) are Gentle.
+    // Reload reminders: one choice over the ding popup and the chat line. The defaults (no popup,
+    // chat line on) are Gentle.
     [Fact]
-    public void Reload_reminders_are_one_choice_over_two_settings_and_the_flight_box_its_own()
+    public void Reload_reminders_are_one_choice_over_two_settings()
     {
         var c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
@@ -606,12 +606,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == true and ns.setting('chatReminder')"));
         c.Lua("click('Off')");
         Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == false and ns.setting('chatReminder') == false"));
-        // The flight path box is its own checkbox, off until turned on, and the choice leaves it alone.
-        Assert.False(Bool(c, "find('Offer a reload on flight paths').checked == true"));
-        c.Lua("click('Offer a reload on flight paths')");
-        Assert.True(Bool(c, "ns.setting('flightReload') == true"));
-        c.Lua("click('Gentle')");
-        Assert.True(Bool(c, "ns.setting('flightReload') == true"));
+        Assert.True(Bool(c, "find('Offer a reload on flight paths') == nil")); // no flight box any more
         c.Lua("WoWCharacterTrackerDB.popup = true; ns.editSettings(function(s) s.chatReminder = false end)");
         Assert.Equal("custom", c.Lua("return ns.reloadChoice()").String);
     }
@@ -1139,8 +1134,8 @@ public class AddonWindowTests
         c.Lua(RecipeStubs);
         c.Lua("openFriend('Cidro')");
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "find('Enchanting recipes (1)') ~= nil"));
-        c.Lua("local b = find('Tailoring recipes (3)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "find('Enchanting (1)') ~= nil"));
+        c.Lua("local b = find('Tailoring (3)'); b.scripts.OnClick(b)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes'))"));
         Assert.True(Bool(c, "shownText('Tailoring') ~= nil and shownText('300/300') ~= nil"));
         Assert.True(Bool(c, "shownText('Cloth') ~= nil and shownText('Bags') ~= nil and shownText('Green Woolen Bag') ~= nil"));
