@@ -1183,6 +1183,57 @@ public class FriendsLuaTests
         Assert.Equal("Kalle#3333,Zeb#2222", Str(a, "table.concat(ns.friendOrder(), ',')"));
     }
 
+    // Your main and pinned characters: picked in game it beats the app's older pick, a newer app one wins back.
+    [Fact]
+    public void Own_picks_from_the_game_or_the_app_the_newer_wins()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ ownMain = 'Player-1-0000000C', ownPinned = { 'Player-1-0000000D' }, ownPicksAt = 500 }");
+        Assert.Equal("Player-1-0000000C", Str(a, "ns.ownMain()"));
+        Assert.True(a.Lua("return ns.isPinned('Player-1-0000000D')").Boolean);
+        a.Lua("clock = 400; ns.setOwnMain('Player-1-0000000A'); ns.setPinned('Player-1-0000000C', true)");
+        Assert.Equal("Player-1-0000000A", Str(a, "ns.ownMain()"));
+        Assert.True(a.Lua("return ns.isPinned('Player-1-0000000C') and ns.isPinned('Player-1-0000000D')").Boolean);
+        Assert.True(a.Lua("return WoWCharacterTrackerDB.ownPicks.at").Number > 500);
+        a.Lua("ns.setOwnMain(false); ns.setPinned('Player-1-0000000D', false)");
+        Assert.True(a.Lua("return ns.ownMain() == nil and not ns.isPinned('Player-1-0000000D')").Boolean);
+        a.Lua("WoWCharacterTrackerSettings.ownPicksAt = 900");
+        Assert.Equal("Player-1-0000000C", Str(a, "ns.ownMain()"));
+    }
+
+    // Your main goes with whichever character you play, so the friend knows it without playing it.
+    [Fact]
+    public void Your_main_reaches_a_friend_with_the_character_you_play_and_leads_their_list()
+    {
+        var a = new Client(A, AFriends, ADb(AShares), settings: "{ ownMain = 'Player-1-0000000C', ownPicksAt = 500 }");
+        var b = new Client(B, BFriends, BDb(BReceives));
+        a.Call("friendsTick");
+        b.Call("friendsTick");
+        Talk(a, b);
+        Assert.Equal("Player-1-0000000C", Str(b, GotDeadbeck + ".main"));
+        Assert.Equal("Player-1-0000000C", Str(b, "ns.friendMain(WoWCharacterTrackerDB.friends['JDybeck#1111'].chars)"));
+        var contact = Assert.Single(WoWCharacterTracker.Services.FriendData.ReadFriends(b.Lua("return WoWCharacterTrackerDB.friends")));
+        Assert.Equal("Player-1-0000000C", contact.Main);
+
+        b.Lua("WoWCharacterTrackerDB.friends['JDybeck#1111'].chars['Player-1-0000000C'] = { guid = 'Player-1-0000000C', char = 'Drygbeck', at = 10 }");
+        Assert.Equal("Drygbeck", Str(b, "ns.sharedWithYou()[1].chars[1].char")); // the main before the newer Deadbeck
+
+        // A hidden (not shared) main isn't named, and a main unset in game stops going.
+        a.Lua("clock = 1000; ns.setOwnMain('Player-1-0000000D')");
+        a.Run(700);
+        a.Call("friendsTick");
+        Talk(a, b);
+        Assert.True(b.Lua($"return {GotDeadbeck}.main == nil").Boolean);
+        Assert.Equal("", WoWCharacterTracker.Services.FriendData.ReadFriends(b.Lua("return WoWCharacterTrackerDB.friends"))[0].Main);
+    }
+
+    [Fact]
+    public void A_main_that_isnt_a_character_guid_is_dropped()
+    {
+        var c = new Client(A, "{}", files: DataFiles);
+        Assert.True(c.Lua("return ns.decodeFriendChar('guid=Player-1-0000000A;char=X;main=|cffnope').main == nil").Boolean);
+        Assert.Equal("Player-1-0000000B", Str(c, "ns.decodeFriendChar('guid=Player-1-0000000A;char=X;main=Player-1-0000000B').main"));
+    }
+
     // In game a drag only knows this game's friends: it merges into the whole order like the app.
     [Fact]
     public void A_drag_in_game_keeps_the_places_of_friends_it_doesnt_show()

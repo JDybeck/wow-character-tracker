@@ -30,7 +30,7 @@ record SpecBuild(int Group, string Talents, string Spec, string TalentPicks, str
 // The In game page's settings as last changed in game (the addon's options page), and when. Null:
 // the change doesn't have that setting (an older addon), so the app's own value stays, as in the addon.
 record InGameSettings(long At, bool? AnnounceGuild, bool? AnnounceParty, List<string>? AnnounceKinds, List<string>? AnnouncePartyKinds, List<string>? AskKinds,
-    bool? FlightReload, bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null,
+    string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null,
     string? Preset = null, GameFilters? Filters = null,
     IReadOnlyDictionary<string, bool>? Posts = null, IReadOnlyDictionary<string, bool>? Shots = null, string? DistanceUnit = null);
 
@@ -63,6 +63,7 @@ record TrackerData(List<Entry> Events, List<Snapshot> Characters)
     public List<GameNote> Notes { get; init; } = []; // notes edited in game (NoteBox.lua)
     public List<GameNickname> Nicknames { get; init; } = []; // friends' nicknames set in game (Friends.lua)
     public GameFriendOrder? FriendOrder { get; init; } // the Friends tab's order, dragged in game
+    public GameOwnPicks? OwnPicks { get; init; } // your main and pinned characters, picked in game
     public InGameSettings? InGame { get; init; } // In game page settings changed in game (Shared.lua)
     public List<FriendContact> Friends { get; init; } = []; // what Battle.net friends shared (Friends.lua), never your own characters
     public ShareSettings? Share { get; init; } // sharing settings as changed in game

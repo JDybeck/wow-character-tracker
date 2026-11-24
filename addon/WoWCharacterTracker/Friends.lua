@@ -276,8 +276,11 @@ local function charText(guid, contact)
   if not char then return nil end
   char = withLiveXp(guid, char)
   readEvents()
+  -- Your main goes along when the friend may see that character (shared, not removed or ignored).
+  local main = ns.ownMain()
+  if main and not ns.isCharShared(ns.shareSettings(), main) then main = nil end
   return ns.encodeFriendChar(guid, char, db.items and db.items[guid], ns.allowedFor(ns.shareSettings(), contact),
-    recentHighlights[guid], levelsOf(guid), ns.recentDays and ns.recentDays(guid), dayCounts[guid])
+    recentHighlights[guid], levelsOf(guid), ns.recentDays and ns.recentDays(guid), dayCounts[guid], main)
 end
 
 -- The character being played, to one contact: when due (GROUP_EVERY or ONLINE_EVERY since the
@@ -1274,7 +1277,8 @@ function ns.inviteFriend(tag)
   return true, "Invited " .. label(tag) .. "."
 end
 
--- What contacts you keep (receive, not blocked) shared with you: friends by label, characters newest first.
+-- What contacts you keep (receive, not blocked) shared with you: friends by label, characters newest
+-- first, the one they marked as their main (ns.friendMain, `main` on the friend) before the rest.
 function ns.sharedWithYou()
   local s, out = ns.shareSettings(), {}
   for tag, e in pairs(WoWCharacterTrackerDB.friends or {}) do
@@ -1283,11 +1287,13 @@ function ns.sharedWithYou()
       local chars = {}
       for _, char in pairs(e.chars or {}) do chars[#chars + 1] = char end
       if #chars > 0 then
+        local main = ns.friendMain(e.chars)
         table.sort(chars, function(x, y)
+          if (x.guid == main) ~= (y.guid == main) then return x.guid == main end
           if (x.at or 0) ~= (y.at or 0) then return (x.at or 0) > (y.at or 0) end
           return (x.char or "") < (y.char or "")
         end)
-        out[#out + 1] = { tag = tag, label = label(tag), chars = chars }
+        out[#out + 1] = { tag = tag, label = label(tag), chars = chars, main = main }
       end
     end
   end

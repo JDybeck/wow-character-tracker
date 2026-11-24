@@ -120,6 +120,49 @@ sealed class FlavorViewModel : Observable
         }
     }
 
+    // The addon window's portraits (AddonPortraits): your characters, newest first, then your
+    // friends' (the ones you keep and haven't hidden), each with the picture the app shows for it.
+    // Written a few seconds after a sync, one run at a time, so a burst of syncs makes one run.
+    bool portraitsQueued;
+    readonly SemaphoreSlim portraitsRun = new(1, 1);
+
+    void QueueAddonPortraits()
+    {
+        if (portraitsQueued || flavorDir is null) return;
+        portraitsQueued = true;
+        _ = WriteAddonPortraitsAsync();
+    }
+
+    async Task WriteAddonPortraitsAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        await portraitsRun.WaitAsync();
+        try
+        {
+            portraitsQueued = false; // a sync from here on queues the next run
+            if (flavorDir is not { } dir) return;
+            var standard = main.Config.StandardPortraits.ToHashSet(StringComparer.Ordinal);
+            var who = allRows.Where(r => !r.IsTest).OrderByDescending(r => r.LastSeen)
+                .Concat(Friends.Shown.OrderByDescending(r => r.LastSeen))
+                .Take(AddonPortraits.SlotCount)
+                .Select(r => (r.Picture, r.IsFriend, Standard: standard.Contains(r.Guid), r.ArmorySd))
+                .ToList();
+            var pictures = new List<(string Guid, byte[] Tga)>();
+            foreach (var c in who)
+                if (await CharacterPicture.ShownAsync(Flavor, c.Picture, c.IsFriend, c.Standard, c.ArmorySd) is { } source
+                    && await AddonPortraits.ConvertAsync(source) is { } tga)
+                    pictures.Add((c.Picture.Guid, tga));
+            var made = await Task.Run(() => AddonPortraits.Write(dir, pictures));
+            if (made && Wow.IsRunning(dir))
+                Log.Info($"[{Name}] Characters' portraits are ready for the addon window. Exit the game fully and start it again once to see them (after that, new ones show on /reload).");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"[{Name}] Couldn't save the characters' portraits for the addon: {ex.Message}");
+        }
+        finally { portraitsRun.Release(); }
+    }
+
     public Flavor Flavor { get; }
     public string Name => Flavor.Name;
     public int Order => Flavors.All.ToList().IndexOf(Flavor); // tab order, for the slide direction (Ui/Motion)
@@ -236,8 +279,6 @@ sealed class FlavorViewModel : Observable
     public bool HideChatInShots { get => Settings.HideChatInShots; set { Settings.HideChatInShots = value; Changed(); } }
     public bool HideUiInShots { get => Settings.HideUiInShots; set { Settings.HideUiInShots = value; Changed(); } }
     public bool AdvancedCombatLog { get => Settings.AdvancedCombatLog == true; set { Settings.AdvancedCombatLog = value; Changed(); } }
-    public bool FlightReloadPrompt { get => Settings.FlightReloadPrompt; set { Settings.FlightReloadPrompt = value; InGameChanged(); } }
-    public bool ChatReloadReminder { get => Settings.ChatReloadReminder; set { Settings.ChatReloadReminder = value; InGameChanged(); } }
     public bool KeepAllHistory { get => Settings.KeepAllHistory; set { Settings.KeepAllHistory = value; InGameChanged(); } }
 
     // A setting that can be changed in game too changed here: the newest change wins (FlavorSettings.TakeInGame).
@@ -259,7 +300,7 @@ sealed class FlavorViewModel : Observable
         RefreshAskSeconds();
         SharingChanged();
         foreach (var name in new[] { nameof(AnnounceGuild), nameof(AnnounceParty), nameof(Announces),
-            nameof(FlightReloadPrompt), nameof(ChatReloadReminder), nameof(KeepAllHistory), nameof(GridLabel),
+            nameof(KeepAllHistory), nameof(GridLabel),
             nameof(GridTopLeft), nameof(GridTopRight), nameof(GridBottomLeft), nameof(GridBottomRight),
             nameof(DistanceAuto), nameof(DistanceMeters), nameof(DistanceYards),
             nameof(LevelSplit), nameof(LevelEveryBefore), nameof(LevelEveryAfter), nameof(LevelPreview), nameof(RareBoeOnly), nameof(FirstBossKillOnly) })
@@ -993,6 +1034,7 @@ sealed class FlavorViewModel : Observable
                 Notes = data.Notes,
                 Nicknames = data.Nicknames,
                 FriendOrder = data.FriendOrder,
+                OwnPicks = data.OwnPicks,
                 Today = data.Today,
                 Days = data.Days,
             };
@@ -1001,6 +1043,7 @@ sealed class FlavorViewModel : Observable
         main.TakeGameNicknames(data.Nicknames); // and friends' nicknames
         main.TakeGameFriendOrder(data.FriendOrder); // and their order on the Friends page
         TakeInGameSettings(data.InGame); // and the same for the In game settings
+        if (Settings.TakeOwnPicks(data.OwnPicks)) main.Config.Save(); // and your main and pinned characters
         if (Settings.TakeShare(data.Share)) // and sharing with friends
         {
             main.Config.Save();
@@ -1023,7 +1066,8 @@ sealed class FlavorViewModel : Observable
         FactionChips.Fill(rows, r => r.Faction);
 
         Characters.Clear();
-        foreach (var r in Sort.Apply(rows.Where(r => Groups.Matches(GroupOf(r)) && FactionChips.Matches(r.Faction))))
+        foreach (var r in rows) (r.IsOwnMain, r.IsPinned) = (r.Guid == Settings.OwnMain, Settings.OwnPinned.Contains(r.Guid));
+        foreach (var r in Pinned(Sort.Apply(rows.Where(r => Groups.Matches(GroupOf(r)) && FactionChips.Matches(r.Faction)))))
         {
             r.TagOptions = main.TagOptionsFor(r.Guid);
             r.SetNote(main.NoteFor(r.Guid), text => main.SaveNote(r.Guid, text));
@@ -1040,6 +1084,7 @@ sealed class FlavorViewModel : Observable
         Items.Show(rows);
         Professions.Show(rows);
         Friends.Show(ShownData); // friends' rows stay on their own page (not the test characters either)
+        QueueAddonPortraits();
         AddLevelBoard([.. rows, .. Friends.Shown]);
         Stats.Show(rows, data.Events, DayHistory.Add([.. data.Today, .. data.Days, .. ShownData.Friends.SelectMany(c => c.Days)]), Friends.Shown);
         homeEvents = data.Events;
@@ -1095,6 +1140,35 @@ sealed class FlavorViewModel : Observable
         main.Config.Save();
         WriteAddonSettings(); // the addon stops sharing it with friends (Settings.lua removed)
         Log.Info($"[{Name}] Removed {row.Name}. Playing it again brings it back.");
+        ShowData(lastData);
+    }
+
+    // Your main leads the list, then the pinned characters, each group in the list's sort (CharacterRow
+    // IsOwnMain and IsPinned, from Settings.OwnMain and OwnPinned).
+    internal static IEnumerable<CharacterRow> Pinned(IEnumerable<CharacterRow> sorted) =>
+        sorted.OrderByDescending(r => r.IsOwnMain).ThenByDescending(r => r.IsPinned);
+
+    // Your main (one per game, "" for none) and pinned characters, from the character's Overview. The
+    // main goes to the friends you share with (Settings.lua ownMain), who see it first.
+    public void SetOwnMain(CharacterRow row, bool on)
+    {
+        if (on == (Settings.OwnMain == row.Guid)) return;
+        Settings.SetOwnMain(on ? row.Guid : "");
+        OwnPicksChanged(on ? $"{row.Name} is your main now." : $"{row.Name} is no longer your main.");
+    }
+
+    public void SetPinned(CharacterRow row, bool on)
+    {
+        if (on == Settings.OwnPinned.Contains(row.Guid)) return;
+        Settings.SetOwnPinned(row.Guid, on);
+        OwnPicksChanged(on ? $"Pinned {row.Name} to the top." : $"Unpinned {row.Name}.");
+    }
+
+    void OwnPicksChanged(string log)
+    {
+        main.Config.Save();
+        WriteAddonSettings();
+        Log.Info($"[{Name}] {log}");
         ShowData(lastData);
     }
 

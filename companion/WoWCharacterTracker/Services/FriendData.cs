@@ -61,7 +61,7 @@ static partial class FriendData
             var chars = ReadCharacters(t.Get("chars"));
             list.Add(new FriendContact(p.Key.String, (long)Number(t.Get("seen")), version, (int)Number(t.Get("protocol")),
                 Number(t.Get("refused")) > 0, [.. chars.Select(c => c.Snapshot)], [.. chars.Select(c => c.Inventory).OfType<Inventory>()],
-                [.. chars.SelectMany(c => c.Highlights)]) { Days = [.. chars.SelectMany(c => c.Days)], Shares = Shares(chars) });
+                [.. chars.SelectMany(c => c.Highlights)]) { Days = [.. chars.SelectMany(c => c.Days)], Shares = Shares(chars), Main = MainOf(t.Get("chars"), chars.Select(c => c.Snapshot)) });
         }
         return list;
     }
@@ -86,6 +86,23 @@ static partial class FriendData
         [.. FieldCategory.Where(f => Max.TryGetValue(f.Key, out var max)
             ? Text(t.Get(f.Key), max, lines: true).Length > 0
             : t.Get(f.Key).Type == DataType.Number && double.IsFinite(t.Get(f.Key).Number)).Select(f => f.Value)];
+
+    // The friend's own main (a GUID, "" for none): every character they share carries it (the addon's
+    // FriendData.lua `main`), and the newest one they sent says what it is now, so an older pick
+    // can't stick. Only from characters ReadCharacters kept.
+    static string MainOf(DynValue chars, IEnumerable<Snapshot> kept)
+    {
+        if (chars.Type != DataType.Table) return "";
+        var newest = kept.MaxBy(c => c.LastSeen);
+        if (newest is null) return "";
+        foreach (var p in chars.Table.Pairs)
+        {
+            if (p.Value.Type != DataType.Table || p.Value.Table.Get("guid") is not { Type: DataType.String } guid || guid.String != newest.Guid) continue;
+            var main = p.Value.Table.Get("main");
+            return main.Type == DataType.String && PlayerGuid().IsMatch(main.String) ? main.String : "";
+        }
+        return "";
+    }
 
     // Several WoW accounts on one PC, each with its own saved friends: per friend, the newest news wins.
     public static List<FriendContact> Merge(IEnumerable<List<FriendContact>> perAccount) =>

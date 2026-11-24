@@ -188,8 +188,6 @@ class FlavorSettings
     public Dictionary<string, bool> PostScreenshot { get; set; } = [];
     public bool HideChatInShots { get; set; } = true; // chat made see-through while a screenshot is taken
     public bool HideUiInShots { get; set; } // the whole interface hidden for the shot, like Alt+Z
-    public bool FlightReloadPrompt { get; set; } = true; // the addon offers a /reload on flight paths when bags changed
-    public bool ChatReloadReminder { get; set; } = true; // and reminds in chat (good moments, every 30 minutes)
     // The addon's saved history: off keeps only the newest 300 loot, duels and battlegrounds per
     // character (Shared.lua trimEvents); on keeps everything.
     public bool KeepAllHistory { get; set; }
@@ -242,7 +240,6 @@ class FlavorSettings
         (AnnounceGuild, AnnounceParty) = (game.AnnounceGuild ?? AnnounceGuild, game.AnnounceParty ?? AnnounceParty);
         (AnnounceKinds, AnnouncePartyKinds) = (game.AnnounceKinds ?? AnnounceKinds, game.AnnouncePartyKinds ?? AnnouncePartyKinds);
         AskKinds = game.AskKinds ?? AskKinds;
-        (FlightReloadPrompt, ChatReloadReminder) = (game.FlightReload ?? FlightReloadPrompt, game.ChatReminder ?? ChatReloadReminder);
         KeepAllHistory = game.KeepAllHistory ?? KeepAllHistory;
         AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
@@ -283,6 +280,31 @@ class FlavorSettings
     {
         var old = Share ?? ShareSettings.Empty;
         Share = edit(old) with { At = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), old.At + 1) };
+    }
+
+    // Your main and pinned characters on this game (GameOwnPicks), and when they were last picked here
+    // or in game: the newer pick wins. Settings.lua ownMain, ownPinned and ownPicksAt.
+    public string OwnMain { get; set; } = "";
+    public List<string> OwnPinned { get; set; } = [];
+    public long OwnPicksAt { get; set; }
+
+    // Picked in the app: main "" is none; pin adds or removes one pinned character.
+    public void SetOwnMain(string guid) => SetOwnPicks(guid, OwnPinned);
+    public void SetOwnPinned(string guid, bool pinned) =>
+        SetOwnPicks(OwnMain, pinned ? [.. OwnPinned.Where(g => g != guid), guid] : [.. OwnPinned.Where(g => g != guid)]);
+
+    void SetOwnPicks(string main, List<string> pinned)
+    {
+        (OwnMain, OwnPinned) = (main, pinned);
+        OwnPicksAt = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), OwnPicksAt + 1);
+    }
+
+    // Picked in game, when that's newer than the app's last pick.
+    public bool TakeOwnPicks(GameOwnPicks? game)
+    {
+        if (game is null || game.At <= OwnPicksAt) return false;
+        (OwnMain, OwnPinned, OwnPicksAt) = (game.Main, [.. game.Pinned], game.At);
+        return true;
     }
 
     // Characters removed in the app: guid -> when. A character played after that shows up again.

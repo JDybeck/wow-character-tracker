@@ -135,15 +135,6 @@
                 <Run Text="In game for"/> <Run Text="{Binding Name, Mode=OneWay}"/>
               </TextBlock>
               <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14" Text="Reaches the game on your next /reload. You can change these in game too (/wct), the newest change wins."/>
-              <CheckBox Style="{StaticResource Option}" ToolTip="On a flight path, offer a /reload when your bags or gear changed" IsChecked="{Binding FlightReloadPrompt}">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource OptionTitle}" Text="Offer a reload on flight paths"/>
-                  <TextBlock Style="{StaticResource Hint}" Text="Gear, bags and bank only reach the app on /reload or logout."/>
-                </StackPanel>
-              </CheckBox>
-              <CheckBox Style="{StaticResource Option}" ToolTip="Put a line in chat reminding you to /reload when your bags or gear changed" IsChecked="{Binding ChatReloadReminder}">
-                <TextBlock Style="{StaticResource OptionTitle}" Text="Remind me in chat to /reload"/>
-              </CheckBox>
               <CheckBox Style="{StaticResource Option}" ToolTip="Keep every loot, duel and battleground in the addon's saved file" IsChecked="{Binding KeepAllHistory}">
                 <StackPanel>
                   <TextBlock Style="{StaticResource OptionTitle}" Text="Keep all history"/>

@@ -159,7 +159,7 @@
     <Button Cursor="Hand" ToolTip="twitch.tv/zebdryg" Command="{Binding OpenUrlCommand}" CommandParameter="https://www.twitch.tv/zebdryg">
       <Button.Template>
         <ControlTemplate TargetType="Button">
-          <TextBlock x:Name="Maker" Text="made by JDybeck · twitch" FontSize="11" Foreground="{StaticResource Faint}"/>
+          <TextBlock x:Name="Maker" Text="made by JDybeck · twitch" FontSize="11" Foreground="{StaticResource Dim}"/>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Maker" Property="Foreground" Value="#9146FF"/>
@@ -172,7 +172,7 @@
     <Button Cursor="Hand" ToolTip="Like the app? Tips are welcome on Ko-fi (ko-fi.com/jdybeck)" Command="{Binding OpenUrlCommand}" CommandParameter="https://ko-fi.com/jdybeck">
       <Button.Template>
         <ControlTemplate TargetType="Button">
-          <TextBlock x:Name="Tip" Text="tip ♥" FontSize="11" Foreground="{StaticResource Faint}"/>
+          <TextBlock x:Name="Tip" Text="tip ♥" FontSize="11" Foreground="{StaticResource Dim}"/>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Tip" Property="Foreground" Value="#F87171"/>

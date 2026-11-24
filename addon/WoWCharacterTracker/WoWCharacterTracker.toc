@@ -9,6 +9,7 @@
 ## SavedVariables: WoWCharacterTrackerDB
 
 Settings.lua
+Portraits.lua
 Shared.lua
 Leveling.lua
 FriendData.lua
@@ -36,6 +37,7 @@ NoteBox.lua
 Ui.lua
 RecipeWindow.lua
 ReputationWindow.lua
+Shell.lua
 Home.lua
 Window.lua
 Options.lua

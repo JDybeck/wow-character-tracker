@@ -117,6 +117,32 @@ public class FriendsViewModelTests
         Assert.Equal(3, f.Vm.Characters.Count);
     }
 
+    // A friend's own main (sent with their characters) leads their card and list until you pick
+    // another one for them; unsetting yours goes back to theirs.
+    [Fact]
+    public void A_main_the_friend_marked_leads_unless_you_picked_another()
+    {
+        var f = new Fixture();
+        var data = f.Data with
+        {
+            Friends = FriendData.ReadFriends(new Script().DoString("return " + Friends.Replace("at = 1900,", "at = 1900, main = 'Player-1-0000000C',"))),
+        };
+        f.Vm.Show(data);
+        var zebalt = f.Vm.Characters.Single(c => c.Name == "Zebalt");
+        Assert.True(zebalt.IsFriendMain);
+        Assert.True(zebalt.ShowsTheirOwnMain);
+        Assert.False(zebalt.ShowsUnsetFriendMain);
+        Assert.Equal("Zebalt", f.Vm.Cards.Single(c => c.Tag == "Zeb#2222").Current.Name);
+        Assert.Equal(["Zebalt", "Zeb"], f.Vm.Characters.Where(c => c.FriendTag == "Zeb#2222").Select(c => c.Name));
+
+        f.Vm.MainCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zeb")); // yours wins
+        Assert.Equal("Zeb", f.Vm.Cards.Single(c => c.Tag == "Zeb#2222").Current.Name);
+        Assert.False(f.Vm.Characters.Single(c => c.Name == "Zebalt").IsFriendMain);
+        Assert.True(f.Vm.Characters.Single(c => c.Name == "Zeb").ShowsUnsetFriendMain);
+        f.Vm.NotMainCommand.Execute(f.Vm.Characters.Single(c => c.Name == "Zeb"));
+        Assert.Equal("Zebalt", f.Vm.Cards.Single(c => c.Tag == "Zeb#2222").Current.Name); // theirs again
+    }
+
     // A friend's main leads their card and their list, picked on its Overview; one per friend, and
     // unsetting it goes back to the one played last. A hidden character doesn't lead their card.
     [Fact]
