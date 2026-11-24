@@ -108,10 +108,8 @@ end
 
 -- Reload prompts ----------------------------------------------------------------
 -- Small boxes that offer a /reload (the game only writes the saved file then, and only a click may reload).
--- alt and onAlt: an optional third button (the flight box's snooze).
-local function askReload(name, text, accept, decline, arg, alt, onAlt)
-  ns.popup(name, { text = text, button1 = accept, button2 = decline, button3 = alt, OnAlt = onAlt,
-    OnAccept = function() ReloadUI() end }, arg)
+local function askReload(name, text, accept, decline, arg)
+  ns.popup(name, { text = text, button1 = accept, button2 = decline, OnAccept = function() ReloadUI() end }, arg)
 end
 
 -- Optional (off by default, /wct popup): after a ding, for when the live channel doesn't work on a client.
@@ -124,39 +122,36 @@ function ns.offerPost(level)
   askReload("CHARACTERTRACKER_POST", "Ding! Level %d.\n\nReload your UI now to post it to Discord?", "Post now", "Later", level)
 end
 
--- On a flight path, with gear or bags changed since the last save: so the app gets the new items
--- (the flight goes on through the loading screen). Once per flight, never in combat, and only when
--- the app's "Offer a reload on flight paths" is on (Settings.lua flightReload). "Not for 30 min"
--- keeps it quiet on every flight until then; kept in the saved file so a /reload doesn't undo it.
-local askedThisFlight = false
-local FLIGHT_SNOOZE = 1800
+-- With gear or bags changed since the last save, now and then one line in chat that a /reload would
+-- show them in the app, and that it's only for the app: nothing in game needs it, and logging out
+-- catches up too. No setting and no box. Bags change all the time, so it's rare: at most once every
+-- 4 hours (kept in the saved file so a /reload doesn't start it over), and only with the app.
+-- Said on a flight path (the flight goes on through the loading screen) and at good moments
+-- (moment: after the bank, mailbox, a vendor or the auction house, leaving a dungeon).
+local saidThisFlight = false
+local RELOAD_LINE_EVERY = 4 * 3600
+
+local function reloadLine(text)
+  if not ns.hasApp() or not ns.itemsChanged() then return false end
+  local last = WoWCharacterTrackerDB.reloadLineAt
+  if last and time() - last < RELOAD_LINE_EVERY then return false end
+  WoWCharacterTrackerDB.reloadLineAt = time()
+  ns.say(text .. " Only for the app, nothing in game needs it: it also catches up when you log out.")
+  return true
+end
 
 function ns.onFlightStart()
-  if askedThisFlight or ns.setting("flightReload") == false or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
-  if time() < (WoWCharacterTrackerDB.flightSnoozeUntil or 0) then return end
-  if InCombatLockdown() or not ns.itemsChanged() then return end
-  askedThisFlight = true
-  askReload("CHARACTERTRACKER_FLIGHT_RELOAD",
-    "Character Tracker\n\nYour bags changed since the last save.\nReload now to update the app? (You keep flying.)", "Reload", "Not now",
-    nil, "Not for 30 min", function() WoWCharacterTrackerDB.flightSnoozeUntil = time() + FLIGHT_SNOOZE end)
+  if saidThisFlight or not (UnitOnTaxi and UnitOnTaxi("player")) then return end
+  saidThisFlight = reloadLine("Your gear or bags changed. If you want the app to show them now, /reload while you fly (you keep flying).")
 end
 
--- Landed: the box is about the flight, so an unanswered one goes away.
 function ns.onFlightEnd()
-  askedThisFlight = false
-  if StaticPopup_Hide then StaticPopup_Hide("CHARACTERTRACKER_FLIGHT_RELOAD") end
+  saidThisFlight = false
 end
 
--- A line in chat when gear or bags changed since the last save: at good moments (moment = true:
--- after the bank, mailbox, a vendor or the auction house, leaving a dungeon), at most every 10
--- minutes, and as a reminder every 30 minutes. Only when the app's "Remind me in chat to /reload" is
--- on (Settings.lua chatReminder).
-local lastReminder = time()
-function ns.remindReload(moment)
-  if ns.setting("chatReminder") == false or not ns.itemsChanged() then return end
-  if time() - lastReminder < (moment and 600 or 1800) then return end
-  lastReminder = time()
-  ns.say("Your bags changed since the last save. Type /reload to update the app (no logout needed).")
+-- The good moments (WoWCharacterTracker.lua remindSoon).
+function ns.remindReload()
+  reloadLine("Your gear or bags changed. If you want the app to show them now, type /reload.")
 end
 
 local getGroup -- below, with the boss kills

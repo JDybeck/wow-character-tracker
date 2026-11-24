@@ -26,6 +26,15 @@ static class CharacterPicture
     public static string? GamePortrait(Flavor flavor, string guid, bool standardChosen) =>
         flavor.HasInGamePortraits && !standardChosen ? CharacterArt.LocalPortrait(guid) : null;
 
+    // The picture by the rule above once it's all looked up (no class icon placeholder), for the
+    // addon's portraits (AddonPortraits).
+    public static async Task<string?> ShownAsync(Flavor flavor, PictureSubject who, bool friend, bool standardChosen, bool armorySd)
+    {
+        if (friend) { if (!standardChosen && await ArmoryAsync(flavor, who, armorySd) is { } armory) return armory; }
+        else if (GamePortrait(flavor, who.Guid, standardChosen) is { } own) return own;
+        return await StandardAsync(flavor, who);
+    }
+
     // A friend's armory picture (sd: old models, Config.ArmorySd) when the armory has one, else null.
     public static async Task<string?> ArmoryAsync(Flavor flavor, PictureSubject who, bool sd) =>
         BlizzardArmory.AvatarUrl(flavor.ArmoryGame, who.Region, who.Guid, sd) is { } url && await CharacterArt.ExistsAsync(url) ? url : null;

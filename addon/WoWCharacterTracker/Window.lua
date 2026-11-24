@@ -7,14 +7,15 @@ local ADDON, ns = ...
 local ui = ns.ui
 
 local NAME = "WoWCharacterTrackerWindow"
-local WIDTH, HEIGHT = 760, 590
-local TITLE_BAR, TAB_BAR = 44, 40
+-- The tabs are a bar of icons down the left (Shell.lua, ns.RAIL_WIDTH wide); a header names the page.
+local WIDTH, HEIGHT = 760 + ns.RAIL_WIDTH, 590
+local TITLE_BAR, TAB_BAR = 40, 0
 local AREA_HEIGHT = HEIGHT - TITLE_BAR - TAB_BAR - 8 -- below the title and the tab row
 
 local window, area, version
 
 -- The width tab pages have now: the window can be made wider than WIDTH (the grip, bottom right).
-local function pageWidth() return ((window and window:GetWidth()) or WIDTH) - 50 end
+local function pageWidth() return ((window and window:GetWidth()) or WIDTH) - 50 - ns.RAIL_WIDTH end
 ns.pageWidth = pageWidth -- Home.lua's
 -- The height a page is shown in now (the window can be made taller): Home fills it with moments.
 function ns.pageHeight() return ((window and window:GetHeight()) or HEIGHT) - TITLE_BAR - TAB_BAR - 8 end
@@ -38,28 +39,8 @@ local function currentCorner()
   return CORNER_NAMES[c] and c or "TOPLEFT"
 end
 
--- Reload reminders: one choice over the three settings that ask for a /reload (the ding popup, the
--- flight path box and the chat line). Gentle is how they start; any other mix is "custom".
-local RELOAD_CHOICES = { { "off", "Off" }, { "gentle", "Gentle" }, { "all", "Every chance" } }
 -- Auto: yards in the Americas region, meters elsewhere (ns.distanceUnit).
 local DISTANCE_CHOICES = { { "auto", "Auto" }, { "meters", "Meters" }, { "yards", "Yards" } }
-local RELOAD_SETS ={ off = { false, false, false }, gentle = { false, true, true }, all = { true, true, true } }
-
-local function reloadChoice()
-  local now = { WoWCharacterTrackerDB.popup == true, isOn("flightReload"), isOn("chatReminder") }
-  for key, set in pairs(RELOAD_SETS) do
-    if set[1] == now[1] and set[2] == now[2] and set[3] == now[3] then return key end
-  end
-  return "custom"
-end
-ns.reloadChoice = reloadChoice -- for the tests
-
-local function setReloadChoice(key)
-  local set = RELOAD_SETS[key]
-  if not set then return end
-  WoWCharacterTrackerDB.popup = set[1]
-  ns.editSettings(function(s) s.flightReload, s.chatReminder = set[2], set[3] end)
-end
 
 -- Chat ------------------------------------------------------------------------------------------
 -- The same kinds and names as the app's In game page (FlavorViewModel.AnnounceNames).
@@ -493,18 +474,6 @@ local itemIcon = ns.itemIcon
 local function showItemTip(self) ui.itemTip(self, self.itemId, self.enchantId) end
 
 -- A label and its value, the value wrapping in what's left of width.
-local function newFactRow(parent, width)
-  local r = CreateFrame("Frame", nil, parent)
-  r:SetSize(width, 16)
-  r.labelText = ui.text(r, "GameFontDisableSmall")
-  r.labelText:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
-  r.labelText:SetWidth(86)
-  r.valueText = ui.text(r, "GameFontHighlightSmall")
-  r.valueText:SetPoint("TOPLEFT", r, "TOPLEFT", 92, 0)
-  r.valueText:SetWidth(width - 92)
-  return r
-end
-
 local function newGearRow()
   local r = CreateFrame("Frame", nil, details)
   r:SetSize(DETAILS_WIDTH - 24, GEAR_ROW)
@@ -595,10 +564,11 @@ local function headline(c)
 end
 
 -- The label and value lines a character's info lists, each only when known.
-local function facts(c, friend)
+-- The facts the row above doesn't already say (name, faction, race, zone, level, item level and when it
+-- was seen are on the row; the friend is the section's title). Professions have their own rows.
+local function facts(c)
   local out = {}
-  local function add(label, value) if value and value ~= "" then out[#out + 1] = { label, value } end end
-  add("Friend", friend)
+  local function add(label, value, tex) if value and value ~= "" then out[#out + 1] = { label, value, tex } end end
   -- Forever has no realm to speak of, only a ruleset: the realm name's type ("CAMWOW EU5 Realm 6 PvP"
   -- -> "PvP"), plus the game's rules (Hardcore, Self-found) when they aren't the usual ones.
   local realmType = not ns.IS_RETAIL and ns.realmType(c.realm)
@@ -609,14 +579,9 @@ local function facts(c, friend)
     add("Realm", c.realm)
     add("Ruleset", rules)
   end
-  local race = c.race and (c.sex == "female" and "Female " or (c.sex == "male" and "Male " or "")) .. c.race
-  add("Race", race and (c.faction and string.format("%s, %s", race, c.faction) or race))
-  add("Item level", c.ilvl and tostring(math.floor(c.ilvl)))
-  add("Zone", c.zone)
-  add("Gold", c.money and gold(c.money))
-  add("Professions", c.professions)
-  add("Talents", c.talents)
-  add("Updated", (c.received or c.at) and ago(c.received or c.at))
+  add("Gold", (c.money or 0) >= 10000 and ns.formatGold(c.money) or (c.money and c.money > 0 and gold(c.money)))
+  local talents = ui.talentText(c.talents)
+  if talents then out[#out + 1] = { "Talents", talents, nil, true } end -- a whole row: it's long
   return out
 end
 
@@ -863,27 +828,9 @@ local function newExpansion(p, width)
   ex.width = width
   ui.box(ex, C.bar, C.border)
   ex.half = math.floor((width - 36) / 2)
-  ex.left, ex.right = {}, {}
-  ex.levelTitle = ui.text(ex, "GameFontNormalSmall", "Level times")
-  ui.tint(ex.levelTitle, C.accent)
-  ex.noLevels = ui.text(ex, "GameFontDisableSmall", "No level times shared.")
+  ex.left, ex.right, ex.profs = {}, {}, {}
   ex.chart = ui.levelChart(ex, 30, EXPAND_CHART, math.floor(ex.half / 30))
   return ex
-end
-
--- Lists rows of { label, value } in a column from y; returns the y under them.
-local function factColumn(ex, pool, list, x, y)
-  for i, fact in ipairs(list) do
-    local r = pooled(pool, i, function() return newFactRow(ex, ex.half) end)
-    r.labelText:SetText(fact[1])
-    r.valueText:SetText(fact[2])
-    local h = math.max(14, textHeight(r.valueText, 14))
-    r:SetHeight(h)
-    place(r, ex, x, y)
-    y = y + h + 5
-  end
-  hideFrom(pool, #list + 1)
-  return y
 end
 
 -- Hidden characters (yours or friends'), by charKey, kept with the window's choices. Shown again,
@@ -909,25 +856,25 @@ end
 
 -- Fills the info for c and returns its height.
 local function drawExpansion(ex, c, friend)
-  local left = factColumn(ex, ex.left, facts(c, friend), 12, 10)
+  -- Both columns start at the same line and step in the same rhythm (Ui.lua FACT_TILE, FACT_GAP).
+  local top = 12
+  local left = ui.factTiles(ex, ex.left, facts(c), 12, top, ex.half, 2)
+  local profs = ui.parseProfessions(c.professions)
+  if #profs > 0 then left = ui.professionRows(ex, ex.profs, profs, 12, left > top and (left + ui.FACT_GAP) or top, ex.half) - ui.FACT_GAP
+  else ui.professionRows(ex, ex.profs, profs, 12, left, ex.half) end
   local x = 24 + ex.half
-  place(ex.levelTitle, ex, x, 10)
   local levels = levelsOf(c)
-  local right = factColumn(ex, ex.right, ns.levelingFacts(levels, c), x, 28)
-  ex.noLevels:SetShown(#levels == 0)
-  if #levels == 0 then
-    place(ex.noLevels, ex, x, right)
-    right = right + 16
-  end
+  local right = ui.factTiles(ex, ex.right, ns.levelingFacts(levels, c), x, top, ex.half, 2)
   ex.chart:SetShown(#levels > 0)
   if #levels > 0 then
-    place(ex.chart, ex, x, right + 4)
+    place(ex.chart, ex, x, right + ui.FACT_GAP)
     local playing = (c.levelTime or 0) > 0 and c.level and not (c.maxLevel and c.level >= c.maxLevel)
     ex.chart.draw(levels, playing and { level = c.level + 1, seconds = c.levelTime } or nil)
-    right = right + 4 + EXPAND_CHART
+    right = right + ui.FACT_GAP + EXPAND_CHART
   end
   -- Hide (or show again): out of the list, and the info folds away.
-  ex.hide = ex.hide or cardButton(ex, 110)
+  ex.hide = ex.hide or cardButton(ex, 90)
+  ex.hide:SetHeight(20)
   local hidden = isHidden(c)
   setButton(ex.hide, hidden and "Show again" or "Hide", function()
     setHidden(c, not hidden)
@@ -936,36 +883,39 @@ local function drawExpansion(ex, c, friend)
     if highlights then highlights:Hide() end
     redrawTab()
   end)
-  local h = math.max(left, right) + 10
-  place(ex.hide, ex, ex.width - 122, h)
+  local h = math.max(left, right) + 14
+  place(ex.hide, ex, ex.width - 102, h)
   -- Highlights (the panel beside the window), your own character's reputations (ReputationWindow.lua),
   -- then a button per profession with known recipes, which opens them in the recipe window (RecipeWindow.lua).
   local actions = {}
   local count = #highlightsOf(c, friend)
   if count > 0 then
-    actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end }
+    actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end, "Highlights" }
   end
   local reputations = friend == nil and ns.reputationCount and ns.reputationCount(c) or 0 -- your own only
   if reputations > 0 then
-    actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end }
+    actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end, "Reputations" }
   end
   for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do
-    actions[#actions + 1] = { string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end }
+    actions[#actions + 1] = { string.format("%s (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end, prof.name }
   end
+  -- An even grid of small buttons (the icon says which recipes), clear of Hide on the right: as many
+  -- columns as fit at about 140 wide, every button the same width, so the rows line up.
   ex.recipes = ex.recipes or {}
-  local x = 12
+  local room = ex.width - 12 - 112
+  local cols = math.max(1, math.min(#actions, math.floor((room + 6) / 146)))
+  local bw = math.floor((room - (cols - 1) * 6) / cols)
+  if #actions < cols then bw = 140 end
   for i, action in ipairs(actions) do
-    if x + 150 > ex.width - 130 then -- the next line, clear of Hide
-      x = 12
-      h = h + 28
-    end
-    local b = pooled(ex.recipes, i, function() return cardButton(ex, 150) end)
+    local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
+    local b = pooled(ex.recipes, i, function() return cardButton(ex, 140) end)
+    b:SetSize(bw, 20)
     setButton(b, action[1], action[2])
-    place(b, ex, x, h)
-    x = x + 156
+    ui.buttonIcon(b, ui.PROFESSION_ICONS[action[3] or ""])
+    place(b, ex, 12 + col * (bw + 6), h + row * 26)
   end
   hideFrom(ex.recipes, #actions + 1)
-  h = h + 30
+  h = h + math.max(1, math.ceil(#actions / cols)) * 26 + 4
   ex:SetHeight(h)
   ex:Show()
   return h
@@ -1161,7 +1111,7 @@ end
 
 local function drawRequest(box)
   box.info:SetText(requestText(box))
-  box.toggle:SetText(box.open and "Choose what they get  ^" or "Choose what they get  v")
+  ui.setToggle(box.toggle, "Choose what they get", box.open)
   box.choicesFrame:SetShown(box.open)
   box:SetHeight(box.open and REQUEST_TALL or REQUEST_SHORT)
   ui.refresh(box.choicesFrame) -- the checkboxes
@@ -1469,11 +1419,15 @@ local function newPill(parent, width)
   return pill
 end
 
--- A shared character's row, like the app's: name and race/zone, then class and spec, level and
--- item level in pills, and when it was last seen. Clicking it opens the details.
+-- A shared character's row, like the app's: its portrait, name and race/zone, then class and spec,
+-- level and item level in pills, and when it was last seen. Clicking it opens the details.
 local function newCharRow(p, width)
   local row = newCard(p, width)
-  row.infoText:SetWidth(width - 380)
+  row.portrait = ui.portrait(row, 28)
+  row.portrait:SetPoint("LEFT", row, "LEFT", 16, 0)
+  row.nameText:SetPoint("TOPLEFT", row, "TOPLEFT", 18 + ui.ROW_PORTRAIT, -6)
+  row.infoText:SetPoint("TOPLEFT", row, "TOPLEFT", 18 + ui.ROW_PORTRAIT, -23)
+  row.infoText:SetWidth(width - 380 - ui.ROW_PORTRAIT)
   row.classText = ui.text(row, "GameFontHighlightSmall")
   row.classText:SetPoint("LEFT", row, "RIGHT", -360, 0)
   row.classText:SetWidth(150)
@@ -1490,6 +1444,8 @@ end
 
 local function setCharRow(row, c)
   setCard(row, fullName(c), c.classFile, charInfo(c))
+  ui.setPortrait(row.portrait, c)
+  ui.setFactionBadge(row, c.faction)
   local class = c.class or ""
   row.classText:SetText(c.spec and (c.spec .. " " .. class) or class)
   classColor(row.classText, c.classFile)
@@ -1522,8 +1478,11 @@ local function buildFriends(p)
   end, "primary")
   -- What all friends get is on the Sharing tab; this opens it there.
   local yours = ui.button(p, "What you share", 120, function() ns.showShareDefaults() end)
+  -- Everyone's professions in one list (RecipeWindow.lua), not one friend at a time.
+  local professions = ui.button(p, "Professions", 110, function() ns.openProfessions() end)
+  ui.buttonIcon(professions, "Trade_BlackSmithing")
   local hint = ui.text(p, "GameFontDisableSmall", "Click a friend for their characters and nickname, drag one to reorder.")
-  hint:SetWidth(width - 300)
+  hint:SetWidth(width - 420)
   local status = ui.text(p, "GameFontHighlightSmall")
   status:SetWidth(ui.WRAP)
 
@@ -1645,18 +1604,21 @@ local function buildFriends(p)
     card.dot = card:CreateTexture(nil, "ARTWORK")
     card.dot:SetSize(7, 7)
     card.dot:SetPoint("TOPRIGHT", card, "TOPRIGHT", -9, -10)
-    -- Who first (nickname and BattleTag, beside the online dot), then the character they play.
+    -- The portrait of the character they play, then who (nickname and BattleTag, beside the online
+    -- dot) and that character.
+    card.portrait = ui.portrait(card, 40)
+    card.portrait:SetPoint("LEFT", card, "LEFT", 16, 0)
     card.whoText = ui.text(card, "GameFontNormalSmall")
-    card.whoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -9)
-    card.whoText:SetWidth(cardWidth - 40)
+    card.whoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16 + ui.CARD_PORTRAIT, -9)
+    card.whoText:SetWidth(cardWidth - 40 - ui.CARD_PORTRAIT)
     card.whoText:SetWordWrap(false)
     card.nameText = ui.text(card, "GameFontHighlight")
-    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -24)
-    card.nameText:SetWidth(cardWidth - 24)
+    card.nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 16 + ui.CARD_PORTRAIT, -24)
+    card.nameText:SetWidth(cardWidth - 24 - ui.CARD_PORTRAIT)
     card.nameText:SetWordWrap(false)
     card.infoText = ui.text(card, "GameFontDisableSmall")
-    card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16, -43)
-    card.infoText:SetWidth(cardWidth - 24)
+    card.infoText:SetPoint("TOPLEFT", card, "TOPLEFT", 16 + ui.CARD_PORTRAIT, -43)
+    card.infoText:SetWidth(cardWidth - 24 - ui.CARD_PORTRAIT)
     card.infoText:SetWordWrap(false)
     card:SetScript("OnEnter", showHover)
     card:SetScript("OnLeave", hideHover)
@@ -1761,7 +1723,8 @@ local function buildFriends(p)
     place(friendsTitle, p, 16, y)
     place(find, p, 16 + width - 150, y - 4)
     place(yours, p, 16 + width - 150 - 6 - 120, y - 4)
-    hint:SetWidth(width - 300)
+    place(professions, p, 16 + width - 150 - 6 - 120 - 6 - 110, y - 4)
+    hint:SetWidth(width - 420)
     y = y + 20
     place(hint, p, 16, y)
     y = y + textHeight(hint, 24) + 6
@@ -1894,8 +1857,9 @@ local function buildFriends(p)
       local c, label = person.current, who(person.label, person.tag)
       card.tag, card.order = person.tag, order
       card:SetWidth(cardWidth)
-      for _, fs in ipairs({ card.nameText, card.infoText }) do fs:SetWidth(cardWidth - 24) end
-      card.whoText:SetWidth(cardWidth - 40)
+      for _, fs in ipairs({ card.nameText, card.infoText }) do fs:SetWidth(cardWidth - 24 - ui.CARD_PORTRAIT) end
+      card.whoText:SetWidth(cardWidth - 40 - ui.CARD_PORTRAIT)
+      ui.setPortrait(card.portrait, c)
       cardByTag[person.tag] = card
       card.whoText:SetText(label)
       card.nameText:SetText(c and fullName(c) or "")
@@ -2103,6 +2067,10 @@ local function buildCharacters(p)
     if #list == 0 then place(none, p, 16, y) end
     local open, unfolded
     local shownCount, hiddenCount = 0, 0
+    -- Roomy rows (bigger portraits and pills, a line more) while they all fit on the page.
+    local fits = 0
+    for _, c in ipairs(list) do if showHidden or not isHidden(c) then fits = fits + 1 end end
+    local roomy = fits > 0 and y + fits * (ui.CHAR_ROW_ROOMY + 4) + 40 <= ns.pageHeight()
     for _, c in ipairs(list) do
       local hidden = isHidden(c)
       if hidden then hiddenCount = hiddenCount + 1 end
@@ -2115,7 +2083,7 @@ local function buildCharacters(p)
         setCharRow(row, c)
         row:SetAlpha(hidden and 0.5 or 1)
         place(row, p, 16, y)
-        y = y + CARD + 4
+        y = y + ui.sizeCharRow(row, roomy, c) + 4
         if expandedKey == charKey(c) then
           unfolded = true
           expansion = expansion or newExpansion(p, width - 12)
@@ -2196,7 +2164,7 @@ local function appSummary()
 end
 
 -- The Settings tab, in sections: General, Look, Note box, This character, Advanced and the app.
--- Instant posting, reload reminders and the pattern only do something with the app.
+-- Instant posting and the pattern only do something with the app.
 local function buildSettings(p)
   local withApp = ns.hasApp()
   local generalTitle = ui.heading(p, "General")
@@ -2211,13 +2179,7 @@ local function buildSettings(p)
       function() return WoWCharacterTrackerDB.live ~= false end,
       function(on) WoWCharacterTrackerDB.live = on end)
     live:SetPoint("TOPLEFT", minimap, "BOTTOMLEFT", 0, -18)
-    local reloadLabel, reload = ui.labeledChoice(p, live, 4, -28, "Reload reminders", RELOAD_CHOICES, reloadChoice, setReloadChoice)
-    local custom = ui.text(p, "GameFontDisableSmall", "Custom mix")
-    custom:SetPoint("LEFT", reload, "RIGHT", 6, 0)
-    ui.onRefresh(p, function() custom:SetShown(reloadChoice() == "custom") end)
-    local reloadHint = ui.hint(p, "Gear, bags and bank reach the app on /reload. Gentle: a chat line and a box on flight paths when they changed. Every chance: also a popup after each ding.", reloadLabel)
-    reloadHint:SetPoint("TOPLEFT", reloadLabel, "BOTTOMLEFT", 0, -12)
-    last, lastGap = reloadHint, nil
+    last, lastGap = live, ui.gapAfter(live)
   end
 
   -- The window's colors (the app's Forever looks, right away) and how far away friends on the map
@@ -2293,8 +2255,8 @@ end
 local TABS = {
   { key = "home", label = "Home", height = 780, build = function(p) ns.buildHomeTab(p) end }, -- Home.lua
   { key = "characters", label = "Characters", height = 1000, build = buildCharacters }, -- grows with the list
-  { key = "sharing", label = "Sharing", height = 1600, build = buildSharingTab, fit = true }, -- a row per moment, then friends
   { key = "friends", label = "Friends", height = 1000, build = buildFriends }, -- grows with its lists
+  { key = "sharing", label = "Sharing", height = 1600, build = buildSharingTab, fit = true }, -- a row per moment, then friends
   { key = "settings", label = "Settings", height = 1200, build = buildSettings, fit = true },
 }
 local BY_KEY = {}
@@ -2331,12 +2293,11 @@ selectTab = function(key)
     if t.key == key then
       if not state.page then buildTab(t) end
       state.holder:Show()
-      ui.styleButton(state.button, "selected")
-    else
-      if state.holder then state.holder:Hide() end
-      ui.styleButton(state.button)
+    elseif state.holder then
+      state.holder:Hide()
     end
   end
+  ns.railSelect(key) -- Shell.lua
   ui.refresh(tabs[key].page)
   local page = tabs[key].page
   if BY_KEY[key].fit and page ~= tabs[key].holder and C_Timer then
@@ -2394,18 +2355,11 @@ local function setSizeBounds(maxWidth, maxHeight)
   end
 end
 
--- Clamped to the screen, a window sized past the screen's edge is pushed back instead, title bar
--- and all off the top. So it grows from its top left and only as far as the screen has room.
-local function startSizing()
-  local left, top, screen = window:GetLeft(), window:GetTop(), UIParent:GetRight()
-  if left and top and screen then
-    window:ClearAllPoints()
-    window:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-    setSizeBounds(math.max(WIDTH, math.min(MAX_WIDTH, screen - left)), math.max(HEIGHT, math.min(MAX_HEIGHT, top)))
-  end
-  window:StartSizing("BOTTOMRIGHT")
-end
-
+-- Sizing by hand rather than StartSizing: the game's sizing could jump the window to its largest
+-- size on a plain click of the grip. Now the window follows the cursor only once it has moved a few
+-- pixels, so a click changes nothing. Clamped to the screen, a window sized past the screen's edge
+-- is pushed back instead, title bar and all off the top, so it grows from its top left and only as
+-- far as the screen has room.
 local function resizeGrip()
   local grip = CreateFrame("Button", nil, window)
   grip:SetSize(16, 16)
@@ -2413,14 +2367,38 @@ local function resizeGrip()
   grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
   grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
   grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-  grip:SetScript("OnMouseDown", startSizing)
-  grip:SetScript("OnMouseUp", function()
+  local function finish()
+    window:SetScript("OnUpdate", nil)
     savePosition(window) -- the sizing anchored it at its top left
     local s = saved()
     s.width, s.height = math.floor(window:GetWidth() + 0.5), math.floor(window:GetHeight() + 0.5)
     fitPages()
     if current and tabs[current] and tabs[current].page then ui.refresh(tabs[current].page) end
+  end
+  grip:SetScript("OnMouseDown", function()
+    local left, top, screen = window:GetLeft(), window:GetTop(), UIParent:GetRight()
+    if not (left and top and screen) then return end
+    window:ClearAllPoints()
+    window:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    local maxW = math.max(WIDTH, math.min(MAX_WIDTH, screen - left))
+    local maxH = math.max(HEIGHT, math.min(MAX_HEIGHT, top))
+    setSizeBounds(maxW, maxH)
+    local scale = window:GetEffectiveScale() or 1
+    local x0, y0 = 0, 0
+    if GetCursorPosition then x0, y0 = GetCursorPosition() end
+    local w0, h0 = window:GetWidth(), window:GetHeight()
+    local sizing = { moved = false }
+    window:SetScript("OnUpdate", function(self)
+      if IsMouseButtonDown and not IsMouseButtonDown("LeftButton") then return finish() end -- let go off the grip
+      if not GetCursorPosition then return end
+      local x, y = GetCursorPosition()
+      local dx, dy = (x - x0) / scale, (y0 - y) / scale
+      if not sizing.moved and math.abs(dx) < 4 and math.abs(dy) < 4 then return end
+      sizing.moved = true
+      self:SetSize(math.max(WIDTH, math.min(maxW, w0 + dx)), math.max(HEIGHT, math.min(maxH, h0 + dy)))
+    end)
   end)
+  grip:SetScript("OnMouseUp", finish)
   return grip
 end
 
@@ -2497,39 +2475,18 @@ local function build()
 
   ui.box(window, ui.COLOR.window, ui.COLOR.border)
 
-  -- The tab strip, a shade darker, between two lines.
-  local strip = CreateFrame("Frame", nil, window)
-  strip:SetPoint("TOPLEFT", 1, -TITLE_BAR)
-  strip:SetPoint("TOPRIGHT", -1, -TITLE_BAR)
-  strip:SetHeight(TAB_BAR)
-  ui.box(strip, ui.COLOR.bar, ui.COLOR.border)
-
-  local logo = window:CreateTexture(nil, "ARTWORK")
-  logo:SetSize(24, 24)
-  logo:SetPoint("TOPLEFT", 14, -10)
-  logo:SetTexture(ns.ICON) -- Minimap.lua's
-  local title = ui.text(window, "GameFontHighlightLarge", "WoW Character Tracker")
-  title:SetPoint("LEFT", logo, "RIGHT", 8, 0)
+  -- The tabs down the left and the page's name over it (Shell.lua), the version beside the name.
+  for _, t in ipairs(TABS) do tabs[t.key] = {} end
+  local title = ns.buildRail(window, TABS, function(key) selectTab(key) end, TITLE_BAR)
   version = buildVersion()
-  version:SetPoint("LEFT", title, "RIGHT", 6, -1)
+  version:SetPoint("LEFT", title, "RIGHT", 8, -1)
 
   local close = closeButton(window, function() window:Hide() end)
   local author = ui.text(window, "GameFontDisableSmall", ui.author())
   author:SetPoint("RIGHT", close, "LEFT", -4, 0)
 
-  local last
-  for _, t in ipairs(TABS) do
-    local key = t.key
-    local b = ui.button(strip, t.label, 88, function() selectTab(key) end)
-    b:SetHeight(24)
-    if last then b:SetPoint("LEFT", last, "RIGHT", 6, 0)
-    else b:SetPoint("LEFT", strip, "LEFT", 12, 0) end
-    tabs[key] = { button = b }
-    last = b
-  end
-
   area = CreateFrame("Frame", nil, window)
-  area:SetPoint("TOPLEFT", 8, -(TITLE_BAR + TAB_BAR + 4))
+  area:SetPoint("TOPLEFT", ns.RAIL_WIDTH + 8, -(TITLE_BAR + TAB_BAR + 4))
   area:SetPoint("BOTTOMRIGHT", -8, 8)
   resizeGrip():SetFrameLevel((area:GetFrameLevel() or 1) + 10)
 end

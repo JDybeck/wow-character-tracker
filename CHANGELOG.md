@@ -2,6 +2,34 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.43.0
+
+Update the addon with the app (it does this by itself), then exit the game fully and start it again once.
+
+### New
+
+- **A new look for the addon window.** The tabs are now a bar of icons down the left side, with a red count on Friends when a friend request waits for you. Home is laid out like the app's: on the left, the character you're playing on a card tinted in its class's color (a big portrait with its level, an XP bar with this level's time and your time to max level, item level, gold and played, the level chart and today), and under it the friends who share with you with their portraits and when they were last seen. On the right, your newest moments and your friends', with the item's (or the class's) icon. Your color theme (Settings, Look) still colors all of it.
+- **Portraits in the addon window.** Your characters on the Characters tab, and your friends' cards and character rows on the Friends tab, now show a small round portrait: the same picture as in the app (your in-game portrait on Forever, the armory picture for friends). The app saves them into the addon folder, so new and changed faces show after a /reload; the first time needs a full game restart. Without the app, or before a portrait is there, the class icon shows, and the character you're on shows its live portrait.
+
+### Fixes and tweaks
+
+- **No more reload box on flight paths, and no reload reminder setting.** The box offering a /reload during a flight is gone, and so are "Remind me in chat to /reload" in the app and Reload reminders in the addon's settings. Instead, when your gear or bags changed, one line in chat says you can /reload if you want the app to show them now (on a flight, after the bank, mailbox, a vendor or the auction house, or leaving a dungeon), and that it's only for the app: nothing in game needs it, and the app catches up when you log out anyway. Bags change all the time, so it says so at most once every 4 hours. The ding popup stays off unless you type /wct popup.
+- **Screenshots stay attached.** Picking Quiet on the Sharing page no longer turned off attaching screenshots to Discord posts for shots you turned on later.
+- **The resize corner no longer jumps.** A click on the addon window's bottom right corner could blow the window up to nearly the whole screen. Now it only resizes while you drag it, and a click does nothing.
+- **Roomier character rows.** When your characters all fit on the addon's Characters tab, their rows grow: a bigger portrait and level boxes, and a third line with guild, gold and played time. A list that fills the page keeps the compact rows.
+- **The window fades when you're not using it.** The addon window and the panels beside it (a character's details, highlights, recipes and reputations) turn slightly see-through together while the mouse is away from them, and solid again when you point at one, drag it or type in it.
+- **Everyone's professions in one list.** The addon's Friends tab has a **Professions** button (also `/wct professions`): every profession on your characters and what friends share, who has it with the highest skill first, and how many recipes. Click someone to open their recipes, and search by profession or name.
+- **Arrows instead of "v" and "^".** Level history, TODAY's "+N more" and the other fold-out buttons show a small arrow, and the recipe window's categories too.
+- **A livelier character view.** Clicking a character (yours on Characters, a friend's on Friends) unfolds icon tiles in even rows instead of a plain list: realm, gold and talents (only trees with points), and the level times beside them. The Alliance or Horde crest sits right after the character's name on the row. Each profession gets a row with its icon and a skill bar, and the Highlights, Reputations and recipe buttons have icons. What the row above already shows (race, zone, item level, last seen) isn't repeated.
+- **Portraits on Home's moments.** Moments that aren't about an item (bosses, dings, professions) show the character's portrait instead of the class icon, yours and your friends'. Loot keeps the item's icon, and without a portrait the class icon stays.
+- **Bigger Home in the addon.** Text on Home is a size up, and the portraits, moment icons and rows grew with it, so it reads at a glance.
+- **No "?" on Home.** The item level, gold and played tiles hide when the value isn't known yet, and the others share the row.
+- **No zeros on TODAY.** Home's TODAY (in the addon and the app) now lists only what you did today, so no more "0 levels  0 bosses", and one of something reads "1 boss" instead of "1 bosses". On a day with nothing yet, TODAY isn't shown at all.
+- **Level times only while leveling.** At max level, Home no longer shows how long your last level took, and hovering a max-level friend on Home shows their latest moment instead of how long 59 to 60 took.
+- **No "This level" at max level.** The app's Home no longer shows a time for "This level" on a max level character, or a "-" right after a ding. The other tiles share the row instead.
+- **Easier to read grey text in the app.** Hints, search boxes and other grey text were too faint on the dark background. They're lighter now, readable on every color theme.
+- **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
+
 ## v0.42.4
 
 Update the addon with the app (it does this by itself) and /reload in game.

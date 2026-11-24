@@ -1,4 +1,4 @@
-namespace WoWCharacterTracker.Tests;
+﻿namespace WoWCharacterTracker.Tests;
 
 // Window.lua and Ui.lua: the addon window with its tabs, built from stubbed frames. Every option
 // moved in from the old Options page writes the same settings as before.
@@ -102,7 +102,7 @@ public class AddonWindowTests
     {
         var c = new FriendsLuaTests.Client(Me, "{}", db, settings);
         c.Lua(Widgets);
-        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "RecipeWindow.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
+        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "RecipeWindow.lua", "Shell.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
             c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file)), codeFriendlyName: file), "WoWCharacterTracker", c.Ns);
         return c;
     }
@@ -116,7 +116,7 @@ public class AddonWindowTests
     public void Home_shows_the_character_with_its_level_times()
     {
         var c = Load("""
-            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', ilvl = 35, played = 90000 } }, items = {}, events = {
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', ilvl = 35, played = 90000 }, ['Player-1-0000000B'] = { char = 'Alt', money = 12000000 } }, items = {}, events = {
               { kind = 'level', guid = 'Player-1-0000000A', char = 'Zeb', level = 44, seconds = 3600, at = 10 },
               { kind = 'level', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, seconds = 10440, at = 20 },
               { kind = 'boss', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, boss = 'Archaedas', instance = 'Uldaman', at = 30 } } }
@@ -127,6 +127,7 @@ public class AddonWindowTests
             function UnitClass() return 'Warrior', 'WARRIOR' end
             function UnitRace() return 'Night Elf' end
             function UnitXP() return 1000 end
+            function GetMoney() return 3400000 end
             function UnitXPMax() return 4000 end
             function GetMaxPlayerLevel() return 60 end
             function date() return { year = 2026, month = 11, day = 9 } end
@@ -137,12 +138,15 @@ public class AddonWindowTests
         c.Lua("SlashCmdList.CHARACTERTRACKER('')");
         Assert.True(Bool(c, "shownText('PLAYING NOW') ~= nil"));
         Assert.True(Bool(c, "shownText('Zeb') ~= nil"));
-        Assert.True(Bool(c, "shownText('Level 45 Night Elf Warrior') ~= nil"));
+        Assert.True(Bool(c, "shownText('Night Elf Warrior') ~= nil"));
+        Assert.True(Bool(c, "shownText(45) ~= nil")); // the level, on the portrait's badge
+        Assert.True(Bool(c, "shownText('25% to 46  ·  20m 0s on this level') ~= nil")); // under the XP bar
+        Assert.True(Bool(c, "shownText('1,540g account') ~= nil")); // 340g here and 1,200g on the alt
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m  ·  average 1h 57m') ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
         // The level history is folded until opened, and stays as you left it.
         Assert.False(Bool(c, "find('44 to 45') and onScreen(find('44 to 45'))"));
-        c.Lua("click('Level history  v')");
+        c.Lua("click('Level history')");
         Assert.True(Bool(c, "shownText('44 to 45') ~= nil"));
         Assert.True(Bool(c, "shownText('2h 54m') ~= nil"));
         Assert.True(Bool(c, "WoWCharacterTrackerDB.window.homeHistory == true"));
@@ -290,9 +294,28 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('+1 |cff9a9a9aitem level|r') ~= nil"));
         Assert.True(Bool(c, "shownText('3 |cff9a9a9aveins|r') ~= nil"));
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') == nil"));
-        c.Lua("click('+2 more  v')");
-        Assert.True(Bool(c, "shownText('1 |cff9a9a9askins|r') ~= nil"));
+        Assert.True(Bool(c, "shownText('?') == nil")); // unknown values hide instead of showing "?"
+        Assert.True(Bool(c, "shownText('Item level') == nil")); // and an unknown tile hides
+        c.Lua("click('+2 more')");
+        Assert.True(Bool(c, "shownText('1 |cff9a9a9askin|r') ~= nil")); // one of a count is singular
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') ~= nil"));
+    }
+
+    // A quiet day: one line that says so, no row of zeros.
+    [Fact]
+    public void A_quiet_day_shows_no_today_instead_of_zeros()
+    {
+        var c = Load();
+        c.Lua("""
+            function UnitClass() return 'Warrior', 'WARRIOR' end
+            function UnitLevel() return 45 end
+            function date(f) if f == '*t' then return { year = 2026, month = 11, day = 9 } end return '2026-11-09' end
+            ns.playedNow = function() return 100 end
+            ns.levelTimeNow = function() return 10 end
+            """);
+        c.Lua("SlashCmdList.CHARACTERTRACKER('')");
+        Assert.True(Bool(c, "shownText('TODAY') == nil"));
+        Assert.True(Bool(c, "shownText('0 |cff9a9a9alevels|r') == nil"));
     }
 
     [Fact]
@@ -300,7 +323,7 @@ public class AddonWindowTests
     {
         var c = Load();
         c.Call("openWindow", "general");
-        foreach (var tab in new[] { "Home", "Characters", "Sharing", "Friends", "Settings" })
+        foreach (var tab in new[] { "Home", "Characters", "Friends", "Sharing", "Settings" })
             Assert.True(Bool(c, $"find('{tab}') ~= nil"), tab);
         Assert.True(Bool(c, "find('Note') == nil")); // the note box's options are a section of Settings
         Assert.True(Bool(c, "ns.windowShown()"));
@@ -316,6 +339,22 @@ public class AddonWindowTests
         Assert.Contains("WoWCharacterTrackerWindow", c.Lua("return table.concat(UISpecialFrames, ',')").String);
         c.Call("toggleWindow");
         Assert.False(Bool(c, "ns.windowShown()"));
+    }
+
+    // The tabs are a bar of icons down the left: the open one lit, its name over the page, and a
+    // count on Friends while friend requests wait.
+    [Fact]
+    public void The_tab_bar_lights_the_open_tab_and_counts_friend_requests()
+    {
+        var c = Load();
+        c.Lua("ns.pendingRequests = function() return { {}, {} } end");
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "find('Sharing').bg.shown and not find('Home').bg.shown"));
+        Assert.Contains("INV_Misc_Gear_01", c.Lua("return find('Settings').icon.texture").String);
+        c.Lua("rail = find('Home').parent; rail.scripts.OnUpdate(rail, 2)");
+        Assert.True(Bool(c, "shownText('2') ~= nil")); // the badge on Friends
+        c.Lua("find('Settings').scripts.OnClick(find('Settings'))");
+        Assert.True(Bool(c, "find('Settings').bg.shown and not find('Sharing').bg.shown"));
     }
 
     [Fact]
@@ -555,20 +594,13 @@ public class AddonWindowTests
         Assert.True(Bool(c, "ns.setting('ask').boss and ns.setting('ask').rare and ns.setting('ask').epic and ns.setting('ask').level"));
     }
 
-    // Reload reminders: one choice over the ding popup, the flight box and the chat line. The
-    // defaults (no popup, flight box and chat line on) are Gentle.
+    // No reload reminder setting any more: the chat line is rare and only for the app (Events.lua).
     [Fact]
-    public void Reload_reminders_are_one_choice_over_three_settings()
+    public void The_settings_have_no_reload_reminders()
     {
         var c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
-        Assert.Equal("gentle", c.Lua("return ns.reloadChoice()").String);
-        c.Lua("click('Every chance')");
-        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == true and ns.setting('flightReload') and ns.setting('chatReminder')"));
-        c.Lua("click('Off')");
-        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == false and ns.setting('flightReload') == false and ns.setting('chatReminder') == false"));
-        c.Lua("WoWCharacterTrackerDB.popup = true");
-        Assert.Equal("custom", c.Lua("return ns.reloadChoice()").String);
+        Assert.True(Bool(c, "shownText('Reload reminders') == nil and find('Every chance') == nil and find('Offer a reload on flight paths') == nil"));
     }
 
     // With the app: the preset is picked here (an In game setting the app applies on sync), and the
@@ -647,7 +679,7 @@ public class AddonWindowTests
         return home;
     }
 
-    // Resized wider, Home's card and the moments under it take the room (the split keeps its share).
+    // Resized wider, Home's two columns take the room.
     [Fact]
     public void Home_follows_the_windows_width()
     {
@@ -664,8 +696,10 @@ public class AddonWindowTests
             end
             grip.scripts.OnMouseUp(grip)
             """);
-        Assert.Equal(1020, Num(c, "cardOf().width")); // 1100 less the window's edges and the scroll bar
-        Assert.Equal(1020, Num(c, "find('Friends tab').point[4]")); // at the right edge of the wider page
+        // 952 wide (1100 less the tab bar on the left, the window's edges and the scroll bar): the
+        // character's column takes a bit under half, the moments the rest, 10 between them.
+        Assert.Equal(452, Num(c, "cardOf().width"));
+        Assert.Equal(490, Num(c, "shownText('Latest moments').owner.parent.width"));
     }
 
     // Without the app, Home says what it adds and where to get it, until Got it; with it, nothing.
@@ -703,14 +737,14 @@ public class AddonWindowTests
     {
         var c = Load();
         c.Call("openWindow", "settings");
-        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern" })
+        foreach (var label in new[] { "Instant posting", "Show a small label next to the pattern" })
             Assert.True(Bool(c, $"shownText('{label}') == nil"), label);
         Assert.True(Bool(c, "shownText('Keep all history') ~= nil and shownText('Show the minimap button') ~= nil"));
         Assert.True(Bool(c, "shownText('Character Tracker app') ~= nil"));
 
         c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
-        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern", "Pattern corner", "Character Tracker app" })
+        foreach (var label in new[] { "Instant posting", "Show a small label next to the pattern", "Pattern corner", "Character Tracker app" })
             Assert.True(Bool(c, $"shownText('{label}') ~= nil"), label);
     }
 
@@ -897,6 +931,66 @@ public class AddonWindowTests
         Assert.True(Bool(c, "friendCard('Danno').point[5] == friendCard('Annie').point[5]")); // 5 columns: all on row 1
     }
 
+    // A plain click on the grip leaves the size alone; dragging it sizes the window with the cursor.
+    // The window fades a little while the mouse is away, and is solid again under it.
+    [Fact]
+    public void The_window_fades_while_the_mouse_is_away()
+    {
+        var c = FriendsTab();
+        c.Lua("""
+            win = named('WoWCharacterTrackerWindow')
+            over = false
+            win.IsMouseOver = function() return over end
+            function alphaOf(f) f.SetAlpha = function(s, a) s.shownAlpha = a end f.GetAlpha = function(s) return s.shownAlpha or 1 end end
+            alphaOf(win)
+            -- The panels beside it fade with it, even the ones on UIParent, and ignore the window's alpha.
+            recipes = CreateFrame('Frame', 'WoWCharacterTrackerRecipes', UIParent)
+            _G.WoWCharacterTrackerRecipes = recipes
+            recipes.IsMouseOver = function() return false end
+            alphaOf(recipes)
+            function tick() win.fadeTicker.scripts.OnUpdate(win.fadeTicker, 1) end
+            tick()
+            """);
+        Assert.Equal(0.8, Num(c, "win.shownAlpha"), 3);
+        Assert.Equal(0.8, Num(c, "recipes.shownAlpha"), 3);
+        c.Lua("over = true tick()");
+        Assert.Equal(1, Num(c, "win.shownAlpha"), 3);
+        Assert.Equal(1, Num(c, "recipes.shownAlpha"), 3);
+    }
+
+    [Fact]
+    public void Clicking_the_resize_grip_does_not_resize_and_dragging_does()
+    {
+        var c = FriendsTab();
+        c.Lua("""
+            win = named('WoWCharacterTrackerWindow')
+            win.GetLeft = function() return 100 end
+            win.GetTop = function() return 900 end
+            UIParent.GetRight = function() return 1900 end
+            win.GetWidth = function() return 828 end
+            win.GetHeight = function() return 590 end
+            win.SetSize = function(s, w, h) s.sized = { w, h } end
+            cursor = { 500, 300 }
+            function GetCursorPosition() return cursor[1], cursor[2] end
+            function IsMouseButtonDown() return true end
+            for _, f in ipairs(frames) do
+              if f.parent == win and f.kind == 'Button' and f.scripts.OnMouseDown then grip = f end
+            end
+            grip.scripts.OnMouseDown(grip)
+            cursor = { 502, 299 } -- a hand's wobble during a click
+            win.scripts.OnUpdate(win, 0.02)
+            """);
+        Assert.True(Bool(c, "win.sized == nil"));
+        c.Lua("""
+            cursor = { 700, 200 }
+            win.scripts.OnUpdate(win, 0.02)
+            grip.scripts.OnMouseUp(grip)
+            """);
+        Assert.Equal(1028, Num(c, "win.sized[1]")); // 200 wider
+        Assert.Equal(690, Num(c, "win.sized[2]"));  // 100 taller
+        Assert.True(Bool(c, "win.scripts.OnUpdate == nil")); // stopped on letting go
+    }
+
     // Sizing starts from the top left and stops at the screen's edge, so the clamp never pushes the
     // title bar off the top. The new anchor is saved.
     [Fact]
@@ -972,18 +1066,38 @@ public class AddonWindowTests
     // A click on a character unfolds its info under the row and its gear beside the window; the
     // panel's X closes only the panel, a second click on the row folds both away.
     [Fact]
+    public void The_professions_overview_lists_everyone_by_profession_highest_first()
+    {
+        var c = Load("""
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', level = 30, classFile = 'WARRIOR', lastSeen = 1, professions = 'Tailoring 150/300, Mining 120/150' } },
+              items = {}, events = {} }
+            """);
+        c.Lua(FriendStubs);
+        c.Lua("ns.openProfessions()");
+        Assert.True(Bool(c, "shownText('Tailoring  (2)') ~= nil"));
+        Assert.True(Bool(c, "shownText('Mining  (1)') ~= nil"));
+        Assert.True(Bool(c, "shownText('Enchanting  (1)') ~= nil"));
+        Assert.True(Bool(c, "shownText('300/300') ~= nil and shownText('150/300') ~= nil"));
+        // Highest first under a profession: the friend's 300 above your 150.
+        Assert.True(Bool(c, "shownText('300/300').owner.point[5] > shownText('150/300').owner.point[5]"));
+        // A search narrows it to professions or people.
+        c.Lua("local s = named('WoWCharacterTrackerRecipes').search; s.GetText = function(self) return self.text end; s:SetText('min'); s.scripts.OnTextChanged(s, true)");
+        Assert.True(Bool(c, "shownText('Mining  (1)') ~= nil and shownText('Tailoring  (2)') == nil"));
+    }
+
+    [Fact]
     public void A_character_unfolds_under_its_row_and_folds_with_its_gear()
     {
         var c = FriendsTab();
         c.Lua("openFriend('Cidro')");
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
-        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') ~= nil")); // the info, under the row
-        Assert.True(Bool(c, "shownText('Level times') ~= nil"));
+        Assert.True(Bool(c, "shownText('280 / 300') ~= nil")); // the info, under the row
+        Assert.True(Bool(c, "shownText('Arcane 10  ·  Frost 41') ~= nil")); // talents, without the empty tree
         c.Lua("named('WoWCharacterTrackerDetailsPanel'):Hide()"); // its X
-        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') ~= nil")); // still unfolded
+        Assert.True(Bool(c, "shownText('280 / 300') ~= nil")); // still unfolded
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') == nil"));
+        Assert.True(Bool(c, "shownText('280 / 300') == nil"));
         Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
     }
 
@@ -1012,8 +1126,8 @@ public class AddonWindowTests
         c.Lua(RecipeStubs);
         c.Lua("openFriend('Cidro')");
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "find('Enchanting recipes (1)') ~= nil"));
-        c.Lua("local b = find('Tailoring recipes (3)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "find('Enchanting (1)') ~= nil"));
+        c.Lua("local b = find('Tailoring (3)'); b.scripts.OnClick(b)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes'))"));
         Assert.True(Bool(c, "shownText('Tailoring') ~= nil and shownText('300/300') ~= nil"));
         Assert.True(Bool(c, "shownText('Cloth') ~= nil and shownText('Bags') ~= nil and shownText('Green Woolen Bag') ~= nil"));
@@ -1152,7 +1266,58 @@ public class AddonWindowTests
         c.Lua("local r = shownText('Zeb').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m') ~= nil")); // its level times
-        Assert.True(Bool(c, "shownText('7g 0s 0c') ~= nil"));
+        Assert.True(Bool(c, "shownText('7g') ~= nil"));
+    }
+
+    // With room to spare the rows grow (a bigger portrait, a line more with guild, gold and played);
+    // a list that fills the page stays compact.
+    [Fact]
+    public void Character_rows_grow_while_they_fit_and_stay_compact_when_they_dont()
+    {
+        string Db(int count)
+        {
+            var chars = string.Join(",\n", Enumerable.Range(1, count).Select(i =>
+                $"['Player-1-{i:D8}'] = {{ char = 'Char{i}', level = 60, classFile = 'MAGE', lastSeen = {i}, money = 12345678, played = 360000, guild = 'Zebs' }}"));
+            return $"{{ chars = {{ {chars} }}, items = {{}}, events = {{}} }}";
+        }
+        var few = Load(Db(3));
+        few.Call("openWindow", "characters");
+        Assert.True(Bool(few, "shownText('Char1').owner.portrait.width == 48"));
+        Assert.True(Bool(few, "shownText('<Zebs>  ·  1,234g  ·  4d 4h 0m played') ~= nil"));
+
+        var many = Load(Db(10));
+        many.Call("openWindow", "characters");
+        Assert.True(Bool(many, "shownText('Char1').owner.portrait.width == 28"));
+        Assert.True(Bool(many, "shownText('<Zebs>  ·  1,234g  ·  4d 4h 0m played') == nil"));
+    }
+
+    // A row's portrait: the app's picture (Portraits.lua's slot) over the class icon; without one the
+    // class icon, and the character being played gets its live portrait.
+    [Fact]
+    public void Character_rows_show_the_apps_portrait_or_the_class_icon()
+    {
+        var c = Load("""
+            { chars = {
+                ['Player-1-0000000A'] = { char = 'Zeb', level = 45, class = 'Warrior', classFile = 'WARRIOR', lastSeen = 300 },
+                ['Player-1-0000000B'] = { char = 'Bea', level = 30, class = 'Priest', classFile = 'PRIEST', lastSeen = 200 },
+                ['Player-1-0000000C'] = { char = 'Alt', level = 12, class = 'Mage', classFile = 'MAGE', lastSeen = 100 } },
+              items = {}, events = {} }
+            """);
+        c.Lua("""
+            WoWCharacterTrackerPortraits = { ['Player-1-0000000B'] = 7 }
+            CLASS_ICON_TCOORDS = { WARRIOR = { 0, 0.25, 0, 0.25 }, PRIEST = { 0.5, 0.75, 0.25, 0.5 }, MAGE = { 0.25, 0.5, 0, 0.25 } }
+            live = {}
+            function SetPortraitTexture(t, unit) live[#live + 1] = unit; t.texture = 'live:' .. unit end
+            function face(name) return shownText(name).owner.portrait.face end
+            function class(name) return shownText(name).owner.portrait.class end
+            """);
+        c.Call("openWindow", "characters");
+        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\7", c.Lua("return face('Bea').texture").String);
+        Assert.True(Bool(c, "face('Bea').shown"));
+        Assert.Equal(@"Interface\TargetingFrame\UI-Classes-Circles", c.Lua("return class('Bea').texture").String); // under it
+        Assert.True(Bool(c, "face('Alt').shown == false")); // no portrait: the class icon
+        Assert.True(Bool(c, "class('Alt').shown"));
+        Assert.Equal("live:player", c.Lua("return face('Zeb').texture").String); // the one being played
     }
 
     // Home: friends' moments beside yours, and a friend's row opens their details like the Friends tab.
@@ -1163,6 +1328,9 @@ public class AddonWindowTests
         c.Lua(FriendStubs);
         c.Lua("""
             shared[1].chars[1].highlights = 'boss~99000~60~Ragnaros~Molten Core~40'
+            shared[1].chars[1].levels, shared[1].chars[1].maxLevel = '60~9960~98000', 60
+            shared[1].chars[1].guid = 'Player-1-0000000F'
+            WoWCharacterTrackerPortraits = { ['Player-1-0000000F'] = 3 }
             function UnitLevel() return 10 end
             function UnitClass() return 'Mage', 'MAGE' end
             function date() return { year = 2026, month = 11, day = 9 } end
@@ -1173,6 +1341,19 @@ public class AddonWindowTests
         c.Call("openWindow", "home");
         Assert.True(Bool(c, "shownText(\"Friends' moments\") ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
+        // A moment that isn't about an item shows the character's portrait.
+        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\3", c.Lua("return shownText('Killed Ragnaros in Molten Core!').owner.portrait.face.texture").String);
+        Assert.False(Bool(c, "shownText('Killed Ragnaros in Molten Core!').owner.icon.shown"));
+        // At max level the hover is their latest moment, not how long 59 to 60 took.
+        var tip = c.Lua("return shownText('Cidrin Frostmane').owner.full").String;
+        Assert.StartsWith("Cidrin Frostmane: Killed Ragnaros in Molten Core!", tip);
+        Assert.DoesNotContain("took", tip);
+        Assert.True(Bool(c, "shownText('Cid#3') ~= nil")); // no nickname: the battletag
+        // With a nickname, only the nickname: no battletag beside it.
+        c.Lua("ns.friendNickname = function(tag) return tag == 'Cid#3' and 'Cidi' or '' end");
+        c.Call("openWindow", "home");
+        Assert.True(Bool(c, "shownText('Cidi') ~= nil"));
+        Assert.True(Bool(c, "shownText('Cidi (Cid#3)') == nil"));
         c.Lua("local r = shownText('Killed Ragnaros in Molten Core!').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
@@ -1530,12 +1711,18 @@ public class AddonWindowTests
         c.Call("friendsChanged");
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "shownText('Level 60 Frost Mage') ~= nil"));
-        foreach (var (label, value) in new[] {
-            ("Friend", "Cid#3"), ("Realm", "Firemaw"), ("Race", "Female Gnome, Alliance"), ("Item level", "112"), ("Zone", "Ironforge"), ("Gold", "123g 45s 67c"),
-            ("Professions", "Tailoring 300/300, Enchanting 280/300"), ("Talents", "Arcane 10 / Fire 0 / Frost 41"), ("Updated", "2h ago") })
+        // Icon tiles for what the row above doesn't already say; no empty talent trees.
+        foreach (var (label, value) in new[] { ("Realm", "Firemaw"), ("Gold", "123g"), ("Talents", "Arcane 10  ·  Frost 41") })
         {
             Assert.Equal(value, c.Lua($"return factText('{label}').owner.valueText.text").String);
         }
+        // The faction is a crest after the name on the row, not a tile.
+        Assert.Contains("UI-PVP-Alliance", c.Lua("return shownText('Cidrin Frostmane').owner.faction.texture").String);
+        foreach (var label in new[] { "Friend", "Faction", "Race", "Item level", "Zone", "Updated", "Professions" })
+            Assert.True(Bool(c, $"factText('{label}') == nil"), label); // on the row or the section already
+        // A row per profession, with its rank and a bar.
+        Assert.Equal("300 / 300", c.Lua("return shownText('Tailoring').owner.rank.text").String);
+        Assert.Equal("280 / 300", c.Lua("return shownText('Enchanting').owner.rank.text").String);
         Assert.Equal(0.25, Num(c, "titleText().color[1]"), 3); // class colored
 
         c.Lua("clickChar('Cidra')"); // little shared: only what's there
@@ -1820,7 +2007,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus gear, talents, location, professions, reputations, highlights, level times.') ~= nil"));
         Assert.True(Bool(c, "shownText('Talents') == nil")); // folded
 
-        c.Lua("press('Choose what they get  v')");
+        c.Lua("press('Choose what they get')");
         c.Lua("press('Basics only')");
         Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level.') ~= nil"));
         c.Lua("click('Talents')");
@@ -1839,7 +2026,7 @@ public class AddonWindowTests
     public void Like_all_friends_goes_back_to_the_general_choice_and_esc_is_not_now()
     {
         var c = RequestBox();
-        c.Lua("press('Choose what they get  v'); press('Everything')");
+        c.Lua("press('Choose what they get'); press('Everything')");
         Assert.True(Bool(c, "find('Gold').checked"));
         c.Lua("press('Like all friends')");
         Assert.False(Bool(c, "find('Gold').checked"));

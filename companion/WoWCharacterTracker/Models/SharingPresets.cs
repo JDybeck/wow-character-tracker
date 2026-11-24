@@ -38,7 +38,9 @@ static class SharingPresets
             _ => rows.Select(m => m.Shot).OfType<string>().ToHashSet(),
         };
         s.Screenshot = EventKinds.ShotKinds.ToDictionary(k => k, shots.Contains);
-        s.PostScreenshot = EventKinds.ShotKinds.ToDictionary(k => k, shots.Contains);
+        // Attaching is the standard: a screenshot that's taken goes with its post. Quiet takes none, and
+        // must not leave attaching off for shots turned on later.
+        s.PostScreenshot = EventKinds.ShotKinds.ToDictionary(k => k, _ => true);
 
         var announce = rows.Where(m => m.Announce is { } a && preset switch
         {
