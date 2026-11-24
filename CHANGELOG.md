@@ -2,6 +2,12 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.43.0
+
+### Fixes and tweaks
+
+- **The weekly satchel names its valuable.** The Gold Nugget, Huge Quartz Gem, Silver Necklace or Gold Ring that comes out of the weekly satchel is now the item the chat line, the guild line and Discord name, with its sell price. Anything else inside is listed as a bonus, without a price. Before, a Huge Quartz Gem could be missed and a cheaper bonus item named instead.
+
 ## v0.42.4
 
 Update the addon with the app (it does this by itself) and /reload in game.
