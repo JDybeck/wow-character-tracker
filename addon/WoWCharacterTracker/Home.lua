@@ -343,16 +343,17 @@ local function cardLabel(card, s, y, right)
 end
 
 -- A friend who shares with you: portrait, name and what they're on, whose friend and when seen.
--- The battletag on the right takes what it needs (up to 45% of the row), the name and class the rest,
--- each cut short instead of running into the other.
+-- Per line, the right side (nickname or battletag on top, when seen under it) takes what it needs,
+-- up to 45% of the row, and the left side (name; class and zone) the rest. "When" is short, so the
+-- zone gets most of its line. Each is cut short instead of running into the other.
 local function sizeFriendRow(row, width)
   if not width then return end
-  local right = math.min(math.floor(width * 0.45), math.max(ui.textWidth(row.label), ui.textWidth(row.when)) + 2)
-  row.label:SetWidth(right)
-  row.when:SetWidth(right)
-  local left = math.max(40, width - 38 - right - 10)
-  row.who:SetWidth(left)
-  row.what:SetWidth(left)
+  local cap = math.floor(width * 0.45)
+  for _, pair in ipairs({ { row.label, row.who }, { row.when, row.what } }) do
+    local right = math.min(cap, ui.textWidth(pair[1]) + 2)
+    pair[1]:SetWidth(right)
+    pair[2]:SetWidth(math.max(40, width - 38 - right - 10))
+  end
 end
 
 local function newFriendRow(parent)
@@ -816,7 +817,9 @@ function ns.buildHomeTab(p)
   local function drawFriends()
     local latest, happened = {}, {}
     for _, f in ipairs(ns.sharedWithYou and ns.sharedWithYou() or {}) do
-      local label = f.label or f.tag
+      -- Their nickname alone when you gave them one (no battletag), else the battletag.
+      local nick = type(f.nickname) == "string" and f.nickname ~= "" and f.nickname or nil
+      local label = nick or f.label or f.tag
       local c = f.chars and f.chars[1]
       if c then latest[#latest + 1] = { label = label, c = c, at = c.received or c.at or 0 } end
       for _, char in ipairs(f.chars or {}) do
