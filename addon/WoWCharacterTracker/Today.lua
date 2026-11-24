@@ -153,6 +153,9 @@ end
 local ORDER = { "levels", "bosses", "epics", "mounts", "ilvl", "quests", "gold", "herbs", "ore", "skins", "fish" }
 local NAMES = { levels = "levels", bosses = "bosses", epics = "epics", mounts = "mounts", ilvl = "item level",
   quests = "quests", gold = "gold", herbs = "herbs", ore = "veins", skins = "skins", fish = "fish" }
+-- A count of 1 reads "1 level", "1 boss".
+local ONE = { levels = "level", bosses = "boss", epics = "epic", mounts = "mount", quests = "quest",
+  herbs = "herb", ore = "vein", skins = "skin" }
 ns.TODAY_SHOWN = 4
 
 function ns.todayStats(events, today, day, since, isRetail)
@@ -184,10 +187,12 @@ function ns.todayStats(events, today, day, since, isRetail)
   return out
 end
 
--- What a stat is called: gold under one gold is silver ("98 silver"), bosses are keys on Retail.
+-- What a stat is called: gold under one gold is silver ("98 silver"), bosses are keys on Retail,
+-- and one of a count is singular ("1 boss").
 function ns.todayName(key, value, isRetail)
   if key == "gold" and value < 10000 then return "silver" end
-  if key == "bosses" and isRetail then return "keys" end
+  if key == "bosses" and isRetail then return value == 1 and "key" or "keys" end
+  if value == 1 and ONE[key] then return ONE[key] end
   return NAMES[key]
 end
 

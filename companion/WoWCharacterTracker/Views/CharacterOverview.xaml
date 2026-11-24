@@ -114,7 +114,7 @@
                         CommandParameter="{Binding}"/>
           </TextBox.InputBindings>
         </TextBox>
-        <TextBlock Text="New tag, then Enter (e.g. Main)" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0"
+        <TextBlock Text="New tag, then Enter (e.g. Main)" Foreground="{StaticResource Dim}" FontSize="12" Margin="10,0,0,0"
                    VerticalAlignment="Center" IsHitTestVisible="False"
                    Visibility="{Binding NewTag, Converter={StaticResource HiddenIfSet}}"/>
       </Grid>

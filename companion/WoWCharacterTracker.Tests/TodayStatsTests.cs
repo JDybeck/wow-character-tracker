@@ -1,4 +1,4 @@
-using MoonSharp.Interpreter;
+﻿using MoonSharp.Interpreter;
 
 namespace WoWCharacterTracker.Tests;
 
@@ -106,7 +106,7 @@ public class TodayStatsTests
         Assert.Equal(2, script.DoString("return WoWCharacterTrackerDB.today['Player-1-0000000A'].quests").Number);
     }
 
-    // Only stats above 0, in the same order and wording both sides.
+    // Only stats above 0, in the same order and wording both sides; one of a count is singular.
     [Fact]
     public void The_addon_and_the_app_rank_today_the_same()
     {
@@ -141,7 +141,7 @@ public class TodayStatsTests
         };
         var app = string.Join(", ", TodayStats.Build(events, days, new HashSet<string>(), keys: false, Now).Select(s => $"{s.Value} {s.What}"));
 
-        Assert.Equal("2 levels, 1 epics, +2.5 item level, 7 quests, 12 gold, 3 herbs, 2 veins", lua);
+        Assert.Equal("2 levels, 1 epic, +2.5 item level, 7 quests, 12 gold, 3 herbs, 2 veins", lua);
         Assert.Equal(lua, app);
     }
 
@@ -159,15 +159,31 @@ public class TodayStatsTests
         Assert.Equal(shown, $"{TodayStats.Value("gold", copper)} {TodayStats.Name("gold", copper, keys: false)}");
     }
 
+    // No zeros: a quiet day lists only what happened, and nothing at all when nothing did.
     [Fact]
-    public void A_quiet_day_shows_only_what_happened_and_no_zeros()
+    public void A_quiet_day_shows_no_zeros()
     {
         var stats = TodayStats.Build([], [new("a", "2026-11-09", 0, 0, 0, 0, 2, 0, 0, 0, 0)], new HashSet<string>(), keys: true, Now);
         Assert.Equal(["2 quests"], stats.Select(s => $"{s.Value} {s.What}"));
         Assert.Empty(TodayStats.Build([], [], new HashSet<string>(), keys: true, Now));
 
         var (script, _) = Load();
-        Assert.Equal(0, script.DoString("return #ns.todayStats({}, {}, '2026-11-09', 0, true)").Number);
+        Assert.Equal(0, script.DoString($"return #ns.todayStats({{}}, {{}}, '2026-11-09', {At(0)}, false)").Number);
+    }
+
+    [Theory]
+    [InlineData("skins", 1, false, "skin")]
+    [InlineData("bosses", 1, false, "boss")]
+    [InlineData("bosses", 1, true, "key")]
+    [InlineData("bosses", 2, true, "keys")]
+    [InlineData("levels", 1, false, "level")]
+    [InlineData("fish", 1, false, "fish")]
+    [InlineData("ilvl", 1, false, "item level")]
+    public void One_of_a_count_is_singular_both_sides(string key, double value, bool retail, string name)
+    {
+        var (script, _) = Load();
+        Assert.Equal(name, script.DoString($"return ns.todayName('{key}', {value}, {(retail ? "true" : "false")})").String);
+        Assert.Equal(name, TodayStats.Name(key, value, retail));
     }
 
     [Fact]
@@ -181,7 +197,7 @@ public class TodayStatsTests
         var days = new List<DayTotals> { new("a", "2026-11-09", 0, 0, 0, 0, 3, 0, 0, 0, 0), new("b", "2026-11-09", 0, 0, 0, 0, 5, 0, 0, 0, 0) };
         string Text(string? guid) => string.Join(", ", TodayStats.Build(events, days, new HashSet<string>(), keys: false, Now, guid).Take(2).Select(s => $"{s.Value} {s.What}"));
 
-        Assert.Equal("1 levels, 3 quests", Text("a"));
+        Assert.Equal("1 level, 3 quests", Text("a"));
         Assert.Equal("3 levels, 8 quests", Text(null));
     }
 
@@ -198,7 +214,7 @@ public class TodayStatsTests
         };
         var done = TodayStats.ByCharacter(events, days, new HashSet<string>(), keys: false, Now);
         Assert.Equal(["druid"], done.Keys);
-        Assert.Equal("1 levels, 4 quests, 12 herbs", string.Join(", ", done["druid"].Select(s => $"{s.Value} {s.What}")));
+        Assert.Equal("1 level, 4 quests, 12 herbs", string.Join(", ", done["druid"].Select(s => $"{s.Value} {s.What}")));
     }
 
     [Fact]

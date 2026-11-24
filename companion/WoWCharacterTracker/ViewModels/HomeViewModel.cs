@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 
 namespace WoWCharacterTracker.ViewModels;
 
@@ -10,13 +10,16 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     const int FeedSize = 30;
 
     CharacterRow? hero;
-    public CharacterRow? Hero { get => hero; private set { Set(ref hero, value); Raise(nameof(HasHero)); } }
+    public CharacterRow? Hero { get => hero; private set { Set(ref hero, value); Raise(nameof(HasHero)); Raise(nameof(ShowThisLevel)); } }
     public bool HasHero => hero is not null;
 
     StreamSnapshot card = StreamSnapshot.Empty;
-    public StreamSnapshot Card { get => card; private set { Set(ref card, value); Raise(nameof(ThisLevelText)); } }
+    public StreamSnapshot Card { get => card; private set { Set(ref card, value); Raise(nameof(ThisLevelText)); Raise(nameof(ShowThisLevel)); } }
     // Played since the last ding: nothing to say right after one (or before /played answers).
     public string ThisLevelText => card.LevelPlayed is { Length: > 0 } t && t != "0s" ? t : "-";
+    // Only when there's a time to show: at max level there is no "this level", and right after a ding
+    // there's nothing yet. Then the tile goes and the other three share the row.
+    public bool ShowThisLevel => hero is not { AtMaxLevel: true } && ThisLevelText != "-";
 
     bool playing;
     public bool Playing { get => playing; private set { Set(ref playing, value); Raise(nameof(HeroTitle)); } }
