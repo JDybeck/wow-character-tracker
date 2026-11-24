@@ -38,6 +38,12 @@ static partial class Format
 
     // The Retail keystone: "12~503~Ara-Kara, City of Echoes" -> "+12 Ara-Kara, City of Echoes"; "" for
     // none ("none") or not known.
+    // The talent split without empty trees, as the addon shows it (Ui.lua talentText):
+    // "Beast Mastery 31 / Marksmanship 9 / Survival 0" -> "Beast Mastery 31 / Marksmanship 9". Parts
+    // without a number stay; "" when every tree is empty.
+    public static string TalentsWithPoints(string talents) => string.Join(" / ", talents.Split('/')
+        .Select(p => p.Trim()).Where(p => p.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(p, @"\s0+$")));
+
     // The talent split as numbers only: "Arms 31 / Fury 20 / Protection 0" -> "31/20/0".
     public static string TalentNumbers(string talents) => string.Join("/", talents.Split('/')
         .Select(p => System.Text.RegularExpressions.Regex.Match(p, @"\d+\s*$").Value.Trim()).Where(n => n.Length > 0));

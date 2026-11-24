@@ -125,9 +125,10 @@ sealed class EventEmbeds(Flavor flavor)
 
     static void AddProfessionsAndTalents(Entry e, List<string> lines)
     {
-        if (e.Professions.Length > 0 || e.Talents.Length > 0) lines.Add("");
+        var talents = Format.TalentsWithPoints(e.Talents);
+        if (e.Professions.Length > 0 || talents.Length > 0) lines.Add("");
         if (e.Professions.Length > 0) lines.Add($"**Professions:** {Format.ProfessionsWithEmoji(e.Professions)}");
-        if (e.Talents.Length > 0) lines.Add($"**Talents:** {e.Talents}");
+        if (talents.Length > 0) lines.Add($"**Talents:** {talents}");
     }
 
     static (string, List<string>) BossText(Entry e)
