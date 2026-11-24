@@ -857,44 +857,47 @@ public class AddonLuaTests
         return (script, ns, sent, recorded);
     }
 
-    // Events.lua: the flight box shows once per flight and closes on landing; "Not for 30 min" (its
-    // third button) keeps it away on later flights until the 30 minutes are up, and is kept in the saved file.
+    // Events.lua: on a flight with changed gear or bags, one chat line (no box) that a /reload is only
+    // for the app; once per flight, at most every 30 minutes, and nothing when nothing changed.
     [Fact]
-    public void Snoozing_the_flight_box_skips_it_for_30_minutes()
+    public void A_flight_says_in_chat_that_a_reload_is_only_for_the_app()
     {
         var script = new Script();
         script.DoString("""
             now = 1000
             function time() return now end
             function UnitOnTaxi() return true end
-            function InCombatLockdown() return false end
             WoWCharacterTrackerDB = {}
-            WoWCharacterTrackerSettings = { flightReload = true } -- the box is off unless turned on
-            StaticPopupDialogs = {}
             shown = 0
             function StaticPopup_Show() shown = shown + 1 return {} end
-            hidden = 0
-            function StaticPopup_Hide(name) if name == "CHARACTERTRACKER_FLIGHT_RELOAD" then hidden = hidden + 1 end end
             """);
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Events.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
-        ns["itemsChanged"] = (Func<bool>)(() => true);
-        double Fly(int at)
+        var said = new List<string>();
+        var changed = true;
+        ns["itemsChanged"] = (Func<bool>)(() => changed);
+        ns["say"] = (Action<string>)said.Add;
+        void Fly(int at)
         {
             script.DoString($"now = {at}");
             script.Call(ns.Get("onFlightStart"));
+            script.Call(ns.Get("onFlightStart")); // the flight map closing too: still one line
             script.Call(ns.Get("onFlightEnd"));
-            return script.Globals.Get("shown").Number;
         }
 
-        Assert.Equal(1, Fly(1000));
-        Assert.Equal(1, script.Globals.Get("hidden").Number); // landing closes an unanswered box
-        script.DoString("StaticPopupDialogs.CHARACTERTRACKER_FLIGHT_RELOAD.OnAlt()");
-        Assert.Equal(2800, script.DoString("return WoWCharacterTrackerDB.flightSnoozeUntil").Number);
-        Assert.Equal(1, Fly(2000));
-        Assert.Equal(1, Fly(2799));
-        Assert.Equal(2, Fly(2800));
+        Fly(1000);
+        var line = Assert.Single(said);
+        Assert.Contains("/reload", line);
+        Assert.Contains("Only for the app", line);
+        Assert.Equal(0, script.Globals.Get("shown").Number); // no box
+        Fly(2000);
+        Assert.Single(said); // within 30 minutes
+        Fly(2800);
+        Assert.Equal(2, said.Count);
+        changed = false;
+        Fly(9000);
+        Assert.Equal(2, said.Count);
     }
 
     // Shared.lua: a change in game applies right away and carries a time; a later change in the app

@@ -822,13 +822,13 @@ end
 -- An icon at the left of a button, its label beside it (nil: no icon, the label centered).
 function ui.buttonIcon(b, texture)
   if not b.leftIcon then
-    b.leftIcon = icon(b, 16)
-    b.leftIcon:SetPoint("LEFT", b, "LEFT", 6, 0)
+    b.leftIcon = icon(b, 14)
+    b.leftIcon:SetPoint("LEFT", b, "LEFT", 5, 0)
   end
   local fs = b:GetFontString()
   if fs then
     fs:ClearAllPoints()
-    if texture then fs:SetPoint("LEFT", b, "LEFT", 28, 0) else fs:SetPoint("CENTER", b, "CENTER", 0, 0) end
+    if texture then fs:SetPoint("LEFT", b, "LEFT", 24, 0) else fs:SetPoint("CENTER", b, "CENTER", 0, 0) end
   end
   if texture then b.leftIcon:SetTexture(texture:find("\\") and texture or ICONS .. texture) end
   b.leftIcon:SetShown(texture ~= nil)

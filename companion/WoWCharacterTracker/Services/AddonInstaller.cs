@@ -144,7 +144,6 @@ static partial class AddonInstaller
                   + $"  followed = {{ {string.Concat(s.AllFollowed.Select(i => $"[{i.Id}] = true, "))}}},\n"
                   + $"  hideChat = {B(s.HideChatInShots)},\n"
                   + $"  hideUI = {B(s.HideUiInShots)},\n"
-                  + $"  flightReload = {B(s.FlightReloadPrompt)},\n"
                   + $"  chatReminder = {B(s.ChatReloadReminder)},\n"
                   + $"  keepAllHistory = {B(s.KeepAllHistory)},\n"
                   + $"  announce = {{ guild = {B(s.AnnounceGuild)}, party = {B(s.AnnounceParty)}, kinds = {{ {LuaSet(s.AnnounceKinds)} }}, "

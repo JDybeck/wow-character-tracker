@@ -30,7 +30,7 @@ record SpecBuild(int Group, string Talents, string Spec, string TalentPicks, str
 // The In game page's settings as last changed in game (the addon's options page), and when. Null:
 // the change doesn't have that setting (an older addon), so the app's own value stays, as in the addon.
 record InGameSettings(long At, bool? AnnounceGuild, bool? AnnounceParty, List<string>? AnnounceKinds, List<string>? AnnouncePartyKinds, List<string>? AskKinds,
-    bool? FlightReload, bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null,
+    bool? ChatReminder, string? GridCorner, bool? GridLabel, bool? KeepAllHistory, int? AskSeconds = null, List<string>? Ignored = null,
     string? Preset = null, GameFilters? Filters = null,
     IReadOnlyDictionary<string, bool>? Posts = null, IReadOnlyDictionary<string, bool>? Shots = null, string? DistanceUnit = null);
 
