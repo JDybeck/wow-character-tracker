@@ -27,6 +27,7 @@ Update the addon with the app (it does this by itself), then exit the game fully
 - **No "This level" at max level.** The app's Home no longer shows a time for "This level" on a max level character, or a "-" right after a ding. The other tiles share the row instead.
 - **Easier to read grey text in the app.** Hints, search boxes and other grey text were too faint on the dark background. They're lighter now, readable on every color theme.
 - **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
+- **The weekly satchel names its valuable.** The Gold Nugget, Huge Quartz Gem, Silver Necklace or Gold Ring that comes out of the weekly satchel is now the item the chat line, the guild line and Discord name, with its sell price. Anything else inside is listed as a bonus, without a price. Before, a Huge Quartz Gem could be missed and a cheaper bonus item named instead.
 
 ## v0.42.4
 
