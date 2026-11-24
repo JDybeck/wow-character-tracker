@@ -2,7 +2,7 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
-## v0.42.5
+## v0.43.0
 
 Update the addon with the app (it does this by itself), then exit the game fully and start it again once.
 
