@@ -294,6 +294,8 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('+1 |cff9a9a9aitem level|r') ~= nil"));
         Assert.True(Bool(c, "shownText('3 |cff9a9a9aveins|r') ~= nil"));
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') == nil"));
+        Assert.True(Bool(c, "shownText('?') == nil")); // unknown values hide instead of showing "?"
+        Assert.True(Bool(c, "shownText('Item level') == nil")); // and an unknown tile hides
         c.Lua("click('+2 more  v')");
         Assert.True(Bool(c, "shownText('1 |cff9a9a9askins|r') ~= nil"));
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') ~= nil"));
@@ -1277,6 +1279,8 @@ public class AddonWindowTests
         c.Lua("""
             shared[1].chars[1].highlights = 'boss~99000~60~Ragnaros~Molten Core~40'
             shared[1].chars[1].levels, shared[1].chars[1].maxLevel = '60~9960~98000', 60
+            shared[1].chars[1].guid = 'Player-1-0000000F'
+            WoWCharacterTrackerPortraits = { ['Player-1-0000000F'] = 3 }
             function UnitLevel() return 10 end
             function UnitClass() return 'Mage', 'MAGE' end
             function date() return { year = 2026, month = 11, day = 9 } end
@@ -1287,6 +1291,9 @@ public class AddonWindowTests
         c.Call("openWindow", "home");
         Assert.True(Bool(c, "shownText(\"Friends' moments\") ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
+        // A moment that isn't about an item shows the character's portrait.
+        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\3", c.Lua("return shownText('Killed Ragnaros in Molten Core!').owner.portrait.face.texture").String);
+        Assert.False(Bool(c, "shownText('Killed Ragnaros in Molten Core!').owner.icon.shown"));
         // At max level the hover is their latest moment, not how long 59 to 60 took.
         var tip = c.Lua("return shownText('Cidrin Frostmane').owner.full").String;
         Assert.StartsWith("Cidrin Frostmane: Killed Ragnaros in Molten Core!", tip);

@@ -74,9 +74,11 @@ local function midnight()
   return time({ year = t.year, month = t.month, day = t.day, hour = 0 })
 end
 
+-- value nil: unknown, so the tile hides (no "?").
 local function setTile(t, value, label)
-  t.value:SetText(value)
+  t.value:SetText(value or "")
   t.label:SetText(label)
+  t.known = value ~= nil
 end
 
 local hideTip = ns.hideTip
@@ -120,6 +122,8 @@ local function newMomentRow(parent)
   row.icon = row:CreateTexture(nil, "ARTWORK")
   row.icon:SetSize(24, 24)
   row.icon:SetPoint("LEFT", row, "LEFT", 0, 0)
+  row.portrait = ui.portrait(row, 24)
+  row.portrait:SetPoint("LEFT", row, "LEFT", 0, 0)
   row.what = ui.text(row, "GameFontHighlightSmall")
   row.what:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -3)
   row.what:SetWordWrap(false)
@@ -138,9 +142,17 @@ local function sizeMomentRow(row, width)
   row.sub:SetWidth(math.max(40, width - 32))
 end
 
-local function setRowIcon(row, classFile, itemId)
+-- The item's icon for loot and mounts; else the character's portrait (the app's picture, or the
+-- live one for the character you're on); else the class icon.
+local function setRowIcon(row, classFile, itemId, guid)
   local icon = itemId and ns.itemIcon(itemId)
-  if icon then
+  local live = guid and UnitGUID and guid == UnitGUID("player")
+  local face = not icon and guid and ((ns.portraitSlot and ns.portraitSlot(guid)) or live)
+  row.portrait:SetShown(face and true or false)
+  if face then
+    row.icon:Hide()
+    ui.setPortrait(row.portrait, { guid = guid, classFile = classFile })
+  elseif icon then
     row.icon:SetTexture(icon)
     row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     row.icon:Show()
@@ -171,8 +183,8 @@ end
 
 -- open: what a click does (nil: nothing, no hover). itemId: the item the moment is about, for its
 -- tooltip. label: whose friend it is, beside the time.
-local function setMomentRow(row, who, classFile, what, at, open, itemId, label)
-  setRowIcon(row, classFile, itemId)
+local function setMomentRow(row, who, classFile, what, at, open, itemId, label, guid)
+  setRowIcon(row, classFile, itemId, guid)
   row.what:SetText(what)
   local parts = { hexColor(classFile) .. (who or "?") .. "|r" }
   if label and label ~= "" then parts[#parts + 1] = label end
@@ -195,7 +207,7 @@ local function showColumn(col)
     if item then
       local e = item.e
       local open = item.c and function() ns.toggleFriendDetails(item.c, item.label) end or nil
-      setMomentRow(row, ns.fullName(e), e.classFile, ns.momentLine(e), e.at, open, momentItem(e), item.label)
+      setMomentRow(row, ns.fullName(e), e.classFile, ns.momentLine(e), e.at, open, momentItem(e), item.label, e.guid)
     else
       row:Hide()
     end
@@ -536,8 +548,6 @@ function ns.buildHomeTab(p)
     name:SetWidth(inner - PORTRAIT - 18)
     xpBar:SetWidth(inner)
     for _, fs in ipairs({ pace, factLines[1], factLines[2] }) do fs:SetWidth(inner) end
-    local tileWidth = math.floor((inner - 2 * 6) / 3)
-    for _, t in ipairs(tiles) do t:SetWidth(tileWidth) end
     for _, row in ipairs(history) do
       row:SetWidth(inner)
       row.zone:SetWidth(math.max(0, inner - 140 - 60))
@@ -587,9 +597,24 @@ function ns.buildHomeTab(p)
       at(pace, card, y + 4, -2)
       y = y + 4 + 18
     end
-    local tileWidth = math.floor((left - 2 * PAD - 12) / 3)
-    for i, t in ipairs(tiles) do at(t, card, y, -2 + (i - 1) * (tileWidth + 6)) end
-    y = y + 40 + 10
+    -- Only the tiles with a value, sharing the row.
+    local known = 0
+    for _, t in ipairs(tiles) do if t.known then known = known + 1 end end
+    if known > 0 then
+      local tileWidth = math.floor((left - 2 * PAD - 6 * (known - 1)) / known)
+      local n = 0
+      for _, t in ipairs(tiles) do
+        t:SetShown(t.known)
+        if t.known then
+          t:SetWidth(tileWidth)
+          at(t, card, y, -2 + n * (tileWidth + 6))
+          n = n + 1
+        end
+      end
+      y = y + 40 + 10
+    else
+      for _, t in ipairs(tiles) do t:Hide() end
+    end
 
     local open = historyOpen()
     chart:SetShown(summary ~= nil)
@@ -693,8 +718,8 @@ function ns.buildHomeTab(p)
     classColor[1], classColor[2], classColor[3] = r, g, b
     ui.box(levelBadge, C.bar, classColor)
     ui.setPortrait(portrait, { guid = me.guid, classFile = me.classFile })
-    levelText:SetText(me.level or "?")
-    name:SetText(me.name or "?")
+    levelText:SetText(me.level or "")
+    name:SetText(me.name or "")
     name:SetTextColor(r, g, b)
     sub:SetText(string.format("%s %s", me.race or "", me.class or ""))
     zone:SetText(me.zone or "")
@@ -712,9 +737,9 @@ function ns.buildHomeTab(p)
       xpText:SetText("")
     end
 
-    setTile(tiles[1], me.ilvl and tostring(math.floor(me.ilvl)) or "?", "Item level")
-    setTile(tiles[2], me.money and ui.gold(me.money) or "?", accountGold(me))
-    setTile(tiles[3], me.played and ns.formatPlayed(me.played) or "?", "Played")
+    setTile(tiles[1], (me.ilvl or 0) > 0 and tostring(math.floor(me.ilvl)) or nil, "Item level")
+    setTile(tiles[2], me.money and ui.gold(me.money) or nil, accountGold(me))
+    setTile(tiles[3], (me.played or 0) > 0 and ns.formatPlayed(me.played) or nil, "Played")
 
     -- The chart, with the level being played as a paler last bar.
     -- At max level the last ding is old news: no pace line (the level history still has it).
@@ -758,7 +783,7 @@ function ns.buildHomeTab(p)
       if c then latest[#latest + 1] = { label = label, c = c, at = c.received or c.at or 0 } end
       for _, char in ipairs(f.chars or {}) do
         for _, e in ipairs(ns.friendHighlights(char)) do
-          e.char, e.surname, e.classFile = char.char, char.surname, char.classFile
+          e.char, e.surname, e.classFile, e.guid = char.char, char.surname, char.classFile, char.guid
           if ns.momentLine(e) then happened[#happened + 1] = { e = e, c = char, label = label } end
         end
       end
@@ -775,7 +800,9 @@ function ns.buildHomeTab(p)
         local c = f.c
         row.who:SetText(ns.fullName(c))
         row.who:SetTextColor(ui.classRgb(c.classFile))
-        local bits = { string.format("%s %s", c.level or "?", c.class or "") }
+        local who = ((c.level and (c.level .. " ") or "") .. (c.class or "")):gsub("^%s+", ""):gsub("%s+$", "")
+        local bits = {}
+        if who ~= "" then bits[1] = who end
         if c.zone and c.zone ~= "" then bits[#bits + 1] = c.zone end
         row.what:SetText(table.concat(bits, "  ·  "))
         row.label:SetText(f.label or "")

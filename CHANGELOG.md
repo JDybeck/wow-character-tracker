@@ -17,6 +17,8 @@ Update the addon with the app (it does this by itself), then exit the game fully
 - **Screenshots stay attached.** Picking Quiet on the Sharing page no longer turned off attaching screenshots to Discord posts for shots you turned on later.
 - **The resize corner no longer jumps.** A click on the addon window's bottom right corner could blow the window up to nearly the whole screen. Now it only resizes while you drag it, and a click does nothing.
 - **Roomier character rows.** When your characters all fit on the addon's Characters tab, their rows grow: a bigger portrait and level boxes, and a third line with guild, gold and played time. A list that fills the page keeps the compact rows.
+- **Portraits on Home's moments.** Moments that aren't about an item (bosses, dings, professions) show the character's portrait instead of the class icon, yours and your friends'. Loot keeps the item's icon, and without a portrait the class icon stays.
+- **No "?" on Home.** The item level, gold and played tiles hide when the value isn't known yet, and the others share the row.
 - **No zeros on TODAY.** Home's TODAY (in the addon and the app) now lists only what you did today, so no more "0 levels  0 bosses". On a day with nothing yet, TODAY isn't shown at all.
 - **Level times only while leveling.** At max level, Home no longer shows how long your last level took, and hovering a max-level friend on Home shows their latest moment instead of how long 59 to 60 took.
 - **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
