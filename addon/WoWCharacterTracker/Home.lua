@@ -818,7 +818,8 @@ function ns.buildHomeTab(p)
     local latest, happened = {}, {}
     for _, f in ipairs(ns.sharedWithYou and ns.sharedWithYou() or {}) do
       -- Their nickname alone when you gave them one (no battletag), else the battletag.
-      local nick = type(f.nickname) == "string" and f.nickname ~= "" and f.nickname or nil
+      local nick = f.tag and ns.friendNickname and ns.friendNickname(f.tag) or ""
+      nick = nick ~= "" and nick or nil
       local label = nick or f.label or f.tag
       local c = f.chars and f.chars[1]
       if c then latest[#latest + 1] = { label = label, c = c, at = c.received or c.at or 0 } end
