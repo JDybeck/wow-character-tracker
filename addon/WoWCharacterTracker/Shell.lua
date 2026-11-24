@@ -150,7 +150,41 @@ function ns.buildRail(window, tabs, select, titleBar)
   head:SetHeight(titleBar)
   header = ui.text(head, "GameFontHighlightLarge", "")
   header:SetPoint("LEFT", head, "LEFT", 17, 0)
+  ns.fadeWhenAway(window)
   return header
+end
+
+-- The window (and its side panels, which are its children) fades a little while the mouse is away
+-- from it, and is solid again under the mouse, while a mouse button is held (dragging, resizing) or
+-- while typing in it.
+local AWAY_ALPHA, FADE_SPEED = 0.8, 4 -- alpha per second
+local SIDE_PANELS = { "WoWCharacterTrackerDetailsPanel", "WoWCharacterTrackerHighlightsPanel", "WoWCharacterTrackerSharingPanel" }
+local function inUse(window)
+  if window:IsMouseOver() then return true end
+  for _, name in ipairs(SIDE_PANELS) do
+    local p = _G[name]
+    if p and p:IsShown() and p:IsMouseOver() then return true end
+  end
+  if IsMouseButtonDown and (IsMouseButtonDown("LeftButton") or IsMouseButtonDown("RightButton")) and window.alpha == 1 then return true end
+  local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+  while focus do
+    if focus == window then return true end
+    focus = focus.GetParent and focus:GetParent()
+  end
+  return false
+end
+
+function ns.fadeWhenAway(window)
+  window.alpha = 1
+  local ticker = CreateFrame("Frame", nil, window)
+  ticker:SetScript("OnUpdate", function(_, elapsed)
+    local want = inUse(window) and 1 or AWAY_ALPHA
+    if window.alpha == want then return end
+    local step = (elapsed or 0) * FADE_SPEED * (1 - AWAY_ALPHA)
+    if window.alpha < want then window.alpha = math.min(want, window.alpha + step)
+    else window.alpha = math.max(want, window.alpha - step) end
+    window:SetAlpha(window.alpha)
+  end)
 end
 
 -- key's tab is open now: its button lit, its name in the header.

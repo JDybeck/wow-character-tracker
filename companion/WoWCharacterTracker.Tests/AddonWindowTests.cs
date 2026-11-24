@@ -928,6 +928,24 @@ public class AddonWindowTests
     }
 
     // A plain click on the grip leaves the size alone; dragging it sizes the window with the cursor.
+    // The window fades a little while the mouse is away, and is solid again under it.
+    [Fact]
+    public void The_window_fades_while_the_mouse_is_away()
+    {
+        var c = FriendsTab();
+        c.Lua("""
+            win = named('WoWCharacterTrackerWindow')
+            over = false
+            win.IsMouseOver = function() return over end
+            win.SetAlpha = function(s, a) s.shownAlpha = a end
+            function tick() for _, f in ipairs(frames) do if f.parent == win and f.scripts.OnUpdate then f.scripts.OnUpdate(f, 1) end end end
+            tick()
+            """);
+        Assert.Equal(0.8, Num(c, "win.shownAlpha"), 3);
+        c.Lua("over = true tick()");
+        Assert.Equal(1, Num(c, "win.shownAlpha"), 3);
+    }
+
     [Fact]
     public void Clicking_the_resize_grip_does_not_resize_and_dragging_does()
     {
