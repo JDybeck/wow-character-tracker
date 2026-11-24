@@ -564,8 +564,8 @@ local function headline(c)
 end
 
 -- The label and value lines a character's info lists, each only when known.
--- The facts the row above doesn't already say (name, race, zone, level, item level and when it was
--- seen are on the row; the friend is the section's title). Professions have their own rows.
+-- The facts the row above doesn't already say (name, faction, race, zone, level, item level and when it
+-- was seen are on the row; the friend is the section's title). Professions have their own rows.
 local function facts(c)
   local out = {}
   local function add(label, value, tex) if value and value ~= "" then out[#out + 1] = { label, value, tex } end end
@@ -579,7 +579,6 @@ local function facts(c)
     add("Realm", c.realm)
     add("Ruleset", rules)
   end
-  add("Faction", ui.FACTION_ICONS[c.faction or ""] and c.faction, ui.FACTION_ICONS[c.faction or ""])
   add("Gold", (c.money or 0) >= 10000 and ns.formatGold(c.money) or (c.money and c.money > 0 and gold(c.money)))
   local talents = ui.talentText(c.talents)
   if talents then out[#out + 1] = { "Talents", talents, nil, true } end -- a whole row: it's long
@@ -1476,6 +1475,7 @@ local function setCharRow(row, c, main, pinned)
   setCard(row, fullName(c) .. (main and "  |cffFACC15MAIN|r" or ""), c.classFile, charInfo(c))
   row.pin:SetShown(pinned == true)
   ui.setPortrait(row.portrait, c)
+  ui.setFactionBadge(row, c.faction)
   local class = c.class or ""
   row.classText:SetText(c.spec and (c.spec .. " " .. class) or class)
   classColor(row.classText, c.classFile)
