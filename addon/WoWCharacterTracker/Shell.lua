@@ -154,13 +154,15 @@ function ns.buildRail(window, tabs, select, titleBar)
   return header
 end
 
--- The window (and its side panels, which are its children) fades a little while the mouse is away
--- from it, and is solid again under the mouse, while a mouse button is held (dragging, resizing) or
--- while typing in it.
+-- The window and the panels beside it (details, highlights, sharing, recipes, reputations) fade a
+-- little together while the mouse is away from all of them, and are solid again under the mouse,
+-- while a mouse button is held (dragging, resizing) or while typing in one. Each gets its alpha set
+-- itself (the side panels ignore the window's), so none is left solid.
 local AWAY_ALPHA, FADE_SPEED = 0.8, 4 -- alpha per second
-local SIDE_PANELS = { "WoWCharacterTrackerDetailsPanel", "WoWCharacterTrackerHighlightsPanel", "WoWCharacterTrackerSharingPanel" }
+local SIDE_PANELS = { "WoWCharacterTrackerDetailsPanel", "WoWCharacterTrackerHighlightsPanel", "WoWCharacterTrackerSharingPanel",
+  "WoWCharacterTrackerRecipes", "WoWCharacterTrackerReputations" }
 local function inUse(window)
-  if window:IsMouseOver() then return true end
+  if window:IsShown() and window:IsMouseOver() then return true end
   for _, name in ipairs(SIDE_PANELS) do
     local p = _G[name]
     if p and p:IsShown() and p:IsMouseOver() then return true end
@@ -169,21 +171,36 @@ local function inUse(window)
   local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
   while focus do
     if focus == window then return true end
+    for _, name in ipairs(SIDE_PANELS) do if focus == _G[name] then return true end end
     focus = focus.GetParent and focus:GetParent()
   end
   return false
 end
 
+local function differs(f, alpha) return math.abs((f:GetAlpha() or -1) - alpha) > 0.005 end
+local function paintAlpha(window, alpha)
+  if differs(window, alpha) then window:SetAlpha(alpha) end
+  for _, name in ipairs(SIDE_PANELS) do
+    local p = _G[name]
+    if p and p:IsShown() and differs(p, alpha) then
+      if p.SetIgnoreParentAlpha then p:SetIgnoreParentAlpha(true) end
+      p:SetAlpha(alpha)
+    end
+  end
+end
+
 function ns.fadeWhenAway(window)
   window.alpha = 1
-  local ticker = CreateFrame("Frame", nil, window)
+  -- On UIParent, so the recipes and reputations windows fade even with the main window closed.
+  local ticker = CreateFrame("Frame", nil, UIParent)
+  window.fadeTicker = ticker
   ticker:SetScript("OnUpdate", function(_, elapsed)
     local want = inUse(window) and 1 or AWAY_ALPHA
-    if window.alpha == want then return end
+    if window.alpha == want then paintAlpha(window, want) return end -- a panel opened since
     local step = (elapsed or 0) * FADE_SPEED * (1 - AWAY_ALPHA)
     if window.alpha < want then window.alpha = math.min(want, window.alpha + step)
     else window.alpha = math.max(want, window.alpha - step) end
-    window:SetAlpha(window.alpha)
+    paintAlpha(window, window.alpha)
   end)
 end
 
