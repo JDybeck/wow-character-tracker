@@ -1706,11 +1706,13 @@ public class AddonWindowTests
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "shownText('Level 60 Frost Mage') ~= nil"));
         // Icon tiles for what the row above doesn't already say; no empty talent trees.
-        foreach (var (label, value) in new[] { ("Realm", "Firemaw"), ("Faction", "Alliance"), ("Gold", "123g"), ("Talents", "Arcane 10  ·  Frost 41") })
+        foreach (var (label, value) in new[] { ("Realm", "Firemaw"), ("Gold", "123g"), ("Talents", "Arcane 10  ·  Frost 41") })
         {
             Assert.Equal(value, c.Lua($"return factText('{label}').owner.valueText.text").String);
         }
-        foreach (var label in new[] { "Friend", "Race", "Item level", "Zone", "Updated", "Professions" })
+        // The faction is a crest after the name on the row, not a tile.
+        Assert.Contains("UI-PVP-Alliance", c.Lua("return shownText('Cidrin Frostmane').owner.faction.texture").String);
+        foreach (var label in new[] { "Friend", "Faction", "Race", "Item level", "Zone", "Updated", "Professions" })
             Assert.True(Bool(c, $"factText('{label}') == nil"), label); // on the row or the section already
         // A row per profession, with its rank and a bar.
         Assert.Equal("300 / 300", c.Lua("return shownText('Tailoring').owner.rank.text").String);

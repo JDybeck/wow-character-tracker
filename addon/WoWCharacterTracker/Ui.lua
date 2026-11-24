@@ -687,18 +687,32 @@ function ui.sizeCharRow(row, roomy, c)
   return h
 end
 
+-- The Alliance or Horde crest right after a character row's name, about as tall as the name (the
+-- crest sits in the top left of the game's PvP texture). Hidden when the faction isn't known.
+local FACTION_CRESTS = { Alliance = true, Horde = true }
+function ui.setFactionBadge(row, faction)
+  if not row.faction then
+    row.faction = row:CreateTexture(nil, "OVERLAY")
+    row.faction:SetSize(16, 16)
+    row.faction:SetPoint("LEFT", row.nameText, "RIGHT", 3, 0)
+    row.faction:SetTexCoord(0, 0.59375, 0, 0.59375)
+  end
+  local known = FACTION_CRESTS[faction] == true
+  if known then row.faction:SetTexture("Interface\\TargetingFrame\\UI-PVP-" .. faction) end
+  row.faction:SetShown(known)
+end
+
 -- The unfolded info under a character row (Window.lua's drawExpansion) -----------------------------
 -- Facts as icon tiles, professions with a skill bar each, and icons on the buttons. Only facts with a
 -- value are passed in, so nothing shows empty.
 
 local ICONS = "Interface\\Icons\\"
 ui.FACT_ICONS = {
-  Gold = "INV_Misc_Coin_01", Faction = "INV_BannerPVP_02", Realm = "INV_Misc_Map_01", Ruleset = "Ability_Warrior_Challange",
+  Gold = "INV_Misc_Coin_01", Realm = "INV_Misc_Map_01", Ruleset = "Ability_Warrior_Challange",
   Talents = "INV_Misc_Book_11", Played = "INV_Misc_PocketWatch_01", ["Total leveling"] = "INV_Misc_PocketWatch_02",
   ["Last level"] = "Spell_Holy_BorrowedTime", Average = "Spell_Nature_TimeStop", Slowest = "Spell_Nature_Slow",
   Progress = "INV_Misc_Note_01", ["This level"] = "Spell_Holy_BorrowedTime", ["To max level"] = "INV_Misc_Rune_01",
 }
-ui.FACTION_ICONS = { Alliance = "INV_BannerPVP_02", Horde = "INV_BannerPVP_01" }
 ui.PROFESSION_ICONS = {
   Alchemy = "Trade_Alchemy", Blacksmithing = "Trade_BlackSmithing", Enchanting = "Trade_Engraving", Engineering = "Trade_Engineering",
   Herbalism = "Trade_Herbalism", ["Herb Gathering"] = "Trade_Herbalism", Leatherworking = "Trade_LeatherWorking", Mining = "Trade_Mining",
