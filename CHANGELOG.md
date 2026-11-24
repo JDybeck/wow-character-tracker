@@ -2,6 +2,20 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.43.1
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### Fixes and tweaks
+
+- **Realm and ruleset are back.** Forever's client stopped giving the realm name, so characters played since about November 20 showed no realm and no "PvP" under their name, on the Friends tab and in Discord posts. The addon and the app now remember the realm for each server and fill it in, for your characters and your friends'.
+- **Recipes show the skill they need.** On Forever, each recipe in the app (a character's Recipes tab, Professions, Friends' professions) and in the addon's recipe window shows the skill it needs at the end of its row, and the picked recipe reads "Requires Blacksmithing (125)". Recipes whose skill isn't known show nothing.
+- **Map for the other faction when asking.** The Ask to share box and the friend request box now have a **Map for the other faction** choice, the same rule that's on the Sharing tab. `/wct friends ask <tag> otherfaction` asks for it too. Friends see it once both of you have 0.43.1.
+- **Every level on the Leveling tab.** A character's Leveling chart in the app shows a bar for every level with a time, not just the last 40. Home's small chart keeps the last 40.
+- **Account gold on the app's Home.** The Gold tile on Home's Playing now card also reads the gold of all your characters together, like the addon's Home.
+- **The Friends tab opens on Online.** When any friend is online, the addon's Friends tab opens on Online, instead of staying on Offline from the last time you clicked it.
+- **No empty talent trees in Discord posts.** Level-up, max level and talent posts leave out trees with no points, like the addon does.
+
 ## v0.43.0
 
 Update the addon with the app (it does this by itself), then exit the game fully and start it again once.
