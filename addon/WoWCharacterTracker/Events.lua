@@ -124,14 +124,16 @@ end
 
 -- On a flight path, with gear or bags changed since the last save: one line in chat that a /reload
 -- now would show them in the app (the flight goes on through the loading screen), and that it's only
--- for the app, nothing needs it. No box. Once per flight, at most every 30 minutes.
-local saidThisFlight, lastFlightLine = false, nil
-local FLIGHT_EVERY = 1800
+-- for the app, nothing needs it. No box. Bags change all the time, so it's rare: at most once every
+-- 4 hours, kept in the saved file so a /reload doesn't start it over.
+local saidThisFlight = false
+local FLIGHT_EVERY = 4 * 3600
 
 function ns.onFlightStart()
   if saidThisFlight or not (UnitOnTaxi and UnitOnTaxi("player")) or not ns.itemsChanged() then return end
-  if lastFlightLine and time() - lastFlightLine < FLIGHT_EVERY then return end
-  saidThisFlight, lastFlightLine = true, time()
+  local last = WoWCharacterTrackerDB.flightLineAt
+  if last and time() - last < FLIGHT_EVERY then return end
+  saidThisFlight, WoWCharacterTrackerDB.flightLineAt = true, time()
   ns.say("Your gear or bags changed. If you want the app to show them now, /reload while you fly (you keep flying). "
     .. "Only for the app, nothing in game needs it: it also catches up when you log out.")
 end
