@@ -954,13 +954,21 @@ public class AddonWindowTests
             win = named('WoWCharacterTrackerWindow')
             over = false
             win.IsMouseOver = function() return over end
-            win.SetAlpha = function(s, a) s.shownAlpha = a end
-            function tick() for _, f in ipairs(frames) do if f.parent == win and f.scripts.OnUpdate then f.scripts.OnUpdate(f, 1) end end end
+            function alphaOf(f) f.SetAlpha = function(s, a) s.shownAlpha = a end f.GetAlpha = function(s) return s.shownAlpha or 1 end end
+            alphaOf(win)
+            -- The panels beside it fade with it, even the ones on UIParent, and ignore the window's alpha.
+            recipes = CreateFrame('Frame', 'WoWCharacterTrackerRecipes', UIParent)
+            _G.WoWCharacterTrackerRecipes = recipes
+            recipes.IsMouseOver = function() return false end
+            alphaOf(recipes)
+            function tick() win.fadeTicker.scripts.OnUpdate(win.fadeTicker, 1) end
             tick()
             """);
         Assert.Equal(0.8, Num(c, "win.shownAlpha"), 3);
+        Assert.Equal(0.8, Num(c, "recipes.shownAlpha"), 3);
         c.Lua("over = true tick()");
         Assert.Equal(1, Num(c, "win.shownAlpha"), 3);
+        Assert.Equal(1, Num(c, "recipes.shownAlpha"), 3);
     }
 
     [Fact]
