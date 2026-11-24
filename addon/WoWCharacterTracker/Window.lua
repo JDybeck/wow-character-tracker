@@ -39,28 +39,8 @@ local function currentCorner()
   return CORNER_NAMES[c] and c or "TOPLEFT"
 end
 
--- Reload reminders: one choice over the two settings that ask for a /reload (the ding popup and the
--- chat line). Gentle is how they start; any other mix is "custom".
-local RELOAD_CHOICES = { { "off", "Off" }, { "gentle", "Gentle" }, { "all", "Every chance" } }
 -- Auto: yards in the Americas region, meters elsewhere (ns.distanceUnit).
 local DISTANCE_CHOICES = { { "auto", "Auto" }, { "meters", "Meters" }, { "yards", "Yards" } }
-local RELOAD_SETS ={ off = { false, false }, gentle = { false, true }, all = { true, true } }
-
-local function reloadChoice()
-  local now = { WoWCharacterTrackerDB.popup == true, isOn("chatReminder") }
-  for key, set in pairs(RELOAD_SETS) do
-    if set[1] == now[1] and set[2] == now[2] then return key end
-  end
-  return "custom"
-end
-ns.reloadChoice = reloadChoice -- for the tests
-
-local function setReloadChoice(key)
-  local set = RELOAD_SETS[key]
-  if not set then return end
-  WoWCharacterTrackerDB.popup = set[1]
-  ns.editSettings(function(s) s.chatReminder = set[2] end)
-end
 
 -- Chat ------------------------------------------------------------------------------------------
 -- The same kinds and names as the app's In game page (FlavorViewModel.AnnounceNames).
@@ -2212,7 +2192,7 @@ local function appSummary()
 end
 
 -- The Settings tab, in sections: General, Look, Note box, This character, Advanced and the app.
--- Instant posting, reload reminders and the pattern only do something with the app.
+-- Instant posting and the pattern only do something with the app.
 local function buildSettings(p)
   local withApp = ns.hasApp()
   local generalTitle = ui.heading(p, "General")
@@ -2227,13 +2207,7 @@ local function buildSettings(p)
       function() return WoWCharacterTrackerDB.live ~= false end,
       function(on) WoWCharacterTrackerDB.live = on end)
     live:SetPoint("TOPLEFT", minimap, "BOTTOMLEFT", 0, -18)
-    local reloadLabel, reload = ui.labeledChoice(p, live, 4, -28, "Reload reminders", RELOAD_CHOICES, reloadChoice, setReloadChoice)
-    local custom = ui.text(p, "GameFontDisableSmall", "Custom mix")
-    custom:SetPoint("LEFT", reload, "RIGHT", 6, 0)
-    ui.onRefresh(p, function() custom:SetShown(reloadChoice() == "custom") end)
-    local reloadHint = ui.hint(p, "Gear, bags and bank reach the app on /reload. Gentle: a chat line when they changed. Every chance: also a popup after each ding.", reloadLabel)
-    reloadHint:SetPoint("TOPLEFT", reloadLabel, "BOTTOMLEFT", 0, -12)
-    last, lastGap = reloadHint, ui.gapAfter(reloadHint)
+    last, lastGap = live, ui.gapAfter(live)
   end
 
   -- The window's colors (the app's Forever looks, right away) and how far away friends on the map

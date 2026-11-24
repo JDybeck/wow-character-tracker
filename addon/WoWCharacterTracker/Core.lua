@@ -45,7 +45,7 @@ local EVENTS = {
   "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", -- gear, bags and bank
   "EQUIPMENT_SETS_CHANGED",                                             -- Equipment Manager sets saved or deleted
   "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED", "TAXIMAP_CLOSED",                 -- flight paths (the chat line about /reload)
-  "MAIL_CLOSED", "AUCTION_HOUSE_CLOSED",                                          -- moments for the reload reminder
+  "MAIL_CLOSED", "AUCTION_HOUSE_CLOSED",                                          -- moments for the rare /reload line
   "BN_CHAT_MSG_ADDON", "BN_FRIEND_INFO_CHANGED",                                  -- sharing with Battle.net friends
   "QUEST_TURNED_IN", "LOOT_OPENED",                                               -- today's numbers (Today.lua)
   "QUEST_COMPLETE", "LOOT_CLOSED",                                                -- the weekly satchel (Weekly.lua)

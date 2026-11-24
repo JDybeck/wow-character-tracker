@@ -594,21 +594,13 @@ public class AddonWindowTests
         Assert.True(Bool(c, "ns.setting('ask').boss and ns.setting('ask').rare and ns.setting('ask').epic and ns.setting('ask').level"));
     }
 
-    // Reload reminders: one choice over the ding popup and the chat line. The defaults (no popup,
-    // chat line on) are Gentle.
+    // No reload reminder setting any more: the chat line is rare and only for the app (Events.lua).
     [Fact]
-    public void Reload_reminders_are_one_choice_over_two_settings()
+    public void The_settings_have_no_reload_reminders()
     {
         var c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
-        Assert.Equal("gentle", c.Lua("return ns.reloadChoice()").String);
-        c.Lua("click('Every chance')");
-        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == true and ns.setting('chatReminder')"));
-        c.Lua("click('Off')");
-        Assert.True(Bool(c, "WoWCharacterTrackerDB.popup == false and ns.setting('chatReminder') == false"));
-        Assert.True(Bool(c, "find('Offer a reload on flight paths') == nil")); // no flight box any more
-        c.Lua("WoWCharacterTrackerDB.popup = true; ns.editSettings(function(s) s.chatReminder = false end)");
-        Assert.Equal("custom", c.Lua("return ns.reloadChoice()").String);
+        Assert.True(Bool(c, "shownText('Reload reminders') == nil and find('Every chance') == nil and find('Offer a reload on flight paths') == nil"));
     }
 
     // With the app: the preset is picked here (an In game setting the app applies on sync), and the
@@ -745,14 +737,14 @@ public class AddonWindowTests
     {
         var c = Load();
         c.Call("openWindow", "settings");
-        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern" })
+        foreach (var label in new[] { "Instant posting", "Show a small label next to the pattern" })
             Assert.True(Bool(c, $"shownText('{label}') == nil"), label);
         Assert.True(Bool(c, "shownText('Keep all history') ~= nil and shownText('Show the minimap button') ~= nil"));
         Assert.True(Bool(c, "shownText('Character Tracker app') ~= nil"));
 
         c = Load(settings: "{ post = {} }");
         c.Call("openWindow", "settings");
-        foreach (var label in new[] { "Instant posting", "Reload reminders", "Show a small label next to the pattern", "Pattern corner", "Character Tracker app" })
+        foreach (var label in new[] { "Instant posting", "Show a small label next to the pattern", "Pattern corner", "Character Tracker app" })
             Assert.True(Bool(c, $"shownText('{label}') ~= nil"), label);
     }
 
