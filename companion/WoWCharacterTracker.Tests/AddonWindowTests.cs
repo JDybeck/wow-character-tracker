@@ -1547,6 +1547,21 @@ public class AddonWindowTests
         Assert.Equal("nothing", c.Lua("return askedWith.give").String);
     }
 
+    // Map for the other faction is a row too: shared with them, asked of them, or both.
+    [Fact]
+    public void The_ask_box_has_map_for_the_other_faction()
+    {
+        var c = FriendsTab();
+        c.Lua(AskStubs.Replace("call(", "table.insert(calls, "));
+        c.Lua("local b = findFriendsButton(); b.scripts.OnClick(b)");
+        c.Lua("clickFriend('Bobo', 'Ask')");
+        Assert.True(Bool(c, "shownText('Map for the other faction') ~= nil"));
+        c.Lua("local b = askBox(); b.ask.map = true; b.ask.otherFaction = true; b.give.otherFaction = true");
+        c.Lua("pressAsk()");
+        Assert.EndsWith(",map,otherFaction", c.Lua("return askedWith.wants").String);
+        Assert.True(Bool(c, "askBox().give.otherFaction"));
+    }
+
     [Fact]
     public void Requests_are_listed_with_allow_not_now_and_never()
     {
@@ -2046,6 +2061,7 @@ public class AddonWindowTests
         var c = RequestBox();
         c.Lua("press('Choose what they get'); press('Everything')");
         Assert.True(Bool(c, "find('Gold').checked"));
+        Assert.True(Bool(c, "find('Map for the other faction').checked"));
         c.Lua("press('Like all friends')");
         Assert.False(Bool(c, "find('Gold').checked"));
 

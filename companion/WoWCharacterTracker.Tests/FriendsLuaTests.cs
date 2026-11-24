@@ -1029,6 +1029,37 @@ public class FriendsLuaTests
         Assert.False(a.Lua("return ns.allowedFor(ns.shareSettings(), nil).map").Boolean); // only for them
     }
 
+    // Map for the other faction can be asked for like a category: alone or with map position.
+    [Fact]
+    public void Asking_for_the_other_faction_sends_it_and_allow_turns_it_on_for_them()
+    {
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        b.Call("friendsCommand", "ask JDybeck#1111 map OtherFaction");
+        b.Run(1);
+        Assert.Contains(b.Sent(), m => m.Get("text").String.Contains(":REQ:") && m.Get("text").String.EndsWith(":map,otherFaction", StringComparison.Ordinal));
+        Assert.Contains(b.Said(), s => s.Contains("for map position (both factions)"));
+
+        var a = new Client(A, AFriends, ADb(AShares));
+        a.Receive("1:REQ:1:1:1:otherFaction", BAccount);
+        a.Run(1);
+        Assert.Equal("Zeb#2222 asks to also see your map position for the other faction.", Str(a, "shown[1].arg"));
+        Assert.True(a.Lua("return ns.requestInfo(shown[1].data).choices.otherFaction").Boolean);
+        a.Lua("ns.answerFriendRequest(ns.pendingRequests()[1], 'allow')");
+        Assert.True(a.Lua("return ns.shareSettings().contacts['Zeb#2222'].otherFaction").Boolean);
+        Assert.False(a.Lua("return ns.allowedFor(ns.shareSettings(), nil).otherFaction").Boolean); // only for them
+    }
+
+    [Fact]
+    public void Asking_with_yours_keeps_the_other_faction_choice_for_them()
+    {
+        var b = new Client(B, BFriends, BDb("{ enabled = true, at = 100 }"));
+        b.Call("askFriend", "JDybeck#1111", b.Lua("return {}"), b.Lua("return { map = true, otherFaction = true }"));
+        Assert.True(b.Lua("return ns.shareSettings().contacts['JDybeck#1111'].otherFaction").Boolean);
+        Assert.True(b.Lua("return ns.askInfo('JDybeck#1111').give.otherFaction").Boolean);
+        Assert.Equal("map position (both factions)", Str(b, "ns.shareSummary({ map = true, otherFaction = true })"));
+        Assert.Equal("only the basics", Str(b, "ns.shareSummary({ map = false, otherFaction = true })")); // no map, nothing to say
+    }
+
     [Fact]
     public void A_request_for_what_they_already_get_is_just_answered()
     {

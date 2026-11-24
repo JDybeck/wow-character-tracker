@@ -23,6 +23,9 @@ local DEFAULTS = { gear = true, talents = true, location = true, professions = t
 local MAP_RATES = { [5] = true, [60] = true, [300] = true } -- seconds between two map position readings
 ns.SHARE_CATEGORIES = CATEGORIES
 ns.SHARE_RULES = RULES
+-- What the share boxes tick: the categories, then the rules.
+ns.SHARE_CHOICES = { unpack(CATEGORIES) }
+for _, k in ipairs(RULES) do ns.SHARE_CHOICES[#ns.SHARE_CHOICES + 1] = k end
 
 -- This session only.
 local helloSent = {} -- [account] = true: HI went out
@@ -702,13 +705,15 @@ local function addContact(tag, share)
   return ns.shareSettings().contacts[tag]
 end
 
--- The categories a request asks for ("map,gold"), known ones only, in CATEGORIES order. Older
--- addons send an empty body and ignore one.
+-- The categories and rules a request asks for ("map,gold,otherFaction"), known ones only, in
+-- CATEGORIES then RULES order. Older addons send an empty body and ignore what they don't know.
 local function wantsOf(body)
   local asked, out = {}, {}
   for k in tostring(body or ""):gmatch("[^,]+") do asked[k] = true end
-  for _, k in ipairs(CATEGORIES) do
-    if asked[k] then out[#out + 1] = k end
+  for _, list in ipairs({ CATEGORIES, RULES }) do
+    for _, k in ipairs(list) do
+      if asked[k] then out[#out + 1] = k end
+    end
   end
   return out
 end
@@ -862,16 +867,18 @@ function ns.showNextFriendRequest()
   end
 end
 
--- Allow with choices (category -> on, from the request box): only what differs from your general
--- choice is kept for them, so the rest still follows it.
+-- Allow with choices (category or rule -> on, from the request box): only what differs from your
+-- general choice is kept for them, so the rest still follows it.
 local function keepChoices(tag, choices)
   if not choices then return end
   ns.editShare(function(s)
     local c = s.contacts[tag]
-    for _, k in ipairs(CATEGORIES) do
-      if choices[k] ~= nil then
-        local on = choices[k] == true
-        if on == (s.defaults[k] == true) then c[k] = nil else c[k] = on end
+    for _, list in ipairs({ CATEGORIES, RULES }) do
+      for _, k in ipairs(list) do
+        if choices[k] ~= nil then
+          local on = choices[k] == true
+          if on == (s.defaults[k] == true) then c[k] = nil else c[k] = on end
+        end
       end
     end
   end)
@@ -932,7 +939,7 @@ end
 local HELP = {
   "/wct friends lists your contacts and what they get.",
   "/wct friends on or off turns sharing with Battle.net friends on or off.",
-  "/wct friends ask <BattleTag> [map gold ...] asks a friend for their characters, or for more of them, like their map position.",
+  "/wct friends ask <BattleTag> [map gold otherfaction ...] asks a friend for their characters, or for more of them, like their map position (otherfaction: even while you play the other faction).",
   "/wct friends share <BattleTag> shares your characters with them.",
   "/wct friends set all gear/talents/location/professions/reputations/highlights/leveling/gold/map on/off changes what friends get. Gold and map (your spot on their world map) are off until you turn them on.",
   "/wct friends set <BattleTag> gear/talents/location/professions/reputations/highlights/leveling/gold/map on/off/default changes it for one friend.",
@@ -954,11 +961,16 @@ end
 
 local SUMMARY_NAMES = { map = "map position", leveling = "level times" }
 
+-- otherFaction only says something next to map: "map position (both factions)" with it on, and
+-- "map position for the other faction" when asked for on its own (map isn't in a request's set).
 local function picked(allowed)
   local out = {}
   for _, k in ipairs(CATEGORIES) do
-    if allowed[k] then out[#out + 1] = SUMMARY_NAMES[k] or k end
+    if allowed[k] then
+      out[#out + 1] = (k == "map" and allowed.otherFaction) and "map position (both factions)" or (SUMMARY_NAMES[k] or k)
+    end
   end
+  if allowed.otherFaction and allowed.map == nil then out[#out + 1] = "map position for the other faction" end
   return #out > 0 and table.concat(out, ", ") or "only the basics"
 end
 -- "gear, talents, professions" from { category = on }, for the request box, its chat line and /wct friends.
@@ -1048,13 +1060,11 @@ local function ask(tag, wants, give)
   return tell("Asked " .. label(tag) .. what .. yours .. ". You'll see here when theirs arrive.")
 end
 
--- What the ask box starts with for tag: { label, give (what they'd get from you: what you set for
--- them, else your general choice) }.
+-- What the ask box starts with for tag: { label, give (what they'd get from you, rules included:
+-- what you set for them, else your general choice) }.
 function ns.askInfo(tag)
   local s = ns.shareSettings()
-  local allowed, give = ns.allowedFor(s, s.contacts[tag]), {}
-  for _, k in ipairs(CATEGORIES) do give[k] = allowed[k] end
-  return { label = label(tag), give = give }
+  return { label = label(tag), give = ns.allowedFor(s, s.contacts[tag]) }
 end
 
 local function share(tag)
@@ -1186,7 +1196,7 @@ function ns.friendsCommand(args)
         first = false -- the BattleTag
       else
         local key = CHOICE_BY_WORD[word:lower()]
-        if not key or key == "otherFaction" then return ns.say(HELP[3]) end
+        if not key then return ns.say(HELP[3]) end
         wants[#wants + 1] = key
       end
     end
