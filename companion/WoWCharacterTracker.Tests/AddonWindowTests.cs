@@ -1085,12 +1085,12 @@ public class AddonWindowTests
         c.Lua("openFriend('Cidro')");
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
-        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') ~= nil")); // the info, under the row
+        Assert.True(Bool(c, "shownText('280 / 300') ~= nil")); // the info, under the row
         Assert.True(Bool(c, "shownText('Level times') ~= nil"));
         c.Lua("named('WoWCharacterTrackerDetailsPanel'):Hide()"); // its X
-        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') ~= nil")); // still unfolded
+        Assert.True(Bool(c, "shownText('280 / 300') ~= nil")); // still unfolded
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "shownText('Tailoring 300/300, Enchanting 280/300') == nil"));
+        Assert.True(Bool(c, "shownText('280 / 300') == nil"));
         Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
     }
 
@@ -1259,7 +1259,7 @@ public class AddonWindowTests
         c.Lua("local r = shownText('Zeb').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m') ~= nil")); // its level times
-        Assert.True(Bool(c, "shownText('7g 0s 0c') ~= nil"));
+        Assert.True(Bool(c, "shownText('7g') ~= nil"));
     }
 
     // With room to spare the rows grow (a bigger portrait, a line more with guild, gold and played);
@@ -1698,12 +1698,16 @@ public class AddonWindowTests
         c.Call("friendsChanged");
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "shownText('Level 60 Frost Mage') ~= nil"));
-        foreach (var (label, value) in new[] {
-            ("Friend", "Cid#3"), ("Realm", "Firemaw"), ("Race", "Female Gnome, Alliance"), ("Item level", "112"), ("Zone", "Ironforge"), ("Gold", "123g 45s 67c"),
-            ("Professions", "Tailoring 300/300, Enchanting 280/300"), ("Talents", "Arcane 10 / Fire 0 / Frost 41"), ("Updated", "2h ago") })
+        // Icon tiles for what the row above doesn't already say; no empty talent trees.
+        foreach (var (label, value) in new[] { ("Realm", "Firemaw"), ("Faction", "Alliance"), ("Gold", "123g"), ("Talents", "Arcane 10  ·  Frost 41") })
         {
             Assert.Equal(value, c.Lua($"return factText('{label}').owner.valueText.text").String);
         }
+        foreach (var label in new[] { "Friend", "Race", "Item level", "Zone", "Updated", "Professions" })
+            Assert.True(Bool(c, $"factText('{label}') == nil"), label); // on the row or the section already
+        // A row per profession, with its rank and a bar.
+        Assert.Equal("300 / 300", c.Lua("return shownText('Tailoring').owner.rank.text").String);
+        Assert.Equal("280 / 300", c.Lua("return shownText('Enchanting').owner.rank.text").String);
         Assert.Equal(0.25, Num(c, "titleText().color[1]"), 3); // class colored
 
         c.Lua("clickChar('Cidra')"); // little shared: only what's there
