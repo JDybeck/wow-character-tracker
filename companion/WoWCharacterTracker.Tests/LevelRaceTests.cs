@@ -58,6 +58,26 @@ public class LevelRaceTests
         Assert.Null(LevelRace.PickRival(theirs, [("none", [new(40, 100)], 999)]));
     }
 
+    // The Leveling tab charts every timed level; Home's mini chart only the last 40 (the level being played among them).
+    [Fact]
+    public void The_leveling_tab_charts_every_level_and_home_the_last_40()
+    {
+        List<Entry> dings = [.. Enumerable.Range(2, 59).Select(l => new Entry { Kind = "level", Guid = "me", Level = l, Seconds = 60 * l })];
+        var leveling = CharacterLeveling.From(dings, 60, null, new Dictionary<int, long>(), estimate: false);
+        Assert.Equal(Enumerable.Range(2, 59), leveling.Bars.Select(b => b.Level));
+        Assert.Equal(Enumerable.Range(21, 40), leveling.RecentBars.Select(b => b.Level));
+
+        var playing = CharacterLeveling.From(dings.Take(50).ToList(), 51, null, new Dictionary<int, long>(), estimate: false, thisLevel: 120);
+        Assert.Equal(51, playing.Bars.Count);
+        Assert.Equal(40, playing.RecentBars.Count);
+        Assert.True(playing.RecentBars[^1].Current);
+        Assert.Equal(13, playing.RecentBars[0].Level);
+
+        leveling.AddOthers("me", LevelRace.Board([("me", "Zeb", From2(300, 600)), ("friend", "Kitty", From2(200, 700))]));
+        Assert.Contains("Kitty: 3m 20s", leveling.Bars[0].Tooltip);
+        Assert.DoesNotContain("Kitty", leveling.RecentBars[0].Tooltip); // level 21: nobody else timed it
+    }
+
     [Fact]
     public void A_bars_tooltip_lists_the_others_on_that_level_fastest_first()
     {

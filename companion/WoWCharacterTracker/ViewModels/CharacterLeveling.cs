@@ -5,6 +5,7 @@ namespace WoWCharacterTracker.ViewModels;
 sealed class CharacterLeveling
 {
     const double ChartHeight = 70;
+    const int HomeBars = 40;
 
     public string AverageText { get; init; } = "";
     public string SlowestText { get; init; } = "";
@@ -12,7 +13,8 @@ sealed class CharacterLeveling
     public bool HasStats { get; init; }
     public string EstimateText { get; init; } = "";
     public bool HasEstimate => EstimateText.Length > 0;
-    public IReadOnlyList<LevelBar> Bars { get; private set; } = [];
+    public IReadOnlyList<LevelBar> Bars { get; private set; } = []; // every timed level (the Leveling tab)
+    public IReadOnlyList<LevelBar> RecentBars { get; private set; } = []; // the last HomeBars of them (Home's mini chart)
     public IReadOnlyList<string> Progress { get; init; } = [];
     public bool HasProgress => Progress.Count > 0;
     public string DuelText { get; init; } = "";
@@ -26,12 +28,10 @@ sealed class CharacterLeveling
         var timed = LevelStats.Timed(all);
         var summary = LevelStats.Summarize(timed);
 
-        var shown = timed.TakeLast(thisLevel > 0 ? 39 : 40).ToList();
-        var slowest = Math.Max(shown.Count > 0 ? shown.Max(l => l.Seconds) : 1, thisLevel);
-        var bars = shown.Select(l => new LevelBar(l.Number, Math.Max(3, ChartHeight * l.Seconds / slowest),
-            $"{l.Number - 1} to {l.Number}: {Format.Duration(l.Seconds)}", l == summary?.Slowest)).ToList();
-        if (thisLevel > 0 && shown.Count > 0)
-            bars.Add(new LevelBar(level + 1, Math.Max(3, ChartHeight * thisLevel / slowest), $"{level} to {level + 1} so far: {Format.Duration(thisLevel)}", false, Current: true));
+        var bars = ChartBars(timed, summary, level, thisLevel);
+        var recent = timed.Count + (thisLevel > 0 ? 1 : 0) > HomeBars
+            ? ChartBars(timed.TakeLast(thisLevel > 0 ? HomeBars - 1 : HomeBars).ToList(), summary, level, thisLevel)
+            : bars;
 
         // A bar saved at an earlier level (dinged since, the saved file not written yet) says nothing
         // about this one, so then the whole level counts.
@@ -48,9 +48,22 @@ sealed class CharacterLeveling
             TotalText = LevelStats.TotalText(timed),
             EstimateText = toMax is long left ? $"About {Format.Played(left)} played to level {(xp!.MaxLevel > 0 ? xp.MaxLevel : 60)}, at your recent pace" : "",
             Bars = bars,
+            RecentBars = recent,
             Progress = ProgressLines(all),
             DuelText = Duels(all),
         };
+    }
+
+    // A bar per timed level, scaled to the slowest of them (or the level being played, if slower), then the
+    // level being played as a paler last bar.
+    static List<LevelBar> ChartBars(List<LevelStats.Level> shown, LevelStats.Summary? summary, int level, long thisLevel)
+    {
+        var slowest = Math.Max(shown.Count > 0 ? shown.Max(l => l.Seconds) : 1, thisLevel);
+        var bars = shown.Select(l => new LevelBar(l.Number, Math.Max(3, ChartHeight * l.Seconds / slowest),
+            $"{l.Number - 1} to {l.Number}: {Format.Duration(l.Seconds)}", l == summary?.Slowest)).ToList();
+        if (thisLevel > 0 && shown.Count > 0)
+            bars.Add(new LevelBar(level + 1, Math.Max(3, ChartHeight * thisLevel / slowest), $"{level} to {level + 1} so far: {Format.Duration(thisLevel)}", false, Current: true));
+        return bars;
     }
 
     const int MaxOthers = 8;
@@ -59,7 +72,13 @@ sealed class CharacterLeveling
     // fastest first. Before the rows are shown: the bars aren't watched for changes.
     public void AddOthers(string guid, IReadOnlyDictionary<int, List<LevelRace.Time>> board)
     {
-        Bars = [.. Bars.Select(bar =>
+        Bars = WithOthers(Bars, guid, board);
+        RecentBars = WithOthers(RecentBars, guid, board);
+    }
+
+    static List<LevelBar> WithOthers(IReadOnlyList<LevelBar> bars, string guid, IReadOnlyDictionary<int, List<LevelRace.Time>> board)
+    {
+        return [.. bars.Select(bar =>
         {
             if (bar.Current || !board.TryGetValue(bar.Level, out var times)) return bar;
             var others = times.Where(t => t.Guid != guid).ToList();
