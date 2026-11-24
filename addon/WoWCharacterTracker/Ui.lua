@@ -264,6 +264,13 @@ function ui.hookChatItemTips()
   end
 end
 
+-- A font string a few points bigger than its template (Home's text). Without GetFont (tests) as is.
+function ui.grow(fs, by)
+  local font, size, flags = fs:GetFont()
+  if font and size then fs:SetFont(font, size + by, flags) end
+  return fs
+end
+
 function ui.text(parent, template, s)
   local fs = parent:CreateFontString(nil, "ARTWORK", template)
   fs:SetJustifyH("LEFT")
