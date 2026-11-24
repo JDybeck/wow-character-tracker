@@ -208,7 +208,7 @@ public class WeeklySatchelTests
         Assert.Contains("it sells for **100g**.", text);
         Assert.Contains("The reward for **In Demand - Blackrock Legal Records** in Booty Bay.", text);
         Assert.Contains("Also inside: Thorium Bar x3, Black Lotus.", text);
-        Assert.DoesNotContain("All of it sells for", text); // no total: an event from before 0.42.5
+        Assert.DoesNotContain("All of it sells for", text); // no total: an event from before 0.43.0
         var all = (string)new EventEmbeds(Flavors.Forever).Build(Ring with { Total = 1_001_500 }, isTest: false)["description"];
         Assert.Contains("All of it sells for **100g 15s**.", all);
         Assert.Equal(("item", 272001), EventEmbeds.WowheadThing(Ring));
