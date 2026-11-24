@@ -70,7 +70,7 @@ local function message(e, forChat)
     return string.format("Reached %s with %s!", ns.standingName(e.step or 8), e.reputation or "a faction")
   elseif k == "weekly" then
     -- Everything that came out (the valuable first) and what it all sells for; events from before
-    -- 0.42.5 have no total, so the valuable's own price stands in.
+    -- 0.43.0 have no total, so the valuable's own price stands in.
     local also = (e.extras and e.extras ~= "") and (", " .. e.extras:gsub("%^", ", ")) or ""
     local total = (e.total or 0) > 0 and e.total or (e.sell or 0)
     local value = total > 0 and (" Sells for " .. ns.goldText(total) .. (also ~= "" and " in all!" or "!")) or ""
