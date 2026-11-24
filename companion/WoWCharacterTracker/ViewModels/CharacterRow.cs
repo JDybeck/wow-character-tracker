@@ -284,6 +284,8 @@ sealed class CharacterRow : Observable
 
     // The tab's shared lookup of everything from the game (FlavorViewModel.Lookup).
     public GameLookup? Lookup { private get; init; }
+    // The game its lookup is for, null without one (tests).
+    public Flavor? Game => Lookup?.Flavor;
 
     // Crests, talents, loot and recipes are things from the game, so they get the same ItemInfo (and
     // the same tooltip and Wowhead link, Ui/ItemTip) as items in bags.

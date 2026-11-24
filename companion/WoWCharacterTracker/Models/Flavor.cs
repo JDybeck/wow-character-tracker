@@ -46,6 +46,9 @@ sealed record Flavor(string Key, string Name, string[] Folders, string WowheadPa
     // The level cap, for the max level sample post.
     public int MaxLevel { get; init; }
 
+    // The recipe window says the skill each recipe needs (the addon's RecipeSkills.lua holds this game's list).
+    public bool HasRecipeSkills { get; init; }
+
     // Its enchant id -> enchanting spell map (Assets, made by tools/enchant-spells.ps1).
     public string EnchantSpells { get; init; } = "enchant-spells.json";
 }
@@ -82,6 +85,7 @@ static class Flavors
         StressTestBefore = 1793746800, // 2026-11-04 00:00 Swedish time: earlier characters are from the stress test
         HasRangedSlot = true, EstimatesXp = true, ReadyMadeLists = ReadyMadeList.All, MaxLevel = 60,
         EnchantSpells = "enchant-spells-forever.json", // Forever renumbered some of Classic's enchants
+        HasRecipeSkills = true,
     };
 
     public static readonly IReadOnlyList<Flavor> All = [Retail, Forever];

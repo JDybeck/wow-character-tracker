@@ -15,18 +15,20 @@
       <Setter Property="Margin" Value="0,16,0,6"/>
     </Style>
 
-    <!-- A recipe in the list: its icon and name, highlighted when picked. -->
+    <!-- A recipe in the list: its icon and name, and the skill it needs at the end when known; highlighted when picked. -->
     <DataTemplate x:Key="RecipeRow" DataType="{x:Type vm:RecipeEntry}">
       <Border x:Name="Row" Padding="14,3,8,3" CornerRadius="4" Background="Transparent" Cursor="Hand">
         <Border.InputBindings>
           <MouseBinding MouseAction="LeftClick" CommandParameter="{Binding}"
                         Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
         </Border.InputBindings>
-        <StackPanel Orientation="Horizontal">
-          <Image Source="{Binding Info.IconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" Margin="0,0,8,0"/>
+        <DockPanel>
+          <Image DockPanel.Dock="Left" Source="{Binding Info.IconUrl, Converter={StaticResource WebImage}}" Width="16" Height="16" Margin="0,0,8,0"/>
+          <TextBlock DockPanel.Dock="Right" Text="{Binding SkillText}" FontSize="11.5" Foreground="{StaticResource Dim}" VerticalAlignment="Center"
+                     Margin="8,0,0,0" ToolTip="{Binding RequiresText}" Visibility="{Binding HasRequires, Converter={StaticResource Visible}}"/>
           <TextBlock x:Name="Name" Text="{Binding Info.Name}" FontSize="12.5" Foreground="{StaticResource TextSoft}" VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis"/>
-        </StackPanel>
+        </DockPanel>
       </Border>
       <DataTemplate.Triggers>
         <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
@@ -127,8 +129,11 @@
                 </Image.Clip>
               </Image>
             </Border>
-            <TextBlock Grid.Column="1" Text="{Binding Info.Name}" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource Text}"
-                       VerticalAlignment="Center" TextWrapping="Wrap"/>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Info.Name}" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource Text}" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding RequiresText}" FontSize="12.5" Foreground="{StaticResource TextSoft}" Margin="0,2,0,0"
+                         Visibility="{Binding HasRequires, Converter={StaticResource Visible}}"/>
+            </StackPanel>
           </Grid>
 
           <StackPanel Visibility="{Binding HasTools, Converter={StaticResource Visible}}">
