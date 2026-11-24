@@ -114,9 +114,63 @@ function ns.findRecipes(people, text, nameOf)
   return list
 end
 
--- The window and what it shows. book: { c, owner, profession, groups }; or search mode (book nil).
+-- Everyone with professions known here (yours and what friends share), whether or not recipes came
+-- with them.
+local function withProfessions()
+  local out = {}
+  for guid, snap in pairs((WoWCharacterTrackerDB or {}).chars or {}) do
+    if not (ns.isIgnored and ns.isIgnored(guid)) and (snap.professions or snap.recipes) then
+      local c = ns.copy(snap)
+      c.guid = guid
+      out[#out + 1] = { c = c }
+    end
+  end
+  for _, friend in ipairs(ns.sharedWithYou and ns.sharedWithYou() or {}) do
+    for _, c in ipairs(friend.chars) do
+      if c.professions or c.recipes then out[#out + 1] = { c = c, owner = friend.label or friend.tag } end
+    end
+  end
+  return out
+end
+
+-- Every profession and who has it, the highest rank first: { { name, people = { { c, owner, rank,
+-- max, recipes } } } } by name. filter: only professions or characters (or friends) with it in their name.
+function ns.professionOverview(people, filter)
+  filter = (filter or ""):lower()
+  local byName, list = {}, {}
+  for _, p in ipairs(people) do
+    local counts = {}
+    for _, prof in ipairs(ns.recipeProfessions(p.c)) do counts[prof.name] = prof.count end
+    local seen = {}
+    for _, prof in ipairs(ui.parseProfessions(p.c.professions)) do seen[prof.name] = prof end
+    for name in pairs(counts) do seen[name] = seen[name] or { name = name } end
+    for name, prof in pairs(seen) do
+      local who = ns.fullName(p.c) .. " " .. (p.owner or "")
+      if filter == "" or name:lower():find(filter, 1, true) or who:lower():find(filter, 1, true) then
+        local entry = byName[name]
+        if not entry then
+          entry = { name = name, people = {} }
+          byName[name] = entry
+          list[#list + 1] = entry
+        end
+        entry.people[#entry.people + 1] = { c = p.c, owner = p.owner, rank = prof.rank, max = prof.max, recipes = counts[name] }
+      end
+    end
+  end
+  table.sort(list, function(a, b) return a.name < b.name end)
+  for _, entry in ipairs(list) do
+    table.sort(entry.people, function(a, b)
+      if (a.rank or 0) ~= (b.rank or 0) then return (a.rank or 0) > (b.rank or 0) end
+      return ns.fullName(a.c) < ns.fullName(b.c)
+    end)
+  end
+  return list
+end
+
+-- The window and what it shows. book: { c, owner, profession, groups }; or search mode (book nil);
+-- or the professions overview (state.overview).
 local win
-local state = { book = nil, filter = "", search = "", picked = nil, folded = {}, hits = {} }
+local state = { book = nil, filter = "", search = "", picked = nil, folded = {}, hits = {}, overview = false }
 local rows = {}         -- the left list's pooled rows
 local reagentRows = {}  -- the right side's pooled reagent rows
 local knowerButtons = {}
@@ -185,17 +239,23 @@ end
 local function setRow(r, header, text, act, picked, icon)
   r.act = act
   r.text:ClearAllPoints()
-  r.icon:SetShown(not header and icon ~= nil)
+  r.icon:SetShown(icon ~= nil)
   if header then
     ui.fill(r.bg, C.request)
-    r.text:SetPoint("LEFT", r, "LEFT", 6, 0)
+    if icon then
+      r.icon:SetTexture(icon)
+      r.icon:ClearAllPoints()
+      r.icon:SetPoint("LEFT", r, "LEFT", 6, 0)
+    end
+    r.text:SetPoint("LEFT", r, "LEFT", icon and 26 or 6, 0)
     r.text:SetFontObject("GameFontNormalSmall")
     ui.tint(r.text, C.accent)
   else
     if picked then ui.fill(r.bg, C.selected) else r.bg:SetColorTexture(0, 0, 0, 0) end
     r.icon:SetTexture(icon)
+    r.icon:ClearAllPoints()
     r.icon:SetPoint("LEFT", r, "LEFT", 14, 0)
-    r.text:SetPoint("LEFT", r, "LEFT", 32, 0)
+    r.text:SetPoint("LEFT", r, "LEFT", icon and 32 or 14, 0)
     r.text:SetFontObject("GameFontHighlightSmall")
     r.text:SetTextColor(1, 1, 1)
   end
@@ -235,22 +295,63 @@ local function searchLines()
   return lines
 end
 
+-- The overview: a header per profession (its icon, how many have it), then each character with it,
+-- its rank and recipe count; a click opens that character's recipes.
+local function overviewLines()
+  local lines = {}
+  for _, entry in ipairs(ns.professionOverview(withProfessions(), state.filter)) do
+    lines[#lines + 1] = { header = entry.name, folded = state.folded[entry.name], icon = ui.iconPath(ui.PROFESSION_ICONS[entry.name]),
+      count = #entry.people }
+    if not state.folded[entry.name] then
+      for _, who in ipairs(entry.people) do lines[#lines + 1] = { who = who, profession = entry.name } end
+    end
+  end
+  return lines
+end
+
+local function personText(who)
+  local r, g, b = ui.classRgb(who.c.classFile)
+  local name = string.format("|cff%02x%02x%02x%s|r", r * 255, g * 255, b * 255, ns.fullName(who.c))
+  return who.owner and (name .. "  |cff9a9a9a" .. who.owner .. "|r") or name
+end
+
+local function rankText(who)
+  local rank = who.max and string.format("%d/%d", who.rank, who.max) or (who.rank and tostring(who.rank) or "")
+  if who.recipes then rank = rank .. (rank ~= "" and "  ·  " or "") .. who.recipes .. " recipes" end
+  return rank
+end
+
 local function drawList()
-  local lines = state.book and bookLines() or searchLines()
+  local lines = state.overview and overviewLines() or state.book and bookLines() or searchLines()
   local y = 0
   for i, line in ipairs(lines) do
     local r = rows[i] or newRow(win.listChild)
     rows[i] = r
     if line.header then
       local key = line.header
-      setRow(r, true, key, function()
+      setRow(r, true, line.count and string.format("%s  (%d)", key, line.count) or key, function()
         state.folded[key] = not state.folded[key] or nil
         draw()
-      end)
-      r.sign:SetText(line.folded and "+" or "-")
+      end, nil, line.icon)
+      r.sign:SetText("")
+      r.arrow = r.arrow or ui.arrow(r, 12)
+      r.arrow:SetPoint("RIGHT", r, "RIGHT", -6, 0)
+      ui.pointArrow(r.arrow, not line.folded)
+      r.arrow:Show()
+    elseif line.who then
+      if r.arrow then r.arrow:Hide() end
+      local who, profession = line.who, line.profession
+      local open = who.recipes and function() ns.openRecipes(who.c, profession, who.owner) end or nil
+      setRow(r, false, personText(who), open, false, nil)
+      r.text:SetWidth(LIST_WIDTH - 150)
+      r.sign:SetText(rankText(who))
+      r.sign:SetFontObject("GameFontDisableSmall")
+      r.sign:Show()
     else
       local id = line.id
       setRow(r, false, line.name, function() pick(id) end, state.picked == id, recipeIcon(id))
+      if r.arrow then r.arrow:Hide() end
+      r.sign:SetFontObject("GameFontNormalSmall")
     end
     r:ClearAllPoints()
     r:SetPoint("TOPLEFT", win.listChild, "TOPLEFT", 0, -y)
@@ -260,7 +361,8 @@ local function drawList()
   for i = #lines + 1, #rows do rows[i]:Hide() end
   win.listChild:SetHeight(math.max(y, 1))
   win.empty:SetShown(#lines == 0)
-  win.empty:SetText(state.book and "No recipe like that." or (state.search == "" and "Type a recipe's name to see who knows it." or "Nobody here knows a recipe like that."))
+  win.empty:SetText(state.overview and "No professions known here yet. They come from your characters and what friends share."
+    or state.book and "No recipe like that." or (state.search == "" and "Type a recipe's name to see who knows it." or "Nobody here knows a recipe like that."))
 end
 
 local function newReagentRow(parent)
@@ -368,7 +470,16 @@ end
 
 local function drawHeader()
   local book = state.book
-  if book then
+  win.overviewButton:SetShown(not state.overview)
+  win.overviewHint:SetShown(state.overview)
+  if state.overview then
+    win.title:SetText("Professions")
+    win.who:SetText("Your characters and what friends share")
+    win.who:SetTextColor(0.7, 0.7, 0.7)
+    win.skill:SetText("")
+    win.searchHint:SetText("Profession or name")
+    win.everyone:SetText("Find a recipe")
+  elseif book then
     win.title:SetText(book.profession)
     win.who:SetText(ns.fullName(book.c) .. (book.owner and ("  (" .. book.owner .. ")") or ""))
     win.who:SetTextColor(ui.classRgb(book.c.classFile))
@@ -387,6 +498,12 @@ end
 
 draw = function()
   drawHeader()
+  if state.overview then
+    state.picked = nil
+    drawList()
+    drawPicked()
+    return
+  end
   if not state.book then state.hits = ns.findRecipes(everyone(), state.search, nameOf) end
   if state.picked == nil then
     local first = state.book and bookLines() or searchLines()
@@ -438,16 +555,23 @@ local function build()
     local text = self:GetText() or ""
     win.searchHint:SetShown(text == "")
     if not user then return end -- set by show(), which draws itself
-    if state.book then state.filter = text else state.search = text end
+    if state.book or state.overview then state.filter = text else state.search = text end
     state.picked = nil
     draw()
   end)
   -- From a book: search everyone for what's typed. In search mode: search now.
   win.everyone = ui.button(win, "Who knows it?", 110, function()
-    local text = win.search:GetText() or ""
+    local text = state.overview and "" or (win.search:GetText() or "")
     ns.openRecipeSearch(text)
   end)
   win.everyone:SetPoint("LEFT", win.search, "RIGHT", 8, 0)
+  -- Every profession and who has it (the overview).
+  win.overviewButton = ui.button(win, "All professions", 120, function() ns.openProfessions() end)
+  win.overviewButton:SetPoint("LEFT", win.everyone, "RIGHT", 8, 0)
+  win.overviewHint = ui.text(win, "GameFontDisableSmall",
+    "Every profession on your characters and what friends share, the highest skill first. Click a character to open their recipes.")
+  win.overviewHint:SetPoint("TOPLEFT", LIST_WIDTH + 34, -80)
+  win.overviewHint:SetWidth(WIDTH - LIST_WIDTH - 60)
 
   local list = ui.scrollFrame(win)
   list:SetPoint("TOPLEFT", 16, -74)
@@ -503,13 +627,14 @@ local function build()
   win:Hide()
 end
 
-local function show(book, text, picked)
+local function show(book, text, picked, overview)
   if not win then build() end
+  state.overview = overview == true
   state.book = book
-  state.filter, state.search = book and "" or (text or ""), book and "" or (text or "")
+  state.filter, state.search = (book or overview) and "" or (text or ""), (book or overview) and "" or (text or "")
   state.picked = picked
   state.folded = {}
-  win.search:SetText(book and "" or (text or ""))
+  win.search:SetText((book or overview) and "" or (text or ""))
   win:Show()
   win:Raise()
   draw()
@@ -523,6 +648,11 @@ function ns.openRecipes(c, profession, owner, recipeId)
       return show({ c = c, owner = owner, profession = profession, groups = prof.groups }, nil, recipeId)
     end
   end
+end
+
+-- Every profession and who has it.
+function ns.openProfessions()
+  show(nil, nil, nil, true)
 end
 
 -- Everyone's recipes searched by name (empty: the window waits for a name).

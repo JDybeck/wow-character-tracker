@@ -146,7 +146,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
         // The level history is folded until opened, and stays as you left it.
         Assert.False(Bool(c, "find('44 to 45') and onScreen(find('44 to 45'))"));
-        c.Lua("click('Level history  v')");
+        c.Lua("click('Level history')");
         Assert.True(Bool(c, "shownText('44 to 45') ~= nil"));
         Assert.True(Bool(c, "shownText('2h 54m') ~= nil"));
         Assert.True(Bool(c, "WoWCharacterTrackerDB.window.homeHistory == true"));
@@ -296,7 +296,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') == nil"));
         Assert.True(Bool(c, "shownText('?') == nil")); // unknown values hide instead of showing "?"
         Assert.True(Bool(c, "shownText('Item level') == nil")); // and an unknown tile hides
-        c.Lua("click('+2 more  v')");
+        c.Lua("click('+2 more')");
         Assert.True(Bool(c, "shownText('1 |cff9a9a9askin|r') ~= nil")); // one of a count is singular
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') ~= nil"));
     }
@@ -1079,6 +1079,26 @@ public class AddonWindowTests
     // A click on a character unfolds its info under the row and its gear beside the window; the
     // panel's X closes only the panel, a second click on the row folds both away.
     [Fact]
+    public void The_professions_overview_lists_everyone_by_profession_highest_first()
+    {
+        var c = Load("""
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', level = 30, classFile = 'WARRIOR', lastSeen = 1, professions = 'Tailoring 150/300, Mining 120/150' } },
+              items = {}, events = {} }
+            """);
+        c.Lua(FriendStubs);
+        c.Lua("ns.openProfessions()");
+        Assert.True(Bool(c, "shownText('Tailoring  (2)') ~= nil"));
+        Assert.True(Bool(c, "shownText('Mining  (1)') ~= nil"));
+        Assert.True(Bool(c, "shownText('Enchanting  (1)') ~= nil"));
+        Assert.True(Bool(c, "shownText('300/300') ~= nil and shownText('150/300') ~= nil"));
+        // Highest first under a profession: the friend's 300 above your 150.
+        Assert.True(Bool(c, "shownText('300/300').owner.point[5] > shownText('150/300').owner.point[5]"));
+        // A search narrows it to professions or people.
+        c.Lua("local s = named('WoWCharacterTrackerRecipes').search; s.GetText = function(self) return self.text end; s:SetText('min'); s.scripts.OnTextChanged(s, true)");
+        Assert.True(Bool(c, "shownText('Mining  (1)') ~= nil and shownText('Tailoring  (2)') == nil"));
+    }
+
+    [Fact]
     public void A_character_unfolds_under_its_row_and_folds_with_its_gear()
     {
         var c = FriendsTab();
@@ -1086,7 +1106,7 @@ public class AddonWindowTests
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
         Assert.True(Bool(c, "shownText('280 / 300') ~= nil")); // the info, under the row
-        Assert.True(Bool(c, "shownText('Level times') ~= nil"));
+        Assert.True(Bool(c, "shownText('Arcane 10  ·  Frost 41') ~= nil")); // talents, without the empty tree
         c.Lua("named('WoWCharacterTrackerDetailsPanel'):Hide()"); // its X
         Assert.True(Bool(c, "shownText('280 / 300') ~= nil")); // still unfolded
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
@@ -1992,7 +2012,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level, plus gear, talents, location, professions, reputations, highlights, level times.') ~= nil"));
         Assert.True(Bool(c, "shownText('Talents') == nil")); // folded
 
-        c.Lua("press('Choose what they get  v')");
+        c.Lua("press('Choose what they get')");
         c.Lua("press('Basics only')");
         Assert.True(Bool(c, "shownText('Allow gives them 1 of your characters: name, level, class and item level.') ~= nil"));
         c.Lua("click('Talents')");
@@ -2011,7 +2031,7 @@ public class AddonWindowTests
     public void Like_all_friends_goes_back_to_the_general_choice_and_esc_is_not_now()
     {
         var c = RequestBox();
-        c.Lua("press('Choose what they get  v'); press('Everything')");
+        c.Lua("press('Choose what they get'); press('Everything')");
         Assert.True(Bool(c, "find('Gold').checked"));
         c.Lua("press('Like all friends')");
         Assert.False(Bool(c, "find('Gold').checked"));

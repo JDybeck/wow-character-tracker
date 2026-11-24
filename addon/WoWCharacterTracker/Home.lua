@@ -622,7 +622,7 @@ function ns.buildHomeTab(p)
     if summary then
       at(chart, card, y, -2)
       y = y + CHART_HEIGHT + 8
-      toggle:SetText(open and "Level history  ^" or "Level history  v")
+      ui.setToggle(toggle, "Level history", open)
       at(toggle, card, y, -2)
       y = y + 22 + 8
     end
@@ -667,7 +667,7 @@ function ns.buildHomeTab(p)
     local more = #todayStats - ns.TODAY_SHOWN
     todayToggle:SetShown(more > 0)
     if more > 0 then
-      todayToggle:SetText(todayOpen() and "Less  ^" or string.format("+%d more  v", more))
+      ui.setToggle(todayToggle, todayOpen() and "Less" or string.format("+%d more", more), todayOpen())
       todayToggle:ClearAllPoints()
       todayToggle:SetPoint("TOPRIGHT", card, "TOPRIGHT", -PAD, -(y + 8))
     end

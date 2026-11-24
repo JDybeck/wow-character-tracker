@@ -721,36 +721,37 @@ local function newFactTile(parent)
   t.icon:SetPoint("TOPLEFT", t, "TOPLEFT", 0, -1)
   t.labelText = ui.text(t, "GameFontDisableSmall")
   t.labelText:SetPoint("TOPLEFT", t, "TOPLEFT", 34, 0)
-  t.valueText = ui.text(t, "GameFontHighlight")
-  t.valueText:SetPoint("TOPLEFT", t, "TOPLEFT", 34, -13)
+  t.valueText = ui.text(t, "GameFontHighlightSmall")
+  t.valueText:SetPoint("TOPLEFT", t, "TOPLEFT", 34, -14)
+  t.valueText:SetWordWrap(false)
   return t
 end
 
--- facts: { { label, value, icon? } } in a grid of `cols` columns, `width` wide, from (x, y) in parent.
--- pool keeps the tiles between draws. Returns the y under the grid.
+-- facts: { { label, value, icon?, wide? } } in a grid of `cols` columns, `width` wide, from (x, y) in
+-- parent; a wide one takes a whole row. Every tile is FACT_TILE high, so rows line up. pool keeps the
+-- tiles between draws. Returns the y under the grid.
+ui.FACT_TILE, ui.FACT_GAP = 28, 8
 function ui.factTiles(parent, pool, facts, x, y, width, cols)
   local colWidth = math.floor((width - (cols - 1) * 10) / cols)
-  local rowTop, rowHeight = y, 0
+  local rowTop, col = y, 0
   for i, f in ipairs(facts) do
     local t = pool[i] or newFactTile(parent)
     pool[i] = t
-    local col = (i - 1) % cols
-    if col == 0 and i > 1 then rowTop, rowHeight = rowTop + rowHeight + 8, 0 end
+    if (col > 0 and (f[4] or col >= cols)) then rowTop, col = rowTop + ui.FACT_TILE + ui.FACT_GAP, 0 end
+    local w = f[4] and width or colWidth
     t.labelText:SetText(f[1])
     t.valueText:SetText(f[2])
-    t.valueText:SetWidth(colWidth - 36)
+    t.valueText:SetWidth(w - 36)
     local tex = f[3] or ui.FACT_ICONS[f[1]]
     t.icon:SetTexture(tex and (tex:find("\\") and tex or ICONS .. tex) or (ICONS .. "INV_Misc_QuestionMark"))
-    local vh = t.valueText.GetStringHeight and t.valueText:GetStringHeight() or 0
-    local h = math.max(28, 13 + ((vh and vh > 0) and vh or 14))
-    t:SetSize(colWidth, h)
+    t:SetSize(w, ui.FACT_TILE)
     t:ClearAllPoints()
     t:SetPoint("TOPLEFT", parent, "TOPLEFT", x + col * (colWidth + 10), -rowTop)
     t:Show()
-    rowHeight = math.max(rowHeight, h)
+    col = f[4] and cols or col + 1
   end
   for i = #facts + 1, #pool do pool[i]:Hide() end
-  return #facts > 0 and (rowTop + rowHeight) or y
+  return #facts > 0 and (rowTop + ui.FACT_TILE) or y
 end
 
 -- "Tailoring 240/300, Enchanting 273/300" as { name, rank, max } (rank alone when there's no max).
@@ -766,22 +767,22 @@ end
 
 local function newProfessionRow(parent)
   local r = CreateFrame("Frame", nil, parent)
-  r:SetHeight(26)
-  r.icon = icon(r, 22)
+  r:SetHeight(ui.FACT_TILE)
+  r.icon = icon(r, 26)
   r.icon:SetPoint("LEFT", r, "LEFT", 0, 0)
   r.name = ui.text(r, "GameFontHighlightSmall")
-  r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 30, -1)
+  r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 34, -1)
   r.rank = ui.text(r, "GameFontDisableSmall")
   r.rank:SetPoint("TOPRIGHT", r, "TOPRIGHT", 0, -1)
   r.track = r:CreateTexture(nil, "BORDER")
   ui.fill(r.track, COLOR.border)
   r.track:SetHeight(4)
-  r.track:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 30, 2)
-  r.track:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 2)
+  r.track:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 34, 3)
+  r.track:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 3)
   r.bar = r:CreateTexture(nil, "ARTWORK")
   ui.fill(r.bar, COLOR.accent)
   r.bar:SetHeight(4)
-  r.bar:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 30, 2)
+  r.bar:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 34, 3)
   return r
 end
 
@@ -796,11 +797,11 @@ function ui.professionRows(parent, pool, list, x, y, width)
     r.rank:SetText(p.max and string.format("%d / %d", p.rank, p.max) or tostring(p.rank or ""))
     local share = (p.max and p.max > 0 and p.rank) and math.min(1, p.rank / p.max) or 0
     r.bar:SetShown(share > 0)
-    r.bar:SetWidth(math.max(1, (width - 30) * share))
+    r.bar:SetWidth(math.max(1, (width - 34) * share))
     r:ClearAllPoints()
     r:SetPoint("TOPLEFT", parent, "TOPLEFT", x, -y)
     r:Show()
-    y = y + 30
+    y = y + ui.FACT_TILE + ui.FACT_GAP
   end
   for i = #list + 1, #pool do pool[i]:Hide() end
   return y
@@ -831,4 +832,33 @@ function ui.buttonIcon(b, texture)
   end
   if texture then b.leftIcon:SetTexture(texture:find("\\") and texture or ICONS .. texture) end
   b.leftIcon:SetShown(texture ~= nil)
+end
+
+-- A small arrow (a texture, not "v" or "^") after a button's label: down to unfold, up to fold.
+-- The label stays the button's text, the arrow sits right after it.
+local ARROW = "Interface\\Buttons\\UI-MicroStream-Yellow"
+function ui.arrow(parent, size)
+  local t = parent:CreateTexture(nil, "OVERLAY")
+  t:SetSize(size or 12, size or 12)
+  t:SetTexture(ARROW)
+  return t
+end
+function ui.pointArrow(t, open)
+  if open then t:SetTexCoord(0, 1, 1, 0) else t:SetTexCoord(0, 1, 0, 1) end
+end
+function ui.setToggle(b, label, open)
+  b:SetText(label)
+  if not b.arrow then
+    b.arrow = ui.arrow(b, 12)
+    local fs = b:GetFontString()
+    if fs then
+      fs:ClearAllPoints()
+      fs:SetPoint("CENTER", b, "CENTER", -8, 0)
+      b.arrow:SetPoint("LEFT", fs, "RIGHT", 4, 0)
+    else
+      b.arrow:SetPoint("RIGHT", b, "RIGHT", -6, 0)
+    end
+  end
+  ui.pointArrow(b.arrow, open)
+  b.open = open
 end
