@@ -334,7 +334,7 @@ sealed class EventEmbeds(Flavor flavor)
     // "Exalted", or "Renown 25" for a renown faction's top.
     internal static string ReputationReached(Entry e) => e.Renown > 0 ? $"Renown {e.Renown}" : Reputations.StandingName(e.Step > 0 ? e.Step : Reputations.Exalted);
 
-    // The weekly In Demand satchel (Forever): what came out, what it sells for, the week's quest and the rest.
+    // The weekly In Demand satchel (Forever): the valuable, what it sells for, the week's quest and any bonus.
     (string, List<string>) WeeklyText(Entry e, bool itemPicture)
     {
         var bag = e.Bag.Length > 0 ? e.Bag : "weekly satchel";
@@ -343,8 +343,7 @@ sealed class EventEmbeds(Flavor flavor)
         if (!itemPicture || e.Sell > 0)
             lines.Add((itemPicture ? $"Out came **{e.Item}**" : $"Out came **{item}**") + (e.Sell > 0 ? $", it sells for **{Format.Price(e.Sell)}**." : "."));
         lines.Add(e.Quest.Length > 0 ? $"The reward for **{e.Quest}** in Booty Bay." : "The reward for this week's In Demand quest in Booty Bay.");
-        if (e.ExtraList.Count > 0) lines.Add($"Also inside: {string.Join(", ", e.ExtraList)}.");
-        if (e.Total > e.Sell) lines.Add($"All of it sells for **{Format.Price(e.Total)}**.");
+        if (e.ExtraList.Count > 0) lines.Add($"Bonus: {string.Join(", ", e.ExtraList)}.");
         var value = e.Sell > 0 ? $" ({Format.Price(e.Sell)})" : "";
         return ($"💰 {e.Char} opened the {bag}: {e.Item}{value}!", lines);
     }

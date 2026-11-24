@@ -87,8 +87,7 @@ public class WeeklySatchelTests
         Assert.Equal("In Demand - Blackrock Legal Records", e.Get("quest").String);
         Assert.Equal("Undermine Satchel", e.Get("bag").String);
         Assert.Equal("Thorium Bar x3", e.Get("extras").String);
-        Assert.Equal(1001500, e.Get("total").Number); // the ring and three bars
-        Assert.Equal("Weekly satchel: |cff1eff00|Hitem:272001::::::::|h[Gold Ring]|h|r, |cffffffff|Hitem:12359::::::::|h[Thorium Bar]|h|rx3. Sells for 100g 15s in all.", Assert.Single(said));
+        Assert.Equal("Weekly satchel: |cff1eff00|Hitem:272001::::::::|h[Gold Ring]|h|r, sells for 100g. Bonus: |cffffffff|Hitem:12359::::::::|h[Thorium Bar]|h|rx3.", Assert.Single(said));
         // The quest is used up: the next satchel (another week) doesn't name it.
         script.DoString("bags[271994] = 1");
         Open(script, ns);
@@ -132,12 +131,12 @@ public class WeeklySatchelTests
     }
 
     // Seen in game: a Huge Quartz Gem the game hadn't priced yet, and an Arcane Crystal (20s, green)
-    // that it had. The gem is the valuable all the same, and the crystal is still reported.
+    // that it had. The gem is the main item with its 20g; the crystal is a bonus, with no price.
     [Fact]
-    public void An_unpriced_known_valuable_beats_a_priced_material_and_both_are_reported()
+    public void The_valuable_is_the_main_item_and_the_rest_is_a_bonus()
     {
         var (script, ns, recorded, said) = Load("""
-            loot = { '|cffffffff|Hitem:272015::::::::|h[Huge Quartz Gem]|h|r', '|cff1eff00|Hitem:12363::::::::|h[Arcane Crystal]|h|r' }
+            loot = { '|cff1eff00|Hitem:12363::::::::|h[Arcane Crystal]|h|r', '|cffffffff|Hitem:272015::::::::|h[Huge Quartz Gem]|h|r' }
             quantities = { 1, 1 }
             prices = { [12363] = 2000 }
             """);
@@ -149,27 +148,59 @@ public class WeeklySatchelTests
         Assert.Equal(272015, e.Get("itemId").Number);
         Assert.Equal(200000, e.Get("sell").Number);
         Assert.Equal("Arcane Crystal", e.Get("extras").String);
-        Assert.Equal(202000, e.Get("total").Number);
-        Assert.Equal("Weekly satchel: |cffffffff|Hitem:272015::::::::|h[Huge Quartz Gem]|h|r, |cff1eff00|Hitem:12363::::::::|h[Arcane Crystal]|h|r. Sells for 20g 20s in all.", Assert.Single(said));
+        Assert.Equal("Weekly satchel: |cffffffff|Hitem:272015::::::::|h[Huge Quartz Gem]|h|r, sells for 20g. Bonus: |cff1eff00|Hitem:12363::::::::|h[Arcane Crystal]|h|r.", Assert.Single(said));
     }
 
-    // The guild/party line names everything that came out, not just the valuable.
+    // The Silver Necklace's id isn't known: its name makes it the valuable (40g). Something fun that
+    // sells for more than it (a priced bonus) still doesn't take its place.
     [Fact]
-    public void The_chat_line_lists_the_rest_of_the_satchel()
+    public void The_necklace_counts_by_name_and_a_dearer_bonus_stays_a_bonus()
+    {
+        var (script, ns, recorded, said) = Load("""
+            loot = { '|cffa335ee|Hitem:19019::::::::|h[Thunderfury]|h|r', '|cff1eff00|Hitem:272099::::::::|h[Silver Necklace]|h|r' }
+            quantities = { 1, 1 }
+            prices = { [19019] = 5000000 }
+            """);
+        TurnIn(script, ns);
+        Open(script, ns);
+
+        var e = Assert.Single(recorded);
+        Assert.Equal("Silver Necklace", e.Get("item").String);
+        Assert.Equal(400000, e.Get("sell").Number);
+        Assert.Equal("Thunderfury", e.Get("extras").String);
+        Assert.EndsWith("sells for 40g. Bonus: |cffa335ee|Hitem:19019::::::::|h[Thunderfury]|h|r.", Assert.Single(said), StringComparison.Ordinal);
+    }
+
+    // No valuable at all: the first thing is named, without a price.
+    [Fact]
+    public void Without_a_valuable_nothing_gets_a_price()
+    {
+        var (script, ns, recorded, said) = Load("""
+            loot = { '|cffffffff|Hitem:12359::::::::|h[Thorium Bar]|h|r' }
+            quantities = { 3 }
+            """);
+        TurnIn(script, ns);
+        Open(script, ns);
+
+        var e = Assert.Single(recorded);
+        Assert.Equal("Thorium Bar", e.Get("item").String);
+        Assert.Equal(DataType.Nil, e.Get("sell").Type);
+        Assert.Equal("Weekly satchel: |cffffffff|Hitem:12359::::::::|h[Thorium Bar]|h|r.", Assert.Single(said));
+    }
+
+    // The guild/party line: the valuable with its price, then the bonus.
+    [Fact]
+    public void The_chat_line_names_the_bonus()
     {
         var script = new Script();
         var ns = new Table(script);
         foreach (var file in new[] { "Shared.lua", "Weekly.lua", "Announce.lua" })
             script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file))), "WoWCharacterTracker", ns);
         var line = script.Call(ns.Get("momentLine"), script.DoString(
-            "return { kind = 'weekly', item = 'Huge Quartz Gem', itemId = 272015, quality = 1, sell = 200000, total = 204000, bag = 'Undermine Satchel', extras = 'Arcane Crystal x2^Black Lotus' }")).String;
+            "return { kind = 'weekly', item = 'Huge Quartz Gem', itemId = 272015, quality = 1, sell = 200000, bag = 'Undermine Satchel', extras = 'Arcane Crystal x2^Black Lotus' }")).String;
         Assert.StartsWith("Opened my weekly Undermine Satchel: ", line, StringComparison.Ordinal);
         Assert.Contains("Huge Quartz Gem", line, StringComparison.Ordinal);
-        Assert.EndsWith(", Arcane Crystal x2, Black Lotus! Sells for 20g 40s in all!", line, StringComparison.Ordinal);
-        // An event from before the total: the valuable's own price, alone.
-        var old = script.Call(ns.Get("momentLine"), script.DoString(
-            "return { kind = 'weekly', item = 'Gold Ring', itemId = 272001, quality = 2, sell = 1000000, bag = 'Undermine Satchel' }")).String;
-        Assert.EndsWith("Gold Ring]! Sells for 100g!", old.Replace("|h|r", "", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.EndsWith(", sells for 20g! Bonus: Arcane Crystal x2, Black Lotus.", line, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -207,10 +238,7 @@ public class WeeklySatchelTests
         Assert.Contains("Out came **[Gold Ring](https://www.wowhead.com/", text);
         Assert.Contains("it sells for **100g**.", text);
         Assert.Contains("The reward for **In Demand - Blackrock Legal Records** in Booty Bay.", text);
-        Assert.Contains("Also inside: Thorium Bar x3, Black Lotus.", text);
-        Assert.DoesNotContain("All of it sells for", text); // no total: an event from before 0.43.0
-        var all = (string)new EventEmbeds(Flavors.Forever).Build(Ring with { Total = 1_001_500 }, isTest: false)["description"];
-        Assert.Contains("All of it sells for **100g 15s**.", all);
+        Assert.Contains("Bonus: Thorium Bar x3, Black Lotus.", text);
         Assert.Equal(("item", 272001), EventEmbeds.WowheadThing(Ring));
 
         var bare = new EventEmbeds(Flavors.Forever).Build(Ring with { Sell = 0, Quest = "", Bag = "", Extras = "" }, isTest: false, itemPicture: true);
