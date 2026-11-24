@@ -20,8 +20,10 @@ Update the addon with the app (it does this by itself), then exit the game fully
 - **The window fades when you're not using it.** The addon window turns slightly see-through while the mouse is away from it, and solid again when you point at it, drag it or type in it.
 - **Portraits on Home's moments.** Moments that aren't about an item (bosses, dings, professions) show the character's portrait instead of the class icon, yours and your friends'. Loot keeps the item's icon, and without a portrait the class icon stays.
 - **No "?" on Home.** The item level, gold and played tiles hide when the value isn't known yet, and the others share the row.
-- **No zeros on TODAY.** Home's TODAY (in the addon and the app) now lists only what you did today, so no more "0 levels  0 bosses". On a day with nothing yet, TODAY isn't shown at all.
+- **No zeros on TODAY.** Home's TODAY (in the addon and the app) now lists only what you did today, so no more "0 levels  0 bosses", and one of something reads "1 boss" instead of "1 bosses". On a day with nothing yet, TODAY isn't shown at all.
 - **Level times only while leveling.** At max level, Home no longer shows how long your last level took, and hovering a max-level friend on Home shows their latest moment instead of how long 59 to 60 took.
+- **No "This level" at max level.** The app's Home no longer shows a time for "This level" on a max level character, or a "-" right after a ding. The other tiles share the row instead.
+- **Easier to read grey text in the app.** Hints, search boxes and other grey text were too faint on the dark background. They're lighter now, readable on every color theme.
 - **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
 
 ## v0.42.4

@@ -323,7 +323,7 @@
               <TextBlock Text="Skip a boss kill when someone in the group matches (regex)" Foreground="{StaticResource TextSoft}" FontSize="12" Margin="0,0,0,4"/>
               <Grid MaxWidth="420" HorizontalAlignment="Left">
                 <TextBox Width="420" ToolTip="Skip the kill post when a group member's name matches this regex" Text="{Binding SkipBossGroupRegex, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Padding="8,4" FontSize="12"/>
-                <TextBlock Text="e.g. ^(Grimtusk|Pellia)$" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0" FontFamily="{StaticResource Mono}"
+                <TextBlock Text="e.g. ^(Grimtusk|Pellia)$" Foreground="{StaticResource Dim}" FontSize="12" Margin="10,0,0,0" FontFamily="{StaticResource Mono}"
                            VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding SkipBossGroupRegex, Converter={StaticResource HiddenIfSet}}"/>
               </Grid>
               <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="For friends who run the tracker too, so a kill isn't posted twice."/>

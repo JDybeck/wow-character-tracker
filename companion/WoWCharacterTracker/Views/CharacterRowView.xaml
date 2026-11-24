@@ -84,7 +84,7 @@
                   <Border Style="{StaticResource Pill}">
                     <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
                   </Border>
-                  <TextBlock Text="{Binding LevelPercentText}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0" HorizontalAlignment="Center"
+                  <TextBlock Text="{Binding LevelPercentText}" Foreground="{StaticResource Dim}" FontSize="10" Margin="0,2,0,0" HorizontalAlignment="Center"
                              Visibility="{Binding LevelPercentText, Converter={StaticResource VisibleIfSet}}"/>
                 </StackPanel>
 
@@ -99,7 +99,7 @@
                 </Grid>
                 <StackPanel Grid.Column="5" VerticalAlignment="Center">
                   <TextBlock Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13"/>
-                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0"
+                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Dim}" FontSize="10" Margin="0,2,0,0"
                              Visibility="{Binding PlayedLine, Converter={StaticResource VisibleIfSet}}"/>
                 </StackPanel>
               </Grid>

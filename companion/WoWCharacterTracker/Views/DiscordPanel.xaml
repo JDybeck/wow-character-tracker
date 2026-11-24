@@ -243,13 +243,13 @@
           <TextBlock Text="Add New Webhook" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextSoft}" Margin="0,0,0,10"/>
           <Grid Margin="0,0,0,8">
             <TextBox ToolTip="Paste the webhook URL from Discord (channel settings, Integrations, Webhooks)" Text="{Binding NewWebhookUrl, UpdateSourceTrigger=PropertyChanged}"/>
-            <TextBlock Text="https://discord.com/api/webhooks/..." Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
+            <TextBlock Text="https://discord.com/api/webhooks/..." Foreground="{StaticResource Dim}" FontSize="13" Margin="12,0,0,0"
                        VerticalAlignment="Center" IsHitTestVisible="False"
                        Visibility="{Binding NewWebhookUrl, Converter={StaticResource HiddenIfSet}}"/>
           </Grid>
           <Grid>
             <TextBox ToolTip="A name so you can tell your webhooks apart" Text="{Binding NewWebhookName, UpdateSourceTrigger=PropertyChanged}"/>
-            <TextBlock Text="Name, e.g. #leveling / My Guild (optional)" Foreground="{StaticResource Faint}" FontSize="13" Margin="12,0,0,0"
+            <TextBlock Text="Name, e.g. #leveling / My Guild (optional)" Foreground="{StaticResource Dim}" FontSize="13" Margin="12,0,0,0"
                        VerticalAlignment="Center" IsHitTestVisible="False"
                        Visibility="{Binding NewWebhookName, Converter={StaticResource HiddenIfSet}}"/>
           </Grid>

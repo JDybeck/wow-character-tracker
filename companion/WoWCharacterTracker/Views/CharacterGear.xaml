@@ -19,7 +19,7 @@
           <TextBlock x:Name="Name" Style="{StaticResource TrimmedText}" Text="{Binding Item.Name}" Foreground="{Binding Item.Brush}" FontSize="12"/>
           <TextBlock Text="{Binding Enchant}" Foreground="#1EFF00" FontSize="11" TextTrimming="CharacterEllipsis" HorizontalAlignment="Left"
                      ui:ItemTip.Info="{Binding EnchantInfo.Info}" Visibility="{Binding HasEnchant, Converter={StaticResource Visible}}"/>
-          <TextBlock x:Name="Note" Text="{Binding PlaceNote}" Foreground="{StaticResource Faint}" FontSize="11"
+          <TextBlock x:Name="Note" Text="{Binding PlaceNote}" Foreground="{StaticResource Dim}" FontSize="11"
                      Visibility="{Binding PlaceNote, Converter={StaticResource VisibleIfSet}}"/>
         </StackPanel>
       </DockPanel>
@@ -108,8 +108,8 @@
                               <ColumnDefinition Width="26"/>
                               <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="Need" Text="{Binding Need}" FontSize="12" Foreground="{StaticResource Faint}"/>
-                            <TextBlock x:Name="Bonus" Grid.Column="1" Text="{Binding Text}" FontSize="12" LineHeight="17" TextWrapping="Wrap" Foreground="{StaticResource Faint}"/>
+                            <TextBlock x:Name="Need" Text="{Binding Need}" FontSize="12" Foreground="{StaticResource Dim}"/>
+                            <TextBlock x:Name="Bonus" Grid.Column="1" Text="{Binding Text}" FontSize="12" LineHeight="17" TextWrapping="Wrap" Foreground="{StaticResource Dim}"/>
                           </Grid>
                           <DataTemplate.Triggers>
                             <DataTrigger Binding="{Binding IsActive}" Value="True">

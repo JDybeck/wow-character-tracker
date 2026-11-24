@@ -128,7 +128,7 @@
     <Grid Margin="24,14,24,0" MaxWidth="520" HorizontalAlignment="Left" Visibility="{Binding HasRecipes, Converter={StaticResource Visible}}">
       <TextBox ToolTip="Find a recipe and who knows it" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged, Delay=250}" Padding="17,7,30,7" MinWidth="360"/>
       <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" Foreground="{StaticResource Dim}" FontSize="13" Margin="12,0,0,0" IsHitTestVisible="False"/>
-      <TextBlock Text="Find a recipe and who knows it" Foreground="{StaticResource Faint}" FontSize="13" Margin="34,0,0,0"
+      <TextBlock Text="Find a recipe and who knows it" Foreground="{StaticResource Dim}" FontSize="13" Margin="34,0,0,0"
                  VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding Query, Converter={StaticResource HiddenIfSet}}"/>
       <Button Style="{StaticResource GhostButton}" Padding="6,2" Margin="0,0,4,0" HorizontalAlignment="Right" ToolTip="Clear"
               Command="{Binding ClearSearchCommand}" Visibility="{Binding IsSearching, Converter={StaticResource Visible}}">

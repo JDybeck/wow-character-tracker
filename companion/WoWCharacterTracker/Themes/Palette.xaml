@@ -17,7 +17,7 @@
   <SolidColorBrush x:Key="Text" Color="#E2E8F0"/>
   <SolidColorBrush x:Key="TextSoft" Color="#CBD5E1"/>
   <SolidColorBrush x:Key="Muted" Color="#94A3B8"/>
-  <SolidColorBrush x:Key="Dim" Color="#64748B"/>
+  <SolidColorBrush x:Key="Dim" Color="#8492A6"/> <!-- 4.6:1 or more on every theme's cards (text needs 4.5) -->
   <SolidColorBrush x:Key="Faint" Color="#475569"/>
   <SolidColorBrush x:Key="Blue" Color="#2563EB"/>
   <SolidColorBrush x:Key="BlueHover" Color="#3B82F6"/>

@@ -102,7 +102,7 @@
         <Grid Margin="0,0,0,10">
           <TextBox ToolTip="Search these recipes by name" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=150}" Padding="17,5,10,5"/>
           <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" Foreground="{StaticResource Dim}" FontSize="12" Margin="10,0,0,0" IsHitTestVisible="False"/>
-          <TextBlock Text="Search" Foreground="{StaticResource Faint}" FontSize="12.5" Margin="32,0,0,0"
+          <TextBlock Text="Search" Foreground="{StaticResource Dim}" FontSize="12.5" Margin="32,0,0,0"
                      VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding Search, Converter={StaticResource HiddenIfSet}}"/>
         </Grid>
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
