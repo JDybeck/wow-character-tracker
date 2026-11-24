@@ -351,7 +351,12 @@ local function drawList()
       local id = line.id
       setRow(r, false, line.name, function() pick(id) end, state.picked == id, recipeIcon(id))
       if r.arrow then r.arrow:Hide() end
-      r.sign:SetFontObject("GameFontNormalSmall")
+      -- The skill it needs at the row's end, when known.
+      local skill = ns.recipeSkill(id)
+      r.sign:SetFontObject("GameFontDisableSmall")
+      r.sign:SetText(skill and tostring(skill) or "")
+      r.sign:SetShown(skill ~= nil)
+      if skill then r.text:SetWidth(LIST_WIDTH - 96) end
     end
     r:ClearAllPoints()
     r:SetPoint("TOPLEFT", win.listChild, "TOPLEFT", 0, -y)
@@ -402,6 +407,14 @@ local function drawPicked()
   d.name:SetText(nameOf(id) or ("Recipe " .. id))
   local reagents, made = schematic(id)
   local y = 64
+  -- "Requires Blacksmithing (125)", as the game words it, when the skill it needs is known.
+  local needs, profession = ns.recipeSkill(id)
+  d.requires:SetShown(needs ~= nil)
+  if needs then
+    d.requires:SetText(string.format("Requires %s (%d)", profession, needs))
+    d.requires:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(y - 6))
+    y = y + 14
+  end
   d.reagentTitle:SetShown(#reagents > 0)
   if #reagents > 0 then
     d.reagentTitle:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -y)
@@ -605,6 +618,7 @@ local function build()
   d.name = ui.text(d.recipe, "GameFontHighlightLarge")
   d.name:SetPoint("LEFT", d.icon, "RIGHT", 12, 0)
   d.name:SetWidth(320)
+  d.requires = ui.text(d, "GameFontHighlightSmall")
   d.reagentTitle = ui.text(d, "GameFontNormalSmall", "Reagents:")
   ui.tint(d.reagentTitle, C.accent)
   d.madeTitle = ui.text(d, "GameFontNormalSmall", "Makes:")

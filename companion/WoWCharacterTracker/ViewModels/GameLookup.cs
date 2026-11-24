@@ -6,6 +6,8 @@ namespace WoWCharacterTracker.ViewModels;
 sealed class GameLookup(Flavor flavor, Action loaded)
 {
     readonly Dictionary<(string Type, int Id), ItemInfo> infos = [];
+
+    public Flavor Flavor => flavor;
     Dictionary<int, int> itemClasses = [];
 
     public ItemInfo Item(int id) => For("item", id);

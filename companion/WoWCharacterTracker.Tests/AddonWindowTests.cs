@@ -102,7 +102,7 @@ public class AddonWindowTests
     {
         var c = new FriendsLuaTests.Client(Me, "{}", db, settings);
         c.Lua(Widgets);
-        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "RecipeWindow.lua", "Shell.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
+        foreach (var file in new[] { "Today.lua", "NoteBox.lua", "Ui.lua", "RecipeSkills.lua", "RecipeWindow.lua", "Shell.lua", "Home.lua", "Window.lua", "Options.lua", "Commands.lua" })
             c.Script.Call(c.Script.LoadString(File.ReadAllText(Path.Combine(AddonLuaTests.AddonDir, file)), codeFriendlyName: file), "WoWCharacterTracker", c.Ns);
         return c;
     }

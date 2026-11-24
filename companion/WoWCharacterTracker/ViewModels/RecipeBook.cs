@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace WoWCharacterTracker.ViewModels;
 
 // One character's recipes in a profession, laid out like the game's profession window
@@ -79,6 +81,11 @@ sealed class RecipeCategory : Observable
 sealed class RecipeEntry(ItemInfo info, CharacterRow row) : Observable
 {
     public ItemInfo Info { get; } = info;
+    // The skill it needs, when known for this game: "125" at the row's end, "Requires Blacksmithing (125)" on the right.
+    readonly (string Profession, int Skill)? required = row.Game is { } game ? RecipeSkills.For(game, info.ItemId) : null;
+    public string SkillText => required is { } r ? r.Skill.ToString(CultureInfo.InvariantCulture) : "";
+    public string RequiresText => required is { } r ? $"Requires {r.Profession} ({r.Skill})" : "";
+    public bool HasRequires => required is not null;
     bool isSelected;
     public bool IsSelected { get => isSelected; set => Set(ref isSelected, value); }
 

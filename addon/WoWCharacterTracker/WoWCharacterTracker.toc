@@ -35,6 +35,7 @@ MapPins.lua
 MapPins.xml
 NoteBox.lua
 Ui.lua
+RecipeSkills.lua
 RecipeWindow.lua
 ReputationWindow.lua
 Shell.lua
