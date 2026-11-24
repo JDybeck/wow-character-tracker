@@ -602,7 +602,8 @@ local function facts(c)
   end
   add("Faction", ui.FACTION_ICONS[c.faction or ""] and c.faction, ui.FACTION_ICONS[c.faction or ""])
   add("Gold", (c.money or 0) >= 10000 and ns.formatGold(c.money) or (c.money and c.money > 0 and gold(c.money)))
-  add("Talents", ui.talentText(c.talents))
+  local talents = ui.talentText(c.talents)
+  if talents then out[#out + 1] = { "Talents", talents, nil, true } end -- a whole row: it's long
   return out
 end
 
@@ -859,9 +860,6 @@ local function newExpansion(p, width)
   ui.box(ex, C.bar, C.border)
   ex.half = math.floor((width - 36) / 2)
   ex.left, ex.right, ex.profs = {}, {}, {}
-  ex.levelTitle = ui.text(ex, "GameFontNormalSmall", "Level times")
-  ui.tint(ex.levelTitle, C.accent)
-  ex.noLevels = ui.text(ex, "GameFontDisableSmall", "No level times shared.")
   ex.chart = ui.levelChart(ex, 30, EXPAND_CHART, math.floor(ex.half / 30))
   return ex
 end
@@ -889,23 +887,21 @@ end
 
 -- Fills the info for c and returns its height.
 local function drawExpansion(ex, c, friend)
-  local left = ui.factTiles(ex, ex.left, facts(c), 12, 12, ex.half, 2)
-  left = ui.professionRows(ex, ex.profs, ui.parseProfessions(c.professions), 12, left + (left > 12 and 12 or 0), ex.half)
+  -- Both columns start at the same line and step in the same rhythm (Ui.lua FACT_TILE, FACT_GAP).
+  local top = 12
+  local left = ui.factTiles(ex, ex.left, facts(c), 12, top, ex.half, 2)
+  local profs = ui.parseProfessions(c.professions)
+  if #profs > 0 then left = ui.professionRows(ex, ex.profs, profs, 12, left > top and (left + ui.FACT_GAP) or top, ex.half) - ui.FACT_GAP
+  else ui.professionRows(ex, ex.profs, profs, 12, left, ex.half) end
   local x = 24 + ex.half
-  place(ex.levelTitle, ex, x, 10)
   local levels = levelsOf(c)
-  local right = ui.factTiles(ex, ex.right, ns.levelingFacts(levels, c), x, 28, ex.half, 2)
-  ex.noLevels:SetShown(#levels == 0)
-  if #levels == 0 then
-    place(ex.noLevels, ex, x, right)
-    right = right + 16
-  end
+  local right = ui.factTiles(ex, ex.right, ns.levelingFacts(levels, c), x, top, ex.half, 2)
   ex.chart:SetShown(#levels > 0)
   if #levels > 0 then
-    place(ex.chart, ex, x, right + 4)
+    place(ex.chart, ex, x, right + ui.FACT_GAP)
     local playing = (c.levelTime or 0) > 0 and c.level and not (c.maxLevel and c.level >= c.maxLevel)
     ex.chart.draw(levels, playing and { level = c.level + 1, seconds = c.levelTime } or nil)
-    right = right + 4 + EXPAND_CHART
+    right = right + ui.FACT_GAP + EXPAND_CHART
   end
   -- Hide (or show again): out of the list, and the info folds away.
   ex.hide = ex.hide or cardButton(ex, 110)
@@ -917,7 +913,7 @@ local function drawExpansion(ex, c, friend)
     if highlights then highlights:Hide() end
     redrawTab()
   end)
-  local h = math.max(left, right) + 10
+  local h = math.max(left, right) + 14
   place(ex.hide, ex, ex.width - 122, h)
   -- Highlights (the panel beside the window), your own character's reputations (ReputationWindow.lua),
   -- then a button per profession with known recipes, which opens them in the recipe window (RecipeWindow.lua).
@@ -1155,7 +1151,7 @@ end
 
 local function drawRequest(box)
   box.info:SetText(requestText(box))
-  box.toggle:SetText(box.open and "Choose what they get  ^" or "Choose what they get  v")
+  ui.setToggle(box.toggle, "Choose what they get", box.open)
   box.choicesFrame:SetShown(box.open)
   box:SetHeight(box.open and REQUEST_TALL or REQUEST_SHORT)
   ui.refresh(box.choicesFrame) -- the checkboxes
@@ -1530,8 +1526,11 @@ local function buildFriends(p)
   end, "primary")
   -- What all friends get is on the Sharing tab; this opens it there.
   local yours = ui.button(p, "What you share", 120, function() ns.showShareDefaults() end)
+  -- Everyone's professions in one list (RecipeWindow.lua), not one friend at a time.
+  local professions = ui.button(p, "Professions", 110, function() ns.openProfessions() end)
+  ui.buttonIcon(professions, "Trade_BlackSmithing")
   local hint = ui.text(p, "GameFontDisableSmall", "Click a friend for their characters and nickname, drag one to reorder.")
-  hint:SetWidth(width - 300)
+  hint:SetWidth(width - 420)
   local status = ui.text(p, "GameFontHighlightSmall")
   status:SetWidth(ui.WRAP)
 
@@ -1773,7 +1772,8 @@ local function buildFriends(p)
     place(friendsTitle, p, 16, y)
     place(find, p, 16 + width - 150, y - 4)
     place(yours, p, 16 + width - 150 - 6 - 120, y - 4)
-    hint:SetWidth(width - 300)
+    place(professions, p, 16 + width - 150 - 6 - 120 - 6 - 110, y - 4)
+    hint:SetWidth(width - 420)
     y = y + 20
     place(hint, p, 16, y)
     y = y + textHeight(hint, 24) + 6
