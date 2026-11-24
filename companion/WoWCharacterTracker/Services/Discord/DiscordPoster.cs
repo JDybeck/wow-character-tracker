@@ -109,7 +109,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         var url = other is null
             ? Wowhead.TalentCalcUrl(flavor, c.ClassFile, c.TalentCalc, c.TalentExport)
             : Wowhead.TalentCalcUrl(flavor, c.ClassFile, other.TalentCalc, "");
-        var talents = other?.Talents ?? c.Talents;
+        var talents = Format.TalentsWithPoints(other?.Talents ?? c.Talents);
         var lines = new List<string> { $"**Level {c.Level} {other?.Description ?? c.Description}**".Replace("  ", " ") };
         if (talents.Length > 0) lines.Add(talents);
         var title = other is null ? $"{CharacterName(c)}'s talents" : $"{CharacterName(c)}'s {other.Build.Name.ToLowerInvariant()} talents";
@@ -195,7 +195,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
         Field("gold", "Gold", c.HasMoney ? Format.Money(c.Money) : "");
         Field("crests", "Crests", Format.Crests(c.Crests));
         Field("professions", "Professions", Format.ProfessionsWithEmoji(c.Professions), inline: false);
-        Field("talents", "Talents", c.TalentsText, inline: false);
+        Field("talents", "Talents", Format.TalentsWithPoints(c.Talents), inline: false);
         Field("zone", "Last seen", c.ZoneText != "-" ? $"{c.ZoneText}, {c.LastSeenText}" : c.LastSeenText, inline: false);
         if (c.Levels.Count > 0)
             Field("levels", "Recent levels", string.Join("\n", c.Levels.Take(3).Select(l => $"{l.LevelText}: **{l.Took}**")), inline: false);

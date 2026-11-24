@@ -320,6 +320,23 @@ public class StreamTests
     [InlineData("", "")]
     public void Talents_as_numbers(string talents, string shown) => Assert.Equal(shown, Format.TalentNumbers(talents));
 
+    [Theory]
+    [InlineData("Beast Mastery 31 / Marksmanship 9 / Survival 0", "Beast Mastery 31 / Marksmanship 9")]
+    [InlineData("Arms 0 / Fury 10 / Protection 0", "Fury 10")]
+    [InlineData("Discipline 35 / Holy 10 / Shadow 16", "Discipline 35 / Holy 10 / Shadow 16")]
+    [InlineData("Arms 0 / Fury 0 / Protection 0", "")]
+    [InlineData("", "")]
+    public void Talents_without_empty_trees(string talents, string shown) => Assert.Equal(shown, Format.TalentsWithPoints(talents));
+
+    [Fact]
+    public void Level_up_post_leaves_out_empty_talent_trees()
+    {
+        var e = new Entry { Kind = "level", Char = "Potatohead", Level = 50, At = 1, Talents = "Beast Mastery 31 / Marksmanship 9 / Survival 0" };
+        var text = (string)new WoWCharacterTracker.Services.Discord.EventEmbeds(Flavors.Forever).Build(e, isTest: false)["description"];
+        Assert.Contains("**Talents:** Beast Mastery 31 / Marksmanship 9", text);
+        Assert.DoesNotContain("Survival", text);
+    }
+
     [Fact]
     public void Played_at_this_level_counts_from_the_ding()
     {
