@@ -5,9 +5,9 @@ local on = {}
 local professionsWaiting = false -- skill-ups during a fight, checked when it ends
 local reputationsWaiting = false -- reputation gains during a fight, read when it ends
 
--- A chat reminder to /reload after the bank, mailbox, a vendor or the auction house, or leaving a
+-- The rare chat line about /reload after the bank, mailbox, a vendor or the auction house, or leaving a
 -- dungeon (Events.lua remindReload), once the bag scan that follows has run.
-local function remindSoon() C_Timer.After(4, function() ns.remindReload(true) end) end
+local function remindSoon() C_Timer.After(4, ns.remindReload) end
 
 function on.ADDON_LOADED(name)
   if name == "Blizzard_WorldMap" then return ns.attachMapPins() end -- loaded on demand on some clients
@@ -83,8 +83,7 @@ function on.PLAYER_ENTERING_WORLD(isInitialLogin)
     if ns.IS_RETAIL and type(RequestRatedInfo) == "function" then RequestRatedInfo() end -- answered with PVP_RATED_STATS_UPDATE
   end
   if not ns.snapshotTicker and C_Timer.NewTicker then ns.snapshotTicker = C_Timer.NewTicker(300, snapshotTick) end
-  -- The chat reminder to /reload: every 30 minutes (checked every 5), and when leaving a dungeon.
-  if not ns.reminderTicker and C_Timer.NewTicker then ns.reminderTicker = C_Timer.NewTicker(300, function() ns.remindReload(false) end) end
+  -- The rare /reload line in chat (Events.lua remindReload) when leaving a dungeon.
   local inInstance = IsInInstance and IsInInstance() or false
   if ns.wasInInstance and not inInstance then remindSoon() end
   ns.wasInInstance = inInstance

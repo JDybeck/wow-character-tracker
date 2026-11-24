@@ -188,7 +188,6 @@ class FlavorSettings
     public Dictionary<string, bool> PostScreenshot { get; set; } = [];
     public bool HideChatInShots { get; set; } = true; // chat made see-through while a screenshot is taken
     public bool HideUiInShots { get; set; } // the whole interface hidden for the shot, like Alt+Z
-    public bool ChatReloadReminder { get; set; } = true; // and reminds in chat (good moments, every 30 minutes)
     // The addon's saved history: off keeps only the newest 300 loot, duels and battlegrounds per
     // character (Shared.lua trimEvents); on keeps everything.
     public bool KeepAllHistory { get; set; }
@@ -241,7 +240,6 @@ class FlavorSettings
         (AnnounceGuild, AnnounceParty) = (game.AnnounceGuild ?? AnnounceGuild, game.AnnounceParty ?? AnnounceParty);
         (AnnounceKinds, AnnouncePartyKinds) = (game.AnnounceKinds ?? AnnounceKinds, game.AnnouncePartyKinds ?? AnnouncePartyKinds);
         AskKinds = game.AskKinds ?? AskKinds;
-        ChatReloadReminder = game.ChatReminder ?? ChatReloadReminder;
         KeepAllHistory = game.KeepAllHistory ?? KeepAllHistory;
         AskSeconds = game.AskSeconds is int seconds ? AskSecondsOrDefault(seconds) : AskSeconds;
         (GridCorner, GridLabel) = (game.GridCorner is { } corner ? CornerOrDefault(corner) : GridCorner, game.GridLabel ?? GridLabel);
