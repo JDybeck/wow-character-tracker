@@ -467,3 +467,36 @@ public class SharingPresetsTests
         Assert.False(s.PostMounts);
     }
 }
+
+public class AccountGoldTests
+{
+    static CharacterRow Row(string guid, long money)
+    {
+        var snap = Snapshot.Of(new Entry { Guid = guid, Char = guid, Realm = "Firemaw", Level = 40, Money = money, At = 1_800_000_000 });
+        return CharacterRow.Build(new TrackerData([], [snap]), Flavors.Forever, new GameLookup(Flavors.Forever, () => { })).Single();
+    }
+
+    // Like the addon: the Gold tile's label adds up every character's gold.
+    [Fact]
+    public void Gold_label_is_the_account_total()
+    {
+        var hero = Row("a", 4_980_000);
+        List<CharacterRow> rows = [hero, Row("b", 120_000_000), Row("c", 0)];
+        Assert.Equal("12,498g account", HomeViewModel.AccountGold(rows, hero));
+    }
+
+    [Fact]
+    public void Gold_label_is_plain_with_no_other_gold()
+    {
+        var hero = Row("a", 4_980_000);
+        Assert.Equal("Gold", HomeViewModel.AccountGold([hero, Row("c", 0)], hero));
+        Assert.Equal("Gold", HomeViewModel.AccountGold([], null));
+    }
+
+    [Fact]
+    public void Test_characters_stay_out_of_a_real_total()
+    {
+        var hero = Row("a", 10_000);
+        Assert.Equal("Gold", HomeViewModel.AccountGold([hero, Row(TestCharacters.GuidPrefix + "x", 50_000_000)], hero));
+    }
+}

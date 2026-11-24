@@ -186,7 +186,7 @@
               <StackPanel><TextBlock Style="{StaticResource TileValue}" Text="{Binding ItemLevel}"/><TextBlock Style="{StaticResource Hint}" Text="Item level"/></StackPanel>
             </Border>
             <Border Style="{StaticResource Tile}" Visibility="{Binding Gold, Converter={StaticResource VisibleIfSet}}">
-              <StackPanel><TextBlock Style="{StaticResource TileValue}" Text="{Binding Gold}"/><TextBlock Style="{StaticResource Hint}" Text="Gold"/></StackPanel>
+              <StackPanel><TextBlock Style="{StaticResource TileValue}" Text="{Binding Gold}"/><TextBlock Style="{StaticResource Hint}" Text="{Binding DataContext.GoldLabel, ElementName=Root}"/></StackPanel>
             </Border>
             <Border Style="{StaticResource Tile}" Visibility="{Binding Played, Converter={StaticResource VisibleIfSet}}">
               <StackPanel><TextBlock Style="{StaticResource TileValue}" Text="{Binding Played}"/><TextBlock Style="{StaticResource Hint}" Text="Played"/></StackPanel>
