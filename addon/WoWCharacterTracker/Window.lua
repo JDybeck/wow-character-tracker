@@ -1142,8 +1142,10 @@ local REQUEST_WIDTH = 440
 local REQUEST_SHORT, REQUEST_TALL = 150, 314
 local PRESETS = {
   { "Like all friends" },
-  { "Everything", { gear = true, talents = true, location = true, professions = true, reputations = true, highlights = true, leveling = true, gold = true, map = true } },
-  { "Basics only", { gear = false, talents = false, location = false, professions = false, reputations = false, highlights = false, leveling = false, gold = false, map = false } },
+  { "Everything", { gear = true, talents = true, location = true, professions = true, reputations = true, highlights = true, leveling = true, gold = true, map = true,
+    otherFaction = true } },
+  { "Basics only", { gear = false, talents = false, location = false, professions = false, reputations = false, highlights = false, leveling = false, gold = false, map = false,
+    otherFaction = false } },
 }
 local requestBox
 
@@ -1211,7 +1213,7 @@ local function buildRequestBox()
     last = b
     if i == 1 then box.firstPreset = b end
   end
-  for i, key in ipairs(ns.SHARE_CATEGORIES or {}) do
+  for i, key in ipairs(ns.SHARE_CHOICES or {}) do
     local cb = ui.checkbox(choices, CATEGORY_NAMES[key] or key, nil,
       function() return box.choices and box.choices[key] == true end,
       function(on)
@@ -1294,7 +1296,7 @@ local function buildAskBox()
     function(on) box.sendMine = on end)
   send:SetPoint("TOPLEFT", box.line, "BOTTOMLEFT", -4, -8)
   local items = {}
-  for _, key in ipairs(ns.SHARE_CATEGORIES or {}) do items[#items + 1] = { key, CATEGORY_NAMES[key] or key } end
+  for _, key in ipairs(ns.SHARE_CHOICES or {}) do items[#items + 1] = { key, CATEGORY_NAMES[key] or key } end
   local last = ui.checkTable(box, items, { { "give", "You share" }, { "ask", "You ask for" } }, send,
     function(column, key) return box[column] and box[column][key] == true end,
     function(column, key, on) box[column][key] = on end)
@@ -1306,7 +1308,7 @@ local function buildAskBox()
   cancel:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -14, 14)
   local go = ui.button(box, "Ask", 90, function()
     local wants = {}
-    for _, key in ipairs(ns.SHARE_CATEGORIES or {}) do
+    for _, key in ipairs(ns.SHARE_CHOICES or {}) do
       if box.ask[key] then wants[#wants + 1] = key end
     end
     local said = ns.askFriend(box.tag, wants, box.sendMine and box.give or nil)
@@ -1314,7 +1316,7 @@ local function buildAskBox()
     if box.onSaid then box.onSaid(said) end
   end, "primary")
   go:SetPoint("RIGHT", cancel, "LEFT", -6, 0)
-  box:SetHeight(466)
+  box:SetHeight(492)
   askBox = box
 end
 
