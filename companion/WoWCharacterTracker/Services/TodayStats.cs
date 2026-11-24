@@ -4,13 +4,12 @@ namespace WoWCharacterTracker.Services;
 
 // Home's TODAY numbers, one character's or every character of the game (guid null), most important
 // first: the addon's ns.todayStats (Today.lua) with the same order, plus what the app posted. Only
-// stats above 0, padded to Shown with the main ones at 0 (pad false: no padding); the rest folds
+// stats above 0 (a 0 says nothing; a quiet day has none); the rest folds
 // behind "more".
 static class TodayStats
 {
     public const int Shown = 4;
 
-    static readonly string[] Main = ["levels", "bosses", "epics", "mounts"];
     static readonly string[] Order = ["levels", "bosses", "epics", "mounts", "ilvl", "quests", "gold", "herbs", "ore", "skins", "fish", "posted"];
     static readonly Dictionary<string, string> Names = new()
     {
@@ -19,7 +18,7 @@ static class TodayStats
     };
 
     public static List<TodayCount> Build(IEnumerable<Entry> events, IEnumerable<DayTotals> days, IReadOnlySet<string> sent, bool keys, DateTime now,
-        string? guid = null, bool pad = true)
+        string? guid = null)
     {
         var v = Order.ToDictionary(k => k, _ => 0.0);
 
@@ -45,7 +44,6 @@ static class TodayStats
         if (v["gold"] < 100) v["gold"] = 0; // less than a silver isn't worth a spot
 
         var shown = Order.Where(k => v[k] > 0).ToList();
-        if (pad) shown.AddRange(Main.Where(k => v[k] == 0).Take(Math.Max(0, Shown - shown.Count)));
         return [.. shown.Select(k => new TodayCount(Value(k, v[k]), Name(k, v[k], keys)))];
     }
 
@@ -66,7 +64,7 @@ static class TodayStats
         var dayList = days as IReadOnlyCollection<DayTotals> ?? [.. days];
         var guids = EventsOf(list, now).Select(e => e.Guid).Concat(DaysOf(dayList, now).Select(d => d.Guid)).Where(g => g.Length > 0).Distinct();
         return guids
-            .Select(g => (g, counts: Build(list, dayList, sent, keys, now, g, pad: false)))
+            .Select(g => (g, counts: Build(list, dayList, sent, keys, now, g)))
             .Where(x => x.counts.Count > 0)
             .ToDictionary(x => x.g, x => x.counts);
     }

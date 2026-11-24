@@ -106,7 +106,7 @@ public class TodayStatsTests
         Assert.Equal(2, script.DoString("return WoWCharacterTrackerDB.today['Player-1-0000000A'].quests").Number);
     }
 
-    // Main stats at 0 only fill up to four; above 0 goes first, in the same order and wording both sides.
+    // Only stats above 0, in the same order and wording both sides.
     [Fact]
     public void The_addon_and_the_app_rank_today_the_same()
     {
@@ -160,10 +160,14 @@ public class TodayStatsTests
     }
 
     [Fact]
-    public void A_quiet_day_shows_the_four_main_stats()
+    public void A_quiet_day_shows_only_what_happened_and_no_zeros()
     {
         var stats = TodayStats.Build([], [new("a", "2026-11-09", 0, 0, 0, 0, 2, 0, 0, 0, 0)], new HashSet<string>(), keys: true, Now);
-        Assert.Equal(["2 quests", "0 levels", "0 keys", "0 epics"], stats.Select(s => $"{s.Value} {s.What}"));
+        Assert.Equal(["2 quests"], stats.Select(s => $"{s.Value} {s.What}"));
+        Assert.Empty(TodayStats.Build([], [], new HashSet<string>(), keys: true, Now));
+
+        var (script, _) = Load();
+        Assert.Equal(0, script.DoString("return #ns.todayStats({}, {}, '2026-11-09', 0, true)").Number);
     }
 
     [Fact]

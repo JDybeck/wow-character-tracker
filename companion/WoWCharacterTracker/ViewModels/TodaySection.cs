@@ -12,6 +12,7 @@ sealed class TodaySection(string title) : Observable
     bool open;
 
     public IReadOnlyList<TodayCount> Items => open ? all : [.. all.Take(TodayStats.Shown)];
+    public bool HasItems => all.Count > 0; // a quiet day: no TODAY at all
     public bool HasMore => all.Count > TodayStats.Shown;
     public string ToggleText => open ? "Less" : $"+{all.Count - TodayStats.Shown} more";
 
@@ -30,6 +31,7 @@ sealed class TodaySection(string title) : Observable
     void Refresh()
     {
         Raise(nameof(Items));
+        Raise(nameof(HasItems));
         Raise(nameof(HasMore));
         Raise(nameof(ToggleText));
     }

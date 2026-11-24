@@ -116,7 +116,7 @@ public class AddonWindowTests
     public void Home_shows_the_character_with_its_level_times()
     {
         var c = Load("""
-            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', ilvl = 35, played = 90000 } }, items = {}, events = {
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', ilvl = 35, played = 90000 }, ['Player-1-0000000B'] = { char = 'Alt', money = 12000000 } }, items = {}, events = {
               { kind = 'level', guid = 'Player-1-0000000A', char = 'Zeb', level = 44, seconds = 3600, at = 10 },
               { kind = 'level', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, seconds = 10440, at = 20 },
               { kind = 'boss', guid = 'Player-1-0000000A', char = 'Zeb', level = 45, boss = 'Archaedas', instance = 'Uldaman', at = 30 } } }
@@ -127,6 +127,7 @@ public class AddonWindowTests
             function UnitClass() return 'Warrior', 'WARRIOR' end
             function UnitRace() return 'Night Elf' end
             function UnitXP() return 1000 end
+            function GetMoney() return 3400000 end
             function UnitXPMax() return 4000 end
             function GetMaxPlayerLevel() return 60 end
             function date() return { year = 2026, month = 11, day = 9 } end
@@ -140,6 +141,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Night Elf Warrior') ~= nil"));
         Assert.True(Bool(c, "shownText(45) ~= nil")); // the level, on the portrait's badge
         Assert.True(Bool(c, "shownText('25% to 46  ·  20m 0s on this level') ~= nil")); // under the XP bar
+        Assert.True(Bool(c, "shownText('1,540g account') ~= nil")); // 340g here and 1,200g on the alt
         Assert.True(Bool(c, "shownText('44 to 45 took 2h 54m  ·  average 1h 57m') ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
         // The level history is folded until opened, and stays as you left it.
@@ -292,6 +294,8 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('+1 |cff9a9a9aitem level|r') ~= nil"));
         Assert.True(Bool(c, "shownText('3 |cff9a9a9aveins|r') ~= nil"));
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') == nil"));
+        Assert.True(Bool(c, "shownText('?') == nil")); // unknown values hide instead of showing "?"
+        Assert.True(Bool(c, "shownText('Item level') == nil")); // and an unknown tile hides
         c.Lua("click('+2 more  v')");
         Assert.True(Bool(c, "shownText('1 |cff9a9a9askins|r') ~= nil"));
         Assert.True(Bool(c, "shownText('5 |cff9a9a9afish|r') ~= nil"));
@@ -1215,6 +1219,28 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('7g 0s 0c') ~= nil"));
     }
 
+    // With room to spare the rows grow (a bigger portrait, a line more with guild, gold and played);
+    // a list that fills the page stays compact.
+    [Fact]
+    public void Character_rows_grow_while_they_fit_and_stay_compact_when_they_dont()
+    {
+        string Db(int count)
+        {
+            var chars = string.Join(",\n", Enumerable.Range(1, count).Select(i =>
+                $"['Player-1-{i:D8}'] = {{ char = 'Char{i}', level = 60, classFile = 'MAGE', lastSeen = {i}, money = 12345678, played = 360000, guild = 'Zebs' }}"));
+            return $"{{ chars = {{ {chars} }}, items = {{}}, events = {{}} }}";
+        }
+        var few = Load(Db(3));
+        few.Call("openWindow", "characters");
+        Assert.True(Bool(few, "shownText('Char1').owner.portrait.width == 48"));
+        Assert.True(Bool(few, "shownText('<Zebs>  ·  1,234g  ·  4d 4h 0m played') ~= nil"));
+
+        var many = Load(Db(10));
+        many.Call("openWindow", "characters");
+        Assert.True(Bool(many, "shownText('Char1').owner.portrait.width == 28"));
+        Assert.True(Bool(many, "shownText('<Zebs>  ·  1,234g  ·  4d 4h 0m played') == nil"));
+    }
+
     // A row's portrait: the app's picture (Portraits.lua's slot) over the class icon; without one the
     // class icon, and the character being played gets its live portrait.
     [Fact]
@@ -1252,6 +1278,9 @@ public class AddonWindowTests
         c.Lua(FriendStubs);
         c.Lua("""
             shared[1].chars[1].highlights = 'boss~99000~60~Ragnaros~Molten Core~40'
+            shared[1].chars[1].levels, shared[1].chars[1].maxLevel = '60~9960~98000', 60
+            shared[1].chars[1].guid = 'Player-1-0000000F'
+            WoWCharacterTrackerPortraits = { ['Player-1-0000000F'] = 3 }
             function UnitLevel() return 10 end
             function UnitClass() return 'Mage', 'MAGE' end
             function date() return { year = 2026, month = 11, day = 9 } end
@@ -1262,6 +1291,13 @@ public class AddonWindowTests
         c.Call("openWindow", "home");
         Assert.True(Bool(c, "shownText(\"Friends' moments\") ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
+        // A moment that isn't about an item shows the character's portrait.
+        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\3", c.Lua("return shownText('Killed Ragnaros in Molten Core!').owner.portrait.face.texture").String);
+        Assert.False(Bool(c, "shownText('Killed Ragnaros in Molten Core!').owner.icon.shown"));
+        // At max level the hover is their latest moment, not how long 59 to 60 took.
+        var tip = c.Lua("return shownText('Cidrin Frostmane').owner.full").String;
+        Assert.StartsWith("Cidrin Frostmane: Killed Ragnaros in Molten Core!", tip);
+        Assert.DoesNotContain("took", tip);
         c.Lua("local r = shownText('Killed Ragnaros in Molten Core!').owner; r.scripts.OnMouseUp(r)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
         Assert.True(Bool(c, "shownText('Cidrin Frostmane') ~= nil"));
