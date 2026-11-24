@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
 namespace WoWCharacterTracker.Services;
@@ -26,6 +27,29 @@ static partial class Realms
         var name = Type(realm) ?? realm;
         return region.Length > 0 && name.Length > 0 ? $"{region.ToUpperInvariant()} · {name}" : name;
     }
+
+    // Realms seen per server number of a player GUID ("Player-6948-0065F3EA" -> "6948"), the same for
+    // every character on one realm. Forever's client gives "" for the realm name since November 2026,
+    // so a character, event or friend without one still shows its realm (and ruleset, "EU · PvP").
+    static readonly ConcurrentDictionary<string, string> known = new();
+
+    // The realm, or when it's "" the one seen before for the GUID's server ("" if none). A realm that
+    // is there is remembered; a friend's (fromFriend) only for a server we know nothing of yet.
+    public static string Of(string guid, string realm, bool fromFriend = false)
+    {
+        var server = ServerOf().Match(guid) is { Success: true } m ? m.Groups[1].Value : null;
+        if (server is null) return realm;
+        if (realm.Length > 0)
+        {
+            if (fromFriend) known.TryAdd(server, realm);
+            else known[server] = realm;
+            return realm;
+        }
+        return known.GetValueOrDefault(server, "");
+    }
+
+    [GeneratedRegex(@"^Player-(\d+)-")]
+    private static partial Regex ServerOf();
 
     // Battle.net's way of writing a realm: no spaces, hyphens or apostrophes.
     [GeneratedRegex(@"[\s\-']")]

@@ -136,7 +136,7 @@ record Entry
             Kind = s("kind") is { Length: > 0 } k ? k : "level",
             Guid = guid.Length > 0 ? guid : GuidFromId(id),
             Char = s("char") is { Length: > 0 } c ? c : "?",
-            Realm = s("realm"),
+            Realm = Realms.Of(guid.Length > 0 ? guid : GuidFromId(id), s("realm")),
             Level = (int)n("level"),
             At = (long)n("at"),
             Zone = s("zone"),

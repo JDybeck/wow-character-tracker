@@ -432,7 +432,8 @@ local fullName = ns.fullName
 
 -- "Zeb Stonehand (Firemaw)": tells characters apart when there's no guid.
 local function charTitle(c)
-  return c.realm and string.format("%s (%s)", fullName(c), c.realm) or fullName(c)
+  local realm = ns.realmOf(c.guid, c.realm)
+  return realm and string.format("%s (%s)", fullName(c), realm) or fullName(c)
 end
 
 -- The item's name ("item 12345" until the game has it cached) and its quality color, white without one.
@@ -571,12 +572,13 @@ local function facts(c)
   local function add(label, value, tex) if value and value ~= "" then out[#out + 1] = { label, value, tex } end end
   -- Forever has no realm to speak of, only a ruleset: the realm name's type ("CAMWOW EU5 Realm 6 PvP"
   -- -> "PvP"), plus the game's rules (Hardcore, Self-found) when they aren't the usual ones.
-  local realmType = not ns.IS_RETAIL and ns.realmType(c.realm)
+  local realm = ns.realmOf(c.guid, c.realm)
+  local realmType = not ns.IS_RETAIL and ns.realmType(realm)
   local rules = c.ruleset ~= "Normal" and c.ruleset or nil
   if realmType then
     add("Ruleset", rules and string.format("%s, %s", realmType, rules) or realmType)
   else
-    add("Realm", c.realm)
+    add("Realm", realm)
     add("Ruleset", rules)
   end
   add("Gold", (c.money or 0) >= 10000 and ns.formatGold(c.money) or (c.money and c.money > 0 and gold(c.money)))

@@ -391,6 +391,27 @@ public class FriendMapLuaTests
         Assert.Equal(type, Realms.Type(realm)); // the app reads realms the same way
     }
 
+    // Forever's client gives "" for GetRealmName(): the realm saved for the server (the GUID's number)
+    // is used, so the character keeps its realm and ruleset.
+    [Fact]
+    public void Without_a_realm_name_from_the_game_the_one_saved_for_the_server_is_used()
+    {
+        var (_, b) = Pair();
+        b.Lua("""
+            WoWCharacterTrackerDB.chars = { ['Player-6948-0001'] = { guid = 'Player-6948-0001', realm = 'CAMWOW EU5 Realm 6 PvP' } }
+            WoWCharacterTrackerDB.realms = nil
+            function GetRealmName() return '' end
+            GetNormalizedRealmName = nil
+            function UnitGUID(u) return 'Player-6948-0002' end
+            """);
+        Assert.Equal("CAMWOW EU5 Realm 6 PvP", b.Lua("return ns.currentRealm()").String);
+        Assert.Equal("CAMWOW EU5 Realm 6 PvP", b.Lua("return ns.realmOf('Player-6948-0003', '')").String);
+        Assert.True(b.Lua("return ns.realmOf('Player-1234-0003', '')").IsNil()); // never seen: nothing
+        b.Lua("function GetRealmName() return 'CAMWOW EU5 Realm 6 PvE' end");
+        Assert.Equal("CAMWOW EU5 Realm 6 PvE", b.Lua("return ns.currentRealm(true)").String); // the game's own wins
+        Assert.Equal("CAMWOW EU5 Realm 6 PvE", b.Lua("return WoWCharacterTrackerDB.realms['6948']").String);
+    }
+
     [Theory]
     [InlineData("Creature-0-6843-0-8-299-00001A2B3C", "6843,0")]
     [InlineData("Vehicle-0-6843-1-12-3456-00001A2B3C", "6843,1")]

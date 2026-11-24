@@ -491,7 +491,7 @@ function ns.characterInfo(forEvent)
     guid = UnitGUID("player"),
     char = safe(UnitName, "player"),
     surname = safe(getSurname),
-    realm = safe(GetRealmName),
+    realm = safe(ns.currentRealm, true),
     region = safe(getRegion),
     level = safe(UnitLevel, "player"),
     zone = safe(getZone),
