@@ -8,6 +8,7 @@ record FriendContact(string Tag, long Seen, string Version, int Protocol, bool R
 {
     public List<DayTotals> Days { get; init; } = []; // their characters' last days (quests, gathering, item level), for the Stats page
     public List<string> Shares { get; init; } = []; // what they share with you (FriendData.SharedCategories), in ShareCategories order
+    public string Main { get; init; } = ""; // the character they marked as their main (FriendData.MainOf), "" for none
 }
 
 // The categories in the addon's order (Friends.lua CATEGORIES) and how a summary words them.

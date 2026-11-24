@@ -478,6 +478,40 @@ public class FriendDataTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
+    // Your main and pinned characters: picked in game they're read and taken when newer, and the
+    // app's go to Settings.lua with their time.
+    [Fact]
+    public void Own_picks_go_both_ways_and_the_newer_wins()
+    {
+        var read = SavedVariables.ReadOwnPicks(Lua("{ main = 'Player-1-0000000C', pinned = { 'Player-1-0000000D', 'Player-1-0000000D' }, at = 900 }"))!;
+        Assert.Equal("Player-1-0000000C", read.Main);
+        Assert.Equal(["Player-1-0000000D"], read.Pinned);
+        Assert.Null(SavedVariables.ReadOwnPicks(Lua("{ main = 'Player-1-0000000C' }"))); // no time
+        var s = new FlavorSettings { OwnMain = "Player-1-0000000A", OwnPicksAt = 950 };
+        Assert.False(s.TakeOwnPicks(read));
+        s.OwnPicksAt = 800;
+        Assert.True(s.TakeOwnPicks(read));
+        Assert.Equal("Player-1-0000000C", s.OwnMain);
+        s.SetOwnPinned("Player-1-0000000E", true);
+        s.SetOwnMain("");
+        Assert.Equal(["Player-1-0000000D", "Player-1-0000000E"], s.OwnPinned);
+        Assert.True(s.OwnPicksAt > 900);
+
+        var dir = Path.Combine(Path.GetTempPath(), "wct-picks-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker"));
+            s.SetOwnMain("Player-1-0000000C");
+            AddonInstaller.WriteSettings(dir, s);
+            var script = new Script();
+            script.DoString(File.ReadAllText(Path.Combine(dir, "Interface", "AddOns", "WoWCharacterTracker", "Settings.lua")));
+            Assert.Equal("Player-1-0000000C", script.DoString("return WoWCharacterTrackerSettings.ownMain").String);
+            Assert.Equal("Player-1-0000000E", script.DoString("return WoWCharacterTrackerSettings.ownPinned[2]").String);
+            Assert.Equal(s.OwnPicksAt, (long)script.DoString("return WoWCharacterTrackerSettings.ownPicksAt").Number);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // A drag only knows the friends that page shows: they swap among their own places, everyone
     // else keeps theirs, and new ones go at the end (Friends.lua's mergeFriendOrder is the same).
     [Theory]

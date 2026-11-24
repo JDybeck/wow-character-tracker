@@ -53,9 +53,9 @@
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
                       </Border>
-                      <!-- A friend's main (picked on its Overview). -->
+                      <!-- Your main, or a friend's (picked on its Overview, by you or by them). -->
                       <Border Padding="6,1" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,8,0" Background="#33FACC15"
-                              ToolTip="Their main: it leads their card and their list" Visibility="{Binding IsFriendMain, Converter={StaticResource Visible}}">
+                              ToolTip="{Binding MainTagTip}" Visibility="{Binding ShowsMainTag, Converter={StaticResource Visible}}">
                         <TextBlock Text="MAIN" FontSize="9" FontWeight="Bold" Foreground="#FACC15"/>
                       </Border>
                       <!-- A friend's character (Friends page): whose it is. -->
@@ -84,13 +84,18 @@
                   <Border Style="{StaticResource Pill}">
                     <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
                   </Border>
-                  <TextBlock Text="{Binding LevelPercentText}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0" HorizontalAlignment="Center"
+                  <TextBlock Text="{Binding LevelPercentText}" Foreground="{StaticResource Dim}" FontSize="10" Margin="0,2,0,0" HorizontalAlignment="Center"
                              Visibility="{Binding LevelPercentText, Converter={StaticResource VisibleIfSet}}"/>
                 </StackPanel>
 
-                <Border Grid.Column="3" Style="{StaticResource Pill}" Background="#4D1E3A8A" BorderBrush="#801D4ED8">
-                  <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{DynamicResource BlueText}"/>
-                </Border>
+                <!-- The item level, and a pin right of it on your pinned characters. -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Border Style="{StaticResource Pill}" Background="#4D1E3A8A" BorderBrush="#801D4ED8">
+                    <TextBlock Text="{Binding ItemLevelText}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{DynamicResource BlueText}"/>
+                  </Border>
+                  <TextBlock Style="{StaticResource Icon}" Text="&#xE718;" FontSize="12" Foreground="{StaticResource Dim}" Margin="6,0,0,0" VerticalAlignment="Center"
+                             ToolTip="Pinned: it stays at the top of your list" Visibility="{Binding IsPinned, Converter={StaticResource Visible}}"/>
+                </StackPanel>
 
                 <Grid Grid.Column="4" VerticalAlignment="Center" ToolTip="{Binding MoneyText}">
                   <ItemsControl ItemsSource="{Binding ShortCoins}" ItemTemplate="{StaticResource CoinTemplate}" ItemsPanel="{StaticResource Row}"
@@ -99,7 +104,7 @@
                 </Grid>
                 <StackPanel Grid.Column="5" VerticalAlignment="Center">
                   <TextBlock Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13"/>
-                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Faint}" FontSize="10" Margin="0,2,0,0"
+                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Dim}" FontSize="10" Margin="0,2,0,0"
                              Visibility="{Binding PlayedLine, Converter={StaticResource VisibleIfSet}}"/>
                 </StackPanel>
               </Grid>

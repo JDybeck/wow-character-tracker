@@ -37,6 +37,7 @@ NoteBox.lua
 Ui.lua
 RecipeWindow.lua
 ReputationWindow.lua
+Shell.lua
 Home.lua
 Window.lua
 Options.lua

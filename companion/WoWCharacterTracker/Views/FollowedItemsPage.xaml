@@ -63,7 +63,7 @@
                   </TextBox.InputBindings>
                 </TextBox>
                 <!-- Follows the box itself, not Query: that one waits for a pause in the typing. -->
-                <TextBlock Text="Item name, Wowhead address or id" Foreground="{StaticResource Faint}" FontSize="13" Margin="23,0,0,0"
+                <TextBlock Text="Item name, Wowhead address or id" Foreground="{StaticResource Dim}" FontSize="13" Margin="23,0,0,0"
                            VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding Text, ElementName=QueryBox, Converter={StaticResource HiddenIfSet}}"/>
               </Grid>
               <TextBlock Text="{Binding Status}" Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"

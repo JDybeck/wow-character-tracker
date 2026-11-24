@@ -114,7 +114,7 @@
                         CommandParameter="{Binding}"/>
           </TextBox.InputBindings>
         </TextBox>
-        <TextBlock Text="New tag, then Enter (e.g. Main)" Foreground="{StaticResource Faint}" FontSize="12" Margin="10,0,0,0"
+        <TextBlock Text="New tag, then Enter (e.g. Main)" Foreground="{StaticResource Dim}" FontSize="12" Margin="10,0,0,0"
                    VerticalAlignment="Center" IsHitTestVisible="False"
                    Visibility="{Binding NewTag, Converter={StaticResource HiddenIfSet}}"/>
       </Grid>
@@ -148,6 +148,40 @@
         </StackPanel>
       </Border>
       <WrapPanel Margin="-12,6,0,0" Visibility="{Binding ConfirmRemove, Converter={StaticResource Hidden}}">
+        <!-- Your main (one per game, sent to the friends you share with) and pinned characters lead your lists. -->
+        <Button Style="{StaticResource GhostButton}" Padding="12,5"
+                ToolTip="Make this your main on this game: it leads your list, and the friends you share with see it first on their card and list (unless they picked another one for you)"
+                Visibility="{Binding IsOwnMain, Converter={StaticResource Hidden}}"
+                Command="{Binding DataContext.OwnMainCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE734;" FontSize="12" Foreground="{DynamicResource BlueText}" Margin="0,0,7,0"/>
+            <TextBlock Text="Set as my main" FontSize="12" Foreground="{DynamicResource BlueText}"/>
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="No main on this game: friends see the character you played last, as before"
+                Visibility="{Binding IsOwnMain, Converter={StaticResource Visible}}"
+                Command="{Binding DataContext.NotOwnMainCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Foreground="#FACC15" Margin="0,0,7,0"/>
+            <TextBlock Text="Your main, click to unset" FontSize="12" Foreground="{StaticResource Dim}"/>
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Keep this character at the top of your list (after your main), here and in the addon"
+                Visibility="{Binding IsPinned, Converter={StaticResource Hidden}}"
+                Command="{Binding DataContext.PinCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE718;" FontSize="12" Foreground="{StaticResource Dim}" Margin="0,0,7,0"/>
+            <TextBlock Text="Pin to top" FontSize="12" Foreground="{StaticResource Dim}"/>
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Back to its place in the list's order"
+                Visibility="{Binding IsPinned, Converter={StaticResource Visible}}"
+                Command="{Binding DataContext.UnpinCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE77A;" FontSize="12" Foreground="{StaticResource Dim}" Margin="0,0,7,0"/>
+            <TextBlock Text="Unpin" FontSize="12" Foreground="{StaticResource Dim}"/>
+          </StackPanel>
+        </Button>
         <Button Style="{StaticResource GhostButton}" Padding="12,5"
                 ToolTip="Hide this character. Playing it again brings it back."
                 Command="{Binding DataContext.AskRemoveCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -200,7 +234,8 @@
         </StackPanel>
       </Border>
       </StackPanel>
-      <!-- A friend's character: their main (leads their card and list) or hidden from the Friends page. Only here, nothing is sent. -->
+      <!-- A friend's character: their main (leads their card and list) or hidden from the Friends page. Only here, nothing is sent.
+           A main they marked themselves shows as such; picking another one here wins over it. -->
       <WrapPanel Margin="-12,12,0,0" Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">
         <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Show this character on their card at the top and first in their list. Only for you, nothing is sent."
                 Visibility="{Binding IsFriendMain, Converter={StaticResource Hidden}}"
@@ -211,13 +246,18 @@
           </StackPanel>
         </Button>
         <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Their card and list go back to the character they played last"
-                Visibility="{Binding IsFriendMain, Converter={StaticResource Visible}}"
+                Visibility="{Binding ShowsUnsetFriendMain, Converter={StaticResource Visible}}"
                 Command="{Binding DataContext.SelectedFlavor.Friends.NotMainCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
           <StackPanel Orientation="Horizontal">
             <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Foreground="#FACC15" Margin="0,0,7,0"/>
             <TextBlock Text="Their main, click to unset" FontSize="12" Foreground="{StaticResource Dim}"/>
           </StackPanel>
         </Button>
+        <StackPanel Orientation="Horizontal" Margin="12,5" ToolTip="They marked this one as their main. Set another one as their main to see that one first instead."
+                    Visibility="{Binding ShowsTheirOwnMain, Converter={StaticResource Visible}}">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Foreground="#FACC15" Margin="0,0,7,0"/>
+          <TextBlock Text="Their main, picked by them" FontSize="12" Foreground="{StaticResource Dim}"/>
+        </StackPanel>
         <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Hide this character on the Friends page. Nothing is sent to your friend."
                 Visibility="{Binding IsHiddenFriend, Converter={StaticResource Hidden}}"
                 Command="{Binding DataContext.SelectedFlavor.Friends.HideCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">

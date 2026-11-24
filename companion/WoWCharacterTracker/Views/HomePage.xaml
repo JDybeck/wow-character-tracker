@@ -1,4 +1,4 @@
-<!-- Home: the character played last (Playing now while the game runs) with its leveling numbers and
+﻿<!-- Home: the character played last (Playing now while the game runs) with its leveling numbers and
      today's moments, next to a feed of the newest moments of every character, each with Share or
      Posted. DataContext: the game tab (HomeViewModel is its Home). -->
 <UserControl x:Class="WoWCharacterTracker.Views.HomePage"
@@ -180,17 +180,18 @@
           <TextBlock Text="{Binding DataContext.PaceText, ElementName=Root}" FontSize="12" Foreground="{StaticResource TextSoft}" Margin="0,14,0,0"
                      Visibility="{Binding DataContext.PaceText, ElementName=Root, Converter={StaticResource VisibleIfSet}}"/>
 
-          <UniformGrid Columns="4" Margin="0,14,-8,0" DataContext="{Binding DataContext.Card, ElementName=Root}">
-            <Border Style="{StaticResource Tile}">
+          <!-- One row; a collapsed tile (This level at max level) leaves no gap. -->
+          <UniformGrid Rows="1" Margin="0,14,-8,0" DataContext="{Binding DataContext.Card, ElementName=Root}">
+            <Border Style="{StaticResource Tile}" Visibility="{Binding ItemLevel, Converter={StaticResource VisibleIfSet}}">
               <StackPanel><TextBlock Style="{StaticResource TileValue}" Text="{Binding ItemLevel}"/><TextBlock Style="{StaticResource Hint}" Text="Item level"/></StackPanel>
             </Border>
-            <Border Style="{StaticResource Tile}">
+            <Border Style="{StaticResource Tile}" Visibility="{Binding Gold, Converter={StaticResource VisibleIfSet}}">
               <StackPanel><TextBlock Style="{StaticResource TileValue}" Text="{Binding Gold}"/><TextBlock Style="{StaticResource Hint}" Text="Gold"/></StackPanel>
             </Border>
-            <Border Style="{StaticResource Tile}">
+            <Border Style="{StaticResource Tile}" Visibility="{Binding Played, Converter={StaticResource VisibleIfSet}}">
               <StackPanel><TextBlock Style="{StaticResource TileValue}" Text="{Binding Played}"/><TextBlock Style="{StaticResource Hint}" Text="Played"/></StackPanel>
             </Border>
-            <Border Style="{StaticResource Tile}">
+            <Border Style="{StaticResource Tile}" Visibility="{Binding DataContext.ShowThisLevel, ElementName=Root, Converter={StaticResource Visible}}">
               <StackPanel><TextBlock Style="{StaticResource TileValue}" Text="{Binding DataContext.ThisLevelText, ElementName=Root}"/><TextBlock Style="{StaticResource Hint}" Text="This level"/></StackPanel>
             </Border>
           </UniformGrid>
@@ -218,7 +219,8 @@
           </Button>
 
           <!-- Today for this character, then each other character that did something today. -->
-          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,14,0,0">
+          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,14,0,0"
+                  Visibility="{Binding DataContext.HasAnyToday, ElementName=Root, Converter={StaticResource Visible}}">
             <Border.Resources>
               <!-- The four that matter most, the rest behind "+N more". -->
               <DataTemplate x:Key="TodayTemplate" DataType="{x:Type vm:TodaySection}">
@@ -247,7 +249,8 @@
               </DataTemplate>
             </Border.Resources>
             <StackPanel>
-              <ContentControl Content="{Binding DataContext.Today, ElementName=Root}" ContentTemplate="{StaticResource TodayTemplate}" Focusable="False"/>
+              <ContentControl Content="{Binding DataContext.Today, ElementName=Root}" ContentTemplate="{StaticResource TodayTemplate}" Focusable="False"
+                              Visibility="{Binding DataContext.Today.HasItems, ElementName=Root, Converter={StaticResource Visible}}"/>
               <!-- Each other character that did something today: its name, then what. -->
               <StackPanel Margin="0,10,0,0" Visibility="{Binding DataContext.HasOtherToday, ElementName=Root, Converter={StaticResource Visible}}">
                 <TextBlock Style="{StaticResource FactLabel}" Text="OTHER CHARACTERS TODAY" Margin="0,0,0,6"/>

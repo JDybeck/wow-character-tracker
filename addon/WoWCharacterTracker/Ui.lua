@@ -264,6 +264,39 @@ function ui.hookChatItemTips()
   end
 end
 
+-- A font string a few points bigger than its template (Home's text). Without GetFont (tests) as is.
+function ui.grow(fs, by)
+  local font, size, flags = fs:GetFont()
+  if font and size then fs:SetFont(font, size + by, flags) end
+  return fs
+end
+
+-- How wide a font string's text is on one line, whatever width it was given (0 = unbounded).
+function ui.textWidth(fs)
+  if fs.GetUnboundedStringWidth then return fs:GetUnboundedStringWidth() or 0 end
+  local w = fs:GetWidth()
+  fs:SetWidth(0)
+  local text = fs:GetStringWidth() or 0
+  fs:SetWidth(w or 0)
+  return text
+end
+
+-- Keeps a line inside its box: the text at its own size when it fits, else a point smaller at a
+-- time down to minSize, and cut short ("...") if it still doesn't.
+function ui.fitText(fs, width, minSize)
+  fs:SetWordWrap(false)
+  fs:SetWidth(width)
+  local font, size, flags = fs:GetFont()
+  if not (font and size) then return end
+  fs.fullSize = fs.fullSize or size
+  size = fs.fullSize
+  fs:SetFont(font, size, flags)
+  while size > (minSize or 9) and ui.textWidth(fs) > width do
+    size = size - 1
+    fs:SetFont(font, size, flags)
+  end
+end
+
 function ui.text(parent, template, s)
   local fs = parent:CreateFontString(nil, "ARTWORK", template)
   fs:SetJustifyH("LEFT")
@@ -624,4 +657,255 @@ function ui.setPortrait(f, c)
   else
     f.face:Hide()
   end
+end
+
+-- A class's round icon on texture (the same circles the portraits sit on), or false when unknown.
+function ui.classIcon(texture, classFile)
+  local coords = classFile and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[classFile]
+  if not coords then return false end
+  texture:SetTexture(CLASS_CIRCLES)
+  texture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+  return true
+end
+
+-- A left-to-right fade of one color on texture, from alpha `from` to alpha `to`. Retail and the
+-- newer classic clients take color objects, older ones SetGradientAlpha; whichever works.
+function ui.gradient(texture, r, g, b, from, to)
+  texture:SetTexture("Interface\\Buttons\\WHITE8X8")
+  texture:SetVertexColor(1, 1, 1, 1)
+  if CreateColor and texture.SetGradient
+    and pcall(texture.SetGradient, texture, "HORIZONTAL", CreateColor(r, g, b, from), CreateColor(r, g, b, to)) then
+    return
+  end
+  if texture.SetGradientAlpha then
+    texture:SetGradientAlpha("HORIZONTAL", r, g, b, from, r, g, b, to)
+  else
+    texture:SetColorTexture(r, g, b, (from + to) / 2)
+  end
+end
+
+-- Your characters' rows on the Characters tab: compact (40 high, as built) when the list fills the
+-- page, roomy when there's space to spare: a bigger portrait and pills, and a third line with what
+-- else we know (guild, gold, played). Only what has a value shows. Returns the row's height.
+ui.CHAR_ROW, ui.CHAR_ROW_ROOMY = 40, 62
+function ui.sizeCharRow(row, roomy, c)
+  local h = roomy and ui.CHAR_ROW_ROOMY or ui.CHAR_ROW
+  local face = roomy and 48 or 28
+  local textX = 16 + face + (roomy and 12 or 10)
+  row:SetHeight(h)
+  if row.stripe then row.stripe:SetHeight(h - 14) end
+  row.portrait:SetWidth(face)
+  row.portrait:SetHeight(face)
+  row.nameText:SetPoint("TOPLEFT", row, "TOPLEFT", textX, roomy and -9 or -6)
+  row.infoText:SetPoint("TOPLEFT", row, "TOPLEFT", textX, roomy and -27 or -23)
+  local pill = roomy and 42 or 36
+  row.level:SetSize(pill, roomy and 24 or 20)
+  row.ilvl:SetSize(pill, roomy and 24 or 20)
+  row.level:SetPoint("LEFT", row, "RIGHT", roomy and -212 or -200, 0)
+  row.ilvl:SetPoint("LEFT", row, "RIGHT", roomy and -164 or -158, 0)
+  if not row.extra then
+    row.extra = ui.text(row, "GameFontDisableSmall")
+    row.extra:SetWordWrap(false)
+  end
+  row.extra:SetPoint("TOPLEFT", row, "TOPLEFT", textX, -44)
+  row.extra:SetWidth(math.max(50, (row:GetWidth() or 600) - 380 - face))
+  local parts = {}
+  if roomy and c then
+    if type(c.guild) == "string" and c.guild ~= "" then parts[#parts + 1] = "<" .. c.guild .. ">" end
+    if (tonumber(c.money) or 0) >= 10000 then parts[#parts + 1] = ns.formatGold(c.money) end
+    if (tonumber(c.played) or 0) > 0 and ns.formatPlayed then parts[#parts + 1] = ns.formatPlayed(c.played) .. " played" end
+  end
+  row.extra:SetText(table.concat(parts, "  ·  "))
+  row.extra:SetShown(#parts > 0)
+  return h
+end
+
+-- The Alliance or Horde crest right after a character row's name, about as tall as the name (the
+-- crest sits in the top left of the game's PvP texture). Hidden when the faction isn't known.
+local FACTION_CRESTS = { Alliance = true, Horde = true }
+function ui.setFactionBadge(row, faction)
+  if not row.faction then
+    row.faction = row:CreateTexture(nil, "OVERLAY")
+    row.faction:SetSize(16, 16)
+    row.faction:SetPoint("LEFT", row.nameText, "RIGHT", 3, 0)
+    row.faction:SetTexCoord(0, 0.59375, 0, 0.59375)
+  end
+  local known = FACTION_CRESTS[faction] == true
+  if known then row.faction:SetTexture("Interface\\TargetingFrame\\UI-PVP-" .. faction) end
+  row.faction:SetShown(known)
+end
+
+-- The unfolded info under a character row (Window.lua's drawExpansion) -----------------------------
+-- Facts as icon tiles, professions with a skill bar each, and icons on the buttons. Only facts with a
+-- value are passed in, so nothing shows empty.
+
+local ICONS = "Interface\\Icons\\"
+ui.FACT_ICONS = {
+  Gold = "INV_Misc_Coin_01", Realm = "INV_Misc_Map_01", Ruleset = "Ability_Warrior_Challange",
+  Talents = "INV_Misc_Book_11", Played = "INV_Misc_PocketWatch_01", ["Total leveling"] = "INV_Misc_PocketWatch_02",
+  ["Last level"] = "Spell_Holy_BorrowedTime", Average = "Spell_Nature_TimeStop", Slowest = "Spell_Nature_Slow",
+  Progress = "INV_Misc_Note_01", ["This level"] = "Spell_Holy_BorrowedTime", ["To max level"] = "INV_Misc_Rune_01",
+}
+ui.PROFESSION_ICONS = {
+  Alchemy = "Trade_Alchemy", Blacksmithing = "Trade_BlackSmithing", Enchanting = "Trade_Engraving", Engineering = "Trade_Engineering",
+  Herbalism = "Trade_Herbalism", ["Herb Gathering"] = "Trade_Herbalism", Leatherworking = "Trade_LeatherWorking", Mining = "Trade_Mining",
+  Skinning = "INV_Misc_Pelt_Wolf_01", Tailoring = "Trade_Tailoring", Jewelcrafting = "INV_Misc_Gem_01", Inscription = "INV_Inscription_Tradeskill01",
+  Cooking = "INV_Misc_Food_15", Fishing = "Trade_Fishing", ["First Aid"] = "Spell_Holy_SealOfSacrifice", Archaeology = "Trade_Archaeology",
+  Highlights = "INV_Misc_Note_02", Reputations = "INV_Misc_Note_06",
+}
+function ui.iconPath(name) return name and (ICONS .. name) or nil end
+
+local function icon(parent, size)
+  local t = parent:CreateTexture(nil, "ARTWORK")
+  t:SetSize(size, size)
+  t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  return t
+end
+
+local function newFactTile(parent)
+  local t = CreateFrame("Frame", nil, parent)
+  t.icon = icon(t, 26)
+  t.icon:SetPoint("TOPLEFT", t, "TOPLEFT", 0, -1)
+  t.labelText = ui.text(t, "GameFontDisableSmall")
+  t.labelText:SetPoint("TOPLEFT", t, "TOPLEFT", 34, 0)
+  t.valueText = ui.text(t, "GameFontHighlightSmall")
+  t.valueText:SetPoint("TOPLEFT", t, "TOPLEFT", 34, -14)
+  t.valueText:SetWordWrap(false)
+  return t
+end
+
+-- facts: { { label, value, icon?, wide? } } in a grid of `cols` columns, `width` wide, from (x, y) in
+-- parent; a wide one takes a whole row. Every tile is FACT_TILE high, so rows line up. pool keeps the
+-- tiles between draws. Returns the y under the grid.
+ui.FACT_TILE, ui.FACT_GAP = 28, 8
+function ui.factTiles(parent, pool, facts, x, y, width, cols)
+  local colWidth = math.floor((width - (cols - 1) * 10) / cols)
+  local rowTop, col = y, 0
+  for i, f in ipairs(facts) do
+    local t = pool[i] or newFactTile(parent)
+    pool[i] = t
+    if (col > 0 and (f[4] or col >= cols)) then rowTop, col = rowTop + ui.FACT_TILE + ui.FACT_GAP, 0 end
+    local w = f[4] and width or colWidth
+    t.labelText:SetText(f[1])
+    t.valueText:SetText(f[2])
+    t.valueText:SetWidth(w - 36)
+    local tex = f[3] or ui.FACT_ICONS[f[1]]
+    t.icon:SetTexture(tex and (tex:find("\\") and tex or ICONS .. tex) or (ICONS .. "INV_Misc_QuestionMark"))
+    t:SetSize(w, ui.FACT_TILE)
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", parent, "TOPLEFT", x + col * (colWidth + 10), -rowTop)
+    t:Show()
+    col = f[4] and cols or col + 1
+  end
+  for i = #facts + 1, #pool do pool[i]:Hide() end
+  return #facts > 0 and (rowTop + ui.FACT_TILE) or y
+end
+
+-- "Tailoring 240/300, Enchanting 273/300" as { name, rank, max } (rank alone when there's no max).
+function ui.parseProfessions(text)
+  local out = {}
+  for part in string.gmatch(type(text) == "string" and text or "", "[^,]+") do
+    local name, rank, max = part:match("^%s*(.-)%s+(%d+)/(%d+)%s*$")
+    if not name then name, rank = part:match("^%s*(.-)%s+(%d+)%s*$") end
+    if name and name ~= "" then out[#out + 1] = { name = name, rank = tonumber(rank), max = tonumber(max) } end
+  end
+  return out
+end
+
+local function newProfessionRow(parent)
+  local r = CreateFrame("Frame", nil, parent)
+  r:SetHeight(ui.FACT_TILE)
+  r.icon = icon(r, 26)
+  r.icon:SetPoint("LEFT", r, "LEFT", 0, 0)
+  r.name = ui.text(r, "GameFontHighlightSmall")
+  r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 34, -1)
+  r.rank = ui.text(r, "GameFontDisableSmall")
+  r.rank:SetPoint("TOPRIGHT", r, "TOPRIGHT", 0, -1)
+  r.track = r:CreateTexture(nil, "BORDER")
+  ui.fill(r.track, COLOR.border)
+  r.track:SetHeight(4)
+  r.track:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 34, 3)
+  r.track:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 3)
+  r.bar = r:CreateTexture(nil, "ARTWORK")
+  ui.fill(r.bar, COLOR.accent)
+  r.bar:SetHeight(4)
+  r.bar:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 34, 3)
+  return r
+end
+
+-- A row per profession: its icon, name, rank and a bar to its max. Returns the y under them.
+function ui.professionRows(parent, pool, list, x, y, width)
+  for i, p in ipairs(list) do
+    local r = pool[i] or newProfessionRow(parent)
+    pool[i] = r
+    r:SetWidth(width)
+    r.icon:SetTexture(ICONS .. (ui.PROFESSION_ICONS[p.name] or "INV_Misc_QuestionMark"))
+    r.name:SetText(p.name)
+    r.rank:SetText(p.max and string.format("%d / %d", p.rank, p.max) or tostring(p.rank or ""))
+    local share = (p.max and p.max > 0 and p.rank) and math.min(1, p.rank / p.max) or 0
+    r.bar:SetShown(share > 0)
+    r.bar:SetWidth(math.max(1, (width - 34) * share))
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", parent, "TOPLEFT", x, -y)
+    r:Show()
+    y = y + ui.FACT_TILE + ui.FACT_GAP
+  end
+  for i = #list + 1, #pool do pool[i]:Hide() end
+  return y
+end
+
+-- "Discipline 35 / Holy 0 / Shadow 16" -> "Discipline 35  ·  Shadow 16" (no empty trees).
+function ui.talentText(text)
+  if type(text) ~= "string" then return nil end
+  local parts = {}
+  for part in string.gmatch(text, "[^/]+") do
+    local name, points = part:match("^%s*(.-)%s+(%d+)%s*$")
+    if name and tonumber(points) > 0 then parts[#parts + 1] = name .. " " .. points
+    elseif not name and part:match("%S") then parts[#parts + 1] = part:match("^%s*(.-)%s*$") end
+  end
+  return #parts > 0 and table.concat(parts, "  ·  ") or nil
+end
+
+-- An icon at the left of a button, its label beside it (nil: no icon, the label centered).
+function ui.buttonIcon(b, texture)
+  if not b.leftIcon then
+    b.leftIcon = icon(b, 14)
+    b.leftIcon:SetPoint("LEFT", b, "LEFT", 5, 0)
+  end
+  local fs = b:GetFontString()
+  if fs then
+    fs:ClearAllPoints()
+    if texture then fs:SetPoint("LEFT", b, "LEFT", 24, 0) else fs:SetPoint("CENTER", b, "CENTER", 0, 0) end
+  end
+  if texture then b.leftIcon:SetTexture(texture:find("\\") and texture or ICONS .. texture) end
+  b.leftIcon:SetShown(texture ~= nil)
+end
+
+-- A small arrow (a texture, not "v" or "^") after a button's label: down to unfold, up to fold.
+-- The label stays the button's text, the arrow sits right after it.
+local ARROW = "Interface\\Buttons\\UI-MicroStream-Yellow"
+function ui.arrow(parent, size)
+  local t = parent:CreateTexture(nil, "OVERLAY")
+  t:SetSize(size or 12, size or 12)
+  t:SetTexture(ARROW)
+  return t
+end
+function ui.pointArrow(t, open)
+  if open then t:SetTexCoord(0, 1, 1, 0) else t:SetTexCoord(0, 1, 0, 1) end
+end
+function ui.setToggle(b, label, open)
+  b:SetText(label)
+  if not b.arrow then
+    b.arrow = ui.arrow(b, 12)
+    local fs = b:GetFontString()
+    if fs then
+      fs:ClearAllPoints()
+      fs:SetPoint("CENTER", b, "CENTER", -8, 0)
+      b.arrow:SetPoint("LEFT", fs, "RIGHT", 4, 0)
+    else
+      b.arrow:SetPoint("RIGHT", b, "RIGHT", -6, 0)
+    end
+  end
+  ui.pointArrow(b.arrow, open)
+  b.open = open
 end

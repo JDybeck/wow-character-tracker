@@ -77,6 +77,7 @@ sealed class FriendsViewModel : Observable
                 row.FriendTag = contact.Tag;
                 row.FriendSynced = contact.Seen;
                 row.FriendSharesText = $"Shares with you: {ShareCategories.Summary(contact.Shares)}";
+                row.IsTheirOwnMain = contact.Main == row.Guid;
                 if (row.Region.Length == 0) row.Region = region;
                 var guid = row.Guid;
                 row.SetPortraitChoice(config.StandardPortraits.Contains(guid), standard => { config.SetStandardPortrait(guid, standard); save(); });
@@ -120,7 +121,10 @@ sealed class FriendsViewModel : Observable
         {
             r.FriendName = NameOf(r.FriendTag);
             r.IsHiddenFriend = config.HiddenFriendCharacters.Contains(r.Guid);
-            r.IsFriendMain = config.FriendMains.TryGetValue(r.FriendTag, out var main) && main == r.Guid;
+            // The main you picked for them wins over the one they marked (when you still have that one).
+            var picked = config.FriendMains.TryGetValue(r.FriendTag, out var main) && allRows.Any(o => o.Guid == main);
+            r.MainPickedHere = picked && main == r.Guid;
+            r.IsFriendMain = picked ? main == r.Guid : r.IsTheirOwnMain;
         }
         Contacts.Fill(allRows, r => r.FriendTag, NameOf);
         BuildCards();

@@ -406,6 +406,7 @@ sealed class Tracker : IDisposable
         var notes = new Dictionary<string, GameNote>();
         var nicknames = new Dictionary<string, GameNickname>();
         GameFriendOrder? friendOrder = null;
+        GameOwnPicks? ownPicks = null;
         InGameSettings? inGame = null;
         var friends = new List<List<FriendContact>>();
         ShareSettings? share = null;
@@ -433,6 +434,7 @@ sealed class Tracker : IDisposable
                 foreach (var n in d.Nicknames)
                     if (!nicknames.TryGetValue(n.Tag, out var had) || n.At > had.At) nicknames[n.Tag] = n;
                 if (d.FriendOrder is { } o && o.At > (friendOrder?.At ?? 0)) friendOrder = o;
+                if (d.OwnPicks is { } picks && picks.At > (ownPicks?.At ?? 0)) ownPicks = picks;
                 if (d.InGame is { } g && g.At > (inGame?.At ?? 0)) inGame = g;
                 friends.Add(d.Friends);
                 if (d.Share is { } sh && sh.At > (share?.At ?? 0)) share = sh;
@@ -454,7 +456,7 @@ sealed class Tracker : IDisposable
         foreach (var e in live.Values) events.TryAdd(e.Id, e);
         // A live check-in newer than the saved snapshot wins (CharacterRow picks the latest per character).
         chars.AddRange(presence.Values.Select(Snapshot.Of));
-        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values], Nicknames = [.. nicknames.Values], FriendOrder = friendOrder, InGame = inGame,
+        return (new TrackerData(events.Values.ToList(), chars) { Inventories = inventories, XpTable = xpTable, ItemClasses = itemClasses, Notes = [.. notes.Values], Nicknames = [.. nicknames.Values], FriendOrder = friendOrder, OwnPicks = ownPicks, InGame = inGame,
             Friends = FriendData.Merge(friends), Share = share, Incognito = incognito, Today = today, Days = days, CleanedAt = cleanedAt ?? 0 },
             stamp.ToString());
     }
