@@ -271,6 +271,32 @@ function ui.grow(fs, by)
   return fs
 end
 
+-- How wide a font string's text is on one line, whatever width it was given (0 = unbounded).
+function ui.textWidth(fs)
+  if fs.GetUnboundedStringWidth then return fs:GetUnboundedStringWidth() or 0 end
+  local w = fs:GetWidth()
+  fs:SetWidth(0)
+  local text = fs:GetStringWidth() or 0
+  fs:SetWidth(w or 0)
+  return text
+end
+
+-- Keeps a line inside its box: the text at its own size when it fits, else a point smaller at a
+-- time down to minSize, and cut short ("...") if it still doesn't.
+function ui.fitText(fs, width, minSize)
+  fs:SetWordWrap(false)
+  fs:SetWidth(width)
+  local font, size, flags = fs:GetFont()
+  if not (font and size) then return end
+  fs.fullSize = fs.fullSize or size
+  size = fs.fullSize
+  fs:SetFont(font, size, flags)
+  while size > (minSize or 9) and ui.textWidth(fs) > width do
+    size = size - 1
+    fs:SetFont(font, size, flags)
+  end
+end
+
 function ui.text(parent, template, s)
   local fs = parent:CreateFontString(nil, "ARTWORK", template)
   fs:SetJustifyH("LEFT")
