@@ -858,7 +858,7 @@ public class AddonLuaTests
     }
 
     // Events.lua: on a flight with changed gear or bags, one chat line (no box) that a /reload is only
-    // for the app; once per flight, at most every 30 minutes, and nothing when nothing changed.
+    // for the app; rare (at most every 4 hours, kept in the saved file), and nothing when nothing changed.
     [Fact]
     public void A_flight_says_in_chat_that_a_reload_is_only_for_the_app()
     {
@@ -892,11 +892,14 @@ public class AddonLuaTests
         Assert.Contains("Only for the app", line);
         Assert.Equal(0, script.Globals.Get("shown").Number); // no box
         Fly(2000);
-        Assert.Single(said); // within 30 minutes
-        Fly(2800);
+        Assert.Single(said); // within 4 hours
+        Assert.Equal(1000, script.DoString("return WoWCharacterTrackerDB.flightLineAt").Number); // survives a /reload
+        Fly(1000 + 4 * 3600 - 1);
+        Assert.Single(said);
+        Fly(1000 + 4 * 3600);
         Assert.Equal(2, said.Count);
         changed = false;
-        Fly(9000);
+        Fly(100000);
         Assert.Equal(2, said.Count);
     }
 
