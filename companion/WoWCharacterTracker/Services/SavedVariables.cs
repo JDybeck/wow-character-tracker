@@ -81,7 +81,7 @@ static class SavedVariables
             a is null ? null : On(a.Get("kinds")),
             a?.Get("partyKinds").Type == DataType.Table ? On(a.Get("partyKinds")) : null, // an older addon had one list for both
             ask.Type == DataType.Table ? On(ask) : null,
-            Flag("flightReload"), Flag("chatReminder"),
+            Flag("chatReminder"),
             t.Get("gridCorner").Type == DataType.String ? t.Get("gridCorner").String : null,
             Flag("gridLabel"), Flag("keepAllHistory"),
             t.Get("askSeconds").CastToNumber() is double seconds ? (int)seconds : null,

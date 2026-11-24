@@ -40,8 +40,7 @@ local function currentCorner()
 end
 
 -- Reload reminders: one choice over the two settings that ask for a /reload (the ding popup and the
--- chat line). Gentle is how they start; any other mix is "custom". The flight path box has its own
--- checkbox, off unless turned on.
+-- chat line). Gentle is how they start; any other mix is "custom".
 local RELOAD_CHOICES = { { "off", "Off" }, { "gentle", "Gentle" }, { "all", "Every chance" } }
 -- Auto: yards in the Americas region, meters elsewhere (ns.distanceUnit).
 local DISTANCE_CHOICES = { { "auto", "Auto" }, { "meters", "Meters" }, { "yards", "Yards" } }
@@ -895,7 +894,8 @@ local function drawExpansion(ex, c, friend)
     right = right + ui.FACT_GAP + EXPAND_CHART
   end
   -- Hide (or show again): out of the list, and the info folds away.
-  ex.hide = ex.hide or cardButton(ex, 110)
+  ex.hide = ex.hide or cardButton(ex, 90)
+  ex.hide:SetHeight(20)
   local hidden = isHidden(c)
   setButton(ex.hide, hidden and "Show again" or "Hide", function()
     setHidden(c, not hidden)
@@ -905,7 +905,7 @@ local function drawExpansion(ex, c, friend)
     redrawTab()
   end)
   local h = math.max(left, right) + 14
-  place(ex.hide, ex, ex.width - 122, h)
+  place(ex.hide, ex, ex.width - 102, h)
   -- Highlights (the panel beside the window), your own character's reputations (ReputationWindow.lua),
   -- then a button per profession with known recipes, which opens them in the recipe window (RecipeWindow.lua).
   local actions = {}
@@ -918,23 +918,25 @@ local function drawExpansion(ex, c, friend)
     actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end, "Reputations" }
   end
   for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do
-    actions[#actions + 1] = { string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end, prof.name }
+    actions[#actions + 1] = { string.format("%s (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end, prof.name }
   end
+  -- An even grid of small buttons (the icon says which recipes), clear of Hide on the right: as many
+  -- columns as fit at about 140 wide, every button the same width, so the rows line up.
   ex.recipes = ex.recipes or {}
-  local x = 12
+  local room = ex.width - 12 - 112
+  local cols = math.max(1, math.min(#actions, math.floor((room + 6) / 146)))
+  local bw = math.floor((room - (cols - 1) * 6) / cols)
+  if #actions < cols then bw = 140 end
   for i, action in ipairs(actions) do
-    if x + 170 > ex.width - 130 then -- the next line, clear of Hide
-      x = 12
-      h = h + 28
-    end
-    local b = pooled(ex.recipes, i, function() return cardButton(ex, 170) end)
+    local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
+    local b = pooled(ex.recipes, i, function() return cardButton(ex, 140) end)
+    b:SetSize(bw, 20)
     setButton(b, action[1], action[2])
     ui.buttonIcon(b, ui.PROFESSION_ICONS[action[3] or ""])
-    place(b, ex, x, h)
-    x = x + 176
+    place(b, ex, 12 + col * (bw + 6), h + row * 26)
   end
   hideFrom(ex.recipes, #actions + 1)
-  h = h + 30
+  h = h + math.max(1, math.ceil(#actions / cols)) * 26 + 4
   ex:SetHeight(h)
   ex:Show()
   return h
@@ -2203,11 +2205,7 @@ local function buildSettings(p)
     ui.onRefresh(p, function() custom:SetShown(reloadChoice() == "custom") end)
     local reloadHint = ui.hint(p, "Gear, bags and bank reach the app on /reload. Gentle: a chat line when they changed. Every chance: also a popup after each ding.", reloadLabel)
     reloadHint:SetPoint("TOPLEFT", reloadLabel, "BOTTOMLEFT", 0, -12)
-    local flight = ui.checkbox(p, "Offer a reload on flight paths", "A box on a flight path when your gear or bags changed, to /reload during the flight.",
-      function() return ns.setting("flightReload") == true end,
-      function(on) ns.editSettings(function(s) s.flightReload = on end) end)
-    flight:SetPoint("TOPLEFT", reloadHint, "BOTTOMLEFT", -6, -10)
-    last, lastGap = flight, ui.gapAfter(flight)
+    last, lastGap = reloadHint, ui.gapAfter(reloadHint)
   end
 
   -- The window's colors (the app's Forever looks, right away) and how far away friends on the map

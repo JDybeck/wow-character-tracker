@@ -203,7 +203,7 @@ public class RatingTests
         Assert.Equal([new GameNote("P-1", "", 1100)], config.Notes().ToList()); // the clear still reaches the game
     }
 
-    static InGameSettings GameChange(long at) => new(at, true, false, ["level"], ["death"], ["boss"], false, true, "BOTTOMLEFT", false, true, AskSeconds: 30);
+    static InGameSettings GameChange(long at) => new(at, true, false, ["level"], ["death"], ["boss"], true, "BOTTOMLEFT", false, true, AskSeconds: 30);
 
     // In game settings changed in game replace the app's only when that was the newest change.
     [Fact]
@@ -220,7 +220,6 @@ public class RatingTests
         Assert.Equal(["level"], s.AnnounceKinds);
         Assert.Equal(["death"], s.AnnouncePartyKinds);
         Assert.Equal(["boss"], s.AskKinds);
-        Assert.False(s.FlightReloadPrompt);
         Assert.Equal("BOTTOMLEFT", s.GridCorner);
         Assert.False(s.GridLabel);
         Assert.True(s.KeepAllHistory);
@@ -291,7 +290,6 @@ public class RatingTests
         Assert.Equal(["boss", "level"], read.AnnounceKinds.Order());
         Assert.Equal(["death"], read.AnnouncePartyKinds);
         Assert.Equal(["rare"], read.AskKinds);
-        Assert.Null(read.FlightReload); // missing: the addon reads the app's value, so the app keeps it
         Assert.Null(read.GridLabel);
         Assert.False(read.ChatReminder);
         Assert.Equal("TOPRIGHT", read.GridCorner);
@@ -351,7 +349,7 @@ public class RatingTests
     public void Settings_missing_from_the_in_game_change_keep_the_apps_values()
     {
         var s = new FlavorSettings { InGameAt = 1000, KeepAllHistory = true, AskKinds = ["epic"], GridCorner = "BOTTOMRIGHT", ChatReloadReminder = true, AnnouncePartyKinds = ["boss"] };
-        Assert.True(s.TakeInGame(new InGameSettings(1100, true, false, ["level"], null, null, null, false, null, null, null)));
+        Assert.True(s.TakeInGame(new InGameSettings(1100, true, false, ["level"], null, null, false, null, null, null)));
 
         Assert.True(s.AnnounceGuild);
         Assert.Equal(["boss"], s.AnnouncePartyKinds);
@@ -377,7 +375,7 @@ public class RatingTests
         Assert.True(s.Wants(ding with { Guid = "Player-1-0000000B" }, []));
 
         // A change from an older addon without the setting keeps the app's.
-        Assert.True(s.TakeInGame(new InGameSettings(1200, true, false, ["level"], null, null, null, false, null, null, null)));
+        Assert.True(s.TakeInGame(new InGameSettings(1200, true, false, ["level"], null, null, false, null, null, null)));
         Assert.Contains("Player-1-0000000A", s.Ignored);
 
         var dir = Path.Combine(Path.GetTempPath(), "wct-ignored-" + Guid.NewGuid().ToString("N"));
