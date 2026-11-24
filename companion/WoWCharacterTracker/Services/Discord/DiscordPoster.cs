@@ -18,6 +18,7 @@ sealed class DiscordPoster(string webhookUrl, Flavor flavor, string nameStyle = 
     // embed's image, or a second embed under the item picture.
     public async Task<bool> PostAsync(Entry e, bool isTest = false, string? screenshot = null)
     {
+        e = e with { Realm = Realms.Of(e.Guid, e.Realm) }; // older events from when the game gave no realm
         var picture = await CharacterPicture.StandardAsync(flavor, SubjectOf(e));
         // A made-up test character says so in the name and under the post, so nobody takes it for real.
         var testChar = TestCharacters.IsTest(e.Guid);

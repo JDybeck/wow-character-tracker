@@ -505,7 +505,7 @@ sealed class CharacterRow : Observable
             {
                 Guid = guid,
                 Name = s?.Char is { Length: > 0 } n ? n : last?.Char ?? "?",
-                Realm = s?.Realm ?? last!.Realm,
+                Realm = Realms.Of(guid, Pick(s?.Realm, last?.Realm)),
                 Level = level,
                 AtMaxLevel = atMax,
                 ClassName = Pick(s?.Class, last?.Class),

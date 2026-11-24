@@ -14,6 +14,36 @@ public class RealmTextTests
     [InlineData("us", "", "")]
     public void Forever_realms_show_their_type(string region, string realm, string expected) =>
         Assert.Equal(expected, Realms.Label(region, realm));
+
+    // Forever's client stopped giving the realm name: characters seen since have "" and get the
+    // realm seen before on the same server (the GUID's number), so "EU · PvP" stays under the name.
+    [Fact]
+    public void A_character_without_a_realm_gets_the_one_seen_on_its_server()
+    {
+        Assert.Equal("CAMWOW EU5 Realm 6 PvP", Realms.Of("Player-96948-04643EB4", "CAMWOW EU5 Realm 6 PvP"));
+        Assert.Equal("CAMWOW EU5 Realm 6 PvP", Realms.Of("Player-96948-0065F3EA", ""));
+        Assert.Equal("EU · PvP", Realms.Label("eu", Realms.Of("Player-96948-016EC15A", "")));
+        Assert.Equal("", Realms.Of("Player-96999-016EC15A", "")); // nothing seen there: nothing made up
+        Assert.Equal("", Realms.Of("Test-Zeb", ""));
+    }
+
+    [Fact]
+    public void A_friends_realm_never_replaces_one_seen_on_our_own_characters()
+    {
+        Realms.Of("Player-96950-0065F3EA", "CAMWOW EU5 Realm 4 PvP");
+        Assert.Equal("Something else", Realms.Of("Player-96950-00000001", "Something else", fromFriend: true));
+        Assert.Equal("CAMWOW EU5 Realm 4 PvP", Realms.Of("Player-96950-00000002", ""));
+        Realms.Of("Player-96951-00000001", "CAMWOW EU5 Realm 2 Normal", fromFriend: true); // new server: learned
+        Assert.Equal("CAMWOW EU5 Realm 2 Normal", Realms.Of("Player-96951-0065F3EA", ""));
+    }
+
+    [Fact]
+    public void Events_and_rows_without_a_realm_get_it_from_the_same_server()
+    {
+        Entry.From(k => k switch { "id" => "Player-96952-01:1", "guid" => "Player-96952-01", "realm" => "CAMWOW EU5 Realm 6 PvP", _ => "" }, _ => 0);
+        var e = Entry.From(k => k switch { "id" => "Player-96952-02:1", "guid" => "Player-96952-02", _ => "" }, _ => 0);
+        Assert.Equal("CAMWOW EU5 Realm 6 PvP", e.Realm);
+    }
 }
 
 public class TalentLinkTests

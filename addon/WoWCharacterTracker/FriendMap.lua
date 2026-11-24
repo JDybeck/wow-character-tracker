@@ -252,7 +252,7 @@ function ns.friendPins()
   if ns.shareSettings().enabled then
     for _, f in ipairs(online()) do rows[f.account] = f end
   end
-  local myRealm = ns.plainRealm(GetRealmName and GetRealmName())
+  local myRealm = ns.plainRealm(ns.currentRealm())
   local server, map = ns.currentLayer()
   local myLayer = { server = server, map = map }
   for account, p in pairs(positions) do

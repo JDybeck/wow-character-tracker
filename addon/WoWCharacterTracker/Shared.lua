@@ -432,8 +432,60 @@ end
 -- A realm name as Battle.net writes it: no spaces, hyphens or apostrophes ("TarrenMill"). The game
 -- writes ours with them ("CAMWOW EU5 Realm 6 PvP"), so both go through this before comparing.
 function ns.plainRealm(name)
-  if type(name) ~= "string" or name == "" then return nil end
+  if name == nil or type(name) ~= "string" or name == "" then return nil end
   return (name:gsub("[%s%-']", ""))
+end
+
+-- The server number in a player GUID ("Player-6948-0065F3EA" -> "6948"): the same for every
+-- character on one realm.
+local function serverOf(guid)
+  return guid ~= nil and type(guid) == "string" and guid:match("^Player%-(%d+)%-") or nil
+end
+
+-- The realm of a character's GUID as seen before (saved realms[server], else any saved character or
+-- event of that server), nil when never seen. Forever's client gives "" for GetRealmName() since
+-- November 2026, so this is how characters keep their realm (and with it their ruleset, "PvP").
+local unknownServers = {} -- looked through once, nothing there
+function ns.knownRealm(guid)
+  local server, db = serverOf(guid), WoWCharacterTrackerDB
+  if not server or unknownServers[server] or type(db) ~= "table" then return nil end
+  db.realms = type(db.realms) == "table" and db.realms or {}
+  if db.realms[server] then return db.realms[server] end
+  local function from(list)
+    for _, c in pairs(list or {}) do
+      if type(c) == "table" and c.realm ~= nil and c.realm ~= "" and type(c.realm) == "string" and serverOf(c.guid) == server then return c.realm end
+    end
+  end
+  local found = from(db.chars) or from(db.events)
+  db.realms[server] = found
+  unknownServers[server] = not found or nil
+  return found
+end
+
+-- The realm a character is on: its own when it has one, else the one known for its GUID.
+function ns.realmOf(guid, realm)
+  if realm ~= nil and realm ~= "" and type(realm) == "string" then return realm end
+  local known = ns.knownRealm(guid)
+  return known
+end
+
+-- Our realm's name, else the one known for our GUID's server. remember: save the game's name for
+-- the server (the character's info does), so it's still known when the game gives "".
+function ns.currentRealm(remember)
+  local name = GetRealmName and GetRealmName()
+  if not name or name == "" then name = GetNormalizedRealmName and GetNormalizedRealmName() end
+  local guid, db = UnitGUID and UnitGUID("player"), WoWCharacterTrackerDB
+  if not name or name == "" then
+    local known = ns.knownRealm(guid)
+    return known
+  end
+  local server = serverOf(guid)
+  if remember and server and type(db) == "table" then
+    db.realms = type(db.realms) == "table" and db.realms or {}
+    db.realms[server] = name
+    unknownServers[server] = nil
+  end
+  return name
 end
 
 -- Forever's realms end in a home realm number and their type ("CAMWOW EU5 Realm 6 PvP" -> "PvP", 6),

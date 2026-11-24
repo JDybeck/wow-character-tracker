@@ -121,7 +121,7 @@ static partial class FriendData
             var guid = t.Get("guid").Type == DataType.String ? t.Get("guid").String : "";
             var name = S("char");
             if (!PlayerGuid().IsMatch(guid) || name.Length == 0) continue;
-            var snapshot = new Snapshot(guid, name, S("realm"), (int)N("level"), S("class"), S("classFile"), S("race"), S("raceFile"),
+            var snapshot = new Snapshot(guid, name, Realms.Of(guid, S("realm"), fromFriend: true), (int)N("level"), S("class"), S("classFile"), S("race"), S("raceFile"),
                 Sex: S("sex") == "female" ? "female" : "male", Spec: S("spec"), Role: "", ItemLevel: N("ilvl"), Played: Whole(N("played")), Zone: S("zone"), Professions: S("professions"), Talents: S("talents"),
                 LastSeen: (long)N("at"), Hardcore: false, Ruleset: S("ruleset"), Money: (long)N("money"), TalentCalc: S("talentCalc"), Faction: S("faction"),
                 Xp: Whole(N("xp")), XpMax: Whole(N("xpMax")), MaxLevel: (int)Math.Min(Whole(N("maxLevel")), 200), LevelTime: Whole(N("levelTime")), Recipes: S("recipes"), Reputations: S("reputations")) { Surname = S("surname") };
