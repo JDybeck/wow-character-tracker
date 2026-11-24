@@ -686,3 +686,149 @@ function ui.sizeCharRow(row, roomy, c)
   row.extra:SetShown(#parts > 0)
   return h
 end
+
+-- The unfolded info under a character row (Window.lua's drawExpansion) -----------------------------
+-- Facts as icon tiles, professions with a skill bar each, and icons on the buttons. Only facts with a
+-- value are passed in, so nothing shows empty.
+
+local ICONS = "Interface\\Icons\\"
+ui.FACT_ICONS = {
+  Gold = "INV_Misc_Coin_01", Faction = "INV_BannerPVP_02", Realm = "INV_Misc_Map_01", Ruleset = "Ability_Warrior_Challange",
+  Talents = "INV_Misc_Book_11", Played = "INV_Misc_PocketWatch_01", ["Total leveling"] = "INV_Misc_PocketWatch_02",
+  ["Last level"] = "Spell_Holy_BorrowedTime", Average = "Spell_Nature_TimeStop", Slowest = "Spell_Nature_Slow",
+  Progress = "INV_Misc_Note_01", ["This level"] = "Spell_Holy_BorrowedTime", ["To max level"] = "INV_Misc_Rune_01",
+}
+ui.FACTION_ICONS = { Alliance = "INV_BannerPVP_02", Horde = "INV_BannerPVP_01" }
+ui.PROFESSION_ICONS = {
+  Alchemy = "Trade_Alchemy", Blacksmithing = "Trade_BlackSmithing", Enchanting = "Trade_Engraving", Engineering = "Trade_Engineering",
+  Herbalism = "Trade_Herbalism", ["Herb Gathering"] = "Trade_Herbalism", Leatherworking = "Trade_LeatherWorking", Mining = "Trade_Mining",
+  Skinning = "INV_Misc_Pelt_Wolf_01", Tailoring = "Trade_Tailoring", Jewelcrafting = "INV_Misc_Gem_01", Inscription = "INV_Inscription_Tradeskill01",
+  Cooking = "INV_Misc_Food_15", Fishing = "Trade_Fishing", ["First Aid"] = "Spell_Holy_SealOfSacrifice", Archaeology = "Trade_Archaeology",
+  Highlights = "INV_Misc_Note_02", Reputations = "INV_Misc_Note_06",
+}
+function ui.iconPath(name) return name and (ICONS .. name) or nil end
+
+local function icon(parent, size)
+  local t = parent:CreateTexture(nil, "ARTWORK")
+  t:SetSize(size, size)
+  t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  return t
+end
+
+local function newFactTile(parent)
+  local t = CreateFrame("Frame", nil, parent)
+  t.icon = icon(t, 26)
+  t.icon:SetPoint("TOPLEFT", t, "TOPLEFT", 0, -1)
+  t.labelText = ui.text(t, "GameFontDisableSmall")
+  t.labelText:SetPoint("TOPLEFT", t, "TOPLEFT", 34, 0)
+  t.valueText = ui.text(t, "GameFontHighlight")
+  t.valueText:SetPoint("TOPLEFT", t, "TOPLEFT", 34, -13)
+  return t
+end
+
+-- facts: { { label, value, icon? } } in a grid of `cols` columns, `width` wide, from (x, y) in parent.
+-- pool keeps the tiles between draws. Returns the y under the grid.
+function ui.factTiles(parent, pool, facts, x, y, width, cols)
+  local colWidth = math.floor((width - (cols - 1) * 10) / cols)
+  local rowTop, rowHeight = y, 0
+  for i, f in ipairs(facts) do
+    local t = pool[i] or newFactTile(parent)
+    pool[i] = t
+    local col = (i - 1) % cols
+    if col == 0 and i > 1 then rowTop, rowHeight = rowTop + rowHeight + 8, 0 end
+    t.labelText:SetText(f[1])
+    t.valueText:SetText(f[2])
+    t.valueText:SetWidth(colWidth - 36)
+    local tex = f[3] or ui.FACT_ICONS[f[1]]
+    t.icon:SetTexture(tex and (tex:find("\\") and tex or ICONS .. tex) or (ICONS .. "INV_Misc_QuestionMark"))
+    local vh = t.valueText.GetStringHeight and t.valueText:GetStringHeight() or 0
+    local h = math.max(28, 13 + ((vh and vh > 0) and vh or 14))
+    t:SetSize(colWidth, h)
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", parent, "TOPLEFT", x + col * (colWidth + 10), -rowTop)
+    t:Show()
+    rowHeight = math.max(rowHeight, h)
+  end
+  for i = #facts + 1, #pool do pool[i]:Hide() end
+  return #facts > 0 and (rowTop + rowHeight) or y
+end
+
+-- "Tailoring 240/300, Enchanting 273/300" as { name, rank, max } (rank alone when there's no max).
+function ui.parseProfessions(text)
+  local out = {}
+  for part in string.gmatch(type(text) == "string" and text or "", "[^,]+") do
+    local name, rank, max = part:match("^%s*(.-)%s+(%d+)/(%d+)%s*$")
+    if not name then name, rank = part:match("^%s*(.-)%s+(%d+)%s*$") end
+    if name and name ~= "" then out[#out + 1] = { name = name, rank = tonumber(rank), max = tonumber(max) } end
+  end
+  return out
+end
+
+local function newProfessionRow(parent)
+  local r = CreateFrame("Frame", nil, parent)
+  r:SetHeight(26)
+  r.icon = icon(r, 22)
+  r.icon:SetPoint("LEFT", r, "LEFT", 0, 0)
+  r.name = ui.text(r, "GameFontHighlightSmall")
+  r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 30, -1)
+  r.rank = ui.text(r, "GameFontDisableSmall")
+  r.rank:SetPoint("TOPRIGHT", r, "TOPRIGHT", 0, -1)
+  r.track = r:CreateTexture(nil, "BORDER")
+  ui.fill(r.track, COLOR.border)
+  r.track:SetHeight(4)
+  r.track:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 30, 2)
+  r.track:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 2)
+  r.bar = r:CreateTexture(nil, "ARTWORK")
+  ui.fill(r.bar, COLOR.accent)
+  r.bar:SetHeight(4)
+  r.bar:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 30, 2)
+  return r
+end
+
+-- A row per profession: its icon, name, rank and a bar to its max. Returns the y under them.
+function ui.professionRows(parent, pool, list, x, y, width)
+  for i, p in ipairs(list) do
+    local r = pool[i] or newProfessionRow(parent)
+    pool[i] = r
+    r:SetWidth(width)
+    r.icon:SetTexture(ICONS .. (ui.PROFESSION_ICONS[p.name] or "INV_Misc_QuestionMark"))
+    r.name:SetText(p.name)
+    r.rank:SetText(p.max and string.format("%d / %d", p.rank, p.max) or tostring(p.rank or ""))
+    local share = (p.max and p.max > 0 and p.rank) and math.min(1, p.rank / p.max) or 0
+    r.bar:SetShown(share > 0)
+    r.bar:SetWidth(math.max(1, (width - 30) * share))
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", parent, "TOPLEFT", x, -y)
+    r:Show()
+    y = y + 30
+  end
+  for i = #list + 1, #pool do pool[i]:Hide() end
+  return y
+end
+
+-- "Discipline 35 / Holy 0 / Shadow 16" -> "Discipline 35  ·  Shadow 16" (no empty trees).
+function ui.talentText(text)
+  if type(text) ~= "string" then return nil end
+  local parts = {}
+  for part in string.gmatch(text, "[^/]+") do
+    local name, points = part:match("^%s*(.-)%s+(%d+)%s*$")
+    if name and tonumber(points) > 0 then parts[#parts + 1] = name .. " " .. points
+    elseif not name and part:match("%S") then parts[#parts + 1] = part:match("^%s*(.-)%s*$") end
+  end
+  return #parts > 0 and table.concat(parts, "  ·  ") or nil
+end
+
+-- An icon at the left of a button, its label beside it (nil: no icon, the label centered).
+function ui.buttonIcon(b, texture)
+  if not b.leftIcon then
+    b.leftIcon = icon(b, 16)
+    b.leftIcon:SetPoint("LEFT", b, "LEFT", 6, 0)
+  end
+  local fs = b:GetFontString()
+  if fs then
+    fs:ClearAllPoints()
+    if texture then fs:SetPoint("LEFT", b, "LEFT", 28, 0) else fs:SetPoint("CENTER", b, "CENTER", 0, 0) end
+  end
+  if texture then b.leftIcon:SetTexture(texture:find("\\") and texture or ICONS .. texture) end
+  b.leftIcon:SetShown(texture ~= nil)
+end

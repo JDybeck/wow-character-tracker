@@ -495,18 +495,6 @@ local itemIcon = ns.itemIcon
 local function showItemTip(self) ui.itemTip(self, self.itemId, self.enchantId) end
 
 -- A label and its value, the value wrapping in what's left of width.
-local function newFactRow(parent, width)
-  local r = CreateFrame("Frame", nil, parent)
-  r:SetSize(width, 16)
-  r.labelText = ui.text(r, "GameFontDisableSmall")
-  r.labelText:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
-  r.labelText:SetWidth(86)
-  r.valueText = ui.text(r, "GameFontHighlightSmall")
-  r.valueText:SetPoint("TOPLEFT", r, "TOPLEFT", 92, 0)
-  r.valueText:SetWidth(width - 92)
-  return r
-end
-
 local function newGearRow()
   local r = CreateFrame("Frame", nil, details)
   r:SetSize(DETAILS_WIDTH - 24, GEAR_ROW)
@@ -597,10 +585,11 @@ local function headline(c)
 end
 
 -- The label and value lines a character's info lists, each only when known.
-local function facts(c, friend)
+-- The facts the row above doesn't already say (name, race, zone, level, item level and when it was
+-- seen are on the row; the friend is the section's title). Professions have their own rows.
+local function facts(c)
   local out = {}
-  local function add(label, value) if value and value ~= "" then out[#out + 1] = { label, value } end end
-  add("Friend", friend)
+  local function add(label, value, tex) if value and value ~= "" then out[#out + 1] = { label, value, tex } end end
   -- Forever has no realm to speak of, only a ruleset: the realm name's type ("CAMWOW EU5 Realm 6 PvP"
   -- -> "PvP"), plus the game's rules (Hardcore, Self-found) when they aren't the usual ones.
   local realmType = not ns.IS_RETAIL and ns.realmType(c.realm)
@@ -611,14 +600,9 @@ local function facts(c, friend)
     add("Realm", c.realm)
     add("Ruleset", rules)
   end
-  local race = c.race and (c.sex == "female" and "Female " or (c.sex == "male" and "Male " or "")) .. c.race
-  add("Race", race and (c.faction and string.format("%s, %s", race, c.faction) or race))
-  add("Item level", c.ilvl and tostring(math.floor(c.ilvl)))
-  add("Zone", c.zone)
-  add("Gold", c.money and gold(c.money))
-  add("Professions", c.professions)
-  add("Talents", c.talents)
-  add("Updated", (c.received or c.at) and ago(c.received or c.at))
+  add("Faction", ui.FACTION_ICONS[c.faction or ""] and c.faction, ui.FACTION_ICONS[c.faction or ""])
+  add("Gold", (c.money or 0) >= 10000 and ns.formatGold(c.money) or (c.money and c.money > 0 and gold(c.money)))
+  add("Talents", ui.talentText(c.talents))
   return out
 end
 
@@ -874,27 +858,12 @@ local function newExpansion(p, width)
   ex.width = width
   ui.box(ex, C.bar, C.border)
   ex.half = math.floor((width - 36) / 2)
-  ex.left, ex.right = {}, {}
+  ex.left, ex.right, ex.profs = {}, {}, {}
   ex.levelTitle = ui.text(ex, "GameFontNormalSmall", "Level times")
   ui.tint(ex.levelTitle, C.accent)
   ex.noLevels = ui.text(ex, "GameFontDisableSmall", "No level times shared.")
   ex.chart = ui.levelChart(ex, 30, EXPAND_CHART, math.floor(ex.half / 30))
   return ex
-end
-
--- Lists rows of { label, value } in a column from y; returns the y under them.
-local function factColumn(ex, pool, list, x, y)
-  for i, fact in ipairs(list) do
-    local r = pooled(pool, i, function() return newFactRow(ex, ex.half) end)
-    r.labelText:SetText(fact[1])
-    r.valueText:SetText(fact[2])
-    local h = math.max(14, textHeight(r.valueText, 14))
-    r:SetHeight(h)
-    place(r, ex, x, y)
-    y = y + h + 5
-  end
-  hideFrom(pool, #list + 1)
-  return y
 end
 
 -- Hidden characters (yours or friends'), by charKey, kept with the window's choices. Shown again,
@@ -920,11 +889,12 @@ end
 
 -- Fills the info for c and returns its height.
 local function drawExpansion(ex, c, friend)
-  local left = factColumn(ex, ex.left, facts(c, friend), 12, 10)
+  local left = ui.factTiles(ex, ex.left, facts(c), 12, 12, ex.half, 2)
+  left = ui.professionRows(ex, ex.profs, ui.parseProfessions(c.professions), 12, left + (left > 12 and 12 or 0), ex.half)
   local x = 24 + ex.half
   place(ex.levelTitle, ex, x, 10)
   local levels = levelsOf(c)
-  local right = factColumn(ex, ex.right, ns.levelingFacts(levels, c), x, 28)
+  local right = ui.factTiles(ex, ex.right, ns.levelingFacts(levels, c), x, 28, ex.half, 2)
   ex.noLevels:SetShown(#levels == 0)
   if #levels == 0 then
     place(ex.noLevels, ex, x, right)
@@ -954,7 +924,7 @@ local function drawExpansion(ex, c, friend)
   local actions = {}
   local count = #highlightsOf(c, friend)
   if count > 0 then
-    actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end }
+    actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end, "Highlights" }
   end
   -- Your own: your main (friends you share with see it first) and pinned to the top (ns.ownPicks).
   if friend == nil and c.guid and ns.setOwnMain then
@@ -970,22 +940,23 @@ local function drawExpansion(ex, c, friend)
   end
   local reputations = friend == nil and ns.reputationCount and ns.reputationCount(c) or 0 -- your own only
   if reputations > 0 then
-    actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end }
+    actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end, "Reputations" }
   end
   for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do
-    actions[#actions + 1] = { string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end }
+    actions[#actions + 1] = { string.format("%s recipes (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end, prof.name }
   end
   ex.recipes = ex.recipes or {}
   local x = 12
   for i, action in ipairs(actions) do
-    if x + 150 > ex.width - 130 then -- the next line, clear of Hide
+    if x + 170 > ex.width - 130 then -- the next line, clear of Hide
       x = 12
       h = h + 28
     end
-    local b = pooled(ex.recipes, i, function() return cardButton(ex, 150) end)
+    local b = pooled(ex.recipes, i, function() return cardButton(ex, 170) end)
     setButton(b, action[1], action[2])
+    ui.buttonIcon(b, ui.PROFESSION_ICONS[action[3] or ""])
     place(b, ex, x, h)
-    x = x + 156
+    x = x + 176
   end
   hideFrom(ex.recipes, #actions + 1)
   h = h + 30
