@@ -30,6 +30,7 @@ Update the addon with the app (it does this by itself), then exit the game fully
 - **No "This level" at max level.** The app's Home no longer shows a time for "This level" on a max level character, or a "-" right after a ding. The other tiles share the row instead.
 - **Easier to read grey text in the app.** Hints, search boxes and other grey text were too faint on the dark background. They're lighter now, readable on every color theme.
 - **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
+- **An online friend opens on what they're playing.** Clicking an online friend on the addon's Friends tab now also unfolds the character they're logged in on, with its gear beside the window, when they share it. Offline friends open as before.
 
 ## v0.42.4
 
