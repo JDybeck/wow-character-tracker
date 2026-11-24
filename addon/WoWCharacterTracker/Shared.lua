@@ -301,6 +301,54 @@ function ns.editSettings(edit)
   WoWCharacterTrackerDB.gameSettings = changed
 end
 
+-- Your main and pinned characters on this game: picked here (WoWCharacterTrackerDB.ownPicks =
+-- { main = guid, pinned = { guid, ... }, at }) or in the app (Settings.lua ownMain, ownPinned with
+-- ownPicksAt); the newer pick wins, like the friend order. The main leads your Characters tab and
+-- goes to friends with every character you share (FriendData.lua `main`), pinned ones come after it.
+function ns.ownPicks()
+  local game = WoWCharacterTrackerDB and WoWCharacterTrackerDB.ownPicks
+  local s = WoWCharacterTrackerSettings
+  local appAt = s and tonumber(s.ownPicksAt) or 0
+  if type(game) == "table" and (tonumber(game.at) or 0) > appAt then
+    return { main = type(game.main) == "string" and game.main ~= "" and game.main or nil,
+      pinned = type(game.pinned) == "table" and game.pinned or {} }
+  end
+  return { main = s and type(s.ownMain) == "string" and s.ownMain ~= "" and s.ownMain or nil,
+    pinned = s and type(s.ownPinned) == "table" and s.ownPinned or {} }
+end
+
+function ns.ownMain() return ns.ownPicks().main end
+
+function ns.isPinned(guid)
+  for _, g in ipairs(ns.ownPicks().pinned) do
+    if g == guid then return true end
+  end
+  return false
+end
+
+-- Picks main (guid, or false for none) and/or pins or unpins one character, as a newer pick.
+local function setOwnPicks(main, pinned)
+  local s = WoWCharacterTrackerSettings
+  local appAt = s and tonumber(s.ownPicksAt) or 0
+  local old = WoWCharacterTrackerDB.ownPicks
+  WoWCharacterTrackerDB.ownPicks = { main = main or "", pinned = pinned,
+    at = math.max(time(), appAt + 1, (type(old) == "table" and tonumber(old.at) or 0) + 1) }
+end
+
+function ns.setOwnMain(guid)
+  local picks = ns.ownPicks()
+  setOwnPicks(guid, copy(picks.pinned))
+end
+
+function ns.setPinned(guid, on)
+  local picks, pinned = ns.ownPicks(), {}
+  for _, g in ipairs(picks.pinned) do
+    if g ~= guid then pinned[#pinned + 1] = g end
+  end
+  if on then pinned[#pinned + 1] = guid end
+  setOwnPicks(picks.main, pinned)
+end
+
 -- s cut to at most n letters, never inside one: WoW's strings are UTF-8 bytes, so å or ö is two
 -- of them, and :sub would split it (the game shows garbage, the app reads broken text).
 function ns.cutLetters(s, n)

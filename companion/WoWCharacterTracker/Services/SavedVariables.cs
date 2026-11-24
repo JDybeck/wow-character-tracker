@@ -28,6 +28,7 @@ static class SavedVariables
             Notes = ReadNotes(db.Table.Get("notes")),
             Nicknames = ReadNicknames(db.Table.Get("friendNames")),
             FriendOrder = ReadFriendOrder(db.Table.Get("friendOrder")),
+            OwnPicks = ReadOwnPicks(db.Table.Get("ownPicks")),
             InGame = ReadInGame(db.Table.Get("gameSettings")),
             Friends = FriendData.ReadFriends(db.Table.Get("friends")),
             Share = FriendData.ReadShare(db.Table.Get("share")),
@@ -138,6 +139,19 @@ static class SavedVariables
         var list = tags.Table;
         return new GameFriendOrder([.. Enumerable.Range(1, list.Length).Select(i => list.Get(i))
             .Where(v => v.Type == DataType.String).Select(v => v.String).Distinct()], at);
+    }
+
+    // ownPicks = { main = guid, pinned = { guid, ... }, at }: your main and pinned characters, picked in game.
+    internal static GameOwnPicks? ReadOwnPicks(DynValue value)
+    {
+        if (value.Type != DataType.Table) return null;
+        var at = (long)N(value.Table, "at");
+        if (at <= 0) return null;
+        var main = value.Table.Get("main") is { Type: DataType.String } m ? m.String : "";
+        var pinned = value.Table.Get("pinned");
+        List<string> list = pinned.Type != DataType.Table ? [] : [.. Enumerable.Range(1, pinned.Table.Length).Select(i => pinned.Table.Get(i))
+            .Where(v => v.Type == DataType.String).Select(v => v.String).Distinct()];
+        return new GameOwnPicks(main, list, at);
     }
 
     // itemClasses[itemId] = the item's class (consumable, weapon, armor, trade goods...).

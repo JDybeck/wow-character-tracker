@@ -67,6 +67,10 @@ sealed class MainViewModel : Observable
             else Log.Warn("The clipboard was busy, so nothing was pasted. Try again.");
         });
         RemoveCharacterCommand = new RelayCommand(p => SelectedFlavor?.RemoveCharacter((CharacterRow)p!));
+        OwnMainCommand = new RelayCommand(p => { if (p is CharacterRow r) SelectedFlavor?.SetOwnMain(r, true); });
+        NotOwnMainCommand = new RelayCommand(p => { if (p is CharacterRow r) SelectedFlavor?.SetOwnMain(r, false); });
+        PinCommand = new RelayCommand(p => { if (p is CharacterRow r) SelectedFlavor?.SetPinned(r, true); });
+        UnpinCommand = new RelayCommand(p => { if (p is CharacterRow r) SelectedFlavor?.SetPinned(r, false); });
         IgnoreCharacterCommand = new RelayCommand(p => { if (p is CharacterRow c) SelectedFlavor?.SetIgnored(c, true); });
         AskRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = true);
         CancelRemoveCommand = new RelayCommand(p => ((CharacterRow)p!).ConfirmRemove = false);
@@ -192,6 +196,10 @@ sealed class MainViewModel : Observable
     public ICommand CopyPostingCommand { get; }
     public ICommand PastePostingCommand { get; }
     public ICommand RemoveCharacterCommand { get; }
+    public ICommand OwnMainCommand { get; }
+    public ICommand NotOwnMainCommand { get; }
+    public ICommand PinCommand { get; }
+    public ICommand UnpinCommand { get; }
     public ICommand IgnoreCharacterCommand { get; }
     public ICommand AskRemoveCommand { get; }
     public ICommand CancelRemoveCommand { get; }

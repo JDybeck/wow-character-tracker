@@ -21,6 +21,8 @@ local FIELDS = {
   spec = { kind = "string", max = 32 },
   ilvl = { kind = "number" },
   at = { kind = "number" },
+  -- Your main (a GUID): with every character, so the newest one a friend has says which it is now.
+  main = { kind = "string", max = 40 },
   talents = { kind = "string", max = 1024, category = "talents" },
   talentCalc = { kind = "string", max = 256, category = "talents" },
   gear = { kind = "string", max = 512, category = "gear" },
@@ -377,11 +379,12 @@ end
 
 -- The text for one of your characters, and the same without the volatile fields (`at` changes with
 -- every snapshot, so change detection compares that one). allowed: the categories the friend may
--- see; events: the character's highlights (ns.isFriendHighlight), or nil; levels: its level times.
-function ns.encodeFriendChar(guid, char, items, allowed, events, levels, days, counts)
+-- see; events: the character's highlights (ns.isFriendHighlight), or nil; levels: its level times;
+-- main: the GUID of your main when you have one and share it, else nil.
+function ns.encodeFriendChar(guid, char, items, allowed, events, levels, days, counts, main)
   local values = {}
   for key in pairs(FIELDS) do values[key] = char[key] end
-  values.guid, values.at = guid, char.lastSeen
+  values.guid, values.at, values.main = guid, char.lastSeen, main
   values.gear, values.enchants = items and items.gear, items and items.enchants
   values.highlights = allowed.highlights and encodeHighlights(events, allowed) or nil
   values.levels = allowed.leveling and encodeLevels(levels) or nil
@@ -460,5 +463,16 @@ function ns.decodeFriendChar(text)
     end
   end
   if not (out.guid and out.guid:match("^Player%-%d+%-%x+$") and out.char) then return nil end
+  if out.main and not out.main:match("^Player%-%d+%-%x+$") then out.main = nil end
   return out
+end
+
+-- A friend's own main (a GUID), from the newest character they sent (an older one can carry a main
+-- they've changed since), nil without one. The app's FriendData.MainOf reads it the same way.
+function ns.friendMain(chars)
+  local newest
+  for _, c in pairs(chars or {}) do
+    if not newest or (c.at or 0) > (newest.at or 0) then newest = c end
+  end
+  return newest and newest.main or nil
 end

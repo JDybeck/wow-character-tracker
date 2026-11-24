@@ -40,8 +40,29 @@ sealed class CharacterRow : Observable
     public string FriendSyncedText => FriendSynced > 0 ? $"updated {Format.Ago(FriendSynced)}" : "not updated yet";
     bool isHiddenFriend;
     public bool IsHiddenFriend { get => isHiddenFriend; set => Set(ref isHiddenFriend, value); } // hidden on the Friends page, shown anyway
+    // A friend's main: the one you picked for them (Config.FriendMains, MainPickedHere), else the one
+    // they marked as their own main (FriendContact.Main).
     bool isFriendMain;
-    public bool IsFriendMain { get => isFriendMain; set => Set(ref isFriendMain, value); } // the main you picked for that friend (Config.FriendMains)
+    public bool IsFriendMain { get => isFriendMain; set { if (Set(ref isFriendMain, value)) RaiseMain(); } }
+    public bool IsTheirOwnMain { get; set; } // the friend marked it as their main (FriendContact.Main)
+    bool mainPickedHere;
+    public bool MainPickedHere { get => mainPickedHere; set { if (Set(ref mainPickedHere, value)) RaiseMain(); } }
+    public bool ShowsUnsetFriendMain => IsFriendMain && MainPickedHere; // yours to unset
+    public bool ShowsTheirOwnMain => IsFriendMain && !MainPickedHere; // they picked it
+    // Your own main (one per game, sent to friends) and pinned characters, which lead your lists.
+    bool isOwnMain;
+    public bool IsOwnMain { get => isOwnMain; set { if (Set(ref isOwnMain, value)) RaiseMain(); } }
+    bool isPinned;
+    public bool IsPinned { get => isPinned; set { if (Set(ref isPinned, value)) RaiseMain(); } }
+    public bool ShowsMainTag => IsFriendMain || IsOwnMain;
+    public string MainTagTip => IsOwnMain ? "Your main: it leads your list, and friends you share with see it first"
+        : MainPickedHere ? "Their main, picked by you: it leads their card and their list"
+        : "Their main, picked by them: it leads their card and their list";
+    void RaiseMain()
+    {
+        foreach (var name in new[] { nameof(ShowsUnsetFriendMain), nameof(ShowsTheirOwnMain), nameof(ShowsMainTag), nameof(MainTagTip) })
+            Raise(name);
+    }
     // A friend's character raced against one of yours (FriendsViewModel), null when none share a level.
     public LevelRaceRow? Rival { get; set; }
     public bool HasRival => Rival is not null;

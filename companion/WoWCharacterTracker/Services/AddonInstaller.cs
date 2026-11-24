@@ -148,6 +148,10 @@ static partial class AddonInstaller
                   + $"  announce = {{ guild = {B(s.AnnounceGuild)}, party = {B(s.AnnounceParty)}, kinds = {{ {LuaSet(s.AnnounceKinds)} }}, "
                   + $"partyKinds = {{ {LuaSet(s.AnnouncePartyKinds ?? s.AnnounceKinds)} }} }},\n"
                   + $"  inGameAt = {s.InGameAt},\n"
+                  // Your main (sent to friends with every shared character) and pinned characters, picked here or in game.
+                  + $"  ownMain = {LuaString(s.OwnMain)},\n"
+                  + $"  ownPinned = {{ {string.Concat(s.OwnPinned.Select(g => $"{LuaString(g)}, "))}}},\n"
+                  + $"  ownPicksAt = {s.OwnPicksAt},\n"
                   + $"  ask = {{ {LuaSet(s.AskKinds ?? [])} }},\n"
                   + $"  askSeconds = {FlavorSettings.AskSecondsOrDefault(s.AskSeconds)},\n"
                   // Characters removed in the app and when: never shared with friends until played again.
