@@ -21,6 +21,11 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
     // there's nothing yet. Then the tile goes and the other three share the row.
     public bool ShowThisLevel => hero is not { AtMaxLevel: true } && ThisLevelText != "-";
 
+    // The Gold tile's label: "12,345g account", the gold of all your characters in this game tab
+    // (as the addon shows it). Just "Gold" when the hero is the only one with gold.
+    string goldLabel = "Gold";
+    public string GoldLabel { get => goldLabel; private set => Set(ref goldLabel, value); }
+
     bool playing;
     public bool Playing { get => playing; private set { Set(ref playing, value); Raise(nameof(HeroTitle)); } }
     public string HeroTitle => Playing ? "PLAYING NOW" : "LAST PLAYED";
@@ -64,6 +69,7 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         Playing = gameRunning && Hero is not null;
         Card = Hero is { } h ? StreamSnapshot.Build(StreamViewModel.Character(h, flavor), events, DateTimeOffset.Now) : StreamSnapshot.Empty;
         PaceText = Hero is { } p ? Pace(p) : "";
+        GoldLabel = AccountGold(rows, Hero);
 
         ShowToday(rows, events, days, sent, DateTime.Now);
 
@@ -85,6 +91,15 @@ sealed class HomeViewModel(Flavor flavor, GameLookup lookup) : Observable
         foreach (var other in Others(rows, TodayStats.ByCharacter(events, days, sent, keys, now), hero)) OtherToday.Add(other);
         Raise(nameof(HasOtherToday));
         Raise(nameof(HasAnyToday));
+    }
+
+    // The hero's gold plus that of the other characters with any. Test characters only count with a
+    // test hero, so a real total never has made-up gold in it.
+    internal static string AccountGold(IEnumerable<CharacterRow> rows, CharacterRow? hero)
+    {
+        if (hero is null) return "Gold";
+        var others = rows.Where(r => r.Guid != hero.Guid && r.Money > 0 && r.IsTest == hero.IsTest).ToList();
+        return others.Count == 0 ? "Gold" : $"{Format.Gold(hero.Money + others.Sum(r => r.Money))} account";
     }
 
     // The characters other than the hero that did something today, the one played last first.
