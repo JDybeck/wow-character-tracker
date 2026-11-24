@@ -856,6 +856,15 @@ function ns.toggleFriendDetails(c, friend)
   drawDetails(c, friend)
 end
 
+-- A click that opens an online friend: the character they're playing unfolds, its gear beside the
+-- window. Only one they share: what Battle.net alone tells would unfold nearly empty.
+function ns.unfoldFriendPlaying(c, friend)
+  if not c or c.notShared then return end
+  if not details then buildDetails() end
+  expandedKey = charKey(c)
+  drawDetails(c, friend)
+end
+
 -- The unfolded info under a row: the facts on the left, the level times and their chart on the
 -- right. One per tab page, placed under whichever row is open.
 local EXPAND_CHART = 30
@@ -1698,6 +1707,7 @@ local function buildFriends(p)
       end
       if not self.tag then return end
       openFriendTag = openFriendTag ~= self.tag and self.tag or nil
+      if openFriendTag and self.playing then ns.unfoldFriendPlaying(self.playing, self.label) end
       drawFriends()
     end)
     card:SetScript("OnDragStart", function(self)
@@ -1924,6 +1934,7 @@ local function buildFriends(p)
       local card = pooled(friendCards, i, newFriendCard)
       local c, label = person.current, who(person.label, person.tag)
       card.tag, card.order = person.tag, order
+      card.playing, card.label = person.online and c or nil, label -- unfolds when the card opens
       card:SetWidth(cardWidth)
       for _, fs in ipairs({ card.nameText, card.infoText }) do fs:SetWidth(cardWidth - 24 - ui.CARD_PORTRAIT) end
       card.whoText:SetWidth(cardWidth - 40 - ui.CARD_PORTRAIT)

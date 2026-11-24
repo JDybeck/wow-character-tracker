@@ -27,6 +27,7 @@ Update the addon with the app (it does this by itself), then exit the game fully
 - **Easier to read grey text in the app.** Hints, search boxes and other grey text were too faint on the dark background. They're lighter now, readable on every color theme.
 - **Friends before Sharing.** The addon window's tabs now read Home, Characters, Friends, Sharing, Settings.
 - **The weekly satchel names its valuable.** The Gold Nugget, Huge Quartz Gem, Silver Necklace or Gold Ring that comes out of the weekly satchel is now the item the chat line, the guild line and Discord name, with its sell price. Anything else inside is listed as a bonus, without a price. Before, a Huge Quartz Gem could be missed and a cheaper bonus item named instead.
+- **An online friend opens on what they're playing.** Clicking an online friend on the addon's Friends tab now also unfolds the character they're logged in on, with its gear beside the window, when they share it. Offline friends open as before.
 
 ## v0.42.4
 
