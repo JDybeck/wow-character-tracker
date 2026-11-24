@@ -86,7 +86,7 @@ end
 -- edit wins: a change in game goes to WoWCharacterTrackerDB.gameSettings with its time and applies
 -- right away, the app takes it from the saved file, and a later change in the app (Settings.lua
 -- inGameAt) wins over it.
-local IN_GAME = { announce = true, ask = true, chatReminder = true,
+local IN_GAME = { announce = true, ask = true,
   gridCorner = true, gridLabel = true, keepAllHistory = true, askSeconds = true, ignored = true, preset = true, filters = true,
   posts = true, screenshot = true, distanceUnit = true }
 

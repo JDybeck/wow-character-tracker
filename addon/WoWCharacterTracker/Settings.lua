@@ -7,5 +7,4 @@ WoWCharacterTrackerSettings = {
     kinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, achievement = true, reputation = true, weekly = true, mplus = true, pvp = true },
     partyKinds = { level = true, maxlevel = true, boss = true, loot = true, mount = true, profession = true, achievement = true, reputation = true, weekly = true, mplus = true, pvp = true } },
   ask = {},
-  chatReminder = false,
 }
