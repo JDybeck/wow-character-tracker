@@ -80,10 +80,18 @@ local function midnight()
 end
 
 -- value nil: unknown, so the tile hides (no "?").
+-- The text stays inside the tile (the layout gives it fitWidth): a smaller size before it spills.
+local function fitTile(t)
+  if not t.fitWidth then return end
+  ui.fitText(t.value, t.fitWidth, 10)
+  ui.fitText(t.label, t.fitWidth, 9)
+end
+
 local function setTile(t, value, label)
   t.value:SetText(value or "")
   t.label:SetText(label)
   t.known = value ~= nil
+  fitTile(t)
 end
 
 local hideTip = ns.hideTip
@@ -335,6 +343,18 @@ local function cardLabel(card, s, y, right)
 end
 
 -- A friend who shares with you: portrait, name and what they're on, whose friend and when seen.
+-- The battletag on the right takes what it needs (up to 45% of the row), the name and class the rest,
+-- each cut short instead of running into the other.
+local function sizeFriendRow(row, width)
+  if not width then return end
+  local right = math.min(math.floor(width * 0.45), math.max(ui.textWidth(row.label), ui.textWidth(row.when)) + 2)
+  row.label:SetWidth(right)
+  row.when:SetWidth(right)
+  local left = math.max(40, width - 38 - right - 10)
+  row.who:SetWidth(left)
+  row.what:SetWidth(left)
+end
+
 local function newFriendRow(parent)
   local row = CreateFrame("Frame", nil, parent)
   row:SetHeight(FRIEND_ROW - 2)
@@ -353,9 +373,11 @@ local function newFriendRow(parent)
   row.what:SetWordWrap(false)
   row.label = bigText(row, "GameFontHighlightSmall")
   row.label:SetJustifyH("RIGHT")
+  row.label:SetWordWrap(false)
   row.label:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -2)
   row.when = bigText(row, "GameFontDisableSmall")
   row.when:SetJustifyH("RIGHT")
+  row.when:SetWordWrap(false)
   row.when:SetPoint("TOPRIGHT", row.label, "BOTTOMRIGHT", 0, -3)
   row:SetScript("OnEnter", rowEnter)
   row:SetScript("OnLeave", rowLeave)
@@ -404,6 +426,7 @@ function ns.buildHomeTab(p)
   local sub = bigText(card, "GameFontHighlight")
   sub:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
   local zone = bigText(card, "GameFontDisableSmall")
+  local headerWidth = 200 -- name, race and class, zone: beside the portrait (fit)
   zone:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -3)
 
   -- XP to the next level, with this level's time; the time to the top at your pace on the right.
@@ -417,6 +440,8 @@ function ns.buildHomeTab(p)
   local xpText = bigText(card, "GameFontDisableSmall")
   local estimate = bigText(card, "GameFontDisableSmall")
   estimate:SetJustifyH("RIGHT")
+  xpText:SetWordWrap(false)
+  estimate:SetWordWrap(false)
 
   local pace = bigText(card, "GameFontHighlightSmall")
   local tiles = {}
@@ -550,8 +575,12 @@ function ns.buildHomeTab(p)
     friendsCard:SetWidth(left)
     momentsCard:SetWidth(w - left - GAP)
     listWidth = w - left - GAP - 2 * PAD
-    name:SetWidth(inner - PORTRAIT - 18)
+    headerWidth = inner - PORTRAIT - 18
+    for _, fs in ipairs({ name, sub, zone }) do ui.fitText(fs, headerWidth, fs == name and 14 or 10) end
     xpBar:SetWidth(inner)
+    -- XP on the left, the time to max on the right: each its own half, cut short before they meet.
+    xpText:SetWidth(math.floor(inner * 0.55) - 4)
+    estimate:SetWidth(math.floor(inner * 0.45) - 4)
     for _, fs in ipairs({ pace, factLines[1], factLines[2] }) do fs:SetWidth(inner) end
     for _, row in ipairs(history) do
       row:SetWidth(inner)
@@ -560,8 +589,8 @@ function ns.buildHomeTab(p)
     noFriends:SetWidth(inner)
     for _, row in ipairs(friendRows) do
       row:SetWidth(inner)
-      row.who:SetWidth(inner - 38 - 110)
-      row.what:SetWidth(inner - 38 - 110)
+      row.fitWidth = inner
+      sizeFriendRow(row, inner)
     end
   end
 
@@ -612,6 +641,8 @@ function ns.buildHomeTab(p)
         t:SetShown(t.known)
         if t.known then
           t:SetWidth(tileWidth)
+          t.fitWidth = tileWidth - 16
+          fitTile(t)
           at(t, card, y, -2 + n * (tileWidth + 6))
           n = n + 1
         end
@@ -685,6 +716,7 @@ function ns.buildHomeTab(p)
       if i <= count then
         local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
         at(fs, card, y + 32 + row * 22, -2 + col * colWidth)
+        ui.fitText(fs, colWidth - 8, 10)
       end
     end
     local cardHeight = hasToday and (y + 32 + math.ceil(count / cols) * 22 + 8) or (y + 8)
@@ -728,6 +760,7 @@ function ns.buildHomeTab(p)
     name:SetTextColor(r, g, b)
     sub:SetText(string.format("%s %s", me.race or "", me.class or ""))
     zone:SetText(me.zone or "")
+    for _, fs in ipairs({ name, sub, zone }) do ui.fitText(fs, headerWidth, fs == name and 14 or 10) end
     local atMax = me.maxLevel and me.level and me.level >= me.maxLevel
 
     local hasXp = not atMax and me.level ~= nil and (me.xpMax or 0) > 0
@@ -812,6 +845,7 @@ function ns.buildHomeTab(p)
         row.what:SetText(table.concat(bits, "  ·  "))
         row.label:SetText(f.label or "")
         row.when:SetText(ns.ago(f.at))
+        sizeFriendRow(row, row.fitWidth)
         ui.setPortrait(row.portrait, c)
         row.full = friendTip(c)
         row.open = function() ns.toggleFriendDetails(c, f.label) end
