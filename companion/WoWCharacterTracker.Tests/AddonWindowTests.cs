@@ -1045,12 +1045,30 @@ public class AddonWindowTests
     public void The_friends_view_says_when_its_empty_and_follows_a_reveal()
     {
         var c = FriendsTab();
-        c.Lua("online = {}; ns.friendsChanged()");
+        c.Lua("online = {}; ns.friendsChanged(); local b = find('Online (0)'); b.scripts.OnClick(b)");
         Assert.True(Bool(c, "shownText('None of them are online in this game right now.') ~= nil"));
         Assert.True(Bool(c, "friendCard('Cidrin Frostmane') == nil"));
         c.Call("toggleFriendDetails", c.Lua("return shared[1].chars[1]"), "Cid#3");
         Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
         Assert.Equal("offline", c.Lua("return WoWCharacterTrackerDB.window.friendsView").String);
+    }
+
+    // Offline picked last time doesn't stick: opening the tab again shows Online while anyone is online,
+    // and Offline only when nobody is (until someone comes online).
+    [Fact]
+    public void The_friends_tab_opens_on_online_when_anyone_is_online()
+    {
+        var c = FriendsTab();
+        c.Lua("bob = online[2]; bob.contact = {}; online = { bob }; ns.friendsChanged(); local b = find('Offline (1)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil"));
+        c.Call("openWindow", "friends");
+        Assert.True(Bool(c, "shownText('Level 12  ·  online') ~= nil and friendCard('Cidrin Frostmane') == nil"));
+
+        c.Lua("online = {}");
+        c.Call("openWindow", "friends");
+        Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil")); // nobody online: Offline
+        c.Lua("online = { bob }; ns.friendsChanged()");
+        Assert.True(Bool(c, "shownText('Level 12  ·  online') ~= nil and friendCard('Cidrin Frostmane') == nil")); // back to Online
     }
 
     [Fact]

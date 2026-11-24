@@ -1524,8 +1524,14 @@ local function buildFriends(p)
   local requestsTitle = ui.heading(p, "Requests")
   local none = note("No friends here yet. Battle.net friends online in this game show up here, and so does everyone you share with.")
   local nothingShared = note("Nothing shared with you yet.")
-  -- Online or Offline friends in the grid, remembered with the window.
-  local function friendsView() return (WoWCharacterTrackerDB.window or {}).friendsView == "offline" and "offline" or "online" end
+  -- Online or Offline friends in the grid. Opening the tab clears a pick (selectTab); until one is
+  -- clicked again it's Online whenever anyone is online, else Offline (autoView, set by drawView).
+  local autoView = "online"
+  local function friendsView()
+    local picked = (WoWCharacterTrackerDB.window or {}).friendsView
+    if picked == "online" or picked == "offline" then return picked end
+    return autoView
+  end
   local function setFriendsView(key)
     WoWCharacterTrackerDB.window = WoWCharacterTrackerDB.window or {}
     WoWCharacterTrackerDB.window.friendsView = key
@@ -1779,13 +1785,12 @@ local function buildFriends(p)
   -- and the y under it. Revealing a friend's character switches to the view that friend is in.
   local function drawView(y, all, revealTag)
     local online, offline = {}, {}
+    local w = saved()
     for _, person in ipairs(all) do
       if person.online then online[#online + 1] = person else offline[#offline + 1] = person end
-      if person.tag == revealTag then
-        WoWCharacterTrackerDB.window = WoWCharacterTrackerDB.window or {}
-        WoWCharacterTrackerDB.window.friendsView = person.online and "online" or "offline"
-      end
+      if person.tag == revealTag then w.friendsView = person.online and "online" or "offline" end
     end
+    autoView = (#online > 0 or #offline == 0) and "online" or "offline"
     emptyView:Hide()
     -- Gold and played over everyone in the grid, online or not, hidden characters left out.
     st.totals = ns.friendTotals and ns.friendTotals(all, isHidden) or nil
@@ -2327,6 +2332,7 @@ selectTab = function(key)
   if not BY_KEY[key] then key = "home" end
   current = key
   saved().tab = key
+  if key == "friends" then saved().friendsView = nil end -- Online or Offline is picked again (drawView)
   for _, t in ipairs(TABS) do
     local state = tabs[t.key]
     if t.key == key then
