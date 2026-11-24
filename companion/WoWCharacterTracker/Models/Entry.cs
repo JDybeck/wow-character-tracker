@@ -79,10 +79,8 @@ record Entry
     public int Renown { get; init; }               // reputation: a Retail renown faction's top renown, reached (Step 0 then)
     // weekly (Forever's In Demand satchel): the valuable is Item/ItemId/Quality; Sell what a
     // vendor pays for it (copper), Quest the week's quest ("In Demand - Plague Records", "" when the
-    // addon didn't see the turn-in), Bag the satchel, Extras the rest that came out ("Thorium Ore x3^Black Lotus"),
-    // Total what everything that came out sells for (copper; 0 before 0.42.5).
+    // addon didn't see the turn-in), Bag the satchel, Extras the bonus items that came out, unpriced ("Thorium Ore x3^Black Lotus").
     public long Sell { get; init; }
-    public long Total { get; init; }
     public string Quest { get; init; } = "";
     public string Bag { get; init; } = "";
     public string Extras { get; init; } = "";
@@ -194,7 +192,6 @@ record Entry
             FactionId = (int)n("factionId"),
             Renown = (int)n("renown"),
             Sell = (long)n("sell"),
-            Total = (long)n("total"),
             Quest = s("quest"),
             Bag = s("bag"),
             Extras = s("extras"),
