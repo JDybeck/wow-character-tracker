@@ -1326,16 +1326,14 @@ public class AddonWindowTests
             CLASS_ICON_TCOORDS = { WARRIOR = { 0, 0.25, 0, 0.25 }, PRIEST = { 0.5, 0.75, 0.25, 0.5 }, MAGE = { 0.25, 0.5, 0, 0.25 } }
             live = {}
             function SetPortraitTexture(t, unit) live[#live + 1] = unit; t.texture = 'live:' .. unit end
-            function face(name) return shownText(name).owner.portrait.face end
-            function class(name) return shownText(name).owner.portrait.class end
+            function icon(name) return shownText(name).owner.portrait.icon end
             """);
         c.Call("openWindow", "characters");
-        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\7", c.Lua("return face('Bea').texture").String);
-        Assert.True(Bool(c, "face('Bea').shown"));
-        Assert.True(Bool(c, "class('Bea').shown == false")); // not under it: it showed through the faded window
-        Assert.True(Bool(c, "face('Alt').shown == false")); // no portrait: the class icon
-        Assert.True(Bool(c, "class('Alt').shown"));
-        Assert.Equal("live:player", c.Lua("return face('Zeb').texture").String); // the one being played
+        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\7", c.Lua("return icon('Bea').texture").String);
+        Assert.True(Bool(c, "icon('Bea').shown"));
+        Assert.Equal(@"Interface\TargetingFrame\UI-Classes-Circles", c.Lua("return icon('Alt').texture").String); // no portrait: the class icon in its place
+        Assert.True(Bool(c, "icon('Alt').shown"));
+        Assert.Equal("live:player", c.Lua("return icon('Zeb').texture").String); // the one being played
     }
 
     // Home: friends' moments beside yours, and a friend's row opens their details like the Friends tab.
@@ -1360,7 +1358,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText(\"Friends' moments\") ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Ragnaros in Molten Core!') ~= nil"));
         // A moment that isn't about an item shows the character's portrait.
-        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\3", c.Lua("return shownText('Killed Ragnaros in Molten Core!').owner.portrait.face.texture").String);
+        Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\3", c.Lua("return shownText('Killed Ragnaros in Molten Core!').owner.portrait.icon.texture").String);
         Assert.False(Bool(c, "shownText('Killed Ragnaros in Molten Core!').owner.icon.shown"));
         // At max level the hover is their latest moment, not how long 59 to 60 took.
         var tip = c.Lua("return shownText('Cidrin Frostmane').owner.full").String;
