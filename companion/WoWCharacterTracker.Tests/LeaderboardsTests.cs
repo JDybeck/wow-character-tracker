@@ -73,7 +73,7 @@ public class LeaderboardsTests
             Source(You, [], [
                 OnDay("y1", "2026-11-07", quests: 99), // eight days ago: out
                 OnDay("y1", "2026-11-12", quests: 10, herbs: 4, ilvlStart: 30, ilvl: 33, moneyStart: 100_000, money: 150_000),
-                OnDay("y1", "2026-11-14", quests: 5, ilvlStart: 33, ilvl: 35.5, moneyStart: 150_000, money: 120_000), // spent: no gold
+                OnDay("y1", "2026-11-14", quests: 5, ilvlStart: 33, ilvl: 35.5, moneyStart: 150_000, money: 120_000), // spent: takes off the gold
             ], "y1", "Zeb"),
             Source(Benne, [], [OnDay("b1", "2026-11-13", quests: 30)], "b1", "Benne BenlÃ¶s"),
         ], Now);
@@ -83,7 +83,25 @@ public class LeaderboardsTests
         var ilvl = Board(boards, "ilvl").Scores[0];
         Assert.Equal(5.5, ilvl.Value);
         Assert.Equal("Zeb", ilvl.Detail);
-        Assert.Equal(50_000, Board(boards, "gold").Scores[0].Value);
+        Assert.Equal(20_000, Board(boards, "gold").Scores[0].Value);
+    }
+
+    // Gold is the net: a friend who spent more than they made is on the board with a minus, below
+    // everyone who made some, and gets no MVP points for it.
+    [Fact]
+    public void Gold_is_the_net_and_a_loss_is_last_without_points()
+    {
+        var boards = Leaderboards.Build(
+        [
+            Source(You, [], [OnDay("y1", "2026-11-14", moneyStart: 100_000, money: 150_000)], "y1", "Zeb"),
+            Source(Rasmus, [], [OnDay("r1", "2026-11-14", moneyStart: 3_000_000, money: 2_800_000)], "r1", "Ras"),
+        ], Now);
+
+        var gold = Board(boards, "gold");
+        Assert.Equal("Most gold made", gold.Title);
+        Assert.Equal([50_000, -200_000], gold.Scores.Select(s => s.Value));
+        Assert.Equal(["+5g 0s 0c", "-20g 0s 0c"], gold.Scores.Select(s => s.Text));
+        Assert.DoesNotContain(Leaderboards.Mvps(boards), m => m.Who == Rasmus);
     }
 
     [Fact]

@@ -119,7 +119,7 @@ public class TodayStatsTests
             }
             today = {
               a = { day = '2026-11-09', ilvlStart = 30, ilvl = 32.5, moneyStart = 10000, money = 135000, quests = 7, herbs = 3 },
-              b = { day = '2026-11-09', ore = 2, moneyStart = 50000, money = 10000 }, -- spent: no gold
+              b = { day = '2026-11-09', ore = 2, moneyStart = 50000, money = 10000 }, -- spent: takes off a's gold
               c = { day = '2026-11-08', quests = 50 },
             }
             stats = ns.todayStats(events, today, '2026-11-09', {{At(0)}}, false)
@@ -141,22 +141,43 @@ public class TodayStatsTests
         };
         var app = string.Join(", ", TodayStats.Build(events, days, new HashSet<string>(), keys: false, Now).Select(s => $"{s.Value} {s.What}"));
 
-        Assert.Equal("2 levels, 1 epic, +2.5 item level, 7 quests, 12 gold, 3 herbs, 2 veins", lua);
+        Assert.Equal("2 levels, 1 epic, +2.5 item level, 7 quests, +8 gold, 3 herbs, 2 veins", lua);
         Assert.Equal(lua, app);
     }
 
-    // Gold earned reads as a plain number and what it is: gold, or silver under one gold. No "g" or "s".
+    // Gold reads as a signed number and what it is: gold, or silver under one gold. No "g" or "s".
     [Theory]
-    [InlineData(9850, "98 silver")]
-    [InlineData(10000, "1 gold")]
-    [InlineData(125000, "12 gold")]
-    [InlineData(12345678, "1,234 gold")]
-    public void Gold_earned_today_is_gold_or_silver(double copper, string shown)
+    [InlineData(9850, "+98 silver")]
+    [InlineData(10000, "+1 gold")]
+    [InlineData(125000, "+12 gold")]
+    [InlineData(12345678, "+1,234 gold")]
+    [InlineData(-9850, "-98 silver")]
+    [InlineData(-125000, "-12 gold")]
+    [InlineData(-12345678, "-1,234 gold")]
+    public void Gold_today_is_signed_gold_or_silver(double copper, string shown)
     {
         var (script, _) = Load();
         var v = copper.ToString(System.Globalization.CultureInfo.InvariantCulture);
         Assert.Equal(shown, script.DoString($"return ns.todayValue({{ key = 'gold', value = {v} }}) .. ' ' .. ns.todayName('gold', {v}, false)").String);
         Assert.Equal(shown, $"{TodayStats.Value("gold", copper)} {TodayStats.Name("gold", copper, keys: false)}");
+    }
+
+    // Gold is the day's net: spent 300 and made 280 reads -20 gold, in the addon and the app.
+    [Fact]
+    public void A_day_that_spent_more_than_it_made_shows_minus()
+    {
+        var (script, _) = Load();
+        script.DoString("""
+            stats = ns.todayStats({}, { a = { day = '2026-11-09', moneyStart = 5000000, money = 4800000 } }, '2026-11-09', 0, false)
+            out = {}
+            for _, s in ipairs(stats) do out[#out + 1] = ns.todayValue(s) .. ' ' .. s.name end
+            """);
+        var lua = script.DoString("return table.concat(out, ', ')").String;
+        var app = string.Join(", ", TodayStats.Build([], [new("a", "2026-11-09", 0, 0, 5000000, 4800000, 0, 0, 0, 0, 0)],
+            new HashSet<string>(), keys: false, Now).Select(s => $"{s.Value} {s.What}"));
+
+        Assert.Equal("-20 gold", lua);
+        Assert.Equal(lua, app);
     }
 
     // No zeros: a quiet day lists only what happened, and nothing at all when nothing did.

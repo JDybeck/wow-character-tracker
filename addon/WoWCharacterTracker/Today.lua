@@ -1,5 +1,5 @@
--- Today's numbers per character that aren't events: quests turned in, gold and item level gained,
--- herbs, veins, skins and fish gathered. WoWCharacterTrackerDB.today[guid] holds one day
+-- Today's numbers per character that aren't events: quests turned in, gold made or lost, item
+-- level gained, herbs, veins, skins and fish gathered. WoWCharacterTrackerDB.today[guid] holds one day
 -- ({ day = "2026-11-09", ilvlStart, ilvl, moneyStart, money, quests, herbs, ore, skins, fish }) and
 -- starts over on the next. ns.todayStats ranks them with the event counts for the Home tab (the
 -- app's TodayStats, same order). No game calls at load, so the app's tests load it.
@@ -149,7 +149,8 @@ end
 
 -- What Home's TODAY row shows, most important first: { key, name, value } where value is a count,
 -- or copper (gold) or item levels (ilvl). events: the account's events; today: db.today; since:
--- midnight. Only stats above 0: a 0 says nothing, and a quiet day shows no TODAY at all.
+-- midnight. Only stats that aren't 0 (gold can be below: the day's net): a 0 says nothing, and a
+-- quiet day shows no TODAY at all.
 local ORDER = { "levels", "bosses", "epics", "mounts", "ilvl", "quests", "gold", "herbs", "ore", "skins", "fish" }
 local NAMES = { levels = "levels", bosses = "bosses", epics = "epics", mounts = "mounts", ilvl = "item level",
   quests = "quests", gold = "gold", herbs = "herbs", ore = "veins", skins = "skins", fish = "fish" }
@@ -174,40 +175,42 @@ function ns.todayStats(events, today, day, since, isRetail)
       for _, key in ipairs({ "quests", "herbs", "ore", "skins", "fish" }) do v[key] = v[key] + (tonumber(t[key]) or 0) end
       local gained = (tonumber(t.ilvl) or 0) - (tonumber(t.ilvlStart) or 0)
       if gained > 0 then v.ilvl = v.ilvl + gained end
-      local earned = (tonumber(t.money) or 0) - (tonumber(t.moneyStart) or 0)
-      if earned > 0 then v.gold = v.gold + earned end
+      -- Gold is the day's net: what it has now against what it started with, so a day that spent
+      -- more than it made counts as minus.
+      v.gold = v.gold + (tonumber(t.money) or 0) - (tonumber(t.moneyStart) or 0)
     end
   end
   if v.ilvl < 0.05 then v.ilvl = 0 end -- rounding left over from averages
-  if v.gold < 100 then v.gold = 0 end -- less than a silver isn't worth a spot
+  if math.abs(v.gold) < 100 then v.gold = 0 end -- less than a silver either way isn't worth a spot
 
   local out = {}
   local function add(key) out[#out + 1] = { key = key, name = ns.todayName(key, v[key], isRetail), value = v[key] } end
-  for _, key in ipairs(ORDER) do if v[key] > 0 then add(key) end end
+  for _, key in ipairs(ORDER) do if v[key] ~= 0 then add(key) end end -- only gold can be below 0
   return out
 end
 
 -- What a stat is called: gold under one gold is silver ("98 silver"), bosses are keys on Retail,
 -- and one of a count is singular ("1 boss").
 function ns.todayName(key, value, isRetail)
-  if key == "gold" and value < 10000 then return "silver" end
+  if key == "gold" and math.abs(value) < 10000 then return "silver" end
   if key == "bosses" and isRetail then return value == 1 and "key" or "keys" end
   if value == 1 and ONE[key] then return ONE[key] end
   return NAMES[key]
 end
 
--- The value as Home shows it: "+2.5" item levels, gold as "12" or "1,234" (silver under one gold:
--- "98"), else the count. The name after it says which.
+-- The value as Home shows it: "+2.5" item levels, gold signed as "+12", "-1,234" (silver under one
+-- gold: "+98"), else the count. The name after it says which.
 function ns.todayValue(s)
   if s.key == "ilvl" then
     local text = string.format("%.1f", s.value):gsub("%.0$", "")
     return "+" .. text
   end
   if s.key == "gold" then
-    if s.value < 10000 then return tostring(math.floor(s.value / 100)) end
-    local text, n = tostring(math.floor(s.value / 10000)), 0
+    local sign, copper = s.value < 0 and "-" or "+", math.abs(s.value)
+    if copper < 10000 then return sign .. math.floor(copper / 100) end
+    local text, n = tostring(math.floor(copper / 10000)), 0
     repeat text, n = text:gsub("^(%d+)(%d%d%d)", "%1,%2") until n == 0
-    return text
+    return sign .. text
   end
   return tostring(s.value)
 end
