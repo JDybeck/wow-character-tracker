@@ -638,25 +638,25 @@ function ui.portrait(parent, size)
   return f
 end
 
+-- The character's face when we have one, else their class icon. Never both: under a faded window
+-- (Shell.lua fadeWhenAway) a face drawn over the icon lets the icon show through.
 function ui.setPortrait(f, c)
-  local coords = c and c.classFile and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[c.classFile]
+  local slot = c and ns.portraitSlot(c.guid)
+  f.face:SetTexCoord(0, 1, 0, 1)
+  local hasFace = false
+  if slot then
+    f.face:SetTexture(PORTRAITS .. slot)
+    hasFace = true
+  elseif c and c.guid and UnitGUID and c.guid == UnitGUID("player") and SetPortraitTexture and pcall(SetPortraitTexture, f.face, "player") then
+    hasFace = true
+  end
+  f.face:SetShown(hasFace)
+  local coords = not hasFace and c and c.classFile and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[c.classFile]
   if coords then
     f.class:SetTexture(CLASS_CIRCLES)
     f.class:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-    f.class:Show()
-  else
-    f.class:Hide()
   end
-  local slot = c and ns.portraitSlot(c.guid)
-  f.face:SetTexCoord(0, 1, 0, 1)
-  if slot then
-    f.face:SetTexture(PORTRAITS .. slot)
-    f.face:Show()
-  elseif c and c.guid and UnitGUID and c.guid == UnitGUID("player") and SetPortraitTexture and pcall(SetPortraitTexture, f.face, "player") then
-    f.face:Show()
-  else
-    f.face:Hide()
-  end
+  f.class:SetShown(coords and true or false)
 end
 
 -- A class's round icon on texture (the same circles the portraits sit on), or false when unknown.
