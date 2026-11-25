@@ -44,7 +44,8 @@ static class Leaderboards
 
     // Rank 0: you, with nothing on this board.
     public sealed record Score(Player Who, double Value, string Text, string Detail, int Rank);
-    public sealed record Board(string Key, string Title, string Glyph, IReadOnlyList<Score> Scores);
+    // Total: the board added up ("+270g"), or empty.
+    public sealed record Board(string Key, string Title, string Glyph, IReadOnlyList<Score> Scores, string Total = "");
     public sealed record Mvp(Player Who, int Points, int Firsts, IReadOnlyList<string> Won, int Rank);
 
     // One person's period, worked out once for every board.
@@ -53,7 +54,7 @@ static class Leaderboards
         int Quests, int Herbs, int Ore, int Skins, int Fish, (string Who, double Gain)? Ilvl, long Gold);
 
     sealed record Stat(string Key, string Title, string Glyph, Func<Tally, double> Value, Func<double, string> Text,
-        Func<Tally, string>? Detail = null, bool LowerWins = false, bool Signed = false);
+        Func<Tally, string>? Detail = null, bool LowerWins = false, bool Signed = false, bool Summed = false);
 
     static string Count(double v) => ((long)v).ToString("N0", CultureInfo.CurrentCulture);
 
@@ -78,14 +79,15 @@ static class Leaderboards
         new("ore", "Most veins mined", "", w => w.Ore, Count),
         new("skins", "Most skins", "", w => w.Skins, Count),
         new("fish", "Most fish caught", "", w => w.Fish, Count),
-        new("gold", "Most gold made", "", w => w.Gold, v => (v < 0 ? "-" : "+") + Format.Money(Math.Abs((long)v)), Signed: true),
+        new("gold", "Most gold made", "", w => w.Gold, v => (v < 0 ? "-" : "+") + Format.Money(Math.Abs((long)v)), Signed: true, Summed: true),
         new("duels", "Most duels won", "", w => w.Duels, Count),
         new("bg", "Most battlegrounds won", "", w => w.Battlegrounds, Count),
         new("deaths", "Most deaths", "", w => w.Deaths, Count),
     ];
 
-    // Boards with at least one score. now: local time; days count by the addon's local date.
-    public static List<Board> Build(IEnumerable<Source> sources, DateTimeOffset now, Period period = Period.Week)
+    // Boards with at least one score. now: local time; days count by the addon's local date. totals: a
+    // board that adds up (gold) gets its total when two or more are on it.
+    public static List<Board> Build(IEnumerable<Source> sources, DateTimeOffset now, Period period = Period.Week, bool totals = false)
     {
         var tallies = sources.Select(s => Of(s, now, period)).ToList();
         var boards = new List<Board>();
@@ -106,7 +108,8 @@ static class Leaderboards
             // You're always on the board, with a dash when you have nothing on it.
             if (!scored.Any(s => s.Who.IsYou) && tallies.FirstOrDefault(w => w.Who.IsYou) is { } you)
                 scored.Add(new Score(you.Who, 0, "-", "", 0));
-            boards.Add(new Board(stat.Key, stat.Title, stat.Glyph, scored));
+            var total = totals && stat.Summed && scored.Count(s => s.Rank > 0) >= 2 ? stat.Text(scored.Sum(s => s.Value)) : "";
+            boards.Add(new Board(stat.Key, stat.Title, stat.Glyph, scored, total));
         }
         return boards;
     }

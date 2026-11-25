@@ -55,6 +55,14 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          <!-- The total (gold, your characters together), under a line. -->
+          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,7,0,0"
+                  Visibility="{Binding HasTotal, Converter={StaticResource Visible}}">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Right" Text="{Binding Total}" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="8,0,0,0"/>
+              <TextBlock Text="Total" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="20,0,0,0"/>
+            </DockPanel>
+          </Border>
           <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Padding="0,2" Margin="0,6,0,0"
                   Command="{Binding ToggleCommand}" Visibility="{Binding HasMore, Converter={StaticResource Visible}}">
             <TextBlock Text="{Binding ToggleText}" FontSize="12" Foreground="{DynamicResource BlueText}"/>

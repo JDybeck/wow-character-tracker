@@ -228,4 +228,21 @@ public class LeaderboardsTests
         Assert.Equal(["Benlos (Benne)"], Board(friends, "bosses").Scores.Select(s => s.Who.Name));
         Assert.DoesNotContain(friends.SelectMany(b => b.Scores), s => s.Who.IsYou);
     }
+
+    // Your characters' gold adds up to a total when two or more are on the board; nothing else does.
+    [Fact]
+    public void Totals_add_up_gold_when_asked()
+    {
+        var you = new Leaderboards.Source(You, [],
+            [OnDay("y1", "2026-11-14", quests: 3, moneyStart: 0, money: 2_000_000), OnDay("y2", "2026-11-14", quests: 2, moneyStart: 500_000, money: 200_000)],
+            new Dictionary<string, string> { ["y1"] = "Zeb", ["y2"] = "Bank" });
+
+        var mine = Leaderboards.Build(Leaderboards.For(Leaderboards.View.You, [you]), Now, totals: true);
+        Assert.Equal("+" + Format.Money(1_700_000), Board(mine, "gold").Total);
+        Assert.Equal("", Board(mine, "quests").Total);
+
+        Assert.Equal("", Board(Leaderboards.Build(Leaderboards.For(Leaderboards.View.You, [you]), Now), "gold").Total);
+        var one = you with { Days = [you.Days[0]] };
+        Assert.Equal("", Board(Leaderboards.Build(Leaderboards.For(Leaderboards.View.You, [one]), Now, totals: true), "gold").Total);
+    }
 }

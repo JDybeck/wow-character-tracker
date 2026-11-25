@@ -114,7 +114,8 @@ sealed class StatsViewModel : Observable
 
     void Rebuild()
     {
-        var built = Leaderboards.Build(Leaderboards.For(view.View, sources), DateTimeOffset.Now, period.Period);
+        var built = Leaderboards.Build(Leaderboards.For(view.View, sources), DateTimeOffset.Now, period.Period,
+            totals: view.View == Leaderboards.View.You); // all yours: what they made together means something
         Boards = [.. built.Select(b => new BoardView(b, expanded.Contains(b.Key), open => { if (open) expanded.Add(b.Key); else expanded.Remove(b.Key); }))];
 
         var mvps = Leaderboards.Mvps(built);
@@ -144,6 +145,8 @@ sealed class BoardView(Leaderboards.Board board, bool open, Action<bool> remembe
     bool isOpen = open;
     public IReadOnlyList<ScoreRow> Rows => StatsViewModel.Visible(board.Scores, isOpen);
     public bool HasMore => board.Scores.Count > StatsViewModel.Visible(board.Scores, false).Count;
+    public string Total => board.Total;
+    public bool HasTotal => board.Total.Length > 0;
     public string ToggleText => isOpen ? "Show less" : $"Show all {Count}";
 
     public ICommand ToggleCommand => toggle ??= new RelayCommand(_ =>
