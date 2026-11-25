@@ -11,7 +11,7 @@ Made for WoW Forever, and works on Retail too. Everything on this page works wit
 Type `/wct` or click the WCT button on the minimap.
 
 - **Home**: the character you're on, with level, item level, gold, played time and time on this level. A chart of your level times, with your average, fastest and slowest level. On Forever, how much played time is left to max level at your recent pace.
-- **Today**: your biggest numbers since midnight (levels, boss kills, epics, mounts, gold earned, herbs, veins and more), and the newest moments from you and your friends.
+- **Today**: your biggest numbers since midnight (levels, boss kills, epics, mounts, gold made or lost, herbs, veins and more), and the newest moments from you and your friends.
 - **Characters**: every character on this WoW account, with realm, item level, zone, gold, professions, talents, level times and gear.
 - **Recipes**: browse any character's known recipes like the profession window, and **Who knows it?** finds a recipe across your characters and your friends'.
 - **Note**: a note per character, in a box you can lock anywhere on screen.

@@ -4,8 +4,8 @@ namespace WoWCharacterTracker.Services;
 
 // Home's TODAY numbers, one character's or every character of the game (guid null), most important
 // first: the addon's ns.todayStats (Today.lua) with the same order, plus what the app posted. Only
-// stats above 0 (a 0 says nothing; a quiet day has none); past Shown, the rest folds
-// behind "more".
+// stats that aren't 0 (a 0 says nothing; a quiet day has none), and gold is the day's net, so it
+// can be below 0; past Shown, the rest folds behind "more".
 static class TodayStats
 {
     public const int Shown = 4;
@@ -44,19 +44,19 @@ static class TodayStats
             v["skins"] += d.Skins;
             v["fish"] += d.Fish;
             v["ilvl"] += Math.Max(0, d.Ilvl - d.IlvlStart);
-            v["gold"] += Math.Max(0, d.Money - d.MoneyStart);
+            v["gold"] += d.Money - d.MoneyStart; // the net: a day that spent more than it made is minus
         }
         if (v["ilvl"] < 0.05) v["ilvl"] = 0; // rounding left over from averages
-        if (v["gold"] < 100) v["gold"] = 0; // less than a silver isn't worth a spot
+        if (Math.Abs(v["gold"]) < 100) v["gold"] = 0; // less than a silver either way isn't worth a spot
 
-        return [.. Order.Where(k => v[k] > 0).Select(k => new TodayCount(Value(k, v[k]), Name(k, v[k], keys)))];
+        return [.. Order.Where(k => v[k] != 0).Select(k => new TodayCount(Value(k, v[k]), Name(k, v[k], keys)))];
     }
 
     // Gold under one gold is silver ("98 silver"), bosses are keys on Retail, and one of a count is
     // singular ("1 boss") (the addon's ns.todayName).
     internal static string Name(string key, double value, bool keys) => key switch
     {
-        "gold" when value < 10000 => "silver",
+        "gold" when Math.Abs(value) < 10000 => "silver",
         "bosses" when keys => value == 1 ? "key" : "keys",
         _ when value == 1 && One.TryGetValue(key, out var one) => one,
         _ => Names[key],
@@ -88,13 +88,14 @@ static class TodayStats
         return days.Where(d => d.Day == day);
     }
 
-    // "+2.5" item levels, gold as "12" or "1,234" (silver under one gold: "98"), else the count; the
-    // name after it says which (the addon's ns.todayValue).
+    // "+2.5" item levels, gold signed as "+12" or "-1,234" (silver under one gold: "+98"), else the
+    // count; the name after it says which (the addon's ns.todayValue).
     internal static string Value(string key, double value) => key switch
     {
         "ilvl" => "+" + value.ToString("0.#", CultureInfo.InvariantCulture),
-        "gold" when value >= 10000 => Format.Thousands((long)value / 10000),
-        "gold" => ((long)(value / 100)).ToString(CultureInfo.InvariantCulture),
+        "gold" => (value < 0 ? "-" : "+") + (Math.Abs(value) >= 10000
+            ? Format.Thousands((long)Math.Abs(value) / 10000)
+            : ((long)(Math.Abs(value) / 100)).ToString(CultureInfo.InvariantCulture)),
         _ => ((long)value).ToString(CultureInfo.InvariantCulture),
     };
 }

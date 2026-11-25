@@ -33,7 +33,7 @@ static class Leaderboards
         int Quests, int Herbs, int Ore, int Skins, int Fish, (string Who, double Gain)? Ilvl, long Gold);
 
     sealed record Stat(string Key, string Title, string Glyph, Func<Tally, double> Value, Func<double, string> Text,
-        Func<Tally, string>? Detail = null, bool LowerWins = false);
+        Func<Tally, string>? Detail = null, bool LowerWins = false, bool Signed = false);
 
     static string Count(double v) => ((long)v).ToString("N0", CultureInfo.CurrentCulture);
 
@@ -58,7 +58,7 @@ static class Leaderboards
         new("ore", "Most veins mined", "", w => w.Ore, Count),
         new("skins", "Most skins", "", w => w.Skins, Count),
         new("fish", "Most fish caught", "", w => w.Fish, Count),
-        new("gold", "Most gold earned", "", w => w.Gold, v => Format.Money((long)v)),
+        new("gold", "Most gold made", "", w => w.Gold, v => (v < 0 ? "-" : "+") + Format.Money(Math.Abs((long)v)), Signed: true),
         new("duels", "Most duels won", "", w => w.Duels, Count),
         new("bg", "Most battlegrounds won", "", w => w.Battlegrounds, Count),
         new("deaths", "Most deaths", "", w => w.Deaths, Count),
@@ -71,7 +71,8 @@ static class Leaderboards
         var boards = new List<Board>();
         foreach (var stat in Stats)
         {
-            var ordered = tallies.Where(w => stat.Value(w) > 0)
+            // Signed (gold, the net): a loss is on the board too, below everyone who made some.
+            var ordered = tallies.Where(w => stat.Signed ? stat.Value(w) != 0 : stat.Value(w) > 0)
                 .OrderBy(w => stat.LowerWins ? stat.Value(w) : -stat.Value(w))
                 .ThenByDescending(w => w.Who.IsYou)
                 .ThenBy(w => w.Who.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -90,12 +91,13 @@ static class Leaderboards
         return boards;
     }
 
-    // 3 points per board won, 2 for second, 1 for third; the most points first, then the most boards won.
+    // 3 points per board won, 2 for second, 1 for third (never for a loss, like gold below 0); the most
+    // points first, then the most boards won.
     public static List<Mvp> Mvps(IEnumerable<Board> boards)
     {
         var points = new Dictionary<string, (Player Who, int Points, int Firsts, List<string> Won)>();
         foreach (var board in boards)
-            foreach (var s in board.Scores.Where(s => s.Rank is >= 1 and <= 3))
+            foreach (var s in board.Scores.Where(s => s.Rank is >= 1 and <= 3 && s.Value > 0))
             {
                 var had = points.TryGetValue(s.Who.Key, out var p) ? p : (s.Who, 0, 0, new List<string>());
                 if (s.Rank == 1) had.Item4.Add(board.Title);
@@ -161,6 +163,6 @@ static class Leaderboards
             Moments(e => e.Kind == "death", d => d.Deaths),
             days.Sum(d => d.Quests), days.Sum(d => d.Herbs), days.Sum(d => d.Ore), days.Sum(d => d.Skins), days.Sum(d => d.Fish),
             ilvl,
-            days.Sum(d => Math.Max(0, d.Money - d.MoneyStart)));
+            days.Sum(d => d.Money - d.MoneyStart)); // the net, so days that spent more count as minus
     }
 }
