@@ -20,7 +20,27 @@ static class Leaderboards
 
     // Key: who it is (the BattleTag, or "you"). Characters: their full names by guid.
     public sealed record Player(string Key, string Name, bool IsYou);
-    public sealed record Source(Player Who, IReadOnlyList<Entry> Events, IReadOnlyList<DayTotals> Days, IReadOnlyDictionary<string, string> Characters);
+    // Character: the source is one character (Who is named after it), so a detail leaves its name out.
+    public sealed record Source(Player Who, IReadOnlyList<Entry> Events, IReadOnlyList<DayTotals> Days, IReadOnlyDictionary<string, string> Characters,
+        bool Character = false);
+
+    // Who's on the boards. Versus: you (all your characters) against each friend (all theirs). You: your
+    // characters one by one. Friends: every friend character one by one, with whose it is.
+    public enum View { Versus, You, Friends }
+
+    // The sources a view puts on the boards. A character is never "you", so no row of yours is added to a
+    // board it isn't on.
+    public static List<Source> For(View view, IEnumerable<Source> sources) => view switch
+    {
+        View.You => [.. sources.Where(s => s.Who.IsYou).SelectMany(s => PerCharacter(s, ""))],
+        View.Friends => [.. sources.Where(s => !s.Who.IsYou).SelectMany(s => PerCharacter(s, s.Who.Name))],
+        _ => [.. sources],
+    };
+
+    // owner: the friend's name after the character's ("Kitty Pryde (Rasmus)"); empty for yours.
+    static IEnumerable<Source> PerCharacter(Source s, string owner) => s.Characters.Select(c => new Source(
+        new Player(c.Key, owner.Length > 0 ? $"{c.Value} ({owner})" : c.Value, false),
+        [.. s.Events.Where(e => e.Guid == c.Key)], [.. s.Days.Where(d => d.Guid == c.Key)], new Dictionary<string, string> { [c.Key] = c.Value }, true));
 
     // Rank 0: you, with nothing on this board.
     public sealed record Score(Player Who, double Value, string Text, string Detail, int Rank);
@@ -47,7 +67,7 @@ static class Leaderboards
         new("levels", "Level-up score", "", w => w.LevelScore, Count, w => w.Mover),
         new("leveling", "Most time leveling", "", w => w.LevelSeconds, v => Format.Played((long)v)),
         new("fastest", "Fastest level", "", w => w.Fastest?.Seconds ?? 0, v => Format.Duration((long)v),
-            w => w.Fastest is { } f ? $"{f.Who}, {f.Level - 1} to {f.Level}" : "", LowerWins: true),
+            w => w.Fastest is { } f ? (f.Who.Length > 0 ? $"{f.Who}, " : "") + $"{f.Level - 1} to {f.Level}" : "", LowerWins: true),
         new("quests", "Most quests", "", w => w.Quests, Count),
         new("ilvl", "Most item level gained", "", w => w.Ilvl?.Gain ?? 0, v => "+" + v.ToString("0.#", CultureInfo.CurrentCulture),
             w => w.Ilvl?.Who ?? ""),
@@ -121,6 +141,8 @@ static class Leaderboards
         var until = now.ToUnixTimeSeconds() + 300;
         var events = s.Events.Where(e => e.At > from && e.At <= until).ToList();
         string Name(string guid, string fallback) => s.Characters.GetValueOrDefault(guid) ?? fallback;
+        // A detail's character: left out when the row already is that character.
+        string Who(string guid, string fallback) => s.Character ? "" : Name(guid, fallback);
 
         var levels = events.Where(e => e.Kind == "level").GroupBy(e => (e.Guid, e.Level)).Select(g => g.First()).ToList();
         // The levels board's detail: the character that scored the most, with its levels that scored.
@@ -137,7 +159,7 @@ static class Leaderboards
                 var ordered = g.OrderBy(d => d.Day, StringComparer.Ordinal).ToList();
                 var start = ordered.Select(d => d.IlvlStart > 0 ? d.IlvlStart : d.Ilvl).FirstOrDefault(v => v > 0);
                 var end = ordered.Select(d => d.Ilvl).LastOrDefault(v => v > 0);
-                return (Who: Name(g.Key, ""), Gain: start > 0 && end > start ? Math.Round(end - start, 1) : 0);
+                return (Who: Who(g.Key, ""), Gain: start > 0 && end > start ? Math.Round(end - start, 1) : 0);
             })
             .Where(x => x.Gain >= 0.1)
             .OrderByDescending(x => x.Gain)
@@ -153,8 +175,8 @@ static class Leaderboards
         int Moments(Func<Entry, bool> isOne, Func<DayTotals, int> perDay) => moments.Count(isOne) + counted.Sum(perDay);
 
         return new Tally(s.Who, levels.Sum(e => LevelScore(e.Level)), levels.Sum(e => e.Seconds),
-            mover is null ? "" : $"{Name(mover.Key, mover.First().Char)} {mover.Min(e => e.Level) - 1} to {mover.Max(e => e.Level)}, {Format.Count(mover.Count(), "level")}",
-            fastest is null ? null : (Name(fastest.Guid, fastest.Char), fastest.Level, fastest.Seconds),
+            mover is null ? "" : $"{Who(mover.Key, mover.First().Char)} {mover.Min(e => e.Level) - 1} to {mover.Max(e => e.Level)}, {Format.Count(mover.Count(), "level")}".TrimStart(),
+            fastest is null ? null : (Who(fastest.Guid, fastest.Char), fastest.Level, fastest.Seconds),
             Moments(e => e.Kind is "boss" or "keyrun", d => d.Bosses),
             Moments(e => e.Kind == "loot" && e.Quality >= 4 && !e.Mat, d => d.Epics),
             Moments(e => e.Kind == "mount", d => d.Mounts),
