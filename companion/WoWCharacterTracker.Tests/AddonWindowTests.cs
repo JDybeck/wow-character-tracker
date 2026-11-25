@@ -1332,7 +1332,7 @@ public class AddonWindowTests
         c.Call("openWindow", "characters");
         Assert.Equal(@"Interface\AddOns\WoWCharacterTracker\Portraits\7", c.Lua("return face('Bea').texture").String);
         Assert.True(Bool(c, "face('Bea').shown"));
-        Assert.Equal(@"Interface\TargetingFrame\UI-Classes-Circles", c.Lua("return class('Bea').texture").String); // under it
+        Assert.True(Bool(c, "class('Bea').shown == false")); // not under it: it showed through the faded window
         Assert.True(Bool(c, "face('Alt').shown == false")); // no portrait: the class icon
         Assert.True(Bool(c, "class('Alt').shown"));
         Assert.Equal("live:player", c.Lua("return face('Zeb').texture").String); // the one being played
