@@ -196,4 +196,53 @@ public class LeaderboardsTests
         Assert.Equal([5, 5, 3], mvps.Select(m => m.Points));
         Assert.Equal(["Most boss kills"], mvps[1].Won);
     }
+
+    // You: your characters against each other, named after themselves, so details leave the name out and
+    // no "you" row is added. Friends: every friend character, with whose it is. Versus: as it was.
+    [Fact]
+    public void Views_put_you_your_characters_or_your_friends_characters_on_the_boards()
+    {
+        var you = new Leaderboards.Source(You,
+            [Ding("y1", 40, 3600, Day), Ding("y1", 41, 1200, Day), Ding("y2", 20, 600, Day), Moment("y2", "boss", Day)],
+            [OnDay("y1", "2026-11-14", quests: 7)],
+            new Dictionary<string, string> { ["y1"] = "Zeb", ["y2"] = "Dryg", ["y3"] = "Idle" });
+        var rasmus = new Leaderboards.Source(Rasmus, [Ding("r1", 50, 7200, Day), Ding("r2", 30, 900, Day)], [],
+            new Dictionary<string, string> { ["r1"] = "Kitty", ["r2"] = "Pryde" });
+        var benne = Source(Benne, [Moment("b1", "boss", Day), Moment("b1", "boss", Day)], guid: "b1", name: "Benlos");
+        Leaderboards.Source[] all = [you, rasmus, benne];
+
+        var versus = Leaderboards.Build(Leaderboards.For(Leaderboards.View.Versus, all), Now);
+        Assert.Equal(["Benne", "You"], Board(versus, "bosses").Scores.Select(s => s.Who.Name));
+
+        var mine = Leaderboards.Build(Leaderboards.For(Leaderboards.View.You, all), Now);
+        var levels = Board(mine, "levels");
+        Assert.Equal(["Zeb", "Dryg"], levels.Scores.Select(s => s.Who.Name)); // Idle has nothing: not on it
+        Assert.All(levels.Scores, s => Assert.False(s.Who.IsYou));
+        Assert.Equal("39 to 41, 2 levels", levels.Scores[0].Detail);
+        Assert.Equal("19 to 20", Board(mine, "fastest").Scores[0].Detail);
+        Assert.Equal(["Dryg"], Board(mine, "bosses").Scores.Select(s => s.Who.Name)); // no dash row for anyone
+        Assert.Equal(["Zeb"], Board(mine, "quests").Scores.Select(s => s.Who.Name));
+
+        var friends = Leaderboards.Build(Leaderboards.For(Leaderboards.View.Friends, all), Now);
+        Assert.Equal(["Kitty (Rasmus)", "Pryde (Rasmus)"], Board(friends, "levels").Scores.Select(s => s.Who.Name));
+        Assert.Equal(["Benlos (Benne)"], Board(friends, "bosses").Scores.Select(s => s.Who.Name));
+        Assert.DoesNotContain(friends.SelectMany(b => b.Scores), s => s.Who.IsYou);
+    }
+
+    // Your characters' gold adds up to a total when two or more are on the board; nothing else does.
+    [Fact]
+    public void Totals_add_up_gold_when_asked()
+    {
+        var you = new Leaderboards.Source(You, [],
+            [OnDay("y1", "2026-11-14", quests: 3, moneyStart: 0, money: 2_000_000), OnDay("y2", "2026-11-14", quests: 2, moneyStart: 500_000, money: 200_000)],
+            new Dictionary<string, string> { ["y1"] = "Zeb", ["y2"] = "Bank" });
+
+        var mine = Leaderboards.Build(Leaderboards.For(Leaderboards.View.You, [you]), Now, totals: true);
+        Assert.Equal("+" + Format.Money(1_700_000), Board(mine, "gold").Total);
+        Assert.Equal("", Board(mine, "quests").Total);
+
+        Assert.Equal("", Board(Leaderboards.Build(Leaderboards.For(Leaderboards.View.You, [you]), Now), "gold").Total);
+        var one = you with { Days = [you.Days[0]] };
+        Assert.Equal("", Board(Leaderboards.Build(Leaderboards.For(Leaderboards.View.You, [one]), Now, totals: true), "gold").Total);
+    }
 }

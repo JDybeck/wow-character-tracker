@@ -3,9 +3,10 @@ using System.Windows.Input;
 namespace WoWCharacterTracker.ViewModels;
 
 // The Stats page of one game tab: the period's MVP podium and a leaderboard per stat (Leaderboards),
-// you against every friend who shares with you. A board shows the top three and your own row; Show
-// all lists everyone, and stays open across syncs. The period (today, week, month, all time) is kept
-// for the session.
+// you against every friend who shares with you (Versus), or in detail: your characters one by one (You),
+// or every friend's character (Friends). A board shows the top three and your own row; Show all lists
+// everyone, and stays open across syncs. The view and the period (today, week, month, all time) are
+// kept for the session.
 sealed class StatsViewModel : Observable
 {
     const int Top = 3;
@@ -22,11 +23,36 @@ sealed class StatsViewModel : Observable
         new("all", Leaderboards.Period.All, "ALL TIME", "Everything since the app started keeping your days", "Nothing yet."),
     ];
 
+    // The views: its key (CommandParameter), who's on the boards for the period's line, and how the boards fill up.
+    sealed record ViewInfo(string Key, Leaderboards.View View, string Who, string Fill);
+    static readonly ViewInfo[] Views =
+    [
+        new("versus", Leaderboards.View.Versus, "you against every friend who shares with you",
+            "Level up, kill a boss or turn in a quest and the boards fill up, and so do your friends' once they share with you."),
+        new("you", Leaderboards.View.You, "your characters against each other",
+            "Level up, kill a boss or turn in a quest and your characters fill up the boards."),
+        new("friends", Leaderboards.View.Friends, "every character your friends share with you, against each other",
+            "Your friends' characters fill up the boards once they share with you and play."),
+    ];
+
     PeriodInfo period = Periods[1];
+    ViewInfo view = Views[0];
     public string PeriodKey => period.Key;
+    public string ViewKey => view.Key;
     public string PeriodLabel => period.Label;
-    public string PeriodText => $"{period.Text}, you against every friend who shares with you. A board won is 3 points, second 2, third 1.";
-    public string EmptyText => $"{period.Empty} Level up, kill a boss or turn in a quest and the boards fill up, and so do your friends' once they share with you.";
+    public string PeriodText => $"{period.Text}, {view.Who}. A board won is 3 points, second 2, third 1.";
+    public string EmptyText => $"{period.Empty} {view.Fill}";
+
+    public ICommand ShowViewCommand => showView ??= new RelayCommand(p =>
+    {
+        if (Views.FirstOrDefault(x => x.Key == p as string) is not { } picked || picked == view) return;
+        view = picked;
+        Raise(nameof(ViewKey));
+        Raise(nameof(PeriodText));
+        Raise(nameof(EmptyText));
+        Rebuild();
+    });
+    ICommand? showView;
 
     public ICommand ShowPeriodCommand => showPeriod ??= new RelayCommand(p =>
     {
@@ -88,7 +114,8 @@ sealed class StatsViewModel : Observable
 
     void Rebuild()
     {
-        var built = Leaderboards.Build(sources, DateTimeOffset.Now, period.Period);
+        var built = Leaderboards.Build(Leaderboards.For(view.View, sources), DateTimeOffset.Now, period.Period,
+            totals: view.View == Leaderboards.View.You); // all yours: what they made together means something
         Boards = [.. built.Select(b => new BoardView(b, expanded.Contains(b.Key), open => { if (open) expanded.Add(b.Key); else expanded.Remove(b.Key); }))];
 
         var mvps = Leaderboards.Mvps(built);
@@ -118,6 +145,8 @@ sealed class BoardView(Leaderboards.Board board, bool open, Action<bool> remembe
     bool isOpen = open;
     public IReadOnlyList<ScoreRow> Rows => StatsViewModel.Visible(board.Scores, isOpen);
     public bool HasMore => board.Scores.Count > StatsViewModel.Visible(board.Scores, false).Count;
+    public string Total => board.Total;
+    public bool HasTotal => board.Total.Length > 0;
     public string ToggleText => isOpen ? "Show less" : $"Show all {Count}";
 
     public ICommand ToggleCommand => toggle ??= new RelayCommand(_ =>
