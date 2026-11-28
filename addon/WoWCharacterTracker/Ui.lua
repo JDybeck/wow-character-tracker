@@ -297,8 +297,33 @@ function ui.fitText(fs, width, minSize)
   end
 end
 
+-- The window's fonts: the game's templates a point bigger (its Small ones are 10 px, hard to read at
+-- a glance), and the grey Disable ones a lighter grey that keeps 4.5:1 on lit buttons and while the
+-- window fades. ui.font("GameFontHighlightSmall") names the window's copy of a template; without
+-- CreateFont (tests) it's the template itself. Home adds a point more (Home.lua GROW).
+ui.FONT_BUMP = 1
+ui.HINT_GREY = 0.65
+local fonts = {} -- [template] = the copy's name, or false when it can't be made
+function ui.font(template)
+  local made = fonts[template]
+  if made ~= nil then return made or template end
+  local base = _G[template]
+  if not (CreateFont and base and base.GetFont) then
+    fonts[template] = false
+    return template
+  end
+  local name = "WoWCharacterTracker" .. template
+  local f = CreateFont(name)
+  f:CopyFontObject(base)
+  local path, size, flags = base:GetFont()
+  if path and size then f:SetFont(path, size + ui.FONT_BUMP, flags or "") end
+  if template:find("^GameFontDisable") then f:SetTextColor(ui.HINT_GREY, ui.HINT_GREY, ui.HINT_GREY) end
+  fonts[template] = name
+  return name
+end
+
 function ui.text(parent, template, s)
-  local fs = parent:CreateFontString(nil, "ARTWORK", template)
+  local fs = parent:CreateFontString(nil, "ARTWORK", template and ui.font(template))
   fs:SetJustifyH("LEFT")
   fs:SetText(s or "")
   return fs
@@ -326,7 +351,7 @@ function ui.copyBox(parent, text, width)
   local box = CreateFrame("EditBox", nil, parent)
   box:SetSize(width, 22)
   box:SetAutoFocus(false)
-  box:SetFontObject("GameFontHighlightSmall")
+  box:SetFontObject(ui.font("GameFontHighlightSmall"))
   box:SetTextInsets(6, 6, 0, 0)
   ui.box(box, COLOR.bar, COLOR.border)
   box:SetText(text)
@@ -352,7 +377,7 @@ function ui.inputBox(parent, width, maxLetters, save)
   box:SetSize(width, 22)
   box:SetAutoFocus(false)
   box:SetMaxLetters(maxLetters)
-  box:SetFontObject("GameFontHighlightSmall")
+  box:SetFontObject(ui.font("GameFontHighlightSmall"))
   box:SetTextInsets(6, 6, 0, 0)
   ui.box(box, COLOR.bar, COLOR.border)
   box.saved = ""
@@ -389,14 +414,14 @@ function ui.styleButton(b, style)
   if style == "primary" then ui.box(b, COLOR.primary, COLOR.accent)
   elseif style == "selected" then ui.box(b, COLOR.selected, COLOR.accent)
   else ui.box(b, COLOR.card, COLOR.border) end
-  b:SetNormalFontObject(style == "selected" and "GameFontNormalSmall" or "GameFontHighlightSmall")
+  b:SetNormalFontObject(ui.font(style == "selected" and "GameFontNormalSmall" or "GameFontHighlightSmall"))
 end
 
 function ui.button(parent, label, width, onClick, style)
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(width, 22)
-  b:SetFontString(b:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall"))
-  b:SetDisabledFontObject("GameFontDisableSmall")
+  b:SetFontString(b:CreateFontString(nil, "ARTWORK", ui.font("GameFontHighlightSmall")))
+  b:SetDisabledFontObject(ui.font("GameFontDisableSmall"))
   local hover = b:CreateTexture(nil, "HIGHLIGHT")
   ui.fill(hover, COLOR.hover)
   hover:SetAllPoints()
@@ -597,9 +622,13 @@ end
 function ui.gapAfter(cb) return cb.tip and -(ui.SECTION_GAP + 14) or nil end
 
 -- How tall a fit page's content is: from its top to the lowest thing shown on it, plus a margin.
+-- page.fitParts: frames on it holding a view of their own (a tab's switch), sized to theirs first.
 function ui.fitHeight(page)
   local top = page:GetTop()
   if not top then return end -- not laid out yet
+  for _, part in ipairs(page.fitParts or {}) do
+    if part:IsShown() then ui.fitHeight(part) end
+  end
   local lowest = top
   local function lower(r)
     if r:IsShown() then
@@ -751,7 +780,7 @@ ui.PROFESSION_ICONS = {
   Herbalism = "Trade_Herbalism", ["Herb Gathering"] = "Trade_Herbalism", Leatherworking = "Trade_LeatherWorking", Mining = "Trade_Mining",
   Skinning = "INV_Misc_Pelt_Wolf_01", Tailoring = "Trade_Tailoring", Jewelcrafting = "INV_Misc_Gem_01", Inscription = "INV_Inscription_Tradeskill01",
   Cooking = "INV_Misc_Food_15", Fishing = "Trade_Fishing", ["First Aid"] = "Spell_Holy_SealOfSacrifice", Archaeology = "Trade_Archaeology",
-  Highlights = "INV_Misc_Note_02", Reputations = "INV_Misc_Note_06",
+  Highlights = "INV_Misc_Note_02", Reputations = "INV_Misc_Note_06", Gear = "INV_Chest_Chain_05",
 }
 function ui.iconPath(name) return name and (ICONS .. name) or nil end
 

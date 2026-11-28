@@ -25,7 +25,7 @@ local CIRCLE = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local GOLD = { 1, 0.82, 0, 1 }
 local TODAY_MAX = 12 -- room for every stat Today.lua has
 local REDRAW_EVERY = 2 -- seconds
-local GROW = 2 -- points added to the game's fonts: Home is read at a glance, so its text is a size up
+local GROW = 1 -- a point more than the window's fonts (Ui.lua ui.font): Home is read at a glance, so its text is a size up
 local SLOW_EVERY = 15  -- redraws
 
 

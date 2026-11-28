@@ -102,6 +102,17 @@ local function buildIncognito(p, anchor)
       if w then w.friends = on end
     end)
   friends:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -2, -36)
+  -- A card of its own: the one thing on the tab you do now rather than set up once.
+  local band = p:CreateTexture(nil, "BACKGROUND")
+  ui.fill(band, ui.COLOR.card)
+  band:SetPoint("TOPLEFT", title, "TOPLEFT", -10, 10)
+  band:SetPoint("BOTTOMLEFT", friends, "BOTTOMLEFT", -8, -10)
+  band:SetPoint("RIGHT", p, "RIGHT", -16, 0)
+  local stripe = p:CreateTexture(nil, "BORDER")
+  ui.fill(stripe, ui.COLOR.accent)
+  stripe:SetWidth(3)
+  stripe:SetPoint("TOPLEFT", band, "TOPLEFT")
+  stripe:SetPoint("BOTTOMLEFT", band, "BOTTOMLEFT")
   ui.onRefresh(p, function()
     local w = ns.incognitoActive()
     off:SetShown(w ~= nil)
@@ -171,13 +182,30 @@ local function buildChatPlaces(p, anchor)
     function(key, on) ns.editSettings(function(s) s.announce[key] = on end) end)
 end
 
--- A chat column's box: the kind in guild's or the group's list (Group, and Guild once it works again).
+-- A chat column's box (Group, and Guild once it works again): on while that chat is on (announce.party
+-- or .guild) and the kind is in its list. The column is the only switch for the chat: ticking a box
+-- turns it on (its list starting over when it was off, so old ticks don't come back with it), and
+-- unticking the last turns it off.
 local function chatOn(column, kind)
-  local kinds = announceKinds(ns.setting("announce") or {}, column)
-  return kinds ~= nil and kinds[kind] == true
+  local a = ns.setting("announce") or {}
+  local kinds = announceKinds(a, column)
+  return a[column] == true and kinds ~= nil and kinds[kind] == true
 end
 local function setChat(column, kind, on)
-  ns.editSettings(function(s) announceKinds(s.announce, column)[kind] = on or nil end)
+  ns.editSettings(function(s)
+    local a = s.announce
+    if a.partyKinds == nil then a.partyKinds = ns.copy(a.kinds or {}) end -- the group's own list
+    a.kinds = a.kinds or {}
+    if on and a[column] ~= true then
+      if column == "guild" then a.kinds = {} else a.partyKinds = {} end
+      a[column] = true
+    end
+    local kinds = announceKinds(a, column)
+    kinds[kind] = on or nil
+    local any = false
+    for _, ticked in pairs(kinds) do any = any or ticked == true end
+    a[column] = any
+  end)
 end
 
 -- The app's Sharing table: a row per moment (ns.momentRows), Discord, Screenshot, Group and Ask
@@ -253,17 +281,17 @@ local function syncNote(p, anchor, x)
   ui.wrap(note)
 end
 
-local function buildSharingTab(p)
+-- What gets posted and said in chat (the app's Sharing page, Incognito on top).
+local function buildPostsView(p)
   local withApp = ns.hasApp()
   local rows = withApp and ns.momentRows()
   local top = buildIncognito(p)
   if rows then
     local presets = buildPresets(p, top)
-    local chat = buildChatPlaces(p, presets)
-    local last = buildMomentTable(p, chat, rows)
+    local last = buildMomentTable(p, presets, rows)
     local always = ui.hint(p, "Legendary gear is always posted. Stream alerts and test posts are in the app.", last)
     always:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -14)
-    syncNote(p, buildShareDefaults(p, buildAskSeconds(p, buildFilters(p, always))), -4)
+    syncNote(p, buildAskSeconds(p, buildFilters(p, always)), -4)
     return
   end
 
@@ -273,16 +301,14 @@ local function buildSharingTab(p)
 
   local chatTitle = ui.heading(p, "Tell in chat", top)
   local chatHint = ui.hint(p, "A line in chat as you when something happens, once you're out of combat.", chatTitle)
-  local columns = { { "party", "Group chat" } }
-  if ns.GUILD_CHAT_ON then table.insert(columns, 1, { "guild", "Guild chat" }) end
-  local whereLast = buildChatPlaces(p, chatHint)
-  local last = whereLast
-  if not withApp then
-    buildShareDefaults(p, ui.checkTable(p, ANNOUNCE_KINDS, columns, whereLast, chatOn, setChat))
+  if not withApp then -- a column per chat, each its only switch (setChat)
+    local columns = { { "party", "Group chat" } }
+    if ns.GUILD_CHAT_ON then table.insert(columns, 1, { "guild", "Guild chat" }) end
+    ui.checkTable(p, ANNOUNCE_KINDS, columns, chatHint, chatOn, setChat)
     return
   end
 
-  local askTitle = ui.heading(p, "Ask before skipping", last)
+  local askTitle = ui.heading(p, "Ask before skipping", buildChatPlaces(p, chatHint))
   -- Boss kills and gear only: the other moments picked in the app's Sharing table stay as they are.
   local ask = ui.checkbox(p, "Offer to post what Discord skips", "A small Post or Skip box for boss kills and gear the app doesn't post, out of combat.",
     function()
@@ -296,11 +322,47 @@ local function buildSharingTab(p)
       end)
     end)
   ask:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", -2, -6)
-  syncNote(p, buildShareDefaults(p, buildAskSeconds(p, ask, 34), -32), -4)
+  syncNote(p, buildAskSeconds(p, ask, 34), -4)
 end
 
--- Note box ---------------------------------------------------------------------------------------
--- A section of the Settings tab (it had a tab of its own before): the on-screen note box.
+-- The Sharing tab in two views, a switch on top picking one (kept while the game runs): what gets
+-- posted and said in chat, and what friends get. Each a short page instead of one long one.
+local SHARING_VIEWS = { { "posts", "Posts and chat" }, { "friends", "Friends" } }
+local function buildSharingTab(p)
+  local panes = {}
+  local function show(key)
+    p.view = key
+    for k, pane in pairs(panes) do
+      pane:SetShown(k == key)
+      ui.refresh(pane) -- both: a setting changed elsewhere shows when the other view is picked
+    end
+  end
+  local switch = ui.choice(p, SHARING_VIEWS, function() return p.view end, function(key)
+    show(key)
+    local holder = tabs.sharing and tabs.sharing.holder
+    if holder and holder ~= p and holder.SetVerticalScroll then holder:SetVerticalScroll(0) end
+    if C_Timer then C_Timer.After(0, function() ui.fitHeight(p) end) end
+  end, 130)
+  switch:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -14)
+  for _, view in ipairs(SHARING_VIEWS) do
+    local pane = CreateFrame("Frame", nil, p)
+    pane:SetPoint("TOPLEFT", switch, "BOTTOMLEFT", -16, -4)
+    pane:SetPoint("RIGHT", p, "RIGHT")
+    pane:SetHeight(1)
+    panes[view[1]] = pane
+  end
+  p.fitParts = { panes.posts, panes.friends } -- ui.fitHeight sizes the one shown first
+  p.showView = function(key) -- ns.showShareDefaults
+    show(key)
+    switch.draw()
+  end
+  buildPostsView(panes.posts)
+  local friendsLast = buildShareDefaults(panes.friends)
+  if ns.hasApp() then syncNote(panes.friends, friendsLast, -4) end
+  show("posts")
+  ui.onRefresh(p, function() show(p.view) end)
+end
+
 local function buildNote(p, anchor, gap)
   local title = ui.heading(p, "Note box", anchor, gap)
   local hint = ui.hint(p, ns.hasApp() and "The character's note on screen. Edit it in the box, or on the character's Notes tab in the app."
@@ -457,14 +519,14 @@ local function closeButton(parent, onClick)
   return close
 end
 
--- The details panel: everything known about one friend character beside the window, its gear with
--- the game's own item tooltips (built from the ids). Built on the first click on a card.
+-- The gear panel: one character's gear beside the window, with the game's own item tooltips (built
+-- from the ids). Its Gear button under the unfolded row opens it; built on the first open.
 local DETAILS_PANEL = "WoWCharacterTrackerDetailsPanel"
 local DETAILS_WIDTH = 320
 local GEAR_ROW = 30
 local SLOT_NAMES = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands",
   "Finger", "Finger", "Trinket", "Trinket", "Back", "Main Hand", "Off Hand", "Ranged", "Tabard" }
-local details, detailsTitle, detailsSub, detailsLine, gearTitle, noGear, notShared
+local details, detailsTitle, detailsSub, detailsLine, gearTitle
 local gearRows = {}
 local detailsKey -- which character the panel shows
 
@@ -544,10 +606,7 @@ local function buildDetails()
   detailsLine = details:CreateTexture(nil, "ARTWORK")
   ui.fill(detailsLine, C.border)
   detailsLine:SetHeight(1)
-  notShared =ui.text(details, "GameFontDisableSmall", "Not shared with you. Ask them on the Friends tab to see their gear and more.")
-  notShared:SetWidth(DETAILS_WIDTH - 28)
   gearTitle = ui.heading(details, "Gear", nil)
-  noGear = ui.text(details, "GameFontDisableSmall", "No gear shared")
 end
 
 local function textHeight(fs, fallback)
@@ -610,7 +669,7 @@ local function whenLoaded(id)
   end)
 end
 
--- c: a shared character, or what Battle.net says about an online one (c.notShared).
+-- c: a character with gear (its Gear button only shows then).
 drawDetails = function(c, friend)
   detailsChar, detailsFriend = c, friend
   detailsKey = charKey(c)
@@ -630,21 +689,9 @@ drawDetails = function(c, friend)
   detailsLine:SetPoint("TOPRIGHT", details, "TOPRIGHT", -14, -y)
   y = y + 2
 
-  notShared:SetShown(c.notShared == true)
-  local items = c.notShared and {} or ns.friendGear(c)
-  gearTitle:SetShown(not c.notShared)
-  noGear:SetShown(not c.notShared and #items == 0)
-  if c.notShared then
-    place(notShared, details, 14, y + 6)
-    y = y + 6 + textHeight(notShared, 28)
-  else
-    place(gearTitle, details, 14, y + 10)
-    y = y + 32
-    if #items == 0 then
-      place(noGear, details, 14, y)
-      y = y + 16
-    end
-  end
+  local items = ns.friendGear(c)
+  place(gearTitle, details, 14, y + 10)
+  y = y + 32
   for i, item in ipairs(items) do
     local r = pooled(gearRows, i, newGearRow)
     r.itemId, r.enchantId = item.id, item.enchantId
@@ -793,41 +840,44 @@ end
 local expandedKey
 
 local function redrawTab() if current and tabs[current] and tabs[current].page then ui.refresh(tabs[current].page) end end
+ns.refreshWindow = redrawTab -- Shell.lua's Incognito chip
 
--- A click on a card: unfolds its info and opens its gear beside the window, or folds both away
--- when it's the one open.
+-- The side panel (gear, highlights or sharing) closes when it shows another character than key.
+local function closeOthers(key)
+  if details and details:IsShown() and detailsKey ~= key then details:Hide() end
+  if highlights and highlights:IsShown() and HL.key ~= key then highlights:Hide() end
+end
+
+-- A click on a card: unfolds its info under the row (one place for it; gear and highlights open
+-- beside the window from its buttons), or folds it away, with its panel, when it's the one open.
 local function toggleDetails(self)
   local c = self.char
   if not c then return end
-  if not details then buildDetails() end
   if expandedKey == charKey(c) then
     expandedKey = nil
-    details:Hide()
-    if highlights then highlights:Hide() end
+    closeOthers(nil)
   else
     expandedKey = charKey(c)
-    drawDetails(c, self.friend)
+    closeOthers(expandedKey)
   end
   redrawTab()
 end
 
 -- Home's friend rows: the Friends tab with that character unfolded.
 local selectTab -- the window's, further down
-function ns.toggleFriendDetails(c, friend)
-  if not details then buildDetails() end
+function ns.toggleFriendDetails(c)
   expandedKey = charKey(c)
   revealKey = expandedKey
+  closeOthers(expandedKey)
   selectTab("friends")
-  drawDetails(c, friend)
 end
 
--- A click that opens an online friend: the character they're playing unfolds, its gear beside the
--- window. Only one they share: what Battle.net alone tells would unfold nearly empty.
-function ns.unfoldFriendPlaying(c, friend)
+-- A click that opens an online friend: the character they're playing unfolds. Only one they share:
+-- what Battle.net alone tells would unfold nearly empty.
+function ns.unfoldFriendPlaying(c)
   if not c or c.notShared then return end
-  if not details then buildDetails() end
   expandedKey = charKey(c)
-  drawDetails(c, friend)
+  closeOthers(expandedKey)
 end
 
 -- The unfolded info under a row: the facts on the left, the level times and their chart on the
@@ -869,6 +919,14 @@ end
 local function drawExpansion(ex, c, friend)
   -- Both columns start at the same line and step in the same rhythm (Ui.lua FACT_TILE, FACT_GAP).
   local top = 12
+  -- What Battle.net alone tells about the character a friend plays: say why there's so little.
+  ex.notShared = ex.notShared or ui.text(ex, "GameFontDisableSmall", "Not shared with you. Ask them to see their gear and more.")
+  ex.notShared:SetShown(c.notShared == true)
+  if c.notShared then
+    ex.notShared:SetWidth(ex.width - 24)
+    place(ex.notShared, ex, 12, top)
+    top = top + 22
+  end
   local left = ui.factTiles(ex, ex.left, facts(c), 12, top, ex.half, 2)
   local profs = ui.parseProfessions(c.professions)
   if #profs > 0 then left = ui.professionRows(ex, ex.profs, profs, 12, left > top and (left + ui.FACT_GAP) or top, ex.half) - ui.FACT_GAP
@@ -896,12 +954,20 @@ local function drawExpansion(ex, c, friend)
   end)
   local h = math.max(left, right) + 14
   place(ex.hide, ex, ex.width - 102, h)
-  -- Highlights (the panel beside the window), your own character's reputations (ReputationWindow.lua),
-  -- then a button per profession with known recipes, which opens them in the recipe window (RecipeWindow.lua).
+  -- Gear and highlights (the panel beside the window), your own character's reputations
+  -- (ReputationWindow.lua), then a button per profession with known recipes, which opens them in the
+  -- recipe window (RecipeWindow.lua). Each only when there's something in it.
   local actions = {}
+  local gearCount = c.notShared and 0 or #ns.friendGear(c)
+  if gearCount > 0 then
+    actions[1] = { string.format("Gear (%d)", gearCount), function()
+      if not details then buildDetails() end
+      if details:IsShown() and detailsKey == charKey(c) then details:Hide() else drawDetails(c, friend) end
+    end, "Gear" }
+  end
   local count = #highlightsOf(c, friend)
   if count > 0 then
-    actions[1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end, "Highlights" }
+    actions[#actions + 1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end, "Highlights" }
   end
   -- Your own: your main (friends you share with see it first) and pinned to the top (ns.ownPicks).
   if friend == nil and c.guid and ns.setOwnMain then
@@ -945,14 +1011,14 @@ local function drawExpansion(ex, c, friend)
 end
 
 -- The sharing panel: what one contact gets from you, beside the window, with the same choices as
--- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*).
+-- the app's Friends page. Changes apply right away (Friends.lua's ns.setContact*). Their nickname and
+-- asking them for more are in their section on the Friends tab (and its Ask box), not here again.
 local SHARING_PANEL = "WoWCharacterTrackerSharingPanel"
-local SHARING_HEIGHT = 712
+local SHARING_HEIGHT = 580
 local CATEGORY_NAMES = { gear = "Gear", talents = "Talents", location = "Location", professions = "Professions", reputations = "Reputations", highlights = "Highlights",
   leveling = "Level times", gold = "Gold", map = "Map position", otherFaction = "Map for the other faction" }
-local sharingTag, sharingTitle, sharingSummary, theirsText, askSaid, nickname
-local categoryButtons, askButtons = {}, {}
-local askWants = {} -- [category] = true: picked to ask them for
+local sharingTag, sharingTitle, sharingSummary, theirsText
+local categoryButtons = {}
 
 -- "Gear: like all friends (on)", "Gear: on" or "Gear: off".
 local function categoryText(cat)
@@ -977,7 +1043,6 @@ local function drawSharing()
     return
   end
   sharingTitle:SetText(o.label)
-  ui.showInput(nickname, sharingTag, o.nickname)
   for i, cat in ipairs(o.categories) do
     local b = categoryButtons[i]
     if b then
@@ -988,13 +1053,6 @@ local function drawSharing()
   end
   sharingSummary:SetText(o.share and ("They get " .. o.summary .. ".") or "They get nothing while you don't share with them.")
   theirsText:SetText(theirsLine(o))
-  -- What they already share needs no asking: greyed out.
-  for _, b in ipairs(askButtons) do
-    local have = o.theirs[b.key] == true
-    if have then askWants[b.key] = nil end
-    b:SetEnabled(not have)
-    ui.styleButton(b, askWants[b.key] and "selected" or nil)
-  end
   ui.refresh(sharing) -- the checkboxes
 end
 
@@ -1007,21 +1065,13 @@ local function buildSharing()
   local sub = ui.text(sharing, "GameFontDisableSmall", "What they get from you. Changes apply right away.")
   sub:SetPoint("TOPLEFT", sharingTitle, "BOTTOMLEFT", 0, -6)
   sub:SetWidth(DETAILS_WIDTH - 28)
-  -- Their nickname, here and in the app (Enter saves, empty clears).
-  local nickLabel = ui.text(sharing, "GameFontNormalSmall", "Nickname")
-  nickLabel:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 0, -12)
-  nickname = ui.inputBox(sharing, DETAILS_WIDTH - 28 - 70, 32, function(text, tag)
-    if tag and ns.setFriendNickname then ns.setFriendNickname(tag, text) end
-    if sharing:IsShown() then drawSharing() end
-  end)
-  nickname:SetPoint("LEFT", nickLabel, "LEFT", 66, 0)
   local shareBox = ui.checkbox(sharing, "Share your characters", nil,
     function() local o = sharingNow(); return o ~= nil and o.share end,
     function(on)
       if sharingTag then ns.setContactShare(sharingTag, on) end
       drawSharing()
     end)
-  shareBox:SetPoint("TOPLEFT", nickLabel, "BOTTOMLEFT", -4, -14)
+  shareBox:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", -4, -10)
   local receiveBox = ui.checkbox(sharing, "Keep what they share with you", nil,
     function() local o = sharingNow(); return o ~= nil and o.receive end,
     function(on)
@@ -1048,41 +1098,10 @@ local function buildSharing()
   sharingSummary:SetPoint("TOPLEFT", cycleHint, "BOTTOMLEFT", 0, -12)
   sharingSummary:SetWidth(DETAILS_WIDTH - 28)
 
-  -- Asking them for more of theirs: pick what, then Ask. Their box asks them with those ticked.
+  -- What they share with you (asking for more is their section's Ask button on the Friends tab).
   theirsText = ui.text(sharing, "GameFontHighlightSmall")
   theirsText:SetPoint("TOPLEFT", sharingSummary, "BOTTOMLEFT", 0, -16)
   theirsText:SetWidth(DETAILS_WIDTH - 28)
-  local askTitle = ui.text(sharing, "GameFontNormalSmall", "Ask them to share:")
-  askTitle:SetPoint("TOPLEFT", theirsText, "BOTTOMLEFT", 0, -12)
-  local chip = math.floor((DETAILS_WIDTH - 28 - 12) / 3)
-  local categories = ns.SHARE_CATEGORIES or {}
-  local function slot(b, i)
-    local row, column = math.floor((i - 1) / 3), (i - 1) % 3
-    b:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", column * (chip + 6), -6 - row * 26)
-  end
-  for i, key in ipairs(categories) do
-    local b = ui.button(sharing, CATEGORY_NAMES[key] or key, chip, function()
-      askWants[key] = not askWants[key] or nil
-      drawSharing()
-    end)
-    b.key = key
-    slot(b, i)
-    askButtons[i] = b
-  end
-  local askButton = ui.button(sharing, "Ask", chip, function()
-    if not (sharingTag and ns.askFriend) then return end
-    local list = {}
-    for _, key in ipairs(categories) do
-      if askWants[key] then list[#list + 1] = key end
-    end
-    askSaid:SetText(ns.askFriend(sharingTag, list) or "")
-    askWants = {}
-    drawSharing()
-  end, "primary")
-  slot(askButton, #categories + 1)
-  askSaid = ui.text(sharing, "GameFontDisableSmall")
-  askSaid:SetPoint("TOPLEFT", askTitle, "BOTTOMLEFT", 0, -12 - math.ceil((#categories + 1) / 3) * 26)
-  askSaid:SetWidth(DETAILS_WIDTH - 28)
 end
 
 -- Opens what you share with tag (a contact), or closes it when it already shows them. Returns nil
@@ -1093,10 +1112,6 @@ openSharing = function(tag)
   if sharing:IsShown() and sharingTag == tag then
     sharing:Hide()
     return nil
-  end
-  if sharingTag ~= tag then
-    askWants = {}
-    askSaid:SetText("")
   end
   sharingTag = tag
   if details then details:Hide() end -- one side panel at a time
@@ -2159,11 +2174,10 @@ function ns.friendsChanged()
   if drawFriends and ns.windowShown() and t and t.holder and t.holder:IsShown() then drawFriends() end
 end
 
--- What you share (under the Friends tab's lists) ---------------------------------------------
+-- What you share (the Sharing tab's Friends view) ---------------------------------------------
 buildShareDefaults = function(p, anchor, x)
   local friendsTitle = ui.heading(p, "What you share with friends", anchor)
   if x then friendsTitle:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", x, -ui.SECTION_GAP) end
-  p.shareTitle = friendsTitle -- the Friends tab's What you share scrolls to it
   local friendsHint = ui.hint(p, "Friends with the addon can ask to see your characters. Nothing is shared until you allow it.", friendsTitle)
   local shareOn = ui.checkbox(p, "Share with friends", "Off: nothing is sent, and nothing friends send is kept.",
     function() return ns.shareSettings().enabled == true end,
@@ -2354,20 +2368,12 @@ selectTab = function(key)
   end
 end
 
--- The Friends tab's What you share: the Sharing tab, scrolled to what all friends get.
+-- The Friends tab's What you share: the Sharing tab's Friends view.
 function ns.showShareDefaults()
-  selectTab("sharing")
-  local state = tabs.sharing
-  local title = state.page and state.page.shareTitle
-  if not (title and C_Timer and state.holder ~= state.page) then return end
-  C_Timer.After(0, function()
-    local top, at = state.page:GetTop(), title:GetTop()
-    if not (top and at) then return end
-    local y = math.max(0, top - at - 12)
-    local range = state.holder.GetVerticalScrollRange and state.holder:GetVerticalScrollRange()
-    if range then y = math.min(y, range) end
-    state.holder:SetVerticalScroll(y)
-  end)
+  ns.openWindow("sharing")
+  local page = tabs.sharing.page
+  if page and page.showView then page.showView("friends") end
+  if C_Timer and page then C_Timer.After(0, function() ui.fitHeight(page) end) end
 end
 
 -- While the window is dragged, the side panels switch sides as they run out of room.

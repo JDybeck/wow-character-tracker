@@ -61,7 +61,7 @@ local function newButton(rail, key, label, onClick)
   b.caption = ui.text(b, "GameFontNormalSmall", label)
   b.caption:SetJustifyH("CENTER")
   b.caption:SetPoint("BOTTOM", b, "BOTTOM", 0, 5)
-  b.caption:SetWidth(BUTTON + 10)
+  b.caption:SetWidth(RAIL - 2)
   b.caption:SetWordWrap(false)
   b:SetScript("OnClick", onClick)
   b:SetScript("OnEnter", enter)
@@ -84,6 +84,34 @@ local function newBadge(b)
   badge.text:SetPoint("CENTER", 0, 0)
   badge:Hide()
   return badge
+end
+
+-- While Incognito is on: "Incognito until 21:30" at the header's right, on every tab (it's easy to
+-- forget otherwise). A click ends it.
+local function newIncognitoChip(head)
+  local chip = ui.button(head, "", 150, function()
+    if ns.goIncognito then ns.goIncognito(nil) end
+    if ns.refreshWindow then ns.refreshWindow() end -- the Sharing tab's own Incognito buttons
+  end, "selected")
+  chip:SetPoint("RIGHT", head, "RIGHT", -8, 0)
+  chip:SetScript("OnEnter", function(self)
+    if not GameTooltip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:SetText("Nothing is posted or said in chat. Click to end it now.", 1, 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  chip:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  chip:Hide()
+  return chip
+end
+
+local function drawIncognitoChip(chip)
+  local w = ns.incognitoActive and ns.incognitoActive()
+  chip:SetShown(w ~= nil)
+  if not w then return end
+  chip:SetText("Incognito until " .. date("%H:%M", w["until"]))
+  local fs = chip:GetFontString()
+  chip:SetWidth(math.max(120, ((fs and fs:GetStringWidth()) or 120) + 20))
 end
 
 local function drawBadge(badge)
@@ -127,16 +155,16 @@ function ns.buildRail(window, tabs, select, titleBar)
     end
     buttons[key] = b
   end
-  if buttons.friends then
-    local badge = newBadge(buttons.friends)
-    local waited = 1
-    rail:SetScript("OnUpdate", function(_, elapsed)
-      waited = waited + elapsed
-      if waited < 1 then return end
-      waited = 0
-      drawBadge(badge)
-    end)
-  end
+  local badge = buttons.friends and newBadge(buttons.friends)
+  local chip -- built with the header, below
+  local waited = 1
+  rail:SetScript("OnUpdate", function(_, elapsed)
+    waited = waited + elapsed
+    if waited < 1 then return end
+    waited = 0
+    if badge then drawBadge(badge) end
+    if chip then drawIncognitoChip(chip) end
+  end)
 
   -- The header over the page: its name, then (Window.lua) the version; a line under it.
   local line = window:CreateTexture(nil, "BORDER")
@@ -150,6 +178,8 @@ function ns.buildRail(window, tabs, select, titleBar)
   head:SetHeight(titleBar)
   header = ui.text(head, "GameFontHighlightLarge", "")
   header:SetPoint("LEFT", head, "LEFT", 17, 0)
+  chip = newIncognitoChip(head)
+  drawIncognitoChip(chip)
   ns.fadeWhenAway(window)
   return header
 end
@@ -158,7 +188,7 @@ end
 -- little together while the mouse is away from all of them, and are solid again under the mouse,
 -- while a mouse button is held (dragging, resizing) or while typing in one. Each gets its alpha set
 -- itself (the side panels ignore the window's), so none is left solid.
-local AWAY_ALPHA, FADE_SPEED = 0.8, 4 -- alpha per second
+local AWAY_ALPHA, FADE_SPEED = 0.9, 4 -- alpha per second; 0.9 keeps the grey hints readable (Ui.lua HINT_GREY)
 local SIDE_PANELS = { "WoWCharacterTrackerDetailsPanel", "WoWCharacterTrackerHighlightsPanel", "WoWCharacterTrackerSharingPanel",
   "WoWCharacterTrackerRecipes", "WoWCharacterTrackerReputations" }
 local function inUse(window)

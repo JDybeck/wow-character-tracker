@@ -248,7 +248,7 @@ local function setRow(r, header, text, act, picked, icon)
       r.icon:SetPoint("LEFT", r, "LEFT", 6, 0)
     end
     r.text:SetPoint("LEFT", r, "LEFT", icon and 26 or 6, 0)
-    r.text:SetFontObject("GameFontNormalSmall")
+    r.text:SetFontObject(ui.font("GameFontNormalSmall"))
     ui.tint(r.text, C.accent)
   else
     if picked then ui.fill(r.bg, C.selected) else r.bg:SetColorTexture(0, 0, 0, 0) end
@@ -256,7 +256,7 @@ local function setRow(r, header, text, act, picked, icon)
     r.icon:ClearAllPoints()
     r.icon:SetPoint("LEFT", r, "LEFT", 14, 0)
     r.text:SetPoint("LEFT", r, "LEFT", icon and 32 or 14, 0)
-    r.text:SetFontObject("GameFontHighlightSmall")
+    r.text:SetFontObject(ui.font("GameFontHighlightSmall"))
     r.text:SetTextColor(1, 1, 1)
   end
   r.text:SetWidth(LIST_WIDTH - (header and 52 or 66))
@@ -345,7 +345,7 @@ local function drawList()
       setRow(r, false, personText(who), open, false, nil)
       r.text:SetWidth(LIST_WIDTH - 150)
       r.sign:SetText(rankText(who))
-      r.sign:SetFontObject("GameFontDisableSmall")
+      r.sign:SetFontObject(ui.font("GameFontDisableSmall"))
       r.sign:Show()
     else
       local id = line.id
@@ -353,7 +353,7 @@ local function drawList()
       if r.arrow then r.arrow:Hide() end
       -- The skill it needs at the row's end, when known.
       local skill = ns.recipeSkill(id)
-      r.sign:SetFontObject("GameFontDisableSmall")
+      r.sign:SetFontObject(ui.font("GameFontDisableSmall"))
       r.sign:SetText(skill and tostring(skill) or "")
       r.sign:SetShown(skill ~= nil)
       if skill then r.text:SetWidth(LIST_WIDTH - 96) end
