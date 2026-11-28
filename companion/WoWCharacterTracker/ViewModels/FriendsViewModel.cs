@@ -57,6 +57,9 @@ sealed class FriendsViewModel : Observable
 
     string NameOf(string tag) => config.FriendNicknames.TryGetValue(tag, out var n) && n.Length > 0 ? n : tag;
 
+    // The rows were rebuilt or refiltered (the Professions page shows friends' professions too).
+    public event Action? RowsShown;
+
     // Every friend character you keep and haven't hidden (Home lists the ones seen lately).
     public IEnumerable<CharacterRow> Shown => allRows.Where(r => !config.HiddenFriendCharacters.Contains(r.Guid));
 
@@ -135,6 +138,7 @@ sealed class FriendsViewModel : Observable
             _ = r.LoadPictureAsync(flavor);
         }
         Professions.Show(Characters, r => r.FriendName);
+        RowsShown?.Invoke();
         Listed = FriendTotals.Of(Characters.Where(r => !r.IsHiddenFriend));
         foreach (var name in new[] { nameof(Listed), nameof(ShowsTotals), nameof(TotalGoldText), nameof(TotalCoins), nameof(HasTotalGold), nameof(TotalPlayedText), nameof(NotSharedText) })
             Raise(name);

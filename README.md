@@ -56,7 +56,7 @@ From then on the app waits in the tray and opens when you start WoW.
 
 ![The Items page: every item with who has it and where](docs/images/items.png)
 
-**Professions**: every profession on every character, with skill and max, so you see who can craft what.
+**Professions**: every profession on every character, yours and the ones friends share, with skill and max, so you see who can craft what.
 
 **Friends**: Battle.net friends with the addon can share their characters with you, gear and talents included, and you pick what they get of yours (gold and location only if you allow it). Nothing is shared until you say so.
 

@@ -59,6 +59,30 @@ public class ProfessionsViewModelTests
         Assert.Equal("Annie: Firemaw, Horde: Tailoring Ann 10/75 | Zebbe: Firemaw, Horde: Mining Zeb 150/225", Describe(vm));
     }
 
+    // The Professions page: yours first under "You", then each friend's; Who shows only one side.
+    [Fact]
+    public void Yours_and_friends_show_together_or_one_side_at_a_time()
+    {
+        var vm = new ProfessionsViewModel { YoursEmptyText = "none of yours", FriendsEmptyText = "none of theirs" };
+        var mine = Rows(Char("Zeb", "Firemaw", "Orc", "WARRIOR", "Mining 150/225"));
+        var theirs = Rows(Char("Ann", "Firemaw", "Orc", "MAGE", "Tailoring 10/75"));
+        foreach (var r in theirs) { r.IsFriend = true; r.FriendName = "Annie"; }
+        vm.Show([.. theirs, .. mine], r => r.IsFriend ? r.FriendName : "");
+        Assert.True(vm.HasBoth);
+        Assert.Equal("You: Firemaw, Horde: Mining Zeb 150/225 | Annie: Firemaw, Horde: Tailoring Ann 10/75", Describe(vm));
+
+        vm.Who = "friends";
+        Assert.Equal("Annie: Firemaw, Horde: Tailoring Ann 10/75", Describe(vm));
+        vm.Who = "you";
+        Assert.Equal("Firemaw, Horde: Mining Zeb 150/225", Describe(vm)); // no heading on its own
+
+        vm.Show(mine, r => "");
+        Assert.False(vm.HasBoth);
+        vm.Who = "friends";
+        Assert.True(vm.IsEmpty);
+        Assert.Equal("none of theirs", vm.ShownEmptyText);
+    }
+
     // Recipes show as a count on the character's line; only a line with recipes opens its window,
     // which lists them under their categories in the game's order and picks the first.
     [Fact]

@@ -52,6 +52,7 @@ sealed class FlavorViewModel : Observable
         FollowedItems = new FollowedItemsViewModel(flavor, Lookup, () => Settings, FollowedChanged);
         Friends = new FriendsViewModel(flavor, Lookup, main.Config, () => Settings, AddonSettingsChanged, main.Config.Save);
         Friends.OrderChanged += main.SetFriendOrder; // dragged: every tab and every game's addon
+        Friends.RowsShown += ShowProfessions;
         // Retail characters are filtered by realm, Forever ones by ruleset (hardcore, self-found...).
         Groups = new ChipFilter(flavor.GroupLabel, () => ShowData(lastData));
         FactionChips = new ChipFilter("Faction", () => ShowData(lastData)); // hidden while all are on one side
@@ -960,8 +961,16 @@ sealed class FlavorViewModel : Observable
     // Every day seen, yours and friends', for the Stats page's month and all time (the addon keeps 8).
     DayHistory DayHistory => dayHistory ??= new(Path.Combine(Config.Dir, $"days-{Flavor.Key}.json"));
     DayHistory? dayHistory;
-    // The Professions page: your characters' professions by server and faction.
-    public ProfessionsViewModel Professions { get; } = new() { EmptyText = "No professions yet. They show up once a character with one has been played with the addon." };
+    // The Professions page: your characters' professions and your friends' (the ones you haven't hidden),
+    // by server and faction, with a switch for everyone, yours or friends'.
+    public ProfessionsViewModel Professions { get; } = new()
+    {
+        EmptyText = "No professions yet. They show up once a character with one has been played with the addon, or a friend shares theirs.",
+        YoursEmptyText = "No professions on your characters yet. They show up once a character with one has been played with the addon.",
+        FriendsEmptyText = "No professions from friends yet. Friends who share professions show up here, with their recipes.",
+    };
+    List<CharacterRow> ownRows = [];
+    void ShowProfessions() => Professions.Show([.. ownRows, .. Friends.Shown], r => r.IsFriend ? (r.FriendName.Length > 0 ? r.FriendName : r.FriendTag) : "");
     public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; InGameChanged(); } }
     public StreamViewModel Stream => main.Stream;
 
@@ -1082,8 +1091,8 @@ sealed class FlavorViewModel : Observable
         SelectedCharacter = Characters.FirstOrDefault(c => c.Guid == keep);
         SelectedCharacter?.KeepTabFrom(keepOpen);
         Items.Show(rows);
-        Professions.Show(rows);
-        Friends.Show(ShownData); // friends' rows stay on their own page (not the test characters either)
+        ownRows = rows;
+        Friends.Show(ShownData); // friends' rows stay on their own page (not the test characters either); shows Professions
         QueueAddonPortraits();
         AddLevelBoard([.. rows, .. Friends.Shown]);
         Stats.Show(rows, data.Events, DayHistory.Add([.. data.Today, .. data.Days, .. ShownData.Friends.SelectMany(c => c.Days)]), Friends.Shown);

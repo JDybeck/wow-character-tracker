@@ -47,6 +47,21 @@
                     Command="{Binding ShowPageCommand}" CommandParameter="followed" ToolTip="Your wish list: items to watch for"/>
           </StackPanel>
         </Border>
+        <!-- The Professions tab's views: everyone's, yours or your friends' (when there are both). -->
+        <Grid x:Name="ProfessionViews" DockPanel.Dock="Right" Margin="8,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+              Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=professions}">
+        <Border Style="{StaticResource SegmentBox}" DataContext="{Binding SelectedFlavor.Professions}"
+                Visibility="{Binding HasBoth, Converter={StaticResource Visible}}">
+          <StackPanel Orientation="Horizontal">
+            <Button Style="{StaticResource SegmentButton}" Content="Everyone" Tag="{Binding Who, Converter={StaticResource ActiveIf}, ConverterParameter=all}"
+                    Command="{Binding ShowWhoCommand}" CommandParameter="all" ToolTip="Your characters' professions and your friends'"/>
+            <Button Style="{StaticResource SegmentButton}" Content="Yours" Tag="{Binding Who, Converter={StaticResource ActiveIf}, ConverterParameter=you}"
+                    Command="{Binding ShowWhoCommand}" CommandParameter="you" ToolTip="Only your characters"/>
+            <Button Style="{StaticResource SegmentButton}" Content="Friends" Tag="{Binding Who, Converter={StaticResource ActiveIf}, ConverterParameter=friends}"
+                    Command="{Binding ShowWhoCommand}" CommandParameter="friends" ToolTip="Only what friends share with you"/>
+          </StackPanel>
+        </Border>
+        </Grid>
         <!-- The Friends tab's views: their characters, or their professions and recipes. Before them,
              where the game has an armory, its picture models for all friends' characters. -->
         <StackPanel x:Name="FriendViews" DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -85,13 +100,13 @@
                   Command="{Binding ShowPageCommand}" CommandParameter="items" ToolTip="Everything your characters carry, wear and keep in the bank, and your wish list">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7B8;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Items"/></StackPanel>
           </Button>
-          <Button x:Name="ProfessionsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
-                  Command="{Binding ShowPageCommand}" CommandParameter="professions" ToolTip="Who can craft what">
-            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE90F;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Professions"/></StackPanel>
-          </Button>
           <Button x:Name="FriendsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=friends}"
                   Command="{Binding ShowPageCommand}" CommandParameter="friends">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE716;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Friends"/></StackPanel>
+          </Button>
+          <Button x:Name="ProfessionsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="professions" ToolTip="Who can craft what">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE90F;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Professions"/></StackPanel>
           </Button>
           <Button x:Name="StatsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=stats}"
                   Command="{Binding ShowPageCommand}" CommandParameter="stats">
@@ -135,7 +150,7 @@
               <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="1" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}">
                 <ui:LazyPage.Page><DataTemplate><views:ItemsPage/></DataTemplate></ui:LazyPage.Page>
               </ui:LazyPage>
-              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="4" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}">
+              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="7" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}">
                 <ui:LazyPage.Page><DataTemplate><views:ProfessionsPage/></DataTemplate></ui:LazyPage.Page>
               </ui:LazyPage>
               <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=followed}">
