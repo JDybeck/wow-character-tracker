@@ -776,7 +776,7 @@ function ns.buildHomeTab(p)
       xpText:SetText("")
     end
 
-    setTile(tiles[1], (me.ilvl or 0) > 0 and tostring(math.floor(me.ilvl)) or nil, "Item level")
+    setTile(tiles[1], ui.itemLevelText(me.ilvl), "Item level")
     setTile(tiles[2], me.money and ui.gold(me.money) or nil, accountGold(me))
     setTile(tiles[3], (me.played or 0) > 0 and ns.formatPlayed(me.played) or nil, "Played")
 

@@ -890,6 +890,73 @@ function ui.factTiles(parent, pool, facts, x, y, width, cols)
   return #facts > 0 and (rowTop + ui.FACT_TILE) or y
 end
 
+-- A character's average item level as the game says it (GetAverageItemLevel, equipped), rounded
+-- to the nearest like the app; nil without one.
+function ui.itemLevelText(ilvl)
+  ilvl = tonumber(ilvl)
+  if not ilvl or ilvl <= 0 then return nil end
+  return tostring(math.floor(ilvl + 0.5))
+end
+
+-- The item level tile at the top of a character's info: the average big, with the gear's icon, and
+-- a click opens the gear (when there is some). ui.GEAR_TILE high.
+ui.GEAR_TILE = 44
+local function gearTileTip(self)
+  self.hover:Show()
+  if not GameTooltip then return end
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText(self.tip or "", 1, 0.82, 0)
+  GameTooltip:Show()
+end
+local function gearTileLeave(self)
+  self.hover:Hide()
+  if GameTooltip then GameTooltip:Hide() end
+end
+function ui.gearTile(parent)
+  local t = CreateFrame("Button", nil, parent)
+  t:SetHeight(ui.GEAR_TILE)
+  t.bg = t:CreateTexture(nil, "BACKGROUND")
+  t.bg:SetAllPoints()
+  ui.fill(t.bg, COLOR.selected)
+  t.stripe = t:CreateTexture(nil, "BORDER")
+  t.stripe:SetPoint("TOPLEFT")
+  t.stripe:SetPoint("BOTTOMLEFT")
+  t.stripe:SetWidth(2)
+  ui.fill(t.stripe, COLOR.accent)
+  t.hover = t:CreateTexture(nil, "ARTWORK")
+  t.hover:SetAllPoints()
+  ui.fill(t.hover, COLOR.hover)
+  t.hover:Hide()
+  t.icon = icon(t, 32)
+  t.icon:SetPoint("LEFT", t, "LEFT", 8, 0)
+  t.icon:SetTexture(ICONS .. "INV_Chest_Chain_05")
+  t.value = ui.text(t, "GameFontNormalHuge")
+  t.value:SetPoint("LEFT", t.icon, "RIGHT", 10, 0)
+  t.label = ui.text(t, "GameFontHighlightSmall")
+  t.label:SetPoint("TOPLEFT", t.value, "TOPRIGHT", 8, -1)
+  t.hint = ui.text(t, "GameFontDisableSmall")
+  t.hint:SetPoint("TOPLEFT", t.label, "BOTTOMLEFT", 0, -2)
+  t:SetScript("OnEnter", gearTileTip)
+  t:SetScript("OnLeave", gearTileLeave)
+  t:SetScript("OnClick", function(self) if self.open then self.open() end end)
+  return t
+end
+-- ilvl: the saved average (nil: none); count: gear pieces to show (0: none); open: what a click does.
+-- Shown only with either; without gear it's just the number.
+function ui.drawGearTile(t, ilvl, count, open)
+  local text = ui.itemLevelText(ilvl)
+  if not text and count <= 0 then t:Hide() return false end
+  t.value:SetText(text or "Gear")
+  t.label:SetText(text and "Item level" or string.format("%d item%s", count, count == 1 and "" or "s"))
+  t.hint:SetText(count > 0 and (text and string.format("%d items, click for the gear", count) or "Click for the gear") or "")
+  t.open = count > 0 and open or nil
+  t.tip = t.open and "Show or hide the gear" or nil
+  t:EnableMouse(t.open ~= nil)
+  if not t.open then gearTileLeave(t) end
+  t:Show()
+  return true
+end
+
 -- "Tailoring 240/300, Enchanting 273/300" as { name, rank, max } (rank alone when there's no max).
 function ui.parseProfessions(text)
   local out = {}

@@ -937,7 +937,18 @@ local function drawExpansion(ex, c, friend)
     place(ex.notShared, ex, 12, top)
     top = top + 22
   end
-  local left = ui.factTiles(ex, ex.left, facts(c), 12, top, ex.half, 2)
+  -- The item level, big, opening the gear beside the window (one panel at a time).
+  local gearCount = c.notShared and 0 or #ns.friendGear(c)
+  ex.gear = ex.gear or ui.gearTile(ex)
+  ex.gear:SetWidth(ex.half)
+  if ui.drawGearTile(ex.gear, not c.notShared and c.ilvl or nil, gearCount, function()
+    if not details then buildDetails() end
+    if details:IsShown() and detailsKey == charKey(c) then details:Hide() else drawDetails(c, friend) end
+  end) then
+    place(ex.gear, ex, 12, top)
+  end
+  local leftTop = ex.gear:IsShown() and (top + ui.GEAR_TILE + ui.FACT_GAP) or top
+  local left = ui.factTiles(ex, ex.left, facts(c), 12, leftTop, ex.half, 2)
   -- A profession meter with known recipes opens them (RecipeWindow.lua); the rest get a button below.
   local profs = ui.parseProfessions(c.professions)
   local recipeProfs = ns.recipeProfessions and ns.recipeProfessions(c) or {}
@@ -945,7 +956,7 @@ local function drawExpansion(ex, c, friend)
   for _, prof in ipairs(recipeProfs) do recipeCounts[prof.name] = prof.count end
   for _, prof in ipairs(profs) do metered[prof.name] = true end
   local openRecipes = function(name) ns.openRecipes(c, name, friend) end
-  if #profs > 0 then left = ui.professionRows(ex, ex.profs, profs, 12, left > top and (left + ui.FACT_GAP) or top, ex.half, recipeCounts, openRecipes) - ui.FACT_GAP
+  if #profs > 0 then left = ui.professionRows(ex, ex.profs, profs, 12, left > leftTop and (left + ui.FACT_GAP) or leftTop, ex.half, recipeCounts, openRecipes) - ui.FACT_GAP
   else ui.professionRows(ex, ex.profs, profs, 12, left, ex.half) end
   local x = 24 + ex.half
   local levels = levelsOf(c)
@@ -970,17 +981,10 @@ local function drawExpansion(ex, c, friend)
   end)
   local h = math.max(left, right) + 14
   place(ex.hide, ex, ex.width - 102, h)
-  -- Gear and highlights (the panel beside the window), your own character's reputations
+  -- Highlights (the panel beside the window; the gear opens from the item level tile), your own character's reputations
   -- (ReputationWindow.lua), then a button per profession with known recipes but no meter above (First
   -- Aid, Cooking), which opens them in the recipe window (RecipeWindow.lua). Each only when there's something in it.
   local actions = {}
-  local gearCount = c.notShared and 0 or #ns.friendGear(c)
-  if gearCount > 0 then
-    actions[1] = { string.format("Gear (%d)", gearCount), function()
-      if not details then buildDetails() end
-      if details:IsShown() and detailsKey == charKey(c) then details:Hide() else drawDetails(c, friend) end
-    end, "Gear" }
-  end
   local count = #highlightsOf(c, friend)
   if count > 0 then
     actions[#actions + 1] = { string.format("Highlights (%d)", count), function() toggleHighlights(c, friend) end, "Highlights" }
@@ -1518,7 +1522,7 @@ local function setCharRow(row, c, main, pinned)
   row.classText:SetText(c.spec and (c.spec .. " " .. class) or class)
   classColor(row.classText, c.classFile)
   row.level.text:SetText(c.level and tostring(c.level) or "-")
-  row.ilvl.text:SetText(c.ilvl and tostring(math.floor(c.ilvl)) or "-")
+  row.ilvl.text:SetText(ui.itemLevelText(c.ilvl) or "-")
   row.when:SetText(ago(c.received or c.at))
 end
 

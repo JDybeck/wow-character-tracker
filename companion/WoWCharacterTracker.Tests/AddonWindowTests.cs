@@ -1764,11 +1764,15 @@ public class AddonWindowTests
         end
         function title() return titleText().text end
         function clickChar(name) local l = charRow(name); l.scripts.OnMouseUp(l, 'LeftButton') end
-        -- The unfolded character's Gear (n) button, which opens the panel; nil when it has none.
+        -- The unfolded character's item level tile when it opens the panel; nil when it has no gear.
         function gearButton()
           for _, f in ipairs(frames) do
-            if f.kind == 'Button' and onScreen(f) and type(f.text) == 'string' and f.text:find('^Gear %(') then return f end
+            if f.kind == 'Button' and onScreen(f) and f.value and f.hint and f.open then return f end
           end
+        end
+        function gearTileText()
+          local b = gearButton()
+          return b.value.text .. ' / ' .. b.label.text .. ' / ' .. b.hint.text
         end
         function openGear() local b = gearButton(); b.scripts.OnClick(b) end
         function clickGear(name) clickChar(name); openGear() end
@@ -1795,7 +1799,7 @@ public class AddonWindowTests
         var c = GearTab();
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "panel() == nil")); // built on the first open, not by the unfold
-        Assert.Equal("Gear (3)", c.Lua("return gearButton().text").String);
+        Assert.Equal("112 / Item level / 3 items, click for the gear", c.Lua("return gearTileText()").String);
         c.Lua("openGear()");
         Assert.True(Bool(c, "onScreen(panel())"));
         Assert.True(Bool(c, "title() == 'Cidrin Frostmane'"));
@@ -2169,11 +2173,16 @@ public class AddonWindowTests
         c.Lua("clickChar('Cidra')");
         Assert.True(Bool(c, "gearButton() == nil")); // nothing to show, so no button saying so
         c.Lua("clickChar('Cidrin Frostmane')");
-        Assert.Equal("Gear (3)", c.Lua("return gearButton().text").String);
+        Assert.Equal("112 / Item level / 3 items, click for the gear", c.Lua("return gearTileText()").String);
 
         c.Lua("openGear(); shared[1].chars[1].gear = nil"); // they stop sharing it while it's open
         c.Call("friendsChanged");
         Assert.False(Bool(c, "onScreen(panel())")); // no empty panel
+        // Its item level still shows (rounded like the app), it just opens nothing.
+        Assert.True(Bool(c, "gearButton() == nil and shownText('112') ~= nil and shownText('Item level') ~= nil"));
+        c.Lua("shared[1].chars[1].ilvl = 111.5");
+        c.Call("friendsChanged");
+        Assert.True(Bool(c, "shownText('112') ~= nil"));
     }
 
     [Fact]
