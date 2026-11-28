@@ -5,7 +5,7 @@
              xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
              xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
              xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure"
-        Title="Character Tracker" Icon="Assets/app.ico" Width="1320" Height="900" MinWidth="1140" MinHeight="680"
+        Title="Character Tracker" Icon="Assets/app.ico" Width="1320" Height="900" MinWidth="1100" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Bg}" FontFamily="Segoe UI Variable Text, Segoe UI"
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True"
@@ -36,9 +36,43 @@
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
 
-      <DockPanel Margin="2,0,0,10">
-        <!-- The pages, as boxed tabs: icon and name, the open one filled. -->
-        <StackPanel x:Name="PageTabs" Orientation="Horizontal">
+      <DockPanel Margin="2,0,0,4">
+        <!-- The Items tab's views: everything they carry, or the wish list. -->
+        <Border x:Name="ItemViews" DockPanel.Dock="Right" Style="{StaticResource SegmentBox}" Margin="8,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=items|followed}">
+          <StackPanel Orientation="Horizontal">
+            <Button Style="{StaticResource SegmentButton}" Content="All items" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items}"
+                    Command="{Binding ShowPageCommand}" CommandParameter="items" ToolTip="Everything your characters carry, wear and keep in the bank"/>
+            <Button x:Name="FollowedTab" Style="{StaticResource SegmentButton}" Content="Followed" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=followed}"
+                    Command="{Binding ShowPageCommand}" CommandParameter="followed" ToolTip="Your wish list: items to watch for"/>
+          </StackPanel>
+        </Border>
+        <!-- The Friends tab's views: their characters, or their professions and recipes. Before them,
+             where the game has an armory, its picture models for all friends' characters. -->
+        <StackPanel x:Name="FriendViews" DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                    DataContext="{Binding SelectedFlavor.Friends}"
+                    Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=friends}">
+          <Border Style="{StaticResource SegmentBox}" Margin="0,0,8,0" Visibility="{Binding HasArmory, Converter={StaticResource Visible}}">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource SegmentButton}" Content="HD" Tag="{Binding ArmoryModel, Converter={StaticResource ActiveIf}, ConverterParameter=hd}"
+                      Command="{Binding ShowArmoryModelCommand}" CommandParameter="hd" ToolTip="Friends' armory pictures with the new character models. A character's own choice under Portrait wins"/>
+              <Button Style="{StaticResource SegmentButton}" Content="SD" Tag="{Binding ArmoryModel, Converter={StaticResource ActiveIf}, ConverterParameter=sd}"
+                      Command="{Binding ShowArmoryModelCommand}" CommandParameter="sd" ToolTip="Friends' armory pictures with the old character models. A character's own choice under Portrait wins"/>
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource SegmentBox}">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource SegmentButton}" Content="Friends" Tag="{Binding View, Converter={StaticResource ActiveIf}, ConverterParameter=list}"
+                      Command="{Binding ShowViewCommand}" CommandParameter="list" ToolTip="Your friends and their characters"/>
+              <Button Style="{StaticResource SegmentButton}" Content="Professions" Tag="{Binding View, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
+                      Command="{Binding ShowViewCommand}" CommandParameter="professions" ToolTip="Friends' professions and recipes, and who can craft what"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+        <!-- The pages, as boxed tabs: icon and name, the open one filled. Last, so it gets the room the
+             switches at the right leave, and wraps to a second row in a narrow window instead of
+             running under them. -->
+        <WrapPanel x:Name="PageTabs">
           <Button x:Name="HomeTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=home}"
                   Command="{Binding ShowPageCommand}" CommandParameter="home">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE80F;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Home"/></StackPanel>
@@ -67,39 +101,7 @@
                   Command="{Binding ShowPageCommand}" CommandParameter="sharing">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Sharing"/></StackPanel>
           </Button>
-        </StackPanel>
-        <!-- The Items tab's views: everything they carry, or the wish list. -->
-        <Border x:Name="ItemViews" Style="{StaticResource SegmentBox}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=items|followed}">
-          <StackPanel Orientation="Horizontal">
-            <Button Style="{StaticResource SegmentButton}" Content="All items" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items}"
-                    Command="{Binding ShowPageCommand}" CommandParameter="items" ToolTip="Everything your characters carry, wear and keep in the bank"/>
-            <Button x:Name="FollowedTab" Style="{StaticResource SegmentButton}" Content="Followed" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=followed}"
-                    Command="{Binding ShowPageCommand}" CommandParameter="followed" ToolTip="Your wish list: items to watch for"/>
-          </StackPanel>
-        </Border>
-        <!-- The Friends tab's views: their characters, or their professions and recipes. Before them,
-             where the game has an armory, its picture models for all friends' characters. -->
-        <StackPanel x:Name="FriendViews" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
-                    DataContext="{Binding SelectedFlavor.Friends}"
-                    Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=friends}">
-          <Border Style="{StaticResource SegmentBox}" Margin="0,0,8,0" Visibility="{Binding HasArmory, Converter={StaticResource Visible}}">
-            <StackPanel Orientation="Horizontal">
-              <Button Style="{StaticResource SegmentButton}" Content="HD" Tag="{Binding ArmoryModel, Converter={StaticResource ActiveIf}, ConverterParameter=hd}"
-                      Command="{Binding ShowArmoryModelCommand}" CommandParameter="hd" ToolTip="Friends' armory pictures with the new character models. A character's own choice under Portrait wins"/>
-              <Button Style="{StaticResource SegmentButton}" Content="SD" Tag="{Binding ArmoryModel, Converter={StaticResource ActiveIf}, ConverterParameter=sd}"
-                      Command="{Binding ShowArmoryModelCommand}" CommandParameter="sd" ToolTip="Friends' armory pictures with the old character models. A character's own choice under Portrait wins"/>
-            </StackPanel>
-          </Border>
-          <Border Style="{StaticResource SegmentBox}">
-            <StackPanel Orientation="Horizontal">
-              <Button Style="{StaticResource SegmentButton}" Content="Friends" Tag="{Binding View, Converter={StaticResource ActiveIf}, ConverterParameter=list}"
-                      Command="{Binding ShowViewCommand}" CommandParameter="list" ToolTip="Your friends and their characters"/>
-              <Button Style="{StaticResource SegmentButton}" Content="Professions" Tag="{Binding View, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
-                      Command="{Binding ShowViewCommand}" CommandParameter="professions" ToolTip="Friends' professions and recipes, and who can craft what"/>
-            </StackPanel>
-          </Border>
-        </StackPanel>
+        </WrapPanel>
       </DockPanel>
 
       <!-- No game folder or no addon: the app can't track anything yet, so that check sits big over the

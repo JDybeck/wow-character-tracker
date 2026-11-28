@@ -62,33 +62,21 @@
       <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
 
+    <!-- One line: the wordmark, the name and the version (they keep their width), then the status,
+         which shortens ("...") first when the column runs out of room. -->
     <DockPanel>
       <Image DockPanel.Dock="Left" Source="/Assets/wordmark.png" Height="40" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-      <!-- One line: the name, then the status, version and update button after it. -->
       <TextBlock DockPanel.Dock="Left" Text="Character Tracker" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-        <!-- Docked so the status (last, it fills) gives way first; left aligned so the version
-             and update button sit right after it while there's room. -->
-        <DockPanel Margin="14,3,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
-          <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,6,0"/>
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-            <!-- The version and whether it's the newest; a click checks now. -->
-            <Button Style="{StaticResource GhostButton}" Padding="4,1" Margin="6,0,0,0" VerticalAlignment="Center" Cursor="Hand"
-                    Command="{Binding Updates.CheckUpdatesCommand}" ToolTip="{Binding Updates.VersionTip}">
-              <TextBlock Text="{Binding Updates.VersionLine}" FontSize="12" Foreground="{StaticResource Dim}"/>
-            </Button>
-            <!-- A new version: a filled button that can't be missed, one click installs it. -->
-            <Button Style="{StaticResource IndigoButton}" Padding="10,3" Margin="8,0,0,0" FontSize="12" Command="{Binding Updates.InstallUpdateCommand}"
-                    ToolTip="Download and install the new version now. The app restarts by itself in a few seconds; your settings stay."
-                    VerticalAlignment="Center" Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Visible}}">
-              <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="11" Foreground="White" Margin="0,0,6,0"/>
-                <TextBlock Text="{Binding Updates.UpdateButtonText}" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
-          </StackPanel>
-          <TextBlock Text="{Binding SelectedFlavor.StatusText}" Foreground="{StaticResource Muted}" FontSize="13"
-                     MaxWidth="240" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedFlavor.StatusText}"/>
-        </DockPanel>
+      <!-- The version and whether it's the newest; a click checks now. -->
+      <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" Padding="4,1" Margin="8,3,0,0" VerticalAlignment="Center" Cursor="Hand"
+              Command="{Binding Updates.CheckUpdatesCommand}" ToolTip="{Binding Updates.VersionTip}">
+        <TextBlock Text="{Binding Updates.VersionLine}" FontSize="12" Foreground="{StaticResource Dim}"/>
+      </Button>
+      <DockPanel Margin="10,3,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+        <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,6,0"/>
+        <TextBlock Text="{Binding SelectedFlavor.StatusText}" Foreground="{StaticResource Muted}" FontSize="13"
+                   MaxWidth="240" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedFlavor.StatusText}"/>
+      </DockPanel>
     </DockPanel>
 
     <Border x:Name="GameTabs" Grid.Column="1" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
@@ -111,6 +99,16 @@
     <DockPanel Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" LastChildFill="True">
       <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="6,0,0,0">
 
+      <!-- A new version: a filled button that can't be missed, one click installs it. Here at the right
+           the search box gives way to it, so it's never cut off. -->
+      <Button Style="{StaticResource IndigoButton}" Padding="10,3" Margin="0,0,6,0" FontSize="12" Command="{Binding Updates.InstallUpdateCommand}"
+              ToolTip="Download and install the new version now. The app restarts by itself in a few seconds; your settings stay."
+              VerticalAlignment="Center" Visibility="{Binding Updates.HasUpdate, Converter={StaticResource Visible}}">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="11" Foreground="White" Margin="0,0,6,0"/>
+          <TextBlock Text="{Binding Updates.UpdateButtonText}" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
       <!-- Help: the tour, what's new, the in game commands, feedback and the update check, in one menu.
            The button can't be clicked while the menu is open, so a click outside (on it too) just closes it. -->
       <ToggleButton x:Name="HelpButton" Style="{StaticResource HeaderIcon}" IsChecked="{Binding ShowHelp}" AutomationProperties.Name="Help"

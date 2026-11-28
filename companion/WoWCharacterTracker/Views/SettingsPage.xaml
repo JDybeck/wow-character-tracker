@@ -16,7 +16,7 @@
     </Style>
   </UserControl.Resources>
 
-  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="6"
+  <Border Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="10"
           Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=settings}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="26,22" MaxWidth="900" HorizontalAlignment="Left">

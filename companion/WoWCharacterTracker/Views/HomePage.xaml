@@ -82,7 +82,7 @@
                       Visibility="{Binding Character.IsOwn, Converter={StaticResource Visible}}">
                   <TextBlock Text="&#x2713; Posted" FontSize="11" Foreground="{StaticResource Green}" VerticalAlignment="Center"
                              Visibility="{Binding Posted, Converter={StaticResource Visible}}"/>
-                  <Button x:Name="Share" Style="{StaticResource ChipButton}" Content="Share" ToolTip="Post this moment to Discord" Opacity="0"
+                  <Button x:Name="Share" Style="{StaticResource ChipButton}" Content="Share" ToolTip="Post this moment to Discord" Opacity="0" IsHitTestVisible="False"
                           Command="{Binding DataContext.PostHighlightCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
                           Visibility="{Binding Posted, Converter={StaticResource Hidden}}"/>
                 </Grid>
@@ -108,12 +108,15 @@
                 <Setter TargetName="Box" Property="Background" Value="{DynamicResource BlueSoft}"/>
                 <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
                 <Setter TargetName="Share" Property="Opacity" Value="1"/>
+                <Setter TargetName="Share" Property="IsHitTestVisible" Value="True"/>
               </DataTrigger>
               <Trigger SourceName="Box" Property="IsMouseOver" Value="True">
                 <Setter TargetName="Share" Property="Opacity" Value="1"/>
+                <Setter TargetName="Share" Property="IsHitTestVisible" Value="True"/>
               </Trigger>
               <Trigger SourceName="Share" Property="IsKeyboardFocused" Value="True">
                 <Setter TargetName="Share" Property="Opacity" Value="1"/>
+                <Setter TargetName="Share" Property="IsHitTestVisible" Value="True"/>
               </Trigger>
             </DataTemplate.Triggers>
           </DataTemplate>
