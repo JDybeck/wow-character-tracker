@@ -1217,6 +1217,8 @@ public class AddonWindowTests
             """);
         Assert.True(Bool(c, "shownButton('Enchanting (1)') == nil and shownButton('Tailoring (3)') == nil")); // no buttons for them
         Assert.True(Bool(c, "shownButton('First Aid (1)') ~= nil")); // no meter: a button
+        c.Lua("local b = shownButton('First Aid (1)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes')) and shownText('First Aid') ~= nil and shownText('Bandages') ~= nil"));
         c.Lua("local r = shownText('Enchanting (1)').owner; r.scripts.OnMouseUp(r, 'LeftButton')");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes')) and shownText('Enchanting') ~= nil"));
         c.Lua("local r = shownText('Tailoring (3)').owner; r.scripts.OnMouseUp(r, 'LeftButton')");

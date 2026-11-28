@@ -774,16 +774,23 @@ local FACTION_CRESTS = { Alliance = true, Horde = true }
 -- The party leader's crown after a main character's name (yours, or a friend's own pick), "Main
 -- character" on hover. A small frame, for the tooltip; a click on it is the row's click.
 local CROWN = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
+-- The crown takes the mouse for its tip, so it passes the row's hover on (no highlight flicker).
+local function rowScript(self, name, ...)
+  local row = self:GetParent()
+  local script = row and row:GetScript(name)
+  if script then script(row, ...) end
+end
 local function crownTip(self)
+  rowScript(self, "OnEnter")
   if not GameTooltip then return end
   GameTooltip:SetOwner(self, "ANCHOR_TOP")
   GameTooltip:SetText("Main character", 1, 0.82, 0)
   GameTooltip:Show()
 end
-local function crownClick(self, button)
-  local row = self:GetParent()
-  local click = row and row:GetScript("OnMouseUp")
-  if click then click(row, button) end
+local function crownClick(self, button) rowScript(self, "OnMouseUp", button) end
+local function crownLeave(self)
+  if GameTooltip then GameTooltip:Hide() end
+  rowScript(self, "OnLeave")
 end
 function ui.setMainCrown(row, main)
   if not row.crown then
@@ -795,7 +802,7 @@ function ui.setMainCrown(row, main)
     f.icon:SetAllPoints()
     f.icon:SetTexture(CROWN)
     f:SetScript("OnEnter", crownTip)
-    f:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    f:SetScript("OnLeave", crownLeave)
     f:SetScript("OnMouseUp", crownClick)
     row.crown = f
   end
@@ -947,8 +954,11 @@ function ui.professionRows(parent, pool, list, x, y, width, recipes, open)
     r:SetWidth(width)
     r.icon:SetTexture(ICONS .. (ui.PROFESSION_ICONS[p.name] or "INV_Misc_QuestionMark"))
     local count = recipes and recipes[p.name]
+    local was = r.profession
     r.profession, r.open = p.name, (count and open) or nil
     r:EnableMouse(r.open ~= nil)
+    -- A redraw under the mouse: drop the hover and a tip that's about another profession (or none).
+    if (not r.open or was ~= p.name) and GameTooltip and GameTooltip.GetOwner and GameTooltip:GetOwner() == r then GameTooltip:Hide() end
     if not r.open then r.hover:Hide() end
     r.name:SetText(r.open and string.format("%s (%d)", p.name, count) or p.name)
     r.rank:SetText(p.max and string.format("%d / %d", p.rank, p.max) or tostring(p.rank or ""))

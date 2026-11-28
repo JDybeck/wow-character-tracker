@@ -940,8 +940,9 @@ local function drawExpansion(ex, c, friend)
   local left = ui.factTiles(ex, ex.left, facts(c), 12, top, ex.half, 2)
   -- A profession meter with known recipes opens them (RecipeWindow.lua); the rest get a button below.
   local profs = ui.parseProfessions(c.professions)
+  local recipeProfs = ns.recipeProfessions and ns.recipeProfessions(c) or {}
   local recipeCounts, metered = {}, {}
-  for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do recipeCounts[prof.name] = prof.count end
+  for _, prof in ipairs(recipeProfs) do recipeCounts[prof.name] = prof.count end
   for _, prof in ipairs(profs) do metered[prof.name] = true end
   local openRecipes = function(name) ns.openRecipes(c, name, friend) end
   if #profs > 0 then left = ui.professionRows(ex, ex.profs, profs, 12, left > top and (left + ui.FACT_GAP) or top, ex.half, recipeCounts, openRecipes) - ui.FACT_GAP
@@ -1000,7 +1001,7 @@ local function drawExpansion(ex, c, friend)
   if reputations > 0 then
     actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end, "Reputations" }
   end
-  for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do
+  for _, prof in ipairs(recipeProfs) do
     if not metered[prof.name] then
       actions[#actions + 1] = { string.format("%s (%d)", prof.name, prof.count), function() openRecipes(prof.name) end, prof.name }
     end
