@@ -50,7 +50,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:UpdateStepRow}">
               <StackPanel Orientation="Horizontal" Margin="0,2">
-                <TextBlock x:Name="Mark" Style="{StaticResource Icon}" Text="&#xE9AE;" FontSize="11" Width="20" Foreground="{StaticResource Faint}"/>
+                <TextBlock x:Name="Mark" Style="{StaticResource Icon}" Text="&#xE9AE;" FontSize="11" Width="20" Foreground="{StaticResource Dim}"/>
                 <TextBlock x:Name="Label" Text="{Binding Text}" FontSize="12" Foreground="{StaticResource Dim}" TextWrapping="Wrap" MaxWidth="700"/>
               </StackPanel>
               <DataTemplate.Triggers>

@@ -52,11 +52,11 @@ From then on the app waits in the tray and opens when you start WoW.
 
 <img src="docs/images/gear-and-bags.png" alt="A character's gear and bags in the app" width="640">
 
-**Items** (on Characters): everything your characters carry, per server. Search it, or show only what's worn, in bags or in the bank.
+**Items**: everything your characters carry, per server. Search it, or show only what's worn, in bags or in the bank.
 
 ![The Items page: every item with who has it and where](docs/images/items.png)
 
-**Professions** (on Characters): every profession on every character, with skill and max, so you see who can craft what.
+**Professions**: every profession on every character, yours and the ones friends share, with skill and max, so you see who can craft what.
 
 **Friends**: Battle.net friends with the addon can share their characters with you, gear and talents included, and you pick what they get of yours (gold and location only if you allow it). Nothing is shared until you say so.
 

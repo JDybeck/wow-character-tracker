@@ -55,9 +55,9 @@ sealed class CharacterRow : Observable
     bool isPinned;
     public bool IsPinned { get => isPinned; set { if (Set(ref isPinned, value)) RaiseMain(); } }
     public bool ShowsMainTag => IsFriendMain || IsOwnMain;
-    public string MainTagTip => IsOwnMain ? "Your main: it leads your list, and friends you share with see it first"
-        : MainPickedHere ? "Their main, picked by you: it leads their card and their list"
-        : "Their main, picked by them: it leads their card and their list";
+    public string MainTagTip => IsOwnMain ? "Your main character: it leads your list, and friends you share with see it first"
+        : MainPickedHere ? "Main character, picked by you: it leads their card and their list"
+        : "Main character, picked by them: it leads their card and their list";
     void RaiseMain()
     {
         foreach (var name in new[] { nameof(ShowsUnsetFriendMain), nameof(ShowsTheirOwnMain), nameof(ShowsMainTag), nameof(MainTagTip) })
@@ -116,7 +116,7 @@ sealed class CharacterRow : Observable
 
     // The Recipes tab: each profession with what the character knows of it (like the addon's button
     // per profession), and the open one's recipes in a window like the game's (RecipeBook). The
-    // overview's profession chips open it too. Only professions with recipes open; the others say why.
+    // overview's profession bars open it too. Only professions with recipes open; the others say why.
     IReadOnlyList<ProfessionCharacter>? recipeProfessions;
     public IReadOnlyList<ProfessionCharacter> RecipeProfessions => recipeProfessions ??=
         [.. ProfessionSkills.Parse(Professions).Select(s => ProfessionCharacter.Of(this, s, IsFriend ? FriendName : ""))];
@@ -141,7 +141,7 @@ sealed class CharacterRow : Observable
     }
     public string OpenRecipeProfession => RecipeBook?.Line.Profession ?? "";
     RelayCommand? openRecipes;
-    // From the Recipes tab's switch or an overview chip: a ProfessionCharacter, or a profession's name.
+    // From the Recipes tab's switch or an overview bar: a ProfessionCharacter, or a profession's name.
     public RelayCommand OpenRecipesCommand => openRecipes ??= new RelayCommand(p => OpenRecipes(p switch
     {
         ProfessionCharacter line => line.Profession,
@@ -340,6 +340,15 @@ sealed class CharacterRow : Observable
 
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
+    public bool HasItemLevel => ItemLevel > 0;
+    // The Overview's item level tile: opens the Gear and bags tab (a friend's Gear tab only when they
+    // share gear; friends always share their item level).
+    public bool LinksGear => IsOwn || Inventory is not null;
+    public string GearLinkText => IsFriend ? "Gear" : "Gear and bags";
+    public string ItemLevelTip => LinksGear ? $"The game's average item level of what's equipped. Click for the {GearLinkText.ToLowerInvariant()}"
+        : "The game's average item level of what's equipped. They don't share their gear";
+    public RelayCommand ShowGearCommand => showGear ??= new RelayCommand(_ => { if (LinksGear) DetailTab = "gear"; });
+    RelayCommand? showGear;
     // The XP bar in whole percent (under the level), from the newest snapshot that has it, and when that was.
     public int? LevelPercent { get; init; }
     public long LevelPercentAt { get; init; }

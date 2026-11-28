@@ -75,7 +75,7 @@
                   <!-- ON for this tab, centered on the row like the buttons next to it -->
                   <Border x:Name="ActiveTag" Grid.Column="1" Visibility="Collapsed" Margin="8,0,4,0" Padding="7,1" CornerRadius="9"
                           Background="{DynamicResource IndigoSoft}" BorderBrush="{DynamicResource IndigoLineSoft}" BorderThickness="1" VerticalAlignment="Center">
-                    <TextBlock Text="ON" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource IndigoText}"/>
+                    <TextBlock Text="ON" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource IndigoText}"/>
                   </Border>
 
                   <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="8,4" ToolTip="Options: which games and rulesets"
@@ -131,7 +131,7 @@
 
                 <!-- Options: games and Forever rulesets, changed by clicking the chips -->
                 <StackPanel Margin="0,10,0,2" Visibility="{Binding IsExpanded, Converter={StaticResource Visible}}">
-                  <TextBlock Text="POSTS FOR" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,0,0,5"/>
+                  <TextBlock Text="POSTS FOR" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,0,0,5"/>
                   <ItemsControl ItemsSource="{Binding Games}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -143,7 +143,7 @@
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                   <StackPanel Visibility="{Binding HasTags, Converter={StaticResource Visible}}">
-                    <TextBlock Text="CHARACTERS (NONE PICKED = ALL)" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
+                    <TextBlock Text="CHARACTERS (NONE PICKED = ALL)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
                     <ItemsControl ItemsSource="{Binding Tags}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -167,7 +167,7 @@
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
                   </StackPanel>
-                  <TextBlock Text="FOREVER RULESETS" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
+                  <TextBlock Text="FOREVER RULESETS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Dim}" Margin="0,6,0,5"/>
                   <ItemsControl ItemsSource="{Binding Rulesets}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>

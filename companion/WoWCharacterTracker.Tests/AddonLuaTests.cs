@@ -2095,4 +2095,59 @@ public class AddonLuaTests
 
         Assert.Equal(saved, script.DoString("return WoWCharacterTrackerDB.chars['Player-1'].money").Number);
     }
+
+    // Gathering (Today.lua): a name the game didn't have at the first cast is looked up again, and a
+    // node's loot of ore or herbs counts it when no gathering cast goes with it, once per node.
+    [Fact]
+    public void Gathering_counts_veins_and_herbs_once_per_node()
+    {
+        var script = new Script();
+        script.DoString("""
+            t, names, loot, source = 100, {}, {}, nil
+            function GetTime() return t end
+            function date(f) return f == "%Y-%m-%d" and '2026-11-25' or '12:00:00' end
+            function UnitGUID() return "Player-1" end
+            C_Spell = { GetSpellName = function(id) return names[id] end }
+            function GetLootSourceInfo() return source end
+            function GetNumLootItems() return #loot end
+            function GetLootSlotLink(i) return loot[i] end
+            C_Item = { GetItemInfoInstant = function(link)
+              local id = tonumber(link:match("item:(%d+)"))
+              if id == 2770 then return id, nil, nil, nil, nil, 7, 7 end -- Copper Ore
+              if id == 765 then return id, nil, nil, nil, nil, 7, 9 end -- Silverleaf
+              return id, nil, nil, nil, nil, 0, 0
+            end }
+            WoWCharacterTrackerDB = {}
+            """);
+        var ns = new Table(script);
+        foreach (var file in new[] { "Shared.lua", "Today.lua" })
+            script.Call(script.LoadString(File.ReadAllText(Path.Combine(AddonDir, file))), "WoWCharacterTracker", ns);
+        double Today(string key) => script.DoString($"local d = WoWCharacterTrackerDB.today['Player-1'] return d and d.{key} or 0").Number;
+        void Cast(int id) => script.Call(ns.Get("onSpellcast"), "player", "cast", id);
+        void Loot() => script.Call(ns.Get("onLootOpened"));
+
+        // A vein with no cast that says so: its ore counts it, the same vein's next loot doesn't.
+        script.DoString("source, loot = 'GameObject-0-1-1-1-1813-A', { '|Hitem:2770|h' }");
+        Loot();
+        Loot();
+        Assert.Equal(1, Today("ore"));
+
+        // The game had no names at the first skinning cast, then had them: the next one counts.
+        script.DoString("t = t + 10; source, loot = 'Creature-0-1-1-1-2-B', { '|Hitem:2318|h' }");
+        Cast(8613);
+        Loot();
+        Assert.Equal(0, Today("skins"));
+        script.DoString("names = { [2366] = 'Herb Gathering', [2575] = 'Mining', [8613] = 'Skinning', [10248] = 'Mining' }; t = t + 10; source = 'Creature-0-1-1-1-2-C'");
+        Cast(8613);
+        Loot();
+        Assert.Equal(1, Today("skins"));
+
+        // A herb: the cast first, then its loot, counted once although the loot alone would say so too.
+        script.DoString("t = t + 10; source, loot = 'GameObject-0-1-1-1-1617-D', { '|Hitem:765|h' }");
+        Cast(2366);
+        Loot();
+        Assert.Equal(1, Today("herbs"));
+        Assert.Equal(1, Today("ore"));
+        Assert.NotEqual(0, script.Call(ns.Get("gatherTrace")).Table.Length);
+    }
 }

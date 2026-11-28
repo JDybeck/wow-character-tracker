@@ -264,13 +264,6 @@ function ui.hookChatItemTips()
   end
 end
 
--- A font string a few points bigger than its template (Home's text). Without GetFont (tests) as is.
-function ui.grow(fs, by)
-  local font, size, flags = fs:GetFont()
-  if font and size then fs:SetFont(font, size + by, flags) end
-  return fs
-end
-
 -- How wide a font string's text is on one line, whatever width it was given (0 = unbounded).
 function ui.textWidth(fs)
   if fs.GetUnboundedStringWidth then return fs:GetUnboundedStringWidth() or 0 end
@@ -297,8 +290,59 @@ function ui.fitText(fs, width, minSize)
   end
 end
 
-function ui.text(parent, template, s)
-  local fs = parent:CreateFontString(nil, "ARTWORK", template)
+-- The window's fonts: the game's templates a point bigger (its Small ones are 10 px, hard to read at
+-- a glance), and the grey Disable ones a lighter grey that keeps 4.5:1 on lit buttons and while the
+-- window fades. ui.font("GameFontHighlightSmall", extra) names the window's copy of a template, extra
+-- points bigger still (Home's); without CreateFont (tests) it's the template itself. A template that's
+-- a font family (a font per alphabet, so Cyrillic and Asian names draw) is copied as a family:
+-- SetFont on a copy would leave it one font, and those names would draw as boxes.
+ui.FONT_BUMP = 1
+ui.HINT_GREY = 0.65
+local ALPHABETS = { "roman", "korean", "simplifiedchinese", "traditionalchinese", "russian" }
+local fonts = {} -- [template .. "+" .. points] = the copy's name, or false when it can't be made
+
+local function familyCopy(name, base, points)
+  if not (CreateFontFamily and base.GetFontObjectForAlphabet) then return nil end
+  local members = {}
+  for _, alphabet in ipairs(ALPHABETS) do
+    local font = base:GetFontObjectForAlphabet(alphabet)
+    local path, size, flags
+    if font then path, size, flags = font:GetFont() end
+    if path and size then members[#members + 1] = { alphabet = alphabet, file = path, height = size + points, flags = flags or "" } end
+  end
+  if #members == 0 then return nil end
+  return CreateFontFamily(name, members)
+end
+
+function ui.font(template, extra)
+  local points = ui.FONT_BUMP + (extra or 0)
+  local key = template .. "+" .. points
+  local made = fonts[key]
+  if made ~= nil then return made or template end
+  local base = _G[template]
+  if not (CreateFont and base and base.GetFont) then
+    fonts[key] = false
+    return template
+  end
+  local name = "WoWCharacterTracker" .. template .. points
+  local f = familyCopy(name, base, points)
+  if not f then
+    f = CreateFont(name)
+    f:CopyFontObject(base)
+    local path, size, flags = base:GetFont()
+    if path and size then f:SetFont(path, size + points, flags or "") end
+  end
+  f:SetTextColor(base:GetTextColor())
+  if base.GetShadowOffset then f:SetShadowOffset(base:GetShadowOffset()) end
+  if base.GetShadowColor then f:SetShadowColor(base:GetShadowColor()) end
+  if template:find("^GameFontDisable") then f:SetTextColor(ui.HINT_GREY, ui.HINT_GREY, ui.HINT_GREY) end
+  fonts[key] = name
+  return name
+end
+
+-- A font string in template's window font (ui.font), extra points bigger.
+function ui.text(parent, template, s, extra)
+  local fs = parent:CreateFontString(nil, "ARTWORK", template and ui.font(template, extra))
   fs:SetJustifyH("LEFT")
   fs:SetText(s or "")
   return fs
@@ -326,7 +370,7 @@ function ui.copyBox(parent, text, width)
   local box = CreateFrame("EditBox", nil, parent)
   box:SetSize(width, 22)
   box:SetAutoFocus(false)
-  box:SetFontObject("GameFontHighlightSmall")
+  box:SetFontObject(ui.font("GameFontHighlightSmall"))
   box:SetTextInsets(6, 6, 0, 0)
   ui.box(box, COLOR.bar, COLOR.border)
   box:SetText(text)
@@ -352,7 +396,7 @@ function ui.inputBox(parent, width, maxLetters, save)
   box:SetSize(width, 22)
   box:SetAutoFocus(false)
   box:SetMaxLetters(maxLetters)
-  box:SetFontObject("GameFontHighlightSmall")
+  box:SetFontObject(ui.font("GameFontHighlightSmall"))
   box:SetTextInsets(6, 6, 0, 0)
   ui.box(box, COLOR.bar, COLOR.border)
   box.saved = ""
@@ -389,14 +433,14 @@ function ui.styleButton(b, style)
   if style == "primary" then ui.box(b, COLOR.primary, COLOR.accent)
   elseif style == "selected" then ui.box(b, COLOR.selected, COLOR.accent)
   else ui.box(b, COLOR.card, COLOR.border) end
-  b:SetNormalFontObject(style == "selected" and "GameFontNormalSmall" or "GameFontHighlightSmall")
+  b:SetNormalFontObject(ui.font(style == "selected" and "GameFontNormalSmall" or "GameFontHighlightSmall"))
 end
 
 function ui.button(parent, label, width, onClick, style)
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(width, 22)
-  b:SetFontString(b:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall"))
-  b:SetDisabledFontObject("GameFontDisableSmall")
+  b:SetFontString(b:CreateFontString(nil, "ARTWORK", ui.font("GameFontHighlightSmall")))
+  b:SetDisabledFontObject(ui.font("GameFontDisableSmall"))
   local hover = b:CreateTexture(nil, "HIGHLIGHT")
   ui.fill(hover, COLOR.hover)
   hover:SetAllPoints()
@@ -597,9 +641,13 @@ end
 function ui.gapAfter(cb) return cb.tip and -(ui.SECTION_GAP + 14) or nil end
 
 -- How tall a fit page's content is: from its top to the lowest thing shown on it, plus a margin.
+-- page.fitParts: frames on it holding a view of their own (a tab's switch), sized to theirs first.
 function ui.fitHeight(page)
   local top = page:GetTop()
   if not top then return end -- not laid out yet
+  for _, part in ipairs(page.fitParts or {}) do
+    if part:IsShown() then ui.fitHeight(part) end
+  end
   local lowest = top
   local function lower(r)
     if r:IsShown() then
@@ -628,34 +676,25 @@ end
 -- The room a portrait and its gap take before the text: on a character row, on a friend's card.
 ui.ROW_PORTRAIT, ui.CARD_PORTRAIT = 36, 48
 
+-- One round picture: the character's face, or their class icon in its place when we have no face.
 function ui.portrait(parent, size)
   local f = CreateFrame("Frame", nil, parent)
   f:SetSize(size, size)
-  f.class = f:CreateTexture(nil, "ARTWORK", nil, 1)
-  f.class:SetAllPoints()
-  f.face = f:CreateTexture(nil, "ARTWORK", nil, 2)
-  f.face:SetAllPoints()
+  f.icon = f:CreateTexture(nil, "ARTWORK")
+  f.icon:SetAllPoints()
   return f
 end
 
 function ui.setPortrait(f, c)
-  local coords = c and c.classFile and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[c.classFile]
-  if coords then
-    f.class:SetTexture(CLASS_CIRCLES)
-    f.class:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-    f.class:Show()
-  else
-    f.class:Hide()
-  end
-  local slot = c and ns.portraitSlot(c.guid)
-  f.face:SetTexCoord(0, 1, 0, 1)
+  local t, slot = f.icon, c and ns.portraitSlot(c.guid)
+  t:SetTexCoord(0, 1, 0, 1)
   if slot then
-    f.face:SetTexture(PORTRAITS .. slot)
-    f.face:Show()
-  elseif c and c.guid and UnitGUID and c.guid == UnitGUID("player") and SetPortraitTexture and pcall(SetPortraitTexture, f.face, "player") then
-    f.face:Show()
+    t:SetTexture(PORTRAITS .. slot)
+    t:Show()
+  elseif c and c.guid and UnitGUID and c.guid == UnitGUID("player") and SetPortraitTexture and pcall(SetPortraitTexture, t, "player") then
+    t:Show()
   else
-    f.face:Hide()
+    t:SetShown(ui.classIcon(t, c and c.classFile))
   end
 end
 
@@ -723,13 +762,54 @@ end
 -- The Alliance or Horde crest right after a character row's name, about as tall as the name (the
 -- crest sits in the top left of the game's PvP texture). Hidden when the faction isn't known.
 local FACTION_CRESTS = { Alliance = true, Horde = true }
+-- The party leader's crown after a main character's name (yours, or a friend's own pick), "Main
+-- character" on hover. A small frame, for the tooltip; a click on it is the row's click.
+local CROWN = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
+-- The crown takes the mouse for its tip, so it passes the row's hover on (no highlight flicker).
+local function rowScript(self, name, ...)
+  local row = self:GetParent()
+  local script = row and row:GetScript(name)
+  if script then script(row, ...) end
+end
+local function crownTip(self)
+  rowScript(self, "OnEnter")
+  if not GameTooltip then return end
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText("Main character", 1, 0.82, 0)
+  GameTooltip:Show()
+end
+local function crownClick(self, button) rowScript(self, "OnMouseUp", button) end
+local function crownLeave(self)
+  if GameTooltip then GameTooltip:Hide() end
+  rowScript(self, "OnLeave")
+end
+function ui.setMainCrown(row, main)
+  if not row.crown then
+    local f = CreateFrame("Frame", nil, row)
+    f:SetSize(16, 16)
+    f:SetPoint("LEFT", row.nameText, "RIGHT", 4, 0)
+    f:EnableMouse(true)
+    f.icon = f:CreateTexture(nil, "OVERLAY")
+    f.icon:SetAllPoints()
+    f.icon:SetTexture(CROWN)
+    f:SetScript("OnEnter", crownTip)
+    f:SetScript("OnLeave", crownLeave)
+    f:SetScript("OnMouseUp", crownClick)
+    row.crown = f
+  end
+  row.crown:SetShown(main == true)
+end
+
+-- The faction crest after the name, after the crown when there is one.
 function ui.setFactionBadge(row, faction)
   if not row.faction then
     row.faction = row:CreateTexture(nil, "OVERLAY")
     row.faction:SetSize(16, 16)
-    row.faction:SetPoint("LEFT", row.nameText, "RIGHT", 3, 0)
     row.faction:SetTexCoord(0, 0.59375, 0, 0.59375)
   end
+  row.faction:ClearAllPoints()
+  if row.crown and row.crown:IsShown() then row.faction:SetPoint("LEFT", row.crown, "RIGHT", 2, 0)
+  else row.faction:SetPoint("LEFT", row.nameText, "RIGHT", 3, 0) end
   local known = FACTION_CRESTS[faction] == true
   if known then row.faction:SetTexture("Interface\\TargetingFrame\\UI-PVP-" .. faction) end
   row.faction:SetShown(known)
@@ -751,7 +831,7 @@ ui.PROFESSION_ICONS = {
   Herbalism = "Trade_Herbalism", ["Herb Gathering"] = "Trade_Herbalism", Leatherworking = "Trade_LeatherWorking", Mining = "Trade_Mining",
   Skinning = "INV_Misc_Pelt_Wolf_01", Tailoring = "Trade_Tailoring", Jewelcrafting = "INV_Misc_Gem_01", Inscription = "INV_Inscription_Tradeskill01",
   Cooking = "INV_Misc_Food_15", Fishing = "Trade_Fishing", ["First Aid"] = "Spell_Holy_SealOfSacrifice", Archaeology = "Trade_Archaeology",
-  Highlights = "INV_Misc_Note_02", Reputations = "INV_Misc_Note_06",
+  Highlights = "INV_Misc_Note_02", Reputations = "INV_Misc_Note_06", Gear = "INV_Chest_Chain_05",
 }
 function ui.iconPath(name) return name and (ICONS .. name) or nil end
 
@@ -801,6 +881,76 @@ function ui.factTiles(parent, pool, facts, x, y, width, cols)
   return #facts > 0 and (rowTop + ui.FACT_TILE) or y
 end
 
+-- A character's average item level (the game's GetAverageItemLevel, equipped) as a whole number,
+-- rounded to the nearest so it matches the app (MapPins.lua rounds the same way); nil without one.
+function ui.itemLevelText(ilvl)
+  ilvl = tonumber(ilvl)
+  if not ilvl or ilvl <= 0 then return nil end
+  return tostring(math.floor(ilvl + 0.5))
+end
+
+-- The item level tile at the top of a character's info: the average big, with the gear's icon, and
+-- a click opens the gear (when there is some). ui.GEAR_TILE high.
+ui.GEAR_TILE = ui.FACT_TILE * 2 + ui.FACT_GAP -- two fact rows, so both columns keep one rhythm
+local function gearTileTip(self)
+  self.hover:Show()
+  if not GameTooltip then return end
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText(self.tip or "", 1, 0.82, 0)
+  GameTooltip:Show()
+end
+local function gearTileLeave(self)
+  self.hover:Hide()
+  if GameTooltip then GameTooltip:Hide() end
+end
+function ui.gearTile(parent)
+  local t = CreateFrame("Button", nil, parent)
+  t:SetHeight(ui.GEAR_TILE)
+  t.bg = t:CreateTexture(nil, "BACKGROUND")
+  t.bg:SetAllPoints()
+  ui.fill(t.bg, COLOR.selected)
+  t.stripe = t:CreateTexture(nil, "BORDER")
+  t.stripe:SetPoint("TOPLEFT")
+  t.stripe:SetPoint("BOTTOMLEFT")
+  t.stripe:SetWidth(2)
+  ui.fill(t.stripe, COLOR.accent)
+  t.hover = t:CreateTexture(nil, "BACKGROUND", nil, 1)
+  t.hover:SetAllPoints()
+  ui.fill(t.hover, COLOR.hover)
+  t.hover:Hide()
+  t.icon = icon(t, 40)
+  t.icon:SetPoint("LEFT", t, "LEFT", 8, 0)
+  t.icon:SetTexture(ICONS .. "INV_Chest_Chain_05")
+  t.value = ui.text(t, "GameFontNormalHuge")
+  t.value:SetPoint("LEFT", t.icon, "RIGHT", 10, 0)
+  t.label = ui.text(t, "GameFontHighlightSmall")
+  t.label:SetPoint("TOPLEFT", t.value, "TOPRIGHT", 8, -1)
+  t.hint = ui.text(t, "GameFontDisableSmall")
+  t.hint:SetPoint("TOPLEFT", t.label, "BOTTOMLEFT", 0, -2)
+  t:SetScript("OnEnter", gearTileTip)
+  t:SetScript("OnLeave", gearTileLeave)
+  t:SetScript("OnClick", function(self) if self.open then self.open() end end)
+  return t
+end
+-- ilvl: the saved average (nil: none); count: gear pieces to show (0: none); open: what a click does.
+-- Shown only with either; without gear it's just the number.
+function ui.drawGearTile(t, ilvl, count, open)
+  local text = ui.itemLevelText(ilvl)
+  if not text and count <= 0 then t:Hide() return false end
+  t.value:SetText(text or "Gear")
+  t.label:SetText(text and "Item level" or string.format("%d item%s", count, count == 1 and "" or "s"))
+  t.hint:SetText(count > 0 and (text and string.format("%d items, click for the gear", count) or "Click for the gear") or "")
+  t.open = count > 0 and open or nil
+  t.tip = t.open and "Show or hide the gear" or nil
+  t:EnableMouse(t.open ~= nil)
+  if not t.open then
+    t.hover:Hide()
+    if GameTooltip and GameTooltip.GetOwner and GameTooltip:GetOwner() == t then GameTooltip:Hide() end
+  end
+  t:Show()
+  return true
+end
+
 -- "Tailoring 240/300, Enchanting 273/300" as { name, rank, max } (rank alone when there's no max).
 function ui.parseProfessions(text)
   local out = {}
@@ -830,17 +980,48 @@ local function newProfessionRow(parent)
   ui.fill(r.bar, COLOR.accent)
   r.bar:SetHeight(4)
   r.bar:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 34, 3)
+  -- With known recipes the row opens them: a hover wash and a tip say so.
+  r.hover = r:CreateTexture(nil, "BACKGROUND")
+  r.hover:SetPoint("TOPLEFT", r, "TOPLEFT", -4, 2)
+  r.hover:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 4, -2)
+  ui.fill(r.hover, COLOR.selected)
+  r.hover:Hide()
+  r:SetScript("OnEnter", function(self)
+    if not self.open then return end
+    self.hover:Show()
+    if GameTooltip then
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:SetText(string.format("Show %s recipes", self.profession or ""), 1, 0.82, 0)
+      GameTooltip:Show()
+    end
+  end)
+  r:SetScript("OnLeave", function(self)
+    self.hover:Hide()
+    if GameTooltip then GameTooltip:Hide() end
+  end)
+  r:SetScript("OnMouseUp", function(self, button)
+    if self.open and button ~= "RightButton" then self.open(self.profession) end
+  end)
   return r
 end
 
 -- A row per profession: its icon, name, rank and a bar to its max. Returns the y under them.
-function ui.professionRows(parent, pool, list, x, y, width)
+-- recipes: { [profession] = known recipe count }; such a row shows the count and a click calls
+-- open(profession), so the meter is the way into the recipes (no second button for it).
+function ui.professionRows(parent, pool, list, x, y, width, recipes, open)
   for i, p in ipairs(list) do
     local r = pool[i] or newProfessionRow(parent)
     pool[i] = r
     r:SetWidth(width)
     r.icon:SetTexture(ICONS .. (ui.PROFESSION_ICONS[p.name] or "INV_Misc_QuestionMark"))
-    r.name:SetText(p.name)
+    local count = recipes and recipes[p.name]
+    local was = r.profession
+    r.profession, r.open = p.name, (count and open) or nil
+    r:EnableMouse(r.open ~= nil)
+    -- A redraw under the mouse: drop the hover and a tip that's about another profession (or none).
+    if (not r.open or was ~= p.name) and GameTooltip and GameTooltip.GetOwner and GameTooltip:GetOwner() == r then GameTooltip:Hide() end
+    if not r.open then r.hover:Hide() end
+    r.name:SetText(r.open and string.format("%s (%d)", p.name, count) or p.name)
     r.rank:SetText(p.max and string.format("%d / %d", p.rank, p.max) or tostring(p.rank or ""))
     local share = (p.max and p.max > 0 and p.rank) and math.min(1, p.rank / p.max) or 0
     r.bar:SetShown(share > 0)

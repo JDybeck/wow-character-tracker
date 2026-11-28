@@ -2,6 +2,32 @@
 
 The app shows the notes for a new version when it finds an update, and the newest three under **What's new**. Each release takes its notes from its section here. A section has an optional intro, then `### New` for features and `### Fixes and tweaks` for the rest, leave out the one that's empty.
 
+## v0.44.0
+
+Update the addon with the app (it does this by itself) and /reload in game.
+
+### New
+
+- **Stats by character.** The app's Stats page has a second picker next to the period: **Versus** (you against each friend, as before), **You** (your characters against each other) and **Friends** (every character your friends share, one by one). In **You**, **Most gold made** adds a **Total** row for all your characters together.
+- **Items and Professions are page tabs in the app.** The tabs now read Home, Characters, Items, Friends, Professions, Stats, Sharing. Items has an **All items / Followed** switch, and the tab row wraps in a narrow window.
+- **Friends on the Professions tab.** The app's Professions tab shows your friends' professions and recipes too: your characters under "You", then each friend under their name. A switch picks **Everyone**, **Yours** or **Friends**, and recipe search covers everyone.
+- **A crown for mains.** A main shows a gold crown after its name instead of the MAIN tag, in the app and in the addon, with "Main character" on hover.
+- **Professions as skill bars that open their recipes.** On a character's Overview in the app, and in the addon's character info, each profession is a skill bar with its recipe count. Click it to open the recipes, yours or a friend's.
+- **An item level tile.** A character's info (app Overview and addon) starts with its average item level, big, with the gear's icon. Click it to open the gear and bags. Item levels round the same way everywhere.
+- **Sharing in two views in the addon.** A switch at the top of the Sharing tab picks **Posts and chat** or **Friends**, so each is a short page. The **Group** column is the switch for party and raid chat now: tick a moment to turn it on, untick the last to turn it off.
+- **Incognito you can see.** While Incognito is on, the addon window's header shows **Incognito until 21:30** on every tab, and a click ends it.
+
+### Fixes and tweaks
+
+- **A quieter header in the app.** The Retail/Forever switch is a soft tint, the open tab is filled with the accent, and the header is one line. The Update button sits at the right, by the search box, so nothing cuts it off.
+- **One switch for sharing.** In the app, the rail at the right edge turns each place on and off, and the Sharing page's cards say **On** or **Off** instead of having a second checkbox.
+- **Share on hover.** Regular moments in the app's Home feed show Share when you point at them. Big moments and posted ones always show it.
+- **Easier to read small text.** Small text in the app is at least 11 px and no longer uses the faintest grey. The addon window's text is a point bigger (Home keeps its size), grey hints are lighter, and the window fades less when the mouse is away.
+- **One place for a character's info in the addon.** Clicking a character unfolds its info under the row and nothing else. Gear and Highlights open beside the window from buttons in that info. A friend's character that isn't shared says so under the row.
+- **Each friend control once.** A friend's sharing panel in the addon no longer repeats the Nickname box and the ask chips: they're in the friend's section on the Friends tab.
+- **No class icon behind portraits.** When the addon window faded, the class icon under a portrait showed through the face. A portrait is now one picture: the face, or the class icon in its place.
+- **Veins and herbs are counted.** Gathering could stay blind for a whole session when the game didn't know the spell names yet at the first cast, so mining and herbs went uncounted. The addon now looks the names up again, and also counts ore, stone or a herb looted from a node. `/wct gather` lists the latest gathering casts and loot for checking.
+
 ## v0.43.2
 
 Update the addon with the app (it does this by itself) and /reload in game. This also has everything from 0.43.1.

@@ -1,5 +1,5 @@
 <!-- Professions by server and faction, each with its characters (ProfessionsViewModel). Used by the
-     Professions page for your characters and by the Friends page for friends' (with a heading per friend).
+     Professions page for yours and your friends' and by the Friends page for friends' (a heading per friend).
      A character with recipes opens them in a window like the game's (RecipeBookView); the search on top
      finds who knows a recipe. -->
 <UserControl x:Class="WoWCharacterTracker.Views.ProfessionsView"
@@ -207,7 +207,7 @@
 
     <StackPanel Grid.RowSpan="2" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440" Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}">
       <TextBlock Style="{StaticResource Icon}" Text="&#xE90F;" FontSize="34" Foreground="{StaticResource Faint}" HorizontalAlignment="Center"/>
-      <TextBlock Text="{Binding EmptyText}" Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/>
+      <TextBlock Text="{Binding ShownEmptyText}" Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/>
     </StackPanel>
   </Grid>
 </UserControl>

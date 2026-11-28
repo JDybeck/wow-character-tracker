@@ -26,7 +26,7 @@
       <DataTemplate.Triggers>
         <DataTrigger Binding="{Binding IsEmpty}" Value="True">
           <Setter TargetName="Name" Property="Text" Value="{Binding SlotName}"/>
-          <Setter TargetName="Name" Property="Foreground" Value="{StaticResource Faint}"/>
+          <Setter TargetName="Name" Property="Foreground" Value="{StaticResource Dim}"/>
         </DataTrigger>
         <DataTrigger Binding="{Binding IsAway}" Value="True">
           <Setter TargetName="Cell" Property="Opacity" Value="0.4"/>
@@ -52,7 +52,7 @@
     <DataTemplate x:Key="BagTemplate" DataType="{x:Type vm:BagView}">
       <StackPanel Margin="0,0,18,10">
         <TextBlock FontSize="11" Margin="0,0,0,4">
-          <Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Dim}"/><Run Text=" · " Foreground="{StaticResource Faint}"/><Run Text="{Binding FreeText, Mode=OneWay}" Foreground="{StaticResource Faint}"/>
+          <Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Dim}"/><Run Text=" · " Foreground="{StaticResource Dim}"/><Run Text="{Binding FreeText, Mode=OneWay}" Foreground="{StaticResource Dim}"/>
         </TextBlock>
         <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource ItemCellTemplate}" MaxWidth="296" HorizontalAlignment="Left">
           <ItemsControl.ItemsPanel>

@@ -25,12 +25,12 @@ local CIRCLE = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local GOLD = { 1, 0.82, 0, 1 }
 local TODAY_MAX = 12 -- room for every stat Today.lua has
 local REDRAW_EVERY = 2 -- seconds
-local GROW = 2 -- points added to the game's fonts: Home is read at a glance, so its text is a size up
+local GROW = 1 -- a point more than the window's fonts (Ui.lua ui.font): Home is read at a glance, so its text is a size up
 local SLOW_EVERY = 15  -- redraws
 
 
--- The page's text: the game's font a little bigger (Ui.lua ui.grow).
-local function bigText(parent, template, str) return ui.grow(ui.text(parent, template, str), GROW) end
+-- The page's text: the window's font a little bigger (Ui.lua ui.font).
+local function bigText(parent, template, str) return ui.text(parent, template, str, GROW) end
 
 local function db() return WoWCharacterTrackerDB or {} end
 
@@ -776,7 +776,7 @@ function ns.buildHomeTab(p)
       xpText:SetText("")
     end
 
-    setTile(tiles[1], (me.ilvl or 0) > 0 and tostring(math.floor(me.ilvl)) or nil, "Item level")
+    setTile(tiles[1], ui.itemLevelText(me.ilvl), "Item level")
     setTile(tiles[2], me.money and ui.gold(me.money) or nil, accountGold(me))
     setTile(tiles[3], (me.played or 0) > 0 and ns.formatPlayed(me.played) or nil, "Played")
 
