@@ -29,8 +29,8 @@ local GROW = 1 -- a point more than the window's fonts (Ui.lua ui.font): Home is
 local SLOW_EVERY = 15  -- redraws
 
 
--- The page's text: the game's font a little bigger (Ui.lua ui.grow).
-local function bigText(parent, template, str) return ui.grow(ui.text(parent, template, str), GROW) end
+-- The page's text: the window's font a little bigger (Ui.lua ui.font).
+local function bigText(parent, template, str) return ui.text(parent, template, str, GROW) end
 
 local function db() return WoWCharacterTrackerDB or {} end
 

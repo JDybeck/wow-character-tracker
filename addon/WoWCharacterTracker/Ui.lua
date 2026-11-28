@@ -264,13 +264,6 @@ function ui.hookChatItemTips()
   end
 end
 
--- A font string a few points bigger than its template (Home's text). Without GetFont (tests) as is.
-function ui.grow(fs, by)
-  local font, size, flags = fs:GetFont()
-  if font and size then fs:SetFont(font, size + by, flags) end
-  return fs
-end
-
 -- How wide a font string's text is on one line, whatever width it was given (0 = unbounded).
 function ui.textWidth(fs)
   if fs.GetUnboundedStringWidth then return fs:GetUnboundedStringWidth() or 0 end
@@ -299,31 +292,57 @@ end
 
 -- The window's fonts: the game's templates a point bigger (its Small ones are 10 px, hard to read at
 -- a glance), and the grey Disable ones a lighter grey that keeps 4.5:1 on lit buttons and while the
--- window fades. ui.font("GameFontHighlightSmall") names the window's copy of a template; without
--- CreateFont (tests) it's the template itself. Home adds a point more (Home.lua GROW).
+-- window fades. ui.font("GameFontHighlightSmall", extra) names the window's copy of a template, extra
+-- points bigger still (Home's); without CreateFont (tests) it's the template itself. A template that's
+-- a font family (a font per alphabet, so Cyrillic and Asian names draw) is copied as a family:
+-- SetFont on a copy would leave it one font, and those names would draw as boxes.
 ui.FONT_BUMP = 1
 ui.HINT_GREY = 0.65
-local fonts = {} -- [template] = the copy's name, or false when it can't be made
-function ui.font(template)
-  local made = fonts[template]
+local ALPHABETS = { "roman", "korean", "simplifiedchinese", "traditionalchinese", "russian" }
+local fonts = {} -- [template .. "+" .. points] = the copy's name, or false when it can't be made
+
+local function familyCopy(name, base, points)
+  if not (CreateFontFamily and base.GetFontObjectForAlphabet) then return nil end
+  local members = {}
+  for _, alphabet in ipairs(ALPHABETS) do
+    local font = base:GetFontObjectForAlphabet(alphabet)
+    local path, size, flags
+    if font then path, size, flags = font:GetFont() end
+    if path and size then members[#members + 1] = { alphabet = alphabet, file = path, height = size + points, flags = flags or "" } end
+  end
+  if #members == 0 then return nil end
+  return CreateFontFamily(name, members)
+end
+
+function ui.font(template, extra)
+  local points = ui.FONT_BUMP + (extra or 0)
+  local key = template .. "+" .. points
+  local made = fonts[key]
   if made ~= nil then return made or template end
   local base = _G[template]
   if not (CreateFont and base and base.GetFont) then
-    fonts[template] = false
+    fonts[key] = false
     return template
   end
-  local name = "WoWCharacterTracker" .. template
-  local f = CreateFont(name)
-  f:CopyFontObject(base)
-  local path, size, flags = base:GetFont()
-  if path and size then f:SetFont(path, size + ui.FONT_BUMP, flags or "") end
+  local name = "WoWCharacterTracker" .. template .. points
+  local f = familyCopy(name, base, points)
+  if not f then
+    f = CreateFont(name)
+    f:CopyFontObject(base)
+    local path, size, flags = base:GetFont()
+    if path and size then f:SetFont(path, size + points, flags or "") end
+  end
+  f:SetTextColor(base:GetTextColor())
+  if base.GetShadowOffset then f:SetShadowOffset(base:GetShadowOffset()) end
+  if base.GetShadowColor then f:SetShadowColor(base:GetShadowColor()) end
   if template:find("^GameFontDisable") then f:SetTextColor(ui.HINT_GREY, ui.HINT_GREY, ui.HINT_GREY) end
-  fonts[template] = name
+  fonts[key] = name
   return name
 end
 
-function ui.text(parent, template, s)
-  local fs = parent:CreateFontString(nil, "ARTWORK", template and ui.font(template))
+-- A font string in template's window font (ui.font), extra points bigger.
+function ui.text(parent, template, s, extra)
+  local fs = parent:CreateFontString(nil, "ARTWORK", template and ui.font(template, extra))
   fs:SetJustifyH("LEFT")
   fs:SetText(s or "")
   return fs

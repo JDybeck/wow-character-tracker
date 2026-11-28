@@ -595,7 +595,7 @@ public class AddonWindowTests
     }
 
     // The Group column is the only switch for group chat: a box shows while group chat is on, ticking
-    // one turns it on with that moment alone (old ticks don't come back), unticking the last turns it off.
+    // one turns it on with its list (like the app's switch), unticking the last turns it off.
     [Fact]
     public void The_group_column_is_the_only_switch_for_group_chat()
     {
@@ -605,11 +605,13 @@ public class AddonWindowTests
         Assert.True(Bool(c, "find('Party / raid chat') == nil"));
         Assert.False(Bool(c, "cell('Level-ups', 3).checked")); // in the list, but nothing is said while it's off
 
-        c.Lua("clickCell('End boss kills', 3)");
+        c.Lua("clickCell('New mounts', 3)");
         Assert.True(Bool(c, "ns.setting('announce').party == true"));
-        Assert.True(Bool(c, "ns.setting('announce').partyKinds.boss == true and ns.setting('announce').partyKinds.level == nil"));
-        Assert.True(Bool(c, "cell('End boss kills', 3).checked and not cell('Level-ups', 3).checked"));
+        Assert.True(Bool(c, "ns.setting('announce').partyKinds.mount == true"));
+        Assert.True(Bool(c, "cell('New mounts', 3).checked and cell('Level-ups', 3).checked")); // the whole column redrawn
 
+        c.Lua("clickCell('New mounts', 3); clickCell('Level-ups', 3)");
+        Assert.True(Bool(c, "ns.setting('announce').party == true")); // boss kills still ticked
         c.Lua("clickCell('End boss kills', 3)");
         Assert.True(Bool(c, "ns.setting('announce').party == false"));
     }
@@ -647,8 +649,8 @@ public class AddonWindowTests
         Assert.True(Bool(c, "chip() == nil"));
         c.Lua("ns.goIncognito(1800); tick()");
         Assert.True(Bool(c, "chip() ~= nil"));
-        c.Lua("local b = chip(); b.scripts.OnClick(b); tick()");
-        Assert.True(Bool(c, "ns.incognitoActive() == nil and chip() == nil"));
+        c.Lua("local b = chip(); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "ns.incognitoActive() == nil and chip() == nil")); // gone right away
     }
 
     // No reload reminder setting any more: the chat line is rare and only for the app (Events.lua).
@@ -2131,6 +2133,10 @@ public class AddonWindowTests
         Assert.True(Bool(c, "gearButton() == nil")); // nothing to show, so no button saying so
         c.Lua("clickChar('Cidrin Frostmane')");
         Assert.Equal("Gear (3)", c.Lua("return gearButton().text").String);
+
+        c.Lua("openGear(); shared[1].chars[1].gear = nil"); // they stop sharing it while it's open
+        c.Call("friendsChanged");
+        Assert.False(Bool(c, "onScreen(panel())")); // no empty panel
     }
 
     [Fact]

@@ -79,6 +79,7 @@ local function buildIncognito(p, anchor)
     local b = ui.button(p, choice[2], 90, function()
       ns.goIncognito(ns.INCOGNITO_TIMES[choice[1]], friendsToo)
       ui.refresh(p)
+      if ns.drawIncognitoChip then ns.drawIncognitoChip() end -- Shell.lua's, in the header
     end)
     if last then b:SetPoint("LEFT", last, "RIGHT", 6, 0) else b:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8) end
     last = b
@@ -86,6 +87,7 @@ local function buildIncognito(p, anchor)
   local off = ui.button(p, "End now", 90, function()
     ns.goIncognito(nil)
     ui.refresh(p)
+    if ns.drawIncognitoChip then ns.drawIncognitoChip() end
   end, "primary")
   off:SetPoint("LEFT", last, "RIGHT", 12, 0)
   local status = ui.text(p, "GameFontHighlightSmall")
@@ -184,7 +186,7 @@ end
 
 -- A chat column's box (Group, and Guild once it works again): on while that chat is on (announce.party
 -- or .guild) and the kind is in its list. The column is the only switch for the chat: ticking a box
--- turns it on (its list starting over when it was off, so old ticks don't come back with it), and
+-- turns it on with its list (what a preset or the app set, like the app's own switch does), and
 -- unticking the last turns it off.
 local function chatOn(column, kind)
   local a = ns.setting("announce") or {}
@@ -196,10 +198,6 @@ local function setChat(column, kind, on)
     local a = s.announce
     if a.partyKinds == nil then a.partyKinds = ns.copy(a.kinds or {}) end -- the group's own list
     a.kinds = a.kinds or {}
-    if on and a[column] ~= true then
-      if column == "guild" then a.kinds = {} else a.partyKinds = {} end
-      a[column] = true
-    end
     local kinds = announceKinds(a, column)
     kinds[kind] = on or nil
     local any = false
@@ -209,8 +207,7 @@ local function setChat(column, kind, on)
 end
 
 -- The app's Sharing table: a row per moment (ns.momentRows), Discord, Screenshot, Group and Ask
--- first. No Guild column while guild chat is off (ns.GUILD_CHAT_ON); add { "guild", "Guild" } here
--- when it's back. Stream alerts and the Test buttons stay in the app.
+-- first, and Guild after Group while guild chat works (ns.GUILD_CHAT_ON). Stream alerts and the Test buttons stay in the app.
 local MOMENT_COLUMNS = { { "post", "Discord" }, { "shot", "Screenshot" }, { "party", "Group" }, { "ask", "Ask first" } }
 
 local function buildMomentTable(p, anchor, rows)
@@ -236,15 +233,22 @@ local function buildMomentTable(p, anchor, rows)
   end
   local function set(column, key, on)
     local k = kind(column, key)
-    if column == "party" or column == "guild" then return setChat(column, k, on) end
-    ns.editSettings(function(s)
-      s.posts = s.posts or {}
-      local list = column == "post" and s.posts or (column == "shot" and s.screenshot or s.ask)
-      if column == "post" or column == "shot" then list[k] = on else list[k] = on or nil end
-    end)
+    if column == "party" or column == "guild" then
+      setChat(column, k, on) -- can turn the chat on or off: every box in its column follows
+    else
+      ns.editSettings(function(s)
+        s.posts = s.posts or {}
+        local list = column == "post" and s.posts or (column == "shot" and s.screenshot or s.ask)
+        if column == "post" or column == "shot" then list[k] = on else list[k] = on or nil end
+      end)
+    end
     ui.refresh(p) -- a screenshot box can stand for two rows (rare and epic loot), and the preset follows
   end
-  return ui.checkTable(p, items, MOMENT_COLUMNS, anchor, get, set,
+  local columns = MOMENT_COLUMNS
+  if ns.GUILD_CHAT_ON then -- its column after Group, the only switch for guild chat too (setChat)
+    columns = { MOMENT_COLUMNS[1], MOMENT_COLUMNS[2], MOMENT_COLUMNS[3], { "guild", "Guild" }, MOMENT_COLUMNS[4] }
+  end
+  return ui.checkTable(p, items, columns, anchor, get, set,
     { title = "Moment", first = 210, width = 105, has = function(column, key) return kind(column, key) ~= nil end })
 end
 
@@ -337,12 +341,14 @@ local function buildSharingTab(p)
       ui.refresh(pane) -- both: a setting changed elsewhere shows when the other view is picked
     end
   end
-  local switch = ui.choice(p, SHARING_VIEWS, function() return p.view end, function(key)
+  -- A view picked: shown from its top, the page sized to it.
+  local function pick(key)
     show(key)
     local holder = tabs.sharing and tabs.sharing.holder
     if holder and holder ~= p and holder.SetVerticalScroll then holder:SetVerticalScroll(0) end
     if C_Timer then C_Timer.After(0, function() ui.fitHeight(p) end) end
-  end, 130)
+  end
+  local switch = ui.choice(p, SHARING_VIEWS, function() return p.view end, pick, 130)
   switch:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -14)
   for _, view in ipairs(SHARING_VIEWS) do
     local pane = CreateFrame("Frame", nil, p)
@@ -353,7 +359,7 @@ local function buildSharingTab(p)
   end
   p.fitParts = { panes.posts, panes.friends } -- ui.fitHeight sizes the one shown first
   p.showView = function(key) -- ns.showShareDefaults
-    show(key)
+    pick(key)
     switch.draw()
   end
   buildPostsView(panes.posts)
@@ -690,6 +696,10 @@ drawDetails = function(c, friend)
   y = y + 2
 
   local items = ns.friendGear(c)
+  if #items == 0 then -- no longer shared since it opened: nothing to show
+    details:Hide()
+    return
+  end
   place(gearTitle, details, 14, y + 10)
   y = y + 32
   for i, item in ipairs(items) do
@@ -2373,7 +2383,6 @@ function ns.showShareDefaults()
   ns.openWindow("sharing")
   local page = tabs.sharing.page
   if page and page.showView then page.showView("friends") end
-  if C_Timer and page then C_Timer.After(0, function() ui.fitHeight(page) end) end
 end
 
 -- While the window is dragged, the side panels switch sides as they run out of room.

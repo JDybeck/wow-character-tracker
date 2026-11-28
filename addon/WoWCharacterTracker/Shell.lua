@@ -88,9 +88,20 @@ end
 
 -- While Incognito is on: "Incognito until 21:30" at the header's right, on every tab (it's easy to
 -- forget otherwise). A click ends it.
+local function drawIncognitoChip(chip)
+  local w = ns.incognitoActive and ns.incognitoActive()
+  chip:SetShown(w ~= nil)
+  if not w then return end
+  chip:SetText("Incognito until " .. date("%H:%M", w["until"]))
+  local fs = chip:GetFontString()
+  chip:SetWidth(math.max(120, ((fs and fs:GetStringWidth()) or 120) + 20))
+end
+
 local function newIncognitoChip(head)
-  local chip = ui.button(head, "", 150, function()
+  local chip
+  chip = ui.button(head, "", 150, function()
     if ns.goIncognito then ns.goIncognito(nil) end
+    drawIncognitoChip(chip)
     if ns.refreshWindow then ns.refreshWindow() end -- the Sharing tab's own Incognito buttons
   end, "selected")
   chip:SetPoint("RIGHT", head, "RIGHT", -8, 0)
@@ -103,15 +114,6 @@ local function newIncognitoChip(head)
   chip:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
   chip:Hide()
   return chip
-end
-
-local function drawIncognitoChip(chip)
-  local w = ns.incognitoActive and ns.incognitoActive()
-  chip:SetShown(w ~= nil)
-  if not w then return end
-  chip:SetText("Incognito until " .. date("%H:%M", w["until"]))
-  local fs = chip:GetFontString()
-  chip:SetWidth(math.max(120, ((fs and fs:GetStringWidth()) or 120) + 20))
 end
 
 local function drawBadge(badge)
@@ -180,6 +182,7 @@ function ns.buildRail(window, tabs, select, titleBar)
   header:SetPoint("LEFT", head, "LEFT", 17, 0)
   chip = newIncognitoChip(head)
   drawIncognitoChip(chip)
+  ns.drawIncognitoChip = function() drawIncognitoChip(chip) end -- the Sharing tab's buttons
   ns.fadeWhenAway(window)
   return header
 end
