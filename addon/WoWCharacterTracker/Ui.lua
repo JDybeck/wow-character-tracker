@@ -676,34 +676,25 @@ end
 -- The room a portrait and its gap take before the text: on a character row, on a friend's card.
 ui.ROW_PORTRAIT, ui.CARD_PORTRAIT = 36, 48
 
+-- One round picture: the character's face, or their class icon in its place when we have no face.
 function ui.portrait(parent, size)
   local f = CreateFrame("Frame", nil, parent)
   f:SetSize(size, size)
-  f.class = f:CreateTexture(nil, "ARTWORK", nil, 1)
-  f.class:SetAllPoints()
-  f.face = f:CreateTexture(nil, "ARTWORK", nil, 2)
-  f.face:SetAllPoints()
+  f.icon = f:CreateTexture(nil, "ARTWORK")
+  f.icon:SetAllPoints()
   return f
 end
 
 function ui.setPortrait(f, c)
-  local coords = c and c.classFile and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[c.classFile]
-  if coords then
-    f.class:SetTexture(CLASS_CIRCLES)
-    f.class:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-    f.class:Show()
-  else
-    f.class:Hide()
-  end
-  local slot = c and ns.portraitSlot(c.guid)
-  f.face:SetTexCoord(0, 1, 0, 1)
+  local t, slot = f.icon, c and ns.portraitSlot(c.guid)
+  t:SetTexCoord(0, 1, 0, 1)
   if slot then
-    f.face:SetTexture(PORTRAITS .. slot)
-    f.face:Show()
-  elseif c and c.guid and UnitGUID and c.guid == UnitGUID("player") and SetPortraitTexture and pcall(SetPortraitTexture, f.face, "player") then
-    f.face:Show()
+    t:SetTexture(PORTRAITS .. slot)
+    t:Show()
+  elseif c and c.guid and UnitGUID and c.guid == UnitGUID("player") and SetPortraitTexture and pcall(SetPortraitTexture, t, "player") then
+    t:Show()
   else
-    f.face:Hide()
+    t:SetShown(ui.classIcon(t, c and c.classFile))
   end
 end
 
