@@ -327,11 +327,11 @@ public class AddonWindowTests
             Assert.True(Bool(c, $"find('{tab}') ~= nil"), tab);
         Assert.True(Bool(c, "find('Note') == nil")); // the note box's options are a section of Settings
         Assert.True(Bool(c, "ns.windowShown()"));
-        Assert.True(Bool(c, "find('Party / raid chat') == nil")); // not built until opened
+        Assert.True(Bool(c, "find('Posts and chat') == nil")); // not built until opened
 
         c.Call("openWindow", "chat");
         var built = Num(c, "#frames");
-        Assert.True(Bool(c, "find('Party / raid chat') ~= nil"));
+        Assert.True(Bool(c, "find('Posts and chat') ~= nil"));
         Assert.True(Bool(c, "find('Guild chat') == nil")); // guild lines are off for now (Announce.lua GUILD_CHAT_ON)
         c.Call("openWindow", "chat");
         Assert.Equal(built, Num(c, "#frames"));
@@ -390,7 +390,7 @@ public class AddonWindowTests
     public void What_you_share_sets_map_position_the_other_faction_and_the_map_rate()
     {
         var c = Load();
-        c.Call("openWindow", "sharing");
+        c.Call("showShareDefaults"); // the Sharing tab's Friends view
         Assert.False(Bool(c, "find('Map position').checked"));
         c.Lua("click('Map position')");
         Assert.True(Bool(c, "WoWCharacterTrackerDB.share.defaults.map"));
@@ -592,6 +592,65 @@ public class AddonWindowTests
         Assert.True(Bool(c, "ns.setting('ask').boss == nil and ns.setting('ask').level == true"));
         c.Lua("click('Offer to post what Discord skips')");
         Assert.True(Bool(c, "ns.setting('ask').boss and ns.setting('ask').rare and ns.setting('ask').epic and ns.setting('ask').level"));
+    }
+
+    // The Group column is the only switch for group chat: a box shows while group chat is on, ticking
+    // one turns it on with its list (like the app's switch), unticking the last turns it off.
+    [Fact]
+    public void The_group_column_is_the_only_switch_for_group_chat()
+    {
+        var c = Load(settings: AppSettings(s => (s.AnnounceParty, s.AnnouncePartyKinds) = (false, ["level", "boss"])));
+        c.Lua(CellLua);
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "find('Party / raid chat') == nil"));
+        Assert.False(Bool(c, "cell('Level-ups', 3).checked")); // in the list, but nothing is said while it's off
+
+        c.Lua("clickCell('New mounts', 3)");
+        Assert.True(Bool(c, "ns.setting('announce').party == true"));
+        Assert.True(Bool(c, "ns.setting('announce').partyKinds.mount == true"));
+        Assert.True(Bool(c, "cell('New mounts', 3).checked and cell('Level-ups', 3).checked")); // the whole column redrawn
+
+        c.Lua("clickCell('New mounts', 3); clickCell('Level-ups', 3)");
+        Assert.True(Bool(c, "ns.setting('announce').party == true")); // boss kills still ticked
+        c.Lua("clickCell('End boss kills', 3)");
+        Assert.True(Bool(c, "ns.setting('announce').party == false"));
+    }
+
+    // Two views on the Sharing tab: posts and chat first, What you share opens the Friends one.
+    [Fact]
+    public void The_sharing_tab_switches_between_posts_and_friends()
+    {
+        var c = Load();
+        c.Call("openWindow", "sharing");
+        Assert.True(Bool(c, "shownText('Incognito') ~= nil and shownText('What you share with friends') == nil"));
+        c.Call("showShareDefaults");
+        Assert.True(Bool(c, "shownText('Incognito') == nil and shownText('What you share with friends') ~= nil"));
+        Assert.True(Bool(c, "find('Share with friends').checked ~= nil")); // drawn when shown
+        c.Lua("local b = find('Posts and chat'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Incognito') ~= nil and shownText('What you share with friends') == nil"));
+    }
+
+    // While Incognito is on, the header says until when on every tab, and a click on it ends it.
+    [Fact]
+    public void Incognito_shows_in_the_header_and_a_click_ends_it()
+    {
+        var c = Load();
+        c.Call("openWindow", "settings");
+        c.Lua("""
+            rail = find('Home').parent
+            function tick() rail.scripts.OnUpdate(rail, 2) end
+            function chip()
+              for _, f in ipairs(frames) do
+                if f.kind == 'Button' and type(f.text) == 'string' and f.text:find('^Incognito until') and onScreen(f) then return f end
+              end
+            end
+            tick()
+            """);
+        Assert.True(Bool(c, "chip() == nil"));
+        c.Lua("ns.goIncognito(1800); tick()");
+        Assert.True(Bool(c, "chip() ~= nil"));
+        c.Lua("local b = chip(); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "ns.incognitoActive() == nil and chip() == nil")); // gone right away
     }
 
     // No reload reminder setting any more: the chat line is rare and only for the app (Events.lua).
@@ -951,8 +1010,8 @@ public class AddonWindowTests
             function tick() win.fadeTicker.scripts.OnUpdate(win.fadeTicker, 1) end
             tick()
             """);
-        Assert.Equal(0.8, Num(c, "win.shownAlpha"), 3);
-        Assert.Equal(0.8, Num(c, "recipes.shownAlpha"), 3);
+        Assert.Equal(0.9, Num(c, "win.shownAlpha"), 3);
+        Assert.Equal(0.9, Num(c, "recipes.shownAlpha"), 3);
         c.Lua("over = true tick()");
         Assert.Equal(1, Num(c, "win.shownAlpha"), 3);
         Assert.Equal(1, Num(c, "recipes.shownAlpha"), 3);
@@ -1106,15 +1165,17 @@ public class AddonWindowTests
     [Fact]
     public void A_character_unfolds_under_its_row_and_folds_with_its_gear()
     {
-        var c = FriendsTab();
-        c.Lua("openFriend('Cidro')");
-        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+        var c = GearTab();
+        c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "shownText('280 / 300') ~= nil")); // the info, under the row
         Assert.True(Bool(c, "shownText('Arcane 10  ·  Frost 41') ~= nil")); // talents, without the empty tree
-        c.Lua("named('WoWCharacterTrackerDetailsPanel'):Hide()"); // its X
+        Assert.True(Bool(c, "panel() == nil")); // one place: no panel with it
+        c.Lua("openGear()"); // its Gear button opens the panel
+        Assert.True(Bool(c, "onScreen(panel())"));
+        c.Lua("panel():Hide()"); // its X
         Assert.True(Bool(c, "shownText('280 / 300') ~= nil")); // still unfolded
-        c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
+        c.Lua("openGear()");
+        c.Lua("clickChar('Cidrin Frostmane')");
         Assert.True(Bool(c, "shownText('280 / 300') == nil"));
         Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
     }
@@ -1135,17 +1196,32 @@ public class AddonWindowTests
         shared[1].chars[1].recipes = 'Tailoring~Cloth=3915,2385/Bags=3758\nEnchanting~Boots=7863'
         """;
 
-    // A character's unfolded info has a button per profession with recipes; it opens the recipe window
-    // with the game's headers, the first recipe picked with its reagents and what it makes. A header folds.
+    // A character's unfolded info: a profession's meter shows its recipe count and opens the recipe
+    // window (no second button for it); one with recipes but no meter (First Aid) keeps a button. The
+    // window has the game's headers, the first recipe picked with its reagents and what it makes. A header folds.
     [Fact]
     public void A_characters_recipes_open_like_the_profession_window()
     {
         var c = FriendsTab();
         c.Lua(RecipeStubs);
+        c.Lua("shared[1].chars[1].recipes = shared[1].chars[1].recipes .. string.char(10) .. 'First Aid~Bandages=3275'");
         c.Lua("openFriend('Cidro')");
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "find('Enchanting (1)') ~= nil"));
-        c.Lua("local b = find('Tailoring (3)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Enchanting (1)') ~= nil and shownText('Tailoring (3)') ~= nil")); // on the meters
+        c.Lua("""
+            function shownButton(label)
+              for _, f in ipairs(frames) do
+                if f.kind == 'Button' and onScreen(f) and (f.text == label or f.label == label) then return f end
+              end
+            end
+            """);
+        Assert.True(Bool(c, "shownButton('Enchanting (1)') == nil and shownButton('Tailoring (3)') == nil")); // no buttons for them
+        Assert.True(Bool(c, "shownButton('First Aid (1)') ~= nil")); // no meter: a button
+        c.Lua("local b = shownButton('First Aid (1)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes')) and shownText('First Aid') ~= nil and shownText('Bandages') ~= nil"));
+        c.Lua("local r = shownText('Enchanting (1)').owner; r.scripts.OnMouseUp(r, 'LeftButton')");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes')) and shownText('Enchanting') ~= nil"));
+        c.Lua("local r = shownText('Tailoring (3)').owner; r.scripts.OnMouseUp(r, 'LeftButton')");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes'))"));
         Assert.True(Bool(c, "shownText('Tailoring') ~= nil and shownText('300/300') ~= nil"));
         Assert.True(Bool(c, "shownText('Cloth') ~= nil and shownText('Bags') ~= nil and shownText('Green Woolen Bag') ~= nil"));
@@ -1378,7 +1454,7 @@ public class AddonWindowTests
     }
 
     // Your character's Highlights button opens its highlights beside the window, newest first, losses
-    // too; a second click closes them, and the gear panel makes way.
+    // too; a second click closes them.
     [Fact]
     public void A_characters_highlights_open_beside_the_window()
     {
@@ -1394,13 +1470,35 @@ public class AddonWindowTests
         c.Lua("local r = shownText('Zeb').owner; r.scripts.OnMouseUp(r)");
         c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerHighlightsPanel'))"));
-        Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerDetailsPanel'))"));
+        Assert.True(Bool(c, "named('WoWCharacterTrackerDetailsPanel') == nil")); // no gear panel with it
         Assert.True(Bool(c, "shownText('2 highlights, newest first') ~= nil"));
         Assert.True(Bool(c, "shownText('Lost a duel to Bob.').owner.point[5] == 0")); // newest on top
         Assert.True(Bool(c, "shownText('Killed Archaedas in Uldaman!') ~= nil"));
         Assert.True(Bool(c, "shownText('Killed Mutanus in Wailing Caverns!') == nil")); // another character's
         c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
         Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerHighlightsPanel'))"));
+    }
+
+    // Your main has the party leader's crown after its name instead of a MAIN tag, "Main character"
+    // on hover; a click on the crown is the row's click.
+    [Fact]
+    public void A_main_has_the_leader_crown_with_a_tooltip()
+    {
+        var c = Load("""
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', level = 45, classFile = 'WARRIOR', lastSeen = 200 },
+              ['Player-1-0000000B'] = { char = 'Zab', level = 20, classFile = 'MAGE', lastSeen = 100 } }, items = {}, events = {} }
+            """, settings: "{ ownMain = 'Player-1-0000000A', ownPicksAt = 1 }");
+        c.Call("openWindow", "characters");
+        Assert.True(Bool(c, "shownText('MAIN') == nil and shownText('Zeb') ~= nil"));
+        Assert.True(Bool(c, "shownText('Zeb').owner.crown.shown and not shownText('Zab').owner.crown.shown"));
+        Assert.Contains("UI-Group-LeaderIcon", c.Lua("return shownText('Zeb').owner.crown.icon.texture").String);
+        c.Lua("""
+            GameTooltip = { SetOwner = function() end, SetText = function(self, t) self.text = t end, Show = function(self) self.up = true end, Hide = function(self) self.up = false end }
+            local crown = shownText('Zeb').owner.crown
+            crown.scripts.OnEnter(crown)
+            """);
+        Assert.Equal("Main character", c.Lua("return GameTooltip.text").String);
+        Assert.Equal("crown", c.Lua("return shownText('Zeb').owner.faction.point[2] == shownText('Zeb').owner.crown and 'crown' or 'name'").String);
     }
 
     // A friend's character has the button too, with what they share.
@@ -1666,6 +1764,24 @@ public class AddonWindowTests
         end
         function title() return titleText().text end
         function clickChar(name) local l = charRow(name); l.scripts.OnMouseUp(l, 'LeftButton') end
+        -- The unfolded character's item level tile when it opens the panel; nil when it has no gear.
+        function gearButton()
+          for _, f in ipairs(frames) do
+            if f.kind == 'Button' and onScreen(f) and f.value and f.hint and f.open then return f end
+          end
+        end
+        -- The shown item level tile, opening or not.
+        function gearTile()
+          for _, f in ipairs(frames) do
+            if f.kind == 'Button' and onScreen(f) and f.value and f.hint then return f end
+          end
+        end
+        function gearTileText()
+          local b = gearTile()
+          return b.value.text .. ' / ' .. b.label.text .. ' / ' .. b.hint.text
+        end
+        function openGear() local b = gearButton(); b.scripts.OnClick(b) end
+        function clickGear(name) clickChar(name); openGear() end
         -- A label in the details panel (What you share, under the lists, has some of the same words).
         function factText(s)
           for _, fs in ipairs(strings) do
@@ -1684,11 +1800,13 @@ public class AddonWindowTests
     }
 
     [Fact]
-    public void Clicking_a_shared_character_opens_its_gear_in_slot_order()
+    public void A_shared_characters_gear_button_opens_its_gear_in_slot_order()
     {
         var c = GearTab();
-        Assert.True(Bool(c, "panel() == nil")); // built on the first click
         c.Lua("clickChar('Cidrin Frostmane')");
+        Assert.True(Bool(c, "panel() == nil")); // built on the first open, not by the unfold
+        Assert.Equal("112 / Item level / 3 items, click for the gear", c.Lua("return gearTileText()").String);
+        c.Lua("openGear()");
         Assert.True(Bool(c, "onScreen(panel())"));
         Assert.True(Bool(c, "title() == 'Cidrin Frostmane'"));
         Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
@@ -1701,7 +1819,7 @@ public class AddonWindowTests
     public void Hovering_a_gear_row_shows_the_real_item_tooltip()
     {
         var c = GearTab();
-        c.Lua("clickChar('Cidrin Frostmane')");
+        c.Lua("clickGear('Cidrin Frostmane')");
         c.Lua("r = gearRow(1); r.scripts.OnEnter(r)");
         Assert.True(Bool(c, "GameTooltip.up and GameTooltip.owner == r"));
         Assert.Equal("item:100:1234", c.Lua("return GameTooltip.link").String);
@@ -1715,19 +1833,24 @@ public class AddonWindowTests
     }
 
     [Fact]
-    public void Clicking_another_character_switches_the_panel_and_the_same_one_closes_it()
+    public void Clicking_another_character_closes_the_panel_and_its_gear_button_reopens_it()
     {
         var c = GearTab();
-        c.Lua("clickChar('Cidrin Frostmane')");
+        c.Lua("clickGear('Cidrin Frostmane')");
         var built = Num(c, "#frames");
         c.Lua("clickChar('Cidra')");
+        Assert.False(Bool(c, "onScreen(panel())")); // it showed another character
+        c.Lua("openGear()");
         Assert.Equal(built, Num(c, "#frames"));
         Assert.Equal("Head:item 400:", c.Lua("return gearRows()").String);
         Assert.True(Bool(c, "title() == 'Cidra'"));
-        
-        c.Lua("clickChar('Cidra')");
+        c.Lua("openGear()"); // the same button closes it
         Assert.False(Bool(c, "onScreen(panel())"));
-        c.Lua("clickChar('Cidrin Frostmane')");
+
+        c.Lua("openGear()");
+        c.Lua("clickChar('Cidra')"); // folding the row closes it too
+        Assert.False(Bool(c, "onScreen(panel())"));
+        c.Lua("clickGear('Cidrin Frostmane')");
         Assert.Equal("Head:Frostfire Circlet:+8 Stamina;Chest:item 200:;Main Hand:item 300:Crusader", c.Lua("return gearRows()").String);
         Assert.Equal(built, Num(c, "#frames"));
     }
@@ -1742,8 +1865,8 @@ public class AddonWindowTests
             cid.class, cid.race, cid.sex, cid.faction, cid.money = 'Mage', 'Gnome', 'female', 'Alliance', 1234567
             """);
         c.Call("friendsChanged");
-        c.Lua("clickChar('Cidrin Frostmane')");
-        Assert.True(Bool(c, "shownText('Level 60 Frost Mage') ~= nil"));
+        c.Lua("clickGear('Cidrin Frostmane')");
+        Assert.True(Bool(c, "shownText('Level 60 Frost Mage') ~= nil")); // the gear panel's headline
         // Icon tiles for what the row above doesn't already say; no empty talent trees.
         foreach (var (label, value) in new[] { ("Realm", "Firemaw"), ("Gold", "123g"), ("Talents", "Arcane 10  ·  Frost 41") })
         {
@@ -1758,7 +1881,7 @@ public class AddonWindowTests
         Assert.Equal("280 / 300", c.Lua("return shownText('Enchanting').owner.rank.text").String);
         Assert.Equal(0.25, Num(c, "titleText().color[1]"), 3); // class colored
 
-        c.Lua("clickChar('Cidra')"); // little shared: only what's there
+        c.Lua("clickGear('Cidra')"); // little shared: only what's there
         Assert.True(Bool(c, "shownText('Level 20') ~= nil"));
         Assert.True(Bool(c, "factText('Gold') == nil and factText('Talents') == nil"));
     }
@@ -1779,22 +1902,22 @@ public class AddonWindowTests
         Assert.True(Bool(c, "friendCard('Cidrin Frostmane') ~= nil")); // the shared one, by its name
         Assert.True(Bool(c, "shownText('Level 60 Frost  ·  Ironforge  ·  online, updated 2h ago') ~= nil")); // when it last arrived
         Assert.True(Bool(c, "charRow('Cidro') == nil")); // shared, so no Battle.net row
-        c.Lua("clickChar('Cidrin Frostmane')");
+        c.Lua("clickGear('Cidrin Frostmane')");
         Assert.True(Bool(c, "title() == 'Cidrin Frostmane'"));
         Assert.StartsWith("Head:Frostfire Circlet", c.Lua("return gearRows()").String);
 
         c.Lua("openFriend('Bobo')");
         c.Lua("clickChar('Bobo')");
-        Assert.True(Bool(c, "shownText('Bobo') ~= nil and shownText('Level 12') ~= nil"));
+        Assert.True(Bool(c, "shownText('Bobo') ~= nil"));
         Assert.True(Bool(c, "shownText('Bobby (Bob#2)') ~= nil"));
-        Assert.True(Bool(c, "shownText('Not shared with you. Ask them on the Friends tab to see their gear and more.') ~= nil"));
-        Assert.Equal("", c.Lua("return gearRows()").String);
-        Assert.True(Bool(c, "shownText('No gear shared') == nil"));
+        const string notShared = "shownText('Not shared with you. Ask them to see their gear and more.')";
+        Assert.True(Bool(c, notShared + " ~= nil")); // under the row
+        Assert.True(Bool(c, "gearButton() == nil and not onScreen(panel())")); // no gear to show
 
         c.Call("friendsChanged"); // a redraw keeps it open
-        Assert.True(Bool(c, "onScreen(panel())"));
+        Assert.True(Bool(c, notShared + " ~= nil"));
         c.Lua("clickChar('Bobo')");
-        Assert.False(Bool(c, "onScreen(panel())"));
+        Assert.True(Bool(c, notShared + " == nil"));
     }
 
     // Near the right edge of the screen the panel goes left of the window instead of being pushed
@@ -1808,7 +1931,7 @@ public class AddonWindowTests
             win = named('WoWCharacterTrackerWindow')
             win.GetRight = function() return 1000 end
             """);
-        c.Lua("clickChar('Cidra')");
+        c.Lua("clickGear('Cidra')");
         Assert.Equal("TOPLEFT", c.Lua("return panel().point[1]").String);
 
         c.Lua("win.GetRight = function() return 1800 end");
@@ -1877,25 +2000,22 @@ public class AddonWindowTests
         Assert.False(Bool(c, "onScreen(sharingPanel())"));
     }
 
-    // The sharing panel's Nickname box sets the friend's nickname when you leave it (the app reads it).
+    // The friend's nickname and asking them for more are in their section on the Friends tab only:
+    // the sharing panel has neither again.
     [Fact]
-    public void The_sharing_panel_sets_a_nickname()
+    public void The_sharing_panel_has_no_nickname_box_or_ask_chips_of_its_own()
     {
         var c = FriendsTab();
         c.Lua(SharingStubs);
+        c.Lua("local b = findFriendsButton(); b.scripts.OnClick(b)");
         c.Lua("clickFriend('Cidro', 'Sharing')");
-        c.Lua("""
-            for _, f in ipairs(frames) do
-              if f.parent == sharingPanel() and f.kind == 'EditBox' then box = f end
-            end
-            box.GetText = function(self) return self.text end
-            box.scripts.OnEditFocusGained(box)
-            box:SetText('Cidde')
-            box.scripts.OnEditFocusLost(box)
-            """);
-        Assert.Equal("Cidde", c.Lua("return ns.friendNickname('Cid#3')").String);
-        Assert.True(Bool(c, "WoWCharacterTrackerDB.friendNames['Cid#3'].at > 0"));
-        Assert.True(Bool(c, "shownText('Cidde (Cid#3)') ~= nil")); // the panel's title
+        Assert.True(Bool(c, "onScreen(sharingPanel())"));
+        Assert.Equal(0, c.Lua("""
+            local n = 0
+            for _, f in ipairs(frames) do if f.parent == sharingPanel() and f.kind == 'EditBox' then n = n + 1 end end
+            return n
+            """).Number);
+        Assert.True(Bool(c, "shownText('Ask them to share:') == nil and shownText('Nickname') ~= nil")); // the section's box
     }
 
     // Typing a nickname for one friend and then opening another saves it to the first, not the second.
@@ -1940,33 +2060,7 @@ public class AddonWindowTests
         Assert.True(Bool(c, "WoWCharacterTrackerDB.friendOrder == nil"));
     }
 
-    [Fact]
-    public void The_sharing_panel_asks_a_friend_for_what_you_picked()
-    {
-        var c = FriendsTab();
-        c.Lua(SharingStubs);
-        c.Lua("asked = {}; ns.askFriend = function(tag, wants) asked = { tag = tag, wants = table.concat(wants, ',') }; return 'Asked them.' end");
-        c.Lua("local b = findFriendsButton(); b.scripts.OnClick(b)");
-        c.Lua("clickFriend('Cidro', 'Sharing')");
-        Assert.True(Bool(c, "shownText('Ask them to share:') ~= nil"));
-        c.Lua("""
-            function chip(label)
-              for _, f in ipairs(frames) do
-                if f.parent == sharingPanel() and f.text == label then return f.scripts.OnClick(f) end
-              end
-              error('no ' .. label)
-            end
-            """);
-        c.Lua("chip('Map position')");
-        c.Lua("chip('Gold')");
-        c.Lua("chip('Gold')"); // picked, then not
-        c.Lua("chip('Ask')");
-        Assert.Equal("Cid#3", c.Lua("return asked.tag").String);
-        Assert.Equal("map", c.Lua("return asked.wants").String);
-        Assert.True(Bool(c, "shownText('Asked them.') ~= nil"));
-    }
-
-    // The panel says what they already share, and those chips can't be asked for.
+    // The panel says what they already share.
     [Fact]
     public void The_sharing_panel_shows_what_a_friend_already_shares()
     {
@@ -1981,21 +2075,6 @@ public class AddonWindowTests
             clickFriend('Cidro', 'Sharing'); clickFriend('Cidro', 'Sharing') -- closed, opened again
             """);
         Assert.True(Bool(c, "shownText('They share with you: gear, gold.') ~= nil"));
-        c.Lua("""
-            function chipNamed(label)
-              for _, f in ipairs(frames) do
-                if f.parent == sharingPanel() and f.text == label then return f end
-              end
-            end
-            enabled = {}
-            for _, label in ipairs({ 'Gear', 'Talents' }) do
-              local b = chipNamed(label)
-              b.SetEnabled = function(_, on) enabled[label] = on end
-            end
-            ns.friendsChanged()
-            clickFriend('Cidro', 'Sharing'); clickFriend('Cidro', 'Sharing')
-            """);
-        Assert.True(Bool(c, "enabled.Gear == false and enabled.Talents == true"));
         c.Lua("WoWCharacterTrackerDB.share.contacts['Cid#3'].receive = false; clickFriend('Cidro', 'Sharing'); clickFriend('Cidro', 'Sharing')");
         Assert.True(Bool(c, "shownText(\"You don't keep what they share, so it doesn't show here.\") ~= nil"));
     }
@@ -2085,21 +2164,32 @@ public class AddonWindowTests
         c.Lua("clickFriend('Cidro', 'Sharing')");
         Assert.True(Bool(c, "onScreen(sharingPanel())"));
         c.Lua("clickChar('Cidra')");
+        Assert.True(Bool(c, "onScreen(sharingPanel())")); // unfolding a character leaves it
+        c.Lua("openGear()");
         Assert.True(Bool(c, "onScreen(panel())"));
         Assert.False(Bool(c, "onScreen(sharingPanel())")); // one side panel at a time
     }
 
     [Fact]
-    public void A_character_without_gear_says_no_gear_shared()
+    public void A_character_without_gear_has_no_gear_button()
     {
         var c = GearTab();
         c.Lua("shared[1].chars[2].gear = nil");
         c.Call("friendsChanged");
         c.Lua("clickChar('Cidra')");
-        Assert.True(Bool(c, "shownText('No gear shared') ~= nil"));
-        Assert.Equal("", c.Lua("return gearRows()").String);
+        Assert.True(Bool(c, "gearButton() == nil")); // nothing to show, so no button saying so
         c.Lua("clickChar('Cidrin Frostmane')");
-        Assert.True(Bool(c, "shownText('No gear shared') == nil"));
+        Assert.Equal("112 / Item level / 3 items, click for the gear", c.Lua("return gearTileText()").String);
+
+        c.Lua("openGear(); shared[1].chars[1].gear = nil"); // they stop sharing it while it's open
+        c.Call("friendsChanged");
+        Assert.False(Bool(c, "onScreen(panel())")); // no empty panel
+        // Its item level still shows (rounded like the app), it just opens nothing.
+        Assert.True(Bool(c, "gearButton() == nil"));
+        Assert.Equal("112 / Item level / ", c.Lua("return gearTileText()").String);
+        c.Lua("shared[1].chars[1].ilvl = 110.5");
+        c.Call("friendsChanged");
+        Assert.Equal("111 / Item level / ", c.Lua("return gearTileText()").String);
     }
 
     [Fact]
