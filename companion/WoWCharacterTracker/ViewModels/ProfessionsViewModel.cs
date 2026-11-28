@@ -239,8 +239,10 @@ sealed class ProfessionCharacter : Observable
     public int RecipeCount => RecipeIds.Count;
     public bool HasRecipes => RecipeIds.Count > 0;
     public string RecipeCountText => RecipeIds.Count == 1 ? "1 recipe" : $"{RecipeIds.Count} recipes";
+    // After the name on the Overview's bar: "  ·  85 recipes", nothing without recipes.
+    public string RecipeCountSuffix => HasRecipes ? $"  ·  {RecipeCountText}" : "";
 
-    // The character's own chips (overview, Recipes tab): "Mining 150", the max on hover, and what a click does.
+    // The character's own chip (Recipes tab) and bar (overview): "Mining 150", the max on hover, and what a click does.
     public string Text { get; }
     public string FullText { get; }
     // The one whose recipes the character's Recipes tab shows.

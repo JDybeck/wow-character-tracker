@@ -141,7 +141,7 @@ sealed class CharacterRow : Observable
     }
     public string OpenRecipeProfession => RecipeBook?.Line.Profession ?? "";
     RelayCommand? openRecipes;
-    // From the Recipes tab's switch or an overview chip: a ProfessionCharacter, or a profession's name.
+    // From the Recipes tab's switch or an overview bar: a ProfessionCharacter, or a profession's name.
     public RelayCommand OpenRecipesCommand => openRecipes ??= new RelayCommand(p => OpenRecipes(p switch
     {
         ProfessionCharacter line => line.Profession,

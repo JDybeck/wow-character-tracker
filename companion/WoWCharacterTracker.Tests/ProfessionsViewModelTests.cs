@@ -139,7 +139,7 @@ public class ProfessionsViewModelTests
         Assert.True(vm.IsEmpty);
     }
 
-    // The character details' Recipes tab and the overview's profession chips.
+    // The character details' Recipes tab and the overview's profession bars.
     static CharacterRow WithRecipes(string professions, string recipes) => Rows(
         Char("Zeb", "Firemaw", "Orc", "WARRIOR", professions) with { Recipes = recipes }).Single();
 

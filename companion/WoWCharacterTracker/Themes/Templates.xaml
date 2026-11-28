@@ -160,16 +160,13 @@
       </StackPanel>
     </Border>
   </DataTemplate>
-  <!-- A character's profession (vm:ProfessionCharacter) on its overview and Recipes tab: "Mining 150"
-       with the icon and how many recipes it knows; a click opens them on the Recipes tab, like the
-       addon's button per profession. Without recipes it can't be clicked, and the tooltip says why. -->
   <!-- A profession on the character's Overview (yours and friends'): its icon and name, skill/max and a
        bar to the max, and how many recipes it knows. A click opens them on the Recipes tab, like the
        addon's skill meters; without recipes it can't be clicked, and the tooltip says why. -->
   <DataTemplate x:Key="ProfessionBarTemplate" DataType="{x:Type vm:ProfessionCharacter}">
     <Button Command="{Binding Row.OpenRecipesCommand}" CommandParameter="{Binding}" IsEnabled="{Binding HasRecipes}" Margin="0,0,0,4"
-            ToolTip="{Binding ChipTooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowOnDisabled="True"
-            AutomationProperties.Name="{Binding FullText}">
+            ToolTip="{Binding ChipTooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowOnDisabled="True" FocusVisualStyle="{x:Null}"
+            AutomationProperties.Name="{Binding FullText}" AutomationProperties.HelpText="{Binding ChipTooltip}">
       <Button.Template>
         <ControlTemplate TargetType="Button">
           <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="4,3,8,4">
@@ -180,7 +177,7 @@
                 <DockPanel>
                   <TextBlock DockPanel.Dock="Right" Text="{Binding SkillText}" FontSize="12" Foreground="{StaticResource TextSoft}" Margin="8,0,0,0"/>
                   <TextBlock FontSize="12" TextTrimming="CharacterEllipsis">
-                    <Run Text="{Binding Profession, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run x:Name="Count" Text="{Binding RecipeCountText, Mode=OneWay, StringFormat='  ·  {0}'}" Foreground="{DynamicResource BlueText}" FontSize="11"/>
+                    <Run Text="{Binding Profession, Mode=OneWay}" Foreground="{StaticResource Text}"/><Run Text="{Binding RecipeCountSuffix, Mode=OneWay}" Foreground="{DynamicResource BlueText}" FontSize="11"/>
                   </TextBlock>
                 </DockPanel>
                 <Border Height="5" Margin="0,4,0,0" CornerRadius="2.5" Background="#26FFFFFF" Visibility="{Binding HasMax, Converter={StaticResource Visible}}">
@@ -192,9 +189,6 @@
             </DockPanel>
           </Border>
           <ControlTemplate.Triggers>
-            <DataTrigger Binding="{Binding HasRecipes}" Value="False">
-              <Setter TargetName="Count" Property="Text" Value=""/>
-            </DataTrigger>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter Property="Cursor" Value="Hand"/>
               <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/>
@@ -207,6 +201,9 @@
       </Button.Template>
     </Button>
   </DataTemplate>
+  <!-- A character's profession (vm:ProfessionCharacter) on its Recipes tab, the tab's own switch:
+       "Mining 150" with the icon and how many recipes it knows; a click shows them. Without recipes it
+       can't be clicked, and the tooltip says why. -->
   <DataTemplate x:Key="ProfessionChipTemplate" DataType="{x:Type vm:ProfessionCharacter}">
     <Button Command="{Binding Row.OpenRecipesCommand}" CommandParameter="{Binding}" IsEnabled="{Binding HasRecipes}" Margin="0,0,6,6"
             ToolTip="{Binding ChipTooltip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowOnDisabled="True" Focusable="False">
