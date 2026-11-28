@@ -1770,8 +1770,14 @@ public class AddonWindowTests
             if f.kind == 'Button' and onScreen(f) and f.value and f.hint and f.open then return f end
           end
         end
+        -- The shown item level tile, opening or not.
+        function gearTile()
+          for _, f in ipairs(frames) do
+            if f.kind == 'Button' and onScreen(f) and f.value and f.hint then return f end
+          end
+        end
         function gearTileText()
-          local b = gearButton()
+          local b = gearTile()
           return b.value.text .. ' / ' .. b.label.text .. ' / ' .. b.hint.text
         end
         function openGear() local b = gearButton(); b.scripts.OnClick(b) end
@@ -2179,10 +2185,11 @@ public class AddonWindowTests
         c.Call("friendsChanged");
         Assert.False(Bool(c, "onScreen(panel())")); // no empty panel
         // Its item level still shows (rounded like the app), it just opens nothing.
-        Assert.True(Bool(c, "gearButton() == nil and shownText('112') ~= nil and shownText('Item level') ~= nil"));
-        c.Lua("shared[1].chars[1].ilvl = 111.5");
+        Assert.True(Bool(c, "gearButton() == nil"));
+        Assert.Equal("112 / Item level / ", c.Lua("return gearTileText()").String);
+        c.Lua("shared[1].chars[1].ilvl = 110.5");
         c.Call("friendsChanged");
-        Assert.True(Bool(c, "shownText('112') ~= nil"));
+        Assert.Equal("111 / Item level / ", c.Lua("return gearTileText()").String);
     }
 
     [Fact]

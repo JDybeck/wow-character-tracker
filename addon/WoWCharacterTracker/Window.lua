@@ -675,7 +675,7 @@ local function whenLoaded(id)
   end)
 end
 
--- c: a character with gear (its Gear button only shows then).
+-- c: a character with gear (the item level tile opens it only then).
 drawDetails = function(c, friend)
   detailsChar, detailsFriend = c, friend
   detailsKey = charKey(c)
@@ -949,6 +949,7 @@ local function drawExpansion(ex, c, friend)
   end
   local leftTop = ex.gear:IsShown() and (top + ui.GEAR_TILE + ui.FACT_GAP) or top
   local left = ui.factTiles(ex, ex.left, facts(c), 12, leftTop, ex.half, 2)
+  if left == leftTop and leftTop > top then left = leftTop - ui.FACT_GAP end -- the tile alone: its bottom
   -- A profession meter with known recipes opens them (RecipeWindow.lua); the rest get a button below.
   local profs = ui.parseProfessions(c.professions)
   local recipeProfs = ns.recipeProfessions and ns.recipeProfessions(c) or {}

@@ -890,8 +890,8 @@ function ui.factTiles(parent, pool, facts, x, y, width, cols)
   return #facts > 0 and (rowTop + ui.FACT_TILE) or y
 end
 
--- A character's average item level as the game says it (GetAverageItemLevel, equipped), rounded
--- to the nearest like the app; nil without one.
+-- A character's average item level (the game's GetAverageItemLevel, equipped) as a whole number,
+-- rounded to the nearest so it matches the app (MapPins.lua rounds the same way); nil without one.
 function ui.itemLevelText(ilvl)
   ilvl = tonumber(ilvl)
   if not ilvl or ilvl <= 0 then return nil end
@@ -900,7 +900,7 @@ end
 
 -- The item level tile at the top of a character's info: the average big, with the gear's icon, and
 -- a click opens the gear (when there is some). ui.GEAR_TILE high.
-ui.GEAR_TILE = 44
+ui.GEAR_TILE = ui.FACT_TILE * 2 + ui.FACT_GAP -- two fact rows, so both columns keep one rhythm
 local function gearTileTip(self)
   self.hover:Show()
   if not GameTooltip then return end
@@ -923,11 +923,11 @@ function ui.gearTile(parent)
   t.stripe:SetPoint("BOTTOMLEFT")
   t.stripe:SetWidth(2)
   ui.fill(t.stripe, COLOR.accent)
-  t.hover = t:CreateTexture(nil, "ARTWORK")
+  t.hover = t:CreateTexture(nil, "BACKGROUND", nil, 1)
   t.hover:SetAllPoints()
   ui.fill(t.hover, COLOR.hover)
   t.hover:Hide()
-  t.icon = icon(t, 32)
+  t.icon = icon(t, 40)
   t.icon:SetPoint("LEFT", t, "LEFT", 8, 0)
   t.icon:SetTexture(ICONS .. "INV_Chest_Chain_05")
   t.value = ui.text(t, "GameFontNormalHuge")
@@ -952,7 +952,10 @@ function ui.drawGearTile(t, ilvl, count, open)
   t.open = count > 0 and open or nil
   t.tip = t.open and "Show or hide the gear" or nil
   t:EnableMouse(t.open ~= nil)
-  if not t.open then gearTileLeave(t) end
+  if not t.open then
+    t.hover:Hide()
+    if GameTooltip and GameTooltip.GetOwner and GameTooltip:GetOwner() == t then GameTooltip:Hide() end
+  end
   t:Show()
   return true
 end

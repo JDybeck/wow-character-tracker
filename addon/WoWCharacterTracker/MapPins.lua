@@ -156,7 +156,7 @@ function ns.pinLines(f, zone, distance)
   if zone then add(zone, 0.8, 0.8, 0.8) end
   if distance then add(distance, 0.8, 0.8, 0.8) end
   local facts = {}
-  local ilvl = tonumber(c.ilvl)
+  local ilvl = tonumber(c.ilvl) -- rounded like ui.itemLevelText (Ui.lua), which this file can't reach
   if ilvl and ilvl > 0 then facts[#facts + 1] = "Item level " .. math.floor(ilvl + 0.5) end
   local percent = ns.levelPercent(c, level) -- nil when what they shared is from another level
   if percent then facts[#facts + 1] = string.format("%d%% into level %d", percent, level) end
