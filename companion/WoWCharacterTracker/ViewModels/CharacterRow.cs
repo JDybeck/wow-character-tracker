@@ -340,6 +340,10 @@ sealed class CharacterRow : Observable
 
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
+    public bool HasItemLevel => ItemLevel > 0;
+    // The Overview's item level tile: opens the Gear and bags tab.
+    public RelayCommand ShowGearCommand => showGear ??= new RelayCommand(_ => DetailTab = "gear");
+    RelayCommand? showGear;
     // The XP bar in whole percent (under the level), from the newest snapshot that has it, and when that was.
     public int? LevelPercent { get; init; }
     public long LevelPercentAt { get; init; }

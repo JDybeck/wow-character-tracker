@@ -15,6 +15,36 @@
 
     <!-- Who the character is, then what is yours to do with it. -->
     <StackPanel>
+      <!-- Who it is, and beside it the item level (the game's average of what's equipped, as saved),
+           big, as the way into its gear. -->
+      <DockPanel>
+      <Button DockPanel.Dock="Right" Margin="12,10,0,0" VerticalAlignment="Top" Command="{Binding ShowGearCommand}" FocusVisualStyle="{x:Null}"
+              ToolTip="The game's average item level of what's equipped. Click for the gear and bags"
+              AutomationProperties.Name="{Binding ItemLevelText, StringFormat='Item level {0}, open gear and bags'}"
+              Visibility="{Binding HasItemLevel, Converter={StaticResource Visible}}">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{DynamicResource Hover}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="14,8,14,9" MinWidth="104">
+              <StackPanel>
+                <TextBlock Text="{Binding ItemLevelText}" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource BlueText}" FontFamily="{StaticResource Mono}"/>
+                <TextBlock Text="Item level" FontSize="12" Foreground="{StaticResource TextSoft}"/>
+                <TextBlock x:Name="Go" Text="Gear and bags &#x203A;" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0"/>
+              </StackPanel>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+                <Setter TargetName="Go" Property="Foreground" Value="{DynamicResource BlueText}"/>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
+      </Button>
+      <StackPanel>
       <TextBlock Style="{StaticResource FactLabel}" Text="CHARACTER"/>
       <TextBlock Style="{StaticResource FactValue}" Text="{Binding Description}"/>
       <Button Style="{StaticResource GhostButton}" Padding="12,4" Margin="-12,0,0,0" HorizontalAlignment="Left"
@@ -25,6 +55,8 @@
           <TextBlock Text="Open in the armory" FontSize="12" Foreground="{DynamicResource BlueText}"/>
         </StackPanel>
       </Button>
+      </StackPanel>
+      </DockPanel>
       <!-- A friend's character (Friends page): who shared it. What's yours to change is left out below. -->
       <StackPanel Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="SHARED BY"/>
