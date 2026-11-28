@@ -1196,17 +1196,30 @@ public class AddonWindowTests
         shared[1].chars[1].recipes = 'Tailoring~Cloth=3915,2385/Bags=3758\nEnchanting~Boots=7863'
         """;
 
-    // A character's unfolded info has a button per profession with recipes; it opens the recipe window
-    // with the game's headers, the first recipe picked with its reagents and what it makes. A header folds.
+    // A character's unfolded info: a profession's meter shows its recipe count and opens the recipe
+    // window (no second button for it); one with recipes but no meter (First Aid) keeps a button. The
+    // window has the game's headers, the first recipe picked with its reagents and what it makes. A header folds.
     [Fact]
     public void A_characters_recipes_open_like_the_profession_window()
     {
         var c = FriendsTab();
         c.Lua(RecipeStubs);
+        c.Lua("shared[1].chars[1].recipes = shared[1].chars[1].recipes .. string.char(10) .. 'First Aid~Bandages=3275'");
         c.Lua("openFriend('Cidro')");
         c.Lua("local r = shownText('Cidrin Frostmane').owner; r.scripts.OnMouseUp(r)");
-        Assert.True(Bool(c, "find('Enchanting (1)') ~= nil"));
-        c.Lua("local b = find('Tailoring (3)'); b.scripts.OnClick(b)");
+        Assert.True(Bool(c, "shownText('Enchanting (1)') ~= nil and shownText('Tailoring (3)') ~= nil")); // on the meters
+        c.Lua("""
+            function shownButton(label)
+              for _, f in ipairs(frames) do
+                if f.kind == 'Button' and onScreen(f) and (f.text == label or f.label == label) then return f end
+              end
+            end
+            """);
+        Assert.True(Bool(c, "shownButton('Enchanting (1)') == nil and shownButton('Tailoring (3)') == nil")); // no buttons for them
+        Assert.True(Bool(c, "shownButton('First Aid (1)') ~= nil")); // no meter: a button
+        c.Lua("local r = shownText('Enchanting (1)').owner; r.scripts.OnMouseUp(r, 'LeftButton')");
+        Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes')) and shownText('Enchanting') ~= nil"));
+        c.Lua("local r = shownText('Tailoring (3)').owner; r.scripts.OnMouseUp(r, 'LeftButton')");
         Assert.True(Bool(c, "onScreen(named('WoWCharacterTrackerRecipes'))"));
         Assert.True(Bool(c, "shownText('Tailoring') ~= nil and shownText('300/300') ~= nil"));
         Assert.True(Bool(c, "shownText('Cloth') ~= nil and shownText('Bags') ~= nil and shownText('Green Woolen Bag') ~= nil"));
@@ -1462,6 +1475,28 @@ public class AddonWindowTests
         Assert.True(Bool(c, "shownText('Killed Mutanus in Wailing Caverns!') == nil")); // another character's
         c.Lua("local b = find('Highlights (2)'); b.scripts.OnClick(b)");
         Assert.False(Bool(c, "onScreen(named('WoWCharacterTrackerHighlightsPanel'))"));
+    }
+
+    // Your main has the party leader's crown after its name instead of a MAIN tag, "Main character"
+    // on hover; a click on the crown is the row's click.
+    [Fact]
+    public void A_main_has_the_leader_crown_with_a_tooltip()
+    {
+        var c = Load("""
+            { chars = { ['Player-1-0000000A'] = { char = 'Zeb', level = 45, classFile = 'WARRIOR', lastSeen = 200 },
+              ['Player-1-0000000B'] = { char = 'Zab', level = 20, classFile = 'MAGE', lastSeen = 100 } }, items = {}, events = {} }
+            """, settings: "{ ownMain = 'Player-1-0000000A', ownPicksAt = 1 }");
+        c.Call("openWindow", "characters");
+        Assert.True(Bool(c, "shownText('MAIN') == nil and shownText('Zeb') ~= nil"));
+        Assert.True(Bool(c, "shownText('Zeb').owner.crown.shown and not shownText('Zab').owner.crown.shown"));
+        Assert.Contains("UI-Group-LeaderIcon", c.Lua("return shownText('Zeb').owner.crown.icon.texture").String);
+        c.Lua("""
+            GameTooltip = { SetOwner = function() end, SetText = function(self, t) self.text = t end, Show = function(self) self.up = true end, Hide = function(self) self.up = false end }
+            local crown = shownText('Zeb').owner.crown
+            crown.scripts.OnEnter(crown)
+            """);
+        Assert.Equal("Main character", c.Lua("return GameTooltip.text").String);
+        Assert.Equal("crown", c.Lua("return shownText('Zeb').owner.faction.point[2] == shownText('Zeb').owner.crown and 'crown' or 'name'").String);
     }
 
     // A friend's character has the button too, with what they share.

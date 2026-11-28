@@ -938,8 +938,13 @@ local function drawExpansion(ex, c, friend)
     top = top + 22
   end
   local left = ui.factTiles(ex, ex.left, facts(c), 12, top, ex.half, 2)
+  -- A profession meter with known recipes opens them (RecipeWindow.lua); the rest get a button below.
   local profs = ui.parseProfessions(c.professions)
-  if #profs > 0 then left = ui.professionRows(ex, ex.profs, profs, 12, left > top and (left + ui.FACT_GAP) or top, ex.half) - ui.FACT_GAP
+  local recipeCounts, metered = {}, {}
+  for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do recipeCounts[prof.name] = prof.count end
+  for _, prof in ipairs(profs) do metered[prof.name] = true end
+  local openRecipes = function(name) ns.openRecipes(c, name, friend) end
+  if #profs > 0 then left = ui.professionRows(ex, ex.profs, profs, 12, left > top and (left + ui.FACT_GAP) or top, ex.half, recipeCounts, openRecipes) - ui.FACT_GAP
   else ui.professionRows(ex, ex.profs, profs, 12, left, ex.half) end
   local x = 24 + ex.half
   local levels = levelsOf(c)
@@ -965,8 +970,8 @@ local function drawExpansion(ex, c, friend)
   local h = math.max(left, right) + 14
   place(ex.hide, ex, ex.width - 102, h)
   -- Gear and highlights (the panel beside the window), your own character's reputations
-  -- (ReputationWindow.lua), then a button per profession with known recipes, which opens them in the
-  -- recipe window (RecipeWindow.lua). Each only when there's something in it.
+  -- (ReputationWindow.lua), then a button per profession with known recipes but no meter above (First
+  -- Aid, Cooking), which opens them in the recipe window (RecipeWindow.lua). Each only when there's something in it.
   local actions = {}
   local gearCount = c.notShared and 0 or #ns.friendGear(c)
   if gearCount > 0 then
@@ -996,7 +1001,9 @@ local function drawExpansion(ex, c, friend)
     actions[#actions + 1] = { string.format("Reputations (%d)", reputations), function() ns.openReputations(c) end, "Reputations" }
   end
   for _, prof in ipairs(ns.recipeProfessions and ns.recipeProfessions(c) or {}) do
-    actions[#actions + 1] = { string.format("%s (%d)", prof.name, prof.count), function() ns.openRecipes(c, prof.name, friend) end, prof.name }
+    if not metered[prof.name] then
+      actions[#actions + 1] = { string.format("%s (%d)", prof.name, prof.count), function() openRecipes(prof.name) end, prof.name }
+    end
   end
   -- An even grid of small buttons (the icon says which recipes), clear of Hide on the right: as many
   -- columns as fit at about 140 wide, every button the same width, so the rows line up.
@@ -1501,9 +1508,10 @@ end
 
 -- main: c is the main (yours, or the friend's own pick); pinned: one of yours pinned to the top.
 local function setCharRow(row, c, main, pinned)
-  setCard(row, fullName(c) .. (main and "  |cffFACC15MAIN|r" or ""), c.classFile, charInfo(c))
+  setCard(row, fullName(c), c.classFile, charInfo(c))
   row.pin:SetShown(pinned == true)
   ui.setPortrait(row.portrait, c)
+  ui.setMainCrown(row, main == true)
   ui.setFactionBadge(row, c.faction)
   local class = c.class or ""
   row.classText:SetText(c.spec and (c.spec .. " " .. class) or class)

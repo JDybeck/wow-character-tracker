@@ -771,13 +771,47 @@ end
 -- The Alliance or Horde crest right after a character row's name, about as tall as the name (the
 -- crest sits in the top left of the game's PvP texture). Hidden when the faction isn't known.
 local FACTION_CRESTS = { Alliance = true, Horde = true }
+-- The party leader's crown after a main character's name (yours, or a friend's own pick), "Main
+-- character" on hover. A small frame, for the tooltip; a click on it is the row's click.
+local CROWN = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
+local function crownTip(self)
+  if not GameTooltip then return end
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText("Main character", 1, 0.82, 0)
+  GameTooltip:Show()
+end
+local function crownClick(self, button)
+  local row = self:GetParent()
+  local click = row and row:GetScript("OnMouseUp")
+  if click then click(row, button) end
+end
+function ui.setMainCrown(row, main)
+  if not row.crown then
+    local f = CreateFrame("Frame", nil, row)
+    f:SetSize(16, 16)
+    f:SetPoint("LEFT", row.nameText, "RIGHT", 4, 0)
+    f:EnableMouse(true)
+    f.icon = f:CreateTexture(nil, "OVERLAY")
+    f.icon:SetAllPoints()
+    f.icon:SetTexture(CROWN)
+    f:SetScript("OnEnter", crownTip)
+    f:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    f:SetScript("OnMouseUp", crownClick)
+    row.crown = f
+  end
+  row.crown:SetShown(main == true)
+end
+
+-- The faction crest after the name, after the crown when there is one.
 function ui.setFactionBadge(row, faction)
   if not row.faction then
     row.faction = row:CreateTexture(nil, "OVERLAY")
     row.faction:SetSize(16, 16)
-    row.faction:SetPoint("LEFT", row.nameText, "RIGHT", 3, 0)
     row.faction:SetTexCoord(0, 0.59375, 0, 0.59375)
   end
+  row.faction:ClearAllPoints()
+  if row.crown and row.crown:IsShown() then row.faction:SetPoint("LEFT", row.crown, "RIGHT", 2, 0)
+  else row.faction:SetPoint("LEFT", row.nameText, "RIGHT", 3, 0) end
   local known = FACTION_CRESTS[faction] == true
   if known then row.faction:SetTexture("Interface\\TargetingFrame\\UI-PVP-" .. faction) end
   row.faction:SetShown(known)
@@ -878,17 +912,45 @@ local function newProfessionRow(parent)
   ui.fill(r.bar, COLOR.accent)
   r.bar:SetHeight(4)
   r.bar:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 34, 3)
+  -- With known recipes the row opens them: a hover wash and a tip say so.
+  r.hover = r:CreateTexture(nil, "BACKGROUND")
+  r.hover:SetPoint("TOPLEFT", r, "TOPLEFT", -4, 2)
+  r.hover:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 4, -2)
+  ui.fill(r.hover, COLOR.selected)
+  r.hover:Hide()
+  r:SetScript("OnEnter", function(self)
+    if not self.open then return end
+    self.hover:Show()
+    if GameTooltip then
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:SetText(string.format("Show %s recipes", self.profession or ""), 1, 0.82, 0)
+      GameTooltip:Show()
+    end
+  end)
+  r:SetScript("OnLeave", function(self)
+    self.hover:Hide()
+    if GameTooltip then GameTooltip:Hide() end
+  end)
+  r:SetScript("OnMouseUp", function(self, button)
+    if self.open and button ~= "RightButton" then self.open(self.profession) end
+  end)
   return r
 end
 
 -- A row per profession: its icon, name, rank and a bar to its max. Returns the y under them.
-function ui.professionRows(parent, pool, list, x, y, width)
+-- recipes: { [profession] = known recipe count }; such a row shows the count and a click calls
+-- open(profession), so the meter is the way into the recipes (no second button for it).
+function ui.professionRows(parent, pool, list, x, y, width, recipes, open)
   for i, p in ipairs(list) do
     local r = pool[i] or newProfessionRow(parent)
     pool[i] = r
     r:SetWidth(width)
     r.icon:SetTexture(ICONS .. (ui.PROFESSION_ICONS[p.name] or "INV_Misc_QuestionMark"))
-    r.name:SetText(p.name)
+    local count = recipes and recipes[p.name]
+    r.profession, r.open = p.name, (count and open) or nil
+    r:EnableMouse(r.open ~= nil)
+    if not r.open then r.hover:Hide() end
+    r.name:SetText(r.open and string.format("%s (%d)", p.name, count) or p.name)
     r.rank:SetText(p.max and string.format("%d / %d", p.rank, p.max) or tostring(p.rank or ""))
     local share = (p.max and p.max > 0 and p.rank) and math.min(1, p.rank / p.max) or 0
     r.bar:SetShown(share > 0)
