@@ -55,9 +55,9 @@ sealed class CharacterRow : Observable
     bool isPinned;
     public bool IsPinned { get => isPinned; set { if (Set(ref isPinned, value)) RaiseMain(); } }
     public bool ShowsMainTag => IsFriendMain || IsOwnMain;
-    public string MainTagTip => IsOwnMain ? "Your main: it leads your list, and friends you share with see it first"
-        : MainPickedHere ? "Their main, picked by you: it leads their card and their list"
-        : "Their main, picked by them: it leads their card and their list";
+    public string MainTagTip => IsOwnMain ? "Main character. Yours: it leads your list, and friends you share with see it first"
+        : MainPickedHere ? "Main character, picked by you: it leads their card and their list"
+        : "Main character, picked by them: it leads their card and their list";
     void RaiseMain()
     {
         foreach (var name in new[] { nameof(ShowsUnsetFriendMain), nameof(ShowsTheirOwnMain), nameof(ShowsMainTag), nameof(MainTagTip) })

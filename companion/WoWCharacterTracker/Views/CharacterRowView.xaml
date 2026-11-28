@@ -42,7 +42,19 @@
                     </Grid>
                   </Grid>
                   <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
-                    <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
+                    <!-- The name, and right after it a gold crown on a main (yours, or a friend's picked on its
+                         Overview by you or by them), like the game's party leader crown. -->
+                    <DockPanel HorizontalAlignment="Left">
+                      <Border DockPanel.Dock="Right" Margin="6,1,0,0" Padding="1" VerticalAlignment="Center" Background="Transparent"
+                              ToolTip="{Binding MainTagTip}" AutomationProperties.Name="Main character"
+                              Visibility="{Binding ShowsMainTag, Converter={StaticResource Visible}}">
+                        <Viewbox Width="15" Height="12">
+                          <Path Fill="#FACC15" Stroke="#A16207" StrokeThickness="0.8" StrokeLineJoin="Round"
+                                Data="M1,10 L0,2.5 L4,5.5 L7.5,0 L11,5.5 L15,2.5 L14,10 Z M1,10.8 L14,10.8 L14,12 L1,12 Z"/>
+                        </Viewbox>
+                      </Border>
+                      <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
+                    </DockPanel>
                     <!-- On a narrow window the tag wraps under the realm, and the realm trims when even alone it doesn't fit. -->
                     <WrapPanel Margin="0,2,0,0">
                       <DockPanel Margin="0,0,8,0">
@@ -52,11 +64,6 @@
                       <Border Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
                         <TextBlock Text="{Binding Tag}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Red}"/>
-                      </Border>
-                      <!-- Your main, or a friend's (picked on its Overview, by you or by them). -->
-                      <Border Padding="6,1" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,8,0" Background="#33FACC15"
-                              ToolTip="{Binding MainTagTip}" Visibility="{Binding ShowsMainTag, Converter={StaticResource Visible}}">
-                        <TextBlock Text="MAIN" FontSize="11" FontWeight="Bold" Foreground="#FACC15"/>
                       </Border>
                       <!-- A friend's character (Friends page): whose it is. -->
                       <DockPanel Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">
