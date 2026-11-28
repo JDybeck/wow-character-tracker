@@ -341,8 +341,13 @@ sealed class CharacterRow : Observable
     public string Initial => Name.Length > 0 ? Name[..1].ToUpperInvariant() : "?";
     public string ItemLevelText => ItemLevel > 0 ? ItemLevel.ToString("0") : "-";
     public bool HasItemLevel => ItemLevel > 0;
-    // The Overview's item level tile: opens the Gear and bags tab.
-    public RelayCommand ShowGearCommand => showGear ??= new RelayCommand(_ => DetailTab = "gear");
+    // The Overview's item level tile: opens the Gear and bags tab (a friend's Gear tab only when they
+    // share gear; friends always share their item level).
+    public bool LinksGear => IsOwn || Inventory is not null;
+    public string GearLinkText => IsFriend ? "Gear" : "Gear and bags";
+    public string ItemLevelTip => LinksGear ? $"The game's average item level of what's equipped. Click for the {GearLinkText.ToLowerInvariant()}"
+        : "The game's average item level of what's equipped. They don't share their gear";
+    public RelayCommand ShowGearCommand => showGear ??= new RelayCommand(_ => { if (LinksGear) DetailTab = "gear"; });
     RelayCommand? showGear;
     // The XP bar in whole percent (under the level), from the newest snapshot that has it, and when that was.
     public int? LevelPercent { get; init; }

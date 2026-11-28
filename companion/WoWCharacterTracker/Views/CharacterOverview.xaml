@@ -19,8 +19,8 @@
            big, as the way into its gear. -->
       <DockPanel>
       <Button DockPanel.Dock="Right" Margin="12,10,0,0" VerticalAlignment="Top" Command="{Binding ShowGearCommand}" FocusVisualStyle="{x:Null}"
-              ToolTip="The game's average item level of what's equipped. Click for the gear and bags"
-              AutomationProperties.Name="{Binding ItemLevelText, StringFormat='Item level {0}, open gear and bags'}"
+              IsEnabled="{Binding LinksGear}" ToolTip="{Binding ItemLevelTip}" ToolTipService.ShowOnDisabled="True"
+              AutomationProperties.Name="{Binding ItemLevelText, StringFormat='Item level {0}'}" AutomationProperties.HelpText="{Binding ItemLevelTip}"
               Visibility="{Binding HasItemLevel, Converter={StaticResource Visible}}">
         <Button.Template>
           <ControlTemplate TargetType="Button">
@@ -28,7 +28,7 @@
               <StackPanel>
                 <TextBlock Text="{Binding ItemLevelText}" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource BlueText}" FontFamily="{StaticResource Mono}"/>
                 <TextBlock Text="Item level" FontSize="12" Foreground="{StaticResource TextSoft}"/>
-                <TextBlock x:Name="Go" Text="Gear and bags &#x203A;" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0"/>
+                <TextBlock x:Name="Go" Text="{Binding GearLinkText, StringFormat='{}{0} &#x203A;'}" FontSize="11" Foreground="{StaticResource Dim}" Margin="0,2,0,0"/>
               </StackPanel>
             </Border>
             <ControlTemplate.Triggers>
@@ -39,6 +39,10 @@
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
                 <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
+              </Trigger>
+              <!-- A friend who doesn't share gear: just the number. -->
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Go" Property="Visibility" Value="Collapsed"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
