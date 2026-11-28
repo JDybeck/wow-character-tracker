@@ -75,8 +75,8 @@
       </StackPanel>
       <StackPanel Visibility="{Binding ShowsProfessions, Converter={StaticResource Visible}}">
         <TextBlock Style="{StaticResource FactLabel}" Text="PROFESSIONS"/>
-        <ItemsControl ItemsSource="{Binding RecipeProfessions}" ItemTemplate="{StaticResource ProfessionChipTemplate}" ItemsPanel="{StaticResource Wrap}" Focusable="False"
-                      Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>
+        <ItemsControl ItemsSource="{Binding RecipeProfessions}" ItemTemplate="{StaticResource ProfessionBarTemplate}" Focusable="False" MaxWidth="380"
+                      HorizontalAlignment="Left" Margin="-4,0,0,0" Visibility="{Binding HasProfessions, Converter={StaticResource Visible}}"/>
         <TextBlock Style="{StaticResource FactValue}" Text="None yet" Visibility="{Binding HasProfessions, Converter={StaticResource Hidden}}"/>
       </StackPanel>
       <StackPanel Visibility="{Binding HasCrests, Converter={StaticResource Visible}}">
@@ -162,7 +162,7 @@
                 Visibility="{Binding IsOwnMain, Converter={StaticResource Visible}}"
                 Command="{Binding DataContext.NotOwnMainCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
           <StackPanel Orientation="Horizontal">
-            <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Foreground="#FACC15" Margin="0,0,7,0"/>
+            <Image Source="{StaticResource Crown}" Width="14" Height="11" Margin="0,0,7,0" VerticalAlignment="Center"/>
             <TextBlock Text="Your main, click to unset" FontSize="12" Foreground="{StaticResource Dim}"/>
           </StackPanel>
         </Button>
@@ -249,13 +249,13 @@
                 Visibility="{Binding ShowsUnsetFriendMain, Converter={StaticResource Visible}}"
                 Command="{Binding DataContext.SelectedFlavor.Friends.NotMainCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
           <StackPanel Orientation="Horizontal">
-            <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Foreground="#FACC15" Margin="0,0,7,0"/>
+            <Image Source="{StaticResource Crown}" Width="14" Height="11" Margin="0,0,7,0" VerticalAlignment="Center"/>
             <TextBlock Text="Their main, click to unset" FontSize="12" Foreground="{StaticResource Dim}"/>
           </StackPanel>
         </Button>
         <StackPanel Orientation="Horizontal" Margin="12,5" ToolTip="They marked this one as their main. Set another one as their main to see that one first instead."
                     Visibility="{Binding ShowsTheirOwnMain, Converter={StaticResource Visible}}">
-          <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Foreground="#FACC15" Margin="0,0,7,0"/>
+          <Image Source="{StaticResource Crown}" Width="14" Height="11" Margin="0,0,7,0" VerticalAlignment="Center"/>
           <TextBlock Text="Their main, picked by them" FontSize="12" Foreground="{StaticResource Dim}"/>
         </StackPanel>
         <Button Style="{StaticResource GhostButton}" Padding="12,5" ToolTip="Hide this character on the Friends page. Nothing is sent to your friend."

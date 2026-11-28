@@ -55,7 +55,7 @@ sealed class CharacterRow : Observable
     bool isPinned;
     public bool IsPinned { get => isPinned; set { if (Set(ref isPinned, value)) RaiseMain(); } }
     public bool ShowsMainTag => IsFriendMain || IsOwnMain;
-    public string MainTagTip => IsOwnMain ? "Main character. Yours: it leads your list, and friends you share with see it first"
+    public string MainTagTip => IsOwnMain ? "Your main character: it leads your list, and friends you share with see it first"
         : MainPickedHere ? "Main character, picked by you: it leads their card and their list"
         : "Main character, picked by them: it leads their card and their list";
     void RaiseMain()
@@ -116,7 +116,7 @@ sealed class CharacterRow : Observable
 
     // The Recipes tab: each profession with what the character knows of it (like the addon's button
     // per profession), and the open one's recipes in a window like the game's (RecipeBook). The
-    // overview's profession chips open it too. Only professions with recipes open; the others say why.
+    // overview's profession bars open it too. Only professions with recipes open; the others say why.
     IReadOnlyList<ProfessionCharacter>? recipeProfessions;
     public IReadOnlyList<ProfessionCharacter> RecipeProfessions => recipeProfessions ??=
         [.. ProfessionSkills.Parse(Professions).Select(s => ProfessionCharacter.Of(this, s, IsFriend ? FriendName : ""))];

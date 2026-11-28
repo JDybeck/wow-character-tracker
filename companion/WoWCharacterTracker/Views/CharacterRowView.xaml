@@ -45,14 +45,9 @@
                     <!-- The name, and right after it a gold crown on a main (yours, or a friend's picked on its
                          Overview by you or by them), like the game's party leader crown. -->
                     <DockPanel HorizontalAlignment="Left">
-                      <Border DockPanel.Dock="Right" Margin="6,1,0,0" Padding="1" VerticalAlignment="Center" Background="Transparent"
-                              ToolTip="{Binding MainTagTip}" AutomationProperties.Name="Main character"
-                              Visibility="{Binding ShowsMainTag, Converter={StaticResource Visible}}">
-                        <Viewbox Width="15" Height="12">
-                          <Path Fill="#FACC15" Stroke="#A16207" StrokeThickness="0.8" StrokeLineJoin="Round"
-                                Data="M1,10 L0,2.5 L4,5.5 L7.5,0 L11,5.5 L15,2.5 L14,10 Z M1,10.8 L14,10.8 L14,12 L1,12 Z"/>
-                        </Viewbox>
-                      </Border>
+                      <Image DockPanel.Dock="Right" Source="{StaticResource Crown}" Width="15" Height="12" Margin="6,1,0,0" VerticalAlignment="Center"
+                             ToolTip="{Binding MainTagTip}" AutomationProperties.Name="Main character"
+                             Visibility="{Binding ShowsMainTag, Converter={StaticResource Visible}}"/>
                       <TextBlock Style="{StaticResource TrimmedText}" Text="{Binding FullName}" Foreground="{Binding ClassBrush}" FontSize="15" FontWeight="SemiBold"/>
                     </DockPanel>
                     <!-- On a narrow window the tag wraps under the realm, and the realm trims when even alone it doesn't fit. -->
