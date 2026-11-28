@@ -235,6 +235,7 @@ sealed class FlavorViewModel : Observable
         else if (page == "items") Items.Reset();
         else if (page == "followed") FollowedItems.Reset();
         else if (page == "friends") Friends.Reset();
+        else if (page == "professions") Professions.Reset();
     }
 
     string statusText = "Starting up...";
@@ -970,7 +971,22 @@ sealed class FlavorViewModel : Observable
         FriendsEmptyText = "No professions from friends yet. Friends who share professions show up here, with their recipes.",
     };
     List<CharacterRow> ownRows = [];
-    void ShowProfessions() => Professions.Show([.. ownRows, .. Friends.Shown], r => r.IsFriend ? (r.FriendName.Length > 0 ? r.FriendName : r.FriendTag) : "");
+    // What the page was last built from: the rows themselves and friends' names. The Friends page's
+    // chips refilter its own list often, which changes neither, so nothing is rebuilt then.
+    List<(CharacterRow Row, string Name)> professionsFrom = [];
+    void ShowProfessions()
+    {
+        List<(CharacterRow Row, string Name)> from = [.. ownRows.Select(r => (r, "")), .. Friends.Shown.Select(r => (r, r.FriendName))];
+        if (from.SequenceEqual(professionsFrom, ProfessionSource.Instance)) return;
+        professionsFrom = from;
+        Professions.Show(from.Select(f => f.Row), r => r.IsFriend ? (r.FriendName.Length > 0 ? r.FriendName : r.FriendTag) : "");
+    }
+    sealed class ProfessionSource : IEqualityComparer<(CharacterRow Row, string Name)>
+    {
+        public static readonly ProfessionSource Instance = new();
+        public bool Equals((CharacterRow Row, string Name) a, (CharacterRow Row, string Name) b) => ReferenceEquals(a.Row, b.Row) && a.Name == b.Name;
+        public int GetHashCode((CharacterRow Row, string Name) f) => HashCode.Combine(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(f.Row), f.Name);
+    }
     public bool PostFollowed { get => Settings.PostFollowed; set { Settings.PostFollowed = value; InGameChanged(); } }
     public StreamViewModel Stream => main.Stream;
 

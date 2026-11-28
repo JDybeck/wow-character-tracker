@@ -27,7 +27,7 @@ sealed class ProfessionsViewModel : Observable
         set
         {
             if (!Set(ref who, value is "you" or "friends" ? value : "all")) return;
-            Book = null;
+            if (Book is { } open && !Shows(open.Line)) Book = null; // still listed: it stays open
             Group();
         }
     }
@@ -50,18 +50,35 @@ sealed class ProfessionsViewModel : Observable
         allLines = [.. rows.SelectMany(r => ProfessionSkills.Parse(r.Professions).Select(s => ProfessionCharacter.Of(r, s, ownerOf?.Invoke(r) ?? "")))];
         HasBoth = allLines.Any(l => !l.Row.IsFriend) && allLines.Any(l => l.Row.IsFriend);
         Raise(nameof(HasBoth));
-        // A recipe window open on a character that's no longer here closes.
-        if (Book is { } open && !allLines.Any(l => l.Row.Guid == open.Line.Row.Guid && l.Profession == open.Line.Profession)) Book = null;
+        // Only one side left: the switch hides, so the page goes back to everyone's.
+        if (!HasBoth && who != "all") { who = "all"; Raise(nameof(Who)); }
+        // A recipe window follows its character to the new data (keeping the picked recipe), and
+        // closes when the character or profession is gone or no longer shown.
+        if (Book is { } open)
+            Book = allLines.FirstOrDefault(l => l.Row.Guid == open.Line.Row.Guid && l.Profession == open.Line.Profession) is { HasRecipes: true } now && Shows(now)
+                ? new RecipeBook(now, open.Selected?.Info.ItemId) : null;
         Group();
+    }
+
+    bool Shows(ProfessionCharacter l) => Who switch { "you" => !l.Row.IsFriend, "friends" => l.Row.IsFriend, _ => true };
+
+    // Clicking the Professions tab again: everyone's, no recipe window, no search.
+    public void Reset()
+    {
+        Book = null;
+        Query = "";
+        Who = "all";
     }
 
     void Group()
     {
-        lines = [.. allLines.Where(l => Who switch { "you" => !l.Row.IsFriend, "friends" => l.Row.IsFriend, _ => true })];
+        lines = [.. allLines.Where(Shows)];
         var mixed = lines.Any(l => !l.Row.IsFriend) && lines.Any(l => l.Row.IsFriend);
-        Owners = [.. lines.GroupBy(l => l.Owner)
-            .OrderBy(g => g.Key.Length > 0).ThenBy(g => g.Key, Order)
-            .Select(g => new ProfessionOwner(g.Key.Length > 0 || !mixed ? g.Key : "You", Realms(g)))];
+        // Yours first, then each friend by name; grouped by BattleTag, so two friends with the same
+        // nickname stay apart.
+        Owners = [.. lines.GroupBy(l => (l.Row.IsFriend, Key: l.Row.IsFriend && l.Row.FriendTag.Length > 0 ? l.Row.FriendTag : l.Owner))
+            .OrderBy(g => g.Key.IsFriend).ThenBy(g => g.First().Owner, Order).ThenBy(g => g.Key.Key, Order)
+            .Select(g => new ProfessionOwner(g.Key.IsFriend || !mixed ? g.First().Owner : "You", Realms(g)))];
         Raise(nameof(Owners));
         Raise(nameof(IsEmpty));
         Raise(nameof(ShownEmptyText));

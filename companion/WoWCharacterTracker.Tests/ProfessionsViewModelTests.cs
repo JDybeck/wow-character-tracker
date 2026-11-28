@@ -76,11 +76,28 @@ public class ProfessionsViewModelTests
         vm.Who = "you";
         Assert.Equal("Firemaw, Horde: Mining Zeb 150/225", Describe(vm)); // no heading on its own
 
-        vm.Show(mine, r => "");
-        Assert.False(vm.HasBoth);
         vm.Who = "friends";
+        vm.Show(mine, r => ""); // no friends' left: the switch hides, so back to everyone's
+        Assert.False(vm.HasBoth);
+        Assert.Equal("all", vm.Who);
+        Assert.Equal("Firemaw, Horde: Mining Zeb 150/225", Describe(vm));
+
+        vm.Show(theirs, r => r.FriendName);
+        vm.Who = "you";
         Assert.True(vm.IsEmpty);
-        Assert.Equal("none of theirs", vm.ShownEmptyText);
+        Assert.Equal("none of yours", vm.ShownEmptyText);
+    }
+
+    // Two friends with the same nickname keep their own headings (grouped by BattleTag).
+    [Fact]
+    public void Friends_with_the_same_nickname_stay_apart()
+    {
+        var vm = new ProfessionsViewModel();
+        var rows = Rows(Char("Ann", "Firemaw", "Orc", "MAGE", "Tailoring 10/75"), Char("Bob", "Firemaw", "Orc", "ROGUE", "Mining 20/75"));
+        rows[0].FriendTag = "Sam#1111"; rows[1].FriendTag = "Sam#2222";
+        foreach (var r in rows) { r.IsFriend = true; r.FriendName = "Sam"; }
+        vm.Show(rows, r => r.FriendName);
+        Assert.Equal(["Sam", "Sam"], vm.Owners.Select(o => o.Name));
     }
 
     // Recipes show as a count on the character's line; only a line with recipes opens its window,
