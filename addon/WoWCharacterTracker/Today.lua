@@ -88,7 +88,10 @@ end
 
 -- Gathering: the cast says what (by the base spells' names, so any rank and language), the loot
 -- window that follows says which node, so a vein mined three times counts once. Either can come first.
+-- When no gathering cast goes with a node's loot (a client that casts something else for it), the
+-- loot says it: ore or stone from an object is a vein, herbs from one a herb.
 local GATHER_SPELLS = { herbs = 2366, ore = 2575, skins = 8613 }
+local LOOT_KINDS = { [7] = "ore", [9] = "herbs" } -- Trade Goods (7) subclasses: Metal & Stone, Herb
 local gatherNames -- [spell name] = key, filled on first use (the names need the game)
 local castIds = {} -- [spellID] = key or false
 local seenNodes, seenDay = {}, nil
@@ -96,19 +99,29 @@ local pendingCast, pendingLoot -- { key, at } / { source, at }
 
 local spellName = ns.spellName
 
+-- The last gathering casts and loot windows, for /wct gather (kept while logged in).
+local trace = {}
+local function note(line)
+  trace[#trace + 1] = date("%H:%M:%S") .. " " .. line
+  if #trace > 15 then table.remove(trace, 1) end
+end
+function ns.gatherTrace() return trace end
+
 local function gatherKind(spellID)
   local known = castIds[spellID]
   if known ~= nil then return known or nil end
-  if not gatherNames then
-    gatherNames = {}
+  -- Every name, or try again next time: a name the game didn't have yet mustn't stay missing.
+  if not gatherNames or not gatherNames.complete then
+    gatherNames = { complete = true }
     for key, id in pairs(GATHER_SPELLS) do
       local name = spellName(id)
-      if name then gatherNames[name] = key end
+      if name then gatherNames[name] = key else gatherNames.complete = false end
     end
   end
   local name = spellName(spellID)
-  castIds[spellID] = name and gatherNames[name] or false
-  return castIds[spellID] or nil
+  local key = name and gatherNames[name]
+  if key or gatherNames.complete then castIds[spellID] = key or false end
+  return key or nil
 end
 
 local function countNode(key, source)
@@ -116,16 +129,29 @@ local function countNode(key, source)
   if seenDay ~= day then seenNodes, seenDay = {}, day end
   if source then
     local id = key .. source
-    if seenNodes[id] then return end
+    if seenNodes[id] then return note(key .. ": same node again") end
     seenNodes[id] = true
   end
+  note(key .. " counted")
   ns.todayCount(key)
+end
+
+-- What an object's loot says it was: "ore" or "herbs", or nil.
+local function lootKind(source)
+  if type(source) ~= "string" or not source:find("^GameObject%-") or not GetNumLootItems then return nil end
+  for slot = 1, GetNumLootItems() do
+    local link = GetLootSlotLink and ns.plain(GetLootSlotLink(slot))
+    local classID, subclassID = ns.itemClass(link)
+    if classID == 7 and LOOT_KINDS[subclassID] then return LOOT_KINDS[subclassID] end
+  end
+  return nil
 end
 
 function ns.onSpellcast(unit, _, spellID)
   if unit ~= "player" or not ns.plain(spellID) then return end
   local key = gatherKind(spellID)
   if not key then return end
+  note("cast " .. tostring(spellID) .. " " .. tostring(spellName(spellID)) .. ": " .. key)
   local now = GetTime()
   if pendingLoot and now - pendingLoot.at < 1 then
     countNode(key, pendingLoot.source)
@@ -139,9 +165,13 @@ function ns.onLootOpened()
   local now = GetTime()
   if IsFishingLoot and IsFishingLoot() then return ns.todayCount("fish") end
   local source = GetLootSourceInfo and ns.plain((GetLootSourceInfo(1))) or nil
+  local kind = lootKind(source)
+  note("loot " .. tostring(source and source:match("^[^-]+") or "?") .. (kind and (": " .. kind) or ""))
   if pendingCast and now - pendingCast.at < 5 then
     countNode(pendingCast.key, source)
     pendingCast = nil
+  elseif kind then
+    countNode(kind, source) -- the same node's cast, if one follows, finds it counted
   else
     pendingLoot = { source = source, at = now }
   end

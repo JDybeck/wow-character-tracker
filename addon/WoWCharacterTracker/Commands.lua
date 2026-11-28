@@ -166,6 +166,11 @@ SlashCmdList["CHARACTERTRACKER"] = function(msg)
     guildTest(msg == "guildtest now")
   elseif msg == "debug" then
     saveDebug()
+  elseif msg == "gather" then
+    -- The last gathering casts and loot windows, to see why a node did or didn't count.
+    local lines = ns.gatherTrace()
+    if #lines == 0 then ns.say("No gathering seen since you logged in.") end
+    for _, line in ipairs(lines) do ns.say(line) end
   elseif msg == "layer" then
     ns.say(ns.layerStatus())
   elseif msg == "testpin" then
