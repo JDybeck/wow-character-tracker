@@ -5,7 +5,7 @@
              xmlns:ui="clr-namespace:WoWCharacterTracker.Ui"
              xmlns:vm="clr-namespace:WoWCharacterTracker.ViewModels"
              xmlns:infra="clr-namespace:WoWCharacterTracker.Infrastructure"
-        Title="Character Tracker" Icon="Assets/app.ico" Width="1320" Height="900" MinWidth="1100" MinHeight="680"
+        Title="Character Tracker" Icon="Assets/app.ico" Width="1320" Height="900" MinWidth="1140" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Bg}" FontFamily="Segoe UI Variable Text, Segoe UI"
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True"
@@ -43,9 +43,17 @@
                   Command="{Binding ShowPageCommand}" CommandParameter="home">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE80F;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Home"/></StackPanel>
           </Button>
-          <Button x:Name="CharacterTabs" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters|items|professions|followed}"
-                  Command="{Binding ShowPageCommand}" CommandParameter="characters">
+          <Button x:Name="CharacterTabs" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="characters" ToolTip="Your characters, click one for its details">
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Characters"/></StackPanel>
+          </Button>
+          <Button x:Name="ItemsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items|followed}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="items" ToolTip="Everything your characters carry, wear and keep in the bank, and your wish list">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7B8;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Items"/></StackPanel>
+          </Button>
+          <Button x:Name="ProfessionsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
+                  Command="{Binding ShowPageCommand}" CommandParameter="professions" ToolTip="Who can craft what">
+            <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE90F;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Professions"/></StackPanel>
           </Button>
           <Button x:Name="FriendsTab" Style="{StaticResource PageTab}" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=friends}"
                   Command="{Binding ShowPageCommand}" CommandParameter="friends">
@@ -60,16 +68,12 @@
             <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE724;" FontSize="13" Margin="0,0,8,0"/><TextBlock Text="Sharing"/></StackPanel>
           </Button>
         </StackPanel>
-        <!-- The Characters tab's views: the list, everything they carry, who crafts what, the wish list. -->
-        <Border x:Name="CharacterViews" Style="{StaticResource SegmentBox}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=characters|items|professions|followed}">
+        <!-- The Items tab's views: everything they carry, or the wish list. -->
+        <Border x:Name="ItemViews" Style="{StaticResource SegmentBox}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                Visibility="{Binding Page, Converter={StaticResource PageIs}, ConverterParameter=items|followed}">
           <StackPanel Orientation="Horizontal">
-            <Button Style="{StaticResource SegmentButton}" Content="List" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=characters}"
-                    Command="{Binding ShowPageCommand}" CommandParameter="characters" ToolTip="Your characters, click one for its details"/>
-            <Button Style="{StaticResource SegmentButton}" Content="Items" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items}"
+            <Button Style="{StaticResource SegmentButton}" Content="All items" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=items}"
                     Command="{Binding ShowPageCommand}" CommandParameter="items" ToolTip="Everything your characters carry, wear and keep in the bank"/>
-            <Button Style="{StaticResource SegmentButton}" Content="Professions" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=professions}"
-                    Command="{Binding ShowPageCommand}" CommandParameter="professions" ToolTip="Who can craft what"/>
             <Button x:Name="FollowedTab" Style="{StaticResource SegmentButton}" Content="Followed" Tag="{Binding Page, Converter={StaticResource ActiveIf}, ConverterParameter=followed}"
                     Command="{Binding ShowPageCommand}" CommandParameter="followed" ToolTip="Your wish list: items to watch for"/>
           </StackPanel>
@@ -129,10 +133,10 @@
               <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="1" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=items}">
                 <ui:LazyPage.Page><DataTemplate><views:ItemsPage/></DataTemplate></ui:LazyPage.Page>
               </ui:LazyPage>
-              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}">
+              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="4" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=professions}">
                 <ui:LazyPage.Page><DataTemplate><views:ProfessionsPage/></DataTemplate></ui:LazyPage.Page>
               </ui:LazyPage>
-              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="5" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=followed}">
+              <ui:LazyPage ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="2" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=followed}">
                 <ui:LazyPage.Page><DataTemplate><views:FollowedItemsPage/></DataTemplate></ui:LazyPage.Page>
               </ui:LazyPage>
               <ui:LazyPage Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=friends}">
@@ -168,7 +172,7 @@
         </ControlTemplate>
       </Button.Template>
     </Button>
-    <TextBlock Text="·" FontSize="11" Foreground="{StaticResource Faint}" Margin="6,0"/>
+    <TextBlock Text="·" FontSize="11" Foreground="{StaticResource Dim}" Margin="6,0"/>
     <Button Cursor="Hand" ToolTip="Like the app? Tips are welcome on Ko-fi (ko-fi.com/jdybeck)" Command="{Binding OpenUrlCommand}" CommandParameter="https://ko-fi.com/jdybeck">
       <Button.Template>
         <ControlTemplate TargetType="Button">

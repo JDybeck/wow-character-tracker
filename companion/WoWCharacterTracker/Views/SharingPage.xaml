@@ -21,7 +21,7 @@
     </Style>
     <Style x:Key="Dash" TargetType="TextBlock">
       <Setter Property="Text" Value="–"/>
-      <Setter Property="Foreground" Value="{StaticResource Faint}"/>
+      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
       <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -49,13 +49,27 @@
         </Setter.Value>
       </Setter>
     </Style>
-    <!-- A place: its name, one line and a switch. -->
-    <Style x:Key="PlaceSwitch" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
-      <Setter Property="VerticalAlignment" Value="Center"/>
+    <!-- A place's state, read only: the switches are on the rail at the right edge, so there's one
+         place to turn each on or off. Tag is whether it's on. -->
+    <Style x:Key="PlaceState" TargetType="TextBlock">
+      <Setter Property="DockPanel.Dock" Value="Right"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Margin" Value="8,1,0,0"/>
+      <Setter Property="Text" Value="Off"/>
+      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="ToolTip" Value="Turn it on or off on the rail at the right edge"/>
+      <Style.Triggers>
+        <Trigger Property="Tag" Value="True">
+          <Setter Property="Text" Value="On"/>
+          <Setter Property="Foreground" Value="{StaticResource Green}"/>
+        </Trigger>
+      </Style.Triggers>
     </Style>
   </UserControl.Resources>
 
-  <Border x:Name="PageRoot" Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="3" DataContext="{Binding SelectedFlavor}"
+  <Border x:Name="PageRoot" Style="{StaticResource CardBorder}" ui:Motion.SlideGroup="page" ui:Motion.SlideIndex="9" DataContext="{Binding SelectedFlavor}"
           Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageIs}, ConverterParameter=sharing}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="26,22">
@@ -70,9 +84,7 @@
         <UniformGrid Columns="{Binding PlaceColumns}" Margin="-5,0,-5,0">
           <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
             <DockPanel>
-              <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding DiscordOn}"
-                        ToolTip="Off pauses this game's posts. Your webhooks stay, and what happens meanwhile isn't posted later."
-                        AutomationProperties.Name="Post to Discord"/>
+              <TextBlock Style="{StaticResource PlaceState}" Tag="{Binding DiscordOn}" AutomationProperties.Name="Discord posts"/>
               <StackPanel>
                 <TextBlock Style="{StaticResource OptionTitle}" Text="Discord"/>
                 <TextBlock Style="{StaticResource Hint}" Text="Posts through your webhooks"/>
@@ -83,8 +95,7 @@
           </Border>
           <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12" Visibility="{Binding ShowGuildChat, Converter={StaticResource Visible}}">
             <DockPanel>
-              <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding AnnounceGuild}"
-                        ToolTip="Write in guild chat (when you're in a guild)" AutomationProperties.Name="Guild chat"/>
+              <TextBlock Style="{StaticResource PlaceState}" Tag="{Binding AnnounceGuild}" AutomationProperties.Name="Guild chat"/>
               <StackPanel>
                 <TextBlock Style="{StaticResource OptionTitle}" Text="Guild chat"/>
                 <TextBlock Style="{StaticResource Hint}" Text="A line as you, out of combat"/>
@@ -93,8 +104,7 @@
           </Border>
           <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
             <DockPanel>
-              <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding AnnounceParty}"
-                        ToolTip="Write to your group: party, raid or instance chat" AutomationProperties.Name="Party and raid chat"/>
+              <TextBlock Style="{StaticResource PlaceState}" Tag="{Binding AnnounceParty}" AutomationProperties.Name="Party and raid chat"/>
               <StackPanel>
                 <TextBlock Style="{StaticResource OptionTitle}" Text="Party / raid chat"/>
                 <TextBlock Style="{StaticResource Hint}" Text="Your group, out of combat"/>
@@ -103,8 +113,8 @@
           </Border>
           <Border Style="{StaticResource PanelBorder}" Margin="5,0" Padding="16,12">
             <DockPanel>
-              <CheckBox DockPanel.Dock="Right" Style="{StaticResource PlaceSwitch}" IsChecked="{Binding DataContext.Stream.Enabled, RelativeSource={RelativeSource AncestorType=Window}}"
-                        ToolTip="On: a page only your PC can open, for OBS or Streamlabs. Shared by both games." AutomationProperties.Name="Stream overlay"/>
+              <TextBlock Style="{StaticResource PlaceState}" Tag="{Binding DataContext.Stream.Enabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                         AutomationProperties.Name="Stream overlay"/>
               <StackPanel>
                 <TextBlock Style="{StaticResource OptionTitle}" Text="Stream overlay"/>
                 <TextBlock Style="{StaticResource Hint}" Text="OBS or Streamlabs, both games"/>
@@ -119,7 +129,7 @@
                             Visibility="{Binding DataContext.DiscordOpen, ElementName=PageRoot, Converter={StaticResource Visible}}"/>
         <views:StreamPanel x:Name="StreamView" Margin="0,10,0,0" DataContext="{Binding DataContext.Stream, RelativeSource={RelativeSource AncestorType=Window}}"
                            Visibility="{Binding DataContext.StreamOpen, ElementName=PageRoot, Converter={StaticResource Visible}}"/>
-        <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" Text="Chat changes reach the game on your next /reload."/>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" Text="Turn each place on or off with the switches on the right edge. Chat changes reach the game on your next /reload."/>
 
         <!-- How much: the presets. -->
         <TextBlock Style="{StaticResource Group}" Text="How much gets shared"/>

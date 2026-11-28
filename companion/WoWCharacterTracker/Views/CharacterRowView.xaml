@@ -51,12 +51,12 @@
                       </DockPanel>
                       <Border Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
                               Background="#33F87171" Visibility="{Binding Tag, Converter={StaticResource VisibleIfSet}}">
-                        <TextBlock Text="{Binding Tag}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Red}"/>
+                        <TextBlock Text="{Binding Tag}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Red}"/>
                       </Border>
                       <!-- Your main, or a friend's (picked on its Overview, by you or by them). -->
                       <Border Padding="6,1" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,8,0" Background="#33FACC15"
                               ToolTip="{Binding MainTagTip}" Visibility="{Binding ShowsMainTag, Converter={StaticResource Visible}}">
-                        <TextBlock Text="MAIN" FontSize="9" FontWeight="Bold" Foreground="#FACC15"/>
+                        <TextBlock Text="MAIN" FontSize="11" FontWeight="Bold" Foreground="#FACC15"/>
                       </Border>
                       <!-- A friend's character (Friends page): whose it is. -->
                       <DockPanel Visibility="{Binding IsFriend, Converter={StaticResource Visible}}">
@@ -84,7 +84,7 @@
                   <Border Style="{StaticResource Pill}">
                     <TextBlock Text="{Binding Level}" FontFamily="{StaticResource Mono}" FontSize="13" Foreground="{StaticResource TextSoft}"/>
                   </Border>
-                  <TextBlock Text="{Binding LevelPercentText}" Foreground="{StaticResource Dim}" FontSize="10" Margin="0,2,0,0" HorizontalAlignment="Center"
+                  <TextBlock Text="{Binding LevelPercentText}" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Center"
                              Visibility="{Binding LevelPercentText, Converter={StaticResource VisibleIfSet}}"/>
                 </StackPanel>
 
@@ -104,7 +104,7 @@
                 </Grid>
                 <StackPanel Grid.Column="5" VerticalAlignment="Center">
                   <TextBlock Text="{Binding LastSeenText}" Foreground="{StaticResource Muted}" FontSize="13"/>
-                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Dim}" FontSize="10" Margin="0,2,0,0"
+                  <TextBlock Text="{Binding PlayedLine}" Foreground="{StaticResource Dim}" FontSize="11" Margin="0,2,0,0"
                              Visibility="{Binding PlayedLine, Converter={StaticResource VisibleIfSet}}"/>
                 </StackPanel>
               </Grid>

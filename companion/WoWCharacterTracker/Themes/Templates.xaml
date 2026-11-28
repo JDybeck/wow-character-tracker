@@ -260,7 +260,7 @@
   <GridLength x:Key="ColLevel">58</GridLength>
   <GridLength x:Key="ColIlvl">74</GridLength>
   <GridLength x:Key="ColGold">88</GridLength>
-  <GridLength x:Key="ColSeen">115</GridLength> <!-- room for "1234d 23h 59m played" under last seen -->
+  <GridLength x:Key="ColSeen">125</GridLength> <!-- room for "1234d 23h 59m played" under last seen -->
 
   <Style x:Key="CharacterItem" TargetType="ListBoxItem">
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -311,7 +311,7 @@
           <Border x:Name="Bd" Padding="10,2,16,2" CornerRadius="7" Margin="3" Background="Transparent">
             <StackPanel Orientation="Horizontal">
               <!-- The game's logo (loaded at runtime), dimmed until the tab is picked. -->
-              <Image x:Name="Logo" Source="{Binding Logo}" Height="40" Margin="0,0,8,0" Opacity="0.55"
+              <Image x:Name="Logo" Source="{Binding Logo}" Height="30" Margin="0,0,8,0" Opacity="0.55"
                      RenderOptions.BitmapScalingMode="HighQuality"
                      Visibility="{Binding HasLogo, Converter={StaticResource BoolVis}}"/>
               <TextBlock x:Name="Txt" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
@@ -322,9 +322,10 @@
               <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource Text}"/>
               <Setter TargetName="Logo" Property="Opacity" Value="0.85"/>
             </Trigger>
+            <!-- The picked game: a soft tint and the accent's text, quieter than the open page's tab. -->
             <Trigger Property="IsSelected" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Blue}"/>
-              <Setter TargetName="Txt" Property="Foreground" Value="White"/>
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BlueSoft}"/>
+              <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource BlueTextBright}"/>
               <Setter TargetName="Logo" Property="Opacity" Value="1"/>
             </Trigger>
           </ControlTemplate.Triggers>
@@ -407,7 +408,7 @@
         <!-- A box with the page's icon and name; the open page (Tag "active") is filled in the tab's theme. -->
         <ControlTemplate TargetType="Button">
           <Border x:Name="Bd" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
-                  CornerRadius="9" Padding="14,8" Margin="0,0,8,0">
+                  CornerRadius="9" Padding="12,8" Margin="0,0,6,0">
             <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="13.5" TextElement.FontWeight="SemiBold"/>
           </Border>
           <ControlTemplate.Triggers>
@@ -415,9 +416,10 @@
               <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLineSoft}"/>
               <Setter Property="Foreground" Value="{StaticResource Text}"/>
             </Trigger>
+            <!-- The open page: filled with the tab's accent, the strongest thing in the top bar. -->
             <Trigger Property="Tag" Value="active">
-              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource IndigoSoft}"/>
-              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource IndigoLine}"/>
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Blue}"/>
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BlueLine}"/>
               <Setter Property="Foreground" Value="White"/>
             </Trigger>
           </ControlTemplate.Triggers>
@@ -539,8 +541,8 @@
         <ControlTemplate TargetType="Button">
           <Border x:Name="Bd" CornerRadius="12" Padding="10,3" Margin="0,0,6,6" BorderThickness="1" BorderBrush="#334155" Background="Transparent">
             <StackPanel Orientation="Horizontal">
-              <TextBlock x:Name="Ico" Text="&#xE724;" FontFamily="{StaticResource Icons}" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
-              <ContentPresenter x:Name="Txt" TextElement.Foreground="#94A3B8" TextElement.FontSize="11" VerticalAlignment="Center"/>
+              <TextBlock x:Name="Ico" Text="&#xE724;" FontFamily="{StaticResource Icons}" FontSize="10" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+              <ContentPresenter x:Name="Txt" TextElement.Foreground="{StaticResource Muted}" TextElement.FontSize="11" VerticalAlignment="Center"/>
             </StackPanel>
           </Border>
           <ControlTemplate.Triggers>

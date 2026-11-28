@@ -63,12 +63,12 @@
     </Grid.ColumnDefinitions>
 
     <DockPanel>
-      <Image DockPanel.Dock="Left" Source="/Assets/wordmark.png" Height="58" Margin="0,0,14,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-      <StackPanel VerticalAlignment="Center">
-        <TextBlock Text="Character Tracker" FontSize="26" FontWeight="Bold" Foreground="White"/>
+      <Image DockPanel.Dock="Left" Source="/Assets/wordmark.png" Height="40" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+      <!-- One line: the name, then the status, version and update button after it. -->
+      <TextBlock DockPanel.Dock="Left" Text="Character Tracker" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
         <!-- Docked so the status (last, it fills) gives way first; left aligned so the version
              and update button sit right after it while there's room. -->
-        <DockPanel Margin="0,2,0,0" HorizontalAlignment="Left">
+        <DockPanel Margin="14,3,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
           <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE823;" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,0,6,0"/>
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
             <!-- The version and whether it's the newest; a click checks now. -->
@@ -89,7 +89,6 @@
           <TextBlock Text="{Binding SelectedFlavor.StatusText}" Foreground="{StaticResource Muted}" FontSize="13"
                      MaxWidth="240" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedFlavor.StatusText}"/>
         </DockPanel>
-      </StackPanel>
     </DockPanel>
 
     <Border x:Name="GameTabs" Grid.Column="1" Background="{DynamicResource CardHeader}" BorderBrush="{DynamicResource Line}" BorderThickness="1"

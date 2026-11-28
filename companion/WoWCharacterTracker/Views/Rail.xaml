@@ -19,7 +19,7 @@
               <StackPanel HorizontalAlignment="Center">
                 <ContentPresenter HorizontalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
                 <!-- Tag says the state: "on", "off" or "warn" (needs setting up). None: no state line. -->
-                <TextBlock x:Name="State" FontSize="9.5" HorizontalAlignment="Center" Margin="0,1,0,0" Foreground="{StaticResource Faint}" Visibility="Collapsed"/>
+                <TextBlock x:Name="State" FontSize="11" HorizontalAlignment="Center" Margin="0,1,0,0" Foreground="{StaticResource Dim}" Visibility="Collapsed"/>
               </StackPanel>
             </Border>
             <ControlTemplate.Triggers>
@@ -30,7 +30,7 @@
               <Trigger Property="Tag" Value="off">
                 <Setter TargetName="State" Property="Visibility" Value="Visible"/>
                 <Setter TargetName="State" Property="Text" Value="off"/>
-                <Setter Property="Foreground" Value="{StaticResource Faint}"/>
+                <Setter Property="Foreground" Value="{StaticResource Dim}"/>
               </Trigger>
               <Trigger Property="Tag" Value="on">
                 <Setter TargetName="State" Property="Visibility" Value="Visible"/>
@@ -63,7 +63,7 @@
       <Setter Property="HorizontalAlignment" Value="Center"/>
     </Style>
     <Style x:Key="Name" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="10.5"/>
+      <Setter Property="FontSize" Value="11"/>
       <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="Margin" Value="0,3,0,0"/>
     </Style>
@@ -100,7 +100,7 @@
       </StackPanel>
 
       <StackPanel HorizontalAlignment="Center" DataContext="{Binding SelectedFlavor}">
-        <TextBlock Text="SHARE TO" FontSize="9.5" FontWeight="SemiBold" Foreground="{StaticResource Dim}" HorizontalAlignment="Center" Margin="0,0,0,8"
+        <TextBlock Text="SHARE TO" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Dim}" HorizontalAlignment="Center" Margin="0,0,0,8"
                    ToolTip="Where your moments go. Click to turn one on or off; set them up on Sharing."/>
         <ToggleButton IsChecked="{Binding DiscordOn}" AutomationProperties.Name="Discord posts">
           <ToggleButton.ToolTip>
